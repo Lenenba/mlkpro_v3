@@ -102,7 +102,8 @@
       "cancel": "Annuler",
       "save": "Enregistrer",
       "create_request": "Creer prospect",
-      "convert_to_quote": "Convertir en devis"
+      "convert_to_quote": "Convertir en devis",
+      "convert_to_customer": "Convertir en client"
     },
     "view": {
       "table": "Table",
@@ -179,7 +180,57 @@
       "create_error": "Impossible de creer le prospect.",
       "import_error": "Impossible d'importer les prospects.",
       "convert_error": "Impossible de convertir le prospect.",
+      "convert_customer_error": "Impossible de convertir le prospect en client.",
       "public_submit_error": "Impossible d'envoyer la demande."
+    },
+    "customer_conversion": {
+      "title": "Conversion prospect vers client",
+      "subtitle": "Choisissez comment rattacher ce prospect au CRM client.",
+      "description": "Vous pouvez lier un client existant ou creer un nouveau client a partir des informations du prospect.",
+      "modes": {
+        "link_existing": "Lier un client existant",
+        "create_new": "Creer un nouveau client"
+      },
+      "mode_hints": {
+        "link_existing": "Ideal quand un doublon ou un client connu existe deja.",
+        "create_new": "Cree une fiche client complete et rattache le prospect converti."
+      },
+      "matches_title": "Doublons clients potentiels",
+      "matches_hint": "Ces fiches ressemblent deja a ce prospect. Vous pouvez les lier directement.",
+      "match_score": "Score {score}",
+      "selected_badge": "Selectionne",
+      "select_existing": "Lier ce client",
+      "search_label": "Rechercher un client existant",
+      "search_placeholder": "Nom, entreprise, email ou telephone",
+      "search_loading": "Recherche de clients en cours...",
+      "search_empty": "Aucun client trouve pour cette recherche.",
+      "search_error": "Impossible de charger les clients existants.",
+      "fields": {
+        "contact_name": "Nom du contact",
+        "company_name": "Entreprise",
+        "contact_email": "Email",
+        "contact_phone": "Telephone",
+        "street1": "Adresse",
+        "street2": "Complement d'adresse",
+        "city": "Ville",
+        "state": "Province / Etat",
+        "postal_code": "Code postal",
+        "country": "Pays"
+      },
+      "preview_title": "Resume de conversion",
+      "preview": {
+        "customer": "Client final",
+        "status_after": "Statut apres conversion",
+        "contact": "Contact",
+        "email": "Email",
+        "phone": "Telephone",
+        "address": "Adresse",
+        "quote": "Devis rattache"
+      },
+      "preview_value_missing": "A completer",
+      "no_quote": "Aucun devis rattache",
+      "submit_link": "Lier le client",
+      "submit_create": "Creer et convertir"
     },
     "intake": {
       "title": "Entrees prospects",

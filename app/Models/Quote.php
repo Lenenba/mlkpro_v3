@@ -221,18 +221,12 @@ class Quote extends Model
 
     public function syncRequestStatusFromQuote(): void
     {
-        $request = $this->request;
+        $request = $this->request ?: $this->prospect;
         if (! $request) {
             return;
         }
 
-        $statusMap = [
-            'sent' => LeadRequest::STATUS_QUOTE_SENT,
-            'accepted' => LeadRequest::STATUS_WON,
-            'declined' => LeadRequest::STATUS_LOST,
-        ];
-
-        $targetStatus = $statusMap[$this->status] ?? null;
+        $targetStatus = LeadRequest::statusForQuoteStatus($this->status);
         if (! $targetStatus || $request->status === $targetStatus) {
             return;
         }

@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Quotes;
 
+use App\Models\Quote;
+
 class UpdateQuoteRequest extends QuoteWriteRequest
 {
     public function authorize(): bool
@@ -11,6 +13,11 @@ class UpdateQuoteRequest extends QuoteWriteRequest
 
     public function rules(): array
     {
-        return $this->quoteRules();
+        $quote = $this->route('quote');
+        $allowsCustomerlessQuote = $quote instanceof Quote
+            && ! $quote->customer_id
+            && ($quote->prospect_id || $quote->request_id);
+
+        return $this->quoteRules(requireCustomer: ! $allowsCustomerlessQuote);
     }
 }

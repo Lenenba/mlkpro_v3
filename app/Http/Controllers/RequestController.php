@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Actions\Leads\AnonymizeLeadRequestAction;
 use App\Actions\Leads\ConvertLeadRequestToQuoteAction;
 use App\Http\Requests\Leads\BulkUpdateLeadRequest;
+use App\Http\Requests\Leads\ConvertLeadToCustomerRequest;
 use App\Http\Requests\Leads\ConvertLeadToQuoteRequest;
 use App\Http\Requests\Leads\ImportLeadRequestsRequest;
 use App\Http\Requests\Leads\MergeLeadRequest;
@@ -19,6 +20,7 @@ use App\Models\TeamMember;
 use App\Queries\Requests\BuildRequestAnalyticsData;
 use App\Queries\Requests\BuildRequestInboxIndexData;
 use App\Services\Campaigns\CampaignLeadAttributionService;
+use App\Services\Prospects\ProspectConversionService;
 use App\Services\Prospects\ProspectDuplicateAlertService;
 use App\Services\Prospects\ProspectDuplicateDetectionService;
 use App\Services\Prospects\ProspectMergeService;
@@ -198,6 +200,7 @@ class RequestController extends Controller
         $duplicates = app(ProspectDuplicateDetectionService::class)->forLead($lead);
 
         $campaignOrigin = app(CampaignLeadAttributionService::class)->campaignOriginForLead($lead, $user);
+        $customerConversion = $this->buildCustomerConversionPayload($lead, $accountId);
 
         return $this->inertiaOrJson('Request/Show', [
             'lead' => $lead,
@@ -206,6 +209,7 @@ class RequestController extends Controller
             'assignees' => $assignees,
             'duplicates' => $duplicates,
             'campaignOrigin' => $campaignOrigin,
+            'customerConversion' => $customerConversion,
             'canLogSalesActivity' => true,
             'salesActivityQuickActions' => array_values(SalesActivityTaxonomy::quickActions()),
             'salesActivityManualActions' => SalesActivityTaxonomy::manualActionDefinitions(),
@@ -570,6 +574,54 @@ class RequestController extends Controller
         }
 
         return redirect()->route('customer.quote.edit', $quote)->with('success', 'Prospect converted to quote.');
+    }
+
+    /**
+     * Convert a prospect into a customer by linking an existing customer or creating a new one.
+     */
+    public function convertToCustomer(
+        ConvertLeadToCustomerRequest $request,
+        LeadRequest $lead,
+        ProspectConversionService $convertProspect
+    )
+    {
+        $user = $request->user();
+        if (! $user) {
+            abort(403);
+        }
+
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+
+        if ($lead->user_id !== $accountId) {
+            abort(403);
+        }
+
+        $this->ensureLeadIsMutable(
+            $lead,
+            'lead',
+            'Archived prospects must be restored before they can be converted to customers.'
+        );
+
+        $validated = $request->validated();
+        $matches = $this->detectPotentialCustomerMatches($lead, $accountId);
+        $matchedCustomerIds = collect($matches)->pluck('id')->values()->all();
+        $result = $convertProspect->execute($lead, $validated, $user, [
+            'matched_customer_ids' => $matchedCustomerIds,
+        ]);
+        $customer = $result['customer'];
+        $lead = $result['lead'];
+        $quoteIds = $result['quote_ids'];
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Prospect converted to customer.',
+                'customer' => $customer,
+                'request' => $lead,
+                'quote_ids' => $quoteIds,
+            ]);
+        }
+
+        return redirect()->route('prospects.show', $lead)->with('success', 'Prospect converted to customer.');
     }
 
     public function update(UpdateLeadRequest $request, LeadRequest $lead)
@@ -1025,6 +1077,285 @@ class RequestController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * @return array{
+     *     can_convert:bool,
+     *     default_mode:string,
+     *     matches:array<int, array<string, mixed>>,
+     *     preview:array<string, mixed>,
+     *     submit_url:string
+     * }
+     */
+    private function buildCustomerConversionPayload(LeadRequest $lead, int $accountId): array
+    {
+        $matches = $this->detectPotentialCustomerMatches($lead, $accountId);
+
+        return [
+            'can_convert' => ! $lead->isArchived() && ! $lead->customer_id,
+            'default_mode' => count($matches) > 0 ? 'link_existing' : 'create_new',
+            'matches' => $matches,
+            'preview' => [
+                'contact_name' => $lead->contact_name,
+                'contact_email' => $lead->contact_email,
+                'contact_phone' => $lead->contact_phone,
+                'company_name' => $lead->companyName(),
+                'street1' => $lead->street1,
+                'street2' => $lead->street2,
+                'city' => $lead->city,
+                'state' => $lead->state,
+                'postal_code' => $lead->postal_code,
+                'country' => $lead->country,
+                'quote' => $lead->quote
+                    ? [
+                        'id' => $lead->quote->id,
+                        'number' => $lead->quote->number,
+                        'status' => $lead->quote->status,
+                    ]
+                    : null,
+            ],
+            'submit_url' => route('prospects.convert-customer', $lead),
+        ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function detectPotentialCustomerMatches(LeadRequest $lead, int $accountId): array
+    {
+        $normalizedEmail = $this->normalizeEmail($lead->contact_email);
+        $normalizedPhone = $this->normalizePhone($lead->contact_phone);
+        $normalizedContactName = $this->normalizeText($lead->contact_name);
+        $normalizedCompanyName = $this->normalizeText($lead->companyName());
+        $normalizedStreet = $this->normalizeText(implode(' ', array_filter([$lead->street1, $lead->street2])));
+        $normalizedCity = $this->normalizeText($lead->city);
+        $normalizedPostalCode = $this->normalizeText($lead->postal_code);
+
+        if (
+            ! $normalizedEmail
+            && ! $normalizedPhone
+            && ! $normalizedContactName
+            && ! $normalizedCompanyName
+            && ! $normalizedStreet
+            && ! $normalizedCity
+            && ! $normalizedPostalCode
+        ) {
+            return [];
+        }
+
+        $nameTokens = array_values(array_filter(preg_split('/\s+/', (string) $normalizedContactName) ?: []));
+        $phoneTail = $normalizedPhone ? substr($normalizedPhone, -7) : null;
+
+        $customers = Customer::query()
+            ->where('user_id', $accountId)
+            ->with(['defaultProperty:id,customer_id,street1,street2,city,state,zip,country,is_default'])
+            ->where(function ($query) use ($nameTokens, $normalizedCity, $normalizedCompanyName, $normalizedEmail, $normalizedPostalCode, $normalizedStreet, $phoneTail) {
+                if ($normalizedEmail) {
+                    $query->orWhereRaw('LOWER(email) = ?', [$normalizedEmail]);
+                }
+
+                if ($phoneTail) {
+                    $query->orWhere('phone', 'like', '%'.$phoneTail.'%');
+                }
+
+                if ($normalizedCompanyName) {
+                    $companySearch = str_replace(' ', '%', $normalizedCompanyName);
+                    $query->orWhere('company_name', 'like', '%'.$companySearch.'%');
+                }
+
+                if ($nameTokens !== []) {
+                    $query->orWhere(function ($nameQuery) use ($nameTokens) {
+                        foreach ($nameTokens as $token) {
+                            $nameQuery->where(function ($nested) use ($token) {
+                                $nested->where('first_name', 'like', '%'.$token.'%')
+                                    ->orWhere('last_name', 'like', '%'.$token.'%');
+                            });
+                        }
+                    });
+                }
+
+                if ($normalizedStreet || $normalizedCity || $normalizedPostalCode) {
+                    $query->orWhereHas('defaultProperty', function ($propertyQuery) use ($normalizedCity, $normalizedPostalCode, $normalizedStreet) {
+                        if ($normalizedStreet) {
+                            $streetSearch = str_replace(' ', '%', $normalizedStreet);
+                            $propertyQuery->where(function ($nested) use ($streetSearch) {
+                                $nested->where('street1', 'like', '%'.$streetSearch.'%')
+                                    ->orWhere('street2', 'like', '%'.$streetSearch.'%');
+                            });
+                        }
+
+                        if ($normalizedCity) {
+                            $propertyQuery->orWhere('city', 'like', '%'.$normalizedCity.'%');
+                        }
+
+                        if ($normalizedPostalCode) {
+                            $propertyQuery->orWhere('zip', 'like', '%'.$normalizedPostalCode.'%');
+                        }
+                    });
+                }
+            })
+            ->limit(12)
+            ->get([
+                'id',
+                'user_id',
+                'number',
+                'company_name',
+                'first_name',
+                'last_name',
+                'email',
+                'phone',
+            ]);
+
+        return $customers
+            ->map(function (Customer $customer) use ($lead) {
+                $match = $this->buildCustomerMatchPayload($lead, $customer);
+
+                return $match ? $match : null;
+            })
+            ->filter()
+            ->sortByDesc('score')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function buildCustomerMatchPayload(LeadRequest $lead, Customer $customer): ?array
+    {
+        $score = 0;
+        $reasons = [];
+
+        $leadEmail = $this->normalizeEmail($lead->contact_email);
+        $leadPhone = $this->normalizePhone($lead->contact_phone);
+        $leadContactName = $this->normalizeText($lead->contact_name);
+        $leadCompanyName = $this->normalizeText($lead->companyName());
+        $leadStreet = $this->normalizeText(implode(' ', array_filter([$lead->street1, $lead->street2])));
+        $leadCity = $this->normalizeText($lead->city);
+        $leadPostalCode = $this->normalizeText($lead->postal_code);
+
+        $customerEmail = $this->normalizeEmail($customer->email);
+        $customerPhone = $this->normalizePhone($customer->phone);
+        $customerFullName = $this->normalizeText(trim($customer->first_name.' '.$customer->last_name));
+        $customerCompanyName = $this->normalizeText($customer->company_name);
+        $property = $customer->defaultProperty;
+        $customerStreet = $this->normalizeText(implode(' ', array_filter([$property?->street1, $property?->street2])));
+        $customerCity = $this->normalizeText($property?->city);
+        $customerPostalCode = $this->normalizeText($property?->zip);
+
+        if ($leadEmail && $customerEmail && $leadEmail === $customerEmail) {
+            $score += 100;
+            $reasons[] = $this->conversionMatchReason('email_exact', 'Email exact', 100);
+        }
+
+        if ($leadPhone && $customerPhone && $leadPhone === $customerPhone) {
+            $score += 90;
+            $reasons[] = $this->conversionMatchReason('phone_exact', 'Telephone exact', 90);
+        }
+
+        if ($leadCompanyName && $customerCompanyName && $leadCompanyName === $customerCompanyName) {
+            $score += 70;
+            $reasons[] = $this->conversionMatchReason('company_exact', 'Entreprise exacte', 70);
+        }
+
+        if ($leadContactName && $customerFullName && $leadContactName === $customerFullName) {
+            $score += 60;
+            $reasons[] = $this->conversionMatchReason('name_exact', 'Contact exact', 60);
+        }
+
+        if ($leadStreet && $customerStreet && $leadStreet === $customerStreet) {
+            $score += 35;
+            $reasons[] = $this->conversionMatchReason('street_exact', 'Adresse exacte', 35);
+        }
+
+        if ($leadPostalCode && $customerPostalCode && $leadPostalCode === $customerPostalCode) {
+            $score += 25;
+            $reasons[] = $this->conversionMatchReason('postal_exact', 'Code postal exact', 25);
+        }
+
+        if ($leadCity && $customerCity && $leadCity === $customerCity) {
+            $score += 20;
+            $reasons[] = $this->conversionMatchReason('city_exact', 'Ville exacte', 20);
+        }
+
+        if ($score === 0) {
+            return null;
+        }
+
+        return [
+            'id' => $customer->id,
+            'number' => $customer->number,
+            'display_name' => $this->displayCustomerName($customer),
+            'company_name' => $customer->company_name,
+            'first_name' => $customer->first_name,
+            'last_name' => $customer->last_name,
+            'email' => $customer->email,
+            'phone' => $customer->phone,
+            'score' => $score,
+            'match_reasons' => $reasons,
+            'default_property' => $property ? [
+                'id' => $property->id,
+                'street1' => $property->street1,
+                'street2' => $property->street2,
+                'city' => $property->city,
+                'state' => $property->state,
+                'zip' => $property->zip,
+                'country' => $property->country,
+                'full_address' => implode(', ', array_filter([
+                    $property->street1,
+                    $property->street2,
+                    $property->city,
+                    $property->state,
+                    $property->zip,
+                    $property->country,
+                ])),
+            ] : null,
+        ];
+    }
+
+    /**
+     * @return array{code:string,label:string,weight:int}
+     */
+    private function conversionMatchReason(string $code, string $label, int $weight): array
+    {
+        return [
+            'code' => $code,
+            'label' => $label,
+            'weight' => $weight,
+        ];
+    }
+
+    private function displayCustomerName(Customer $customer): string
+    {
+        return $customer->company_name
+            ?: trim($customer->first_name.' '.$customer->last_name)
+            ?: 'Customer';
+    }
+
+    private function normalizeEmail(mixed $value): ?string
+    {
+        $normalized = strtolower(trim((string) $value));
+
+        return $normalized !== '' ? $normalized : null;
+    }
+
+    private function normalizePhone(mixed $value): ?string
+    {
+        $digits = preg_replace('/\D+/', '', (string) $value) ?? '';
+
+        if ($digits !== '' && strlen($digits) === 11 && str_starts_with($digits, '1')) {
+            $digits = substr($digits, 1);
+        }
+
+        return strlen($digits) >= 7 ? $digits : null;
+    }
+
+    private function normalizeText(mixed $value): ?string
+    {
+        $normalized = preg_replace('/\s+/', ' ', strtolower(trim((string) $value))) ?? '';
+
+        return $normalized !== '' ? $normalized : null;
     }
 
 }

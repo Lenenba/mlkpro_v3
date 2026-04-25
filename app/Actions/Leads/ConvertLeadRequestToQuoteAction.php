@@ -24,18 +24,21 @@ class ConvertLeadRequestToQuoteAction
         $previousStatus = $lead->status;
 
         DB::transaction(function () use (&$customerId, &$propertyId, &$quote, $accountId, $createCustomer, $lead, $validated, $actor, $previousStatus) {
-            if ($createCustomer || ! $customerId) {
+            if ($createCustomer) {
                 [$customerId, $propertyId] = $this->createCustomerFromLead($lead, $validated, $accountId);
             }
 
-            if (! $customerId) {
+            $customer = $customerId
+                ? Customer::byUser($accountId)->findOrFail((int) $customerId)
+                : null;
+
+            if ($propertyId && ! $customer) {
                 throw ValidationException::withMessages([
-                    'customer_id' => 'Customer is required.',
+                    'property_id' => 'A customer is required before selecting a property.',
                 ]);
             }
 
-            $customer = Customer::byUser($accountId)->findOrFail((int) $customerId);
-            if ($propertyId && ! $customer->properties()->whereKey($propertyId)->exists()) {
+            if ($propertyId && $customer && ! $customer->properties()->whereKey($propertyId)->exists()) {
                 throw ValidationException::withMessages([
                     'property_id' => 'Invalid property for this customer.',
                 ]);
@@ -47,7 +50,7 @@ class ConvertLeadRequestToQuoteAction
 
             $quote = Quote::create([
                 'user_id' => $accountId,
-                'customer_id' => $customer->id,
+                'customer_id' => $customer?->id,
                 'property_id' => $propertyId,
                 'job_title' => $jobTitle,
                 'status' => 'draft',
@@ -56,7 +59,7 @@ class ConvertLeadRequestToQuoteAction
             ]);
 
             $lead->update([
-                'customer_id' => $customer->id,
+                'customer_id' => $customer?->id,
                 'status' => LeadRequest::STATUS_QUALIFIED,
                 'status_updated_at' => now(),
                 'converted_at' => now(),

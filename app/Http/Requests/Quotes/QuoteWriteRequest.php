@@ -15,7 +15,7 @@ abstract class QuoteWriteRequest extends FormRequest
         return (int) ($user?->accountOwnerId() ?? $user?->id ?? 0);
     }
 
-    protected function quoteRules(): array
+    protected function quoteRules(bool $requireCustomer = true): array
     {
         $accountId = $this->accountId();
 
@@ -23,7 +23,7 @@ abstract class QuoteWriteRequest extends FormRequest
             'job_title' => ['required', 'string'],
             'property_id' => ['nullable', 'integer'],
             'customer_id' => [
-                'required',
+                $requireCustomer ? 'required' : 'nullable',
                 'integer',
                 Rule::exists('customers', 'id')->where(fn ($query) => $query->where('user_id', $accountId)),
             ],

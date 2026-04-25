@@ -10,6 +10,7 @@ import InputError from '@/Components/InputError.vue';
 import Modal from '@/Components/UI/Modal.vue';
 import SalesActivityPanel from '@/Components/CRM/SalesActivityPanel.vue';
 import ProspectInteractionTimeline from '@/Components/Prospects/ProspectInteractionTimeline.vue';
+import ProspectCustomerConversionModal from '@/Pages/Request/UI/ProspectCustomerConversionModal.vue';
 import { humanizeDate } from '@/utils/date';
 import { formatBytes } from '@/utils/media';
 import { buildLeadScore, badgeClass } from '@/utils/leadScore';
@@ -45,6 +46,10 @@ const props = defineProps({
     duplicates: {
         type: Array,
         default: () => [],
+    },
+    customerConversion: {
+        type: Object,
+        default: null,
     },
     campaignOrigin: {
         type: Object,
@@ -141,6 +146,7 @@ const anonymizedAtLabel = computed(() => formatDate(anonymizedMeta.value?.anonym
 const anonymizationReason = computed(() => anonymizedMeta.value?.anonymization_reason || '');
 const statusHistoryItems = computed(() => Array.isArray(props.lead?.status_histories) ? props.lead.status_histories : []);
 const prospectInteractionItems = ref(Array.isArray(props.lead?.prospect_interactions) ? [...props.lead.prospect_interactions] : []);
+const customerConversionModalRef = ref(null);
 
 const hasMedia = computed(() => Array.isArray(props.lead?.media) && props.lead.media.length > 0);
 const hasTasks = computed(() => Array.isArray(props.lead?.tasks) && props.lead.tasks.length > 0);
@@ -199,6 +205,9 @@ const isOverdue = (lead) => {
 
 const contactPhone = computed(() => (isAnonymized.value ? '' : (props.lead?.contact_phone || props.lead?.customer?.phone || '')));
 const contactEmail = computed(() => (isAnonymized.value ? '' : (props.lead?.contact_email || props.lead?.customer?.email || '')));
+const canConvertToCustomer = computed(() =>
+    Boolean(props.customerConversion?.can_convert) && !isArchived.value && !isAnonymized.value && !props.lead?.customer
+);
 
 const normalizePhone = (value) => String(value || '').replace(/\D/g, '');
 const whatsAppLink = computed(() => {
@@ -727,6 +736,14 @@ const mergeDuplicate = (duplicate) => {
         preserveScroll: true,
     });
 };
+
+const openCustomerConversion = () => {
+    if (!canConvertToCustomer.value) {
+        return;
+    }
+
+    customerConversionModalRef.value?.open?.();
+};
 </script>
 
 <template>
@@ -780,6 +797,14 @@ const mergeDuplicate = (duplicate) => {
                     >
                         {{ $t('requests.actions.view_quote') }}
                     </Link>
+                    <button
+                        v-if="canConvertToCustomer"
+                        type="button"
+                        class="inline-flex items-center gap-2 rounded-sm border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200"
+                        @click="openCustomerConversion"
+                    >
+                        {{ $t('requests.actions.convert_to_customer') }}
+                    </button>
                     <button
                         v-if="!isArchived"
                         type="button"
@@ -1678,6 +1703,12 @@ const mergeDuplicate = (duplicate) => {
                 </div>
             </form>
         </Modal>
+
+        <ProspectCustomerConversionModal
+            ref="customerConversionModalRef"
+            :lead="lead"
+            :customer-conversion="customerConversion"
+        />
 
     </AuthenticatedLayout>
 </template>

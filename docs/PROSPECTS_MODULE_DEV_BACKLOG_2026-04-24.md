@@ -736,7 +736,7 @@ Objectif technique:
 
 ### `PROSPECT-503` - Corriger les flux de creation de devis depuis un prospect
 
-- Statut: `a faire`
+- Statut: `fait`
 - But: rendre le pont prospect -> devis fonctionnel sans client force
 - Fichiers probables:
 - `app/Actions/Leads/ConvertLeadRequestToQuoteAction.php`
@@ -746,10 +746,12 @@ Objectif technique:
 - `tests/Feature/ProspectQuoteBridgeTest.php`
 - Definition de done:
 - creation de devis possible depuis un prospect sans creation client automatique
+- Verification executee:
+- `php artisan test tests/Feature/ProspectQuoteBridgeTest.php tests/Feature/ProspectStatusHistoryTest.php tests/Feature/OpportunityLinkingPhaseSixTest.php`
 
 ### `PROSPECT-504` - Revoir les statuts prospect pilotes par le devis
 
-- Statut: `a faire`
+- Statut: `fait`
 - But: conserver la logique metier `soumission envoyee`, `gagne`, `perdu`
 - Fichiers probables:
 - `app/Models/Quote.php`
@@ -757,6 +759,8 @@ Objectif technique:
 - `tests/Feature/ProspectQuoteBridgeTest.php`
 - Definition de done:
 - l'etat d'un devis continue d'alimenter correctement l'etat commercial du prospect
+- Verification executee:
+- `php artisan test tests/Feature/ProspectQuoteBridgeTest.php tests/Feature/ProspectStatusHistoryTest.php tests/Feature/OpportunityLinkingPhaseSixTest.php`
 
 Definition de done de phase:
 
@@ -775,7 +779,7 @@ Objectif technique:
 
 ### `PROSPECT-601` - Creer le wizard de conversion prospect -> client
 
-- Statut: `a faire`
+- Statut: `fait`
 - But: guider l'utilisateur dans une conversion claire
 - Livrables:
 - choisir creer un nouveau client ou lier un client existant
@@ -787,10 +791,12 @@ Objectif technique:
 - `app/Http/Controllers/RequestController.php`
 - Definition de done:
 - la conversion est faisable sans bricolage manuel
+- Verification executee:
+- `php artisan test tests/Feature/ProspectConversionTest.php tests/Feature/ProspectQuoteBridgeTest.php tests/Feature/ProspectStatusHistoryTest.php tests/Feature/ProspectWorkspaceFeatureTest.php`
 
 ### `PROSPECT-602` - Ajouter le service de conversion et le lien prospect/client
 
-- Statut: `a faire`
+- Statut: `fait`
 - But: centraliser la logique de conversion cote backend
 - Livrables:
 - creation ou rattachement du client
@@ -805,6 +811,8 @@ Objectif technique:
 - `tests/Feature/ProspectConversionTest.php`
 - Definition de done:
 - un prospect converti reste consultable et lie au client final
+- Verification executee:
+- `php artisan test tests/Feature/ProspectConversionTest.php tests/Feature/ProspectQuoteBridgeTest.php tests/Feature/ProspectStatusHistoryTest.php tests/Feature/ProspectWorkspaceFeatureTest.php`
 
 ### `PROSPECT-603` - Ajouter les garde-fous de conversion
 

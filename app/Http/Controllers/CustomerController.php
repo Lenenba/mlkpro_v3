@@ -177,10 +177,22 @@ class CustomerController extends Controller
         }
         [, $accountId] = $this->resolveCustomerAccount($user);
         $scope = $this->normalizeCustomerOptionScope((string) $request->query('scope', 'full'));
+        $search = trim((string) $request->query('search', ''));
+        $limit = (int) $request->query('limit', 0);
 
         $customersQuery = Customer::byUser($accountId)
             ->orderBy('company_name')
             ->orderBy('last_name');
+
+        if ($search !== '') {
+            $customersQuery->where(function ($query) use ($search) {
+                $query->where('company_name', 'like', '%'.$search.'%')
+                    ->orWhere('first_name', 'like', '%'.$search.'%')
+                    ->orWhere('last_name', 'like', '%'.$search.'%')
+                    ->orWhere('email', 'like', '%'.$search.'%')
+                    ->orWhere('phone', 'like', '%'.$search.'%');
+            });
+        }
 
         if ($this->customerOptionScopeIncludesProperties($scope)) {
             $propertyColumns = $this->customerPropertyOptionColumns($scope);
@@ -189,6 +201,10 @@ class CustomerController extends Controller
                     ->orderByDesc('is_default')
                     ->orderBy('id');
             }]);
+        }
+
+        if ($limit > 0) {
+            $customersQuery->limit(max(1, min($limit, 50)));
         }
 
         $customers = $customersQuery->get($this->customerOptionColumns($scope));

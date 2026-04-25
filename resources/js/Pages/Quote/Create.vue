@@ -10,8 +10,14 @@ import { ref, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
-    customer: Object,
-    quote: Object,
+    customer: {
+        type: Object,
+        default: null,
+    },
+    quote: {
+        type: Object,
+        default: null,
+    },
     lastQuotesNumber: String,
     taxes: Array,
     selectedPropertyId: Number,
@@ -36,10 +42,21 @@ const templateDefaults = computed(() => props.templateDefaults || {});
 const templateExamples = computed(() => props.templateExamples || []);
 const defaultMessages = computed(() => templateDefaults.value?.messages || '');
 const defaultNotes = computed(() => templateDefaults.value?.notes || '');
+const prospect = computed(() => props.quote?.prospect || null);
+const hasCustomer = computed(() => Boolean(props.customer?.id));
+const showProspectNotice = computed(() => !hasCustomer.value && Boolean(prospect.value?.id));
 const customerLabel = computed(() => {
     const label = props.customer?.company_name
         || `${props.customer?.first_name || ''} ${props.customer?.last_name || ''}`.trim();
-    return label || t('quotes.labels.customer_fallback');
+
+    if (label) {
+        return label;
+    }
+
+    return prospect.value?.contact_name
+        || prospect.value?.title
+        || prospect.value?.service_type
+        || t('quotes.labels.prospect_fallback');
 });
 
 const parseSourceDetails = (value) => {
@@ -68,7 +85,7 @@ const initialPropertyId = props.quote?.property_id
 
 const form = useForm({
     // Pre-remplissage pour creation ou edition
-    customer_id: props.quote?.customer_id || props.customer.id,
+    customer_id: props.quote?.customer_id || props.customer?.id || '',
     property_id: initialPropertyId,
     job_title: props.quote?.job_title || '',
     status: props.quote?.status || 'draft',
@@ -96,11 +113,52 @@ const propertyOptions = computed(() =>
         name: `${property.street1 || t('quotes.form.property')}${property.city ? `, ${property.city}` : ''}`,
     }))
 );
+const contactDetails = computed(() => {
+    if (props.customer) {
+        return {
+            name: `${props.customer.first_name || ''} ${props.customer.last_name || ''}`.trim()
+                || props.customer.company_name
+                || t('quotes.labels.customer_fallback'),
+            email: props.customer.email || '',
+            phone: props.customer.phone || '',
+        };
+    }
+
+    return {
+        name: prospect.value?.contact_name
+            || prospect.value?.title
+            || prospect.value?.service_type
+            || t('quotes.labels.prospect_fallback'),
+        email: prospect.value?.contact_email || '',
+        phone: prospect.value?.contact_phone || '',
+    };
+});
 const selectedProperty = computed(() => {
     if (!properties.value.length || !form.property_id) {
         return null;
     }
     return properties.value.find((property) => property.id === form.property_id) || null;
+});
+const propertyPreview = computed(() => {
+    if (selectedProperty.value) {
+        return {
+            country: selectedProperty.value.country || '',
+            street1: selectedProperty.value.street1 || '',
+            locality: [selectedProperty.value.state, selectedProperty.value.zip].filter(Boolean).join(' - '),
+        };
+    }
+
+    if (!prospect.value) {
+        return null;
+    }
+
+    const preview = {
+        country: prospect.value.country || '',
+        street1: [prospect.value.street1, prospect.value.street2].filter(Boolean).join(', '),
+        locality: [prospect.value.state, prospect.value.postal_code].filter(Boolean).join(' - '),
+    };
+
+    return preview.country || preview.street1 || preview.locality ? preview : null;
 });
 
 const availableTaxes = computed(() => props.taxes || []);
@@ -212,7 +270,7 @@ const submit = () => {
         return;
     }
     const routeName = props.quote?.id ? 'customer.quote.update' : 'customer.quote.store';
-    const routeParams = props.quote?.id ? { quote: props.quote.id } : { customer: props.customer.id };
+    const routeParams = props.quote?.id ? { quote: props.quote.id } : { customer: props.customer?.id };
 
     form.total = totalWithTaxes.value;
 
@@ -259,6 +317,9 @@ const submit = () => {
                         <div v-if="isLocked" class="text-xs text-amber-600">
                             {{ $t('quotes.form.quote_locked') }}
                         </div>
+                        <div v-if="showProspectNotice" class="rounded-sm border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200">
+                            {{ $t('quotes.form.prospect_linked_notice') }}
+                        </div>
                         <div class="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(18rem,0.95fr)]">
                             <div class="space-y-4">
                                 <FloatingInput v-model="form.job_title" :label="$t('quotes.form.job_title')" :disabled="isLocked" />
@@ -274,10 +335,10 @@ const submit = () => {
                                         <p class="text-sm font-medium text-stone-700 dark:text-neutral-200">
                                             {{ $t('quotes.form.property_address') }}
                                         </p>
-                                        <div v-if="selectedProperty" class="mt-3 space-y-1.5 text-sm text-stone-600 dark:text-neutral-400">
-                                            <div>{{ selectedProperty.country }}</div>
-                                            <div>{{ selectedProperty.street1 }}</div>
-                                            <div>{{ selectedProperty.state }} - {{ selectedProperty.zip }}</div>
+                                        <div v-if="propertyPreview" class="mt-3 space-y-1.5 text-sm text-stone-600 dark:text-neutral-400">
+                                            <div v-if="propertyPreview.country">{{ propertyPreview.country }}</div>
+                                            <div v-if="propertyPreview.street1">{{ propertyPreview.street1 }}</div>
+                                            <div v-if="propertyPreview.locality">{{ propertyPreview.locality }}</div>
                                         </div>
                                         <div v-else class="mt-3 text-sm text-stone-600 dark:text-neutral-400">
                                             {{ $t('quotes.form.no_property_selected') }}
@@ -288,9 +349,9 @@ const submit = () => {
                                             {{ $t('quotes.form.contact_details') }}
                                         </p>
                                         <div class="mt-3 space-y-1.5 text-sm text-stone-600 dark:text-neutral-400">
-                                            <div>{{ customer.first_name }} {{ customer.last_name }}</div>
-                                            <div>{{ customer.email }}</div>
-                                            <div>{{ customer.phone }}</div>
+                                            <div>{{ contactDetails.name }}</div>
+                                            <div>{{ contactDetails.email || '-' }}</div>
+                                            <div>{{ contactDetails.phone || '-' }}</div>
                                         </div>
                                     </div>
                                 </div>

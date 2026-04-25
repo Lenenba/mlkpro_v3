@@ -38,7 +38,8 @@
       "terms": "Conditions",
       "cancel": "Annuler",
       "save_and_create_another": "Sauvegarder et creer un autre",
-      "save_quote": "Sauvegarder le devis"
+      "save_quote": "Sauvegarder le devis",
+      "prospect_linked_notice": "Ce devis reste lie a un prospect et peut avancer sans client rattache pour le moment."
     },
     "show": {
       "timeline": "Chronologie",
@@ -251,6 +252,7 @@
     "labels": {
       "unknown_customer": "Client inconnu",
       "customer_fallback": "Client",
+      "prospect_fallback": "Prospect",
       "quote_fallback": "Devis",
       "quote_initial": "D",
       "job_fallback": "Chantier"

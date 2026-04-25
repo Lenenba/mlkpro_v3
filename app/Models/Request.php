@@ -13,6 +13,8 @@ class Request extends Model
 {
     use HasFactory;
 
+    public const CUSTOMER_CONVERSION_META_KEY = 'customer_conversion';
+
     public const STATUS_NEW = 'REQ_NEW';
 
     public const STATUS_CALL_REQUESTED = 'REQ_CALL_REQUESTED';
@@ -28,6 +30,12 @@ class Request extends Model
     public const STATUS_LOST = 'REQ_LOST';
 
     public const STATUS_CONVERTED = 'REQ_CONVERTED';
+
+    public const QUOTE_STATUS_TO_REQUEST_STATUS = [
+        'sent' => self::STATUS_QUOTE_SENT,
+        'accepted' => self::STATUS_WON,
+        'declined' => self::STATUS_LOST,
+    ];
 
     public const STATUSES = [
         self::STATUS_NEW,
@@ -180,5 +188,57 @@ class Request extends Model
     public function isAnonymized(): bool
     {
         return filled(data_get($this->meta, 'privacy.anonymized_at'));
+    }
+
+    public function isConvertedToCustomer(): bool
+    {
+        return $this->status === self::STATUS_CONVERTED && $this->customer_id !== null;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function customerConversionMeta(): array
+    {
+        return (array) data_get($this->meta, self::CUSTOMER_CONVERSION_META_KEY, []);
+    }
+
+    public function convertedByUserId(): ?int
+    {
+        $value = $this->customerConversionMeta()['converted_by_user_id'] ?? null;
+
+        return is_numeric($value) ? (int) $value : null;
+    }
+
+    public function companyName(): ?string
+    {
+        $value = trim((string) (data_get($this->meta, 'company_name') ?? ''));
+
+        return $value !== '' ? $value : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
+     */
+    public function mergeCustomerConversionMeta(array $attributes): array
+    {
+        $meta = (array) ($this->meta ?? []);
+        data_set(
+            $meta,
+            self::CUSTOMER_CONVERSION_META_KEY,
+            array_merge($this->customerConversionMeta(), $attributes)
+        );
+
+        return $meta;
+    }
+
+    public static function statusForQuoteStatus(?string $quoteStatus): ?string
+    {
+        if (! is_string($quoteStatus) || $quoteStatus === '') {
+            return null;
+        }
+
+        return self::QUOTE_STATUS_TO_REQUEST_STATUS[$quoteStatus] ?? null;
     }
 }

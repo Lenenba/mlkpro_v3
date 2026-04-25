@@ -102,7 +102,8 @@
       "cancel": "Cancel",
       "save": "Save",
       "create_request": "Create prospect",
-      "convert_to_quote": "Convert to quote"
+      "convert_to_quote": "Convert to quote",
+      "convert_to_customer": "Convert to customer"
     },
     "view": {
       "table": "Table",
@@ -179,7 +180,57 @@
       "create_error": "Unable to create the prospect.",
       "import_error": "Unable to import prospects.",
       "convert_error": "Unable to convert the prospect.",
+      "convert_customer_error": "Unable to convert the prospect to a customer.",
       "public_submit_error": "Unable to submit the request."
+    },
+    "customer_conversion": {
+      "title": "Prospect to customer conversion",
+      "subtitle": "Choose how this prospect should be linked to the customer CRM.",
+      "description": "You can link an existing customer or create a new customer from the prospect information.",
+      "modes": {
+        "link_existing": "Link an existing customer",
+        "create_new": "Create a new customer"
+      },
+      "mode_hints": {
+        "link_existing": "Best when a duplicate or known customer already exists.",
+        "create_new": "Creates a full customer record and links the converted prospect."
+      },
+      "matches_title": "Potential customer duplicates",
+      "matches_hint": "These records already look close to this prospect. You can link one directly.",
+      "match_score": "Score {score}",
+      "selected_badge": "Selected",
+      "select_existing": "Link this customer",
+      "search_label": "Search an existing customer",
+      "search_placeholder": "Name, company, email, or phone",
+      "search_loading": "Searching customers...",
+      "search_empty": "No customer found for this search.",
+      "search_error": "Unable to load existing customers.",
+      "fields": {
+        "contact_name": "Contact name",
+        "company_name": "Company",
+        "contact_email": "Email",
+        "contact_phone": "Phone",
+        "street1": "Street address",
+        "street2": "Address line 2",
+        "city": "City",
+        "state": "State / Province",
+        "postal_code": "Postal code",
+        "country": "Country"
+      },
+      "preview_title": "Conversion summary",
+      "preview": {
+        "customer": "Final customer",
+        "status_after": "Status after conversion",
+        "contact": "Contact",
+        "email": "Email",
+        "phone": "Phone",
+        "address": "Address",
+        "quote": "Linked quote"
+      },
+      "preview_value_missing": "Needs completion",
+      "no_quote": "No linked quote",
+      "submit_link": "Link customer",
+      "submit_create": "Create and convert"
     },
     "intake": {
       "title": "Prospect intake",

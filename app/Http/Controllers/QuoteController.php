@@ -131,10 +131,17 @@ class QuoteController extends Controller
     {
         $this->authorize('edit', $quote);
 
-        $customer = $quote->customer->load('properties');
+        $quote->load([
+            'products',
+            'taxes',
+            'customer.properties',
+            'prospect.customer',
+        ]);
+
+        $customer = $quote->customer;
 
         return $this->inertiaOrJson('Quote/Create', [
-            'quote' => $quote->load('products', 'taxes'),
+            'quote' => $quote,
             'customer' => $customer,
             'taxes' => Tax::all(),
         ]);
@@ -168,7 +175,7 @@ class QuoteController extends Controller
             ], 'Quote created');
         }
 
-        if ($quote && $customer->auto_accept_quotes && $quote->status !== 'declined') {
+        if ($quote && $customer?->auto_accept_quotes && $quote->status !== 'declined') {
             $this->autoAcceptQuote($quote);
         }
 
@@ -206,7 +213,7 @@ class QuoteController extends Controller
             'total' => $quote->total,
         ], 'Quote updated');
 
-        if ($customer->auto_accept_quotes && $quote->status !== 'declined') {
+        if ($customer?->auto_accept_quotes && $quote->status !== 'declined') {
             $this->autoAcceptQuote($quote);
             $quote->refresh();
         }
@@ -216,11 +223,15 @@ class QuoteController extends Controller
         if ($this->shouldReturnJson($request)) {
             return response()->json([
                 'message' => 'Quote updated successfully!',
-                'quote' => $quote->fresh(['products', 'taxes', 'customer']),
+                'quote' => $quote->fresh(['products', 'taxes', 'customer', 'prospect']),
             ]);
         }
 
-        return redirect()->route('customer.show', $quote->customer)->with('success', 'Quote updated successfully!');
+        if ($quote->customer) {
+            return redirect()->route('customer.show', $quote->customer)->with('success', 'Quote updated successfully!');
+        }
+
+        return redirect()->route('customer.quote.edit', $quote)->with('success', 'Quote updated successfully!');
     }
 
     public function accept(AcceptQuoteRequest $request, Quote $quote)
@@ -402,6 +413,7 @@ class QuoteController extends Controller
             'customer',
             'property',
             'customer.properties',
+            'prospect',
             'ratings',
         ])->loadAvg('ratings', 'rating')
             ->loadCount('ratings');

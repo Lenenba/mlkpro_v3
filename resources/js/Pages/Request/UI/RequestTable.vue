@@ -723,10 +723,8 @@ const canSubmitConvert = computed(() => {
     if (convertSubmitting.value) {
         return false;
     }
-    if (convertForm.create_customer) {
-        return true;
-    }
-    return Boolean(convertForm.customer_id);
+
+    return true;
 });
 
 const selectedCustomer = computed(() => {
