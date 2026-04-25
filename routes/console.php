@@ -40,6 +40,10 @@ use App\Services\Observability\ObservabilityReportService;
 use App\Services\PlanEntitlementSyncService;
 use App\Services\PlatformAdminNotifier;
 use App\Services\ProspectFollowUpReminderService;
+use App\Services\Prospects\ProspectCustomerMigrationAnalysisService;
+use App\Services\Prospects\ProspectCustomerMigrationService;
+use App\Services\Prospects\ProspectCustomerMigrationVerificationService;
+use App\Services\ProspectStaleReminderService;
 use App\Services\PublicCopySyncService;
 use App\Services\QueueHealthService;
 use App\Services\ReservationAvailabilityService;
@@ -1381,6 +1385,239 @@ Artisan::command('prospects:follow-up-reminders
     return 0;
 })->purpose('Send reminders for due today and overdue prospect follow-up tasks');
 
+Artisan::command('prospects:stale-reminders
+    {--date= : Optional reference datetime for testing}
+    {--dry-run : Preview reminders without sending notifications}', function (
+    ProspectStaleReminderService $reminderService
+): int {
+    $dateOption = trim((string) $this->option('date'));
+    $referenceTime = $dateOption !== '' ? \Illuminate\Support\Carbon::parse($dateOption) : now();
+    $dryRun = (bool) $this->option('dry-run');
+
+    $summary = $reminderService->process($referenceTime, $dryRun);
+
+    $this->info(sprintf(
+        'Prospect stale reminders: scanned=%d stale=%d sent=%d skipped=%d dry_run=%s',
+        (int) ($summary['scanned'] ?? 0),
+        (int) ($summary['stale'] ?? 0),
+        (int) ($summary['sent'] ?? 0),
+        (int) ($summary['skipped'] ?? 0),
+        $dryRun ? 'yes' : 'no',
+    ));
+
+    return 0;
+})->purpose('Send reminders for stale prospects without recent activity');
+
+Artisan::command('prospects:migration-dry-run
+    {--account_id= : Optional tenant account id to analyze}
+    {--sample=10 : Maximum number of ambiguous sample rows to print}', function (
+    ProspectCustomerMigrationAnalysisService $analysisService
+): int {
+    $accountIdOption = $this->option('account_id');
+    $accountId = is_numeric($accountIdOption) ? (int) $accountIdOption : null;
+    $sampleLimit = max(1, (int) $this->option('sample'));
+
+    $summary = $analysisService->analyze($accountId, $sampleLimit);
+
+    $this->info('Prospect migration dry run');
+    $this->line('Scope: '.($accountId ? 'account '.$accountId : 'all accounts'));
+    $this->line('Scanned customers: '.(int) $summary['scanned']);
+    $this->line('Real customers: '.(int) $summary['real_count']);
+    $this->line('Eligible prospects: '.(int) $summary['eligible_count']);
+    $this->line('Ambiguous / a qualifier: '.(int) $summary['ambiguous_count']);
+    $this->newLine();
+    $this->line('Reason counts:');
+
+    foreach ($summary['reason_counts'] as $reason => $count) {
+        $this->line('- '.$reason.': '.$count);
+    }
+
+    if (! empty($summary['ambiguous_samples'])) {
+        $this->newLine();
+        $this->line('Ambiguous samples:');
+
+        foreach ($summary['ambiguous_samples'] as $sample) {
+            $signals = collect($sample['signals'] ?? [])
+                ->map(fn ($value, $key) => $key.'='.(is_bool($value) ? ($value ? 'true' : 'false') : $value))
+                ->implode(', ');
+
+            $this->line(sprintf(
+                '- #%d %s [%s] %s',
+                (int) ($sample['id'] ?? 0),
+                (string) ($sample['name'] ?? 'Customer'),
+                (string) ($sample['reason'] ?? 'ambiguous'),
+                $signals
+            ));
+        }
+    }
+
+    return 0;
+})->purpose('Analyze legacy customers that could be reclassified as prospects without writing data');
+
+Artisan::command('prospects:migration-run
+    {--account_id= : Optional tenant account id to migrate}
+    {--chunk=100 : Chunk size used while migrating}
+    {--force : Confirm that real writes should be executed}', function (
+    ProspectCustomerMigrationService $migrationService
+): int {
+    if (! $this->option('force')) {
+        $this->warn('Use --force to execute the real prospect migration.');
+
+        return 1;
+    }
+
+    $accountIdOption = $this->option('account_id');
+    $accountId = is_numeric($accountIdOption) ? (int) $accountIdOption : null;
+    $chunkSize = max(1, (int) $this->option('chunk'));
+
+    $summary = $migrationService->execute($accountId, $chunkSize);
+
+    $this->info('Prospect migration completed');
+    $this->line('Scope: '.($accountId ? 'account '.$accountId : 'all accounts'));
+    $this->line('Batch: '.(string) ($summary['batch_id'] ?? 'n/a'));
+    $this->line('Scanned customers: '.(int) ($summary['scanned'] ?? 0));
+    $this->line('Eligible customers: '.(int) ($summary['eligible_count'] ?? 0));
+    $this->line('Migrated customers: '.(int) ($summary['migrated_count'] ?? 0));
+    $this->line('Created prospects: '.(int) ($summary['created_prospects_count'] ?? 0));
+    $this->line('Existing requests detached: '.(int) ($summary['reclassified_existing_requests_count'] ?? 0));
+    $this->line('Rewired quotes: '.(int) ($summary['rewired_quotes_count'] ?? 0));
+    $this->line('Failed customers: '.(int) ($summary['failed_count'] ?? 0));
+    $this->line('Summary journal: '.(string) ($summary['summary_path'] ?? 'n/a'));
+    $this->line('Mappings CSV: '.(string) ($summary['mapping_path'] ?? 'n/a'));
+
+    if (! empty($summary['failures'])) {
+        $this->newLine();
+        $this->line('Failures:');
+
+        foreach ($summary['failures'] as $failure) {
+            $this->line(sprintf(
+                '- #%d %s [%s] %s',
+                (int) ($failure['customer_id'] ?? 0),
+                (string) ($failure['customer_name'] ?? 'Customer'),
+                (string) ($failure['reason'] ?? 'eligible'),
+                (string) ($failure['message'] ?? 'Unknown error')
+            ));
+        }
+    }
+
+    return (int) ($summary['failed_count'] ?? 0) > 0 ? 2 : 0;
+})->purpose('Execute the real prospect migration and write a per-batch journal for rollback and verification');
+
+Artisan::command('prospects:migration-verify
+    {--account_id= : Optional tenant account id to verify}
+    {--batch_id= : Optional migration batch id to verify}
+    {--sample=10 : Maximum number of sample rows to print per segment}', function (
+    ProspectCustomerMigrationVerificationService $verificationService
+): int {
+    $accountIdOption = $this->option('account_id');
+    $accountId = is_numeric($accountIdOption) ? (int) $accountIdOption : null;
+    $batchId = trim((string) ($this->option('batch_id') ?? '')) ?: null;
+    $sampleLimit = max(1, (int) $this->option('sample'));
+
+    try {
+        $report = $verificationService->verify($batchId, $accountId, $sampleLimit);
+    } catch (\RuntimeException $exception) {
+        $this->error($exception->getMessage());
+
+        return 1;
+    }
+
+    $this->info('Prospect migration verification');
+    $this->line('Source batch: '.(string) ($report['batch_id'] ?? 'n/a'));
+    $this->line('Scope: '.($report['account_id'] ? 'account '.$report['account_id'] : 'all accounts'));
+    $this->line('Migrated customers checked: '.(int) ($report['migrated_customers_checked'] ?? 0));
+    $this->line('Verified customers: '.(int) ($report['verified_customers'] ?? 0));
+    $this->line('Customers with issues: '.(int) ($report['customers_with_issues'] ?? 0));
+    $this->line('Source migration failures: '.(int) ($report['source_failed_count'] ?? 0));
+    $this->line('Remaining eligible customers: '.(int) ($report['remaining_eligible_count'] ?? 0));
+    $this->line('Remaining ambiguous / a qualifier: '.(int) ($report['remaining_ambiguous_count'] ?? 0));
+    $this->line('Verification report: '.(string) ($report['report_path'] ?? 'n/a'));
+    $this->line('Segments CSV: '.(string) ($report['segment_path'] ?? 'n/a'));
+
+    if (! empty($report['issue_counts'])) {
+        $this->newLine();
+        $this->line('Issue counts:');
+
+        foreach ((array) $report['issue_counts'] as $issueCode => $count) {
+            $this->line('- '.$issueCode.': '.$count);
+        }
+    }
+
+    if (! empty($report['source_failure_samples'])) {
+        $this->newLine();
+        $this->line('Source migration failures:');
+
+        foreach ((array) $report['source_failure_samples'] as $failure) {
+            $this->line(sprintf(
+                '- #%d %s [%s] %s',
+                (int) ($failure['customer_id'] ?? 0),
+                (string) ($failure['customer_name'] ?? 'Customer'),
+                (string) ($failure['reason'] ?? 'eligible'),
+                (string) ($failure['message'] ?? 'Unknown error')
+            ));
+        }
+    }
+
+    if (! empty($report['consistency_issue_samples'])) {
+        $this->newLine();
+        $this->line('Consistency issues:');
+
+        foreach ((array) $report['consistency_issue_samples'] as $issue) {
+            $this->line(sprintf(
+                '- #%d %s [%s] %s',
+                (int) ($issue['legacy_customer_id'] ?? 0),
+                (string) ($issue['customer_name'] ?? 'Customer'),
+                (string) ($issue['reason'] ?? 'migration'),
+                implode(', ', (array) ($issue['issue_codes'] ?? []))
+            ));
+        }
+    }
+
+    if (! empty($report['remaining_eligible_samples'])) {
+        $this->newLine();
+        $this->line('Remaining eligible samples:');
+
+        foreach ((array) $report['remaining_eligible_samples'] as $sample) {
+            $signals = collect($sample['signals'] ?? [])
+                ->map(fn ($value, $key) => $key.'='.(is_bool($value) ? ($value ? 'true' : 'false') : $value))
+                ->implode(', ');
+
+            $this->line(sprintf(
+                '- #%d %s [%s] %s',
+                (int) ($sample['id'] ?? 0),
+                (string) ($sample['name'] ?? 'Customer'),
+                (string) ($sample['reason'] ?? 'eligible'),
+                $signals
+            ));
+        }
+    }
+
+    if (! empty($report['qualification_samples'])) {
+        $this->newLine();
+        $this->line('Qualification samples:');
+
+        foreach ((array) $report['qualification_samples'] as $sample) {
+            $signals = collect($sample['signals'] ?? [])
+                ->map(fn ($value, $key) => $key.'='.(is_bool($value) ? ($value ? 'true' : 'false') : $value))
+                ->implode(', ');
+
+            $this->line(sprintf(
+                '- #%d %s [%s] %s',
+                (int) ($sample['id'] ?? 0),
+                (string) ($sample['name'] ?? 'Customer'),
+                (string) ($sample['reason'] ?? 'ambiguous'),
+                $signals
+            ));
+        }
+    }
+
+    return (
+        (int) ($report['customers_with_issues'] ?? 0) > 0
+        || (int) ($report['source_failed_count'] ?? 0) > 0
+        || (int) ($report['remaining_eligible_count'] ?? 0) > 0
+    ) ? 2 : 0;
+})->purpose('Verify a migration batch, surface remaining legacy segments, and write a post-migration validation report');
+
 Artisan::command('support:sla-reminders', function (
     SupportSettingsService $settingsService,
     SupportAssignmentService $assignmentService
@@ -2158,6 +2395,7 @@ Schedule::command('billing:upcoming-reminders')
 Schedule::command('orders:deposit-reminders')->everyFourHours();
 Schedule::command('leads:follow-up-reminders --hours=24')->hourly();
 Schedule::command('prospects:follow-up-reminders')->hourlyAt(10)->withoutOverlapping();
+Schedule::command('prospects:stale-reminders')->hourlyAt(20)->withoutOverlapping();
 Schedule::command('support:sla-reminders')->hourly();
 Schedule::command('reservations:notifications')->everyFifteenMinutes();
 Schedule::command('reservations:queue-alerts')->everyFiveMinutes()->withoutOverlapping();

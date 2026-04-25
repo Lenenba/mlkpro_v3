@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Quote;
 use App\Models\Request as LeadRequest;
 use App\Models\User;
+use App\Services\ProspectNotificationService;
 use App\Services\ProspectStatusHistoryService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -112,6 +113,8 @@ class ProspectConversionService
                 'quote_ids' => $quoteIds,
                 'created_customer' => $created,
             ], 'Prospect status changed');
+
+            app(ProspectNotificationService::class)->notifyConverted($lead, $actor);
 
             return [
                 'customer' => $customer->fresh(['defaultProperty:id,customer_id,street1,street2,city,state,zip,country,is_default']),

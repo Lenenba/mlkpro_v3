@@ -22,6 +22,7 @@ use App\Models\User;
 use App\Queries\Requests\BuildRequestAnalyticsData;
 use App\Queries\Requests\BuildRequestInboxIndexData;
 use App\Services\Campaigns\CampaignLeadAttributionService;
+use App\Services\ProspectNotificationService;
 use App\Services\Prospects\ProspectConversionService;
 use App\Services\Prospects\ProspectDuplicateAlertService;
 use App\Services\Prospects\ProspectDuplicateDetectionService;
@@ -46,9 +47,7 @@ class RequestController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (! $user || $user->id !== $accountId) {
-            abort(403);
-        }
+        $this->ensureProspectWorkspaceReadAccess($user, $accountId, $request);
 
         $indexData = app(BuildRequestInboxIndexData::class)->execute($accountId, $request);
         $filters = $indexData['filters'];
@@ -110,24 +109,27 @@ class RequestController extends Controller
             'api_endpoint' => route('api.integrations.requests.store'),
         ];
 
-        $savedSegments = SavedSegment::query()
-            ->byUser($accountId)
-            ->where('module', SavedSegment::MODULE_REQUEST)
-            ->orderByDesc('updated_at')
-            ->orderBy('name')
-            ->get([
-                'id',
-                'module',
-                'name',
-                'description',
-                'filters',
-                'sort',
-                'search_term',
-                'is_shared',
-                'cached_count',
-                'last_resolved_at',
-                'updated_at',
-            ]);
+        $canManageSavedSegments = (int) $user->id === (int) $accountId;
+        $savedSegments = $canManageSavedSegments
+            ? SavedSegment::query()
+                ->byUser($accountId)
+                ->where('module', SavedSegment::MODULE_REQUEST)
+                ->orderByDesc('updated_at')
+                ->orderBy('name')
+                ->get([
+                    'id',
+                    'module',
+                    'name',
+                    'description',
+                    'filters',
+                    'sort',
+                    'search_term',
+                    'is_shared',
+                    'cached_count',
+                    'last_resolved_at',
+                    'updated_at',
+                ])
+            : collect();
 
         return $this->inertiaOrJson('Request/Index', [
             'requests' => $requests,
@@ -142,10 +144,10 @@ class RequestController extends Controller
                 'assignees' => $assignees,
             ]),
             'savedSegments' => $savedSegments,
-            'canManageSavedSegments' => true,
+            'canManageSavedSegments' => $canManageSavedSegments,
             'canExport' => $this->canExportProspects($user, $accountId),
             'lead_intake' => $leadIntake,
-            'analytics' => app(BuildRequestAnalyticsData::class)->execute($accountId),
+            'analytics' => $this->buildAnalyticsData($accountId),
         ]);
     }
 
@@ -154,9 +156,7 @@ class RequestController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (! $user || $user->id !== $accountId) {
-            abort(403);
-        }
+        $this->ensureProspectWorkspaceReadAccess($user, $accountId, $request);
 
         if ($lead->user_id !== $accountId) {
             abort(404);
@@ -236,6 +236,7 @@ class RequestController extends Controller
         }
 
         $accountId = $user?->accountOwnerId() ?? Auth::id();
+        $this->ensureProspectWorkspaceWriteAccess($user, $accountId, $request);
 
         $validated = $request->validated();
         $ignoreDuplicates = (bool) ($validated['ignore_duplicates'] ?? false);
@@ -291,6 +292,7 @@ class RequestController extends Controller
             'to_status' => $lead->status,
             'metadata' => ['source' => 'manual'],
         ]);
+        app(ProspectNotificationService::class)->notifyCreated($lead, $user);
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -312,6 +314,7 @@ class RequestController extends Controller
             abort(403);
         }
         $accountId = $user->accountOwnerId();
+        $this->ensureProspectWorkspaceWriteAccess($user, $accountId, $request);
 
         $data = $request->validated();
         $ignoreDuplicates = (bool) ($data['ignore_duplicates'] ?? false);
@@ -649,6 +652,7 @@ class RequestController extends Controller
         }
 
         $accountId = $user?->accountOwnerId() ?? Auth::id();
+        $this->ensureProspectWorkspaceWriteAccess($user, $accountId, $request);
 
         if ($lead->user_id !== $accountId) {
             abort(403);
@@ -743,9 +747,7 @@ class RequestController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (! $user || $user->id !== $accountId) {
-            abort(403);
-        }
+        $this->ensureProspectWorkspaceWriteAccess($user, $accountId, $request);
 
         if ($lead->user_id !== $accountId) {
             abort(403);
@@ -850,6 +852,12 @@ class RequestController extends Controller
             'source' => 'manual_update',
         ]);
 
+        if ($previousStatus !== $lead->status && $lead->status === LeadRequest::STATUS_LOST) {
+            app(ProspectNotificationService::class)->notifyLost($lead, $user);
+        }
+
+        app(ProspectNotificationService::class)->notifyAssigned($lead, $user, $previousAssigneeId);
+
         ActivityLog::record($user, $lead, 'updated', [
             'from' => $previousStatus,
             'to' => $lead->status,
@@ -879,9 +887,7 @@ class RequestController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (! $user || $user->id !== $accountId) {
-            abort(403);
-        }
+        $this->ensureProspectWorkspaceWriteAccess($user, $accountId, $request);
 
         $validated = $request->validated();
 
@@ -973,6 +979,12 @@ class RequestController extends Controller
                 'source' => 'bulk_update',
             ]);
 
+            if ($previousStatus !== $lead->status && $lead->status === LeadRequest::STATUS_LOST) {
+                app(ProspectNotificationService::class)->notifyLost($lead, $user);
+            }
+
+            app(ProspectNotificationService::class)->notifyAssigned($lead, $user, $previousAssigneeId);
+
             ActivityLog::record($user, $lead, 'bulk_updated', [
                 'from' => $previousStatus,
                 'to' => $lead->status,
@@ -1007,9 +1019,7 @@ class RequestController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (! $user || $user->id !== $accountId) {
-            abort(403);
-        }
+        $this->ensureProspectWorkspaceWriteAccess($user, $accountId, $request);
 
         if ($lead->user_id !== $accountId) {
             abort(404);
@@ -1053,9 +1063,7 @@ class RequestController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (! $user || $user->id !== $accountId) {
-            abort(403);
-        }
+        $this->ensureProspectWorkspaceWriteAccess($user, $accountId, $request);
 
         if ($lead->user_id !== $accountId) {
             abort(403);
@@ -1098,9 +1106,7 @@ class RequestController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (! $user || $user->id !== $accountId) {
-            abort(403);
-        }
+        $this->ensureProspectWorkspaceWriteAccess($user, $accountId, $request);
 
         if ($lead->user_id !== $accountId) {
             abort(403);
@@ -1138,9 +1144,7 @@ class RequestController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (! $user || $user->id !== $accountId) {
-            abort(403);
-        }
+        $this->ensureProspectWorkspaceWriteAccess($user, $accountId, $request);
 
         if ($lead->user_id !== $accountId) {
             abort(403);
@@ -1167,9 +1171,7 @@ class RequestController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (! $user || $user->id !== $accountId) {
-            abort(403);
-        }
+        $this->ensureProspectWorkspaceWriteAccess($user, $accountId, $request);
 
         if ($lead->user_id !== $accountId) {
             abort(403);
@@ -1373,7 +1375,10 @@ class RequestController extends Controller
 
         return (bool) $membership
             && (int) $membership->account_id === $accountId
-            && $membership->hasPermission(Prospect::PERMISSION_CONVERT);
+            && (
+                $membership->hasPermission(Prospect::PERMISSION_CONVERT)
+                || $membership->hasPermission('sales.manage')
+            );
     }
 
     private function canExportProspects(User $user, int $accountId): bool
@@ -1393,6 +1398,11 @@ class RequestController extends Controller
         return (bool) $membership
             && (int) $membership->account_id === $accountId
             && $membership->hasPermission(Prospect::PERMISSION_EXPORT);
+    }
+
+    protected function buildAnalyticsData(int $accountId): array
+    {
+        return app(BuildRequestAnalyticsData::class)->execute($accountId);
     }
 
     /**

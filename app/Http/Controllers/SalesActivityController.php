@@ -21,9 +21,7 @@ class SalesActivityController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (! $user || $user->id !== $accountId) {
-            abort(403);
-        }
+        $this->ensureProspectWorkspaceWriteAccess($user, $accountId, $request);
 
         if ((int) $lead->user_id !== (int) $accountId) {
             abort(404);

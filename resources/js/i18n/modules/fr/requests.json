@@ -415,6 +415,53 @@
     "analytics": {
       "title": "Indicateurs (derniers {days} jours)",
       "subtitle": "Indicateurs glissants pour suivre la performance des prospects.",
+      "dashboard": {
+        "title": "Dashboard prospects",
+        "subtitle": "Pilotez le volume, les responsables, la pression de relance et la conversion client depuis un seul cockpit.",
+        "window": "Fenetre glissante de conversion sur {days} jours",
+        "unassigned": "Sans responsable",
+        "tabs": {
+          "overview": "Vue d'ensemble",
+          "overview_note": "KPIs et signaux de conversion",
+          "pipeline": "Pipeline",
+          "pipeline_note": "Repartition par statut et source",
+          "assignees": "Responsables",
+          "assignees_note": "Charge et suivis par owner"
+        },
+        "sections": {
+          "by_status": "Par statut",
+          "by_source": "Par source",
+          "by_assignee": "Par responsable",
+          "by_assignee_note": "Trie par relances en retard puis par volume gere."
+        },
+        "labels": {
+          "due_today": "A relancer aujourd'hui",
+          "overdue": "En retard",
+          "won": "Gagnes",
+          "lost": "Perdus",
+          "converted": "Convertis"
+        },
+        "cards": {
+          "total": "Total prospects",
+          "total_note": "Pipeline actif non archive.",
+          "new_this_week": "Nouveaux cette semaine",
+          "new_this_week_note": "Crees depuis le debut de la semaine en cours.",
+          "new_this_month": "Nouveaux ce mois-ci",
+          "new_this_month_note": "Crees depuis le debut du mois en cours.",
+          "due_today": "Relance aujourd'hui",
+          "due_today_note": "Prospects ouverts avec relance prevue aujourd'hui.",
+          "overdue": "En retard",
+          "overdue_note": "Prospects ouverts avec une relance deja depassee.",
+          "won": "Gagnes",
+          "won_note": "Prospects clotures comme gagnes.",
+          "lost": "Perdus",
+          "lost_note": "Prospects clotures comme perdus.",
+          "conversion_rate": "Conversion {days}j",
+          "conversion_rate_note": "{converted} convertis / {created} crees",
+          "avg_conversion_days": "Delai moyen de conversion",
+          "avg_conversion_days_note": "Base sur les prospects convertis en clients sur la fenetre en cours."
+        }
+      },
       "first_response": "Délai moyen 1re réponse",
       "first_response_note": "Base sur la premiere action apres creation du prospect.",
       "time_to_intake": "Délai moyen prise en charge",

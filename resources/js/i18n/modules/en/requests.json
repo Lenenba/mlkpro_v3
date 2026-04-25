@@ -415,6 +415,53 @@
     "analytics": {
       "title": "Analytics (last {days} days)",
       "subtitle": "Rolling insights to track prospect performance.",
+      "dashboard": {
+        "title": "Prospect dashboard",
+        "subtitle": "Track prospect volume, ownership, follow-up pressure, and customer conversion from one cockpit.",
+        "window": "Rolling {days}-day conversion window",
+        "unassigned": "Unassigned",
+        "tabs": {
+          "overview": "Overview",
+          "overview_note": "Core KPIs and conversion signals",
+          "pipeline": "Pipeline",
+          "pipeline_note": "Breakdown by status and source",
+          "assignees": "Assignees",
+          "assignees_note": "Owned load and follow-up pressure"
+        },
+        "sections": {
+          "by_status": "By status",
+          "by_source": "By source",
+          "by_assignee": "By assignee",
+          "by_assignee_note": "Sorted by overdue follow-ups, then owned volume."
+        },
+        "labels": {
+          "due_today": "Due today",
+          "overdue": "Overdue",
+          "won": "Won",
+          "lost": "Lost",
+          "converted": "Converted"
+        },
+        "cards": {
+          "total": "Total prospects",
+          "total_note": "Active, non-archived pipeline.",
+          "new_this_week": "New this week",
+          "new_this_week_note": "Created since the start of the current week.",
+          "new_this_month": "New this month",
+          "new_this_month_note": "Created since the start of the current month.",
+          "due_today": "Follow-up today",
+          "due_today_note": "Open prospects scheduled for follow-up today.",
+          "overdue": "Overdue",
+          "overdue_note": "Open prospects with a follow-up before now.",
+          "won": "Won",
+          "won_note": "Prospects closed as won.",
+          "lost": "Lost",
+          "lost_note": "Prospects closed as lost.",
+          "conversion_rate": "{days}d conversion",
+          "conversion_rate_note": "{converted} converted / {created} created",
+          "avg_conversion_days": "Avg conversion time",
+          "avg_conversion_days_note": "Based on prospects converted to customers in the current window."
+        }
+      },
       "first_response": "Avg first response",
       "first_response_note": "Based on first action after prospect creation.",
       "time_to_intake": "Avg time to intake",

@@ -1,7 +1,9 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head } from '@inertiajs/vue3';
+import { computed } from 'vue';
 import RequestStats from '@/Components/UI/RequestStats.vue';
+import ProspectDashboardAnalytics from '@/Pages/Request/UI/ProspectDashboardAnalytics.vue';
 import RequestTable from '@/Pages/Request/UI/RequestTable.vue';
 import RequestAnalytics from '@/Pages/Request/UI/RequestAnalytics.vue';
 
@@ -35,6 +37,8 @@ const props = defineProps({
         default: false,
     },
 });
+
+const isProspectDashboard = computed(() => props.analytics?.kind === 'prospect_dashboard_v1');
 </script>
 
 <template>
@@ -52,7 +56,8 @@ const props = defineProps({
             <RequestStats :stats="stats" />
         </div>
         <div class="mt-3">
-            <RequestAnalytics :analytics="analytics" />
+            <ProspectDashboardAnalytics v-if="isProspectDashboard" :analytics="analytics" />
+            <RequestAnalytics v-else :analytics="analytics" />
         </div>
         <div class="mt-3">
             <RequestTable

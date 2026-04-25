@@ -18,7 +18,9 @@ class RequestMediaController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (!$user || $lead->user_id !== $accountId) {
+        $this->ensureProspectWorkspaceWriteAccess($user, $accountId, $request);
+
+        if ($lead->user_id !== $accountId) {
             abort(403);
         }
 
@@ -81,7 +83,9 @@ class RequestMediaController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (!$user || $lead->user_id !== $accountId || $media->request_id !== $lead->id) {
+        $this->ensureProspectWorkspaceWriteAccess($user, $accountId, $request);
+
+        if ($lead->user_id !== $accountId || $media->request_id !== $lead->id) {
             abort(403);
         }
 

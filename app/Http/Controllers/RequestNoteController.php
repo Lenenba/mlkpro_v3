@@ -16,7 +16,9 @@ class RequestNoteController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (!$user || $lead->user_id !== $accountId) {
+        $this->ensureProspectWorkspaceWriteAccess($user, $accountId, $request);
+
+        if ($lead->user_id !== $accountId) {
             abort(403);
         }
 
@@ -60,7 +62,9 @@ class RequestNoteController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (!$user || $lead->user_id !== $accountId || $note->request_id !== $lead->id) {
+        $this->ensureProspectWorkspaceWriteAccess($user, $accountId, $request);
+
+        if ($lead->user_id !== $accountId || $note->request_id !== $lead->id) {
             abort(403);
         }
 

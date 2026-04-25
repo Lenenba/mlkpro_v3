@@ -364,6 +364,53 @@
     "analytics": {
       "title": "Análisis (últimos {days} días)",
       "subtitle": "Informacion continua para seguir el rendimiento de los prospectos.",
+      "dashboard": {
+        "title": "Dashboard de prospectos",
+        "subtitle": "Sigue el volumen, responsables, presion de seguimiento y conversion a cliente desde un solo cockpit.",
+        "window": "Ventana movil de conversion de {days} dias",
+        "unassigned": "Sin responsable",
+        "tabs": {
+          "overview": "Resumen",
+          "overview_note": "KPIs clave y señales de conversion",
+          "pipeline": "Pipeline",
+          "pipeline_note": "Distribucion por estado y fuente",
+          "assignees": "Responsables",
+          "assignees_note": "Carga y seguimientos por owner"
+        },
+        "sections": {
+          "by_status": "Por estado",
+          "by_source": "Por fuente",
+          "by_assignee": "Por responsable",
+          "by_assignee_note": "Ordenado por seguimientos atrasados y luego por volumen."
+        },
+        "labels": {
+          "due_today": "Seguimiento hoy",
+          "overdue": "Atrasado",
+          "won": "Ganado",
+          "lost": "Perdido",
+          "converted": "Convertido"
+        },
+        "cards": {
+          "total": "Prospectos totales",
+          "total_note": "Pipeline activo no archivado.",
+          "new_this_week": "Nuevos esta semana",
+          "new_this_week_note": "Creados desde el inicio de la semana actual.",
+          "new_this_month": "Nuevos este mes",
+          "new_this_month_note": "Creados desde el inicio del mes actual.",
+          "due_today": "Seguimiento hoy",
+          "due_today_note": "Prospectos abiertos con seguimiento previsto hoy.",
+          "overdue": "Atrasados",
+          "overdue_note": "Prospectos abiertos con seguimiento vencido.",
+          "won": "Ganados",
+          "won_note": "Prospectos cerrados como ganados.",
+          "lost": "Perdidos",
+          "lost_note": "Prospectos cerrados como perdidos.",
+          "conversion_rate": "Conversion {days}d",
+          "conversion_rate_note": "{converted} convertidos / {created} creados",
+          "avg_conversion_days": "Tiempo medio de conversion",
+          "avg_conversion_days_note": "Basado en prospectos convertidos en clientes durante la ventana actual."
+        }
+      },
       "first_response": "Promedio de primera respuesta",
       "first_response_note": "Basado en la primera accion despues de crear el prospecto.",
       "time_to_intake": "Tiempo medio de atención",

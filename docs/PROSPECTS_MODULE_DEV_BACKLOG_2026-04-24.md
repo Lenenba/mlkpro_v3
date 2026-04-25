@@ -931,7 +931,7 @@ Objectif technique:
 
 ### `PROSPECT-801` - Construire le dashboard data Prospects
 
-- Statut: `a faire`
+- Statut: `fait`
 - But: exposer les KPI du cahier des charges
 - Livrables:
 - total prospects
@@ -952,7 +952,7 @@ Objectif technique:
 
 ### `PROSPECT-802` - Ajouter le dashboard visuel Prospects
 
-- Statut: `a faire`
+- Statut: `fait`
 - But: rendre les donnees lisibles dans le workspace
 - Fichiers probables:
 - `resources/js/Pages/Request/Index.vue`
@@ -962,7 +962,7 @@ Objectif technique:
 
 ### `PROSPECT-803` - Ajouter les notifications internes Prospects
 
-- Statut: `a faire`
+- Statut: `fait`
 - But: pousser les bons signaux sans bruit inutile
 - Livrables:
 - nouveau prospect
@@ -995,7 +995,7 @@ Objectif technique:
 
 ### `PROSPECT-901` - Creer la commande de migration en mode dry-run
 
-- Statut: `a faire`
+- Statut: `fait`
 - But: mesurer l'impact avant toute ecriture
 - Livrables:
 - comptage des clients eligibles a reclasser
@@ -1010,7 +1010,7 @@ Objectif technique:
 
 ### `PROSPECT-902` - Executer la migration reelle avec journal
 
-- Statut: `a faire`
+- Statut: `fait`
 - But: migrer proprement et de facon reversible autant que possible
 - Livrables:
 - reclassement vers prospect
@@ -1026,7 +1026,7 @@ Objectif technique:
 
 ### `PROSPECT-903` - Ajouter la verification post-migration
 
-- Statut: `a faire`
+- Statut: `fait`
 - But: controler la qualite du resultat
 - Livrables:
 - rapport de verification
