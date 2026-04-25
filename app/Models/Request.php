@@ -187,6 +187,11 @@ class Request extends Model
         return $this->hasMany(ProspectInteraction::class, 'request_id')->latest('created_at');
     }
 
+    public function serviceRequests(): HasMany
+    {
+        return $this->hasMany(ServiceRequest::class, 'prospect_id')->latest('created_at');
+    }
+
     public function scopeByUser(Builder $query, int $userId): Builder
     {
         return $query->where('user_id', $userId);

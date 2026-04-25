@@ -151,9 +151,21 @@ const anonymizationReason = computed(() => anonymizedMeta.value?.anonymization_r
 const statusHistoryItems = computed(() => Array.isArray(props.lead?.status_histories) ? props.lead.status_histories : []);
 const prospectInteractionItems = ref(Array.isArray(props.lead?.prospect_interactions) ? [...props.lead.prospect_interactions] : []);
 const customerConversionModalRef = ref(null);
+const leftColumnTab = ref('overview');
+const rightColumnTab = ref('summary');
 const lostReasonMap = computed(() => new Map(
     (props.lostReasonOptions || []).map((reason) => [String(reason.id), reason.label_key])
 ));
+const leftColumnTabOptions = computed(() => ([
+    { id: 'overview', label: t('requests.show.tabs.left.overview') },
+    { id: 'collaboration', label: t('requests.show.tabs.left.collaboration') },
+    { id: 'sales', label: t('requests.show.tabs.left.sales') },
+]));
+const rightColumnTabOptions = computed(() => ([
+    { id: 'summary', label: t('requests.show.tabs.right.summary') },
+    { id: 'qualification', label: t('requests.show.tabs.right.qualification') },
+    { id: 'history', label: t('requests.show.tabs.right.history') },
+]));
 
 const hasMedia = computed(() => Array.isArray(props.lead?.media) && props.lead.media.length > 0);
 const hasTasks = computed(() => Array.isArray(props.lead?.tasks) && props.lead.tasks.length > 0);
@@ -180,6 +192,12 @@ const closeOverlay = (selector) => {
     }
     window.HSOverlay.close(selector);
 };
+
+const detailTabClass = (isActive) => (
+    isActive
+        ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm dark:border-emerald-400 dark:bg-emerald-500/10 dark:text-emerald-300'
+        : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800'
+);
 
 const addressLabel = computed(() => {
     if (isAnonymized.value) {
@@ -971,731 +989,775 @@ const openCustomerConversion = () => {
 
             <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr),320px]">
                 <div class="space-y-4">
-                    <ProspectInteractionTimeline :items="prospectInteractionItems" />
-
-                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <div class="flex items-center justify-between">
-                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ $t('requests.show.details') }}
-                            </h2>
-                            <span class="text-xs text-stone-500 dark:text-neutral-400">
-                                {{ sourceLabel || $t('requests.show.channel_fallback') }}
-                            </span>
-                        </div>
-                        <div class="mt-3 grid grid-cols-1 gap-3 text-sm text-stone-600 dark:text-neutral-300 sm:grid-cols-2">
-                            <div>
-                                <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.company') }}</div>
-                                <div class="mt-1 text-stone-800 dark:text-neutral-200">
-                                    {{ companyLabel }}
-                                </div>
-                            </div>
-                            <div>
-                                <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.request_type') }}</div>
-                                <div class="mt-1 text-stone-800 dark:text-neutral-200">
-                                    {{ requestTypeLabel }}
-                                </div>
-                            </div>
-                            <div>
-                                <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.service') }}</div>
-                                <div class="mt-1 text-stone-800 dark:text-neutral-200">
-                                    {{ lead.service_type || $t('requests.show.service_fallback') }}
-                                </div>
-                            </div>
-                            <div>
-                                <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.urgency') }}</div>
-                                <div class="mt-1 text-stone-800 dark:text-neutral-200">
-                                    {{ lead.urgency || $t('requests.show.urgency_fallback') }}
-                                </div>
-                            </div>
-                            <template v-if="lead.status === 'REQ_LOST'">
-                                <div>
-                                    <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.lost_reason') }}</div>
-                                    <div class="mt-1 text-stone-800 dark:text-neutral-200">
-                                        {{ lostReasonLabel }}
-                                    </div>
-                                </div>
-                                <div>
-                                    <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.lost_comment') }}</div>
-                                    <div class="mt-1 text-stone-800 dark:text-neutral-200">
-                                        {{ lostComment || $t('requests.loss.comment_empty') }}
-                                    </div>
-                                </div>
-                            </template>
-                            <div class="sm:col-span-2">
-                                <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.description') }}</div>
-                                <p class="mt-1 text-stone-700 dark:text-neutral-200">
-                                    {{ isAnonymized ? $t('requests.show.anonymized_description') : (lead.description || $t('requests.show.description_empty')) }}
-                                </p>
-                            </div>
-                            <div class="sm:col-span-2">
-                                <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.address') }}</div>
-                                <p class="mt-1 text-stone-700 dark:text-neutral-200">
-                                    {{ addressLabel }}
-                                </p>
-                            </div>
-                            <div>
-                                <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.contact_consent') }}</div>
-                                <div class="mt-1 text-stone-800 dark:text-neutral-200">
-                                    {{ contactConsentLabel }}
-                                </div>
-                            </div>
-                            <div>
-                                <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.marketing_consent') }}</div>
-                                <div class="mt-1 text-stone-800 dark:text-neutral-200">
-                                    {{ marketingConsentLabel }}
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-
-                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <div class="flex items-center justify-between">
-                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ $t('requests.notes.title') }}
-                            </h2>
-                        </div>
-                        <div v-if="lead.notes?.length" class="mt-3 space-y-3">
-                            <div
-                                v-for="note in lead.notes"
-                                :key="note.id"
-                                class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
-                            >
-                                <div class="flex items-start justify-between gap-2">
-                                    <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ note.user?.name || $t('requests.notes.author_fallback') }} ·
-                                        <span :title="formatAbsoluteDate(note.created_at)">{{ formatDate(note.created_at) }}</span>
-                                    </div>
-                                    <button
-                                        v-if="!isArchived"
-                                        type="button"
-                                        class="text-xs text-rose-600 hover:text-rose-700"
-                                        @click="deleteNote(note)"
-                                    >
-                                        {{ $t('requests.notes.delete') }}
-                                    </button>
-                                </div>
-                                <p class="mt-2">{{ note.body }}</p>
-                            </div>
-                        </div>
-                        <p v-else class="mt-3 text-sm text-stone-500 dark:text-neutral-400">
-                            {{ $t('requests.notes.empty') }}
-                        </p>
-
-                        <form v-if="!isArchived" class="mt-4 space-y-2" @submit.prevent="submitNote">
-                            <FloatingTextarea v-model="noteForm.body" :label="$t('requests.notes.add')" />
-                            <InputError class="mt-1" :message="noteForm.errors.body" />
-                            <div class="flex justify-end">
-                                <button
-                                    type="submit"
-                                    class="inline-flex items-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
-                                    :disabled="noteForm.processing"
-                                >
-                                    {{ $t('requests.notes.save') }}
-                                </button>
-                            </div>
-                        </form>
-                    </section>
-
-                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <div class="flex items-center justify-between gap-2">
-                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ $t('requests.media.title') }}
-                            </h2>
+                    <section class="rounded-sm border border-stone-200 bg-white p-2 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <div class="flex flex-wrap gap-2">
                             <button
-                                v-if="hasMedia && !isArchived"
+                                v-for="option in leftColumnTabOptions"
+                                :key="`prospect-left-tab-${option.id}`"
                                 type="button"
-                                data-hs-overlay="#request-media-modal"
-                                class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                class="inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold transition"
+                                :class="detailTabClass(leftColumnTab === option.id)"
+                                :aria-pressed="leftColumnTab === option.id"
+                                @click="leftColumnTab = option.id"
                             >
-                                {{ $t('requests.media.upload') }}
+                                {{ option.label }}
                             </button>
                         </div>
+                    </section>
 
-                        <div v-if="lead.media?.length" class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                            <div
-                                v-for="media in lead.media"
-                                :key="media.id"
-                                class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
-                            >
-                                <div class="flex items-start justify-between gap-2">
-                                    <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ media.user?.name || $t('requests.media.author_fallback') }} ·
-                                        <span :title="formatAbsoluteDate(media.created_at)">{{ formatDate(media.created_at) }}</span>
+                    <template v-if="leftColumnTab === 'overview'">
+                        <ProspectInteractionTimeline :items="prospectInteractionItems" />
+
+                        <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                            <div class="flex items-center justify-between">
+                                <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ $t('requests.show.details') }}
+                                </h2>
+                                <span class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ sourceLabel || $t('requests.show.channel_fallback') }}
+                                </span>
+                            </div>
+                            <div class="mt-3 grid grid-cols-1 gap-3 text-sm text-stone-600 dark:text-neutral-300 sm:grid-cols-2">
+                                <div>
+                                    <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.company') }}</div>
+                                    <div class="mt-1 text-stone-800 dark:text-neutral-200">
+                                        {{ companyLabel }}
                                     </div>
-                                    <button
-                                        v-if="!isArchived"
-                                        type="button"
-                                        class="text-xs text-rose-600 hover:text-rose-700"
-                                        @click="deleteMedia(media)"
-                                    >
-                                        {{ $t('requests.media.delete') }}
-                                    </button>
                                 </div>
-                                <div class="mt-2 flex items-center gap-3">
-                                    <img
-                                        v-if="isImage(media) && media.url"
-                                        :src="media.url"
-                                        class="h-16 w-16 rounded-sm object-cover"
-                                        alt=""
-                                        loading="lazy"
-                                        decoding="async"
-                                    />
-                                    <div class="min-w-0">
-                                        <div class="truncate text-sm font-medium text-stone-800 dark:text-neutral-200">
-                                            {{ mediaLabel(media) }}
+                                <div>
+                                    <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.request_type') }}</div>
+                                    <div class="mt-1 text-stone-800 dark:text-neutral-200">
+                                        {{ requestTypeLabel }}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.service') }}</div>
+                                    <div class="mt-1 text-stone-800 dark:text-neutral-200">
+                                        {{ lead.service_type || $t('requests.show.service_fallback') }}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.urgency') }}</div>
+                                    <div class="mt-1 text-stone-800 dark:text-neutral-200">
+                                        {{ lead.urgency || $t('requests.show.urgency_fallback') }}
+                                    </div>
+                                </div>
+                                <template v-if="lead.status === 'REQ_LOST'">
+                                    <div>
+                                        <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.lost_reason') }}</div>
+                                        <div class="mt-1 text-stone-800 dark:text-neutral-200">
+                                            {{ lostReasonLabel }}
                                         </div>
-                                        <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                            {{ media.size ? formatBytes(media.size) : '-' }}
+                                    </div>
+                                    <div>
+                                        <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.lost_comment') }}</div>
+                                        <div class="mt-1 text-stone-800 dark:text-neutral-200">
+                                            {{ lostComment || $t('requests.loss.comment_empty') }}
                                         </div>
-                                        <div class="mt-2 flex items-center gap-2">
-                                            <a
-                                                v-if="media.url"
-                                                :href="media.url"
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                class="text-xs font-medium text-emerald-600 hover:text-emerald-700"
-                                            >
-                                                {{ $t('requests.media.view') }}
-                                            </a>
-                                            <a
-                                                v-if="media.url"
-                                                :href="media.url"
-                                                target="_blank"
-                                                download
-                                                class="text-xs text-stone-500 hover:text-stone-700"
-                                            >
-                                                {{ $t('requests.media.download') }}
-                                            </a>
-                                        </div>
+                                    </div>
+                                </template>
+                                <div class="sm:col-span-2">
+                                    <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.description') }}</div>
+                                    <p class="mt-1 text-stone-700 dark:text-neutral-200">
+                                        {{ isAnonymized ? $t('requests.show.anonymized_description') : (lead.description || $t('requests.show.description_empty')) }}
+                                    </p>
+                                </div>
+                                <div class="sm:col-span-2">
+                                    <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.address') }}</div>
+                                    <p class="mt-1 text-stone-700 dark:text-neutral-200">
+                                        {{ addressLabel }}
+                                    </p>
+                                </div>
+                                <div>
+                                    <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.contact_consent') }}</div>
+                                    <div class="mt-1 text-stone-800 dark:text-neutral-200">
+                                        {{ contactConsentLabel }}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.marketing_consent') }}</div>
+                                    <div class="mt-1 text-stone-800 dark:text-neutral-200">
+                                        {{ marketingConsentLabel }}
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        <p v-else class="mt-3 text-sm text-stone-500 dark:text-neutral-400">
-                            {{ $t('requests.media.empty') }}
-                        </p>
+                        </section>
+                    </template>
 
-                        <form v-if="!hasMedia && !isArchived" class="mt-4 space-y-2" @submit.prevent="submitMedia">
-                            <input
-                                ref="mediaInputRef"
-                                type="file"
-                                class="block w-full text-sm text-stone-700 file:mr-4 file:rounded-sm file:border-0 file:bg-stone-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-stone-700 hover:file:bg-stone-200 dark:text-neutral-200 dark:file:bg-neutral-700 dark:file:text-neutral-200"
-                                @change="handleMediaFile"
-                            />
-                            <InputError class="mt-1" :message="mediaForm.errors.file" />
-                            <div class="flex justify-end">
+                    <template v-else-if="leftColumnTab === 'collaboration'">
+                        <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                            <div class="flex items-center justify-between">
+                                <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ $t('requests.notes.title') }}
+                                </h2>
+                            </div>
+                            <div v-if="lead.notes?.length" class="mt-3 space-y-3">
+                                <div
+                                    v-for="note in lead.notes"
+                                    :key="note.id"
+                                    class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
+                                >
+                                    <div class="flex items-start justify-between gap-2">
+                                        <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                            {{ note.user?.name || $t('requests.notes.author_fallback') }} ·
+                                            <span :title="formatAbsoluteDate(note.created_at)">{{ formatDate(note.created_at) }}</span>
+                                        </div>
+                                        <button
+                                            v-if="!isArchived"
+                                            type="button"
+                                            class="text-xs text-rose-600 hover:text-rose-700"
+                                            @click="deleteNote(note)"
+                                        >
+                                            {{ $t('requests.notes.delete') }}
+                                        </button>
+                                    </div>
+                                    <p class="mt-2">{{ note.body }}</p>
+                                </div>
+                            </div>
+                            <p v-else class="mt-3 text-sm text-stone-500 dark:text-neutral-400">
+                                {{ $t('requests.notes.empty') }}
+                            </p>
+
+                            <form v-if="!isArchived" class="mt-4 space-y-2" @submit.prevent="submitNote">
+                                <FloatingTextarea v-model="noteForm.body" :label="$t('requests.notes.add')" />
+                                <InputError class="mt-1" :message="noteForm.errors.body" />
+                                <div class="flex justify-end">
+                                    <button
+                                        type="submit"
+                                        class="inline-flex items-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+                                        :disabled="noteForm.processing"
+                                    >
+                                        {{ $t('requests.notes.save') }}
+                                    </button>
+                                </div>
+                            </form>
+                        </section>
+
+                        <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                            <div class="flex items-center justify-between gap-2">
+                                <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ $t('requests.media.title') }}
+                                </h2>
                                 <button
-                                    type="submit"
-                                    class="inline-flex items-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
-                                    :disabled="mediaForm.processing || !mediaForm.file"
+                                    v-if="hasMedia && !isArchived"
+                                    type="button"
+                                    data-hs-overlay="#request-media-modal"
+                                    class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
                                 >
                                     {{ $t('requests.media.upload') }}
                                 </button>
                             </div>
-                        </form>
-                    </section>
 
-                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <div class="flex items-center justify-between gap-2">
-                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ $t('requests.tasks.title') }}
-                            </h2>
-                            <button
-                                v-if="hasTasks && !isArchived"
-                                type="button"
-                                data-hs-overlay="#request-task-modal"
-                                class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                            >
-                                {{ $t('requests.tasks.create') }}
-                            </button>
-                        </div>
-
-                        <div v-if="lead.tasks?.length" class="mt-3 space-y-3">
-                            <div class="flex flex-wrap gap-2">
-                                <button
-                                    v-for="option in leadTaskFilterOptions"
-                                    :key="`prospect-task-filter-${option.id}`"
-                                    type="button"
-                                    class="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition"
-                                    :class="prospectTaskFilter === option.id
-                                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:border-emerald-400 dark:bg-emerald-500/10 dark:text-emerald-300'
-                                        : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800'"
-                                    @click="prospectTaskFilter = option.id"
+                            <div v-if="lead.media?.length" class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <div
+                                    v-for="media in lead.media"
+                                    :key="media.id"
+                                    class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
                                 >
-                                    <span>{{ option.label }}</span>
-                                    <span class="rounded-full bg-black/5 px-2 py-0.5 text-[11px] dark:bg-white/10">
-                                        {{ option.count }}
-                                    </span>
-                                </button>
-                            </div>
-
-                            <div class="space-y-2">
-                            <div
-                                v-for="task in filteredLeadTasks"
-                                :key="task.id"
-                                class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
-                            >
-                                <div class="flex w-full flex-wrap items-start justify-between gap-2">
-                                    <div>
-                                        <Link :href="route('task.show', task.id)" class="text-sm font-semibold text-stone-800 hover:text-emerald-600 dark:text-neutral-200">
-                                            {{ task.title }}
-                                        </Link>
-                                        <div class="mt-1 flex items-center gap-2 text-xs">
-                                            <span class="rounded-full px-2 py-0.5 font-medium" :class="taskAssigneeBadgeClass(task)">
-                                                {{ taskAssigneeBadgeLabel(task) }}
-                                            </span>
-                                            <span class="text-stone-500 dark:text-neutral-400">
-                                                {{ taskAssigneeName(task) }}
-                                            </span>
+                                    <div class="flex items-start justify-between gap-2">
+                                        <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                            {{ media.user?.name || $t('requests.media.author_fallback') }} ·
+                                            <span :title="formatAbsoluteDate(media.created_at)">{{ formatDate(media.created_at) }}</span>
+                                        </div>
+                                        <button
+                                            v-if="!isArchived"
+                                            type="button"
+                                            class="text-xs text-rose-600 hover:text-rose-700"
+                                            @click="deleteMedia(media)"
+                                        >
+                                            {{ $t('requests.media.delete') }}
+                                        </button>
+                                    </div>
+                                    <div class="mt-2 flex items-center gap-3">
+                                        <img
+                                            v-if="isImage(media) && media.url"
+                                            :src="media.url"
+                                            class="h-16 w-16 rounded-sm object-cover"
+                                            alt=""
+                                            loading="lazy"
+                                            decoding="async"
+                                        />
+                                        <div class="min-w-0">
+                                            <div class="truncate text-sm font-medium text-stone-800 dark:text-neutral-200">
+                                                {{ mediaLabel(media) }}
+                                            </div>
+                                            <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                                {{ media.size ? formatBytes(media.size) : '-' }}
+                                            </div>
+                                            <div class="mt-2 flex items-center gap-2">
+                                                <a
+                                                    v-if="media.url"
+                                                    :href="media.url"
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    class="text-xs font-medium text-emerald-600 hover:text-emerald-700"
+                                                >
+                                                    {{ $t('requests.media.view') }}
+                                                </a>
+                                                <a
+                                                    v-if="media.url"
+                                                    :href="media.url"
+                                                    target="_blank"
+                                                    download
+                                                    class="text-xs text-stone-500 hover:text-stone-700"
+                                                >
+                                                    {{ $t('requests.media.download') }}
+                                                </a>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div class="flex items-center gap-2 text-xs">
-                                        <span class="rounded-full px-2 py-0.5 font-medium" :class="taskPriorityClass(task.priority)">
-                                            {{ taskPriorityLabel(task.priority) }}
-                                        </span>
-                                        <span class="rounded-full px-2 py-0.5 font-medium" :class="taskStatusClass(task.status)">
-                                            {{ taskStatusLabel(task.status) }}
-                                        </span>
-                                        <span class="text-stone-500 dark:text-neutral-400">
-                                            {{ task.due_date ? formatDate(task.due_date) : $t('requests.tasks.no_due') }}
-                                        </span>
-                                    </div>
                                 </div>
+                            </div>
+                            <p v-else class="mt-3 text-sm text-stone-500 dark:text-neutral-400">
+                                {{ $t('requests.media.empty') }}
+                            </p>
 
-                                <div v-if="assigneeOptions.length" class="mt-2 flex w-full flex-wrap items-center gap-2">
-                                    <select
-                                        v-model="taskAssigneeState[task.id]"
-                                        :disabled="isArchived"
-                                        class="block min-w-52 rounded-sm border-stone-300 text-xs focus:border-emerald-600 focus:ring-emerald-600 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-200"
-                                    >
-                                        <option value="">{{ $t('requests.labels.unassigned') }}</option>
-                                        <option
-                                            v-for="assignee in assigneeOptions"
-                                            :key="`task-${task.id}-assignee-${assignee.id}`"
-                                            :value="assignee.id"
-                                        >
-                                            {{ assignee.name }}
-                                        </option>
-                                    </select>
-
+                            <form v-if="!hasMedia && !isArchived" class="mt-4 space-y-2" @submit.prevent="submitMedia">
+                                <input
+                                    ref="mediaInputRef"
+                                    type="file"
+                                    class="block w-full text-sm text-stone-700 file:mr-4 file:rounded-sm file:border-0 file:bg-stone-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-stone-700 hover:file:bg-stone-200 dark:text-neutral-200 dark:file:bg-neutral-700 dark:file:text-neutral-200"
+                                    @change="handleMediaFile"
+                                />
+                                <InputError class="mt-1" :message="mediaForm.errors.file" />
+                                <div class="flex justify-end">
                                     <button
-                                        type="button"
-                                        class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                                        :disabled="isArchived || isAssigningTask(task.id) || (taskAssigneeState[task.id] || '') === taskAssignedId(task)"
-                                        @click="assignTaskAssignee(task)"
+                                        type="submit"
+                                        class="inline-flex items-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+                                        :disabled="mediaForm.processing || !mediaForm.file"
                                     >
-                                        {{ $t('requests.tasks.assign_action') }}
+                                        {{ $t('requests.media.upload') }}
                                     </button>
                                 </div>
-                            </div>
-                            </div>
-                            <p v-if="!filteredLeadTasks.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                                {{ $t('tasks.empty.no_tasks_for_filter') }}
-                            </p>
-                        </div>
-                        <p v-else class="mt-3 text-sm text-stone-500 dark:text-neutral-400">
-                            {{ $t('requests.tasks.empty') }}
-                        </p>
+                            </form>
+                        </section>
 
-                        <form v-if="!hasTasks && !isArchived" class="mt-4 space-y-2" @submit.prevent="submitTask">
-                            <div class="grid grid-cols-1 gap-2 md:grid-cols-3">
-                                <FloatingInput v-model="taskForm.title" :label="$t('requests.tasks.title_label')" />
-                                <DatePicker v-model="taskForm.due_date" :label="$t('requests.tasks.due_date')" />
-                                <FloatingSelect
-                                    v-model="taskForm.priority"
-                                    :label="$t('tasks.form.priority')"
-                                    :options="[
-                                        { id: 'low', name: $t('tasks.priority.low') },
-                                        { id: 'normal', name: $t('tasks.priority.normal') },
-                                        { id: 'high', name: $t('tasks.priority.high') },
-                                        { id: 'urgent', name: $t('tasks.priority.urgent') },
-                                    ]"
-                                />
-                            </div>
-                            <FloatingSelect
-                                v-model="taskForm.assigned_team_member_id"
-                                :label="$t('requests.tasks.assignee')"
-                                :options="assigneeOptions"
-                                :placeholder="$t('requests.labels.unassigned')"
-                            />
-                            <FloatingTextarea v-model="taskForm.description" :label="$t('requests.tasks.description')" />
-                            <InputError class="mt-1" :message="taskForm.errors.title" />
-                            <InputError class="mt-1" :message="taskForm.errors.priority" />
-                            <InputError class="mt-1" :message="taskForm.errors.assigned_team_member_id" />
-                            <div class="flex justify-end">
+                        <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                            <div class="flex items-center justify-between gap-2">
+                                <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ $t('requests.tasks.title') }}
+                                </h2>
                                 <button
-                                    type="submit"
-                                    class="inline-flex items-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
-                                    :disabled="taskForm.processing"
+                                    v-if="hasTasks && !isArchived"
+                                    type="button"
+                                    data-hs-overlay="#request-task-modal"
+                                    class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
                                 >
                                     {{ $t('requests.tasks.create') }}
                                 </button>
                             </div>
-                        </form>
-                    </section>
 
-                    <SalesActivityPanel
-                        :items="activity"
-                        :can-log="canLogSalesActivity && !isArchived"
-                        :quick-actions="salesActivityQuickActions"
-                        :manual-actions="salesActivityManualActions"
-                        :store-route="route('crm.sales-activities.requests.store', lead.id)"
-                        i18n-prefix="requests.sales_activity"
-                        dialog-id="request-sales-activity-modal"
-                        @logged="handleSalesActivityLogged"
-                    />
+                            <div v-if="lead.tasks?.length" class="mt-3 space-y-3">
+                                <div class="flex flex-wrap gap-2">
+                                    <button
+                                        v-for="option in leadTaskFilterOptions"
+                                        :key="`prospect-task-filter-${option.id}`"
+                                        type="button"
+                                        class="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition"
+                                        :class="prospectTaskFilter === option.id
+                                            ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:border-emerald-400 dark:bg-emerald-500/10 dark:text-emerald-300'
+                                            : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800'"
+                                        @click="prospectTaskFilter = option.id"
+                                    >
+                                        <span>{{ option.label }}</span>
+                                        <span class="rounded-full bg-black/5 px-2 py-0.5 text-[11px] dark:bg-white/10">
+                                            {{ option.count }}
+                                        </span>
+                                    </button>
+                                </div>
+
+                                <div class="space-y-2">
+                                    <div
+                                        v-for="task in filteredLeadTasks"
+                                        :key="task.id"
+                                        class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
+                                    >
+                                        <div class="flex w-full flex-wrap items-start justify-between gap-2">
+                                            <div>
+                                                <Link :href="route('task.show', task.id)" class="text-sm font-semibold text-stone-800 hover:text-emerald-600 dark:text-neutral-200">
+                                                    {{ task.title }}
+                                                </Link>
+                                                <div class="mt-1 flex items-center gap-2 text-xs">
+                                                    <span class="rounded-full px-2 py-0.5 font-medium" :class="taskAssigneeBadgeClass(task)">
+                                                        {{ taskAssigneeBadgeLabel(task) }}
+                                                    </span>
+                                                    <span class="text-stone-500 dark:text-neutral-400">
+                                                        {{ taskAssigneeName(task) }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div class="flex items-center gap-2 text-xs">
+                                                <span class="rounded-full px-2 py-0.5 font-medium" :class="taskPriorityClass(task.priority)">
+                                                    {{ taskPriorityLabel(task.priority) }}
+                                                </span>
+                                                <span class="rounded-full px-2 py-0.5 font-medium" :class="taskStatusClass(task.status)">
+                                                    {{ taskStatusLabel(task.status) }}
+                                                </span>
+                                                <span class="text-stone-500 dark:text-neutral-400">
+                                                    {{ task.due_date ? formatDate(task.due_date) : $t('requests.tasks.no_due') }}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div v-if="assigneeOptions.length" class="mt-2 flex w-full flex-wrap items-center gap-2">
+                                            <select
+                                                v-model="taskAssigneeState[task.id]"
+                                                :disabled="isArchived"
+                                                class="block min-w-52 rounded-sm border-stone-300 text-xs focus:border-emerald-600 focus:ring-emerald-600 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-200"
+                                            >
+                                                <option value="">{{ $t('requests.labels.unassigned') }}</option>
+                                                <option
+                                                    v-for="assignee in assigneeOptions"
+                                                    :key="`task-${task.id}-assignee-${assignee.id}`"
+                                                    :value="assignee.id"
+                                                >
+                                                    {{ assignee.name }}
+                                                </option>
+                                            </select>
+
+                                            <button
+                                                type="button"
+                                                class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                                :disabled="isArchived || isAssigningTask(task.id) || (taskAssigneeState[task.id] || '') === taskAssignedId(task)"
+                                                @click="assignTaskAssignee(task)"
+                                            >
+                                                {{ $t('requests.tasks.assign_action') }}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p v-if="!filteredLeadTasks.length" class="text-sm text-stone-500 dark:text-neutral-400">
+                                    {{ $t('tasks.empty.no_tasks_for_filter') }}
+                                </p>
+                            </div>
+                            <p v-else class="mt-3 text-sm text-stone-500 dark:text-neutral-400">
+                                {{ $t('requests.tasks.empty') }}
+                            </p>
+
+                            <form v-if="!hasTasks && !isArchived" class="mt-4 space-y-2" @submit.prevent="submitTask">
+                                <div class="grid grid-cols-1 gap-2 md:grid-cols-3">
+                                    <FloatingInput v-model="taskForm.title" :label="$t('requests.tasks.title_label')" />
+                                    <DatePicker v-model="taskForm.due_date" :label="$t('requests.tasks.due_date')" />
+                                    <FloatingSelect
+                                        v-model="taskForm.priority"
+                                        :label="$t('tasks.form.priority')"
+                                        :options="[
+                                            { id: 'low', name: $t('tasks.priority.low') },
+                                            { id: 'normal', name: $t('tasks.priority.normal') },
+                                            { id: 'high', name: $t('tasks.priority.high') },
+                                            { id: 'urgent', name: $t('tasks.priority.urgent') },
+                                        ]"
+                                    />
+                                </div>
+                                <FloatingSelect
+                                    v-model="taskForm.assigned_team_member_id"
+                                    :label="$t('requests.tasks.assignee')"
+                                    :options="assigneeOptions"
+                                    :placeholder="$t('requests.labels.unassigned')"
+                                />
+                                <FloatingTextarea v-model="taskForm.description" :label="$t('requests.tasks.description')" />
+                                <InputError class="mt-1" :message="taskForm.errors.title" />
+                                <InputError class="mt-1" :message="taskForm.errors.priority" />
+                                <InputError class="mt-1" :message="taskForm.errors.assigned_team_member_id" />
+                                <div class="flex justify-end">
+                                    <button
+                                        type="submit"
+                                        class="inline-flex items-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+                                        :disabled="taskForm.processing"
+                                    >
+                                        {{ $t('requests.tasks.create') }}
+                                    </button>
+                                </div>
+                            </form>
+                        </section>
+                    </template>
+
+                    <template v-else>
+                        <SalesActivityPanel
+                            :items="activity"
+                            :can-log="canLogSalesActivity && !isArchived"
+                            :quick-actions="salesActivityQuickActions"
+                            :manual-actions="salesActivityManualActions"
+                            :store-route="route('crm.sales-activities.requests.store', lead.id)"
+                            i18n-prefix="requests.sales_activity"
+                            dialog-id="request-sales-activity-modal"
+                            @logged="handleSalesActivityLogged"
+                        />
+                    </template>
                 </div>
 
                 <div class="space-y-4">
-                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ $t('requests.show.summary') }}
-                        </h2>
-                        <div class="mt-3 space-y-3 text-sm text-stone-600 dark:text-neutral-300">
-                            <div class="flex items-center justify-between">
-                                <span>{{ $t('requests.table.customer') }}</span>
-                                <span class="text-stone-800 dark:text-neutral-200">
-                                    {{ displayCustomer }}
-                                </span>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span>{{ $t('requests.table.assignee') }}</span>
-                                <span class="text-stone-800 dark:text-neutral-200">
-                                    {{ lead.assignee?.user?.name || lead.assignee?.name || $t('requests.labels.unassigned') }}
-                                </span>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span>{{ $t('requests.table.follow_up') }}</span>
-                                <span
-                                    v-if="lead.next_follow_up_at"
-                                    :class="isOverdue(lead) ? 'text-rose-600 dark:text-rose-400' : 'text-stone-800 dark:text-neutral-200'"
-                                    :title="formatAbsoluteDate(lead.next_follow_up_at)"
-                                >
-                                    {{ formatDate(lead.next_follow_up_at) }}
-                                </span>
-                                <span v-else class="text-stone-800 dark:text-neutral-200">
-                                    {{ $t('requests.labels.no_follow_up') }}
-                                </span>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span>{{ $t('requests.show.status_updated') }}</span>
-                                <span class="text-stone-800 dark:text-neutral-200">
-                                    {{ formatDate(lead.status_updated_at) || '-' }}
-                                </span>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span>{{ $t('requests.show.source') }}</span>
-                                <span class="text-stone-800 dark:text-neutral-200">
-                                    {{ sourceLabel || '-' }}
-                                </span>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span>{{ $t('requests.show.request_type') }}</span>
-                                <span class="text-stone-800 dark:text-neutral-200">
-                                    {{ requestTypeLabel }}
-                                </span>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span>{{ $t('requests.table.priority') }}</span>
-                                <span class="text-stone-800 dark:text-neutral-200">
-                                    {{ priorityLabel }}
-                                </span>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span>{{ $t('requests.table.last_activity') }}</span>
-                                <span class="text-stone-800 dark:text-neutral-200">
-                                    {{ lastActivityLabel }}
-                                </span>
-                            </div>
-                            <div v-if="isArchived" class="flex items-center justify-between gap-3">
-                                <span>{{ $t('requests.show.archived_at') }}</span>
-                                <span class="text-right text-stone-800 dark:text-neutral-200">
-                                    {{ formatDate(lead.archived_at) || '-' }}
-                                </span>
-                            </div>
-                            <div v-if="isArchived" class="flex items-center justify-between gap-3">
-                                <span>{{ $t('requests.show.archived_by') }}</span>
-                                <span class="text-right text-stone-800 dark:text-neutral-200">
-                                    {{ archivedByLabel }}
-                                </span>
-                            </div>
-                            <div v-if="isArchived && !isAnonymized && lead.archive_reason" class="flex items-center justify-between gap-3">
-                                <span>{{ $t('requests.show.archive_reason') }}</span>
-                                <span class="text-right text-stone-800 dark:text-neutral-200">
-                                    {{ lead.archive_reason }}
-                                </span>
-                            </div>
-                            <div v-if="isAnonymized" class="flex items-center justify-between gap-3">
-                                <span>{{ $t('requests.show.anonymized_at') }}</span>
-                                <span class="text-right text-stone-800 dark:text-neutral-200">
-                                    {{ anonymizedAtLabel || '-' }}
-                                </span>
-                            </div>
-                            <div v-if="anonymizationReason" class="flex items-center justify-between gap-3">
-                                <span>{{ $t('requests.show.anonymized_reason') }}</span>
-                                <span class="text-right text-stone-800 dark:text-neutral-200">
-                                    {{ anonymizationReason }}
-                                </span>
-                            </div>
+                    <section class="rounded-sm border border-stone-200 bg-white p-2 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <div class="flex flex-wrap gap-2">
+                            <button
+                                v-for="option in rightColumnTabOptions"
+                                :key="`prospect-right-tab-${option.id}`"
+                                type="button"
+                                class="inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold transition"
+                                :class="detailTabClass(rightColumnTab === option.id)"
+                                :aria-pressed="rightColumnTab === option.id"
+                                @click="rightColumnTab = option.id"
+                            >
+                                {{ option.label }}
+                            </button>
                         </div>
                     </section>
 
-                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ $t('requests.status_history.title') }}
-                        </h2>
-                        <div v-if="statusHistoryItems.length" class="mt-3 space-y-3">
-                            <div
-                                v-for="entry in statusHistoryItems"
-                                :key="entry.id"
-                                class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800"
-                            >
-                                <div class="flex items-start justify-between gap-3">
-                                    <div>
-                                        <div class="text-sm font-medium text-stone-800 dark:text-neutral-100">
-                                            <span>{{ statusHistoryFromLabel(entry) }}</span>
-                                            <span class="mx-2 text-stone-400">-></span>
-                                            <span>{{ statusLabel(entry.to_status) }}</span>
-                                        </div>
-                                        <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                            {{ statusHistoryActorLabel(entry) }} ·
-                                            <span :title="formatAbsoluteDate(entry.created_at)">{{ formatDate(entry.created_at) }}</span>
-                                        </div>
-                                    </div>
-                                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium" :class="statusClass(entry.to_status)">
-                                        {{ statusLabel(entry.to_status) }}
+                    <template v-if="rightColumnTab === 'summary'">
+                        <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ $t('requests.show.summary') }}
+                            </h2>
+                            <div class="mt-3 space-y-3 text-sm text-stone-600 dark:text-neutral-300">
+                                <div class="flex items-center justify-between">
+                                    <span>{{ $t('requests.table.customer') }}</span>
+                                    <span class="text-stone-800 dark:text-neutral-200">
+                                        {{ displayCustomer }}
                                     </span>
                                 </div>
-                                <p v-if="entry.comment" class="mt-2 text-sm text-stone-600 dark:text-neutral-300">
-                                    {{ entry.comment }}
+                                <div class="flex items-center justify-between">
+                                    <span>{{ $t('requests.table.assignee') }}</span>
+                                    <span class="text-stone-800 dark:text-neutral-200">
+                                        {{ lead.assignee?.user?.name || lead.assignee?.name || $t('requests.labels.unassigned') }}
+                                    </span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span>{{ $t('requests.table.follow_up') }}</span>
+                                    <span
+                                        v-if="lead.next_follow_up_at"
+                                        :class="isOverdue(lead) ? 'text-rose-600 dark:text-rose-400' : 'text-stone-800 dark:text-neutral-200'"
+                                        :title="formatAbsoluteDate(lead.next_follow_up_at)"
+                                    >
+                                        {{ formatDate(lead.next_follow_up_at) }}
+                                    </span>
+                                    <span v-else class="text-stone-800 dark:text-neutral-200">
+                                        {{ $t('requests.labels.no_follow_up') }}
+                                    </span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span>{{ $t('requests.show.status_updated') }}</span>
+                                    <span class="text-stone-800 dark:text-neutral-200">
+                                        {{ formatDate(lead.status_updated_at) || '-' }}
+                                    </span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span>{{ $t('requests.show.source') }}</span>
+                                    <span class="text-stone-800 dark:text-neutral-200">
+                                        {{ sourceLabel || '-' }}
+                                    </span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span>{{ $t('requests.show.request_type') }}</span>
+                                    <span class="text-stone-800 dark:text-neutral-200">
+                                        {{ requestTypeLabel }}
+                                    </span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span>{{ $t('requests.table.priority') }}</span>
+                                    <span class="text-stone-800 dark:text-neutral-200">
+                                        {{ priorityLabel }}
+                                    </span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span>{{ $t('requests.table.last_activity') }}</span>
+                                    <span class="text-stone-800 dark:text-neutral-200">
+                                        {{ lastActivityLabel }}
+                                    </span>
+                                </div>
+                                <div v-if="isArchived" class="flex items-center justify-between gap-3">
+                                    <span>{{ $t('requests.show.archived_at') }}</span>
+                                    <span class="text-right text-stone-800 dark:text-neutral-200">
+                                        {{ formatDate(lead.archived_at) || '-' }}
+                                    </span>
+                                </div>
+                                <div v-if="isArchived" class="flex items-center justify-between gap-3">
+                                    <span>{{ $t('requests.show.archived_by') }}</span>
+                                    <span class="text-right text-stone-800 dark:text-neutral-200">
+                                        {{ archivedByLabel }}
+                                    </span>
+                                </div>
+                                <div v-if="isArchived && !isAnonymized && lead.archive_reason" class="flex items-center justify-between gap-3">
+                                    <span>{{ $t('requests.show.archive_reason') }}</span>
+                                    <span class="text-right text-stone-800 dark:text-neutral-200">
+                                        {{ lead.archive_reason }}
+                                    </span>
+                                </div>
+                                <div v-if="isAnonymized" class="flex items-center justify-between gap-3">
+                                    <span>{{ $t('requests.show.anonymized_at') }}</span>
+                                    <span class="text-right text-stone-800 dark:text-neutral-200">
+                                        {{ anonymizedAtLabel || '-' }}
+                                    </span>
+                                </div>
+                                <div v-if="anonymizationReason" class="flex items-center justify-between gap-3">
+                                    <span>{{ $t('requests.show.anonymized_reason') }}</span>
+                                    <span class="text-right text-stone-800 dark:text-neutral-200">
+                                        {{ anonymizationReason }}
+                                    </span>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ $t('requests.show.contact') }}
+                            </h2>
+                            <div class="mt-3 space-y-3 text-sm text-stone-600 dark:text-neutral-300">
+                                <p v-if="isAnonymized" class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                                    {{ $t('requests.labels.anonymized_contact') }}
                                 </p>
+                                <div class="flex items-center justify-between">
+                                    <span>{{ $t('requests.show.phone') }}</span>
+                                    <span class="text-stone-800 dark:text-neutral-200">{{ contactPhone || '-' }}</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span>{{ $t('requests.show.email') }}</span>
+                                    <span class="text-stone-800 dark:text-neutral-200">{{ contactEmail || '-' }}</span>
+                                </div>
+                                <div class="flex flex-wrap gap-2">
+                                    <a
+                                        v-if="contactPhone"
+                                        :href="`tel:${contactPhone}`"
+                                        class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                    >
+                                        {{ $t('requests.show.call') }}
+                                    </a>
+                                    <a
+                                        v-if="contactEmail"
+                                        :href="`mailto:${contactEmail}`"
+                                        class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                    >
+                                        {{ $t('requests.show.email_action') }}
+                                    </a>
+                                    <a
+                                        v-if="whatsAppLink"
+                                        :href="whatsAppLink"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        class="inline-flex items-center rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+                                    >
+                                        {{ $t('requests.show.whatsapp') }}
+                                    </a>
+                                </div>
                             </div>
-                        </div>
-                        <p v-else class="mt-3 text-sm text-stone-500 dark:text-neutral-400">
-                            {{ $t('requests.status_history.empty') }}
-                        </p>
-                    </section>
+                        </section>
 
-                    <section v-if="hasCampaignOrigin" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ $t('requests.origin.title') }}
-                        </h2>
-                        <div class="mt-3 space-y-3 text-sm text-stone-600 dark:text-neutral-300">
-                            <div class="flex items-center justify-between gap-3">
-                                <span>{{ $t('requests.origin.campaign') }}</span>
+                        <section v-if="lead.customer" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ $t('requests.show.customer') }}
+                            </h2>
+                            <div class="mt-3 space-y-2 text-sm text-stone-600 dark:text-neutral-300">
                                 <Link
-                                    :href="route('campaigns.show', campaignOrigin.campaign.id)"
-                                    class="text-right font-medium text-emerald-700 hover:text-emerald-800 dark:text-emerald-300"
+                                    :href="route('customer.show', lead.customer.id)"
+                                    class="text-sm font-semibold text-stone-800 hover:text-emerald-600 dark:text-neutral-200"
                                 >
-                                    {{ campaignOrigin.campaign.name }}
+                                    {{ displayCustomer }}
                                 </Link>
+                                <div>{{ lead.customer.email || '-' }}</div>
+                                <div>{{ lead.customer.phone || '-' }}</div>
                             </div>
-                            <div class="flex items-center justify-between">
-                                <span>{{ $t('requests.origin.kind') }}</span>
-                                <span class="text-stone-800 dark:text-neutral-200">
-                                    {{ campaignOriginKindLabel(campaignOrigin.kind) }}
-                                </span>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span>{{ $t('requests.origin.direction') }}</span>
-                                <span class="text-stone-800 dark:text-neutral-200">
-                                    {{ campaignOriginDirectionLabel(campaignOrigin.direction) }}
-                                </span>
-                            </div>
-                            <div v-if="campaignOrigin.channel" class="flex items-center justify-between">
-                                <span>{{ $t('requests.origin.channel') }}</span>
-                                <span class="text-stone-800 dark:text-neutral-200">
-                                    {{ campaignOrigin.channel }}
-                                </span>
-                            </div>
-                            <div v-if="campaignOrigin.prospect && !isAnonymized" class="flex items-center justify-between">
-                                <span>{{ $t('requests.origin.prospect') }}</span>
-                                <span class="text-right text-stone-800 dark:text-neutral-200">
-                                    #{{ campaignOrigin.prospect.id }} · {{ campaignOrigin.prospect.company_name || campaignOrigin.prospect.contact_name || '-' }}
-                                </span>
-                            </div>
-                            <div v-if="campaignOrigin.batch" class="flex items-center justify-between">
-                                <span>{{ $t('requests.origin.batch') }}</span>
-                                <span class="text-stone-800 dark:text-neutral-200">
-                                    #{{ campaignOrigin.batch.batch_number }}
-                                </span>
-                            </div>
-                            <div v-if="campaignOrigin.first_outreach_at" class="flex items-center justify-between">
-                                <span>{{ $t('requests.origin.first_outreach') }}</span>
-                                <span class="text-stone-800 dark:text-neutral-200" :title="formatAbsoluteDate(campaignOrigin.first_outreach_at)">
-                                    {{ formatDate(campaignOrigin.first_outreach_at) }}
-                                </span>
-                            </div>
-                            <div v-if="campaignOrigin.converted_at" class="flex items-center justify-between">
-                                <span>{{ $t('requests.origin.attributed_at') }}</span>
-                                <span class="text-stone-800 dark:text-neutral-200" :title="formatAbsoluteDate(campaignOrigin.converted_at)">
-                                    {{ formatDate(campaignOrigin.converted_at) }}
-                                </span>
-                            </div>
-                        </div>
+                        </section>
+                    </template>
 
-                        <div v-if="originUtmEntries.length" class="mt-4 rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
-                            <div class="font-semibold text-stone-700 dark:text-neutral-200">{{ $t('requests.origin.utm') }}</div>
-                            <div class="mt-2 space-y-1">
-                                <div v-for="[key, value] in originUtmEntries" :key="`origin-utm-${key}`" class="flex items-center justify-between gap-3">
-                                    <span class="uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ key }}</span>
-                                    <span class="text-right text-stone-800 dark:text-neutral-200">{{ value }}</span>
+                    <template v-else-if="rightColumnTab === 'qualification'">
+                        <section v-if="hasCampaignOrigin" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ $t('requests.origin.title') }}
+                            </h2>
+                            <div class="mt-3 space-y-3 text-sm text-stone-600 dark:text-neutral-300">
+                                <div class="flex items-center justify-between gap-3">
+                                    <span>{{ $t('requests.origin.campaign') }}</span>
+                                    <Link
+                                        :href="route('campaigns.show', campaignOrigin.campaign.id)"
+                                        class="text-right font-medium text-emerald-700 hover:text-emerald-800 dark:text-emerald-300"
+                                    >
+                                        {{ campaignOrigin.campaign.name }}
+                                    </Link>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span>{{ $t('requests.origin.kind') }}</span>
+                                    <span class="text-stone-800 dark:text-neutral-200">
+                                        {{ campaignOriginKindLabel(campaignOrigin.kind) }}
+                                    </span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span>{{ $t('requests.origin.direction') }}</span>
+                                    <span class="text-stone-800 dark:text-neutral-200">
+                                        {{ campaignOriginDirectionLabel(campaignOrigin.direction) }}
+                                    </span>
+                                </div>
+                                <div v-if="campaignOrigin.channel" class="flex items-center justify-between">
+                                    <span>{{ $t('requests.origin.channel') }}</span>
+                                    <span class="text-stone-800 dark:text-neutral-200">
+                                        {{ campaignOrigin.channel }}
+                                    </span>
+                                </div>
+                                <div v-if="campaignOrigin.prospect && !isAnonymized" class="flex items-center justify-between">
+                                    <span>{{ $t('requests.origin.prospect') }}</span>
+                                    <span class="text-right text-stone-800 dark:text-neutral-200">
+                                        #{{ campaignOrigin.prospect.id }} · {{ campaignOrigin.prospect.company_name || campaignOrigin.prospect.contact_name || '-' }}
+                                    </span>
+                                </div>
+                                <div v-if="campaignOrigin.batch" class="flex items-center justify-between">
+                                    <span>{{ $t('requests.origin.batch') }}</span>
+                                    <span class="text-stone-800 dark:text-neutral-200">
+                                        #{{ campaignOrigin.batch.batch_number }}
+                                    </span>
+                                </div>
+                                <div v-if="campaignOrigin.first_outreach_at" class="flex items-center justify-between">
+                                    <span>{{ $t('requests.origin.first_outreach') }}</span>
+                                    <span class="text-stone-800 dark:text-neutral-200" :title="formatAbsoluteDate(campaignOrigin.first_outreach_at)">
+                                        {{ formatDate(campaignOrigin.first_outreach_at) }}
+                                    </span>
+                                </div>
+                                <div v-if="campaignOrigin.converted_at" class="flex items-center justify-between">
+                                    <span>{{ $t('requests.origin.attributed_at') }}</span>
+                                    <span class="text-stone-800 dark:text-neutral-200" :title="formatAbsoluteDate(campaignOrigin.converted_at)">
+                                        {{ formatDate(campaignOrigin.converted_at) }}
+                                    </span>
                                 </div>
                             </div>
-                        </div>
-                    </section>
 
-                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ $t('requests.quality.title') }}
-                        </h2>
-                        <form class="mt-3 space-y-3" @submit.prevent="submitQuality">
-                            <FloatingSelect
-                                v-model="qualityForm.channel"
-                                :disabled="isArchived"
-                                :label="$t('requests.quality.source')"
-                                :options="sourceOptions"
-                                :placeholder="$t('requests.quality.source_placeholder')"
-                            />
-                            <FloatingSelect
-                                v-model="qualityForm.urgency"
-                                :disabled="isArchived"
-                                :label="$t('requests.quality.urgency')"
-                                :options="urgencyOptions"
-                                :placeholder="$t('requests.quality.urgency_placeholder')"
-                            />
-                            <FloatingSelect
-                                v-model="qualityForm.is_serviceable"
-                                :disabled="isArchived"
-                                :label="$t('requests.quality.serviceable_label')"
-                                :options="serviceableOptions"
-                                :placeholder="$t('requests.quality.serviceable_placeholder')"
-                            />
-                            <FloatingInput
-                                v-model="qualityForm.budget"
-                                :disabled="isArchived"
-                                type="number"
-                                step="0.01"
-                                :label="$t('requests.quality.budget')"
-                            />
-                            <div class="flex justify-end">
-                                <button
-                                    type="submit"
-                                    class="inline-flex items-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
-                                    :disabled="isArchived || qualityForm.processing"
-                                >
-                                    {{ $t('requests.quality.save') }}
-                                </button>
-                            </div>
-                        </form>
-                    </section>
-
-                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ $t('requests.show.contact') }}
-                        </h2>
-                        <div class="mt-3 space-y-3 text-sm text-stone-600 dark:text-neutral-300">
-                            <p v-if="isAnonymized" class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
-                                {{ $t('requests.labels.anonymized_contact') }}
-                            </p>
-                            <div class="flex items-center justify-between">
-                                <span>{{ $t('requests.show.phone') }}</span>
-                                <span class="text-stone-800 dark:text-neutral-200">{{ contactPhone || '-' }}</span>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span>{{ $t('requests.show.email') }}</span>
-                                <span class="text-stone-800 dark:text-neutral-200">{{ contactEmail || '-' }}</span>
-                            </div>
-                            <div class="flex flex-wrap gap-2">
-                                <a
-                                    v-if="contactPhone"
-                                    :href="`tel:${contactPhone}`"
-                                    class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                                >
-                                    {{ $t('requests.show.call') }}
-                                </a>
-                                <a
-                                    v-if="contactEmail"
-                                    :href="`mailto:${contactEmail}`"
-                                    class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                                >
-                                    {{ $t('requests.show.email_action') }}
-                                </a>
-                                <a
-                                    v-if="whatsAppLink"
-                                    :href="whatsAppLink"
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    class="inline-flex items-center rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
-                                >
-                                    {{ $t('requests.show.whatsapp') }}
-                                </a>
-                            </div>
-                        </div>
-                    </section>
-
-                    <section v-if="duplicates?.length" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ $t('requests.duplicates.title') }}
-                        </h2>
-                        <div class="mt-3 space-y-2 text-sm text-stone-600 dark:text-neutral-300">
-                            <div
-                                v-for="duplicate in duplicates"
-                                :key="duplicate.id"
-                                class="flex flex-wrap items-start justify-between gap-3 rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800"
-                            >
-                                <div class="min-w-0 flex-1">
-                                    <div class="flex flex-wrap items-center gap-2">
-                                        <Link :href="route('prospects.show', duplicate.id)" class="text-sm font-semibold text-stone-800 hover:text-emerald-600 dark:text-neutral-200">
-                                            {{ duplicate.title || duplicate.service_type || $t('requests.labels.request_number', { id: duplicate.id }) }}
-                                        </Link>
-                                        <span class="inline-flex items-center rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
-                                            {{ $t('requests.duplicates.score', { score: duplicate.duplicate_score || 0 }) }}
-                                        </span>
-                                    </div>
-                                    <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ statusLabel(duplicate.status) }} · {{ formatDate(duplicate.created_at) }}
-                                    </div>
-                                    <div v-if="duplicate.duplicate_summary" class="mt-2 text-xs text-stone-700 dark:text-neutral-200">
-                                        {{ duplicate.duplicate_summary }}
-                                    </div>
-                                    <div v-if="Array.isArray(duplicate.duplicate_reasons) && duplicate.duplicate_reasons.length" class="mt-2 flex flex-wrap gap-1">
-                                        <span
-                                            v-for="reason in duplicate.duplicate_reasons"
-                                            :key="`${duplicate.id}-${reason.code}`"
-                                            class="inline-flex items-center rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-stone-700 dark:bg-neutral-900 dark:text-neutral-200"
-                                        >
-                                            {{ reason.label }}
-                                        </span>
+                            <div v-if="originUtmEntries.length" class="mt-4 rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                                <div class="font-semibold text-stone-700 dark:text-neutral-200">{{ $t('requests.origin.utm') }}</div>
+                                <div class="mt-2 space-y-1">
+                                    <div v-for="[key, value] in originUtmEntries" :key="`origin-utm-${key}`" class="flex items-center justify-between gap-3">
+                                        <span class="uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ key }}</span>
+                                        <span class="text-right text-stone-800 dark:text-neutral-200">{{ value }}</span>
                                     </div>
                                 </div>
-                                <button
-                                    type="button"
-                                    class="inline-flex items-center rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-60 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+                            </div>
+                        </section>
+
+                        <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ $t('requests.quality.title') }}
+                            </h2>
+                            <form class="mt-3 space-y-3" @submit.prevent="submitQuality">
+                                <FloatingSelect
+                                    v-model="qualityForm.channel"
                                     :disabled="isArchived"
-                                    @click="mergeDuplicate(duplicate)"
-                                >
-                                    {{ $t('requests.duplicates.merge') }}
-                                </button>
-                            </div>
-                        </div>
-                    </section>
+                                    :label="$t('requests.quality.source')"
+                                    :options="sourceOptions"
+                                    :placeholder="$t('requests.quality.source_placeholder')"
+                                />
+                                <FloatingSelect
+                                    v-model="qualityForm.urgency"
+                                    :disabled="isArchived"
+                                    :label="$t('requests.quality.urgency')"
+                                    :options="urgencyOptions"
+                                    :placeholder="$t('requests.quality.urgency_placeholder')"
+                                />
+                                <FloatingSelect
+                                    v-model="qualityForm.is_serviceable"
+                                    :disabled="isArchived"
+                                    :label="$t('requests.quality.serviceable_label')"
+                                    :options="serviceableOptions"
+                                    :placeholder="$t('requests.quality.serviceable_placeholder')"
+                                />
+                                <FloatingInput
+                                    v-model="qualityForm.budget"
+                                    :disabled="isArchived"
+                                    type="number"
+                                    step="0.01"
+                                    :label="$t('requests.quality.budget')"
+                                />
+                                <div class="flex justify-end">
+                                    <button
+                                        type="submit"
+                                        class="inline-flex items-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+                                        :disabled="isArchived || qualityForm.processing"
+                                    >
+                                        {{ $t('requests.quality.save') }}
+                                    </button>
+                                </div>
+                            </form>
+                        </section>
+                    </template>
 
-                    <section v-if="lead.customer" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ $t('requests.show.customer') }}
-                        </h2>
-                        <div class="mt-3 space-y-2 text-sm text-stone-600 dark:text-neutral-300">
-                            <Link
-                                :href="route('customer.show', lead.customer.id)"
-                                class="text-sm font-semibold text-stone-800 hover:text-emerald-600 dark:text-neutral-200"
-                            >
-                                {{ displayCustomer }}
-                            </Link>
-                            <div>{{ lead.customer.email || '-' }}</div>
-                            <div>{{ lead.customer.phone || '-' }}</div>
-                        </div>
-                    </section>
+                    <template v-else>
+                        <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ $t('requests.status_history.title') }}
+                            </h2>
+                            <div v-if="statusHistoryItems.length" class="mt-3 space-y-3">
+                                <div
+                                    v-for="entry in statusHistoryItems"
+                                    :key="entry.id"
+                                    class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800"
+                                >
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div>
+                                            <div class="text-sm font-medium text-stone-800 dark:text-neutral-100">
+                                                <span>{{ statusHistoryFromLabel(entry) }}</span>
+                                                <span class="mx-2 text-stone-400">-></span>
+                                                <span>{{ statusLabel(entry.to_status) }}</span>
+                                            </div>
+                                            <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                                {{ statusHistoryActorLabel(entry) }} ·
+                                                <span :title="formatAbsoluteDate(entry.created_at)">{{ formatDate(entry.created_at) }}</span>
+                                            </div>
+                                        </div>
+                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium" :class="statusClass(entry.to_status)">
+                                            {{ statusLabel(entry.to_status) }}
+                                        </span>
+                                    </div>
+                                    <p v-if="entry.comment" class="mt-2 text-sm text-stone-600 dark:text-neutral-300">
+                                        {{ entry.comment }}
+                                    </p>
+                                </div>
+                            </div>
+                            <p v-else class="mt-3 text-sm text-stone-500 dark:text-neutral-400">
+                                {{ $t('requests.status_history.empty') }}
+                            </p>
+                        </section>
+
+                        <section v-if="duplicates?.length" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ $t('requests.duplicates.title') }}
+                            </h2>
+                            <div class="mt-3 space-y-2 text-sm text-stone-600 dark:text-neutral-300">
+                                <div
+                                    v-for="duplicate in duplicates"
+                                    :key="duplicate.id"
+                                    class="flex flex-wrap items-start justify-between gap-3 rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800"
+                                >
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <Link :href="route('prospects.show', duplicate.id)" class="text-sm font-semibold text-stone-800 hover:text-emerald-600 dark:text-neutral-200">
+                                                {{ duplicate.title || duplicate.service_type || $t('requests.labels.request_number', { id: duplicate.id }) }}
+                                            </Link>
+                                            <span class="inline-flex items-center rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+                                                {{ $t('requests.duplicates.score', { score: duplicate.duplicate_score || 0 }) }}
+                                            </span>
+                                        </div>
+                                        <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                            {{ statusLabel(duplicate.status) }} · {{ formatDate(duplicate.created_at) }}
+                                        </div>
+                                        <div v-if="duplicate.duplicate_summary" class="mt-2 text-xs text-stone-700 dark:text-neutral-200">
+                                            {{ duplicate.duplicate_summary }}
+                                        </div>
+                                        <div v-if="Array.isArray(duplicate.duplicate_reasons) && duplicate.duplicate_reasons.length" class="mt-2 flex flex-wrap gap-1">
+                                            <span
+                                                v-for="reason in duplicate.duplicate_reasons"
+                                                :key="`${duplicate.id}-${reason.code}`"
+                                                class="inline-flex items-center rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-stone-700 dark:bg-neutral-900 dark:text-neutral-200"
+                                            >
+                                                {{ reason.label }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        class="inline-flex items-center rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-60 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+                                        :disabled="isArchived"
+                                        @click="mergeDuplicate(duplicate)"
+                                    >
+                                        {{ $t('requests.duplicates.merge') }}
+                                    </button>
+                                </div>
+                            </div>
+                        </section>
+                    </template>
                 </div>
             </div>
         </div>

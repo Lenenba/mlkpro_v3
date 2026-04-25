@@ -548,6 +548,18 @@
     },
     "show": {
       "details": "Prospect details",
+      "tabs": {
+        "left": {
+          "overview": "Overview",
+          "collaboration": "Collaboration",
+          "sales": "Sales activity"
+        },
+        "right": {
+          "summary": "Summary",
+          "qualification": "Qualification",
+          "history": "History"
+        }
+      },
       "current_status": "Current status",
       "channel_fallback": "Unknown channel",
       "company": "Company",
@@ -800,12 +812,22 @@
     "quick_form": {
       "new_customer": "New customer",
       "existing_customer": "Existing customer",
+      "existing_prospect": "Existing prospect",
+      "new_prospect": "New prospect",
+      "no_relation": "No link",
       "create_customer": "Create customer",
       "customer_optional": "Customer (optional)",
+      "prospect_optional": "Prospect (optional)",
       "loading_customers": "Loading customers...",
+      "loading_prospects": "Loading prospects...",
       "search_placeholder": "Search customers",
+      "search_prospect_placeholder": "Search prospects",
       "no_customer": "No customer",
       "continue_without": "Continue without customer",
+      "continue_without_prospect": "Continue without prospect",
+      "new_customer_hint": "Create the customer first, then finish the request with that customer already linked.",
+      "new_prospect_hint": "A new prospect will be created automatically from this request contact information.",
+      "unlinked_hint": "This request will be created without a linked customer or prospect for now.",
       "title": "Title",
       "service_type": "Service type",
       "source": "Source",
@@ -819,6 +841,15 @@
       "contact_email_optional": "Contact email (optional)",
       "contact_phone_optional": "Contact phone (optional)",
       "description_optional": "Description (optional)"
+    },
+    "service_request_status": {
+      "new": "New",
+      "in_progress": "In progress",
+      "pending": "Pending",
+      "accepted": "Accepted",
+      "refused": "Refused",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
     }
   }
 }

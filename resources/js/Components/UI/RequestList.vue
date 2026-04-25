@@ -22,6 +22,8 @@ const props = defineProps({
 const processingId = ref(null);
 const { t } = useI18n();
 
+const isServiceRequest = (item) => Object.prototype.hasOwnProperty.call(item || {}, 'source');
+
 const formatDate = (value) => humanizeDate(value);
 const formatAbsoluteDate = (value) => {
     if (!value) {
@@ -34,9 +36,36 @@ const formatAbsoluteDate = (value) => {
     return date.toLocaleString();
 };
 
-const titleForRequest = (lead) => lead?.title || lead?.service_type || t('requests.labels.request');
+const titleForRequest = (item) => item?.title || item?.service_type || item?.requester_name || item?.contact_name || t('requests.labels.request');
 
-const requestSubtitle = (lead) => lead?.service_type || t('requests.labels.request_number', { id: lead?.id || '-' });
+const sourceLabel = (item) => {
+    const source = item?.source || '';
+
+    switch (source) {
+        case 'manual_admin':
+            return t('requests.sources.manual');
+        case 'public_form':
+            return t('requests.sources.web_form');
+        case 'customer_portal':
+            return t('requests.sources.portal');
+        case 'campaign':
+            return t('requests.sources.ads');
+        case 'api':
+            return t('requests.sources.api');
+        case 'import':
+            return t('requests.sources.import');
+        default:
+            return source || t('requests.sources.other');
+    }
+};
+
+const requestSubtitle = (item) => {
+    if (isServiceRequest(item)) {
+        return item?.requester_name || item?.service_type || sourceLabel(item);
+    }
+
+    return item?.service_type || t('requests.labels.request_number', { id: item?.id || '-' });
+};
 
 const statusLabel = (status) => {
     switch (status) {
@@ -56,6 +85,20 @@ const statusLabel = (status) => {
             return t('requests.status.lost');
         case 'REQ_CONVERTED':
             return t('requests.status.converted');
+        case 'new':
+            return t('requests.service_request_status.new');
+        case 'in_progress':
+            return t('requests.service_request_status.in_progress');
+        case 'pending':
+            return t('requests.service_request_status.pending');
+        case 'accepted':
+            return t('requests.service_request_status.accepted');
+        case 'refused':
+            return t('requests.service_request_status.refused');
+        case 'completed':
+            return t('requests.service_request_status.completed');
+        case 'cancelled':
+            return t('requests.service_request_status.cancelled');
         default:
             return status || t('requests.labels.unknown_status');
     }
@@ -78,14 +121,32 @@ const statusPillClass = (status) => {
             return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400';
         case 'REQ_LOST':
             return 'bg-rose-100 text-rose-800 dark:bg-rose-500/10 dark:text-rose-300';
+        case 'new':
+            return 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400';
+        case 'in_progress':
+            return 'bg-sky-100 text-sky-800 dark:bg-sky-500/10 dark:text-sky-300';
+        case 'pending':
+            return 'bg-stone-100 text-stone-800 dark:bg-neutral-700 dark:text-neutral-200';
+        case 'accepted':
+            return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400';
+        case 'refused':
+            return 'bg-rose-100 text-rose-800 dark:bg-rose-500/10 dark:text-rose-300';
+        case 'completed':
+            return 'bg-blue-100 text-blue-800 dark:bg-blue-500/10 dark:text-blue-300';
+        case 'cancelled':
+            return 'bg-stone-100 text-stone-800 dark:bg-neutral-700 dark:text-neutral-200';
         default:
             return 'bg-stone-100 text-stone-800 dark:bg-neutral-700 dark:text-neutral-200';
     }
 };
 
-const isClosedStatus = (status) => ['REQ_WON', 'REQ_LOST'].includes(status);
-const canConvertLead = (lead) => Boolean(lead) && !lead.quote && !isClosedStatus(lead.status);
+const isClosedStatus = (status) => ['REQ_WON', 'REQ_LOST', 'accepted', 'refused', 'completed', 'cancelled'].includes(status);
+const canConvertLead = (lead) => !isServiceRequest(lead) && Boolean(lead) && !lead.quote && !isClosedStatus(lead.status);
 const isOverdue = (lead) => {
+    if (isServiceRequest(lead)) {
+        return false;
+    }
+
     if (!lead?.next_follow_up_at || isClosedStatus(lead?.status)) {
         return false;
     }
@@ -120,6 +181,20 @@ const convertToQuote = (lead) => {
 };
 
 const isProcessing = (lead) => processingId.value === lead?.id;
+
+const secondaryLabel = (item) => (
+    isServiceRequest(item)
+        ? t('requests.quick_form.source')
+        : t('requests.table.follow_up')
+);
+
+const secondaryValue = (item) => {
+    if (isServiceRequest(item)) {
+        return sourceLabel(item);
+    }
+
+    return item?.next_follow_up_at ? formatDate(item.next_follow_up_at) : null;
+};
 </script>
 
 <template>
@@ -144,7 +219,7 @@ const isProcessing = (lead) => processingId.value === lead?.id;
                     </div>
                 </div>
 
-                <div class="hs-dropdown [--placement:bottom-right] relative inline-flex">
+                <div v-if="!isServiceRequest(lead)" class="hs-dropdown [--placement:bottom-right] relative inline-flex">
                     <button :id="`request-actions-${lead.id}`" type="button"
                         class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-500 shadow-sm hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
                         aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
@@ -208,15 +283,15 @@ const isProcessing = (lead) => processingId.value === lead?.id;
                     </span>
                 </div>
                 <div class="flex flex-col gap-1 py-2 sm:flex-row sm:items-center sm:justify-between">
-                    <span>{{ $t('requests.table.follow_up') }}</span>
-                    <span v-if="lead.next_follow_up_at"
+                    <span>{{ secondaryLabel(lead) }}</span>
+                    <span v-if="secondaryValue(lead)"
                         class="text-sm font-semibold"
                         :class="isOverdue(lead) ? 'text-rose-600 dark:text-rose-400' : 'text-stone-800 dark:text-neutral-200'"
-                        :title="formatAbsoluteDate(lead.next_follow_up_at)">
-                        {{ formatDate(lead.next_follow_up_at) }}
+                        :title="isServiceRequest(lead) ? secondaryValue(lead) : formatAbsoluteDate(lead.next_follow_up_at)">
+                        {{ secondaryValue(lead) }}
                     </span>
                     <span v-else class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('requests.labels.no_follow_up') }}
+                        {{ isServiceRequest(lead) ? $t('requests.quick_form.no_relation') : $t('requests.labels.no_follow_up') }}
                     </span>
                 </div>
             </div>

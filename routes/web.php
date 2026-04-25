@@ -81,6 +81,7 @@ use App\Http\Controllers\SalesInboxController;
 use App\Http\Controllers\SalesManagerDashboardController;
 use App\Http\Controllers\SavedSegmentController;
 use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\ServiceRequestController;
 use App\Http\Controllers\Settings\ApiTokenController;
 use App\Http\Controllers\Settings\BillingSettingsController;
 use App\Http\Controllers\Settings\CompanySettingsController;
@@ -384,6 +385,7 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
 
     // Lead Requests
     Route::middleware('company.feature:requests')->group(function () {
+        Route::get('/prospects/options', [ProspectController::class, 'options'])->name('prospects.options');
         Route::get('/prospects', [ProspectController::class, 'index'])->name('prospects.index');
         Route::get('/prospects/export', [ProspectController::class, 'export'])->name('prospects.export');
         Route::patch('/prospects/bulk', [ProspectController::class, 'bulkUpdate'])->name('prospects.bulk');
@@ -407,6 +409,8 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::post('/prospects/{lead}/media', [RequestMediaController::class, 'store'])->name('prospects.media.store');
         Route::delete('/prospects/{lead}/media/{media}', [RequestMediaController::class, 'destroy'])->name('prospects.media.destroy');
         Route::delete('/prospects/{lead}', [ProspectController::class, 'destroy'])->name('prospects.destroy');
+
+        Route::post('/service-requests', [ServiceRequestController::class, 'store'])->name('service-requests.store');
 
         Route::get('/requests', [RequestController::class, 'index'])->name('request.index');
         Route::get('/requests/export', [RequestController::class, 'export'])->name('request.export');

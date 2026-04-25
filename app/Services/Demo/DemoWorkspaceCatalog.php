@@ -134,8 +134,8 @@ class DemoWorkspaceCatalog
         return [
             'requests' => [
                 'key' => 'requests',
-                'label' => 'Lead intake',
-                'description' => 'Incoming requests, qualification, and next follow-ups.',
+                'label' => 'Prospects',
+                'description' => 'Prospect intake, qualification, and next follow-ups.',
                 'category' => 'Pipeline',
                 'company_types' => ['services'],
             ],
@@ -523,7 +523,7 @@ class DemoWorkspaceCatalog
                 'description' => 'Start from a lead, turn it into work, then finish on billing.',
                 'business_objective' => 'Show the commercial and operational continuity for service businesses.',
                 'ordered_actions' => [
-                    'Open an incoming lead or request.',
+                    'Open an incoming prospect.',
                     'Convert the need into a quote and review pricing.',
                     'Turn the quote into work and assign a team member.',
                     'Finish on invoice visibility and payment status.',
@@ -533,7 +533,7 @@ class DemoWorkspaceCatalog
                     'Commercial records stay linked to execution and billing.',
                 ],
                 'key_screens' => [
-                    'Lead intake',
+                    'Prospects workspace',
                     'Quotes',
                     'Jobs or works',
                     'Invoices',

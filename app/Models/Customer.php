@@ -188,6 +188,11 @@ class Customer extends Model implements HasLocalePreferenceContract
         return $this->prospects();
     }
 
+    public function serviceRequests(): HasMany
+    {
+        return $this->hasMany(ServiceRequest::class)->orderByDesc('created_at');
+    }
+
     public function prospects(): HasMany
     {
         return $this->hasMany(Request::class)->orderByDesc('created_at');

@@ -2,6 +2,7 @@ import { buildWorkspaceHubCategories } from '@/utils/workspaceHub';
 
 const moduleRoutePatterns = {
     customers: ['customer.index', 'customer.create', 'customer.show', 'customer.edit'],
+    prospects: ['prospects.*', 'request.*'],
     requests: ['request.*'],
     quotes: ['quote.index', 'customer.quote.*'],
     orders: ['orders.*'],
@@ -458,6 +459,8 @@ const resolveModuleTail = ({ moduleKey, pageProps, t }) => {
     switch (moduleKey) {
         case 'customers':
             return buildCustomerModuleTail(pageProps, t);
+        case 'prospects':
+            return buildRequestsModuleTail(pageProps);
         case 'requests':
             return buildRequestsModuleTail(pageProps);
         case 'quotes':

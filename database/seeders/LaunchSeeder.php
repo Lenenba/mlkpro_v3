@@ -44,6 +44,7 @@ use App\Models\ReservationSetting;
 use App\Models\ReservationWaitlist;
 use App\Models\Role;
 use App\Models\Sale;
+use App\Models\ServiceRequest;
 use App\Models\Task;
 use App\Models\TeamMember;
 use App\Models\TeamMemberAttendance;
@@ -670,7 +671,7 @@ class LaunchSeeder extends Seeder
             ]
         );
 
-        LeadRequest::updateOrCreate(
+        $requestsCoverageLead = LeadRequest::updateOrCreate(
             [
                 'user_id' => $serviceRequestsOwner->id,
                 'title' => 'Lead - Fence repair',
@@ -690,6 +691,7 @@ class LaunchSeeder extends Seeder
                 'street1' => '88 Request Blvd',
             ]
         );
+        $this->syncServiceRequestFromLead($requestsCoverageLead);
 
         $adminUser = User::updateOrCreate(
             ['email' => 'admin.services@example.com'],
@@ -1983,7 +1985,7 @@ class LaunchSeeder extends Seeder
             ]
         );
 
-        LeadRequest::updateOrCreate(
+        $secondaryLead = LeadRequest::updateOrCreate(
             [
                 'user_id' => $serviceOwner->id,
                 'title' => 'Lead - Gutter cleaning',
@@ -2063,6 +2065,12 @@ class LaunchSeeder extends Seeder
             'status' => LeadRequest::STATUS_CONVERTED,
             'converted_at' => $now->copy()->subDays(3),
         ]);
+        $lead->refresh();
+        $secondaryLead->refresh();
+        $this->syncServiceRequestFromLead($lead, [
+            'request_type' => 'quote_request',
+        ]);
+        $this->syncServiceRequestFromLead($secondaryLead);
 
         $work = Work::updateOrCreate(
             [
@@ -2847,6 +2855,7 @@ class LaunchSeeder extends Seeder
                 'street1' => '42 Product St',
             ]
         );
+        $this->syncServiceRequestFromLead($productLead);
 
         $setTimestamps = function ($model, $timestamp) {
             $model->forceFill([
@@ -7667,6 +7676,50 @@ class LaunchSeeder extends Seeder
         );
         $setTimestamps($lostQuote, Carbon::parse('2026-04-07 09:30:00', 'America/Toronto'));
 
+        foreach ([
+            $overdueLead,
+            $noActionLead,
+            $quotedLead,
+            $qualifiedLead,
+            $activeLead,
+            $wonLead,
+            $lostLead,
+        ] as $seededLead) {
+            $seededLead->refresh();
+            $this->syncServiceRequestFromLead($seededLead);
+        }
+
+        $this->upsertStandaloneServiceRequest(
+            $quoteOnlyCustomer,
+            [
+                'source_ref' => 'launch-seed:crm-phase-six:quote-only-customer',
+                'source' => 'customer_portal',
+                'channel' => 'portal',
+                'status' => ServiceRequest::STATUS_PENDING,
+                'request_type' => 'quote_request',
+                'service_type' => 'Upsell',
+                'title' => $searchPrefix.' - Standalone quote inquiry',
+                'description' => 'Seeded direct customer demand without prospect linkage for the demandes module.',
+                'requester_name' => trim(($quoteOnlyCustomer->first_name ?? '').' '.($quoteOnlyCustomer->last_name ?? '')),
+                'requester_email' => $quoteOnlyCustomer->email,
+                'requester_phone' => $quoteOnlyCustomer->phone,
+                'street1' => $quoteOnlyProperty->street1,
+                'street2' => $quoteOnlyProperty->street2,
+                'city' => $quoteOnlyProperty->city,
+                'state' => $quoteOnlyProperty->state,
+                'postal_code' => $quoteOnlyProperty->zip,
+                'country' => $quoteOnlyProperty->country,
+                'submitted_at' => Carbon::parse('2026-03-20 09:00:00', 'America/Toronto'),
+                'created_at' => Carbon::parse('2026-03-20 09:00:00', 'America/Toronto'),
+                'updated_at' => Carbon::parse('2026-03-20 09:00:00', 'America/Toronto'),
+                'meta' => [
+                    'seed' => 'launch_phase_6',
+                    'direct_customer_request' => true,
+                    'quote_id' => $quoteOnlyQuote->id,
+                ],
+            ]
+        );
+
         $phaseSixTaskToday = Task::updateOrCreate(
             ['account_id' => $owner->id, 'title' => $searchPrefix.' - Prepare revised scope'],
             [
@@ -7712,5 +7765,184 @@ class LaunchSeeder extends Seeder
             ]
         );
         $setTimestamps($meetingActivity, $referenceTime->copy()->subDay()->setTime(14, 0));
+    }
+
+    private function syncServiceRequestFromLead(LeadRequest $lead, array $overrides = []): ServiceRequest
+    {
+        [$source, $channel] = $this->serviceRequestSourceFromLeadChannel((string) ($lead->channel ?? ''));
+        $quote = $lead->relationLoaded('quote') ? $lead->quote : $lead->quote()->first();
+        $status = $overrides['status'] ?? $this->serviceRequestStatusFromLead($lead);
+        $requestType = $overrides['request_type'] ?? $this->serviceRequestTypeFromLead($lead, $quote);
+        $submittedAt = $overrides['submitted_at'] ?? $lead->created_at ?? now();
+        $acceptedAt = $status === ServiceRequest::STATUS_ACCEPTED
+            ? ($overrides['accepted_at'] ?? $quote?->accepted_at ?? $lead->converted_at ?? $lead->updated_at ?? $submittedAt)
+            : ($overrides['accepted_at'] ?? null);
+        $meta = array_merge(
+            (array) ($overrides['meta'] ?? []),
+            [
+                'seed' => 'launch',
+                'seed_origin' => 'launch_lead_sync',
+                'legacy_request_id' => (int) $lead->id,
+                'legacy_status' => (string) $lead->status,
+            ]
+        );
+
+        $serviceRequest = ServiceRequest::query()->updateOrCreate(
+            [
+                'user_id' => (int) $lead->user_id,
+                'source_ref' => 'lead:'.$lead->id,
+            ],
+            [
+                'customer_id' => $lead->customer_id,
+                'prospect_id' => $lead->id,
+                'source' => $overrides['source'] ?? $source,
+                'channel' => $overrides['channel'] ?? $channel,
+                'status' => $status,
+                'request_type' => $requestType,
+                'service_type' => $overrides['service_type'] ?? $lead->service_type,
+                'title' => $overrides['title'] ?? $lead->title,
+                'description' => $overrides['description'] ?? $lead->description,
+                'requester_name' => $overrides['requester_name'] ?? $lead->contact_name,
+                'requester_email' => $overrides['requester_email'] ?? $lead->contact_email,
+                'requester_phone' => $overrides['requester_phone'] ?? $lead->contact_phone,
+                'street1' => $overrides['street1'] ?? $lead->street1,
+                'street2' => $overrides['street2'] ?? $lead->street2,
+                'city' => $overrides['city'] ?? $lead->city,
+                'state' => $overrides['state'] ?? $lead->state,
+                'postal_code' => $overrides['postal_code'] ?? $lead->postal_code,
+                'country' => $overrides['country'] ?? $lead->country,
+                'source_meta' => $overrides['source_meta'] ?? $this->seedSourceMetaFromLead($lead),
+                'submitted_at' => $submittedAt,
+                'accepted_at' => $acceptedAt,
+                'completed_at' => $overrides['completed_at'] ?? null,
+                'cancelled_at' => $overrides['cancelled_at'] ?? null,
+                'meta' => $meta,
+            ]
+        );
+
+        $createdAt = $overrides['created_at'] ?? $lead->created_at ?? $submittedAt;
+        $updatedAt = $overrides['updated_at'] ?? $lead->updated_at ?? $createdAt;
+
+        $serviceRequest->timestamps = false;
+        $serviceRequest->forceFill([
+            'created_at' => $createdAt,
+            'updated_at' => $updatedAt,
+        ])->saveQuietly();
+        $serviceRequest->timestamps = true;
+
+        return $serviceRequest->fresh();
+    }
+
+    private function upsertStandaloneServiceRequest(Customer $customer, array $attributes): ServiceRequest
+    {
+        $submittedAt = $attributes['submitted_at'] ?? now();
+        $createdAt = $attributes['created_at'] ?? $submittedAt;
+        $updatedAt = $attributes['updated_at'] ?? $createdAt;
+
+        $serviceRequest = ServiceRequest::query()->updateOrCreate(
+            [
+                'user_id' => (int) $customer->user_id,
+                'source_ref' => (string) $attributes['source_ref'],
+            ],
+            [
+                'customer_id' => $customer->id,
+                'prospect_id' => $attributes['prospect_id'] ?? null,
+                'source' => (string) ($attributes['source'] ?? 'manual_admin'),
+                'channel' => $attributes['channel'] ?? null,
+                'status' => (string) ($attributes['status'] ?? ServiceRequest::STATUS_NEW),
+                'request_type' => $attributes['request_type'] ?? null,
+                'service_type' => $attributes['service_type'] ?? null,
+                'title' => $attributes['title'] ?? null,
+                'description' => $attributes['description'] ?? null,
+                'requester_name' => $attributes['requester_name'] ?? null,
+                'requester_email' => $attributes['requester_email'] ?? null,
+                'requester_phone' => $attributes['requester_phone'] ?? null,
+                'street1' => $attributes['street1'] ?? null,
+                'street2' => $attributes['street2'] ?? null,
+                'city' => $attributes['city'] ?? null,
+                'state' => $attributes['state'] ?? null,
+                'postal_code' => $attributes['postal_code'] ?? null,
+                'country' => $attributes['country'] ?? null,
+                'source_meta' => $attributes['source_meta'] ?? ['seed' => 'launch', 'direct_customer_request' => true],
+                'submitted_at' => $submittedAt,
+                'accepted_at' => $attributes['accepted_at'] ?? null,
+                'completed_at' => $attributes['completed_at'] ?? null,
+                'cancelled_at' => $attributes['cancelled_at'] ?? null,
+                'meta' => $attributes['meta'] ?? ['seed' => 'launch'],
+            ]
+        );
+
+        $serviceRequest->timestamps = false;
+        $serviceRequest->forceFill([
+            'created_at' => $createdAt,
+            'updated_at' => $updatedAt,
+        ])->saveQuietly();
+        $serviceRequest->timestamps = true;
+
+        return $serviceRequest->fresh();
+    }
+
+    /**
+     * @return array{0:string,1:?string}
+     */
+    private function serviceRequestSourceFromLeadChannel(string $channel): array
+    {
+        $normalized = strtolower(trim($channel));
+
+        return match ($normalized) {
+            'web', 'website', 'web_form' => ['public_form', 'web'],
+            'phone', 'call' => ['manual_admin', 'phone'],
+            'email', 'mail' => ['manual_admin', 'email'],
+            'whatsapp', 'wa' => ['manual_admin', 'whatsapp'],
+            'sms', 'text' => ['manual_admin', 'sms'],
+            'portal' => ['customer_portal', 'portal'],
+            'api', 'webhook' => ['api', 'api'],
+            'import', 'csv' => ['import', null],
+            'campaign' => ['campaign', 'email'],
+            'qr' => ['public_form', 'qr'],
+            'manual', '' => ['manual_admin', null],
+            default => ['manual_admin', $normalized !== '' ? $normalized : null],
+        };
+    }
+
+    private function serviceRequestStatusFromLead(LeadRequest $lead): string
+    {
+        return match ((string) $lead->status) {
+            LeadRequest::STATUS_CONTACTED,
+            LeadRequest::STATUS_QUALIFIED,
+            LeadRequest::STATUS_QUOTE_SENT => ServiceRequest::STATUS_IN_PROGRESS,
+            LeadRequest::STATUS_CALL_REQUESTED => ServiceRequest::STATUS_PENDING,
+            LeadRequest::STATUS_WON,
+            LeadRequest::STATUS_CONVERTED => ServiceRequest::STATUS_ACCEPTED,
+            LeadRequest::STATUS_LOST => ServiceRequest::STATUS_REFUSED,
+            default => ServiceRequest::STATUS_NEW,
+        };
+    }
+
+    private function serviceRequestTypeFromLead(LeadRequest $lead, ?Quote $quote): string
+    {
+        $requestType = trim((string) data_get($lead->meta, 'request_type', ''));
+        if ($requestType !== '') {
+            return $requestType;
+        }
+
+        if ($quote !== null || $lead->status === LeadRequest::STATUS_QUOTE_SENT) {
+            return 'quote_request';
+        }
+
+        if ($lead->status === LeadRequest::STATUS_CALL_REQUESTED) {
+            return 'contact_request';
+        }
+
+        return 'service_request';
+    }
+
+    private function seedSourceMetaFromLead(LeadRequest $lead): array
+    {
+        $meta = (array) ($lead->meta ?? []);
+
+        return collect($meta)
+            ->filter(fn ($value, $key) => str_starts_with((string) $key, 'source_'))
+            ->all();
     }
 }

@@ -11,6 +11,7 @@ use App\Models\Property;
 use App\Models\Quote;
 use App\Models\Request as LeadRequest;
 use App\Models\Sale;
+use App\Models\ServiceRequest;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\Work;
@@ -78,6 +79,11 @@ final class ManualSelectContractAudit
                 'name' => 'customer_detail.requests',
                 'table' => (new LeadRequest)->getTable(),
                 'columns' => CustomerReadSelects::detailRequestColumns(),
+            ],
+            [
+                'name' => 'customer_detail.service_requests',
+                'table' => (new ServiceRequest)->getTable(),
+                'columns' => CustomerReadSelects::detailServiceRequestColumns(),
             ],
             [
                 'name' => 'customer_detail.invoices',

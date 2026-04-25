@@ -548,6 +548,18 @@
     },
     "show": {
       "details": "Fiche prospect",
+      "tabs": {
+        "left": {
+          "overview": "Vue d'ensemble",
+          "collaboration": "Collaboration",
+          "sales": "Activite commerciale"
+        },
+        "right": {
+          "summary": "Resume",
+          "qualification": "Qualification",
+          "history": "Historique"
+        }
+      },
       "current_status": "Statut actuel",
       "channel_fallback": "Canal inconnu",
       "company": "Entreprise",
@@ -800,12 +812,22 @@
     "quick_form": {
       "new_customer": "Nouveau client",
       "existing_customer": "Client existant",
+      "existing_prospect": "Prospect existant",
+      "new_prospect": "Nouveau prospect",
+      "no_relation": "Sans rattachement",
       "create_customer": "Creer client",
       "customer_optional": "Client (optionnel)",
+      "prospect_optional": "Prospect (optionnel)",
       "loading_customers": "Chargement des clients...",
+      "loading_prospects": "Chargement des prospects...",
       "search_placeholder": "Rechercher un client",
+      "search_prospect_placeholder": "Rechercher un prospect",
       "no_customer": "Aucun client",
       "continue_without": "Continuer sans client",
+      "continue_without_prospect": "Continuer sans prospect",
+      "new_customer_hint": "Creez d'abord le client, puis finalisez la demande avec ce client deja rattache.",
+      "new_prospect_hint": "Un nouveau prospect sera cree automatiquement a partir des informations de contact de cette demande.",
+      "unlinked_hint": "Cette demande sera creee sans client ni prospect rattache pour l'instant.",
       "title": "Titre",
       "service_type": "Type de service",
       "source": "Source",
@@ -819,6 +841,15 @@
       "contact_email_optional": "Email contact (optionnel)",
       "contact_phone_optional": "Telephone contact (optionnel)",
       "description_optional": "Description (optionnel)"
+    },
+    "service_request_status": {
+      "new": "Nouvelle",
+      "in_progress": "En cours",
+      "pending": "En attente",
+      "accepted": "Acceptee",
+      "refused": "Refusee",
+      "completed": "Completee",
+      "cancelled": "Annulee"
     }
   }
 }

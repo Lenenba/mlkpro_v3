@@ -2,6 +2,34 @@
 
 Derniere mise a jour: 2026-04-25
 
+## 0. Etat d'avancement
+
+- etape 1 livree
+  - table `service_requests` creee
+  - modele `ServiceRequest` ajoute
+  - relations `Customer::serviceRequests()` et `Prospect::serviceRequests()` disponibles
+  - fiche client capable de charger `customer.service_requests` sans casser `customer.requests` legacy
+- etape 2 livree
+  - le quick-create `Nouvelle demande` cree maintenant une `ServiceRequest`
+  - le `+` global permet de choisir:
+    - client existant
+    - prospect existant
+    - nouveau client
+    - nouveau prospect
+    - sans rattachement
+  - le formulaire public capture maintenant une `ServiceRequest` en plus du flux prospect legacy
+  - l'API d'integration capture maintenant une `ServiceRequest` en plus du flux prospect legacy
+  - l'onglet client `Demandes` sait lire prioritairement `service_requests`
+- etape 3 livree cote migration legacy
+  - commandes disponibles:
+    - `php artisan service-requests:backfill-dry-run`
+    - `php artisan service-requests:backfill-run --force`
+    - `php artisan service-requests:backfill-verify`
+  - le backfill est idempotent et saute les leads deja representes dans `service_requests`
+  - les leads de prospection pure restent exclus ou marques `needs_review` au lieu d'etre melanges automatiquement aux demandes
+  - la verification post-migration genere un rapport JSON et un CSV de segments restants
+  - le nettoyage final des labels et des usages UI peut maintenant se faire sur une base migree et verifiable
+
 ## 1. Objet du document
 
 Ce document definit un plan simple et efficace pour introduire un vrai module `Demandes` dans la plateforme, sans casser le travail deja livre sur `Prospects`.

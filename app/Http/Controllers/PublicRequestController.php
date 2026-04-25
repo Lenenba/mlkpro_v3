@@ -20,6 +20,7 @@ use App\Services\CRM\OutgoingEmailLogService;
 use App\Services\LeadServiceSuggestionService;
 use App\Services\Prospects\ProspectDuplicateAlertService;
 use App\Services\ProspectStatusHistoryService;
+use App\Services\ServiceRequests\ServiceRequestIntakeService;
 use App\Services\TrackingService;
 use App\Services\UsageLimitService;
 use App\Support\Prospects\ProspectIntakeMeta;
@@ -194,6 +195,7 @@ class PublicRequestController extends Controller
         User $user,
         LeadServiceSuggestionService $suggestionService,
         CampaignLeadAttributionService $leadAttributionService,
+        ServiceRequestIntakeService $serviceRequestIntakeService,
     ) {
         $this->assertLeadIntakeEnabled($user);
 
@@ -486,6 +488,16 @@ class PublicRequestController extends Controller
             $quote->refresh();
             $quote->syncRequestStatusFromQuote();
             $lead->refresh();
+            $serviceRequest = $serviceRequestIntakeService->createFromLead($lead, [
+                'customer_id' => $customer->id,
+                'source' => 'public_form',
+                'channel' => 'web',
+                'request_type' => $finalAction === self::FINAL_ACTION_RECEIVE_QUOTE ? 'quote_request' : 'contact_request',
+                'meta' => [
+                    'final_action' => $finalAction,
+                    'quote_id' => $quote->id,
+                ],
+            ]);
 
             NotificationDispatcher::send($user, new LeadFormOwnerNotification(
                 event: 'quote_created_from_lead_form',
@@ -530,6 +542,7 @@ class PublicRequestController extends Controller
                         'tone' => $responseTone,
                         'request' => $lead->fresh(),
                         'quote' => $quote,
+                        'service_request' => $serviceRequest,
                     ], 201);
                 }
 
@@ -545,6 +558,7 @@ class PublicRequestController extends Controller
                         'tone' => $responseTone,
                         'request' => $lead->fresh(),
                         'quote' => $quote,
+                        'service_request' => $serviceRequest,
                     ], 201);
                 }
 
@@ -560,6 +574,7 @@ class PublicRequestController extends Controller
                         'tone' => $responseTone,
                         'request' => $lead->fresh(),
                         'quote' => $quote,
+                        'service_request' => $serviceRequest,
                     ], 201);
                 }
 
@@ -572,6 +587,7 @@ class PublicRequestController extends Controller
                     'tone' => $responseTone,
                     'request' => $lead->fresh(),
                     'quote' => $quote,
+                    'service_request' => $serviceRequest,
                 ], 201);
             }
 
@@ -646,6 +662,15 @@ class PublicRequestController extends Controller
             'campaign_id' => data_get($lead->meta, 'source_campaign_id'),
         ]);
         $leadAttributionService->forgetAttribution($request, $user);
+        $serviceRequest = $serviceRequestIntakeService->createFromLead($lead, [
+            'source' => 'public_form',
+            'channel' => 'web',
+            'request_type' => 'contact_request',
+            'meta' => [
+                'final_action' => $finalAction,
+                'task_id' => $task?->id,
+            ],
+        ]);
 
         if (! $prospectEmailQueued) {
             if ($this->shouldReturnJson($request)) {
@@ -653,6 +678,7 @@ class PublicRequestController extends Controller
                     'message' => 'Call request recorded, but confirmation email failed.',
                     'tone' => 'warning',
                     'request' => $lead->fresh(),
+                    'service_request' => $serviceRequest,
                 ], 201);
             }
 
@@ -664,6 +690,7 @@ class PublicRequestController extends Controller
                 'message' => 'Call request submitted successfully.',
                 'tone' => 'success',
                 'request' => $lead->fresh(),
+                'service_request' => $serviceRequest,
             ], 201);
         }
 

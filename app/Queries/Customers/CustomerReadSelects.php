@@ -19,6 +19,27 @@ final class CustomerReadSelects
         return ['id', 'customer_id', 'title', 'service_type', 'status', 'next_follow_up_at', 'created_at'];
     }
 
+    public static function detailServiceRequestColumns(): array
+    {
+        return [
+            'id',
+            'customer_id',
+            'prospect_id',
+            'source',
+            'channel',
+            'status',
+            'request_type',
+            'service_type',
+            'title',
+            'description',
+            'requester_name',
+            'requester_email',
+            'requester_phone',
+            'submitted_at',
+            'created_at',
+        ];
+    }
+
     public static function detailInvoiceColumns(): array
     {
         return ['id', 'customer_id', 'user_id', 'number', 'status', 'total', 'created_at'];

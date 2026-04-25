@@ -2,6 +2,7 @@
 
 use App\Models\Customer;
 use App\Models\Request as LeadRequest;
+use App\Models\ServiceRequest;
 use App\Models\User;
 use Laravel\Sanctum\Sanctum;
 
@@ -46,6 +47,7 @@ it('creates api prospects without auto-linking existing customers and keeps inta
     ])->assertCreated();
 
     $lead = LeadRequest::query()->findOrFail($response->json('request.id'));
+    $serviceRequest = ServiceRequest::query()->findOrFail($response->json('service_request.id'));
 
     expect($lead->customer_id)->toBeNull()
         ->and($lead->channel)->toBe('api')
@@ -56,6 +58,11 @@ it('creates api prospects without auto-linking existing customers and keeps inta
         ->and(data_get($lead->meta, 'contact_consent'))->toBeTrue()
         ->and(data_get($lead->meta, 'marketing_consent'))->toBeFalse()
         ->and((float) data_get($lead->meta, 'budget'))->toBe(4200.0);
+
+    expect($serviceRequest->prospect_id)->toBe($lead->id)
+        ->and($serviceRequest->source)->toBe('api')
+        ->and($serviceRequest->channel)->toBe('api')
+        ->and($serviceRequest->requester_email)->toBe('api.existing@example.com');
 
     expect(Customer::query()->where('user_id', $owner->id)->count())->toBe(1);
 });

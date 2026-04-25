@@ -42,6 +42,64 @@ use Illuminate\Validation\ValidationException;
 
 class RequestController extends Controller
 {
+    public function options(Request $request)
+    {
+        $user = $request->user();
+        if (! $user) {
+            abort(403);
+        }
+
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+        $this->ensureProspectWorkspaceReadAccess($user, $accountId, $request);
+
+        $search = trim((string) $request->query('search', ''));
+        $limit = (int) $request->query('limit', 25);
+
+        $prospects = LeadRequest::query()
+            ->where('user_id', $accountId)
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($sub) use ($search) {
+                    $sub->where('title', 'like', '%'.$search.'%')
+                        ->orWhere('service_type', 'like', '%'.$search.'%')
+                        ->orWhere('contact_name', 'like', '%'.$search.'%')
+                        ->orWhere('contact_email', 'like', '%'.$search.'%')
+                        ->orWhere('contact_phone', 'like', '%'.$search.'%');
+                });
+            })
+            ->latest('created_at')
+            ->limit(max(1, min($limit, 50)))
+            ->get([
+                'id',
+                'customer_id',
+                'status',
+                'title',
+                'service_type',
+                'contact_name',
+                'contact_email',
+                'contact_phone',
+                'meta',
+            ])
+            ->map(function (LeadRequest $lead) {
+                return [
+                    'id' => $lead->id,
+                    'customer_id' => $lead->customer_id,
+                    'status' => $lead->status,
+                    'title' => $lead->title,
+                    'service_type' => $lead->service_type,
+                    'contact_name' => $lead->contact_name,
+                    'contact_email' => $lead->contact_email,
+                    'contact_phone' => $lead->contact_phone,
+                    'company_name' => $lead->companyName(),
+                ];
+            })
+            ->values()
+            ->all();
+
+        return response()->json([
+            'prospects' => $prospects,
+        ]);
+    }
+
     public function index(Request $request)
     {
         $user = $request->user();

@@ -53,6 +53,15 @@ const findActiveWorks = (works) => {
 
 const activeWorks = computed(() => findActiveWorks(props.customer?.works || []));
 
+const safeArray = (items) => (Array.isArray(items) ? items : []);
+const serviceRequests = computed(() => safeArray(props.customer?.service_requests));
+const requestUsesServiceRequests = computed(() => serviceRequests.value.length > 0);
+const requestItems = computed(() => (
+    requestUsesServiceRequests.value
+        ? serviceRequests.value
+        : safeArray(props.customer?.requests)
+));
+
 const filters = reactive({
     active_works: 'all',
     requests: 'all',
@@ -72,13 +81,25 @@ const filterOptions = computed(() => ({
     ],
     requests: [
         { value: 'all', label: t('customers.tabs.filters.all') },
-        { value: 'REQ_NEW', label: t('customers.tabs.requests.status.new') },
-        { value: 'REQ_CALL_REQUESTED', label: t('customers.tabs.requests.status.call_requested') },
-        { value: 'REQ_CONTACTED', label: t('customers.tabs.requests.status.contacted') },
-        { value: 'REQ_QUALIFIED', label: t('customers.tabs.requests.status.qualified') },
-        { value: 'REQ_QUOTE_SENT', label: t('customers.tabs.requests.status.quote_sent') },
-        { value: 'REQ_WON', label: t('customers.tabs.requests.status.won') },
-        { value: 'REQ_LOST', label: t('customers.tabs.requests.status.lost') },
+        ...(requestUsesServiceRequests.value
+            ? [
+                { value: 'new', label: t('requests.service_request_status.new') },
+                { value: 'in_progress', label: t('requests.service_request_status.in_progress') },
+                { value: 'pending', label: t('requests.service_request_status.pending') },
+                { value: 'accepted', label: t('requests.service_request_status.accepted') },
+                { value: 'refused', label: t('requests.service_request_status.refused') },
+                { value: 'completed', label: t('requests.service_request_status.completed') },
+                { value: 'cancelled', label: t('requests.service_request_status.cancelled') },
+            ]
+            : [
+                { value: 'REQ_NEW', label: t('customers.tabs.requests.status.new') },
+                { value: 'REQ_CALL_REQUESTED', label: t('customers.tabs.requests.status.call_requested') },
+                { value: 'REQ_CONTACTED', label: t('customers.tabs.requests.status.contacted') },
+                { value: 'REQ_QUALIFIED', label: t('customers.tabs.requests.status.qualified') },
+                { value: 'REQ_QUOTE_SENT', label: t('customers.tabs.requests.status.quote_sent') },
+                { value: 'REQ_WON', label: t('customers.tabs.requests.status.won') },
+                { value: 'REQ_LOST', label: t('customers.tabs.requests.status.lost') },
+            ]),
     ],
     quotes: [
         { value: 'all', label: t('customers.tabs.filters.all') },
@@ -114,8 +135,6 @@ const filterOptions = computed(() => ({
     ],
 }));
 
-const safeArray = (items) => (Array.isArray(items) ? items : []);
-
 const filterList = (items, key) => {
     const selected = filters[key];
     if (!selected || selected === 'all') {
@@ -125,7 +144,7 @@ const filterList = (items, key) => {
 };
 
 const filteredActiveWorks = computed(() => filterList(activeWorks.value, 'active_works'));
-const filteredRequests = computed(() => filterList(safeArray(props.customer?.requests), 'requests'));
+const filteredRequests = computed(() => filterList(requestItems.value, 'requests'));
 const filteredQuotes = computed(() => filterList(safeArray(props.customer?.quotes), 'quotes'));
 const filteredJobs = computed(() => filterList(safeArray(props.customer?.works), 'jobs'));
 const filteredInvoices = computed(() => filterList(safeArray(props.customer?.invoices), 'invoices'));

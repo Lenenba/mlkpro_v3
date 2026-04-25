@@ -50,6 +50,9 @@ use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationNotificationService;
 use App\Services\ReservationQueueService;
 use App\Services\SaleNotificationService;
+use App\Services\ServiceRequests\LegacyServiceRequestBackfillAnalysisService;
+use App\Services\ServiceRequests\LegacyServiceRequestBackfillService;
+use App\Services\ServiceRequests\LegacyServiceRequestBackfillVerificationService;
 use App\Services\SmsNotificationService;
 use App\Services\StripePlanEnvSyncService;
 use App\Services\StripePlanPriceProvisioner;
@@ -1617,6 +1620,241 @@ Artisan::command('prospects:migration-verify
         || (int) ($report['remaining_eligible_count'] ?? 0) > 0
     ) ? 2 : 0;
 })->purpose('Verify a migration batch, surface remaining legacy segments, and write a post-migration validation report');
+
+Artisan::command('service-requests:backfill-dry-run
+    {--account_id= : Optional tenant account id to analyze}
+    {--sample=10 : Maximum number of sample rows to print per segment}', function (
+    LegacyServiceRequestBackfillAnalysisService $analysisService
+): int {
+    $accountIdOption = $this->option('account_id');
+    $accountId = is_numeric($accountIdOption) ? (int) $accountIdOption : null;
+    $sampleLimit = max(1, (int) $this->option('sample'));
+
+    $summary = $analysisService->analyze($accountId, $sampleLimit);
+
+    $this->info('Service request backfill dry run');
+    $this->line('Scope: '.($accountId ? 'account '.$accountId : 'all accounts'));
+    $this->line('Scanned legacy requests: '.(int) ($summary['scanned'] ?? 0));
+    $this->line('Eligible legacy requests: '.(int) ($summary['eligible_count'] ?? 0));
+    $this->line('Already backfilled: '.(int) ($summary['already_backfilled_count'] ?? 0));
+    $this->line('Needs review: '.(int) ($summary['review_count'] ?? 0));
+    $this->line('Excluded: '.(int) ($summary['excluded_count'] ?? 0));
+    $this->newLine();
+    $this->line('Reason counts:');
+
+    foreach ((array) ($summary['reason_counts'] ?? []) as $reason => $count) {
+        $this->line('- '.$reason.': '.$count);
+    }
+
+    if (! empty($summary['eligible_samples'])) {
+        $this->newLine();
+        $this->line('Eligible samples:');
+
+        foreach ((array) $summary['eligible_samples'] as $sample) {
+            $signals = collect($sample['signals'] ?? [])
+                ->map(fn ($value, $key) => $key.'='.(is_bool($value) ? ($value ? 'true' : 'false') : $value))
+                ->implode(', ');
+
+            $this->line(sprintf(
+                '- #%d %s [%s] %s',
+                (int) ($sample['id'] ?? 0),
+                (string) ($sample['name'] ?? 'Lead'),
+                (string) ($sample['reason'] ?? 'eligible'),
+                $signals
+            ));
+        }
+    }
+
+    if (! empty($summary['review_samples'])) {
+        $this->newLine();
+        $this->line('Review samples:');
+
+        foreach ((array) $summary['review_samples'] as $sample) {
+            $signals = collect($sample['signals'] ?? [])
+                ->map(fn ($value, $key) => $key.'='.(is_bool($value) ? ($value ? 'true' : 'false') : $value))
+                ->implode(', ');
+
+            $this->line(sprintf(
+                '- #%d %s [%s] %s',
+                (int) ($sample['id'] ?? 0),
+                (string) ($sample['name'] ?? 'Lead'),
+                (string) ($sample['reason'] ?? 'review'),
+                $signals
+            ));
+        }
+    }
+
+    if (! empty($summary['excluded_samples'])) {
+        $this->newLine();
+        $this->line('Excluded samples:');
+
+        foreach ((array) $summary['excluded_samples'] as $sample) {
+            $signals = collect($sample['signals'] ?? [])
+                ->map(fn ($value, $key) => $key.'='.(is_bool($value) ? ($value ? 'true' : 'false') : $value))
+                ->implode(', ');
+
+            $this->line(sprintf(
+                '- #%d %s [%s] %s',
+                (int) ($sample['id'] ?? 0),
+                (string) ($sample['name'] ?? 'Lead'),
+                (string) ($sample['reason'] ?? 'excluded'),
+                $signals
+            ));
+        }
+    }
+
+    return 0;
+})->purpose('Analyze legacy requests and determine which ones can be backfilled into service requests');
+
+Artisan::command('service-requests:backfill-run
+    {--account_id= : Optional tenant account id to backfill}
+    {--chunk=100 : Chunk size used while backfilling}
+    {--force : Confirm that real writes should be executed}', function (
+    LegacyServiceRequestBackfillService $backfillService
+): int {
+    if (! $this->option('force')) {
+        $this->warn('Use --force to execute the real service request backfill.');
+
+        return 1;
+    }
+
+    $accountIdOption = $this->option('account_id');
+    $accountId = is_numeric($accountIdOption) ? (int) $accountIdOption : null;
+    $chunkSize = max(1, (int) $this->option('chunk'));
+
+    $summary = $backfillService->execute($accountId, $chunkSize);
+
+    $this->info('Service request backfill completed');
+    $this->line('Scope: '.($accountId ? 'account '.$accountId : 'all accounts'));
+    $this->line('Batch: '.(string) ($summary['batch_id'] ?? 'n/a'));
+    $this->line('Scanned legacy requests: '.(int) ($summary['scanned'] ?? 0));
+    $this->line('Eligible legacy requests: '.(int) ($summary['eligible_count'] ?? 0));
+    $this->line('Already backfilled: '.(int) ($summary['already_backfilled_count'] ?? 0));
+    $this->line('Needs review: '.(int) ($summary['review_count'] ?? 0));
+    $this->line('Excluded: '.(int) ($summary['excluded_count'] ?? 0));
+    $this->line('Backfilled requests: '.(int) ($summary['backfilled_count'] ?? 0));
+    $this->line('Failed requests: '.(int) ($summary['failed_count'] ?? 0));
+    $this->line('Summary journal: '.(string) ($summary['summary_path'] ?? 'n/a'));
+    $this->line('Mappings CSV: '.(string) ($summary['mapping_path'] ?? 'n/a'));
+
+    if (! empty($summary['failures'])) {
+        $this->newLine();
+        $this->line('Failures:');
+
+        foreach ((array) $summary['failures'] as $failure) {
+            $this->line(sprintf(
+                '- #%d %s [%s] %s',
+                (int) ($failure['lead_id'] ?? 0),
+                (string) ($failure['lead_name'] ?? 'Lead'),
+                (string) ($failure['reason'] ?? 'eligible'),
+                (string) ($failure['message'] ?? 'Unknown error')
+            ));
+        }
+    }
+
+    return (int) ($summary['failed_count'] ?? 0) > 0 ? 2 : 0;
+})->purpose('Backfill eligible legacy requests into service_requests and write a journal for verification');
+
+Artisan::command('service-requests:backfill-verify
+    {--account_id= : Optional tenant account id to verify}
+    {--batch_id= : Optional backfill batch id to verify}
+    {--sample=10 : Maximum number of sample rows to print per segment}', function (
+    LegacyServiceRequestBackfillVerificationService $verificationService
+): int {
+    $accountIdOption = $this->option('account_id');
+    $accountId = is_numeric($accountIdOption) ? (int) $accountIdOption : null;
+    $batchId = trim((string) ($this->option('batch_id') ?? '')) ?: null;
+    $sampleLimit = max(1, (int) $this->option('sample'));
+
+    try {
+        $report = $verificationService->verify($batchId, $accountId, $sampleLimit);
+    } catch (\RuntimeException $exception) {
+        $this->error($exception->getMessage());
+
+        return 1;
+    }
+
+    $this->info('Service request backfill verification');
+    $this->line('Source batch: '.(string) ($report['batch_id'] ?? 'n/a'));
+    $this->line('Scope: '.($report['account_id'] ? 'account '.$report['account_id'] : 'all accounts'));
+    $this->line('Backfilled legacy requests checked: '.(int) ($report['migrated_leads_checked'] ?? 0));
+    $this->line('Verified requests: '.(int) ($report['verified_leads'] ?? 0));
+    $this->line('Requests with issues: '.(int) ($report['leads_with_issues'] ?? 0));
+    $this->line('Source backfill failures: '.(int) ($report['source_failed_count'] ?? 0));
+    $this->line('Remaining eligible requests: '.(int) ($report['remaining_eligible_count'] ?? 0));
+    $this->line('Remaining review requests: '.(int) ($report['remaining_review_count'] ?? 0));
+    $this->line('Verification report: '.(string) ($report['report_path'] ?? 'n/a'));
+    $this->line('Segments CSV: '.(string) ($report['segment_path'] ?? 'n/a'));
+
+    if (! empty($report['issue_counts'])) {
+        $this->newLine();
+        $this->line('Issue counts:');
+
+        foreach ((array) $report['issue_counts'] as $issueCode => $count) {
+            $this->line('- '.$issueCode.': '.$count);
+        }
+    }
+
+    if (! empty($report['consistency_issue_samples'])) {
+        $this->newLine();
+        $this->line('Consistency issues:');
+
+        foreach ((array) $report['consistency_issue_samples'] as $issue) {
+            $this->line(sprintf(
+                '- #%d %s [%s] %s',
+                (int) ($issue['legacy_request_id'] ?? 0),
+                (string) ($issue['lead_name'] ?? 'Lead'),
+                (string) ($issue['reason'] ?? 'migration'),
+                implode(', ', (array) ($issue['issue_codes'] ?? []))
+            ));
+        }
+    }
+
+    if (! empty($report['remaining_eligible_samples'])) {
+        $this->newLine();
+        $this->line('Remaining eligible samples:');
+
+        foreach ((array) $report['remaining_eligible_samples'] as $sample) {
+            $signals = collect($sample['signals'] ?? [])
+                ->map(fn ($value, $key) => $key.'='.(is_bool($value) ? ($value ? 'true' : 'false') : $value))
+                ->implode(', ');
+
+            $this->line(sprintf(
+                '- #%d %s [%s] %s',
+                (int) ($sample['id'] ?? 0),
+                (string) ($sample['name'] ?? 'Lead'),
+                (string) ($sample['reason'] ?? 'eligible'),
+                $signals
+            ));
+        }
+    }
+
+    if (! empty($report['review_samples'])) {
+        $this->newLine();
+        $this->line('Review samples:');
+
+        foreach ((array) $report['review_samples'] as $sample) {
+            $signals = collect($sample['signals'] ?? [])
+                ->map(fn ($value, $key) => $key.'='.(is_bool($value) ? ($value ? 'true' : 'false') : $value))
+                ->implode(', ');
+
+            $this->line(sprintf(
+                '- #%d %s [%s] %s',
+                (int) ($sample['id'] ?? 0),
+                (string) ($sample['name'] ?? 'Lead'),
+                (string) ($sample['reason'] ?? 'review'),
+                $signals
+            ));
+        }
+    }
+
+    return (
+        (int) ($report['leads_with_issues'] ?? 0) > 0
+        || (int) ($report['source_failed_count'] ?? 0) > 0
+        || (int) ($report['remaining_eligible_count'] ?? 0) > 0
+        || (int) ($report['remaining_review_count'] ?? 0) > 0
+    ) ? 2 : 0;
+})->purpose('Verify a service request backfill batch and surface remaining legacy review work');
 
 Artisan::command('support:sla-reminders', function (
     SupportSettingsService $settingsService,

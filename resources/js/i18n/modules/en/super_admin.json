@@ -143,7 +143,7 @@
       },
       "limits": {
         "quotes": "Quotes",
-        "requests": "Requests",
+        "requests": "Prospects",
         "plan_scan_quotes": "Plan scan quotes",
         "invoices": "Invoices",
         "jobs": "Jobs",
@@ -629,7 +629,7 @@
       },
       "limits": {
         "quotes": "Quotes",
-        "requests": "Requests",
+        "requests": "Prospects",
         "plan_scan_quotes": "Plan scan quotes",
         "invoices": "Invoices",
         "jobs": "Jobs",
@@ -641,7 +641,7 @@
       },
       "modules": {
         "quotes": "Quotes",
-        "requests": "Requests",
+        "requests": "Prospects",
         "reservations": "Reservations",
         "plan_scans": "Plan scans",
         "invoices": "Invoices",

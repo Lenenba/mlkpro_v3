@@ -497,6 +497,18 @@
     },
     "show": {
       "details": "Detalles del cliente potencial",
+      "tabs": {
+        "left": {
+          "overview": "Vista general",
+          "collaboration": "Colaboracion",
+          "sales": "Actividad comercial"
+        },
+        "right": {
+          "summary": "Resumen",
+          "qualification": "Calificacion",
+          "history": "Historial"
+        }
+      },
       "current_status": "Estado actual",
       "channel_fallback": "Canal desconocido",
       "company": "Empresa",
@@ -749,12 +761,22 @@
     "quick_form": {
       "new_customer": "Nuevo cliente",
       "existing_customer": "Cliente existente",
+      "existing_prospect": "Prospecto existente",
+      "new_prospect": "Nuevo prospecto",
+      "no_relation": "Sin vinculo",
       "create_customer": "Crear cliente",
       "customer_optional": "Cliente (opcional)",
+      "prospect_optional": "Prospecto (opcional)",
       "loading_customers": "Cargando clientes...",
+      "loading_prospects": "Cargando prospectos...",
       "search_placeholder": "Buscar clientes",
+      "search_prospect_placeholder": "Buscar prospectos",
       "no_customer": "Ningún cliente",
       "continue_without": "Continuar sin cliente",
+      "continue_without_prospect": "Continuar sin prospecto",
+      "new_customer_hint": "Crea primero el cliente y luego termina la solicitud con ese cliente ya vinculado.",
+      "new_prospect_hint": "Se creara automaticamente un nuevo prospecto a partir de la informacion de contacto de esta solicitud.",
+      "unlinked_hint": "Esta solicitud se creara por ahora sin cliente ni prospecto vinculado.",
       "title": "Título",
       "service_type": "Tipo de servicio",
       "source": "Fuente",
@@ -768,6 +790,15 @@
       "contact_email_optional": "Correo electrónico de contacto (opcional)",
       "contact_phone_optional": "Teléfono de contacto (opcional)",
       "description_optional": "Descripción (opcional)"
+    },
+    "service_request_status": {
+      "new": "Nueva",
+      "in_progress": "En curso",
+      "pending": "En espera",
+      "accepted": "Aceptada",
+      "refused": "Rechazada",
+      "completed": "Completada",
+      "cancelled": "Cancelada"
     }
   }
 }

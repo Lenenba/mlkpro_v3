@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\Request as LeadRequest;
 use App\Services\CompanyFeatureService;
 use App\Services\ProspectStatusHistoryService;
+use App\Services\ServiceRequests\ServiceRequestIntakeService;
 use App\Services\UsageLimitService;
 use App\Support\Prospects\ProspectIntakeMeta;
 use Illuminate\Http\Request;
@@ -103,10 +104,23 @@ class RequestController extends Controller
             'to_status' => $lead->status,
             'metadata' => ['source' => 'api'],
         ]);
+        $serviceRequest = app(ServiceRequestIntakeService::class)->createFromLead($lead, [
+            'source' => 'api',
+            'channel' => 'api',
+            'request_type' => data_get($lead->meta, 'request_type'),
+            'meta' => [
+                'external_customer_id' => $validated['external_customer_id'] ?? null,
+                'urgency' => $urgency,
+                'is_serviceable' => $validated['is_serviceable'] ?? null,
+                'lat' => $validated['lat'] ?? null,
+                'lng' => $validated['lng'] ?? null,
+            ],
+        ]);
 
         return response()->json([
             'message' => 'Lead created.',
             'request' => $lead,
+            'service_request' => $serviceRequest,
         ], 201);
     }
 

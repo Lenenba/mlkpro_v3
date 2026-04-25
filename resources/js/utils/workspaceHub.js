@@ -63,6 +63,7 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
         'invoices.approve',
         'invoices.approve_high',
     ]);
+    const hasFinanceApprovalSources = hasFeature('expenses') || hasFeature('invoices');
 
     const unavailableCategory = (category) => ({
         ...category,
@@ -319,7 +320,7 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             descriptionKey: 'workspace_hub.modules.finance_approvals',
             routeName: 'finance-approvals.index',
             tone: 'finance',
-            visible: canFinanceApprovals && !isSeller,
+            visible: hasFinanceApprovalSources && canFinanceApprovals && !isSeller,
         },
         tips_owner: {
             key: 'tips_owner',
