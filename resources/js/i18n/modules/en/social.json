@@ -103,6 +103,8 @@
       "preview_image_alt": "Pulse draft preview image",
       "preview_schedule": "Schedule",
       "preview_now": "Save as draft",
+      "preview_cta_fallback": "View details",
+      "preview_link_destination": "Destination",
       "preview": {
         "status_draft": "Draft",
         "status_scheduled": "Scheduled"
@@ -112,6 +114,7 @@
         "image_file": "Image from your computer",
         "image_url": "Image URL",
         "link_url": "Destination link",
+        "link_cta_label": "CTA label",
         "scheduled_for": "Schedule for",
         "template_name": "Template name",
         "custom_hashtag": "Add a hashtag"
@@ -218,7 +221,8 @@
         "text": "Post text",
         "image_file": "Image from your computer",
         "image_url": "Image URL",
-        "link_url": "Destination link"
+        "link_url": "Destination link",
+        "link_cta_label": "CTA label"
       },
       "actions": {
         "reload": "Reload",
@@ -299,6 +303,8 @@
       "untitled_post": "Untitled Pulse post",
       "empty_text": "No text was saved on this Pulse post.",
       "preview_image_alt": "Pulse history preview image",
+      "preview_cta_fallback": "View details",
+      "preview_link_destination": "Destination",
       "empty_value": "Not available"
     },
     "accounts_manager": {

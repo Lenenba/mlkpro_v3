@@ -88,6 +88,7 @@ class SocialPostService
             $query->where(function ($searchQuery) use ($like): void {
                 $searchQuery
                     ->where('content_payload->text', 'like', $like)
+                    ->orWhere('metadata->link_cta_label', 'like', $like)
                     ->orWhere('link_url', 'like', $like)
                     ->orWhere('failure_reason', 'like', $like);
             });
@@ -238,6 +239,7 @@ class SocialPostService
             'text' => $text !== '' ? $text : null,
             'image_url' => $this->mediaAssetService->imageUrl((array) ($post->media_payload ?? [])),
             'link_url' => $post->link_url,
+            'link_cta_label' => $this->linkCtaLabel($post->metadata),
             'source_type' => $post->source_type,
             'source_id' => $post->source_id,
             'source_label' => data_get($post->metadata, 'source.label'),
@@ -370,6 +372,7 @@ class SocialPostService
                 'draft_saved_from' => $mode === 'repost' ? 'social_history_repost' : 'social_history_duplicate',
                 'has_image' => $image !== null,
                 'has_link' => trim((string) ($source->link_url ?? '')) !== '',
+                'link_cta_label' => $this->linkCtaLabel($source->metadata),
                 'copied_from_post_id' => $source->id,
                 'copied_from_status' => (string) $source->status,
                 'copy_mode' => $mode,
@@ -431,6 +434,7 @@ class SocialPostService
         $text = $this->nullableString($payload, 'text');
         $mediaPayload = $this->mediaAssetService->imageMediaPayload($payload);
         $linkUrl = $this->nullableString($payload, 'link_url');
+        $linkCtaLabel = $linkUrl !== null ? $this->nullableString($payload, 'link_cta_label') : null;
         $scheduledFor = $this->nullableDateTime($payload, 'scheduled_for');
         $source = $this->prefillService->validateSourceReference($owner, $payload);
 
@@ -465,6 +469,7 @@ class SocialPostService
                     : 'social_composer',
                 'has_image' => $mediaPayload !== null,
                 'has_link' => $linkUrl !== null,
+                'link_cta_label' => $linkCtaLabel,
                 'source' => $source['source_type'] !== null
                     ? [
                         'type' => $source['source_type'],
@@ -526,6 +531,16 @@ class SocialPostService
     private function nullableString(array $payload, string $key): ?string
     {
         $value = trim((string) ($payload[$key] ?? ''));
+
+        return $value !== '' ? $value : null;
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $metadata
+     */
+    private function linkCtaLabel(?array $metadata): ?string
+    {
+        $value = trim((string) data_get($metadata, 'link_cta_label', ''));
 
         return $value !== '' ? $value : null;
     }

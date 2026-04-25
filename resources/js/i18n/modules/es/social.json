@@ -103,6 +103,8 @@
       "preview_image_alt": "Imagen de preview del borrador Pulse",
       "preview_schedule": "Programacion",
       "preview_now": "Guardar como borrador",
+      "preview_cta_fallback": "Ver detalles",
+      "preview_link_destination": "Destino",
       "preview": {
         "status_draft": "Borrador",
         "status_scheduled": "Programado"
@@ -112,6 +114,7 @@
         "image_file": "Imagen desde tu ordenador",
         "image_url": "URL de la imagen",
         "link_url": "Enlace de destino",
+        "link_cta_label": "Texto del CTA",
         "scheduled_for": "Programar para",
         "template_name": "Nombre del template",
         "custom_hashtag": "Anadir un hashtag"
@@ -218,7 +221,8 @@
         "text": "Texto del post",
         "image_file": "Imagen desde tu ordenador",
         "image_url": "URL de la imagen",
-        "link_url": "Enlace de destino"
+        "link_url": "Enlace de destino",
+        "link_cta_label": "Texto del CTA"
       },
       "actions": {
         "reload": "Recargar",
@@ -299,6 +303,8 @@
       "untitled_post": "Post Pulse sin titulo",
       "empty_text": "No se guardo texto en este post Pulse.",
       "preview_image_alt": "Imagen de preview del historial Pulse",
+      "preview_cta_fallback": "Ver detalles",
+      "preview_link_destination": "Destino",
       "empty_value": "No disponible"
     },
     "accounts_manager": {

@@ -141,11 +141,13 @@ it('lets owners create and update pulse drafts with multi-account selection and 
             'text' => 'Spring launch is ready.',
             'image_url' => 'https://example.com/assets/pulse-spring.jpg',
             'link_url' => 'https://example.com/offers/spring',
+            'link_cta_label' => 'Voir la collection',
             'target_connection_ids' => [$facebook->id, $linkedin->id],
         ]);
 
     $create->assertCreated()
         ->assertJsonPath('draft.status', SocialPost::STATUS_DRAFT)
+        ->assertJsonPath('draft.link_cta_label', 'Voir la collection')
         ->assertJsonPath('draft.selected_accounts_count', 2)
         ->assertJsonPath('summary.drafts', 1)
         ->assertJsonCount(1, 'drafts');
@@ -157,11 +159,13 @@ it('lets owners create and update pulse drafts with multi-account selection and 
             'text' => 'Spring launch is scheduled.',
             'image_url' => 'https://example.com/assets/pulse-spring-updated.jpg',
             'link_url' => 'https://example.com/offers/spring-v2',
+            'link_cta_label' => 'Magasiner maintenant',
             'scheduled_for' => '2026-04-24T10:30',
             'target_connection_ids' => [$linkedin->id],
         ])
         ->assertOk()
         ->assertJsonPath('draft.status', SocialPost::STATUS_SCHEDULED)
+        ->assertJsonPath('draft.link_cta_label', 'Magasiner maintenant')
         ->assertJsonPath('draft.selected_accounts_count', 1)
         ->assertJsonPath('draft.selected_target_connection_ids.0', $linkedin->id)
         ->assertJsonPath('summary.scheduled', 1);
@@ -171,6 +175,7 @@ it('lets owners create and update pulse drafts with multi-account selection and 
     expect($draft->status)->toBe(SocialPost::STATUS_SCHEDULED)
         ->and((string) data_get($draft->content_payload, 'text'))->toBe('Spring launch is scheduled.')
         ->and((string) $draft->link_url)->toBe('https://example.com/offers/spring-v2')
+        ->and((string) data_get($draft->metadata, 'link_cta_label'))->toBe('Magasiner maintenant')
         ->and($draft->scheduled_for)->not->toBeNull()
         ->and($draft->targets)->toHaveCount(1)
         ->and((int) $draft->targets->first()->social_account_connection_id)->toBe((int) $linkedin->id);

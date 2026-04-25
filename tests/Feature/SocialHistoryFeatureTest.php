@@ -226,6 +226,7 @@ it('duplicates pulse draft published and failed posts into editable drafts', fun
         'published_at' => Carbon::parse('2026-04-22 10:00:00'),
         'metadata' => [
             'publish_requested_at' => Carbon::parse('2026-04-22 09:59:00')->toIso8601String(),
+            'link_cta_label' => 'Voir la publication',
         ],
     ]);
 
@@ -246,6 +247,10 @@ it('duplicates pulse draft published and failed posts into editable drafts', fun
 
         $response->assertCreated()
             ->assertJsonPath('draft.status', SocialPost::STATUS_DRAFT)
+            ->assertJsonPath(
+                'draft.link_cta_label',
+                $sourcePost->id === $published->id ? 'Voir la publication' : null
+            )
             ->assertJsonPath('draft.metadata.copy_mode', 'duplicate')
             ->assertJsonPath('draft.metadata.copied_from_post_id', $sourcePost->id)
             ->assertJsonPath('draft.metadata.copied_from_status', $sourcePost->status)
@@ -276,6 +281,7 @@ it('creates an editable repost draft only from a published pulse post', function
         'published_at' => Carbon::parse('2026-04-22 14:00:00'),
         'metadata' => [
             'publish_requested_at' => Carbon::parse('2026-04-22 13:55:00')->toIso8601String(),
+            'link_cta_label' => 'Redecouvrir le contenu',
         ],
     ]);
 
@@ -284,6 +290,7 @@ it('creates an editable repost draft only from a published pulse post', function
 
     $repost->assertCreated()
         ->assertJsonPath('draft.status', SocialPost::STATUS_DRAFT)
+        ->assertJsonPath('draft.link_cta_label', 'Redecouvrir le contenu')
         ->assertJsonPath('draft.metadata.copy_mode', 'repost')
         ->assertJsonPath('draft.metadata.repost_of_post_id', $published->id)
         ->assertJsonPath('draft.selected_accounts_count', 1);

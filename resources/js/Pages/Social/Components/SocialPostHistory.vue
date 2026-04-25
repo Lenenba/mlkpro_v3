@@ -200,6 +200,57 @@ const formatDate = (value) => {
         return t('social.history_manager.empty_value');
     }
 };
+const normalizeLinkCandidate = (value) => {
+    const candidate = String(value || '').trim();
+    if (candidate === '') {
+        return '';
+    }
+
+    if (/^[a-z][a-z0-9+.-]*:/i.test(candidate)) {
+        return candidate;
+    }
+
+    if (candidate.startsWith('//')) {
+        return `https:${candidate}`;
+    }
+
+    if (/\s/u.test(candidate) || !candidate.includes('.')) {
+        return candidate;
+    }
+
+    return `https://${candidate}`;
+};
+const linkHrefFor = (value) => normalizeLinkCandidate(value);
+const linkHostFor = (value) => {
+    const candidate = normalizeLinkCandidate(value);
+    if (candidate === '') {
+        return '';
+    }
+
+    try {
+        return new URL(candidate).host.replace(/^www\./i, '');
+    } catch {
+        return candidate;
+    }
+};
+const linkSummaryFor = (record) => {
+    const label = String(record?.link_cta_label || '').trim();
+    const host = linkHostFor(record?.link_url);
+
+    if (label !== '' && host !== '' && label.toLowerCase() !== host.toLowerCase()) {
+        return `${label} - ${host}`;
+    }
+
+    if (label !== '') {
+        return label;
+    }
+
+    if (host !== '') {
+        return host;
+    }
+
+    return '';
+};
 
 const draftLabel = (post) => {
     const text = String(post?.text || '').trim();
@@ -207,9 +258,9 @@ const draftLabel = (post) => {
         return text.length > 90 ? `${text.slice(0, 87)}...` : text;
     }
 
-    const link = String(post?.link_url || '').trim();
-    if (link !== '') {
-        return link;
+    const linkSummary = linkSummaryFor(post);
+    if (linkSummary !== '') {
+        return linkSummary;
     }
 
     return t('social.history_manager.untitled_post');
@@ -474,9 +525,23 @@ const resolveApproval = async (post, decision) => {
                             {{ draftLabel(post) }}
                         </h4>
 
-                        <p v-if="post.link_url" class="text-sm text-sky-700 dark:text-sky-300">
-                            {{ post.link_url }}
-                        </p>
+                        <a
+                            v-if="post.link_url"
+                            :href="linkHrefFor(post.link_url)"
+                            target="_blank"
+                            rel="noreferrer"
+                            class="block rounded-3xl border border-sky-200 bg-sky-50 px-4 py-3 text-sky-800 transition hover:border-sky-300 hover:bg-sky-100 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-100 dark:hover:border-sky-500/40 dark:hover:bg-sky-500/15"
+                        >
+                            <span class="block text-sm font-semibold">
+                                {{ post.link_cta_label || t('social.history_manager.preview_cta_fallback') }}
+                            </span>
+                            <span
+                                v-if="linkHostFor(post.link_url)"
+                                class="mt-1 block text-xs text-sky-700/80 dark:text-sky-200/80"
+                            >
+                                {{ t('social.history_manager.preview_link_destination') }}: {{ linkHostFor(post.link_url) }}
+                            </span>
+                        </a>
 
                         <p
                             v-if="post.failure_reason"

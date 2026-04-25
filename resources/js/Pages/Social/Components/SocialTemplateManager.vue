@@ -64,6 +64,7 @@ const form = ref({
     text: '',
     image_url: '',
     link_url: '',
+    link_cta_label: '',
     target_connection_ids: [],
 });
 
@@ -93,6 +94,56 @@ const imageInputModel = computed({
         form.value.image_url = '';
     },
 });
+const normalizeLinkCandidate = (value) => {
+    const candidate = String(value || '').trim();
+    if (candidate === '') {
+        return '';
+    }
+
+    if (/^[a-z][a-z0-9+.-]*:/i.test(candidate)) {
+        return candidate;
+    }
+
+    if (candidate.startsWith('//')) {
+        return `https:${candidate}`;
+    }
+
+    if (/\s/u.test(candidate) || !candidate.includes('.')) {
+        return candidate;
+    }
+
+    return `https://${candidate}`;
+};
+const linkHostFor = (value) => {
+    const candidate = normalizeLinkCandidate(value);
+    if (candidate === '') {
+        return '';
+    }
+
+    try {
+        return new URL(candidate).host.replace(/^www\./i, '');
+    } catch {
+        return candidate;
+    }
+};
+const linkSummaryFor = (record) => {
+    const label = String(record?.link_cta_label || '').trim();
+    const host = linkHostFor(record?.link_url);
+
+    if (label !== '' && host !== '' && label.toLowerCase() !== host.toLowerCase()) {
+        return `${label} - ${host}`;
+    }
+
+    if (label !== '') {
+        return label;
+    }
+
+    if (host !== '') {
+        return host;
+    }
+
+    return '';
+};
 
 const templateLabel = (template) => {
     const name = String(template?.name || '').trim();
@@ -105,9 +156,9 @@ const templateLabel = (template) => {
         return text.length > 80 ? `${text.slice(0, 77)}...` : text;
     }
 
-    const link = String(template?.link_url || '').trim();
-    if (link !== '') {
-        return link;
+    const linkSummary = linkSummaryFor(template);
+    if (linkSummary !== '') {
+        return linkSummary;
     }
 
     return t('social.template_manager.untitled_template');
@@ -144,6 +195,7 @@ const syncFormFromTemplate = (template) => {
         text: String(template?.text || ''),
         image_url: String(template?.image_url || ''),
         link_url: String(template?.link_url || ''),
+        link_cta_label: String(template?.link_cta_label || ''),
         target_connection_ids: availableTargetConnectionIds(template?.selected_target_connection_ids),
     };
 };
@@ -156,6 +208,7 @@ const resetForm = () => {
         text: '',
         image_url: '',
         link_url: '',
+        link_cta_label: '',
         target_connection_ids: [],
     };
     error.value = '';
@@ -301,6 +354,7 @@ const templatePayload = () => {
         text: String(form.value.text || '').trim(),
         image_url: String(form.value.image_url || '').trim(),
         link_url: String(form.value.link_url || '').trim(),
+        link_cta_label: String(form.value.link_cta_label || '').trim(),
         target_connection_ids: availableTargetConnectionIds(form.value.target_connection_ids),
     };
 
@@ -315,6 +369,7 @@ const templatePayload = () => {
     appendFormDataValue(formData, 'image_url', payload.image_url);
     appendFormDataValue(formData, 'image_file', imageFile.value);
     appendFormDataValue(formData, 'link_url', payload.link_url);
+    appendFormDataValue(formData, 'link_cta_label', payload.link_cta_label);
     appendFormDataValue(formData, 'target_connection_ids', payload.target_connection_ids);
 
     return formData;
@@ -457,13 +512,26 @@ const useTemplateInComposer = (template) => {
 
                         <FloatingInput
                             v-model="form.image_url"
+                            type="url"
                             :label="t('social.template_manager.fields.image_url')"
+                            placeholder="https://example.com/image.jpg"
+                            autocomplete="url"
                             :disabled="!canManage || busy"
                         />
 
                         <FloatingInput
                             v-model="form.link_url"
+                            type="url"
                             :label="t('social.template_manager.fields.link_url')"
+                            placeholder="https://example.com"
+                            autocomplete="url"
+                            :disabled="!canManage || busy"
+                        />
+
+                        <FloatingInput
+                            v-model="form.link_cta_label"
+                            :label="t('social.template_manager.fields.link_cta_label')"
+                            placeholder="Voir les details"
                             :disabled="!canManage || busy"
                         />
                     </div>
@@ -580,7 +648,7 @@ const useTemplateInComposer = (template) => {
                             </div>
 
                             <div class="mt-3 line-clamp-3 text-sm text-stone-600 dark:text-neutral-300">
-                                {{ template.text || template.link_url || t('social.template_manager.untitled_template') }}
+                                {{ template.text || linkSummaryFor(template) || t('social.template_manager.untitled_template') }}
                             </div>
 
                             <div v-if="template.targets?.length" class="mt-3 flex flex-wrap gap-2">

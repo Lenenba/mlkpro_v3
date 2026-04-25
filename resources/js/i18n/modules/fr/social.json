@@ -103,6 +103,8 @@
       "preview_image_alt": "Image de preview du brouillon Pulse",
       "preview_schedule": "Planification",
       "preview_now": "Enregistrer comme brouillon",
+      "preview_cta_fallback": "Voir les details",
+      "preview_link_destination": "Destination",
       "preview": {
         "status_draft": "Brouillon",
         "status_scheduled": "Programme"
@@ -112,6 +114,7 @@
         "image_file": "Image depuis votre ordinateur",
         "image_url": "URL image",
         "link_url": "Lien de destination",
+        "link_cta_label": "Libelle du CTA",
         "scheduled_for": "Programmer pour",
         "template_name": "Nom du template",
         "custom_hashtag": "Ajouter un hashtag"
@@ -218,7 +221,8 @@
         "text": "Texte du post",
         "image_file": "Image depuis votre ordinateur",
         "image_url": "URL image",
-        "link_url": "Lien de destination"
+        "link_url": "Lien de destination",
+        "link_cta_label": "Libelle du CTA"
       },
       "actions": {
         "reload": "Recharger",
@@ -299,6 +303,8 @@
       "untitled_post": "Post Pulse sans titre",
       "empty_text": "Aucun texte n a ete enregistre sur ce post Pulse.",
       "preview_image_alt": "Image de preview de l historique Pulse",
+      "preview_cta_fallback": "Voir les details",
+      "preview_link_destination": "Destination",
       "empty_value": "Non disponible"
     },
     "accounts_manager": {

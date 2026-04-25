@@ -31,6 +31,57 @@ const props = defineProps({
 
 const { t } = useI18n();
 
+const normalizeLinkCandidate = (value) => {
+    const candidate = String(value || '').trim();
+    if (candidate === '') {
+        return '';
+    }
+
+    if (/^[a-z][a-z0-9+.-]*:/i.test(candidate)) {
+        return candidate;
+    }
+
+    if (candidate.startsWith('//')) {
+        return `https:${candidate}`;
+    }
+
+    if (/\s/u.test(candidate) || !candidate.includes('.')) {
+        return candidate;
+    }
+
+    return `https://${candidate}`;
+};
+const linkHostFor = (value) => {
+    const candidate = normalizeLinkCandidate(value);
+    if (candidate === '') {
+        return '';
+    }
+
+    try {
+        return new URL(candidate).host.replace(/^www\./i, '');
+    } catch {
+        return candidate;
+    }
+};
+const recentDraftLabel = (draft) => {
+    const text = String(draft?.text || '').trim();
+    if (text !== '') {
+        return text;
+    }
+
+    const label = String(draft?.link_cta_label || '').trim();
+    if (label !== '') {
+        return label;
+    }
+
+    const host = linkHostFor(draft?.link_url);
+    if (host !== '') {
+        return host;
+    }
+
+    return t('social.index_page.untitled_draft');
+};
+
 const formatDate = (value) => {
     if (!value) {
         return t('social.index_page.empty_value');
@@ -169,7 +220,7 @@ const formatDate = (value) => {
                         class="rounded-3xl border border-stone-200 bg-stone-50 p-4 transition hover:border-sky-300 dark:border-neutral-700 dark:bg-neutral-800/60 dark:hover:border-sky-500/40"
                     >
                         <div class="text-sm font-semibold text-stone-900 dark:text-neutral-100">
-                            {{ draft.text || draft.link_url || t('social.index_page.untitled_draft') }}
+                            {{ recentDraftLabel(draft) }}
                         </div>
                         <div class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
                             {{ t(`social.composer_manager.statuses.${draft.status || 'draft'}`) }}

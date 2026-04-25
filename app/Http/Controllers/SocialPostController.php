@@ -138,11 +138,14 @@ class SocialPostController extends Controller
             abort(403);
         }
 
+        $this->normalizeUrlInputs($request, ['image_url', 'link_url']);
+
         $validated = $request->validate([
             'text' => ['nullable', 'string', 'max:4000'],
             'image_url' => ['nullable', 'url', 'max:2048'],
             'image_file' => ['nullable', 'file', 'image', 'max:10240'],
             'link_url' => ['nullable', 'url', 'max:2048'],
+            'link_cta_label' => ['nullable', 'string', 'max:80'],
             'scheduled_for' => ['nullable', 'date'],
             'source_type' => ['nullable', 'string', Rule::in(SocialPrefillService::allowedSourceTypes())],
             'source_id' => ['nullable', 'integer'],
@@ -168,6 +171,8 @@ class SocialPostController extends Controller
             abort(403);
         }
 
+        $this->normalizeUrlInputs($request, ['image_url', 'link_url']);
+
         $validated = $request->validate([
             'text' => ['nullable', 'string', 'max:4000'],
             'image_url' => ['nullable', 'url', 'max:2048'],
@@ -188,11 +193,14 @@ class SocialPostController extends Controller
             abort(403);
         }
 
+        $this->normalizeUrlInputs($request, ['image_url', 'link_url']);
+
         $validated = $request->validate([
             'text' => ['nullable', 'string', 'max:4000'],
             'image_url' => ['nullable', 'url', 'max:2048'],
             'image_file' => ['nullable', 'file', 'image', 'max:10240'],
             'link_url' => ['nullable', 'url', 'max:2048'],
+            'link_cta_label' => ['nullable', 'string', 'max:80'],
             'scheduled_for' => ['nullable', 'date'],
             'source_type' => ['nullable', 'string', Rule::in(SocialPrefillService::allowedSourceTypes())],
             'source_id' => ['nullable', 'integer'],
@@ -334,12 +342,15 @@ class SocialPostController extends Controller
             abort(403);
         }
 
+        $this->normalizeUrlInputs($request, ['image_url', 'link_url']);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:160'],
             'text' => ['nullable', 'string', 'max:4000'],
             'image_url' => ['nullable', 'url', 'max:2048'],
             'image_file' => ['nullable', 'file', 'image', 'max:10240'],
             'link_url' => ['nullable', 'url', 'max:2048'],
+            'link_cta_label' => ['nullable', 'string', 'max:80'],
             'target_connection_ids' => ['nullable', 'array'],
             'target_connection_ids.*' => ['integer', 'distinct'],
         ]);
@@ -361,12 +372,15 @@ class SocialPostController extends Controller
             abort(403);
         }
 
+        $this->normalizeUrlInputs($request, ['image_url', 'link_url']);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:160'],
             'text' => ['nullable', 'string', 'max:4000'],
             'image_url' => ['nullable', 'url', 'max:2048'],
             'image_file' => ['nullable', 'file', 'image', 'max:10240'],
             'link_url' => ['nullable', 'url', 'max:2048'],
+            'link_cta_label' => ['nullable', 'string', 'max:80'],
             'target_connection_ids' => ['nullable', 'array'],
             'target_connection_ids.*' => ['integer', 'distinct'],
         ]);
@@ -535,5 +549,47 @@ class SocialPostController extends Controller
         $validated['image_upload'] = $this->mediaAssetService->storeUploadedImage($owner, $imageFile, $context);
 
         return $validated;
+    }
+
+    /**
+     * @param  array<int, string>  $keys
+     */
+    private function normalizeUrlInputs(Request $request, array $keys): void
+    {
+        $normalized = [];
+
+        foreach ($keys as $key) {
+            if (! $request->exists($key)) {
+                continue;
+            }
+
+            $normalized[$key] = $this->normalizeUrlInputValue($request->input($key));
+        }
+
+        if ($normalized !== []) {
+            $request->merge($normalized);
+        }
+    }
+
+    private function normalizeUrlInputValue(mixed $value): ?string
+    {
+        $candidate = trim((string) ($value ?? ''));
+        if ($candidate === '') {
+            return null;
+        }
+
+        if (preg_match('/^[a-z][a-z0-9+\-.]*:/i', $candidate) === 1) {
+            return $candidate;
+        }
+
+        if (str_starts_with($candidate, '//')) {
+            return 'https:'.$candidate;
+        }
+
+        if (preg_match('/\s/u', $candidate) === 1 || ! str_contains($candidate, '.')) {
+            return $candidate;
+        }
+
+        return 'https://'.$candidate;
     }
 }

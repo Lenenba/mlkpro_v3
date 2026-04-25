@@ -258,6 +258,7 @@ class SocialPublishingService
                 'connection_label' => $connection->label,
                 'provider_label' => data_get($target->metadata, 'provider_label'),
                 'target_type' => data_get($target->metadata, 'target_type'),
+                'link_cta_label' => data_get($post->metadata, 'link_cta_label'),
             ],
         ];
     }

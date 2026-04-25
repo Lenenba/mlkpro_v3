@@ -134,6 +134,7 @@ const normalizePrefill = (payload) => {
         text: String(payload?.text || ''),
         image_url: String(payload?.image_url || ''),
         link_url: String(payload?.link_url || ''),
+        link_cta_label: String(payload?.link_cta_label || ''),
     };
 };
 const normalizeSourceReference = (payload) => {
@@ -232,6 +233,7 @@ const form = ref({
     text: '',
     image_url: '',
     link_url: '',
+    link_cta_label: '',
     scheduled_for: '',
     target_connection_ids: [],
 });
@@ -335,6 +337,61 @@ const imageInputModel = computed({
     },
 });
 const previewImageSrc = computed(() => localImagePreviewUrl.value || String(form.value.image_url || '').trim());
+const normalizeLinkCandidate = (value) => {
+    const candidate = String(value || '').trim();
+    if (candidate === '') {
+        return '';
+    }
+
+    if (/^[a-z][a-z0-9+.-]*:/i.test(candidate)) {
+        return candidate;
+    }
+
+    if (candidate.startsWith('//')) {
+        return `https:${candidate}`;
+    }
+
+    if (/\s/u.test(candidate) || !candidate.includes('.')) {
+        return candidate;
+    }
+
+    return `https://${candidate}`;
+};
+const linkHrefFor = (value) => normalizeLinkCandidate(value);
+const linkHostFor = (value) => {
+    const candidate = normalizeLinkCandidate(value);
+    if (candidate === '') {
+        return '';
+    }
+
+    try {
+        return new URL(candidate).host.replace(/^www\./i, '');
+    } catch {
+        return candidate;
+    }
+};
+const linkSummaryFor = (record) => {
+    const label = String(record?.link_cta_label || '').trim();
+    const host = linkHostFor(record?.link_url);
+
+    if (label !== '' && host !== '' && label.toLowerCase() !== host.toLowerCase()) {
+        return `${label} - ${host}`;
+    }
+
+    if (label !== '') {
+        return label;
+    }
+
+    if (host !== '') {
+        return host;
+    }
+
+    return '';
+};
+const previewLinkLabel = computed(() => (
+    String(form.value.link_cta_label || '').trim() || t('social.composer_manager.preview_cta_fallback')
+));
+const previewLinkHost = computed(() => linkHostFor(form.value.link_url));
 
 const formatDate = (value) => {
     if (!value) {
@@ -354,9 +411,9 @@ const draftLabel = (draft) => {
         return text.length > 70 ? `${text.slice(0, 67)}...` : text;
     }
 
-    const link = String(draft?.link_url || '').trim();
-    if (link !== '') {
-        return link;
+    const linkSummary = linkSummaryFor(draft);
+    if (linkSummary !== '') {
+        return linkSummary;
     }
 
     return t('social.composer_manager.untitled_draft');
@@ -373,9 +430,9 @@ const templateLabel = (template) => {
         return text.length > 70 ? `${text.slice(0, 67)}...` : text;
     }
 
-    const link = String(template?.link_url || '').trim();
-    if (link !== '') {
-        return link;
+    const linkSummary = linkSummaryFor(template);
+    if (linkSummary !== '') {
+        return linkSummary;
     }
 
     return t('social.composer_manager.untitled_template');
@@ -420,6 +477,7 @@ const syncFormFromDraft = (draft) => {
         text: String(draft?.text || ''),
         image_url: String(draft?.image_url || ''),
         link_url: String(draft?.link_url || ''),
+        link_cta_label: String(draft?.link_cta_label || ''),
         scheduled_for: String(draft?.scheduled_for || ''),
         target_connection_ids: Array.isArray(draft?.selected_target_connection_ids)
             ? draft.selected_target_connection_ids.map((id) => Number(id)).filter((id) => id > 0)
@@ -440,6 +498,7 @@ const resetForm = () => {
         text: '',
         image_url: '',
         link_url: '',
+        link_cta_label: '',
         scheduled_for: '',
         target_connection_ids: [],
     };
@@ -565,6 +624,7 @@ const applyTemplate = (template, { announce = true } = {}) => {
         text: String(template?.text || ''),
         image_url: String(template?.image_url || ''),
         link_url: String(template?.link_url || ''),
+        link_cta_label: String(template?.link_cta_label || ''),
         scheduled_for: '',
         target_connection_ids: availableTargetIds,
     };
@@ -596,6 +656,7 @@ const applyPrefill = (prefill, { announce = true } = {}) => {
         text: String(normalizedPrefill.text || ''),
         image_url: String(normalizedPrefill.image_url || ''),
         link_url: String(normalizedPrefill.link_url || ''),
+        link_cta_label: String(normalizedPrefill.link_cta_label || ''),
         scheduled_for: '',
         target_connection_ids: [],
     };
@@ -856,6 +917,7 @@ const composerPayload = () => {
         text: String(form.value.text || '').trim(),
         image_url: String(form.value.image_url || '').trim(),
         link_url: String(form.value.link_url || '').trim(),
+        link_cta_label: String(form.value.link_cta_label || '').trim(),
         scheduled_for: String(form.value.scheduled_for || '').trim(),
         source_type: sourceReference.value?.source_type || null,
         source_id: sourceReference.value?.source_id || null,
@@ -872,6 +934,7 @@ const composerPayload = () => {
     appendFormDataValue(formData, 'image_url', payload.image_url);
     appendFormDataValue(formData, 'image_file', imageFile.value);
     appendFormDataValue(formData, 'link_url', payload.link_url);
+    appendFormDataValue(formData, 'link_cta_label', payload.link_cta_label);
     appendFormDataValue(formData, 'scheduled_for', payload.scheduled_for);
 
     if (payload.source_type !== null) {
@@ -893,6 +956,7 @@ const templatePayload = (name) => {
         text: String(form.value.text || '').trim(),
         image_url: String(form.value.image_url || '').trim(),
         link_url: String(form.value.link_url || '').trim(),
+        link_cta_label: String(form.value.link_cta_label || '').trim(),
         target_connection_ids: availableTargetConnectionIds(form.value.target_connection_ids),
     };
 
@@ -907,6 +971,7 @@ const templatePayload = (name) => {
     appendFormDataValue(formData, 'image_url', payload.image_url);
     appendFormDataValue(formData, 'image_file', imageFile.value);
     appendFormDataValue(formData, 'link_url', payload.link_url);
+    appendFormDataValue(formData, 'link_cta_label', payload.link_cta_label);
     appendFormDataValue(formData, 'target_connection_ids', payload.target_connection_ids);
 
     return formData;
@@ -1008,6 +1073,7 @@ const saveAsTemplate = async () => {
     const fallbackName = draftLabel({
         text: form.value.text,
         link_url: form.value.link_url,
+        link_cta_label: form.value.link_cta_label,
     });
 
     const requestedTemplateName = String(templateName.value || '').trim() || fallbackName;
@@ -1250,13 +1316,26 @@ const resolveApproval = async (decision) => {
 
                         <FloatingInput
                             v-model="form.image_url"
+                            type="url"
                             :label="t('social.composer_manager.fields.image_url')"
+                            placeholder="https://example.com/image.jpg"
+                            autocomplete="url"
                             :disabled="isEditDisabled"
                         />
 
                         <FloatingInput
                             v-model="form.link_url"
+                            type="url"
                             :label="t('social.composer_manager.fields.link_url')"
+                            placeholder="https://example.com"
+                            autocomplete="url"
+                            :disabled="isEditDisabled"
+                        />
+
+                        <FloatingInput
+                            v-model="form.link_cta_label"
+                            :label="t('social.composer_manager.fields.link_cta_label')"
+                            placeholder="Voir les details"
                             :disabled="isEditDisabled"
                         />
 
@@ -1519,7 +1598,7 @@ const resolveApproval = async (decision) => {
                             </div>
 
                             <div class="mt-3 line-clamp-3 text-sm text-stone-600 dark:text-neutral-300">
-                                {{ template.text || template.link_url || t('social.composer_manager.untitled_template') }}
+                                {{ template.text || linkSummaryFor(template) || t('social.composer_manager.untitled_template') }}
                             </div>
 
                             <div class="mt-4 flex flex-wrap gap-2">
@@ -1703,12 +1782,20 @@ const resolveApproval = async (decision) => {
 
                             <a
                                 v-if="form.link_url"
-                                :href="form.link_url"
+                                :href="linkHrefFor(form.link_url)"
                                 target="_blank"
                                 rel="noreferrer"
-                                class="mt-4 block rounded-3xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-sky-700 hover:text-sky-800 dark:border-neutral-700 dark:bg-neutral-800/70 dark:text-sky-300 dark:hover:text-sky-200"
+                                class="mt-4 block rounded-3xl border border-sky-200 bg-sky-50 px-4 py-4 text-sky-800 transition hover:border-sky-300 hover:bg-sky-100 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-100 dark:hover:border-sky-500/40 dark:hover:bg-sky-500/15"
                             >
-                                {{ form.link_url }}
+                                <span class="block text-sm font-semibold">
+                                    {{ previewLinkLabel }}
+                                </span>
+                                <span
+                                    v-if="previewLinkHost"
+                                    class="mt-1 block text-xs text-sky-700/80 dark:text-sky-200/80"
+                                >
+                                    {{ t('social.composer_manager.preview_link_destination') }}: {{ previewLinkHost }}
+                                </span>
                             </a>
 
                             <div class="mt-4 text-xs text-stone-500 dark:text-neutral-400">

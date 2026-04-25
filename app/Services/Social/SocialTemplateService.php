@@ -104,6 +104,7 @@ class SocialTemplateService
             'text' => $text !== '' ? $text : null,
             'image_url' => $this->mediaAssetService->imageUrl((array) ($template->media_payload ?? [])),
             'link_url' => $template->link_url,
+            'link_cta_label' => $this->linkCtaLabel($template->metadata),
             'selected_target_connection_ids' => $selectedTargetIds,
             'selected_accounts_count' => count($selectedTargetIds),
             'targets' => $targetSnapshots,
@@ -130,6 +131,7 @@ class SocialTemplateService
         $text = $this->nullableString($payload, 'text');
         $mediaPayload = $this->mediaAssetService->imageMediaPayload($payload);
         $linkUrl = $this->nullableString($payload, 'link_url');
+        $linkCtaLabel = $linkUrl !== null ? $this->nullableString($payload, 'link_cta_label') : null;
         $targetConnections = $this->resolveTargetConnections($owner, (array) ($payload['target_connection_ids'] ?? []));
 
         if ($name === null) {
@@ -161,6 +163,7 @@ class SocialTemplateService
                     ->map(fn ($id) => (int) $id)
                     ->values()
                     ->all(),
+                'link_cta_label' => $linkCtaLabel,
                 'target_snapshots' => $targetConnections
                     ->map(function (SocialAccountConnection $connection): array {
                         return [
@@ -222,6 +225,16 @@ class SocialTemplateService
     private function nullableString(array $payload, string $key): ?string
     {
         $value = trim((string) ($payload[$key] ?? ''));
+
+        return $value !== '' ? $value : null;
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $metadata
+     */
+    private function linkCtaLabel(?array $metadata): ?string
+    {
+        $value = trim((string) data_get($metadata, 'link_cta_label', ''));
 
         return $value !== '' ? $value : null;
     }
