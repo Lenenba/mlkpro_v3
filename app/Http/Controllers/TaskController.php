@@ -204,6 +204,14 @@ class TaskController extends Controller
             $lead = LeadRequest::query()
                 ->where('user_id', $accountId)
                 ->find($requestId);
+
+            if ($lead) {
+                $this->ensureLeadIsMutable(
+                    $lead,
+                    'request_id',
+                    'Archived prospects must be restored before they can receive new tasks.'
+                );
+            }
         }
 
         $status = $validated['status'] ?? Task::STATUS_TODO;
@@ -343,10 +351,33 @@ class TaskController extends Controller
             return $this->lockedTaskResponse($request, $task);
         }
 
+        $task->loadMissing('request');
+        if ($task->request) {
+            $this->ensureLeadIsMutable(
+                $task->request,
+                'task',
+                'Tasks linked to archived prospects are read-only until the prospect is restored.'
+            );
+        }
+
         $isManager = $request->isManager();
         $validated = $request->validated();
         if ($isManager && ! $hasTeamMembersFeature) {
             $validated['assigned_team_member_id'] = null;
+        }
+
+        if ($isManager && array_key_exists('request_id', $validated) && $validated['request_id']) {
+            $nextLead = LeadRequest::query()
+                ->where('user_id', $accountId)
+                ->find($validated['request_id']);
+
+            if ($nextLead) {
+                $this->ensureLeadIsMutable(
+                    $nextLead,
+                    'request_id',
+                    'Archived prospects must be restored before they can receive tasks.'
+                );
+            }
         }
 
         $updates = [
@@ -563,6 +594,15 @@ class TaskController extends Controller
             abort(404);
         }
 
+        $task->loadMissing('request');
+        if ($task->request) {
+            $this->ensureLeadIsMutable(
+                $task->request,
+                'task',
+                'Tasks linked to archived prospects are read-only until the prospect is restored.'
+            );
+        }
+
         $validated = $request->validated();
         $nextAssigneeId = $hasTeamMembersFeature
             && isset($validated['assigned_team_member_id']) && $validated['assigned_team_member_id']
@@ -584,6 +624,15 @@ class TaskController extends Controller
     public function destroy(Task $task)
     {
         $this->authorize('delete', $task);
+
+        $task->loadMissing('request');
+        if ($task->request) {
+            $this->ensureLeadIsMutable(
+                $task->request,
+                'task',
+                'Tasks linked to archived prospects are read-only until the prospect is restored.'
+            );
+        }
 
         if ($task->isCancelled()) {
             return $this->validationErrorResponse(

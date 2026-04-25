@@ -25,6 +25,7 @@ use App\Notifications\SendQuoteNotification;
 use App\Services\CompanyFeatureService;
 use App\Services\CRM\OutgoingEmailLogService;
 use App\Services\InventoryService;
+use App\Services\ProspectStatusHistoryService;
 use App\Services\TaskBillingService;
 use App\Services\TaskStatusHistoryService;
 use App\Services\TaskTimingService;
@@ -1149,6 +1150,8 @@ class AssistantWorkflowService
             'external_customer_id' => $draft['external_customer_id'] ?? null,
             'channel' => $draft['channel'] ?? null,
             'status' => LeadRequest::STATUS_NEW,
+            'status_updated_at' => now(),
+            'last_activity_at' => now(),
             'service_type' => $draft['service_type'] ?? null,
             'urgency' => $draft['urgency'] ?? null,
             'title' => $draft['title'] ?? null,
@@ -1169,6 +1172,10 @@ class AssistantWorkflowService
             'title' => $lead->title,
             'service_type' => $lead->service_type,
         ], 'Request created by assistant');
+        app(ProspectStatusHistoryService::class)->record($lead, $user, [
+            'to_status' => $lead->status,
+            'metadata' => ['source' => 'assistant'],
+        ]);
 
         return [
             'status' => 'created',
@@ -2365,11 +2372,13 @@ class AssistantWorkflowService
             'notes' => $request->description,
         ]);
 
+        $previousStatus = $request->status;
         $request->update([
             'customer_id' => $customer->id,
             'status' => LeadRequest::STATUS_QUALIFIED,
             'status_updated_at' => now(),
             'converted_at' => now(),
+            'last_activity_at' => now(),
         ]);
 
         ActivityLog::record($user, $request, 'converted', [
@@ -2382,6 +2391,15 @@ class AssistantWorkflowService
             'customer_id' => $quote->customer_id,
             'assistant' => true,
         ], 'Quote created from request by assistant');
+        app(ProspectStatusHistoryService::class)->record($request, $user, [
+            'from_status' => $previousStatus,
+            'to_status' => $request->status,
+            'comment' => 'Assistant converted prospect to quote.',
+            'metadata' => [
+                'source' => 'assistant',
+                'quote_id' => $quote->id,
+            ],
+        ]);
 
         return [
             'status' => 'created',

@@ -37,6 +37,7 @@ class Request extends Model
         self::STATUS_QUOTE_SENT,
         self::STATUS_WON,
         self::STATUS_LOST,
+        self::STATUS_CONVERTED,
     ];
 
     protected $fillable = [
@@ -69,6 +70,9 @@ class Request extends Model
         'triage_priority',
         'risk_level',
         'stale_since_at',
+        'archived_at',
+        'archived_by_user_id',
+        'archive_reason',
         'status_updated_at',
         'next_follow_up_at',
         'lost_reason',
@@ -85,6 +89,7 @@ class Request extends Model
         'sla_due_at' => 'datetime',
         'triage_priority' => 'integer',
         'stale_since_at' => 'datetime',
+        'archived_at' => 'datetime',
         'status_updated_at' => 'datetime',
         'next_follow_up_at' => 'datetime',
         'meta' => 'array',
@@ -103,6 +108,11 @@ class Request extends Model
     public function assignee(): BelongsTo
     {
         return $this->belongsTo(TeamMember::class, 'assigned_team_member_id');
+    }
+
+    public function archivedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'archived_by_user_id');
     }
 
     public function quote(): HasOne
@@ -125,8 +135,33 @@ class Request extends Model
         return $this->hasMany(Task::class, 'request_id')->latest('created_at');
     }
 
+    public function statusHistories(): HasMany
+    {
+        return $this->hasMany(ProspectStatusHistory::class, 'request_id')->latest('created_at');
+    }
+
     public function scopeByUser(Builder $query, int $userId): Builder
     {
         return $query->where('user_id', $userId);
+    }
+
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->whereNull('archived_at');
+    }
+
+    public function scopeArchived(Builder $query): Builder
+    {
+        return $query->whereNotNull('archived_at');
+    }
+
+    public function isArchived(): bool
+    {
+        return $this->archived_at !== null;
+    }
+
+    public function isAnonymized(): bool
+    {
+        return filled(data_get($this->meta, 'privacy.anonymized_at'));
     }
 }

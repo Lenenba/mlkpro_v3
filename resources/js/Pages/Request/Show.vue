@@ -12,6 +12,16 @@ import SalesActivityPanel from '@/Components/CRM/SalesActivityPanel.vue';
 import { humanizeDate } from '@/utils/date';
 import { formatBytes } from '@/utils/media';
 import { buildLeadScore, badgeClass } from '@/utils/leadScore';
+import {
+    prospectCompanyLabel,
+    prospectConsentLabel,
+    prospectCustomerLabel,
+    prospectIsAnonymized,
+    prospectPrimaryLabel,
+    prospectPriorityLabel,
+    prospectRequestTypeLabel,
+    prospectSourceLabel,
+} from '@/utils/prospectPresentation';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -112,16 +122,23 @@ const statusClass = (status) => {
     }
 };
 
-const titleForLead = computed(() =>
-    props.lead?.title || props.lead?.service_type || t('requests.labels.request_number', { id: props.lead?.id })
-);
-
-const displayCustomer = computed(() =>
-    props.lead?.customer?.company_name ||
-    `${props.lead?.customer?.first_name || ''} ${props.lead?.customer?.last_name || ''}`.trim() ||
-    props.lead?.contact_name ||
-    t('requests.labels.unknown_customer')
-);
+const titleForLead = computed(() => prospectPrimaryLabel(props.lead, t));
+const displayCustomer = computed(() => prospectCustomerLabel(props.lead, t));
+const companyLabel = computed(() => prospectCompanyLabel(props.lead, t));
+const sourceLabel = computed(() => prospectSourceLabel(props.lead?.channel, t));
+const requestTypeLabel = computed(() => prospectRequestTypeLabel(props.lead, t));
+const priorityLabel = computed(() => prospectPriorityLabel(props.lead?.triage_priority, t));
+const contactConsentLabel = computed(() => prospectConsentLabel(props.lead?.meta?.contact_consent, t));
+const marketingConsentLabel = computed(() => prospectConsentLabel(props.lead?.meta?.marketing_consent, t));
+const lastActivityLabel = computed(() => formatDate(props.lead?.last_activity_at || props.lead?.created_at));
+const nextActionLabel = computed(() => formatDate(props.lead?.next_follow_up_at));
+const isArchived = computed(() => Boolean(props.lead?.archived_at));
+const isAnonymized = computed(() => prospectIsAnonymized(props.lead));
+const archivedByLabel = computed(() => props.lead?.archived_by?.name || t('requests.activity.author_fallback'));
+const anonymizedMeta = computed(() => props.lead?.meta?.privacy || {});
+const anonymizedAtLabel = computed(() => formatDate(anonymizedMeta.value?.anonymized_at));
+const anonymizationReason = computed(() => anonymizedMeta.value?.anonymization_reason || '');
+const statusHistoryItems = computed(() => Array.isArray(props.lead?.status_histories) ? props.lead.status_histories : []);
 
 const hasMedia = computed(() => Array.isArray(props.lead?.media) && props.lead.media.length > 0);
 const hasTasks = computed(() => Array.isArray(props.lead?.tasks) && props.lead.tasks.length > 0);
@@ -134,6 +151,10 @@ const closeOverlay = (selector) => {
 };
 
 const addressLabel = computed(() => {
+    if (isAnonymized.value) {
+        return t('requests.show.anonymized_address');
+    }
+
     const parts = [
         props.lead?.street1,
         props.lead?.street2,
@@ -146,9 +167,9 @@ const addressLabel = computed(() => {
     return parts.length ? parts.join(', ') : t('requests.show.no_address');
 });
 
-const isClosedStatus = (status) => ['REQ_WON', 'REQ_LOST'].includes(status);
+const isClosedStatus = (status) => ['REQ_WON', 'REQ_LOST', 'REQ_CONVERTED'].includes(status);
 const isOverdue = (lead) => {
-    if (!lead?.next_follow_up_at || isClosedStatus(lead?.status)) {
+    if (!lead?.next_follow_up_at || isClosedStatus(lead?.status) || isArchived.value) {
         return false;
     }
     const dueDate = new Date(lead.next_follow_up_at);
@@ -158,8 +179,8 @@ const isOverdue = (lead) => {
     return dueDate.getTime() < Date.now();
 };
 
-const contactPhone = computed(() => props.lead?.contact_phone || props.lead?.customer?.phone || '');
-const contactEmail = computed(() => props.lead?.contact_email || props.lead?.customer?.email || '');
+const contactPhone = computed(() => (isAnonymized.value ? '' : (props.lead?.contact_phone || props.lead?.customer?.phone || '')));
+const contactEmail = computed(() => (isAnonymized.value ? '' : (props.lead?.contact_email || props.lead?.customer?.email || '')));
 
 const normalizePhone = (value) => String(value || '').replace(/\D/g, '');
 const whatsAppLink = computed(() => {
@@ -167,12 +188,57 @@ const whatsAppLink = computed(() => {
     return digits ? `https://wa.me/${digits}` : null;
 });
 
+const archiveLead = () => {
+    if (isArchived.value) {
+        return;
+    }
+
+    if (!confirm(t('requests.actions.archive_confirm'))) {
+        return;
+    }
+
+    router.patch(route('prospects.archive', props.lead.id), {}, {
+        preserveScroll: true,
+    });
+};
+
+const restoreLead = () => {
+    if (!isArchived.value || isAnonymized.value) {
+        return;
+    }
+
+    router.post(route('prospects.restore', props.lead.id), {}, {
+        preserveScroll: true,
+    });
+};
+
+const anonymizeLead = () => {
+    if (!isArchived.value || isAnonymized.value) {
+        return;
+    }
+
+    if (!confirm(t('requests.actions.anonymize_confirm'))) {
+        return;
+    }
+
+    const reason = window.prompt(t('requests.actions.anonymize_reason_prompt'), '') ?? null;
+    if (reason === null) {
+        return;
+    }
+
+    router.patch(route('prospects.anonymize', props.lead.id), {
+        anonymization_reason: reason.trim() || null,
+    }, {
+        preserveScroll: true,
+    });
+};
+
 const noteForm = useForm({
     body: '',
 });
 
 const submitNote = () => {
-    if (noteForm.processing) {
+    if (isArchived.value || noteForm.processing) {
         return;
     }
     noteForm.post(route('prospects.notes.store', props.lead.id), {
@@ -184,7 +250,7 @@ const submitNote = () => {
 };
 
 const deleteNote = (note) => {
-    if (!note?.id) {
+    if (isArchived.value || !note?.id) {
         return;
     }
     if (!confirm(t('requests.notes.delete_confirm'))) {
@@ -201,6 +267,14 @@ const mediaForm = useForm({
 const mediaInputRef = ref(null);
 
 const handleMediaFile = (event) => {
+    if (isArchived.value) {
+        if (event.target) {
+            event.target.value = '';
+        }
+        mediaForm.file = null;
+        return;
+    }
+
     const file = event.target.files?.[0] || null;
     mediaForm.clearErrors('file');
     if (!file) {
@@ -231,7 +305,7 @@ const handleMediaFile = (event) => {
 };
 
 const submitMedia = () => {
-    if (mediaForm.processing || !mediaForm.file) {
+    if (isArchived.value || mediaForm.processing || !mediaForm.file) {
         return;
     }
     mediaForm.post(route('prospects.media.store', props.lead.id), {
@@ -248,7 +322,7 @@ const submitMedia = () => {
 };
 
 const deleteMedia = (media) => {
-    if (!media?.id) {
+    if (isArchived.value || !media?.id) {
         return;
     }
     if (!confirm(t('requests.media.delete_confirm'))) {
@@ -270,7 +344,7 @@ const taskForm = useForm({
 });
 
 const submitTask = () => {
-    if (taskForm.processing) {
+    if (isArchived.value || taskForm.processing) {
         return;
     }
 
@@ -314,6 +388,12 @@ const taskStatusClass = (status) => {
             return 'bg-stone-100 text-stone-600 dark:bg-neutral-700 dark:text-neutral-300';
     }
 };
+
+const statusHistoryFromLabel = (entry) => entry?.from_status
+    ? statusLabel(entry.from_status)
+    : t('requests.status_history.initial_state');
+
+const statusHistoryActorLabel = (entry) => entry?.user?.name || t('requests.status_history.system');
 
 const assigneeOptions = computed(() =>
     (props.assignees || []).map((assignee) => ({
@@ -377,7 +457,7 @@ const taskAssigneeBadgeLabel = (task) => (taskAssignedId(task)
     : t('requests.tasks.unassigned_badge'));
 
 const assignTaskAssignee = (task) => {
-    if (!task?.id || assigningTaskId.value) {
+    if (isArchived.value || !task?.id || assigningTaskId.value) {
         return;
     }
 
@@ -486,7 +566,7 @@ const qualityForm = useForm({
 });
 
 const submitQuality = () => {
-    if (qualityForm.processing) {
+    if (isArchived.value || qualityForm.processing) {
         return;
     }
 
@@ -504,7 +584,7 @@ const submitQuality = () => {
 };
 
 const mergeDuplicate = (duplicate) => {
-    if (!duplicate?.id) {
+    if (isArchived.value || !duplicate?.id) {
         return;
     }
     if (!confirm(t('requests.duplicates.merge_confirm'))) {
@@ -569,7 +649,127 @@ const mergeDuplicate = (duplicate) => {
                     >
                         {{ $t('requests.actions.view_quote') }}
                     </Link>
+                    <button
+                        v-if="!isArchived"
+                        type="button"
+                        class="inline-flex items-center gap-2 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+                        @click="archiveLead"
+                    >
+                        {{ $t('requests.actions.archive') }}
+                    </button>
+                    <button
+                        v-else-if="!isAnonymized"
+                        type="button"
+                        class="inline-flex items-center gap-2 rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+                        @click="restoreLead"
+                    >
+                        {{ $t('requests.actions.restore') }}
+                    </button>
+                    <button
+                        v-if="isArchived && !isAnonymized"
+                        type="button"
+                        class="inline-flex items-center gap-2 rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                        @click="anonymizeLead"
+                    >
+                        {{ $t('requests.actions.anonymize') }}
+                    </button>
                 </div>
+            </div>
+
+            <section
+                v-if="isArchived"
+                class="rounded-sm border border-amber-200 bg-amber-50/80 p-4 text-sm text-amber-900 shadow-sm dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
+            >
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="font-semibold">
+                        {{ $t('requests.show.archived_banner') }}
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="inline-flex items-center rounded-sm bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-500/20 dark:text-amber-200">
+                            {{ $t('requests.status.archived') }}
+                        </span>
+                        <span
+                            v-if="isAnonymized"
+                            class="inline-flex items-center rounded-sm bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-800 dark:bg-neutral-700 dark:text-neutral-100"
+                        >
+                            {{ $t('requests.status.anonymized') }}
+                        </span>
+                    </div>
+                </div>
+                <p class="mt-2">
+                    {{ isAnonymized ? $t('requests.show.anonymized_read_only') : $t('requests.show.archived_read_only') }}
+                </p>
+                <div class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-amber-800/90 dark:text-amber-100/80">
+                    <span>{{ $t('requests.show.archived_at') }}: {{ formatDate(lead.archived_at) || '-' }}</span>
+                    <span>{{ $t('requests.show.archived_by') }}: {{ archivedByLabel }}</span>
+                    <span v-if="!isAnonymized && lead.archive_reason">{{ $t('requests.show.archive_reason') }}: {{ lead.archive_reason }}</span>
+                    <span v-if="isAnonymized">{{ $t('requests.show.anonymized_at') }}: {{ anonymizedAtLabel || '-' }}</span>
+                    <span v-if="anonymizationReason">{{ $t('requests.show.anonymized_reason') }}: {{ anonymizationReason }}</span>
+                </div>
+            </section>
+
+            <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
+                <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.current_status') }}</div>
+                    <div class="mt-2">
+                        <span class="inline-flex items-center rounded-sm px-2 py-0.5 text-xs font-medium" :class="statusClass(lead.status)">
+                            {{ statusLabel(lead.status) }}
+                        </span>
+                        <span
+                            v-if="isArchived"
+                            class="ml-2 inline-flex items-center rounded-sm bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-500/20 dark:text-amber-200"
+                        >
+                            {{ $t('requests.status.archived') }}
+                        </span>
+                        <span
+                            v-if="isAnonymized"
+                            class="ml-2 inline-flex items-center rounded-sm bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-800 dark:bg-neutral-700 dark:text-neutral-100"
+                        >
+                            {{ $t('requests.status.anonymized') }}
+                        </span>
+                    </div>
+                </section>
+
+                <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.table.assignee') }}</div>
+                    <div class="mt-2 text-sm font-medium text-stone-800 dark:text-neutral-100">
+                        {{ lead.assignee?.user?.name || lead.assignee?.name || $t('requests.labels.unassigned') }}
+                    </div>
+                </section>
+
+                <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.table.priority') }}</div>
+                    <div class="mt-2 text-sm font-medium text-stone-800 dark:text-neutral-100">
+                        {{ priorityLabel }}
+                    </div>
+                    <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                        {{ $t('requests.triage.priority_short', { value: lead.triage_priority || 0 }) }}
+                    </div>
+                </section>
+
+                <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.table.last_activity') }}</div>
+                    <div class="mt-2 text-sm font-medium text-stone-800 dark:text-neutral-100">
+                        {{ lastActivityLabel }}
+                    </div>
+                </section>
+
+                <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.table.follow_up') }}</div>
+                    <div class="mt-2 text-sm font-medium text-stone-800 dark:text-neutral-100">
+                        {{ nextActionLabel || $t('requests.labels.no_follow_up') }}
+                    </div>
+                </section>
+
+                <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.table.type') }}</div>
+                    <div class="mt-2 text-sm font-medium text-stone-800 dark:text-neutral-100">
+                        {{ requestTypeLabel }}
+                    </div>
+                    <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                        {{ sourceLabel }}
+                    </div>
+                </section>
             </div>
 
             <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr),320px]">
@@ -580,10 +780,22 @@ const mergeDuplicate = (duplicate) => {
                                 {{ $t('requests.show.details') }}
                             </h2>
                             <span class="text-xs text-stone-500 dark:text-neutral-400">
-                                {{ lead.channel || $t('requests.show.channel_fallback') }}
+                                {{ sourceLabel || $t('requests.show.channel_fallback') }}
                             </span>
                         </div>
                         <div class="mt-3 grid grid-cols-1 gap-3 text-sm text-stone-600 dark:text-neutral-300 sm:grid-cols-2">
+                            <div>
+                                <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.company') }}</div>
+                                <div class="mt-1 text-stone-800 dark:text-neutral-200">
+                                    {{ companyLabel }}
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.request_type') }}</div>
+                                <div class="mt-1 text-stone-800 dark:text-neutral-200">
+                                    {{ requestTypeLabel }}
+                                </div>
+                            </div>
                             <div>
                                 <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.service') }}</div>
                                 <div class="mt-1 text-stone-800 dark:text-neutral-200">
@@ -599,7 +811,7 @@ const mergeDuplicate = (duplicate) => {
                             <div class="sm:col-span-2">
                                 <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.description') }}</div>
                                 <p class="mt-1 text-stone-700 dark:text-neutral-200">
-                                    {{ lead.description || $t('requests.show.description_empty') }}
+                                    {{ isAnonymized ? $t('requests.show.anonymized_description') : (lead.description || $t('requests.show.description_empty')) }}
                                 </p>
                             </div>
                             <div class="sm:col-span-2">
@@ -607,6 +819,18 @@ const mergeDuplicate = (duplicate) => {
                                 <p class="mt-1 text-stone-700 dark:text-neutral-200">
                                     {{ addressLabel }}
                                 </p>
+                            </div>
+                            <div>
+                                <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.contact_consent') }}</div>
+                                <div class="mt-1 text-stone-800 dark:text-neutral-200">
+                                    {{ contactConsentLabel }}
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.marketing_consent') }}</div>
+                                <div class="mt-1 text-stone-800 dark:text-neutral-200">
+                                    {{ marketingConsentLabel }}
+                                </div>
                             </div>
                         </div>
                     </section>
@@ -628,7 +852,12 @@ const mergeDuplicate = (duplicate) => {
                                         {{ note.user?.name || $t('requests.notes.author_fallback') }} ·
                                         <span :title="formatAbsoluteDate(note.created_at)">{{ formatDate(note.created_at) }}</span>
                                     </div>
-                                    <button type="button" class="text-xs text-rose-600 hover:text-rose-700" @click="deleteNote(note)">
+                                    <button
+                                        v-if="!isArchived"
+                                        type="button"
+                                        class="text-xs text-rose-600 hover:text-rose-700"
+                                        @click="deleteNote(note)"
+                                    >
                                         {{ $t('requests.notes.delete') }}
                                     </button>
                                 </div>
@@ -639,13 +868,13 @@ const mergeDuplicate = (duplicate) => {
                             {{ $t('requests.notes.empty') }}
                         </p>
 
-                        <form class="mt-4 space-y-2" @submit.prevent="submitNote">
+                        <form v-if="!isArchived" class="mt-4 space-y-2" @submit.prevent="submitNote">
                             <FloatingTextarea v-model="noteForm.body" :label="$t('requests.notes.add')" />
                             <InputError class="mt-1" :message="noteForm.errors.body" />
                             <div class="flex justify-end">
                                 <button
                                     type="submit"
-                                    class="inline-flex items-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                                    class="inline-flex items-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
                                     :disabled="noteForm.processing"
                                 >
                                     {{ $t('requests.notes.save') }}
@@ -660,7 +889,7 @@ const mergeDuplicate = (duplicate) => {
                                 {{ $t('requests.media.title') }}
                             </h2>
                             <button
-                                v-if="hasMedia"
+                                v-if="hasMedia && !isArchived"
                                 type="button"
                                 data-hs-overlay="#request-media-modal"
                                 class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
@@ -680,7 +909,12 @@ const mergeDuplicate = (duplicate) => {
                                         {{ media.user?.name || $t('requests.media.author_fallback') }} ·
                                         <span :title="formatAbsoluteDate(media.created_at)">{{ formatDate(media.created_at) }}</span>
                                     </div>
-                                    <button type="button" class="text-xs text-rose-600 hover:text-rose-700" @click="deleteMedia(media)">
+                                    <button
+                                        v-if="!isArchived"
+                                        type="button"
+                                        class="text-xs text-rose-600 hover:text-rose-700"
+                                        @click="deleteMedia(media)"
+                                    >
                                         {{ $t('requests.media.delete') }}
                                     </button>
                                 </div>
@@ -728,7 +962,7 @@ const mergeDuplicate = (duplicate) => {
                             {{ $t('requests.media.empty') }}
                         </p>
 
-                        <form v-if="!hasMedia" class="mt-4 space-y-2" @submit.prevent="submitMedia">
+                        <form v-if="!hasMedia && !isArchived" class="mt-4 space-y-2" @submit.prevent="submitMedia">
                             <input
                                 ref="mediaInputRef"
                                 type="file"
@@ -739,7 +973,7 @@ const mergeDuplicate = (duplicate) => {
                             <div class="flex justify-end">
                                 <button
                                     type="submit"
-                                    class="inline-flex items-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                                    class="inline-flex items-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
                                     :disabled="mediaForm.processing || !mediaForm.file"
                                 >
                                     {{ $t('requests.media.upload') }}
@@ -754,7 +988,7 @@ const mergeDuplicate = (duplicate) => {
                                 {{ $t('requests.tasks.title') }}
                             </h2>
                             <button
-                                v-if="hasTasks"
+                                v-if="hasTasks && !isArchived"
                                 type="button"
                                 data-hs-overlay="#request-task-modal"
                                 class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
@@ -796,6 +1030,7 @@ const mergeDuplicate = (duplicate) => {
                                 <div v-if="assigneeOptions.length" class="mt-2 flex w-full flex-wrap items-center gap-2">
                                     <select
                                         v-model="taskAssigneeState[task.id]"
+                                        :disabled="isArchived"
                                         class="block min-w-52 rounded-sm border-stone-300 text-xs focus:border-emerald-600 focus:ring-emerald-600 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-200"
                                     >
                                         <option value="">{{ $t('requests.labels.unassigned') }}</option>
@@ -811,7 +1046,7 @@ const mergeDuplicate = (duplicate) => {
                                     <button
                                         type="button"
                                         class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                                        :disabled="isAssigningTask(task.id) || (taskAssigneeState[task.id] || '') === taskAssignedId(task)"
+                                        :disabled="isArchived || isAssigningTask(task.id) || (taskAssigneeState[task.id] || '') === taskAssignedId(task)"
                                         @click="assignTaskAssignee(task)"
                                     >
                                         {{ $t('requests.tasks.assign_action') }}
@@ -823,7 +1058,7 @@ const mergeDuplicate = (duplicate) => {
                             {{ $t('requests.tasks.empty') }}
                         </p>
 
-                        <form v-if="!hasTasks" class="mt-4 space-y-2" @submit.prevent="submitTask">
+                        <form v-if="!hasTasks && !isArchived" class="mt-4 space-y-2" @submit.prevent="submitTask">
                             <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
                                 <FloatingInput v-model="taskForm.title" :label="$t('requests.tasks.title_label')" />
                                 <DatePicker v-model="taskForm.due_date" :label="$t('requests.tasks.due_date')" />
@@ -840,7 +1075,7 @@ const mergeDuplicate = (duplicate) => {
                             <div class="flex justify-end">
                                 <button
                                     type="submit"
-                                    class="inline-flex items-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                                    class="inline-flex items-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
                                     :disabled="taskForm.processing"
                                 >
                                     {{ $t('requests.tasks.create') }}
@@ -851,7 +1086,7 @@ const mergeDuplicate = (duplicate) => {
 
                     <SalesActivityPanel
                         :items="activity"
-                        :can-log="canLogSalesActivity"
+                        :can-log="canLogSalesActivity && !isArchived"
                         :quick-actions="salesActivityQuickActions"
                         :manual-actions="salesActivityManualActions"
                         :store-route="route('crm.sales-activities.requests.store', lead.id)"
@@ -900,10 +1135,94 @@ const mergeDuplicate = (duplicate) => {
                             <div class="flex items-center justify-between">
                                 <span>{{ $t('requests.show.source') }}</span>
                                 <span class="text-stone-800 dark:text-neutral-200">
-                                    {{ lead.channel || '-' }}
+                                    {{ sourceLabel || '-' }}
+                                </span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span>{{ $t('requests.show.request_type') }}</span>
+                                <span class="text-stone-800 dark:text-neutral-200">
+                                    {{ requestTypeLabel }}
+                                </span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span>{{ $t('requests.table.priority') }}</span>
+                                <span class="text-stone-800 dark:text-neutral-200">
+                                    {{ priorityLabel }}
+                                </span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span>{{ $t('requests.table.last_activity') }}</span>
+                                <span class="text-stone-800 dark:text-neutral-200">
+                                    {{ lastActivityLabel }}
+                                </span>
+                            </div>
+                            <div v-if="isArchived" class="flex items-center justify-between gap-3">
+                                <span>{{ $t('requests.show.archived_at') }}</span>
+                                <span class="text-right text-stone-800 dark:text-neutral-200">
+                                    {{ formatDate(lead.archived_at) || '-' }}
+                                </span>
+                            </div>
+                            <div v-if="isArchived" class="flex items-center justify-between gap-3">
+                                <span>{{ $t('requests.show.archived_by') }}</span>
+                                <span class="text-right text-stone-800 dark:text-neutral-200">
+                                    {{ archivedByLabel }}
+                                </span>
+                            </div>
+                            <div v-if="isArchived && !isAnonymized && lead.archive_reason" class="flex items-center justify-between gap-3">
+                                <span>{{ $t('requests.show.archive_reason') }}</span>
+                                <span class="text-right text-stone-800 dark:text-neutral-200">
+                                    {{ lead.archive_reason }}
+                                </span>
+                            </div>
+                            <div v-if="isAnonymized" class="flex items-center justify-between gap-3">
+                                <span>{{ $t('requests.show.anonymized_at') }}</span>
+                                <span class="text-right text-stone-800 dark:text-neutral-200">
+                                    {{ anonymizedAtLabel || '-' }}
+                                </span>
+                            </div>
+                            <div v-if="anonymizationReason" class="flex items-center justify-between gap-3">
+                                <span>{{ $t('requests.show.anonymized_reason') }}</span>
+                                <span class="text-right text-stone-800 dark:text-neutral-200">
+                                    {{ anonymizationReason }}
                                 </span>
                             </div>
                         </div>
+                    </section>
+
+                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ $t('requests.status_history.title') }}
+                        </h2>
+                        <div v-if="statusHistoryItems.length" class="mt-3 space-y-3">
+                            <div
+                                v-for="entry in statusHistoryItems"
+                                :key="entry.id"
+                                class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800"
+                            >
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <div class="text-sm font-medium text-stone-800 dark:text-neutral-100">
+                                            <span>{{ statusHistoryFromLabel(entry) }}</span>
+                                            <span class="mx-2 text-stone-400">-></span>
+                                            <span>{{ statusLabel(entry.to_status) }}</span>
+                                        </div>
+                                        <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                            {{ statusHistoryActorLabel(entry) }} ·
+                                            <span :title="formatAbsoluteDate(entry.created_at)">{{ formatDate(entry.created_at) }}</span>
+                                        </div>
+                                    </div>
+                                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium" :class="statusClass(entry.to_status)">
+                                        {{ statusLabel(entry.to_status) }}
+                                    </span>
+                                </div>
+                                <p v-if="entry.comment" class="mt-2 text-sm text-stone-600 dark:text-neutral-300">
+                                    {{ entry.comment }}
+                                </p>
+                            </div>
+                        </div>
+                        <p v-else class="mt-3 text-sm text-stone-500 dark:text-neutral-400">
+                            {{ $t('requests.status_history.empty') }}
+                        </p>
                     </section>
 
                     <section v-if="hasCampaignOrigin" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
@@ -938,7 +1257,7 @@ const mergeDuplicate = (duplicate) => {
                                     {{ campaignOrigin.channel }}
                                 </span>
                             </div>
-                            <div v-if="campaignOrigin.prospect" class="flex items-center justify-between">
+                            <div v-if="campaignOrigin.prospect && !isAnonymized" class="flex items-center justify-between">
                                 <span>{{ $t('requests.origin.prospect') }}</span>
                                 <span class="text-right text-stone-800 dark:text-neutral-200">
                                     #{{ campaignOrigin.prospect.id }} · {{ campaignOrigin.prospect.company_name || campaignOrigin.prospect.contact_name || '-' }}
@@ -982,24 +1301,28 @@ const mergeDuplicate = (duplicate) => {
                         <form class="mt-3 space-y-3" @submit.prevent="submitQuality">
                             <FloatingSelect
                                 v-model="qualityForm.channel"
+                                :disabled="isArchived"
                                 :label="$t('requests.quality.source')"
                                 :options="sourceOptions"
                                 :placeholder="$t('requests.quality.source_placeholder')"
                             />
                             <FloatingSelect
                                 v-model="qualityForm.urgency"
+                                :disabled="isArchived"
                                 :label="$t('requests.quality.urgency')"
                                 :options="urgencyOptions"
                                 :placeholder="$t('requests.quality.urgency_placeholder')"
                             />
                             <FloatingSelect
                                 v-model="qualityForm.is_serviceable"
+                                :disabled="isArchived"
                                 :label="$t('requests.quality.serviceable_label')"
                                 :options="serviceableOptions"
                                 :placeholder="$t('requests.quality.serviceable_placeholder')"
                             />
                             <FloatingInput
                                 v-model="qualityForm.budget"
+                                :disabled="isArchived"
                                 type="number"
                                 step="0.01"
                                 :label="$t('requests.quality.budget')"
@@ -1007,8 +1330,8 @@ const mergeDuplicate = (duplicate) => {
                             <div class="flex justify-end">
                                 <button
                                     type="submit"
-                                    class="inline-flex items-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700"
-                                    :disabled="qualityForm.processing"
+                                    class="inline-flex items-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+                                    :disabled="isArchived || qualityForm.processing"
                                 >
                                     {{ $t('requests.quality.save') }}
                                 </button>
@@ -1021,6 +1344,9 @@ const mergeDuplicate = (duplicate) => {
                             {{ $t('requests.show.contact') }}
                         </h2>
                         <div class="mt-3 space-y-3 text-sm text-stone-600 dark:text-neutral-300">
+                            <p v-if="isAnonymized" class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                                {{ $t('requests.labels.anonymized_contact') }}
+                            </p>
                             <div class="flex items-center justify-between">
                                 <span>{{ $t('requests.show.phone') }}</span>
                                 <span class="text-stone-800 dark:text-neutral-200">{{ contactPhone || '-' }}</span>
@@ -1077,7 +1403,8 @@ const mergeDuplicate = (duplicate) => {
                                 </div>
                                 <button
                                     type="button"
-                                    class="inline-flex items-center rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+                                    class="inline-flex items-center rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-60 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+                                    :disabled="isArchived"
                                     @click="mergeDuplicate(duplicate)"
                                 >
                                     {{ $t('requests.duplicates.merge') }}
@@ -1105,7 +1432,7 @@ const mergeDuplicate = (duplicate) => {
             </div>
         </div>
 
-        <Modal v-if="hasMedia" :title="$t('requests.media.upload')" :id="'request-media-modal'">
+        <Modal v-if="hasMedia && !isArchived" :title="$t('requests.media.upload')" :id="'request-media-modal'">
             <form class="space-y-2" @submit.prevent="submitMedia">
                 <input
                     ref="mediaInputRef"
@@ -1117,7 +1444,7 @@ const mergeDuplicate = (duplicate) => {
                 <div class="flex justify-end">
                     <button
                         type="submit"
-                        class="inline-flex items-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                        class="inline-flex items-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
                         :disabled="mediaForm.processing || !mediaForm.file"
                     >
                         {{ $t('requests.media.upload') }}
@@ -1126,7 +1453,7 @@ const mergeDuplicate = (duplicate) => {
             </form>
         </Modal>
 
-        <Modal v-if="hasTasks" :title="$t('requests.tasks.create')" :id="'request-task-modal'">
+        <Modal v-if="hasTasks && !isArchived" :title="$t('requests.tasks.create')" :id="'request-task-modal'">
             <form class="space-y-2" @submit.prevent="submitTask">
                 <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
                     <FloatingInput v-model="taskForm.title" :label="$t('requests.tasks.title_label')" />
@@ -1144,7 +1471,7 @@ const mergeDuplicate = (duplicate) => {
                 <div class="flex justify-end">
                     <button
                         type="submit"
-                        class="inline-flex items-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                        class="inline-flex items-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
                         :disabled="taskForm.processing"
                     >
                         {{ $t('requests.tasks.create') }}

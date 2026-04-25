@@ -2,6 +2,7 @@
 
 use App\Models\ActivityLog;
 use App\Models\Request as LeadRequest;
+use App\Models\TeamMember;
 use App\Models\User;
 use App\Services\Requests\LeadTriageClassifier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -329,4 +330,169 @@ it('filters request inbox results by triage queue', function () {
     } finally {
         Carbon::setTestNow();
     }
+});
+
+it('filters request inbox results with phase two prospect filters', function () {
+    $user = User::factory()->create(['company_type' => 'services']);
+    $assigneeUser = User::factory()->create();
+    $assignee = TeamMember::factory()->create([
+        'account_id' => $user->id,
+        'user_id' => $assigneeUser->id,
+        'is_active' => true,
+    ]);
+
+    $referenceTime = Carbon::parse('2026-04-20 09:00:00');
+
+    try {
+        Carbon::setTestNow($referenceTime);
+
+        $matchingLead = LeadRequest::create([
+            'user_id' => $user->id,
+            'status' => LeadRequest::STATUS_CONTACTED,
+            'assigned_team_member_id' => $assignee->id,
+            'channel' => 'phone',
+            'title' => 'Qualified phone prospect',
+            'contact_name' => 'Prospect Match',
+            'first_response_at' => $referenceTime->copy()->subDay(),
+            'last_activity_at' => $referenceTime->copy()->subHour(),
+            'next_follow_up_at' => $referenceTime->copy()->addHours(3),
+            'triage_priority' => 78,
+            'meta' => [
+                'request_type' => 'phone_inquiry',
+            ],
+        ]);
+
+        LeadRequest::create([
+            'user_id' => $user->id,
+            'status' => LeadRequest::STATUS_CONTACTED,
+            'assigned_team_member_id' => $assignee->id,
+            'channel' => 'email',
+            'title' => 'Different source prospect',
+            'first_response_at' => $referenceTime->copy()->subDay(),
+            'last_activity_at' => $referenceTime->copy()->subHour(),
+            'next_follow_up_at' => $referenceTime->copy()->addHours(3),
+            'triage_priority' => 78,
+            'meta' => [
+                'request_type' => 'phone_inquiry',
+            ],
+        ]);
+
+        LeadRequest::create([
+            'user_id' => $user->id,
+            'status' => LeadRequest::STATUS_CONTACTED,
+            'channel' => 'phone',
+            'title' => 'Unassigned overdue prospect',
+            'first_response_at' => $referenceTime->copy()->subDay(),
+            'last_activity_at' => $referenceTime->copy()->subDays(2),
+            'next_follow_up_at' => $referenceTime->copy()->subHours(2),
+            'triage_priority' => 95,
+            'meta' => [
+                'request_type' => 'callback_request',
+            ],
+        ]);
+
+        $response = $this->actingAs($user)->getJson(route('prospects.index', [
+            'assigned_team_member_id' => $assignee->id,
+            'source' => 'phone',
+            'request_type' => 'phone',
+            'priority' => 'high',
+            'follow_up' => 'today',
+        ]));
+
+        $response->assertOk()
+            ->assertJsonPath('filters.assigned_team_member_id', (string) $assignee->id)
+            ->assertJsonPath('filters.source', 'phone')
+            ->assertJsonPath('filters.request_type', 'phone')
+            ->assertJsonPath('filters.priority', 'high')
+            ->assertJsonPath('filters.follow_up', 'today')
+            ->assertJsonPath('requests.total', 1)
+            ->assertJsonPath('requests.data.0.id', $matchingLead->id);
+    } finally {
+        Carbon::setTestNow();
+    }
+});
+
+it('filters request inbox results for unassigned overdue prospects', function () {
+    $user = User::factory()->create(['company_type' => 'services']);
+    $assignee = TeamMember::factory()->create([
+        'account_id' => $user->id,
+        'user_id' => User::factory()->create()->id,
+        'is_active' => true,
+    ]);
+
+    $referenceTime = Carbon::parse('2026-04-20 09:00:00');
+
+    try {
+        Carbon::setTestNow($referenceTime);
+
+        $matchingLead = LeadRequest::create([
+            'user_id' => $user->id,
+            'status' => LeadRequest::STATUS_CONTACTED,
+            'channel' => 'email',
+            'title' => 'Overdue unassigned prospect',
+            'first_response_at' => $referenceTime->copy()->subDays(2),
+            'last_activity_at' => $referenceTime->copy()->subDay(),
+            'next_follow_up_at' => $referenceTime->copy()->subHours(4),
+        ]);
+
+        LeadRequest::create([
+            'user_id' => $user->id,
+            'status' => LeadRequest::STATUS_CONTACTED,
+            'assigned_team_member_id' => $assignee->id,
+            'channel' => 'email',
+            'title' => 'Assigned overdue prospect',
+            'first_response_at' => $referenceTime->copy()->subDays(2),
+            'last_activity_at' => $referenceTime->copy()->subDay(),
+            'next_follow_up_at' => $referenceTime->copy()->subHours(3),
+        ]);
+
+        LeadRequest::create([
+            'user_id' => $user->id,
+            'status' => LeadRequest::STATUS_CONTACTED,
+            'channel' => 'email',
+            'title' => 'Unassigned future prospect',
+            'first_response_at' => $referenceTime->copy()->subDays(2),
+            'last_activity_at' => $referenceTime->copy()->subDay(),
+            'next_follow_up_at' => $referenceTime->copy()->addHours(4),
+        ]);
+
+        $response = $this->actingAs($user)->getJson(route('prospects.index', [
+            'unassigned' => 1,
+            'follow_up' => 'overdue',
+        ]));
+
+        $response->assertOk()
+            ->assertJsonPath('filters.unassigned', true)
+            ->assertJsonPath('filters.follow_up', 'overdue')
+            ->assertJsonPath('requests.total', 1)
+            ->assertJsonPath('requests.data.0.id', $matchingLead->id);
+    } finally {
+        Carbon::setTestNow();
+    }
+});
+
+it('treats archived prospects as closed in triage', function () {
+    $user = User::factory()->create(['company_type' => 'services']);
+    $classifier = app(LeadTriageClassifier::class);
+
+    $referenceTime = Carbon::parse('2026-04-20 09:00:00');
+
+    $lead = LeadRequest::create([
+        'user_id' => $user->id,
+        'status' => LeadRequest::STATUS_CONTACTED,
+        'title' => 'Archived lead',
+        'first_response_at' => $referenceTime->copy()->subDays(2),
+        'last_activity_at' => $referenceTime->copy()->subDay(),
+        'next_follow_up_at' => $referenceTime->copy()->subHours(2),
+        'archived_at' => $referenceTime->copy()->subHour(),
+    ]);
+
+    $result = $classifier->classify($lead->fresh(), $referenceTime);
+
+    expect($result['queue'])->toBe(LeadTriageClassifier::QUEUE_CLOSED)
+        ->and($result['is_open'])->toBeFalse()
+        ->and($result['is_due_soon'])->toBeFalse()
+        ->and($result['is_breached'])->toBeFalse()
+        ->and($result['risk_level'])->toBe('closed')
+        ->and($result['triage_priority'])->toBe(0);
 });

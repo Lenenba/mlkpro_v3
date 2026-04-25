@@ -396,6 +396,9 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::post('/prospects/{lead}/convert', [ProspectController::class, 'convert'])
             ->middleware('company.feature:quotes')
             ->name('prospects.convert');
+        Route::patch('/prospects/{lead}/archive', [ProspectController::class, 'archive'])->name('prospects.archive');
+        Route::post('/prospects/{lead}/restore', [ProspectController::class, 'restore'])->name('prospects.restore');
+        Route::patch('/prospects/{lead}/anonymize', [ProspectController::class, 'anonymize'])->name('prospects.anonymize');
         Route::post('/prospects/{lead}/notes', [RequestNoteController::class, 'store'])->name('prospects.notes.store');
         Route::delete('/prospects/{lead}/notes/{note}', [RequestNoteController::class, 'destroy'])->name('prospects.notes.destroy');
         Route::post('/prospects/{lead}/media', [RequestMediaController::class, 'store'])->name('prospects.media.store');
@@ -414,6 +417,9 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::post('/requests/{lead}/convert', [RequestController::class, 'convert'])
             ->middleware('company.feature:quotes')
             ->name('request.convert');
+        Route::patch('/requests/{lead}/archive', [RequestController::class, 'archive'])->name('request.archive');
+        Route::post('/requests/{lead}/restore', [RequestController::class, 'restore'])->name('request.restore');
+        Route::patch('/requests/{lead}/anonymize', [RequestController::class, 'anonymize'])->name('request.anonymize');
         Route::post('/requests/{lead}/notes', [RequestNoteController::class, 'store'])->name('request.notes.store');
         Route::delete('/requests/{lead}/notes/{note}', [RequestNoteController::class, 'destroy'])->name('request.notes.destroy');
         Route::post('/requests/{lead}/media', [RequestMediaController::class, 'store'])->name('request.media.store');

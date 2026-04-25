@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\LeadNote;
 use App\Models\Request as LeadRequest;
 use Illuminate\Http\Request;
@@ -18,6 +19,12 @@ class RequestNoteController extends Controller
             abort(403);
         }
 
+        $this->ensureLeadIsMutable(
+            $lead,
+            'lead',
+            'Archived prospects must be restored before notes can be changed.'
+        );
+
         $validated = $request->validate([
             'body' => 'required|string|max:5000',
         ]);
@@ -27,6 +34,14 @@ class RequestNoteController extends Controller
             'user_id' => $user->id,
             'body' => $validated['body'],
         ]);
+
+        $lead->update([
+            'last_activity_at' => now(),
+        ]);
+
+        ActivityLog::record($user, $lead, 'note_added', [
+            'note_id' => $note->id,
+        ], 'Prospect note added');
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -46,6 +61,12 @@ class RequestNoteController extends Controller
         if (!$user || $lead->user_id !== $accountId || $note->request_id !== $lead->id) {
             abort(403);
         }
+
+        $this->ensureLeadIsMutable(
+            $lead,
+            'lead',
+            'Archived prospects must be restored before notes can be changed.'
+        );
 
         $note->delete();
 

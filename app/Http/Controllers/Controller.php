@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Request as LeadRequest;
 use App\Support\DataTablePagination;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller as BaseController;
+use Illuminate\Validation\ValidationException;
 
 abstract class Controller extends BaseController
 {
@@ -104,5 +106,19 @@ abstract class Controller extends BaseController
             'skipped_count' => $skippedCount,
             'errors' => is_array($errors) ? array_values($errors) : [],
         ], $extra);
+    }
+
+    protected function ensureLeadIsMutable(
+        LeadRequest $lead,
+        string $field = 'lead',
+        ?string $message = null
+    ): void {
+        if (! $lead->isArchived()) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            $field => [$message ?? 'Archived prospects must be restored before they can be updated.'],
+        ]);
     }
 }

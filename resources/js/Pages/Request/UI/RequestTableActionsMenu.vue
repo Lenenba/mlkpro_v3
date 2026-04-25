@@ -16,13 +16,21 @@ defineProps({
         type: Boolean,
         default: false,
     },
+    archived: {
+        type: Boolean,
+        default: false,
+    },
+    anonymized: {
+        type: Boolean,
+        default: false,
+    },
     processing: {
         type: Boolean,
         default: false,
     },
 });
 
-defineEmits(['update', 'convert', 'delete']);
+defineEmits(['update', 'followUp', 'addNote', 'convert', 'archive', 'restore', 'anonymize', 'delete']);
 
 const { t } = useI18n();
 </script>
@@ -37,14 +45,31 @@ const { t } = useI18n();
             {{ t('requests.actions.view_quote') }}
         </Link>
         <button
+            v-if="!archived"
             type="button"
             class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
             @click="$emit('update')"
         >
-            {{ t('requests.actions.update') }}
+            {{ t('requests.actions.change_status') }}
         </button>
         <button
-            v-if="canUseQuotes && canConvert"
+            v-if="!archived"
+            type="button"
+            class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+            @click="$emit('followUp')"
+        >
+            {{ t('requests.actions.plan_follow_up') }}
+        </button>
+        <button
+            v-if="!archived"
+            type="button"
+            class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+            @click="$emit('addNote')"
+        >
+            {{ t('requests.actions.add_note') }}
+        </button>
+        <button
+            v-if="!archived && canUseQuotes && canConvert"
             type="button"
             class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800"
             @click="$emit('convert')"
@@ -65,6 +90,34 @@ const { t } = useI18n();
         </Link>
         <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
         <button
+            v-if="!archived"
+            type="button"
+            class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-amber-700 hover:bg-amber-50 disabled:opacity-50 dark:text-amber-300 dark:hover:bg-neutral-800"
+            :disabled="processing"
+            @click="$emit('archive')"
+        >
+            {{ t('requests.actions.archive') }}
+        </button>
+        <button
+            v-else-if="!anonymized"
+            type="button"
+            class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-emerald-600 hover:bg-emerald-50 disabled:opacity-50 dark:text-emerald-400 dark:hover:bg-neutral-800"
+            :disabled="processing"
+            @click="$emit('restore')"
+        >
+            {{ t('requests.actions.restore') }}
+        </button>
+        <button
+            v-if="archived && !anonymized"
+            type="button"
+            class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
+            :disabled="processing"
+            @click="$emit('anonymize')"
+        >
+            {{ t('requests.actions.anonymize') }}
+        </button>
+        <button
+            v-if="!archived"
             type="button"
             class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-red-600 hover:bg-red-50 disabled:opacity-50 dark:text-red-400 dark:hover:bg-neutral-800"
             :disabled="processing"

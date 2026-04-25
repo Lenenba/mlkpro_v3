@@ -32,7 +32,17 @@ const props = defineProps({
 <template>
     <Head :title="$t('requests.title')" />
     <AuthenticatedLayout>
-        <RequestStats :stats="stats" />
+        <div class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+            <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
+                {{ $t('requests.workspace.title') }}
+            </h1>
+            <p class="mt-1 text-sm text-stone-500 dark:text-neutral-400">
+                {{ $t('requests.workspace.subtitle') }}
+            </p>
+        </div>
+        <div class="mt-3">
+            <RequestStats :stats="stats" />
+        </div>
         <div class="mt-3">
             <RequestAnalytics :analytics="analytics" />
         </div>

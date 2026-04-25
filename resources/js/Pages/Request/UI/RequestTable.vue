@@ -14,7 +14,16 @@ import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
 import { humanizeDate } from '@/utils/date';
-import { buildLeadScore, badgeClass } from '@/utils/leadScore';
+import {
+    prospectCompanyLabel,
+    prospectIsAnonymized,
+    prospectPrimaryLabel,
+    prospectPriorityKey,
+    prospectPriorityLabel,
+    prospectRequestTypeLabel,
+    prospectSecondaryLabel,
+    prospectSourceLabel,
+} from '@/utils/prospectPresentation';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { useDataTableSelection } from '@/Composables/useDataTableSelection';
 import { useI18n } from 'vue-i18n';
@@ -96,6 +105,14 @@ const displayCustomer = (customer) =>
     customer?.company_name ||
     `${customer?.first_name || ''} ${customer?.last_name || ''}`.trim() ||
     t('requests.labels.unknown_customer');
+
+const sourceLabel = (channel) => prospectSourceLabel(channel, t);
+const requestTypeLabel = (lead) => prospectRequestTypeLabel(lead, t);
+const companyLabel = (lead) => prospectCompanyLabel(lead, t);
+const priorityLabel = (lead) => prospectPriorityLabel(lead?.triage_priority, t);
+const priorityKey = (lead) => prospectPriorityKey(lead?.triage_priority);
+const primaryProspectLabel = (lead) => prospectPrimaryLabel(lead, t);
+const secondaryProspectLabel = (lead) => prospectSecondaryLabel(lead, t);
 
 const statusLabel = (status) => {
     switch (status) {
@@ -244,7 +261,13 @@ const triageRowClass = (lead) => {
 const filterForm = useForm({
     search: props.filters?.search ?? '',
     status: props.filters?.status ?? '',
-    customer_id: props.filters?.customer_id ?? '',
+    assigned_team_member_id: props.filters?.assigned_team_member_id ?? '',
+    source: props.filters?.source ?? '',
+    request_type: props.filters?.request_type ?? '',
+    priority: props.filters?.priority ?? '',
+    follow_up: props.filters?.follow_up ?? '',
+    unassigned: Boolean(props.filters?.unassigned),
+    archived: Boolean(props.filters?.archived),
     queue: props.filters?.queue ?? '',
 });
 const isLoading = ref(false);
@@ -281,6 +304,29 @@ const assigneeSelectOptions = computed(() => [
         name: assignee.name || t('requests.labels.unassigned'),
     })),
 ]);
+const sourceSelectOptions = computed(() => ([
+    { id: '', name: t('requests.filters.all_sources') },
+    { id: 'manual', name: sourceLabel('manual') },
+    { id: 'web_form', name: sourceLabel('web_form') },
+    { id: 'phone', name: sourceLabel('phone') },
+    { id: 'email', name: sourceLabel('email') },
+    { id: 'whatsapp', name: sourceLabel('whatsapp') },
+    { id: 'sms', name: sourceLabel('sms') },
+    { id: 'qr', name: sourceLabel('qr') },
+    { id: 'portal', name: sourceLabel('portal') },
+    { id: 'api', name: sourceLabel('api') },
+    { id: 'import', name: sourceLabel('import') },
+    { id: 'referral', name: sourceLabel('referral') },
+    { id: 'ads', name: sourceLabel('ads') },
+    { id: 'other', name: sourceLabel('other') },
+]));
+const prioritySelectOptions = computed(() => ([
+    { id: '', name: t('requests.filters.all_priorities') },
+    { id: 'urgent', name: t('requests.priorities.urgent') },
+    { id: 'high', name: t('requests.priorities.high') },
+    { id: 'normal', name: t('requests.priorities.normal') },
+    { id: 'low', name: t('requests.priorities.low') },
+]));
 const quickFollowUpOptions = computed(() => ([
     { id: 'tomorrow', label: t('requests.quick_actions.follow_up_tomorrow'), days: 1 },
     { id: 'three_days', label: t('requests.quick_actions.follow_up_three_days'), days: 3 },
@@ -345,7 +391,13 @@ const shouldShowSavedSegments = computed(() =>
 );
 const savedSegmentFilters = computed(() => compactObject({
     status: filterForm.status,
-    customer_id: filterForm.customer_id,
+    assigned_team_member_id: filterForm.assigned_team_member_id,
+    source: filterForm.source,
+    request_type: filterForm.request_type,
+    priority: filterForm.priority,
+    follow_up: filterForm.follow_up,
+    unassigned: filterForm.unassigned ? 1 : null,
+    archived: filterForm.archived ? 1 : null,
     queue: filterForm.queue,
 }));
 const savedSegmentSearchTerm = computed(() => String(filterForm.search || '').trim());
@@ -354,7 +406,13 @@ const filterPayload = () => {
     const payload = {
         search: filterForm.search,
         status: filterForm.status,
-        customer_id: filterForm.customer_id,
+        assigned_team_member_id: filterForm.assigned_team_member_id,
+        source: filterForm.source,
+        request_type: filterForm.request_type,
+        priority: filterForm.priority,
+        follow_up: filterForm.follow_up,
+        unassigned: filterForm.unassigned ? 1 : '',
+        archived: filterForm.archived ? 1 : '',
         queue: filterForm.queue,
         view: viewMode.value,
         per_page: currentPerPage.value,
@@ -393,16 +451,53 @@ watch(() => filterForm.search, () => {
     autoFilter();
 });
 
-watch(() => [filterForm.status, filterForm.customer_id, filterForm.queue], () => {
+watch(() => [
+    filterForm.status,
+    filterForm.assigned_team_member_id,
+    filterForm.source,
+    filterForm.request_type,
+    filterForm.priority,
+    filterForm.follow_up,
+    filterForm.unassigned,
+    filterForm.archived,
+    filterForm.queue,
+], () => {
     autoFilter();
+});
+
+watch(() => filterForm.assigned_team_member_id, (value) => {
+    if (value) {
+        filterForm.unassigned = false;
+    }
 });
 
 const clearFilters = () => {
     filterForm.search = '';
     filterForm.status = '';
-    filterForm.customer_id = '';
+    filterForm.assigned_team_member_id = '';
+    filterForm.source = '';
+    filterForm.request_type = '';
+    filterForm.priority = '';
+    filterForm.follow_up = '';
+    filterForm.unassigned = false;
+    filterForm.archived = false;
     filterForm.queue = '';
     autoFilter();
+};
+
+const toggleUnassignedFilter = () => {
+    filterForm.unassigned = !filterForm.unassigned;
+    if (filterForm.unassigned) {
+        filterForm.assigned_team_member_id = '';
+    }
+};
+
+const toggleFollowUpFilter = (value) => {
+    filterForm.follow_up = filterForm.follow_up === value ? '' : value;
+};
+
+const toggleArchivedFilter = () => {
+    filterForm.archived = !filterForm.archived;
 };
 
 const setQueueFilter = (queue) => {
@@ -414,7 +509,13 @@ const applySavedSegment = (segment) => {
 
     filterForm.search = String(segment?.search_term || '');
     filterForm.status = String(filters.status || '');
-    filterForm.customer_id = String(filters.customer_id || '');
+    filterForm.assigned_team_member_id = String(filters.assigned_team_member_id || '');
+    filterForm.source = String(filters.source || '');
+    filterForm.request_type = String(filters.request_type || '');
+    filterForm.priority = String(filters.priority || '');
+    filterForm.follow_up = String(filters.follow_up || '');
+    filterForm.unassigned = Boolean(filters.unassigned);
+    filterForm.archived = Boolean(filters.archived);
     filterForm.queue = String(filters.queue || '');
     autoFilter();
 };
@@ -598,6 +699,7 @@ const submitBulkAssign = async () => {
 
 const convertModalId = 'hs-request-convert';
 const updateModalId = 'hs-request-update';
+const quickNoteModalId = 'hs-request-note';
 const selectedLead = ref(null);
 const processingId = ref(null);
 
@@ -713,6 +815,10 @@ const updateForm = useForm({
     assigned_team_member_id: '',
     next_follow_up_at: '',
     lost_reason: '',
+    status_comment: '',
+});
+const quickNoteForm = useForm({
+    body: '',
 });
 
 const showLostReason = computed(() => updateForm.status === 'REQ_LOST');
@@ -738,6 +844,7 @@ const openUpdate = (lead) => {
     updateForm.assigned_team_member_id = lead?.assigned_team_member_id ? String(lead.assigned_team_member_id) : '';
     updateForm.next_follow_up_at = formatDateTimeLocal(lead?.next_follow_up_at);
     updateForm.lost_reason = lead?.lost_reason || '';
+    updateForm.status_comment = '';
 
     if (window.HSOverlay) {
         window.HSOverlay.open(`#${updateModalId}`);
@@ -767,6 +874,44 @@ const submitUpdate = () => {
     });
 };
 
+const openQuickNote = (lead) => {
+    selectedLead.value = lead;
+    quickNoteForm.reset();
+    quickNoteForm.clearErrors();
+
+    if (window.HSOverlay) {
+        window.HSOverlay.open(`#${quickNoteModalId}`);
+    }
+};
+
+const closeQuickNote = () => {
+    selectedLead.value = null;
+    quickNoteForm.reset();
+    quickNoteForm.clearErrors();
+};
+
+const submitQuickNote = () => {
+    const leadId = selectedLead.value?.id;
+    if (!leadId || quickNoteForm.processing) {
+        return;
+    }
+
+    quickNoteForm.post(route('prospects.notes.store', leadId), {
+        preserveScroll: true,
+        onSuccess: () => {
+            if (window.HSOverlay) {
+                window.HSOverlay.close(`#${quickNoteModalId}`);
+            }
+            closeQuickNote();
+            router.reload({
+                only: ['requests', 'stats', 'analytics'],
+                preserveScroll: true,
+                preserveState: true,
+            });
+        },
+    });
+};
+
 const runQuickLeadUpdate = (lead, payload, options = {}) => {
     if (!lead?.id || processingId.value) {
         return;
@@ -786,7 +931,7 @@ const runQuickLeadUpdate = (lead, payload, options = {}) => {
 };
 
 const deleteLead = (lead) => {
-    if (!lead?.id) {
+    if (!lead?.id || isArchivedLead(lead)) {
         return;
     }
 
@@ -807,10 +952,48 @@ const deleteLead = (lead) => {
     });
 };
 
-const isClosedStatus = (status) => ['REQ_WON', 'REQ_LOST'].includes(status);
+const isAnonymizedLead = (lead) => prospectIsAnonymized(lead);
+const isArchivedLead = (lead) => Boolean(lead?.archived_at);
+const isClosedStatus = (status) => ['REQ_WON', 'REQ_LOST', 'REQ_CONVERTED'].includes(status);
+const isClosedLead = (lead) => isArchivedLead(lead) || isClosedStatus(lead?.status);
+
+const anonymizeLead = (lead) => {
+    if (!lead?.id || !isArchivedLead(lead) || isAnonymizedLead(lead) || processingId.value) {
+        return;
+    }
+
+    if (!confirm(t('requests.actions.anonymize_confirm'))) {
+        return;
+    }
+
+    const reason = window.prompt(t('requests.actions.anonymize_reason_prompt'), '') ?? null;
+    if (reason === null) {
+        return;
+    }
+
+    processingId.value = lead.id;
+    router.patch(route('prospects.anonymize', lead.id), {
+        anonymization_reason: reason.trim() || null,
+    }, {
+        preserveScroll: true,
+        onFinish: () => {
+            processingId.value = null;
+        },
+    });
+};
+
+const contactSummaryLabel = (lead) => {
+    if (isAnonymizedLead(lead)) {
+        return t('requests.labels.anonymized_contact');
+    }
+
+    return [lead?.contact_email, lead?.contact_phone]
+        .filter(Boolean)
+        .join(' · ');
+};
 
 const isOverdue = (lead) => {
-    if (!lead?.next_follow_up_at || isClosedStatus(lead?.status)) {
+    if (!lead?.next_follow_up_at || isClosedLead(lead)) {
         return false;
     }
     const dueDate = new Date(lead.next_follow_up_at);
@@ -824,6 +1007,9 @@ const canConvertLead = (lead) => {
     if (!lead) {
         return false;
     }
+    if (isArchivedLead(lead)) {
+        return false;
+    }
     if (lead.quote) {
         return false;
     }
@@ -831,7 +1017,7 @@ const canConvertLead = (lead) => {
 };
 
 const setLeadStatus = (lead, status) => {
-    if (!lead || lead.status === status) {
+    if (!lead || lead.status === status || isArchivedLead(lead)) {
         return;
     }
     let payload = { status };
@@ -846,7 +1032,7 @@ const setLeadStatus = (lead, status) => {
 };
 
 const setLeadAssignee = (lead, assigneeId) => {
-    if (!lead) {
+    if (!lead || isArchivedLead(lead)) {
         return;
     }
 
@@ -875,7 +1061,7 @@ const buildQuickFollowUpAt = (days) => {
 };
 
 const setLeadFollowUp = (lead, days) => {
-    if (!lead || isClosedStatus(lead.status)) {
+    if (!lead || isClosedLead(lead)) {
         return;
     }
 
@@ -885,12 +1071,44 @@ const setLeadFollowUp = (lead, days) => {
 };
 
 const clearLeadFollowUp = (lead) => {
-    if (!lead?.next_follow_up_at || isClosedStatus(lead.status)) {
+    if (!lead?.next_follow_up_at || isClosedLead(lead)) {
         return;
     }
 
     runQuickLeadUpdate(lead, {
         next_follow_up_at: null,
+    });
+};
+
+const archiveLead = (lead) => {
+    if (!lead?.id || isArchivedLead(lead) || processingId.value) {
+        return;
+    }
+
+    if (!confirm(t('requests.actions.archive_confirm'))) {
+        return;
+    }
+
+    processingId.value = lead.id;
+    router.patch(route('prospects.archive', lead.id), {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            processingId.value = null;
+        },
+    });
+};
+
+const restoreLead = (lead) => {
+    if (!lead?.id || !isArchivedLead(lead) || processingId.value) {
+        return;
+    }
+
+    processingId.value = lead.id;
+    router.post(route('prospects.restore', lead.id), {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            processingId.value = null;
+        },
     });
 };
 
@@ -1124,7 +1342,6 @@ const submitImport = () => {
     });
 };
 
-const scoreInfo = (lead) => buildLeadScore(lead, t);
 </script>
 
 <template>
@@ -1236,7 +1453,7 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                 </template>
             </AdminDataTableToolbar>
 
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div class="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-5">
                 <FloatingSelect
                     v-model="filterForm.status"
                     :label="$t('requests.table.status')"
@@ -1247,14 +1464,80 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                 />
 
                 <FloatingSelect
-                    v-model="filterForm.customer_id"
-                    :label="$t('requests.table.customer')"
-                    :options="customerSelectOptions"
-                    :placeholder="$t('requests.filters.all_customers')"
+                    v-model="filterForm.assigned_team_member_id"
+                    :label="$t('requests.table.assignee')"
+                    :options="assigneeSelectOptions"
+                    :placeholder="$t('requests.filters.all_assignees')"
                     dense
                     class="min-w-[170px]"
                 />
 
+                <FloatingSelect
+                    v-model="filterForm.source"
+                    :label="$t('requests.table.source')"
+                    :options="sourceSelectOptions"
+                    :placeholder="$t('requests.filters.all_sources')"
+                    dense
+                    class="min-w-[160px]"
+                />
+
+                <FloatingInput
+                    v-model="filterForm.request_type"
+                    :label="$t('requests.table.type')"
+                    :placeholder="$t('requests.filters.request_type_placeholder')"
+                />
+
+                <FloatingSelect
+                    v-model="filterForm.priority"
+                    :label="$t('requests.table.priority')"
+                    :options="prioritySelectOptions"
+                    :placeholder="$t('requests.filters.all_priorities')"
+                    dense
+                    class="min-w-[160px]"
+                />
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+                <button
+                    type="button"
+                    class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition"
+                    :class="filterForm.unassigned
+                        ? 'border-transparent bg-stone-900 text-white dark:bg-emerald-500/20 dark:text-emerald-200'
+                        : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300 hover:text-stone-800 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                    @click="toggleUnassignedFilter"
+                >
+                    {{ $t('requests.filters.unassigned_only') }}
+                </button>
+                <button
+                    type="button"
+                    class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition"
+                    :class="filterForm.follow_up === 'today'
+                        ? 'border-transparent bg-cyan-100 text-cyan-800 dark:bg-cyan-500/20 dark:text-cyan-200'
+                        : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300 hover:text-stone-800 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                    @click="toggleFollowUpFilter('today')"
+                >
+                    {{ $t('requests.filters.follow_up_today') }}
+                </button>
+                <button
+                    type="button"
+                    class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition"
+                    :class="filterForm.follow_up === 'overdue'
+                        ? 'border-transparent bg-rose-100 text-rose-800 dark:bg-rose-500/20 dark:text-rose-200'
+                        : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300 hover:text-stone-800 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                    @click="toggleFollowUpFilter('overdue')"
+                >
+                    {{ $t('requests.filters.follow_up_overdue') }}
+                </button>
+                <button
+                    type="button"
+                    class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition"
+                    :class="filterForm.archived
+                        ? 'border-transparent bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200'
+                        : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300 hover:text-stone-800 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                    @click="toggleArchivedFilter"
+                >
+                    {{ $t('requests.filters.archived_only') }}
+                </button>
                 <button
                     type="button"
                     class="py-2 px-3 rounded-sm border border-stone-200 bg-white text-sm text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
@@ -1376,16 +1659,28 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                             />
                         </th>
                         <th class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                            {{ $t('requests.table.request') }}
+                            {{ $t('requests.table.prospect') }}
                         </th>
                         <th class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                            {{ $t('requests.table.customer') }}
+                            {{ $t('requests.table.company') }}
+                        </th>
+                        <th class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            {{ $t('requests.table.source') }}
+                        </th>
+                        <th class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            {{ $t('requests.table.type') }}
                         </th>
                         <th class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
                             {{ $t('requests.table.status') }}
                         </th>
                         <th class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
                             {{ $t('requests.table.assignee') }}
+                        </th>
+                        <th class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            {{ $t('requests.table.priority') }}
+                        </th>
+                        <th class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            {{ $t('requests.table.last_activity') }}
                         </th>
                         <th class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
                             {{ $t('requests.table.follow_up') }}
@@ -1401,20 +1696,24 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
 
             <template #row="{ row: lead }">
                 <tr v-if="lead.__skeleton">
-                    <td colspan="8" class="px-4 py-3">
-                        <div class="grid grid-cols-8 gap-4 animate-pulse">
+                    <td colspan="12" class="px-4 py-3">
+                        <div class="grid grid-cols-12 gap-4 animate-pulse">
                             <div class="h-3 w-4 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
                             <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
                             <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
                             <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
                             <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
                             <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
                             <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
                             <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
                         </div>
                     </td>
                 </tr>
-                <tr v-else :class="triageRowClass(lead)" :data-testid="`request-row-${lead.id}`">
+                <tr v-else :class="[triageRowClass(lead), isArchivedLead(lead) ? 'opacity-80' : '']" :data-testid="`request-row-${lead.id}`">
                         <td class="px-5 py-3">
                             <Checkbox
                                 v-model:checked="selected"
@@ -1428,57 +1727,47 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                                     :href="route('prospects.show', lead.id)"
                                     class="hover:text-emerald-600"
                                 >
-                                    {{ lead.title || lead.service_type || $t('requests.labels.request_number', { id: lead.id }) }}
+                                    {{ primaryProspectLabel(lead) }}
                                 </Link>
                             </div>
-                            <div v-if="lead.description" class="mt-1 text-xs text-stone-500 dark:text-neutral-400 line-clamp-2">
+                            <div v-if="secondaryProspectLabel(lead)" class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                {{ secondaryProspectLabel(lead) }}
+                            </div>
+                            <div v-if="isArchivedLead(lead)" class="mt-2">
+                                <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:bg-amber-500/20 dark:text-amber-200">
+                                    {{ $t('requests.status.archived') }}
+                                </span>
+                                <span
+                                    v-if="isAnonymizedLead(lead)"
+                                    class="ml-2 inline-flex items-center rounded-full bg-stone-200 px-2 py-0.5 text-[11px] font-medium text-stone-800 dark:bg-neutral-700 dark:text-neutral-100"
+                                >
+                                    {{ $t('requests.status.anonymized') }}
+                                </span>
+                            </div>
+                            <div
+                                v-if="contactSummaryLabel(lead)"
+                                class="mt-2 flex flex-wrap items-center gap-2 text-xs text-stone-500 dark:text-neutral-400"
+                            >
+                                <span>{{ contactSummaryLabel(lead) }}</span>
+                            </div>
+                            <div v-if="!isAnonymizedLead(lead) && lead.description" class="mt-2 text-xs text-stone-500 dark:text-neutral-400 line-clamp-2">
                                 {{ lead.description }}
-                            </div>
-                            <div class="mt-2 flex flex-wrap items-center gap-1.5">
-                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200">
-                                    {{ $t('requests.badges.score') }} {{ scoreInfo(lead).score }}
-                                </span>
-                                <span
-                                    v-for="badge in scoreInfo(lead).badges"
-                                    :key="badge.key + badge.label + lead.id"
-                                    class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
-                                    :class="badgeClass(badge.tone)"
-                                >
-                                    {{ badge.label }}
-                                </span>
-                            </div>
-                            <div class="mt-2 flex flex-wrap items-center gap-1.5">
-                                <span
-                                    class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
-                                    :class="['border', triagePriorityClass(lead.triage_priority)]"
-                                    :data-testid="`request-priority-${lead.id}`"
-                                >
-                                    {{ $t('requests.triage.priority_short', { value: lead.triage_priority || 0 }) }}
-                                </span>
-                                <span
-                                    v-if="lead.risk_level"
-                                    class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
-                                    :class="triageRiskClass(lead.risk_level)"
-                                >
-                                    {{ triageRiskLabel(lead.risk_level) }}
-                                </span>
-                                <span
-                                    v-if="lead.days_since_activity !== null
-                                        && lead.days_since_activity !== undefined
-                                        && Number(lead.days_since_activity) > 0"
-                                    class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200"
-                                >
-                                    {{ $t('requests.triage.inactive_days', { count: lead.days_since_activity }) }}
-                                </span>
                             </div>
                         </td>
                         <td class="px-5 py-3 text-sm text-stone-700 dark:text-neutral-300">
-                            <div v-if="lead.customer">
-                                {{ displayCustomer(lead.customer) }}
+                            <div class="font-medium text-stone-800 dark:text-neutral-200">
+                                {{ companyLabel(lead) }}
                             </div>
-                            <div v-else class="text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('requests.labels.unknown_customer') }}
-                            </div>
+                        </td>
+                        <td class="px-5 py-3 text-sm text-stone-700 dark:text-neutral-300">
+                            <span class="inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-700 dark:bg-neutral-700 dark:text-neutral-200">
+                                {{ sourceLabel(lead.channel) }}
+                            </span>
+                        </td>
+                        <td class="px-5 py-3 text-sm text-stone-700 dark:text-neutral-300">
+                            <span class="inline-flex items-center rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-800 dark:bg-sky-500/10 dark:text-sky-300">
+                                {{ requestTypeLabel(lead) }}
+                            </span>
                         </td>
                         <td class="px-5 py-3">
                             <div class="flex flex-col items-start gap-1.5">
@@ -1487,6 +1776,7 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                                         type="button"
                                         class="inline-flex items-center gap-1 rounded-sm px-2 py-0.5 text-xs font-medium"
                                         :class="statusClass(lead.status)"
+                                        :disabled="processingId === lead.id || isArchivedLead(lead)"
                                         :data-testid="`request-status-trigger-${lead.id}`"
                                     >
                                         {{ statusLabel(lead.status) }}
@@ -1534,7 +1824,7 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                                 <select
                                     class="w-full rounded-sm border border-stone-200 bg-white px-2 py-1.5 text-xs text-stone-700 focus:border-emerald-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
                                     :value="lead.assigned_team_member_id ? String(lead.assigned_team_member_id) : ''"
-                                    :disabled="processingId === lead.id"
+                                    :disabled="processingId === lead.id || isArchivedLead(lead)"
                                     :data-testid="`request-assignee-select-${lead.id}`"
                                     @change="setLeadAssignee(lead, $event.target.value)"
                                 >
@@ -1549,6 +1839,42 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                             </div>
                         </td>
                         <td class="px-5 py-3 text-sm text-stone-700 dark:text-neutral-300">
+                            <div class="flex min-w-[10rem] flex-col items-start gap-1.5">
+                                <span
+                                    class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+                                    :class="['border', triagePriorityClass(lead.triage_priority)]"
+                                    :data-testid="`request-priority-${lead.id}`"
+                                >
+                                    {{ priorityLabel(lead) }} · {{ $t('requests.triage.priority_short', { value: lead.triage_priority || 0 }) }}
+                                </span>
+                                <span
+                                    v-if="lead.risk_level"
+                                    class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+                                    :class="triageRiskClass(lead.risk_level)"
+                                >
+                                    {{ triageRiskLabel(lead.risk_level) }}
+                                </span>
+                                <span class="text-[11px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    {{ $t(`requests.priorities.${priorityKey(lead)}`) }}
+                                </span>
+                            </div>
+                        </td>
+                        <td class="px-5 py-3 text-sm text-stone-700 dark:text-neutral-300">
+                            <div class="flex min-w-[11rem] flex-col items-start gap-1.5">
+                                <span :title="formatAbsoluteDate(lead.last_activity_at || lead.created_at)">
+                                    {{ formatDate(lead.last_activity_at || lead.created_at) }}
+                                </span>
+                                <span
+                                    v-if="lead.days_since_activity !== null
+                                        && lead.days_since_activity !== undefined
+                                        && Number(lead.days_since_activity) > 0"
+                                    class="inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-stone-700 dark:bg-neutral-700 dark:text-neutral-200"
+                                >
+                                    {{ $t('requests.triage.inactive_days', { count: lead.days_since_activity }) }}
+                                </span>
+                            </div>
+                        </td>
+                        <td class="px-5 py-3 text-sm text-stone-700 dark:text-neutral-300">
                             <div class="flex min-w-[12rem] flex-col items-start gap-2">
                                 <span v-if="lead.next_follow_up_at"
                                     class="inline-flex items-center gap-2"
@@ -1559,7 +1885,7 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                                 <span v-else class="text-xs text-stone-500 dark:text-neutral-400">
                                     {{ $t('requests.labels.no_follow_up') }}
                                 </span>
-                                <div v-if="!isClosedStatus(lead.status)" class="flex flex-wrap items-center gap-1">
+                                <div v-if="!isClosedLead(lead)" class="flex flex-wrap items-center gap-1">
                                     <button
                                         v-for="preset in quickFollowUpOptions"
                                         :key="`${lead.id}-${preset.id}`"
@@ -1603,9 +1929,16 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                                     :lead="lead"
                                     :can-use-quotes="canUseQuotes"
                                     :can-convert="canConvertLead(lead)"
+                                    :archived="isArchivedLead(lead)"
+                                    :anonymized="isAnonymizedLead(lead)"
                                     :processing="processingId === lead.id"
                                     @update="openUpdate(lead)"
+                                    @follow-up="openUpdate(lead)"
+                                    @add-note="openQuickNote(lead)"
                                     @convert="openConvert(lead)"
+                                    @archive="archiveLead(lead)"
+                                    @restore="restoreLead(lead)"
+                                    @anonymize="anonymizeLead(lead)"
                                     @delete="deleteLead(lead)"
                                 />
                             </div>
@@ -1736,11 +2069,48 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
         </div>
     </Modal>
 
+    <Modal :title="$t('requests.notes.quick_title')" :id="quickNoteModalId">
+        <div class="space-y-4">
+            <div v-if="selectedLead" class="rounded-sm border border-stone-200 p-3 text-sm text-stone-600 dark:border-neutral-700 dark:text-neutral-400">
+                <div class="font-medium text-stone-800 dark:text-neutral-200">
+                    {{ primaryProspectLabel(selectedLead) }}
+                </div>
+                <div v-if="selectedLead.contact_email">{{ selectedLead.contact_email }}</div>
+                <div v-if="selectedLead.contact_phone">{{ selectedLead.contact_phone }}</div>
+            </div>
+
+            <FloatingTextarea
+                v-model="quickNoteForm.body"
+                :label="$t('requests.notes.add')"
+            />
+            <InputError class="mt-1" :message="quickNoteForm.errors.body" />
+
+            <div class="flex justify-end gap-2">
+                <button
+                    type="button"
+                    :data-hs-overlay="`#${quickNoteModalId}`"
+                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
+                    @click="closeQuickNote"
+                >
+                    {{ $t('requests.actions.cancel') }}
+                </button>
+                <button
+                    type="button"
+                    :disabled="quickNoteForm.processing"
+                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                    @click="submitQuickNote"
+                >
+                    {{ $t('requests.notes.save') }}
+                </button>
+            </div>
+        </div>
+    </Modal>
+
     <Modal :title="$t('requests.convert.title')" :id="convertModalId">
         <div class="space-y-4">
             <div v-if="selectedLead" class="rounded-sm border border-stone-200 p-3 text-sm text-stone-600 dark:border-neutral-700 dark:text-neutral-400">
                 <div class="font-medium text-stone-800 dark:text-neutral-200">
-                    {{ selectedLead.title || selectedLead.service_type || $t('requests.labels.request_number', { id: selectedLead.id }) }}
+                    {{ primaryProspectLabel(selectedLead) }}
                 </div>
                 <div v-if="selectedLead.contact_email">{{ selectedLead.contact_email }}</div>
                 <div v-if="selectedLead.contact_phone">{{ selectedLead.contact_phone }}</div>
@@ -1869,6 +2239,11 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
             <div v-if="showLostReason">
                 <FloatingTextarea v-model="updateForm.lost_reason" :label="$t('requests.update.lost_reason')" />
                 <InputError class="mt-1" :message="updateForm.errors.lost_reason" />
+            </div>
+
+            <div>
+                <FloatingTextarea v-model="updateForm.status_comment" :label="$t('requests.update.status_comment')" />
+                <InputError class="mt-1" :message="updateForm.errors.status_comment" />
             </div>
 
             <div class="flex justify-end gap-2">

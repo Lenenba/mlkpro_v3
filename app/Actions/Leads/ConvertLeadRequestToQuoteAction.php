@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Quote;
 use App\Models\Request as LeadRequest;
 use App\Models\User;
+use App\Services\ProspectStatusHistoryService;
 use App\Services\UsageLimitService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -20,8 +21,9 @@ class ConvertLeadRequestToQuoteAction
         $customerId = $validated['customer_id'] ?? $lead->customer_id;
         $propertyId = $validated['property_id'] ?? null;
         $quote = null;
+        $previousStatus = $lead->status;
 
-        DB::transaction(function () use (&$customerId, &$propertyId, &$quote, $accountId, $createCustomer, $lead, $validated, $actor) {
+        DB::transaction(function () use (&$customerId, &$propertyId, &$quote, $accountId, $createCustomer, $lead, $validated, $actor, $previousStatus) {
             if ($createCustomer || ! $customerId) {
                 [$customerId, $propertyId] = $this->createCustomerFromLead($lead, $validated, $accountId);
             }
@@ -58,17 +60,28 @@ class ConvertLeadRequestToQuoteAction
                 'status' => LeadRequest::STATUS_QUALIFIED,
                 'status_updated_at' => now(),
                 'converted_at' => now(),
+                'last_activity_at' => now(),
             ]);
 
             ActivityLog::record($actor, $lead, 'converted', [
                 'quote_id' => $quote->id,
                 'customer_id' => $quote->customer_id,
-            ], 'Request converted to quote');
+            ], 'Prospect converted to quote');
 
             ActivityLog::record($actor, $quote, 'created', [
                 'request_id' => $lead->id,
                 'customer_id' => $quote->customer_id,
-            ], 'Quote created from request');
+            ], 'Quote created from prospect');
+
+            app(ProspectStatusHistoryService::class)->record($lead, $actor, [
+                'from_status' => $previousStatus,
+                'to_status' => $lead->status,
+                'comment' => 'Quote draft created from prospect.',
+                'metadata' => [
+                    'source' => 'quote_conversion',
+                    'quote_id' => $quote->id,
+                ],
+            ]);
         });
 
         return [

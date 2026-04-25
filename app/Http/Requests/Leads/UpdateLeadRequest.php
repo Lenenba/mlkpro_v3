@@ -19,6 +19,7 @@ class UpdateLeadRequest extends LeadWriteRequest
             'assigned_team_member_id' => $this->assigneeRule(),
             'next_follow_up_at' => ['nullable', 'date'],
             'lost_reason' => ['nullable', 'string', 'max:255'],
+            'status_comment' => ['nullable', 'string', 'max:1000'],
             'channel' => ['nullable', 'string', 'max:50'],
             'urgency' => ['nullable', 'string', 'max:50'],
             'is_serviceable' => ['nullable', 'boolean'],

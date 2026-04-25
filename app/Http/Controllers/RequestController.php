@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Leads\AnonymizeLeadRequestAction;
 use App\Actions\Leads\ConvertLeadRequestToQuoteAction;
 use App\Http\Requests\Leads\BulkUpdateLeadRequest;
 use App\Http\Requests\Leads\ConvertLeadToQuoteRequest;
@@ -18,6 +19,7 @@ use App\Models\TeamMember;
 use App\Queries\Requests\BuildRequestAnalyticsData;
 use App\Queries\Requests\BuildRequestInboxIndexData;
 use App\Services\Campaigns\CampaignLeadAttributionService;
+use App\Services\ProspectStatusHistoryService;
 use App\Services\UsageLimitService;
 use App\Support\Prospects\ProspectIntakeMeta;
 use App\Support\BulkActions\BulkActionRegistry;
@@ -152,6 +154,8 @@ class RequestController extends Controller
             'customer:id,company_name,first_name,last_name,email,phone',
             'assignee:id,user_id,account_id',
             'assignee.user:id,name',
+            'archivedBy:id,name',
+            'statusHistories.user:id,name',
             'quote:id,number,status,customer_id,request_id',
             'notes.user:id,name',
             'media.user:id,name',
@@ -191,6 +195,7 @@ class RequestController extends Controller
         if ($lead->contact_email || $lead->contact_phone) {
             $duplicates = LeadRequest::query()
                 ->where('user_id', $accountId)
+                ->whereNull('archived_at')
                 ->where('id', '!=', $lead->id)
                 ->where(function ($query) use ($lead) {
                     if ($lead->contact_email) {
@@ -260,16 +265,20 @@ class RequestController extends Controller
             'customer_id' => $customerId,
             'title' => $lead->title,
             'service_type' => $lead->service_type,
-        ], 'Request created');
+        ], 'Prospect created');
+        app(ProspectStatusHistoryService::class)->record($lead, $user, [
+            'to_status' => $lead->status,
+            'metadata' => ['source' => 'manual'],
+        ]);
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
-                'message' => 'Request created successfully.',
+                'message' => 'Prospect created successfully.',
                 'request' => $lead,
             ], 201);
         }
 
-        return redirect()->back()->with('success', 'Request created successfully.');
+        return redirect()->back()->with('success', 'Prospect created successfully.');
     }
 
     /**
@@ -471,19 +480,23 @@ class RequestController extends Controller
 
             ActivityLog::record($user, $lead, 'created', [
                 'channel' => $payload['channel'] ?? 'import',
-            ], 'Request imported');
+            ], 'Prospect imported');
+            app(ProspectStatusHistoryService::class)->record($lead, $user, [
+                'to_status' => $lead->status,
+                'metadata' => ['source' => 'import'],
+            ]);
 
             $imported++;
         }
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
-                'message' => 'Requests imported successfully.',
+                'message' => 'Prospects imported successfully.',
                 'imported' => $imported,
             ]);
         }
 
-        return redirect()->back()->with('success', "{$imported} requests imported.");
+        return redirect()->back()->with('success', "{$imported} prospects imported.");
     }
 
     /**
@@ -502,19 +515,25 @@ class RequestController extends Controller
             abort(403);
         }
 
+        $this->ensureLeadIsMutable(
+            $lead,
+            'lead',
+            'Archived prospects must be restored before they can be converted.'
+        );
+
         $result = $convertLead->execute($lead, $request->validated(), $user);
         $quote = $result['quote'];
         $lead = $result['lead'];
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
-                'message' => 'Request converted to quote.',
+                'message' => 'Prospect converted to quote.',
                 'quote' => $quote,
                 'request' => $lead->fresh(),
             ]);
         }
 
-        return redirect()->route('customer.quote.edit', $quote)->with('success', 'Request converted to quote.');
+        return redirect()->route('customer.quote.edit', $quote)->with('success', 'Prospect converted to quote.');
     }
 
     public function update(UpdateLeadRequest $request, LeadRequest $lead)
@@ -529,6 +548,8 @@ class RequestController extends Controller
         if ($lead->user_id !== $accountId) {
             abort(403);
         }
+
+        $this->ensureLeadIsMutable($lead);
 
         $validated = $request->validated();
 
@@ -573,23 +594,35 @@ class RequestController extends Controller
             $updates['lost_reason'] = null;
         }
 
+        if (! empty($updates)) {
+            $updates['last_activity_at'] = now();
+        }
+
         $lead->update($updates);
+
+        if ($previousStatus !== $lead->status) {
+            app(ProspectStatusHistoryService::class)->record($lead, $user, [
+                'from_status' => $previousStatus,
+                'to_status' => $lead->status,
+                'comment' => $validated['status_comment'] ?? ($lead->status === LeadRequest::STATUS_LOST ? $lead->lost_reason : null),
+            ]);
+        }
 
         ActivityLog::record($user, $lead, 'updated', [
             'from' => $previousStatus,
             'to' => $lead->status,
             'next_follow_up_at' => $lead->next_follow_up_at,
             'assigned_team_member_id' => $lead->assigned_team_member_id,
-        ], 'Request updated');
+        ], 'Prospect updated');
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
-                'message' => 'Request updated successfully.',
+                'message' => 'Prospect updated successfully.',
                 'request' => $lead->fresh(['assignee.user', 'customer', 'quote']),
             ]);
         }
 
-        return redirect()->back()->with('success', 'Request updated successfully.');
+        return redirect()->back()->with('success', 'Prospect updated successfully.');
     }
 
     public function bulkUpdate(BulkUpdateLeadRequest $request)
@@ -619,10 +652,15 @@ class RequestController extends Controller
             $updates['assigned_team_member_id'] = $validated['assigned_team_member_id'];
         }
 
+        if (! empty($updates)) {
+            $updates['last_activity_at'] = now();
+        }
+
         $leadIds = collect($validated['ids'])->unique()->values();
         $leads = LeadRequest::query()
             ->where('user_id', $accountId)
             ->whereIn('id', $leadIds)
+            ->whereNull('archived_at')
             ->get();
         $processedIds = $leads->pluck('id')->all();
 
@@ -630,23 +668,35 @@ class RequestController extends Controller
             $previousStatus = $lead->status;
             $lead->update($updates);
 
+            if ($previousStatus !== $lead->status) {
+                app(ProspectStatusHistoryService::class)->record($lead, $user, [
+                    'from_status' => $previousStatus,
+                    'to_status' => $lead->status,
+                    'comment' => $validated['status'] === LeadRequest::STATUS_LOST ? ($validated['lost_reason'] ?? null) : null,
+                    'metadata' => ['source' => 'bulk_update'],
+                ]);
+            }
+
             ActivityLog::record($user, $lead, 'bulk_updated', [
                 'from' => $previousStatus,
                 'to' => $lead->status,
                 'assigned_team_member_id' => $lead->assigned_team_member_id,
-            ], 'Request updated');
+            ], 'Prospect updated');
         }
 
         if ($this->shouldReturnJson($request)) {
             return response()->json($this->bulkActionResult(
-                'Requests updated.',
+                'Prospects updated.',
                 $leadIds->all(),
                 $processedIds,
-                ['updated' => $leads->count()]
+                [
+                    'updated' => $leads->count(),
+                    'skipped_count' => max(0, $leadIds->count() - $leads->count()),
+                ]
             ));
         }
 
-        return redirect()->back()->with('success', 'Requests updated.');
+        return redirect()->back()->with('success', 'Prospects updated.');
     }
 
     public function merge(MergeLeadRequest $request, LeadRequest $lead)
@@ -669,6 +719,17 @@ class RequestController extends Controller
             ->where('user_id', $accountId)
             ->whereKey($sourceId)
             ->firstOrFail();
+
+        $this->ensureLeadIsMutable(
+            $lead,
+            'lead',
+            'Archived prospects must be restored before they can be merged.'
+        );
+        $this->ensureLeadIsMutable(
+            $source,
+            'source_id',
+            'Archived prospects must be restored before they can be merged.'
+        );
 
         $lead->loadMissing('quote');
         $source->loadMissing('quote');
@@ -726,22 +787,136 @@ class RequestController extends Controller
 
         ActivityLog::record($user, $lead, 'merged', [
             'source_id' => $source->id,
-        ], 'Request merged');
+        ], 'Prospect merged');
 
         ActivityLog::record($user, $source, 'merged_into', [
             'target_id' => $lead->id,
-        ], 'Request merged into another');
+        ], 'Prospect merged into another');
 
         $source->delete();
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
-                'message' => 'Request merged.',
+                'message' => 'Prospect merged.',
                 'lead' => $lead->fresh(['assignee.user', 'customer', 'quote']),
             ]);
         }
 
-        return redirect()->route('prospects.show', $lead)->with('success', 'Request merged.');
+        return redirect()->route('prospects.show', $lead)->with('success', 'Prospect merged.');
+    }
+
+    public function archive(Request $request, LeadRequest $lead)
+    {
+        $user = $request->user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+
+        if (! $user || $user->id !== $accountId) {
+            abort(403);
+        }
+
+        if ($lead->user_id !== $accountId) {
+            abort(403);
+        }
+
+        if ($lead->isAnonymized()) {
+            throw ValidationException::withMessages([
+                'lead' => ['Anonymized prospects cannot be modified.'],
+            ]);
+        }
+
+        $validated = $request->validate([
+            'archive_reason' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $lead->update([
+            'archived_at' => now(),
+            'archived_by_user_id' => $user->id,
+            'archive_reason' => $validated['archive_reason'] ?? null,
+            'last_activity_at' => now(),
+        ]);
+
+        ActivityLog::record($user, $lead, 'archived', [
+            'status' => $lead->status,
+            'archive_reason' => $lead->archive_reason,
+        ], 'Prospect archived');
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Prospect archived.',
+                'request' => $lead->fresh(['assignee.user', 'customer', 'quote', 'archivedBy']),
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Prospect archived.');
+    }
+
+    public function restore(Request $request, LeadRequest $lead)
+    {
+        $user = $request->user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+
+        if (! $user || $user->id !== $accountId) {
+            abort(403);
+        }
+
+        if ($lead->user_id !== $accountId) {
+            abort(403);
+        }
+
+        if ($lead->isAnonymized()) {
+            throw ValidationException::withMessages([
+                'lead' => ['Anonymized prospects cannot be restored.'],
+            ]);
+        }
+
+        $lead->update([
+            'archived_at' => null,
+            'archived_by_user_id' => null,
+            'archive_reason' => null,
+            'last_activity_at' => now(),
+        ]);
+
+        ActivityLog::record($user, $lead, 'restored', [
+            'status' => $lead->status,
+        ], 'Prospect restored');
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Prospect restored.',
+                'request' => $lead->fresh(['assignee.user', 'customer', 'quote', 'archivedBy']),
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Prospect restored.');
+    }
+
+    public function anonymize(Request $request, LeadRequest $lead, AnonymizeLeadRequestAction $anonymizeLead)
+    {
+        $user = $request->user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+
+        if (! $user || $user->id !== $accountId) {
+            abort(403);
+        }
+
+        if ($lead->user_id !== $accountId) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'anonymization_reason' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $lead = $anonymizeLead->execute($lead, $user, $validated);
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Prospect anonymized.',
+                'request' => $lead,
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Prospect anonymized.');
     }
 
     public function destroy(Request $request, LeadRequest $lead)
@@ -757,19 +932,25 @@ class RequestController extends Controller
             abort(403);
         }
 
+        $this->ensureLeadIsMutable(
+            $lead,
+            'lead',
+            'Archived prospects must be restored before they can be deleted.'
+        );
+
         ActivityLog::record($user, $lead, 'deleted', [
             'status' => $lead->status,
-        ], 'Request deleted');
+        ], 'Prospect deleted');
 
         $lead->delete();
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
-                'message' => 'Request deleted.',
+                'message' => 'Prospect deleted.',
             ]);
         }
 
-        return redirect()->back()->with('success', 'Request deleted.');
+        return redirect()->back()->with('success', 'Prospect deleted.');
     }
 
     private function resolveImportValue(array $row, array $mapping, string $field, array $aliases = []): ?string

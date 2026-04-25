@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Request as LeadRequest;
 use App\Services\CompanyFeatureService;
+use App\Services\ProspectStatusHistoryService;
 use App\Services\UsageLimitService;
 use App\Support\Prospects\ProspectIntakeMeta;
 use Illuminate\Http\Request;
@@ -98,6 +99,10 @@ class RequestController extends Controller
         ActivityLog::record($user, $lead, 'created', [
             'channel' => $channel,
         ], 'API lead created');
+        app(ProspectStatusHistoryService::class)->record($lead, $user, [
+            'to_status' => $lead->status,
+            'metadata' => ['source' => 'api'],
+        ]);
 
         return response()->json([
             'message' => 'Lead created.',

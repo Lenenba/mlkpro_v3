@@ -18,6 +18,7 @@ use App\Services\Campaigns\CampaignLeadAttributionService;
 use App\Services\CompanyFeatureService;
 use App\Services\CRM\OutgoingEmailLogService;
 use App\Services\LeadServiceSuggestionService;
+use App\Services\ProspectStatusHistoryService;
 use App\Services\TrackingService;
 use App\Services\UsageLimitService;
 use App\Support\Prospects\ProspectIntakeMeta;
@@ -329,6 +330,10 @@ class PublicRequestController extends Controller
         ActivityLog::record(null, $lead, 'created', [
             'channel' => 'web_form',
         ], 'Public lead created');
+        app(ProspectStatusHistoryService::class)->record($lead, null, [
+            'to_status' => $lead->status,
+            'metadata' => ['source' => 'public_form'],
+        ]);
 
         if ($finalAction === self::FINAL_ACTION_RECEIVE_QUOTE) {
             app(UsageLimitService::class)->enforceLimit($user, 'quotes');
@@ -484,11 +489,17 @@ class PublicRequestController extends Controller
             return redirect()->back()->with('success', 'Quote created and confirmation sent successfully.');
         }
 
+        $previousStatus = $lead->status;
         $lead->update([
             'status' => LeadRequest::STATUS_CALL_REQUESTED,
             'status_updated_at' => now(),
             'last_activity_at' => now(),
             'next_follow_up_at' => $lead->next_follow_up_at ?? now()->addDay(),
+        ]);
+        app(ProspectStatusHistoryService::class)->record($lead, null, [
+            'from_status' => $previousStatus,
+            'to_status' => $lead->status,
+            'metadata' => ['source' => 'public_form'],
         ]);
 
         $task = $this->createLeadQualificationTask($user, $lead, $suggestedServiceIds);

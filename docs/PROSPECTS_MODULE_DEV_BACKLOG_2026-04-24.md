@@ -1,13 +1,18 @@
 # Module Prospects - plan de dev pas a pas
 
-Derniere mise a jour: 2026-04-24
+Derniere mise a jour: 2026-04-25
 
 ## 0. Etat d'avancement implementation
 
 Suivi courant:
 
 - `PROSPECT-000` fait: cahier des charges redige dans `docs/PROSPECTS_MODULE_CAHIER_DES_CHARGES_2026-04-24.md`
-- aucun ticket code du module `Prospects` n'est encore livre dans le workspace
+- `PROSPECT-001` a `PROSPECT-003` faits: couche logique `Prospect`, permissions alias et routes / navigation transitoires deja branchees
+- `PROSPECT-101` a `PROSPECT-105` faits: creation inbound / API / backoffice et import CSV en mode prospect-first deja couverts dans le workspace
+- `PROSPECT-201` a `PROSPECT-204` faits: workspace prospects V1, filtres, actions rapides et fiche detail sont consolides et couverts par tests
+- `PROSPECT-301` fait: historique de statuts prospect journalise sur les creations et transitions principales, expose sur la fiche detail et couvert par tests
+- `PROSPECT-302` a `PROSPECT-304` a faire: couche interactions enrichie, taches de relance formalisees et rappels automatiques restent a livrer
+- `PROSPECT-702` partiel: archivage V1 livre avec filtre archives, restauration, audit et mode lecture seule; anonymisation V1 archive-only est maintenant branchee, la suppression logique controlee reste a faire
 - le socle existant repose encore sur `Request` / `Lead`
 - blocage structurel confirme: `Quote` depend encore d'un `customer_id` obligatoire
 
@@ -443,7 +448,7 @@ Objectif technique:
 
 ### `PROSPECT-201` - Renommer l'experience `Request` en `Prospects`
 
-- Statut: `a faire`
+- Statut: `fait`
 - But: faire disparaitre le terme metier `Request` de l'interface principale
 - Fichiers probables:
 - `resources/js/Pages/Request/Index.vue`
@@ -455,7 +460,7 @@ Objectif technique:
 
 ### `PROSPECT-202` - Ajouter la liste prospects et les filtres V1 du cahier des charges
 
-- Statut: `a faire`
+- Statut: `fait`
 - But: offrir une liste directement exploitable par l'equipe commerciale
 - Livrables:
 - colonnes: nom, entreprise, courriel, telephone, source, type, statut, responsable, priorite, date creation, derniere activite, prochaine relance
@@ -469,7 +474,7 @@ Objectif technique:
 
 ### `PROSPECT-203` - Ajouter les actions rapides Prospects
 
-- Statut: `a faire`
+- Statut: `fait`
 - But: agir depuis la liste sans ouvrir chaque fiche
 - Livrables:
 - voir la fiche
@@ -487,7 +492,7 @@ Objectif technique:
 
 ### `PROSPECT-204` - Refaire la fiche detail prospect
 
-- Statut: `a faire`
+- Statut: `fait`
 - But: transformer la page detail actuelle en veritable cockpit prospect
 - Livrables:
 - informations generales
@@ -513,6 +518,9 @@ Definition de done de phase:
 
 - le module `Prospects` est visible et utilisable en V1
 - la liste et la fiche detail exposent les informations metier essentielles
+- verification executee:
+- `php artisan test tests/Feature/ProspectWorkspaceFeatureTest.php`
+- `php artisan test tests/Feature/RequestInboxPhaseOneTest.php`
 
 ## 12. Phase 3 - historique, interactions et relances
 
@@ -526,7 +534,7 @@ Objectif technique:
 
 ### `PROSPECT-301` - Journaliser l'historique de statuts
 
-- Statut: `a faire`
+- Statut: `fait`
 - But: garder la trace complete des transitions
 - Livrables:
 - table `prospect_status_histories` ou equivalent
@@ -542,6 +550,8 @@ Objectif technique:
 - `tests/Feature/ProspectStatusHistoryTest.php`
 - Definition de done:
 - chaque changement de statut cree une ligne exploitable
+- Verification executee:
+- `php artisan test tests/Feature/ProspectStatusHistoryTest.php`
 
 ### `PROSPECT-302` - Creer la couche interactions prospects
 
@@ -813,7 +823,7 @@ Objectif technique:
 
 ### `PROSPECT-702` - Ajouter archivage et anonymisation
 
-- Statut: `a faire`
+- Statut: `partiel`
 - But: respecter la retention et nettoyer l'operationnel
 - Livrables:
 - archivage
@@ -826,6 +836,10 @@ Objectif technique:
 - `tests/Feature/ProspectAuditComplianceTest.php`
 - Definition de done:
 - les actions sensibles existent et sont protegees
+- Note d'avancement:
+- archivage/restauration et consultation en lecture seule deja branches sur le workspace prospects
+- anonymisation V1 archive-only est branchee avec scrub des donnees personnelles, neutralisation des notes/fichiers/taches, masquage UI et blocage de restauration
+- suppression logique controlee reste a implementer
 
 ### `PROSPECT-703` - Renforcer l'audit du module Prospects
 

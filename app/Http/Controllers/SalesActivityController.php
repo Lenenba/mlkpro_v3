@@ -28,6 +28,12 @@ class SalesActivityController extends Controller
             abort(404);
         }
 
+        $this->ensureLeadIsMutable(
+            $lead,
+            'lead',
+            'Archived prospects must be restored before sales activity can be logged.'
+        );
+
         $activity = $logger->record($user, $lead, $this->validatedPayload($request));
 
         return $this->salesActivityResponse($request, $activity);

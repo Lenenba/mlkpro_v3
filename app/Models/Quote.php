@@ -218,9 +218,12 @@ class Quote extends Model
             return;
         }
 
+        $previousStatus = $request->status;
+
         $updates = [
             'status' => $targetStatus,
             'status_updated_at' => now(),
+            'last_activity_at' => now(),
         ];
 
         if ($targetStatus !== LeadRequest::STATUS_LOST) {
@@ -228,6 +231,17 @@ class Quote extends Model
         }
 
         $request->update($updates);
+
+        app(\App\Services\ProspectStatusHistoryService::class)->record($request, null, [
+            'from_status' => $previousStatus,
+            'to_status' => $request->status,
+            'comment' => $targetStatus === LeadRequest::STATUS_LOST ? ($request->lost_reason ?? null) : null,
+            'metadata' => [
+                'source' => 'quote_status_sync',
+                'quote_id' => $this->id,
+                'quote_status' => $this->status,
+            ],
+        ]);
     }
 
     /**

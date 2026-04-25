@@ -20,6 +20,12 @@ class RequestMediaController extends Controller
             abort(403);
         }
 
+        $this->ensureLeadIsMutable(
+            $lead,
+            'lead',
+            'Archived prospects must be restored before files can be changed.'
+        );
+
         $validated = $request->validate([
             'file' => 'required|file|mimes:pdf,jpg,jpeg,png,webp|max:10000',
             'meta' => 'nullable|array',
@@ -65,6 +71,12 @@ class RequestMediaController extends Controller
         if (!$user || $lead->user_id !== $accountId || $media->request_id !== $lead->id) {
             abort(403);
         }
+
+        $this->ensureLeadIsMutable(
+            $lead,
+            'lead',
+            'Archived prospects must be restored before files can be changed.'
+        );
 
         if ($media->path && Storage::disk('public')->exists($media->path)) {
             Storage::disk('public')->delete($media->path);

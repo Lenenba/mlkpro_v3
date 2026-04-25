@@ -15,7 +15,15 @@
     "filters": {
       "search_placeholder": "Search prospects...",
       "all_statuses": "All statuses",
-      "all_customers": "All customers"
+      "all_customers": "All customers",
+      "all_assignees": "All assignees",
+      "all_sources": "All sources",
+      "all_priorities": "All priorities",
+      "request_type_placeholder": "Search a type",
+      "unassigned_only": "Unassigned only",
+      "follow_up_today": "Follow-up today",
+      "follow_up_overdue": "Overdue",
+      "archived_only": "Archives"
     },
     "saved_segments": {
       "title": "Saved segments",
@@ -29,7 +37,7 @@
       "select_label": "Saved segment",
       "select_placeholder": "Choose a segment",
       "name_label": "Segment name",
-      "name_placeholder": "Ex. Montreal leads to handle",
+      "name_placeholder": "Ex. Montreal prospects to handle",
       "apply": "Apply",
       "save_current": "Save filters",
       "update_selected": "Update",
@@ -71,7 +79,7 @@
     },
     "actions": {
       "clear": "Clear",
-      "intake": "Lead intake",
+      "intake": "Prospect intake",
       "import_csv": "Import CSV",
       "new_request": "New prospect",
       "view": "View",
@@ -79,6 +87,15 @@
       "view_quote": "View quote",
       "convert": "Convert",
       "update": "Update",
+      "change_status": "Change status",
+      "plan_follow_up": "Plan follow-up",
+      "add_note": "Add note",
+      "archive": "Archive",
+      "restore": "Restore",
+      "archive_confirm": "Archive this prospect?",
+      "anonymize": "Anonymize",
+      "anonymize_confirm": "Permanently anonymize this archived prospect?",
+      "anonymize_reason_prompt": "Anonymization reason (optional)",
       "timeline": "Timeline",
       "delete": "Delete",
       "delete_confirm": "Delete this prospect?",
@@ -92,7 +109,11 @@
       "board": "Board"
     },
     "board": {
-      "empty": "No leads here yet."
+      "empty": "No prospects here yet."
+    },
+    "workspace": {
+      "title": "Prospects workspace",
+      "subtitle": "Qualify, assign, follow up, and convert opportunities from one commercial cockpit."
     },
     "sources": {
       "manual": "Manual",
@@ -110,6 +131,12 @@
       "other": "Other",
       "unknown": "Unknown"
     },
+    "priorities": {
+      "urgent": "Urgent",
+      "high": "High",
+      "normal": "Normal",
+      "low": "Low"
+    },
     "urgency": {
       "urgent": "Urgent",
       "high": "High",
@@ -123,7 +150,7 @@
       "budget_amount": "Budget ${amount}"
     },
     "quality": {
-      "title": "Lead quality",
+      "title": "Prospect qualification",
       "source": "Source",
       "source_placeholder": "Select source",
       "urgency": "Urgency",
@@ -139,10 +166,10 @@
     "duplicates": {
       "title": "Potential duplicates",
       "merge": "Merge here",
-      "merge_confirm": "Merge this duplicate into the current lead?"
+      "merge_confirm": "Merge this duplicate into the current prospect?"
     },
     "intake": {
-      "title": "Lead intake",
+      "title": "Prospect intake",
       "public_form": "Public form",
       "public_form_hint": "Share this link on your website, QR, or campaigns.",
       "webhook": "Webhook / API",
@@ -153,10 +180,10 @@
       "example": "Example request"
     },
     "import": {
-      "title": "Import leads",
+      "title": "Import prospects",
       "csv_file": "CSV file",
       "mapping_title": "Map columns",
-      "mapping_hint": "Match your CSV headers to lead fields.",
+      "mapping_hint": "Match your CSV headers to prospect fields.",
       "missing_headers": "Upload a CSV file with a header row to map columns.",
       "skip": "Skip",
       "submit": "Import",
@@ -201,7 +228,7 @@
         "website": "Website / showcase",
         "booking": "Booking / reservations",
         "payment": "Payments",
-        "crm": "CRM / lead follow-up",
+        "crm": "CRM / prospect follow-up",
         "integration": "Integrations / API"
       },
       "suggestions_title": "Suggested services",
@@ -303,26 +330,26 @@
     },
     "analytics": {
       "title": "Analytics (last {days} days)",
-      "subtitle": "Rolling insights to track lead performance.",
+      "subtitle": "Rolling insights to track prospect performance.",
       "first_response": "Avg first response",
-      "first_response_note": "Based on first action after lead creation.",
+      "first_response_note": "Based on first action after prospect creation.",
       "time_to_intake": "Avg time to intake",
-      "time_to_intake_note": "Measures how long a lead stays untouched before real handling starts.",
+      "time_to_intake_note": "Measures how long a prospect stays untouched before real handling starts.",
       "conversion_rate": "Conversion rate",
-      "conversion_note": "Won leads vs total created.",
-      "total_leads": "New leads",
+      "conversion_note": "Won prospects vs total created.",
+      "total_leads": "New prospects",
       "total_note": "Created in the last {days} days.",
-      "stale_count": "Stale leads",
-      "stale_note": "Open leads with no activity for at least 7 days.",
-      "breached_count": "Breached leads",
-      "breached_note": "Open leads with an overdue follow-up or missed SLA.",
+      "stale_count": "Stale prospects",
+      "stale_note": "Open prospects with no activity for at least 7 days.",
+      "breached_count": "Breached prospects",
+      "breached_note": "Open prospects with an overdue follow-up or missed SLA.",
       "form": {
-        "title": "Lead form performance",
+        "title": "Prospect form performance",
         "window": "Last {days} days",
         "views": "Form views",
         "unique": "{count} unique visitors",
         "submits": "Form submissions",
-        "submits_note": "Leads created from the public form.",
+        "submits_note": "Prospects created from the public form.",
         "conversion": "Form conversion",
         "conversion_note": "Submissions ÷ views.",
         "last_view": "Last view",
@@ -338,8 +365,8 @@
       },
       "by_source": "Conversion by source",
       "no_data": "No data yet.",
-      "risk_title": "Leads at risk",
-      "no_risk": "No leads at risk right now.",
+      "risk_title": "Prospects at risk",
+      "no_risk": "No prospects at risk right now.",
       "last_activity": "Last activity",
       "follow_up": "Follow-up",
       "risk_7": "7+ days no action",
@@ -358,24 +385,42 @@
     },
     "table": {
       "request": "Request",
+      "prospect": "Prospect",
+      "company": "Company",
+      "source": "Source",
+      "type": "Type",
       "customer": "Customer",
       "status": "Status",
       "assignee": "Assignee",
       "follow_up": "Follow-up",
+      "priority": "Priority",
+      "last_activity": "Last activity",
       "created": "Created",
       "actions": "Actions"
     },
     "labels": {
       "request_number": "Prospect #{id}",
+      "anonymized_request_number": "Anonymized prospect #{id}",
       "request": "Prospect",
+      "anonymized_customer": "Anonymized customer",
       "unknown_customer": "Unknown customer",
+      "anonymized_company": "Anonymized company",
+      "unknown_company": "Unknown company",
       "unknown_status": "Unknown status",
+      "anonymized_contact": "Contact details anonymized",
       "unassigned": "Unassigned",
-      "no_follow_up": "No follow-up"
+      "no_follow_up": "No follow-up",
+      "no_type": "No type",
+      "consent_yes": "Yes",
+      "consent_no": "No",
+      "consent_unknown": "Unknown"
     },
     "show": {
       "details": "Prospect details",
+      "current_status": "Current status",
       "channel_fallback": "Unknown channel",
+      "company": "Company",
+      "request_type": "Prospect type",
       "service": "Service",
       "service_fallback": "Not specified",
       "urgency": "Urgency",
@@ -391,9 +436,21 @@
       "email_action": "Email",
       "call": "Call",
       "whatsapp": "WhatsApp",
+      "contact_consent": "Contact consent",
+      "marketing_consent": "Marketing consent",
       "customer": "Customer",
       "status_updated": "Status updated",
-      "source": "Source"
+      "source": "Source",
+      "archived_banner": "Prospect archived",
+      "archived_read_only": "This record stays visible, but editing actions are locked until the prospect is restored.",
+      "archived_at": "Archived on",
+      "archived_by": "Archived by",
+      "archive_reason": "Archive reason",
+      "anonymized_read_only": "This prospect has been irreversibly anonymized. Only non-sensitive audit metadata remains visible.",
+      "anonymized_at": "Anonymized on",
+      "anonymized_reason": "Anonymization reason",
+      "anonymized_address": "Address anonymized",
+      "anonymized_description": "The description has been anonymized."
     },
     "origin": {
       "title": "Campaign origin",
@@ -460,15 +517,15 @@
     },
     "sales_activity": {
       "title": "CRM timeline",
-      "subtitle": "Track calls, notes, emails, next actions, and meetings from this request.",
+      "subtitle": "Track calls, notes, emails, next actions, and meetings from this prospect.",
       "quick_actions_title": "Quick actions",
-      "quick_actions_hint": "Log the most common touchpoints without leaving the request.",
+      "quick_actions_hint": "Log the most common touchpoints without leaving the prospect.",
       "open_dialog": "Log activity",
       "current_next_action": "Active next action",
       "due_prefix": "Due",
       "empty": "No CRM activity yet.",
       "dialog_title": "Log a sales activity",
-      "dialog_hint": "Add a note, call outcome, next action, or meeting from the request timeline.",
+      "dialog_hint": "Add a note, call outcome, next action, or meeting from the prospect timeline.",
       "actor_fallback": "System",
       "cancel": "Cancel",
       "save": "Save activity",
@@ -543,7 +600,9 @@
       "quote_sent": "Quote sent",
       "won": "Won",
       "lost": "Lost",
-      "converted": "Converted"
+      "converted": "Converted",
+      "archived": "Archived",
+      "anonymized": "Anonymized"
     },
     "empty": "No prospects found.",
     "pagination": {
@@ -572,7 +631,14 @@
       "status": "Status",
       "assignee": "Assignee",
       "follow_up": "Next follow-up",
-      "lost_reason": "Lost reason"
+      "lost_reason": "Lost reason",
+      "status_comment": "Status note (optional)"
+    },
+    "status_history": {
+      "title": "Status history",
+      "empty": "No status changes recorded yet.",
+      "initial_state": "Initial status",
+      "system": "System"
     },
     "quick_actions": {
       "follow_up_tomorrow": "Tomorrow",

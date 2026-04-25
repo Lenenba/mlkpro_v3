@@ -13,6 +13,7 @@ use App\Models\Task;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Services\CompanyFeatureService;
+use App\Services\ProspectStatusHistoryService;
 use App\Services\Segments\SegmentResolverRegistry;
 use App\Services\UsageLimitService;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -313,6 +314,7 @@ class PlaybookExecutionService
         $updates = [
             'status' => $status,
             'status_updated_at' => now(),
+            'last_activity_at' => now(),
             'lost_reason' => $status === LeadRequest::STATUS_LOST ? $lostReason : null,
         ];
 
@@ -381,6 +383,15 @@ class PlaybookExecutionService
             try {
                 $previousStatus = $lead->status;
                 $lead->update($updates);
+
+                if (array_key_exists('status', $updates) && $previousStatus !== $lead->status) {
+                    app(ProspectStatusHistoryService::class)->record($lead, $actor, [
+                        'from_status' => $previousStatus,
+                        'to_status' => $lead->status,
+                        'comment' => $updates['status'] === LeadRequest::STATUS_LOST ? ($updates['lost_reason'] ?? null) : null,
+                        'metadata' => ['source' => 'playbook'],
+                    ]);
+                }
 
                 ActivityLog::record($actor, $lead, 'bulk_updated', [
                     'from' => $previousStatus,

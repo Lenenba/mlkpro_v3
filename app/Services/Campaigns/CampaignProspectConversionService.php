@@ -10,6 +10,7 @@ use App\Models\CampaignProspectBatch;
 use App\Models\CampaignRecipient;
 use App\Models\Request as LeadRequest;
 use App\Models\User;
+use App\Services\ProspectStatusHistoryService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -94,6 +95,7 @@ class CampaignProspectConversionService
                     'channel' => $this->resolveLeadChannel($prospect, $recipient),
                     'status' => $this->defaultLeadStatus($prospect),
                     'status_updated_at' => $timestamp,
+                    'last_activity_at' => $timestamp,
                     'next_follow_up_at' => $timestamp->copy()->addDay(),
                     'title' => $this->resolveLeadTitle($prospect, $payload),
                     'service_type' => $this->resolveLeadServiceType($campaign, $prospect, $payload),
@@ -112,6 +114,14 @@ class CampaignProspectConversionService
                     'prospect_id' => $prospect->id,
                     'source_kind' => CampaignLeadAttributionService::SOURCE_KIND_PROSPECTING,
                 ], 'Lead created from campaign prospect');
+                app(ProspectStatusHistoryService::class)->record($lead, $actor, [
+                    'to_status' => $lead->status,
+                    'metadata' => [
+                        'source' => 'campaign_prospect_conversion',
+                        'campaign_id' => $campaign->id,
+                        'prospect_id' => $prospect->id,
+                    ],
+                ]);
             }
 
             $metadata = is_array($prospect->metadata) ? $prospect->metadata : [];
