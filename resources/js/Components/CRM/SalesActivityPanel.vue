@@ -254,7 +254,10 @@ const postActivity = async (payload, options = {}) => {
         });
 
         prependActivity(response.data.activity);
-        emit('logged', response.data.activity);
+        emit('logged', {
+            activity: response.data.activity,
+            interaction: response.data.interaction ?? null,
+        });
 
         feedback.value = {
             tone: 'success',

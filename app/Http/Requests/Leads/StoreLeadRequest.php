@@ -12,6 +12,7 @@ class StoreLeadRequest extends LeadWriteRequest
     public function rules(): array
     {
         return [
+            'ignore_duplicates' => ['nullable', 'boolean'],
             'customer_id' => $this->customerRule(),
             'assigned_team_member_id' => $this->assigneeRule(),
             'external_customer_id' => ['nullable', 'string', 'max:100'],

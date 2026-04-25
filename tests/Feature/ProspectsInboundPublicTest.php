@@ -119,3 +119,44 @@ it('keeps quote-request intake metadata while preserving the legacy quote branch
 
     expect(Quote::query()->where('request_id', $lead->id)->exists())->toBeTrue();
 });
+
+it('returns a sanitized duplicate alert for public prospect intake when json is requested', function () {
+    $owner = inboundPublicProspectOwner();
+    $json = fn () => ['Accept' => 'application/json'];
+
+    LeadRequest::query()->create([
+        'user_id' => $owner->id,
+        'status' => LeadRequest::STATUS_NEW,
+        'title' => 'Existing public duplicate',
+        'contact_name' => 'Taylor Rivers',
+        'contact_email' => 'taylor@example.com',
+        'contact_phone' => '+1 555 0103',
+    ]);
+
+    $payload = [
+        'contact_name' => 'Taylor Rivers',
+        'contact_email' => 'taylor@example.com',
+        'contact_phone' => '+1 555 0103',
+        'service_type' => 'Discovery call',
+        'description' => 'I need a callback.',
+        'final_action' => 'request_call',
+    ];
+
+    $this->post(URL::signedRoute('public.requests.store', ['user' => $owner->id]), $payload, $json())
+        ->assertStatus(409)
+        ->assertJsonPath('duplicate_alert.context', 'public_create')
+        ->assertJsonPath('duplicate_alert.entries.0.match_count', 1)
+        ->assertJsonCount(0, 'duplicate_alert.entries.0.duplicates');
+
+    expect(LeadRequest::query()->where('user_id', $owner->id)->count())->toBe(1);
+
+    $this->post(URL::signedRoute('public.requests.store', ['user' => $owner->id]), [
+        ...$payload,
+        'ignore_duplicates' => true,
+    ], $json())
+        ->assertCreated()
+        ->assertJsonPath('tone', 'success')
+        ->assertJsonPath('message', 'Call request submitted successfully.');
+
+    expect(LeadRequest::query()->where('user_id', $owner->id)->count())->toBe(2);
+});

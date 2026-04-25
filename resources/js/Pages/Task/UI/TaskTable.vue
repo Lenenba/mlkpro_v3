@@ -30,7 +30,15 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    priorities: {
+        type: Array,
+        default: () => [],
+    },
     teamMembers: {
+        type: Array,
+        default: () => [],
+    },
+    prospects: {
         type: Array,
         default: () => [],
     },
@@ -75,6 +83,8 @@ const hasTeamMembersFeature = computed(() => hasFeature('team_members'));
 const filterForm = useForm({
     search: props.filters?.search ?? '',
     status: props.filters?.status ?? '',
+    priority: props.filters?.priority ?? '',
+    follow_up: props.filters?.follow_up ?? '',
 });
 const isLoading = ref(false);
 const taskList = computed(() => Array.isArray(props.tasks?.data) ? props.tasks.data : []);
@@ -103,6 +113,7 @@ const scheduleRangeSelectOptions = computed(() =>
 const allowedScheduleRanges = computed(() => scheduleRangeOptions.value.map((option) => option.id));
 const scheduleRange = ref('week');
 const fallbackStatuses = ['todo', 'in_progress', 'done', 'cancelled'];
+const fallbackPriorities = ['low', 'normal', 'high', 'urgent'];
 const openTaskStatuses = ['todo', 'in_progress'];
 const closedTaskStatuses = ['done', 'cancelled'];
 
@@ -736,6 +747,8 @@ const filterPayload = () => {
     const payload = {
         search: filterForm.search,
         status: filterForm.status,
+        priority: filterForm.priority,
+        follow_up: filterForm.follow_up,
         view: viewMode.value,
     };
 
@@ -770,6 +783,8 @@ const autoFilter = () => {
 
 watch(() => filterForm.search, autoFilter);
 watch(() => filterForm.status, autoFilter);
+watch(() => filterForm.priority, autoFilter);
+watch(() => filterForm.follow_up, autoFilter);
 watch([taskList, boardStatuses], syncBoardTasks, { immediate: true });
 watch(taskList, (value) => {
     if (!selectedDateKey.value) {
@@ -788,6 +803,8 @@ if (typeof window !== 'undefined' && allowedViews.value.includes(viewMode.value)
 const clearFilters = () => {
     filterForm.search = '';
     filterForm.status = '';
+    filterForm.priority = '';
+    filterForm.follow_up = '';
     clearSelectedDate();
     autoFilter();
 };
@@ -799,6 +816,14 @@ const statusLabel = (status) => {
     const key = `tasks.status.${status}`;
     const label = t(key);
     return label === key ? String(status).replace('_', ' ') : label;
+};
+const priorityLabel = (priority) => {
+    if (!priority) {
+        return '';
+    }
+    const key = `tasks.priority.${priority}`;
+    const label = t(key);
+    return label === key ? String(priority).replace('_', ' ') : label;
 };
 const timingStatusLabel = (status) => {
     if (!status) {
@@ -841,11 +866,36 @@ const statusFilterOptions = computed(() =>
             label: statusLabel(status),
         }))
 );
+const priorityFilterOptions = computed(() =>
+    (props.priorities?.length ? props.priorities : fallbackPriorities)
+        .map((priority) => ({
+            value: priority,
+            label: priorityLabel(priority),
+        }))
+);
+const followUpFilterOptions = computed(() => ([
+    { value: 'today', label: t('tasks.follow_up.today') },
+    { value: 'overdue', label: t('tasks.follow_up.overdue') },
+]));
 
 const statusSelectOptions = computed(() =>
     (props.statuses || []).map((status) => ({
         id: status,
         name: statusLabel(status),
+    }))
+);
+const prioritySelectOptions = computed(() =>
+    (props.priorities?.length ? props.priorities : fallbackPriorities).map((priority) => ({
+        id: priority,
+        name: priorityLabel(priority),
+    }))
+);
+const prospectSelectOptions = computed(() =>
+    (Array.isArray(props.prospects) ? props.prospects : []).map((prospect) => ({
+        id: String(prospect.id),
+        name: [prospect.title, prospect.contact_name]
+            .filter(Boolean)
+            .join(' · ') || `${t('tasks.labels.prospect')} #${prospect.id}`,
     }))
 );
 const completionReasonOptions = computed(() => ([
@@ -869,6 +919,27 @@ const statusClasses = (status) => {
         default:
             return 'bg-stone-200 text-stone-700 dark:bg-neutral-700 dark:text-neutral-300';
     }
+};
+const priorityClasses = (priority) => {
+    switch (priority) {
+        case 'urgent':
+            return 'bg-rose-100 text-rose-800 dark:bg-rose-500/10 dark:text-rose-300';
+        case 'high':
+            return 'bg-orange-100 text-orange-800 dark:bg-orange-500/10 dark:text-orange-300';
+        case 'low':
+            return 'bg-stone-200 text-stone-700 dark:bg-neutral-700 dark:text-neutral-300';
+        case 'normal':
+        default:
+            return 'bg-sky-100 text-sky-800 dark:bg-sky-500/10 dark:text-sky-300';
+    }
+};
+const taskRequestLabel = (task) => {
+    const request = task?.request;
+    if (!request) {
+        return '';
+    }
+
+    return request.title || request.contact_name || `${t('tasks.labels.prospect')} #${request.id}`;
 };
 const timingStatusClasses = (status) => {
     switch (status) {
@@ -1041,9 +1112,11 @@ const isTaskLocked = (task) => closedTaskStatuses.includes(task?.status);
 const createForm = useForm({
     work_id: '',
     standalone: false,
+    request_id: '',
     title: '',
     description: '',
     status: 'todo',
+    priority: 'normal',
     due_date: '',
     completed_at: '',
     completion_reason: '',
@@ -1213,8 +1286,10 @@ const submitCreate = () => {
             createForm.reset(
                 'work_id',
                 'standalone',
+                'request_id',
                 'title',
                 'description',
+                'priority',
                 'due_date',
                 'completed_at',
                 'completion_reason',
@@ -1223,6 +1298,7 @@ const submitCreate = () => {
                 'assigned_team_member_id'
             );
             createForm.status = 'todo';
+            createForm.priority = 'normal';
             createForm.materials = [];
             closeOverlay('#hs-task-create');
             if (assignedId && hasTeamMembersFeature.value) {
@@ -1237,9 +1313,11 @@ const editingTask = ref(null);
 const editForm = useForm({
     work_id: '',
     standalone: false,
+    request_id: '',
     title: '',
     description: '',
     status: 'todo',
+    priority: 'normal',
     due_date: '',
     completed_at: '',
     completion_reason: '',
@@ -1312,6 +1390,7 @@ const openEditTask = (task) => {
     editForm.title = task.title || '';
     editForm.description = task.description || '';
     editForm.status = task.status || 'todo';
+    editForm.priority = task.priority || 'normal';
     editForm.due_date = task.due_date || '';
     editForm.completed_at = task.completed_at ? normalizeDateKey(task.completed_at) : '';
     editForm.completion_reason = task.completion_reason || '';
@@ -1320,6 +1399,7 @@ const openEditTask = (task) => {
     editForm.assigned_team_member_id = hasTeamMembersFeature.value ? (task.assigned_team_member_id || '') : '';
     editForm.work_id = task.work_id ?? '';
     editForm.standalone = !task.work_id;
+    editForm.request_id = task.request_id ? String(task.request_id) : '';
     editForm.customer_id = task.customer_id ?? null;
     editForm.product_id = task.product_id ?? null;
     editForm.materials = mapTaskMaterials(task.materials || []);
@@ -1750,6 +1830,22 @@ const submitProof = () => {
                         dense
                         class="min-w-[150px]"
                     />
+                    <FloatingSelect
+                        v-model="filterForm.priority"
+                        :label="$t('tasks.table.priority')"
+                        :options="priorityFilterOptions"
+                        :placeholder="$t('tasks.filters.priority.all')"
+                        dense
+                        class="min-w-[150px]"
+                    />
+                    <FloatingSelect
+                        v-model="filterForm.follow_up"
+                        :label="$t('tasks.table.follow_up')"
+                        :options="followUpFilterOptions"
+                        :placeholder="$t('tasks.filters.follow_up.all')"
+                        dense
+                        class="min-w-[150px]"
+                    />
 
                     <button type="button" @click="clearFilters"
                         class="py-2 px-3 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700 action-feedback">
@@ -1878,6 +1974,14 @@ const submitProof = () => {
                                         >
                                             {{ task.title }}
                                         </button>
+                                        <Link
+                                            v-if="task.request"
+                                            :href="route('prospects.show', task.request.id)"
+                                            class="mt-1 inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+                                            @click.stop
+                                        >
+                                            {{ taskRequestLabel(task) }}
+                                        </Link>
                                         <p
                                             v-if="task.description"
                                             class="mt-1 text-xs text-stone-500 dark:text-neutral-400 line-clamp-2"
@@ -1903,6 +2007,10 @@ const submitProof = () => {
                                 <span class="inline-flex items-center rounded-full px-2 py-0.5 font-semibold"
                                     :class="statusClasses(task.status)">
                                     {{ statusLabel(task.status) || $t('tasks.status.todo') }}
+                                </span>
+                                <span class="inline-flex items-center rounded-full px-2 py-0.5 font-semibold"
+                                    :class="priorityClasses(task.priority)">
+                                    {{ priorityLabel(task.priority || 'normal') }}
                                 </span>
                                 <span
                                     v-if="task.timing_status"
@@ -2073,6 +2181,14 @@ const submitProof = () => {
                                     >
                                         {{ task.title }}
                                     </button>
+                                    <Link
+                                        v-if="task.request"
+                                        :href="route('prospects.show', task.request.id)"
+                                        class="mt-1 inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+                                        @click.stop
+                                    >
+                                        {{ taskRequestLabel(task) }}
+                                    </Link>
                                     <p v-if="task.description" class="mt-1 text-xs text-stone-500 dark:text-neutral-400 line-clamp-2">
                                         {{ task.description }}
                                     </p>
@@ -2080,6 +2196,10 @@ const submitProof = () => {
                                         <span class="inline-flex items-center rounded-full px-2 py-0.5 font-semibold"
                                             :class="statusClasses(task.status)">
                                             {{ statusLabel(task.status) || $t('tasks.status.todo') }}
+                                        </span>
+                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 font-semibold"
+                                            :class="priorityClasses(task.priority)">
+                                            {{ priorityLabel(task.priority || 'normal') }}
                                         </span>
                                         <span
                                             v-if="task.timing_status"
@@ -2174,6 +2294,14 @@ const submitProof = () => {
                                     >
                                         {{ task.title }}
                                     </button>
+                                    <Link
+                                        v-if="task.request"
+                                        :href="route('prospects.show', task.request.id)"
+                                        class="mt-1 inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+                                        @click.stop
+                                    >
+                                        {{ taskRequestLabel(task) }}
+                                    </Link>
                                     <p v-if="task.description" class="mt-1 text-xs text-stone-500 dark:text-neutral-400 line-clamp-2">
                                         {{ task.description }}
                                     </p>
@@ -2181,6 +2309,10 @@ const submitProof = () => {
                                         <span class="inline-flex items-center rounded-full px-2 py-0.5 font-semibold"
                                             :class="statusClasses(task.status)">
                                             {{ statusLabel(task.status) || $t('tasks.status.todo') }}
+                                        </span>
+                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 font-semibold"
+                                            :class="priorityClasses(task.priority)">
+                                            {{ priorityLabel(task.priority || 'normal') }}
                                         </span>
                                         <span
                                             v-if="task.timing_status"
@@ -2437,6 +2569,7 @@ const submitProof = () => {
                                             </span>
                                             <span class="mt-1 inline-flex items-center gap-1 text-[10px] text-white/80">
                                                 {{ statusLabel(task.status) || $t('tasks.status.todo') }}
+                                                <span>· {{ priorityLabel(task.priority || 'normal') }}</span>
                                                 <span v-if="task.timing_status" class="text-white/70">
                                                     · {{ timingStatusLabel(task.timing_status) }}
                                                 </span>
@@ -2463,6 +2596,10 @@ const submitProof = () => {
                     :class="statusClasses(detailsTask.status)">
                     {{ statusLabel(detailsTask.status) || $t('tasks.status.todo') }}
                 </span>
+                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
+                    :class="priorityClasses(detailsTask.priority)">
+                    {{ priorityLabel(detailsTask.priority || 'normal') }}
+                </span>
                 <span v-if="detailsTask?.timing_status"
                     class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
                     :class="timingStatusClasses(detailsTask.timing_status)">
@@ -2474,6 +2611,20 @@ const submitProof = () => {
                 <span class="text-xs text-stone-500 dark:text-neutral-400">
                     {{ $t('tasks.details.created') }} {{ formatDate(detailsTask.created_at) }}
                 </span>
+            </div>
+
+            <div v-if="detailsTask?.request" class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div>
+                    <div class="text-xs uppercase text-stone-400 dark:text-neutral-500">
+                        {{ $t('tasks.details.prospect') }}
+                    </div>
+                    <Link
+                        :href="route('prospects.show', detailsTask.request.id)"
+                        class="mt-1 inline-flex items-center text-sm font-medium text-emerald-700 hover:text-emerald-800 dark:text-emerald-300"
+                    >
+                        {{ taskRequestLabel(detailsTask) }}
+                    </Link>
+                </div>
             </div>
 
             <div
@@ -2629,8 +2780,26 @@ const submitProof = () => {
                     <InputError class="mt-1" :message="createForm.errors.status" />
                 </div>
                 <div>
+                    <FloatingSelect
+                        v-model="createForm.priority"
+                        :label="$t('tasks.form.priority')"
+                        :options="prioritySelectOptions"
+                    />
+                    <InputError class="mt-1" :message="createForm.errors.priority" />
+                </div>
+                <div>
                     <DatePicker v-model="createForm.due_date" :label="$t('tasks.form.due_date')" />
                     <InputError class="mt-1" :message="createForm.errors.due_date" />
+                </div>
+                <div class="md:col-span-2">
+                    <FloatingSelect
+                        v-model="createForm.request_id"
+                        :label="$t('tasks.form.prospect')"
+                        :options="prospectSelectOptions"
+                        :placeholder="$t('tasks.form.no_prospect')"
+                        filterable
+                    />
+                    <InputError class="mt-1" :message="createForm.errors.request_id" />
                 </div>
                 <div v-if="showAssigneeControls" class="md:col-span-2">
                     <FloatingSelect
@@ -2778,8 +2947,26 @@ const submitProof = () => {
                     <InputError class="mt-1" :message="editForm.errors.status" />
                 </div>
                 <div>
+                    <FloatingSelect
+                        v-model="editForm.priority"
+                        :label="$t('tasks.form.priority')"
+                        :options="prioritySelectOptions"
+                    />
+                    <InputError class="mt-1" :message="editForm.errors.priority" />
+                </div>
+                <div>
                     <DatePicker v-model="editForm.due_date" :label="$t('tasks.form.due_date')" />
                     <InputError class="mt-1" :message="editForm.errors.due_date" />
+                </div>
+                <div class="md:col-span-2">
+                    <FloatingSelect
+                        v-model="editForm.request_id"
+                        :label="$t('tasks.form.prospect')"
+                        :options="prospectSelectOptions"
+                        :placeholder="$t('tasks.form.no_prospect')"
+                        filterable
+                    />
+                    <InputError class="mt-1" :message="editForm.errors.request_id" />
                 </div>
                 <div v-if="showAssigneeControls" class="md:col-span-2">
                     <FloatingSelect

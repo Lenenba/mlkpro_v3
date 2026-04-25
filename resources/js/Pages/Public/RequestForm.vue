@@ -7,6 +7,7 @@ import GuestLayout from '@/Layouts/GuestLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
+import ProspectDuplicateAlert from '@/Components/Prospects/ProspectDuplicateAlert.vue';
 import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
@@ -121,6 +122,10 @@ const addressSuggestions = ref([]);
 const validatedAddress = ref(null);
 const isSearchingAddress = ref(false);
 const addressError = ref('');
+const duplicateAlert = ref(null);
+const submitMessage = ref('');
+const submitTone = ref('success');
+const isSubmitting = ref(false);
 let addressSearchTimeout = null;
 
 const clearValidatedAddress = () => {
@@ -313,6 +318,25 @@ watch(
     },
     { immediate: true }
 );
+watch(
+    () => [
+        form.contact_name,
+        form.contact_email,
+        form.contact_phone,
+        form.service_type,
+        form.description,
+        form.street1,
+        form.city,
+        form.state,
+        form.postal_code,
+        form.country,
+        ...form.suggested_service_ids,
+    ],
+    () => {
+        duplicateAlert.value = null;
+        submitMessage.value = '';
+    }
+);
 seedAddressFromForm();
 
 onBeforeUnmount(() => {
@@ -335,7 +359,34 @@ onBeforeUnmount(() => {
     }
 });
 
-const submit = () => {
+const resetRequestForm = () => {
+    form.reset();
+    form.final_action = 'request_call';
+    addressQuery.value = '';
+    addressSuggestions.value = [];
+    validatedAddress.value = null;
+    addressError.value = '';
+    duplicateAlert.value = null;
+};
+
+const buildPayload = (ignoreDuplicates = false) => ({
+    contact_name: form.contact_name || null,
+    contact_email: form.contact_email || null,
+    contact_phone: form.contact_phone || null,
+    service_type: form.service_type || null,
+    description: form.description || null,
+    street1: form.street1 || null,
+    city: form.city || null,
+    state: form.state || null,
+    postal_code: form.postal_code || null,
+    country: form.country || null,
+    suggested_service_ids: [...form.suggested_service_ids],
+    services_sur_devis: [...form.services_sur_devis],
+    final_action: form.final_action,
+    ignore_duplicates: ignoreDuplicates,
+});
+
+const submit = async (ignoreDuplicates = false) => {
     syncSelectedServiceIds();
 
     form.services_sur_devis = selectedServices.value
@@ -352,17 +403,50 @@ const submit = () => {
             .slice(0, 255);
     }
 
-    form.post(props.submit_url, {
-        preserveScroll: true,
-        onSuccess: () => {
-            form.reset();
-            form.final_action = 'request_call';
-            addressQuery.value = '';
-            addressSuggestions.value = [];
-            validatedAddress.value = null;
-            addressError.value = '';
-        },
-    });
+    if (isSubmitting.value) {
+        return;
+    }
+
+    isSubmitting.value = true;
+    duplicateAlert.value = null;
+    submitMessage.value = '';
+    form.clearErrors();
+
+    try {
+        const response = await axios.post(props.submit_url, buildPayload(ignoreDuplicates), {
+            headers: {
+                Accept: 'application/json',
+            },
+        });
+
+        resetRequestForm();
+        submitTone.value = response?.data?.tone === 'warning' ? 'warning' : 'success';
+        submitMessage.value = response?.data?.message || '';
+        nextTick(() => postEmbeddedHeight());
+    } catch (error) {
+        if (error?.response?.status === 409 && error?.response?.data?.duplicate_alert) {
+            duplicateAlert.value = {
+                ...error.response.data.duplicate_alert,
+                message: error.response.data.message || null,
+            };
+            nextTick(() => postEmbeddedHeight());
+            return;
+        }
+
+        if (error?.response?.status === 422) {
+            form.setError(error.response.data?.errors || {});
+            submitTone.value = 'warning';
+            submitMessage.value = error.response.data?.message || '';
+            nextTick(() => postEmbeddedHeight());
+            return;
+        }
+
+        submitTone.value = 'error';
+        submitMessage.value = error?.response?.data?.message || t('requests.feedback.public_submit_error');
+        nextTick(() => postEmbeddedHeight());
+    } finally {
+        isSubmitting.value = false;
+    }
 };
 
 const handleLogoError = () => {
@@ -454,6 +538,24 @@ onMounted(() => {
         </div>
 
         <form class="mt-6 space-y-4" @submit.prevent="submit">
+            <div
+                v-if="submitMessage"
+                class="rounded-sm border px-3 py-2 text-sm"
+                :class="submitTone === 'warning'
+                    ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200'
+                    : submitTone === 'error'
+                        ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200'
+                        : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200'"
+            >
+                {{ submitMessage }}
+            </div>
+
+            <ProspectDuplicateAlert
+                :alert="duplicateAlert"
+                :can-continue="true"
+                @continue="submit(true)"
+            />
+
             <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div>
                     <FloatingInput v-model="form.contact_name" :label="$t('requests.form.contact_name')" />
@@ -652,7 +754,7 @@ onMounted(() => {
                 <div class="mt-3 flex justify-end">
                     <button
                         type="submit"
-                        :disabled="form.processing"
+                        :disabled="isSubmitting"
                         class="inline-flex items-center justify-center rounded-sm bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-60"
                     >
                         {{ submitLabel }}

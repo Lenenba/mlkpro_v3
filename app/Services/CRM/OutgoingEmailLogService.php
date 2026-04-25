@@ -3,7 +3,9 @@
 namespace App\Services\CRM;
 
 use App\Models\ActivityLog;
+use App\Models\Request as LeadRequest;
 use App\Models\User;
+use App\Services\ProspectInteractionLogger;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 
@@ -55,13 +57,19 @@ class OutgoingEmailLogService
 
     private function record(?User $actor, Model $subject, string $action, array $context, string $description): ActivityLog
     {
-        return ActivityLog::record(
+        $log = ActivityLog::record(
             $actor,
             $subject,
             $action,
             $this->normalizeProperties($subject, $context),
             $description
         );
+
+        if ($subject instanceof LeadRequest) {
+            app(ProspectInteractionLogger::class)->recordActivity($subject, $actor, $log);
+        }
+
+        return $log;
     }
 
     /**

@@ -165,8 +165,21 @@
     },
     "duplicates": {
       "title": "Potential duplicates",
+      "alert_title": "Potential duplicate prospects found",
       "merge": "Merge here",
-      "merge_confirm": "Merge this duplicate into the current prospect?"
+      "merge_confirm": "Merge this duplicate into the current prospect?",
+      "review_existing": "Review the existing prospects below before continuing.",
+      "summary": "{entries} flagged items · {matches} possible matches",
+      "match_count": "{count} matches",
+      "import_entry": "Import row {row}",
+      "continue_anyway": "Continue anyway",
+      "score": "Score {score}"
+    },
+    "feedback": {
+      "create_error": "Unable to create the prospect.",
+      "import_error": "Unable to import prospects.",
+      "convert_error": "Unable to convert the prospect.",
+      "public_submit_error": "Unable to submit the request."
     },
     "intake": {
       "title": "Prospect intake",
@@ -633,6 +646,24 @@
       "follow_up": "Next follow-up",
       "lost_reason": "Lost reason",
       "status_comment": "Status note (optional)"
+    },
+    "interactions": {
+      "title": "Prospect timeline",
+      "subtitle": "Keep notes, documents, calls, emails, meetings, and scheduled follow-ups in one place.",
+      "empty": "No prospect interactions recorded yet.",
+      "actor_fallback": "System",
+      "attachment_prefix": "Attachment:",
+      "next_action_prefix": "Next action",
+      "types": {
+        "note": "Note",
+        "document": "Document",
+        "call": "Call",
+        "call_outcome": "Call outcome",
+        "next_action": "Next action",
+        "meeting": "Meeting",
+        "email": "Email",
+        "system": "System"
+      }
     },
     "status_history": {
       "title": "Status history",

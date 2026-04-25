@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\LeadNote;
 use App\Models\Request as LeadRequest;
+use App\Services\ProspectInteractionLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -42,6 +43,7 @@ class RequestNoteController extends Controller
         ActivityLog::record($user, $lead, 'note_added', [
             'note_id' => $note->id,
         ], 'Prospect note added');
+        app(ProspectInteractionLogger::class)->recordNoteAdded($lead, $user, $note);
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([

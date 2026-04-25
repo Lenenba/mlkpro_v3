@@ -73,6 +73,8 @@ class Request extends Model
         'archived_at',
         'archived_by_user_id',
         'archive_reason',
+        'duplicate_of_prospect_id',
+        'merged_into_prospect_id',
         'status_updated_at',
         'next_follow_up_at',
         'lost_reason',
@@ -115,6 +117,16 @@ class Request extends Model
         return $this->belongsTo(User::class, 'archived_by_user_id');
     }
 
+    public function duplicateOf(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'duplicate_of_prospect_id');
+    }
+
+    public function mergedInto(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'merged_into_prospect_id');
+    }
+
     public function quote(): HasOne
     {
         return $this->hasOne(Quote::class);
@@ -138,6 +150,11 @@ class Request extends Model
     public function statusHistories(): HasMany
     {
         return $this->hasMany(ProspectStatusHistory::class, 'request_id')->latest('created_at');
+    }
+
+    public function prospectInteractions(): HasMany
+    {
+        return $this->hasMany(ProspectInteraction::class, 'request_id')->latest('created_at');
     }
 
     public function scopeByUser(Builder $query, int $userId): Builder

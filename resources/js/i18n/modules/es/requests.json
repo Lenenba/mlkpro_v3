@@ -165,8 +165,21 @@
     },
     "duplicates": {
       "title": "Posibles duplicados",
+      "alert_title": "Se detectaron posibles prospectos duplicados",
       "merge": "Fusionarse aquí",
-      "merge_confirm": "Fusionar este duplicado con el prospecto actual?"
+      "merge_confirm": "Fusionar este duplicado con el prospecto actual?",
+      "review_existing": "Revise los prospectos existentes a continuación antes de continuar.",
+      "summary": "{entries} elementos marcados · {matches} coincidencias posibles",
+      "match_count": "{count} coincidencias",
+      "import_entry": "Fila de importación {row}",
+      "continue_anyway": "Continuar de todos modos",
+      "score": "Puntuación {score}"
+    },
+    "feedback": {
+      "create_error": "No se pudo crear el prospecto.",
+      "import_error": "No se pudieron importar los prospectos.",
+      "convert_error": "No se pudo convertir el prospecto.",
+      "public_submit_error": "No se pudo enviar la solicitud."
     },
     "intake": {
       "title": "Captacion de prospectos",
@@ -633,6 +646,24 @@
       "follow_up": "Próximo seguimiento",
       "lost_reason": "razón perdida",
       "status_comment": "Nota de estado (opcional)"
+    },
+    "interactions": {
+      "title": "Linea de tiempo del prospecto",
+      "subtitle": "Centraliza notas, documentos, llamadas, correos, reuniones y proximas acciones en un solo lugar.",
+      "empty": "Todavia no hay interacciones del prospecto registradas.",
+      "actor_fallback": "Sistema",
+      "attachment_prefix": "Adjunto:",
+      "next_action_prefix": "Proxima accion",
+      "types": {
+        "note": "Nota",
+        "document": "Documento",
+        "call": "Llamada",
+        "call_outcome": "Resultado de llamada",
+        "next_action": "Proxima accion",
+        "meeting": "Reunion",
+        "email": "Correo",
+        "system": "Sistema"
+      }
     },
     "status_history": {
       "title": "Historial de estados",

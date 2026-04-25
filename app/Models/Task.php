@@ -24,6 +24,14 @@ class Task extends Model
 
     public const STATUS_CANCELLED = 'cancelled';
 
+    public const PRIORITY_LOW = 'low';
+
+    public const PRIORITY_NORMAL = 'normal';
+
+    public const PRIORITY_HIGH = 'high';
+
+    public const PRIORITY_URGENT = 'urgent';
+
     public const STATUSES = [
         self::STATUS_TODO,
         self::STATUS_IN_PROGRESS,
@@ -41,6 +49,13 @@ class Task extends Model
         self::STATUS_CANCELLED,
     ];
 
+    public const PRIORITIES = [
+        self::PRIORITY_LOW,
+        self::PRIORITY_NORMAL,
+        self::PRIORITY_HIGH,
+        self::PRIORITY_URGENT,
+    ];
+
     protected $fillable = [
         'account_id',
         'created_by_user_id',
@@ -52,6 +67,7 @@ class Task extends Model
         'title',
         'description',
         'status',
+        'priority',
         'billable',
         'due_date',
         'start_time',
@@ -154,6 +170,16 @@ class Task extends Model
     public function scopeClosed(Builder $query): Builder
     {
         return $query->whereIn('status', self::CLOSED_STATUSES);
+    }
+
+    public function scopeDueToday(Builder $query, string $date): Builder
+    {
+        return $query->open()->whereDate('due_date', $date);
+    }
+
+    public function scopeOverdue(Builder $query, string $date): Builder
+    {
+        return $query->open()->whereDate('due_date', '<', $date);
     }
 
     public function isDone(): bool

@@ -19,6 +19,9 @@ use App\Models\TeamMember;
 use App\Queries\Requests\BuildRequestAnalyticsData;
 use App\Queries\Requests\BuildRequestInboxIndexData;
 use App\Services\Campaigns\CampaignLeadAttributionService;
+use App\Services\Prospects\ProspectDuplicateAlertService;
+use App\Services\Prospects\ProspectDuplicateDetectionService;
+use App\Services\Prospects\ProspectMergeService;
 use App\Services\ProspectStatusHistoryService;
 use App\Services\UsageLimitService;
 use App\Support\Prospects\ProspectIntakeMeta;
@@ -156,6 +159,7 @@ class RequestController extends Controller
             'assignee.user:id,name',
             'archivedBy:id,name',
             'statusHistories.user:id,name',
+            'prospectInteractions.user:id,name',
             'quote:id,number,status,customer_id,request_id',
             'notes.user:id,name',
             'media.user:id,name',
@@ -191,25 +195,7 @@ class RequestController extends Controller
             })
             ->values();
 
-        $duplicates = collect();
-        if ($lead->contact_email || $lead->contact_phone) {
-            $duplicates = LeadRequest::query()
-                ->where('user_id', $accountId)
-                ->whereNull('archived_at')
-                ->where('id', '!=', $lead->id)
-                ->where(function ($query) use ($lead) {
-                    if ($lead->contact_email) {
-                        $query->orWhere('contact_email', $lead->contact_email);
-                    }
-                    if ($lead->contact_phone) {
-                        $query->orWhere('contact_phone', $lead->contact_phone);
-                    }
-                })
-                ->with(['assignee.user:id,name'])
-                ->orderByDesc('created_at')
-                ->limit(10)
-                ->get();
-        }
+        $duplicates = app(ProspectDuplicateDetectionService::class)->forLead($lead);
 
         $campaignOrigin = app(CampaignLeadAttributionService::class)->campaignOriginForLead($lead, $user);
 
@@ -238,9 +224,10 @@ class RequestController extends Controller
 
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        app(UsageLimitService::class)->enforceLimit($user, 'requests');
-
         $validated = $request->validated();
+        $ignoreDuplicates = (bool) ($validated['ignore_duplicates'] ?? false);
+        unset($validated['ignore_duplicates']);
+
         $customerId = $validated['customer_id'] ?? null;
         $channel = $this->normalizeChannel($validated['channel'] ?? null) ?? 'manual';
         $meta = ProspectIntakeMeta::merge(
@@ -250,6 +237,27 @@ class RequestController extends Controller
             contactConsent: data_get($validated, 'meta.contact_consent'),
             marketingConsent: data_get($validated, 'meta.marketing_consent')
         );
+
+        if ($this->shouldReturnJson($request) && ! $ignoreDuplicates) {
+            $duplicateAlert = app(ProspectDuplicateAlertService::class)->forAttributes(
+                accountId: $accountId,
+                attributes: [
+                    ...$validated,
+                    'channel' => $channel,
+                    'meta' => $meta,
+                ],
+                context: 'create',
+            );
+
+            if ($duplicateAlert) {
+                return response()->json([
+                    'message' => 'Potential duplicate prospects found.',
+                    'duplicate_alert' => $duplicateAlert,
+                ], 409);
+            }
+        }
+
+        app(UsageLimitService::class)->enforceLimit($user, 'requests');
 
         $lead = LeadRequest::create([
             ...$validated,
@@ -293,6 +301,8 @@ class RequestController extends Controller
         $accountId = $user->accountOwnerId();
 
         $data = $request->validated();
+        $ignoreDuplicates = (bool) ($data['ignore_duplicates'] ?? false);
+        unset($data['ignore_duplicates']);
 
         $file = $data['file'];
         $handle = fopen($file->getRealPath(), 'r');
@@ -466,6 +476,17 @@ class RequestController extends Controller
             ]);
         }
 
+        if ($this->shouldReturnJson($request) && ! $ignoreDuplicates) {
+            $duplicateAlert = app(ProspectDuplicateAlertService::class)->forImportPayloads($accountId, $payloads);
+
+            if ($duplicateAlert) {
+                return response()->json([
+                    'message' => 'Potential duplicate prospects found in the import file.',
+                    'duplicate_alert' => $duplicateAlert,
+                ], 409);
+            }
+        }
+
         app(UsageLimitService::class)->enforceLimit($user, 'requests', count($payloads));
 
         $imported = 0;
@@ -521,7 +542,22 @@ class RequestController extends Controller
             'Archived prospects must be restored before they can be converted.'
         );
 
-        $result = $convertLead->execute($lead, $request->validated(), $user);
+        $validated = $request->validated();
+        $ignoreDuplicates = (bool) ($validated['ignore_duplicates'] ?? false);
+        unset($validated['ignore_duplicates']);
+
+        if ($this->shouldReturnJson($request) && ! $ignoreDuplicates) {
+            $duplicateAlert = app(ProspectDuplicateAlertService::class)->forLead($lead, 'convert');
+
+            if ($duplicateAlert) {
+                return response()->json([
+                    'message' => 'Potential duplicate prospects found.',
+                    'duplicate_alert' => $duplicateAlert,
+                ], 409);
+            }
+        }
+
+        $result = $convertLead->execute($lead, $validated, $user);
         $quote = $result['quote'];
         $lead = $result['lead'];
 
@@ -699,7 +735,7 @@ class RequestController extends Controller
         return redirect()->back()->with('success', 'Prospects updated.');
     }
 
-    public function merge(MergeLeadRequest $request, LeadRequest $lead)
+    public function merge(MergeLeadRequest $request, LeadRequest $lead, ProspectMergeService $mergeProspects)
     {
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
@@ -731,74 +767,14 @@ class RequestController extends Controller
             'Archived prospects must be restored before they can be merged.'
         );
 
-        $lead->loadMissing('quote');
-        $source->loadMissing('quote');
-        if ($lead->quote && $source->quote) {
-            if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'Both leads already have quotes. Merge is blocked.',
-                ], 422);
-            }
-
-            return redirect()->back()->withErrors([
-                'source_id' => 'Both leads already have quotes. Merge is blocked.',
-            ]);
-        }
-
-        $leadMeta = $lead->meta ?? [];
-        $sourceMeta = $source->meta ?? [];
-        $mergedMeta = array_replace($sourceMeta, $leadMeta);
-
-        $updates = [
-            'customer_id' => $lead->customer_id ?: $source->customer_id,
-            'assigned_team_member_id' => $lead->assigned_team_member_id ?: $source->assigned_team_member_id,
-            'external_customer_id' => $lead->external_customer_id ?: $source->external_customer_id,
-            'channel' => $lead->channel ?: $source->channel,
-            'service_type' => $lead->service_type ?: $source->service_type,
-            'urgency' => $lead->urgency ?: $source->urgency,
-            'title' => $lead->title ?: $source->title,
-            'description' => $lead->description ?: $source->description,
-            'contact_name' => $lead->contact_name ?: $source->contact_name,
-            'contact_email' => $lead->contact_email ?: $source->contact_email,
-            'contact_phone' => $lead->contact_phone ?: $source->contact_phone,
-            'country' => $lead->country ?: $source->country,
-            'state' => $lead->state ?: $source->state,
-            'city' => $lead->city ?: $source->city,
-            'street1' => $lead->street1 ?: $source->street1,
-            'street2' => $lead->street2 ?: $source->street2,
-            'postal_code' => $lead->postal_code ?: $source->postal_code,
-            'lat' => $lead->lat ?: $source->lat,
-            'lng' => $lead->lng ?: $source->lng,
-            'is_serviceable' => $lead->is_serviceable ?? $source->is_serviceable,
-            'next_follow_up_at' => $lead->next_follow_up_at ?: $source->next_follow_up_at,
-            'lost_reason' => $lead->lost_reason ?: $source->lost_reason,
-            'meta' => $mergedMeta,
-        ];
-
-        $lead->update($updates);
-
-        if ($source->quote && ! $lead->quote) {
-            $source->quote->update(['request_id' => $lead->id]);
-        }
-
-        $source->notes()->update(['request_id' => $lead->id]);
-        $source->media()->update(['request_id' => $lead->id]);
-        $source->tasks()->update(['request_id' => $lead->id]);
-
-        ActivityLog::record($user, $lead, 'merged', [
-            'source_id' => $source->id,
-        ], 'Prospect merged');
-
-        ActivityLog::record($user, $source, 'merged_into', [
-            'target_id' => $lead->id,
-        ], 'Prospect merged into another');
-
-        $source->delete();
+        $result = $mergeProspects->execute($lead, $source, $user);
+        $lead = $result['lead'];
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
                 'message' => 'Prospect merged.',
-                'lead' => $lead->fresh(['assignee.user', 'customer', 'quote']),
+                'lead' => $lead->fresh(['assignee.user', 'customer', 'quote', 'archivedBy']),
+                'summary' => $result['summary'],
             ]);
         }
 

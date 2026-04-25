@@ -20,6 +20,12 @@
     "filters": {
       "search_placeholder": "Search tasks, details, or assignee",
       "search_placeholder_solo": "Search tasks or details",
+      "priority": {
+        "all": "All priorities"
+      },
+      "follow_up": {
+        "all": "All follow-up states"
+      },
       "status": {
         "all": "All status"
       }
@@ -80,7 +86,13 @@
       "no_tasks": "No tasks yet.",
       "no_tasks_in_range": "No tasks in this range.",
       "no_tasks_for_date": "No tasks for {date}.",
-      "no_tasks_column": "No tasks"
+      "no_tasks_column": "No tasks",
+      "no_tasks_for_filter": "No tasks match this follow-up filter."
+    },
+    "follow_up": {
+      "all": "All",
+      "today": "Today",
+      "overdue": "Overdue"
     },
     "labels": {
       "no_due_date": "No due date",
@@ -89,11 +101,20 @@
       "task_count_many": "{count} tasks",
       "job_number": "Job #{id}",
       "unknown_status": "Unknown status",
-      "task": "Task"
+      "task": "Task",
+      "prospect": "Prospect"
+    },
+    "priority": {
+      "low": "Low",
+      "normal": "Normal",
+      "high": "High",
+      "urgent": "Urgent"
     },
     "table": {
       "task": "Task",
       "status": "Status",
+      "priority": "Priority",
+      "follow_up": "Follow-up",
       "due": "Due",
       "assignee": "Assignee",
       "created": "Created",
@@ -108,6 +129,8 @@
     "details": {
       "title": "Task details",
       "status": "Status",
+      "priority": "Priority",
+      "prospect": "Prospect",
       "due": "Due",
       "created": "Created",
       "assignee": "Assignee",
@@ -157,9 +180,12 @@
       "title": "Title",
       "description_optional": "Description (optional)",
       "job": "Job",
+      "prospect": "Prospect",
+      "no_prospect": "No linked prospect",
       "select_job": "Select job",
       "one_off_task": "One-off task",
       "status": "Status",
+      "priority": "Priority",
       "due_date": "Due date",
       "delay_reason": "Delay reason",
       "assignee": "Assignee",

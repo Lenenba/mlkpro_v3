@@ -165,8 +165,21 @@
     },
     "duplicates": {
       "title": "Doublons potentiels",
+      "alert_title": "Doublons prospects detectes",
       "merge": "Fusionner",
-      "merge_confirm": "Fusionner ce doublon dans ce prospect ?"
+      "merge_confirm": "Fusionner ce doublon dans ce prospect ?",
+      "review_existing": "Consultez les prospects existants ci-dessous avant de continuer.",
+      "summary": "{entries} elements signales · {matches} correspondances potentielles",
+      "match_count": "{count} correspondances",
+      "import_entry": "Ligne d'import {row}",
+      "continue_anyway": "Continuer quand meme",
+      "score": "Score {score}"
+    },
+    "feedback": {
+      "create_error": "Impossible de creer le prospect.",
+      "import_error": "Impossible d'importer les prospects.",
+      "convert_error": "Impossible de convertir le prospect.",
+      "public_submit_error": "Impossible d'envoyer la demande."
     },
     "intake": {
       "title": "Entrees prospects",
@@ -633,6 +646,24 @@
       "follow_up": "Prochaine relance",
       "lost_reason": "Raison de perte",
       "status_comment": "Note de statut (optionnel)"
+    },
+    "interactions": {
+      "title": "Timeline prospect",
+      "subtitle": "Centralisez notes, documents, appels, emails, rendez-vous et relances planifiees au meme endroit.",
+      "empty": "Aucune interaction prospect enregistree pour l'instant.",
+      "actor_fallback": "Systeme",
+      "attachment_prefix": "Piece jointe :",
+      "next_action_prefix": "Prochaine action",
+      "types": {
+        "note": "Note",
+        "document": "Document",
+        "call": "Appel",
+        "call_outcome": "Resultat d'appel",
+        "next_action": "Prochaine action",
+        "meeting": "Rendez-vous",
+        "email": "Email",
+        "system": "Systeme"
+      }
     },
     "status_history": {
       "title": "Historique des statuts",

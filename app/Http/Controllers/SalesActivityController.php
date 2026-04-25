@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Quote;
 use App\Models\Request as LeadRequest;
 use App\Services\CRM\SalesActivityLogger;
+use App\Services\ProspectInteractionLogger;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request as HttpRequest;
 use Illuminate\Support\Facades\Auth;
@@ -35,8 +36,9 @@ class SalesActivityController extends Controller
         );
 
         $activity = $logger->record($user, $lead, $this->validatedPayload($request));
+        $interaction = app(ProspectInteractionLogger::class)->recordActivity($lead, $user, $activity);
 
-        return $this->salesActivityResponse($request, $activity);
+        return $this->salesActivityResponse($request, $activity, $interaction);
     }
 
     public function storeForCustomer(HttpRequest $request, Customer $customer, SalesActivityLogger $logger)
@@ -83,12 +85,17 @@ class SalesActivityController extends Controller
         ]);
     }
 
-    private function salesActivityResponse(HttpRequest $request, \App\Models\ActivityLog $activity)
+    private function salesActivityResponse(
+        HttpRequest $request,
+        \App\Models\ActivityLog $activity,
+        ?\App\Models\ProspectInteraction $interaction = null
+    )
     {
         if ($this->shouldReturnJson($request)) {
             return response()->json([
                 'message' => 'Sales activity logged.',
                 'activity' => $activity,
+                'interaction' => $interaction,
             ], 201);
         }
 

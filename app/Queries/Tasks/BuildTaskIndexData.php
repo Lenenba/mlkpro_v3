@@ -3,11 +3,13 @@
 namespace App\Queries\Tasks;
 
 use App\Models\Product;
+use App\Models\Request as LeadRequest;
 use App\Models\Task;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\Work;
 use App\Services\CompanyFeatureService;
+use App\Services\TaskTimingService;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -22,14 +24,19 @@ class BuildTaskIndexData
         $filters = $request->only([
             'search',
             'status',
+            'priority',
+            'follow_up',
             'view',
         ]);
+        $filters['priority'] = $this->normalizePriorityFilter($filters['priority'] ?? null);
+        $filters['follow_up'] = $this->normalizeFollowUpFilter($filters['follow_up'] ?? null);
         $allowedViews = $isOwner && $hasTeamMembersFeature
             ? ['board', 'schedule', 'team']
             : ['board', 'schedule'];
         $filters['view'] = in_array($filters['view'] ?? null, $allowedViews, true)
             ? $filters['view']
             : 'board';
+        $today = now(TaskTimingService::resolveTimezoneForAccountId($accountId))->toDateString();
 
         $membership = $user && $user->id !== $accountId
             ? $user->teamMembership()->first()
@@ -38,12 +45,20 @@ class BuildTaskIndexData
 
         $query = Task::query()
             ->forAccount($accountId)
-            ->with(['assignee.user:id,name', 'materials.product:id,name,unit,price'])
+            ->with([
+                'assignee.user:id,name',
+                'materials.product:id,name,unit,price',
+                'request:id,title,contact_name,status',
+            ])
             ->when(
                 $filters['search'] ?? null,
                 fn ($query, $search) => $query->where(function ($sub) use ($search) {
                     $sub->where('title', 'like', '%'.$search.'%')
-                        ->orWhere('description', 'like', '%'.$search.'%');
+                        ->orWhere('description', 'like', '%'.$search.'%')
+                        ->orWhereHas('request', function ($requestQuery) use ($search) {
+                            $requestQuery->where('title', 'like', '%'.$search.'%')
+                                ->orWhere('contact_name', 'like', '%'.$search.'%');
+                        });
                 })
             )
             ->when(
@@ -51,6 +66,26 @@ class BuildTaskIndexData
                 fn ($query, $status) => in_array($status, Task::STATUSES, true)
                     ? $query->where('status', $status)
                     : null
+            )
+            ->when(
+                $filters['priority'] ?? null,
+                fn ($query, $priority) => in_array($priority, Task::PRIORITIES, true)
+                    ? $query->where('priority', $priority)
+                    : null
+            )
+            ->when(
+                $filters['follow_up'] ?? null,
+                function ($query, $followUp) use ($today) {
+                    if ($followUp === 'today') {
+                        return $query->dueToday($today);
+                    }
+
+                    if ($followUp === 'overdue') {
+                        return $query->overdue($today);
+                    }
+
+                    return null;
+                }
             );
 
         if ($membership && $membership->role !== 'admin') {
@@ -69,6 +104,13 @@ class BuildTaskIndexData
         $tasksQuery = $query
             ->orderByRaw('CASE WHEN due_date IS NULL THEN 1 ELSE 0 END')
             ->orderBy('due_date')
+            ->orderByRaw("CASE priority
+                WHEN 'urgent' THEN 0
+                WHEN 'high' THEN 1
+                WHEN 'normal' THEN 2
+                WHEN 'low' THEN 3
+                ELSE 2
+            END")
             ->orderByDesc('created_at');
 
         $view = $filters['view'];
@@ -134,15 +176,25 @@ class BuildTaskIndexData
             ->limit(200)
             ->get(['id', 'job_title', 'number', 'customer_id', 'status']);
 
+        $prospects = LeadRequest::query()
+            ->byUser($accountId)
+            ->active()
+            ->orderByDesc('last_activity_at')
+            ->orderByDesc('created_at')
+            ->limit(200)
+            ->get(['id', 'title', 'contact_name', 'status']);
+
         return [
             'tasks' => $tasks,
             'filters' => $filters,
             'statuses' => Task::STATUSES,
+            'priorities' => Task::PRIORITIES,
             'teamMembers' => $teamMembers,
             'stats' => $stats,
             'count' => $totalCount,
             'materialProducts' => $materialProducts,
             'works' => $works,
+            'prospects' => $prospects,
             'canManage' => $canManage,
             'canDelete' => $canDelete,
             'canEditStatus' => $canEditStatus,
@@ -160,5 +212,19 @@ class BuildTaskIndexData
         $task->setRelation('assignee', null);
 
         return $task;
+    }
+
+    private function normalizePriorityFilter(?string $priority): ?string
+    {
+        $normalized = is_string($priority) ? trim(strtolower($priority)) : null;
+
+        return in_array($normalized, Task::PRIORITIES, true) ? $normalized : null;
+    }
+
+    private function normalizeFollowUpFilter(?string $followUp): ?string
+    {
+        $normalized = is_string($followUp) ? trim(strtolower($followUp)) : null;
+
+        return in_array($normalized, ['today', 'overdue'], true) ? $normalized : null;
     }
 }

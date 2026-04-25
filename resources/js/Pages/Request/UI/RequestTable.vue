@@ -13,6 +13,7 @@ import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
+import ProspectDuplicateAlert from '@/Components/Prospects/ProspectDuplicateAlert.vue';
 import { humanizeDate } from '@/utils/date';
 import {
     prospectCompanyLabel,
@@ -702,6 +703,9 @@ const updateModalId = 'hs-request-update';
 const quickNoteModalId = 'hs-request-note';
 const selectedLead = ref(null);
 const processingId = ref(null);
+const convertDuplicateAlert = ref(null);
+const convertError = ref('');
+const convertSubmitting = ref(false);
 
 const convertForm = useForm({
     customer_id: '',
@@ -716,7 +720,7 @@ const convertForm = useForm({
 });
 
 const canSubmitConvert = computed(() => {
-    if (convertForm.processing) {
+    if (convertSubmitting.value) {
         return false;
     }
     if (convertForm.create_customer) {
@@ -772,6 +776,8 @@ const openConvert = (lead) => {
     selectedLead.value = lead;
     convertForm.reset();
     convertForm.clearErrors();
+    convertDuplicateAlert.value = null;
+    convertError.value = '';
 
     convertForm.customer_id = lead?.customer_id ? String(lead.customer_id) : '';
     convertForm.job_title = lead?.title || lead?.service_type || t('requests.convert.default_job_title');
@@ -791,23 +797,77 @@ const closeConvert = () => {
     selectedLead.value = null;
     convertForm.reset();
     convertForm.clearErrors();
+    convertDuplicateAlert.value = null;
+    convertError.value = '';
 };
 
-const submitConvert = () => {
+const buildConvertPayload = (ignoreDuplicates = false) => ({
+    customer_id: convertForm.customer_id || null,
+    property_id: convertForm.property_id || null,
+    job_title: convertForm.job_title || null,
+    description: convertForm.description || null,
+    create_customer: Boolean(convertForm.create_customer),
+    customer_name: convertForm.customer_name || null,
+    contact_name: convertForm.contact_name || null,
+    contact_email: convertForm.contact_email || null,
+    contact_phone: convertForm.contact_phone || null,
+    ignore_duplicates: ignoreDuplicates,
+});
+
+const submitConvert = async (ignoreDuplicates = false) => {
     const leadId = selectedLead.value?.id;
-    if (!leadId || convertForm.processing) {
+    if (!leadId || convertSubmitting.value) {
         return;
     }
 
-    convertForm.post(route('prospects.convert', leadId), {
-        preserveScroll: true,
-        onSuccess: () => {
-            if (window.HSOverlay) {
-                window.HSOverlay.close(`#${convertModalId}`);
-            }
-            closeConvert();
-        },
-    });
+    convertSubmitting.value = true;
+    convertDuplicateAlert.value = null;
+    convertError.value = '';
+    convertForm.clearErrors();
+
+    try {
+        const response = await axios.post(route('prospects.convert', leadId), buildConvertPayload(ignoreDuplicates), {
+            headers: {
+                Accept: 'application/json',
+            },
+        });
+
+        if (window.HSOverlay) {
+            window.HSOverlay.close(`#${convertModalId}`);
+        }
+        closeConvert();
+
+        const quoteId = response?.data?.quote?.id;
+        if (quoteId) {
+            router.visit(route('customer.quote.edit', quoteId), {
+                preserveScroll: true,
+            });
+            return;
+        }
+
+        router.reload({
+            preserveScroll: true,
+            preserveState: true,
+        });
+    } catch (error) {
+        if (error?.response?.status === 409 && error?.response?.data?.duplicate_alert) {
+            convertDuplicateAlert.value = {
+                ...error.response.data.duplicate_alert,
+                message: error.response.data.message || null,
+            };
+            return;
+        }
+
+        if (error?.response?.status === 422) {
+            convertForm.setError(error.response.data?.errors || {});
+            convertError.value = error.response.data?.message || '';
+            return;
+        }
+
+        convertError.value = error?.response?.data?.message || t('requests.feedback.convert_error');
+    } finally {
+        convertSubmitting.value = false;
+    }
 };
 
 const updateForm = useForm({
@@ -1199,6 +1259,9 @@ const importForm = useForm({
     file: null,
     mapping: {},
 });
+const importDuplicateAlert = ref(null);
+const importError = ref('');
+const importSubmitting = ref(false);
 const importHeaders = ref([]);
 const importMapping = ref({
     contact_name: '',
@@ -1309,6 +1372,8 @@ const setImportFile = async (event) => {
     const file = event.target.files?.[0] || null;
     importForm.file = file;
     importHeaders.value = [];
+    importDuplicateAlert.value = null;
+    importError.value = '';
     if (!file) {
         return;
     }
@@ -1321,25 +1386,66 @@ const setImportFile = async (event) => {
 
 const resetImport = () => {
     importForm.reset();
+    importForm.clearErrors();
     importHeaders.value = [];
+    importDuplicateAlert.value = null;
+    importError.value = '';
     autoMapHeaders([]);
 };
 
-const submitImport = () => {
-    if (!importForm.file) {
+const submitImport = async (ignoreDuplicates = false) => {
+    if (!importForm.file || importSubmitting.value) {
         return;
     }
-    importForm.mapping = { ...importMapping.value };
-    importForm.post(route('prospects.import'), {
-        forceFormData: true,
-        preserveScroll: true,
-        onSuccess: () => {
-            resetImport();
-            if (window.HSOverlay) {
-                window.HSOverlay.close(`#${importModalId}`);
-            }
-        },
+    importSubmitting.value = true;
+    importDuplicateAlert.value = null;
+    importError.value = '';
+    importForm.clearErrors();
+
+    const payload = new FormData();
+    payload.append('file', importForm.file);
+    payload.append('ignore_duplicates', ignoreDuplicates ? '1' : '0');
+    Object.entries(importMapping.value).forEach(([key, value]) => {
+        if (value) {
+            payload.append(`mapping[${key}]`, value);
+        }
     });
+
+    try {
+        await axios.post(route('prospects.import'), payload, {
+            headers: {
+                Accept: 'application/json',
+            },
+        });
+
+        resetImport();
+        if (window.HSOverlay) {
+            window.HSOverlay.close(`#${importModalId}`);
+        }
+        router.reload({
+            only: ['requests', 'stats', 'analytics'],
+            preserveScroll: true,
+            preserveState: true,
+        });
+    } catch (error) {
+        if (error?.response?.status === 409 && error?.response?.data?.duplicate_alert) {
+            importDuplicateAlert.value = {
+                ...error.response.data.duplicate_alert,
+                message: error.response.data.message || null,
+            };
+            return;
+        }
+
+        if (error?.response?.status === 422) {
+            importForm.setError(error.response.data?.errors || {});
+            importError.value = error.response.data?.message || '';
+            return;
+        }
+
+        importError.value = error?.response?.data?.message || t('requests.feedback.import_error');
+    } finally {
+        importSubmitting.value = false;
+    }
 };
 
 </script>
@@ -2016,6 +2122,12 @@ const submitImport = () => {
 
     <Modal :title="$t('requests.import.title')" :id="importModalId">
         <div class="space-y-4">
+            <ProspectDuplicateAlert
+                :alert="importDuplicateAlert"
+                :can-continue="true"
+                @continue="submitImport(true)"
+            />
+
             <div>
                 <label class="block text-sm font-medium text-stone-700 dark:text-neutral-300">
                     {{ $t('requests.import.csv_file') }}
@@ -2048,6 +2160,10 @@ const submitImport = () => {
                 {{ $t('requests.import.missing_headers') }}
             </div>
 
+            <div v-if="importError" class="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {{ importError }}
+            </div>
+
             <div class="flex justify-end gap-2">
                 <button
                     type="button"
@@ -2060,7 +2176,7 @@ const submitImport = () => {
                 <button
                     type="button"
                     class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
-                    :disabled="importForm.processing || !importForm.file"
+                    :disabled="importSubmitting || !importForm.file"
                     @click="submitImport"
                 >
                     {{ $t('requests.import.submit') }}
@@ -2115,6 +2231,12 @@ const submitImport = () => {
                 <div v-if="selectedLead.contact_email">{{ selectedLead.contact_email }}</div>
                 <div v-if="selectedLead.contact_phone">{{ selectedLead.contact_phone }}</div>
             </div>
+
+            <ProspectDuplicateAlert
+                :alert="convertDuplicateAlert"
+                :can-continue="true"
+                @continue="submitConvert(true)"
+            />
 
             <label class="flex items-center gap-2 text-sm text-stone-600 dark:text-neutral-300">
                 <input
@@ -2173,6 +2295,10 @@ const submitImport = () => {
 
             <div>
                 <FloatingTextarea v-model="convertForm.description" :label="$t('requests.convert.notes_optional')" />
+            </div>
+
+            <div v-if="convertError" class="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {{ convertError }}
             </div>
 
             <div class="flex justify-end gap-2">

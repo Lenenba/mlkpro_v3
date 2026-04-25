@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\LeadMedia;
 use App\Models\Request as LeadRequest;
+use App\Services\ProspectInteractionLogger;
 use App\Utils\FileHandler;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -52,6 +54,17 @@ class RequestMediaController extends Controller
             'size' => $size,
             'meta' => $validated['meta'] ?? null,
         ]);
+
+        $lead->update([
+            'last_activity_at' => now(),
+        ]);
+
+        ActivityLog::record($user, $lead, 'file_uploaded', [
+            'media_id' => $media->id,
+            'original_name' => $media->original_name,
+            'mime' => $media->mime,
+        ], 'Prospect file uploaded');
+        app(ProspectInteractionLogger::class)->recordMediaAdded($lead, $user, $media);
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([

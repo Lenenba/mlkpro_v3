@@ -77,6 +77,7 @@ class TaskController extends Controller
             'assignee.user:id,name',
             'materials.product:id,name,unit,price',
             'media.user:id,name',
+            'request:id,title,contact_name,status',
             'work.quote.property',
             'customer.properties',
             'customer.defaultProperty',
@@ -164,6 +165,7 @@ class TaskController extends Controller
         return $this->inertiaOrJson('Task/Show', [
             'task' => $task,
             'statuses' => Task::STATUSES,
+            'priorities' => Task::PRIORITIES,
             'teamMembers' => $teamMembers,
             'materialProducts' => $materialProducts,
             'works' => $works,
@@ -292,6 +294,7 @@ class TaskController extends Controller
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
             'status' => $status,
+            'priority' => $validated['priority'] ?? Task::PRIORITY_NORMAL,
             'due_date' => $validated['due_date'] ?? null,
             'start_time' => $startTime,
             'end_time' => $endTime,
@@ -330,7 +333,7 @@ class TaskController extends Controller
         if ($this->shouldReturnJson($request)) {
             return response()->json([
                 'message' => 'Task created.',
-                'task' => $task->fresh(['assignee.user', 'materials.product']),
+                'task' => $task->fresh(['assignee.user', 'materials.product', 'request']),
             ], 201);
         }
 
@@ -390,6 +393,7 @@ class TaskController extends Controller
             $updates['title'] = $validated['title'];
             $updates['description'] = $validated['description'] ?? null;
             $updates['due_date'] = $validated['due_date'] ?? null;
+            $updates['priority'] = $validated['priority'] ?? ($task->priority ?? Task::PRIORITY_NORMAL);
             $updates['assigned_team_member_id'] = $validated['assigned_team_member_id'] ?? null;
             $updates['product_id'] = $validated['product_id'] ?? null;
             $updates['request_id'] = $validated['request_id'] ?? null;
@@ -573,7 +577,7 @@ class TaskController extends Controller
         if ($this->shouldReturnJson($request)) {
             return response()->json([
                 'message' => 'Task updated.',
-                'task' => $task->fresh(['assignee.user', 'materials.product']),
+                'task' => $task->fresh(['assignee.user', 'materials.product', 'request']),
             ]);
         }
 

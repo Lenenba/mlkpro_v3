@@ -11,10 +11,17 @@ Suivi courant:
 - `PROSPECT-101` a `PROSPECT-105` faits: creation inbound / API / backoffice et import CSV en mode prospect-first deja couverts dans le workspace
 - `PROSPECT-201` a `PROSPECT-204` faits: workspace prospects V1, filtres, actions rapides et fiche detail sont consolides et couverts par tests
 - `PROSPECT-301` fait: historique de statuts prospect journalise sur les creations et transitions principales, expose sur la fiche detail et couvert par tests
-- `PROSPECT-302` a `PROSPECT-304` a faire: couche interactions enrichie, taches de relance formalisees et rappels automatiques restent a livrer
+- `PROSPECT-302` fait: couche `prospect_interactions` branchee sur notes, documents, activites CRM et emails, exposee sur la fiche detail et couverte par tests
+- `PROSPECT-303` fait: taches de relance prospects formalisees avec priorites, filtres today / overdue et liaison explicite des taches au prospect
+- `PROSPECT-304` fait: rappels automatiques sur relances prospects livres avec commande planifiee, notification CRM et audit
+- `PROSPECT-401` fait: moteur de detection de doublons prospects livre avec score, raisons et classement sur email, telephone, nom, entreprise et adresse
+- `PROSPECT-402` fait: alertes de doublon branchees sur creation backoffice, import CSV, conversion et formulaire public avec confirmation explicite pour continuer
+- `PROSPECT-403` fait: fusion non destructive des prospects livree avec transfert notes / interactions / documents, rattachement des taches ouvertes, archivage technique du doublon et audit
+- `PROSPECT-501` fait: `quotes.prospect_id` ajoute, `quotes.customer_id` rendu nullable et retro-compatibilite de liaison prospect assuree
+- `PROSPECT-502` fait: numerotation des devis scopee par tenant et relation `quote->prospect` ajoutees sans casser les anciens liens `request_id`
 - `PROSPECT-702` partiel: archivage V1 livre avec filtre archives, restauration, audit et mode lecture seule; anonymisation V1 archive-only est maintenant branchee, la suppression logique controlee reste a faire
 - le socle existant repose encore sur `Request` / `Lead`
-- blocage structurel confirme: `Quote` depend encore d'un `customer_id` obligatoire
+- le socle `Quote / Prospect` est maintenant pret; les flux de creation prospect -> devis restent a rebrancher sans client force
 
 Point cle:
 
@@ -555,7 +562,7 @@ Objectif technique:
 
 ### `PROSPECT-302` - Creer la couche interactions prospects
 
-- Statut: `a faire`
+- Statut: `fait`
 - But: stocker appels, courriels, notes, rendez-vous, relances, documents ajoutes
 - Livrables:
 - table `prospect_interactions`
@@ -572,10 +579,12 @@ Objectif technique:
 - `tests/Feature/ProspectInteractionTimelineTest.php`
 - Definition de done:
 - la timeline n'est plus limitee au seul `ActivityLog` brut
+- Verification executee:
+- `php artisan test tests/Feature/ProspectInteractionTimelineTest.php`
 
 ### `PROSPECT-303` - Formaliser les taches de relance
 
-- Statut: `a faire`
+- Statut: `fait`
 - But: relier les taches existantes au suivi prospect sans ambiguite
 - Livrables:
 - statut de tache: a faire, en cours, completee, annulee
@@ -590,10 +599,14 @@ Objectif technique:
 - reutiliser `tasks.request_id` avant de penser a une table parallele
 - Definition de done:
 - un prospect peut avoir plusieurs relances planifiees et visibles
+- Verification executee:
+- `php artisan test tests/Feature/ProspectFollowUpTaskTest.php`
+- `php artisan test tests/Feature/ProspectWorkspaceFeatureTest.php tests/Feature/ProspectStatusHistoryTest.php tests/Feature/ProspectInteractionTimelineTest.php tests/Feature/TaskLifecycleManagementTest.php tests/Feature/SoloOwnerOnlyAccessTest.php`
+- `npm run build`
 
 ### `PROSPECT-304` - Mettre a niveau les rappels automatiques
 
-- Statut: `a faire`
+- Statut: `fait`
 - But: faire vivre le suivi sans surveillance manuelle
 - Livrables:
 - commande de rappel compatible `Prospects`
@@ -601,10 +614,13 @@ Objectif technique:
 - notification pour relance en retard
 - Fichiers probables:
 - `routes/console.php`
-- `app/Notifications/LeadFollowUpNotification.php`
+- `app/Notifications/ProspectFollowUpReminderNotification.php`
+- `app/Services/ProspectFollowUpReminderService.php`
 - eventuels nouveaux notifications/services
 - Definition de done:
 - le systeme detecte et signale les suivis a faire
+- Verification executee:
+- `php artisan test tests/Feature/ProspectFollowUpReminderCommandTest.php tests/Feature/ProspectFollowUpTaskTest.php tests/Feature/ProspectWorkspaceFeatureTest.php tests/Feature/TaskLifecycleManagementTest.php`
 
 Definition de done de phase:
 
@@ -623,7 +639,7 @@ Objectif technique:
 
 ### `PROSPECT-401` - Creer le moteur de detection de doublons
 
-- Statut: `a faire`
+- Statut: `fait`
 - But: detecter les collisions sur email, telephone, nom, entreprise, adresse
 - Fichiers probables:
 - `app/Services/Prospects/ProspectDuplicateDetectionService.php`
@@ -631,22 +647,28 @@ Objectif technique:
 - `tests/Feature/ProspectDuplicateMergeTest.php`
 - Definition de done:
 - le systeme peut retourner des doublons potentiels classes par score ou raison
+- Verification executee:
+- `php artisan test tests/Feature/ProspectDuplicateMergeTest.php tests/Feature/ProspectWorkspaceFeatureTest.php`
 
 ### `PROSPECT-402` - Afficher les alertes de doublon dans les bons flux
 
-- Statut: `a faire`
+- Statut: `fait`
 - But: prevenir avant creation, edition, import ou conversion
 - Fichiers probables:
-- `resources/js/Pages/Request/Show.vue`
-- `resources/js/Pages/Request/Index.vue`
+- `resources/js/Components/QuickCreate/RequestQuickForm.vue`
+- `resources/js/Components/Prospects/ProspectDuplicateAlert.vue`
+- `resources/js/Pages/Public/RequestForm.vue`
+- `resources/js/Pages/Request/UI/RequestTable.vue`
 - `app/Http/Controllers/PublicRequestController.php`
 - `app/Http/Controllers/RequestController.php`
 - Definition de done:
 - l'utilisateur voit clairement les doublons potentiels et peut agir
+- Verification executee:
+- `php artisan test tests/Feature/ProspectDuplicateMergeTest.php tests/Feature/ProspectWorkspaceFeatureTest.php tests/Feature/ProspectsInboundPublicTest.php tests/Feature/ProspectStatusHistoryTest.php`
 
 ### `PROSPECT-403` - Ajouter la fusion de prospects
 
-- Statut: `a faire`
+- Statut: `fait`
 - But: fusionner sans perdre notes, taches, documents, historique
 - Livrables:
 - choix d'un prospect principal
@@ -657,10 +679,14 @@ Objectif technique:
 - journalisation de l'action
 - Fichiers probables:
 - `app/Services/Prospects/ProspectMergeService.php`
+- `database/migrations/2026_04_25_000004_add_prospect_merge_tracking_fields_to_requests_table.php`
+- `app/Models/Request.php`
 - `app/Http/Controllers/RequestController.php`
 - `tests/Feature/ProspectDuplicateMergeTest.php`
 - Definition de done:
 - deux prospects peuvent etre fusionnes de facon sure et tracable
+- Verification executee:
+- `php artisan test tests/Feature/ProspectDuplicateMergeTest.php tests/Feature/ProspectWorkspaceFeatureTest.php`
 
 Definition de done de phase:
 
@@ -678,7 +704,7 @@ Objectif technique:
 
 ### `PROSPECT-501` - Ajouter `quotes.prospect_id` et rendre `quotes.customer_id` nullable
 
-- Statut: `a faire`
+- Statut: `fait`
 - But: supprimer le verrou structurel principal
 - Fichiers probables:
 - migration additive sur `quotes`
@@ -688,10 +714,12 @@ Objectif technique:
 - la generation du numero de devis depend aujourd'hui de `customer_id`
 - Definition de done:
 - un devis peut etre cree pour un prospect avec `prospect_id` et sans `customer_id`
+- Verification executee:
+- `php artisan test tests/Feature/ProspectQuoteBridgeTest.php tests/Feature/OpportunityLinkingPhaseSixTest.php tests/Feature/ProspectStatusHistoryTest.php`
 
 ### `PROSPECT-502` - Adapter la logique de numerotation et les relations Quote
 
-- Statut: `a faire`
+- Statut: `fait`
 - But: rendre `Quote` coherent avec le nouveau modele
 - Livrables:
 - relation `quote->prospect`
@@ -703,6 +731,8 @@ Objectif technique:
 - `app/Models/Request.php` ou `Prospect.php`
 - Definition de done:
 - la creation de devis ne jette plus d'exception quand `customer_id` est vide
+- Verification executee:
+- `php artisan test tests/Feature/ProspectQuoteBridgeTest.php tests/Feature/OpportunityLinkingPhaseSixTest.php tests/Feature/ProspectStatusHistoryTest.php`
 
 ### `PROSPECT-503` - Corriger les flux de creation de devis depuis un prospect
 

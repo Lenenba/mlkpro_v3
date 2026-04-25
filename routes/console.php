@@ -39,6 +39,7 @@ use App\Services\ExpenseRecurringService;
 use App\Services\Observability\ObservabilityReportService;
 use App\Services\PlanEntitlementSyncService;
 use App\Services\PlatformAdminNotifier;
+use App\Services\ProspectFollowUpReminderService;
 use App\Services\PublicCopySyncService;
 use App\Services\QueueHealthService;
 use App\Services\ReservationAvailabilityService;
@@ -1356,6 +1357,30 @@ Artisan::command('leads:follow-up-reminders {--hours=24}', function (): int {
     return 0;
 })->purpose('Send reminders for unassigned or overdue lead follow-ups');
 
+Artisan::command('prospects:follow-up-reminders
+    {--date= : Optional reference datetime for testing}
+    {--dry-run : Preview reminders without sending notifications}', function (
+    ProspectFollowUpReminderService $reminderService
+): int {
+    $dateOption = trim((string) $this->option('date'));
+    $referenceTime = $dateOption !== '' ? \Illuminate\Support\Carbon::parse($dateOption) : now();
+    $dryRun = (bool) $this->option('dry-run');
+
+    $summary = $reminderService->process($referenceTime, $dryRun);
+
+    $this->info(sprintf(
+        'Prospect follow-up reminders: scanned=%d due_today=%d overdue=%d sent=%d skipped=%d dry_run=%s',
+        (int) ($summary['scanned'] ?? 0),
+        (int) ($summary['due_today'] ?? 0),
+        (int) ($summary['overdue'] ?? 0),
+        (int) ($summary['sent'] ?? 0),
+        (int) ($summary['skipped'] ?? 0),
+        $dryRun ? 'yes' : 'no',
+    ));
+
+    return 0;
+})->purpose('Send reminders for due today and overdue prospect follow-up tasks');
+
 Artisan::command('support:sla-reminders', function (
     SupportSettingsService $settingsService,
     SupportAssignmentService $assignmentService
@@ -2132,6 +2157,7 @@ Schedule::command('billing:upcoming-reminders')
     ->withoutOverlapping();
 Schedule::command('orders:deposit-reminders')->everyFourHours();
 Schedule::command('leads:follow-up-reminders --hours=24')->hourly();
+Schedule::command('prospects:follow-up-reminders')->hourlyAt(10)->withoutOverlapping();
 Schedule::command('support:sla-reminders')->hourly();
 Schedule::command('reservations:notifications')->everyFifteenMinutes();
 Schedule::command('reservations:queue-alerts')->everyFiveMinutes()->withoutOverlapping();

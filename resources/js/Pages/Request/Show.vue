@@ -9,6 +9,7 @@ import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
 import Modal from '@/Components/UI/Modal.vue';
 import SalesActivityPanel from '@/Components/CRM/SalesActivityPanel.vue';
+import ProspectInteractionTimeline from '@/Components/Prospects/ProspectInteractionTimeline.vue';
 import { humanizeDate } from '@/utils/date';
 import { formatBytes } from '@/utils/media';
 import { buildLeadScore, badgeClass } from '@/utils/leadScore';
@@ -139,9 +140,26 @@ const anonymizedMeta = computed(() => props.lead?.meta?.privacy || {});
 const anonymizedAtLabel = computed(() => formatDate(anonymizedMeta.value?.anonymized_at));
 const anonymizationReason = computed(() => anonymizedMeta.value?.anonymization_reason || '');
 const statusHistoryItems = computed(() => Array.isArray(props.lead?.status_histories) ? props.lead.status_histories : []);
+const prospectInteractionItems = ref(Array.isArray(props.lead?.prospect_interactions) ? [...props.lead.prospect_interactions] : []);
 
 const hasMedia = computed(() => Array.isArray(props.lead?.media) && props.lead.media.length > 0);
 const hasTasks = computed(() => Array.isArray(props.lead?.tasks) && props.lead.tasks.length > 0);
+const openTaskStatuses = ['todo', 'in_progress'];
+const taskPriorityWeights = {
+    urgent: 0,
+    high: 1,
+    normal: 2,
+    low: 3,
+};
+const prospectTaskFilter = ref('all');
+
+watch(
+    () => props.lead?.prospect_interactions,
+    (items) => {
+        prospectInteractionItems.value = Array.isArray(items) ? [...items] : [];
+    },
+    { deep: true }
+);
 
 const closeOverlay = (selector) => {
     if (typeof window === 'undefined' || !window.HSOverlay) {
@@ -337,6 +355,7 @@ const taskForm = useForm({
     title: '',
     description: '',
     due_date: '',
+    priority: 'normal',
     assigned_team_member_id: props.lead?.assigned_team_member_id ? String(props.lead.assigned_team_member_id) : '',
     status: 'todo',
     standalone: true,
@@ -357,23 +376,18 @@ const submitTask = () => {
     })).post(route('task.store'), {
         preserveScroll: true,
         onSuccess: () => {
-            taskForm.reset('title', 'description', 'due_date');
+            taskForm.reset('title', 'description', 'due_date', 'priority');
+            taskForm.priority = 'normal';
             closeOverlay('#request-task-modal');
         },
     });
 };
 
 const taskStatusLabel = (status) => {
-    switch (status) {
-        case 'todo':
-            return t('requests.tasks.todo');
-        case 'in_progress':
-            return t('requests.tasks.in_progress');
-        case 'done':
-            return t('requests.tasks.done');
-        default:
-            return status || '-';
-    }
+    const key = `tasks.status.${status}`;
+    const label = t(key);
+
+    return label === key ? (status || '-') : label;
 };
 
 const taskStatusClass = (status) => {
@@ -384,16 +398,133 @@ const taskStatusClass = (status) => {
             return 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300';
         case 'done':
             return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300';
+        case 'cancelled':
+            return 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300';
         default:
             return 'bg-stone-100 text-stone-600 dark:bg-neutral-700 dark:text-neutral-300';
     }
 };
+const taskPriorityLabel = (priority) => {
+    const key = `tasks.priority.${priority || 'normal'}`;
+    const label = t(key);
+
+    return label === key ? (priority || 'normal') : label;
+};
+const taskPriorityClass = (priority) => {
+    switch (priority) {
+        case 'urgent':
+            return 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300';
+        case 'high':
+            return 'bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-300';
+        case 'low':
+            return 'bg-stone-100 text-stone-600 dark:bg-neutral-700 dark:text-neutral-300';
+        case 'normal':
+        default:
+            return 'bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300';
+    }
+};
+const normalizeTaskDateKey = (value) => {
+    if (!value) {
+        return null;
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return null;
+    }
+
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+};
+const todayTaskDateKey = () => normalizeTaskDateKey(new Date());
+const isTaskOpen = (task) => openTaskStatuses.includes(task?.status);
+const isTaskDueToday = (task) => isTaskOpen(task) && normalizeTaskDateKey(task?.due_date) === todayTaskDateKey();
+const isTaskOverdue = (task) => {
+    const dueDateKey = normalizeTaskDateKey(task?.due_date);
+
+    return Boolean(dueDateKey) && isTaskOpen(task) && dueDateKey < todayTaskDateKey();
+};
+const leadTaskSortKey = (task) => normalizeTaskDateKey(task?.due_date) || '9999-12-31';
+const leadTasks = computed(() => {
+    const items = Array.isArray(props.lead?.tasks) ? [...props.lead.tasks] : [];
+
+    return items.sort((left, right) => {
+        const leftOpenRank = isTaskOpen(left) ? 0 : 1;
+        const rightOpenRank = isTaskOpen(right) ? 0 : 1;
+        if (leftOpenRank !== rightOpenRank) {
+            return leftOpenRank - rightOpenRank;
+        }
+
+        const dueComparison = leadTaskSortKey(left).localeCompare(leadTaskSortKey(right));
+        if (dueComparison !== 0) {
+            return dueComparison;
+        }
+
+        const leftPriority = taskPriorityWeights[left?.priority || 'normal'] ?? 2;
+        const rightPriority = taskPriorityWeights[right?.priority || 'normal'] ?? 2;
+        if (leftPriority !== rightPriority) {
+            return leftPriority - rightPriority;
+        }
+
+        return String(right?.created_at || '').localeCompare(String(left?.created_at || ''));
+    });
+});
+const leadTaskFilterOptions = computed(() => {
+    const tasks = Array.isArray(props.lead?.tasks) ? props.lead.tasks : [];
+
+    return [
+        {
+            id: 'all',
+            label: t('tasks.follow_up.all'),
+            count: tasks.length,
+        },
+        {
+            id: 'today',
+            label: t('tasks.follow_up.today'),
+            count: tasks.filter((task) => isTaskDueToday(task)).length,
+        },
+        {
+            id: 'overdue',
+            label: t('tasks.follow_up.overdue'),
+            count: tasks.filter((task) => isTaskOverdue(task)).length,
+        },
+    ];
+});
+const filteredLeadTasks = computed(() => {
+    if (prospectTaskFilter.value === 'today') {
+        return leadTasks.value.filter((task) => isTaskDueToday(task));
+    }
+
+    if (prospectTaskFilter.value === 'overdue') {
+        return leadTasks.value.filter((task) => isTaskOverdue(task));
+    }
+
+    return leadTasks.value;
+});
 
 const statusHistoryFromLabel = (entry) => entry?.from_status
     ? statusLabel(entry.from_status)
     : t('requests.status_history.initial_state');
 
 const statusHistoryActorLabel = (entry) => entry?.user?.name || t('requests.status_history.system');
+
+const prependProspectInteraction = (interaction) => {
+    if (!interaction?.id) {
+        return;
+    }
+
+    prospectInteractionItems.value = [
+        interaction,
+        ...prospectInteractionItems.value.filter((item) => item?.id !== interaction.id),
+    ];
+};
+
+const handleSalesActivityLogged = (payload) => {
+    prependProspectInteraction(payload?.interaction);
+};
 
 const assigneeOptions = computed(() =>
     (props.assignees || []).map((assignee) => ({
@@ -774,6 +905,8 @@ const mergeDuplicate = (duplicate) => {
 
             <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr),320px]">
                 <div class="space-y-4">
+                    <ProspectInteractionTimeline :items="prospectInteractionItems" />
+
                     <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                         <div class="flex items-center justify-between">
                             <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
@@ -997,9 +1130,28 @@ const mergeDuplicate = (duplicate) => {
                             </button>
                         </div>
 
-                        <div v-if="lead.tasks?.length" class="mt-3 space-y-2">
+                        <div v-if="lead.tasks?.length" class="mt-3 space-y-3">
+                            <div class="flex flex-wrap gap-2">
+                                <button
+                                    v-for="option in leadTaskFilterOptions"
+                                    :key="`prospect-task-filter-${option.id}`"
+                                    type="button"
+                                    class="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition"
+                                    :class="prospectTaskFilter === option.id
+                                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:border-emerald-400 dark:bg-emerald-500/10 dark:text-emerald-300'
+                                        : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800'"
+                                    @click="prospectTaskFilter = option.id"
+                                >
+                                    <span>{{ option.label }}</span>
+                                    <span class="rounded-full bg-black/5 px-2 py-0.5 text-[11px] dark:bg-white/10">
+                                        {{ option.count }}
+                                    </span>
+                                </button>
+                            </div>
+
+                            <div class="space-y-2">
                             <div
-                                v-for="task in lead.tasks"
+                                v-for="task in filteredLeadTasks"
                                 :key="task.id"
                                 class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
                             >
@@ -1018,6 +1170,9 @@ const mergeDuplicate = (duplicate) => {
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-2 text-xs">
+                                        <span class="rounded-full px-2 py-0.5 font-medium" :class="taskPriorityClass(task.priority)">
+                                            {{ taskPriorityLabel(task.priority) }}
+                                        </span>
                                         <span class="rounded-full px-2 py-0.5 font-medium" :class="taskStatusClass(task.status)">
                                             {{ taskStatusLabel(task.status) }}
                                         </span>
@@ -1053,15 +1208,29 @@ const mergeDuplicate = (duplicate) => {
                                     </button>
                                 </div>
                             </div>
+                            </div>
+                            <p v-if="!filteredLeadTasks.length" class="text-sm text-stone-500 dark:text-neutral-400">
+                                {{ $t('tasks.empty.no_tasks_for_filter') }}
+                            </p>
                         </div>
                         <p v-else class="mt-3 text-sm text-stone-500 dark:text-neutral-400">
                             {{ $t('requests.tasks.empty') }}
                         </p>
 
                         <form v-if="!hasTasks && !isArchived" class="mt-4 space-y-2" @submit.prevent="submitTask">
-                            <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
+                            <div class="grid grid-cols-1 gap-2 md:grid-cols-3">
                                 <FloatingInput v-model="taskForm.title" :label="$t('requests.tasks.title_label')" />
                                 <DatePicker v-model="taskForm.due_date" :label="$t('requests.tasks.due_date')" />
+                                <FloatingSelect
+                                    v-model="taskForm.priority"
+                                    :label="$t('tasks.form.priority')"
+                                    :options="[
+                                        { id: 'low', name: $t('tasks.priority.low') },
+                                        { id: 'normal', name: $t('tasks.priority.normal') },
+                                        { id: 'high', name: $t('tasks.priority.high') },
+                                        { id: 'urgent', name: $t('tasks.priority.urgent') },
+                                    ]"
+                                />
                             </div>
                             <FloatingSelect
                                 v-model="taskForm.assigned_team_member_id"
@@ -1071,6 +1240,7 @@ const mergeDuplicate = (duplicate) => {
                             />
                             <FloatingTextarea v-model="taskForm.description" :label="$t('requests.tasks.description')" />
                             <InputError class="mt-1" :message="taskForm.errors.title" />
+                            <InputError class="mt-1" :message="taskForm.errors.priority" />
                             <InputError class="mt-1" :message="taskForm.errors.assigned_team_member_id" />
                             <div class="flex justify-end">
                                 <button
@@ -1092,6 +1262,7 @@ const mergeDuplicate = (duplicate) => {
                         :store-route="route('crm.sales-activities.requests.store', lead.id)"
                         i18n-prefix="requests.sales_activity"
                         dialog-id="request-sales-activity-modal"
+                        @logged="handleSalesActivityLogged"
                     />
                 </div>
 
@@ -1391,14 +1562,31 @@ const mergeDuplicate = (duplicate) => {
                             <div
                                 v-for="duplicate in duplicates"
                                 :key="duplicate.id"
-                                class="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800"
+                                class="flex flex-wrap items-start justify-between gap-3 rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800"
                             >
-                                <div>
-                                    <Link :href="route('prospects.show', duplicate.id)" class="text-sm font-semibold text-stone-800 hover:text-emerald-600 dark:text-neutral-200">
-                                        {{ duplicate.title || duplicate.service_type || $t('requests.labels.request_number', { id: duplicate.id }) }}
-                                    </Link>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <Link :href="route('prospects.show', duplicate.id)" class="text-sm font-semibold text-stone-800 hover:text-emerald-600 dark:text-neutral-200">
+                                            {{ duplicate.title || duplicate.service_type || $t('requests.labels.request_number', { id: duplicate.id }) }}
+                                        </Link>
+                                        <span class="inline-flex items-center rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+                                            {{ $t('requests.duplicates.score', { score: duplicate.duplicate_score || 0 }) }}
+                                        </span>
+                                    </div>
                                     <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
                                         {{ statusLabel(duplicate.status) }} · {{ formatDate(duplicate.created_at) }}
+                                    </div>
+                                    <div v-if="duplicate.duplicate_summary" class="mt-2 text-xs text-stone-700 dark:text-neutral-200">
+                                        {{ duplicate.duplicate_summary }}
+                                    </div>
+                                    <div v-if="Array.isArray(duplicate.duplicate_reasons) && duplicate.duplicate_reasons.length" class="mt-2 flex flex-wrap gap-1">
+                                        <span
+                                            v-for="reason in duplicate.duplicate_reasons"
+                                            :key="`${duplicate.id}-${reason.code}`"
+                                            class="inline-flex items-center rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-stone-700 dark:bg-neutral-900 dark:text-neutral-200"
+                                        >
+                                            {{ reason.label }}
+                                        </span>
                                     </div>
                                 </div>
                                 <button
@@ -1455,9 +1643,19 @@ const mergeDuplicate = (duplicate) => {
 
         <Modal v-if="hasTasks && !isArchived" :title="$t('requests.tasks.create')" :id="'request-task-modal'">
             <form class="space-y-2" @submit.prevent="submitTask">
-                <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
+                <div class="grid grid-cols-1 gap-2 md:grid-cols-3">
                     <FloatingInput v-model="taskForm.title" :label="$t('requests.tasks.title_label')" />
                     <DatePicker v-model="taskForm.due_date" :label="$t('requests.tasks.due_date')" />
+                    <FloatingSelect
+                        v-model="taskForm.priority"
+                        :label="$t('tasks.form.priority')"
+                        :options="[
+                            { id: 'low', name: $t('tasks.priority.low') },
+                            { id: 'normal', name: $t('tasks.priority.normal') },
+                            { id: 'high', name: $t('tasks.priority.high') },
+                            { id: 'urgent', name: $t('tasks.priority.urgent') },
+                        ]"
+                    />
                 </div>
                 <FloatingSelect
                     v-model="taskForm.assigned_team_member_id"
@@ -1467,6 +1665,7 @@ const mergeDuplicate = (duplicate) => {
                 />
                 <FloatingTextarea v-model="taskForm.description" :label="$t('requests.tasks.description')" />
                 <InputError class="mt-1" :message="taskForm.errors.title" />
+                <InputError class="mt-1" :message="taskForm.errors.priority" />
                 <InputError class="mt-1" :message="taskForm.errors.assigned_team_member_id" />
                 <div class="flex justify-end">
                     <button

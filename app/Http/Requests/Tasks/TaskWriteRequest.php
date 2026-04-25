@@ -48,6 +48,7 @@ abstract class TaskWriteRequest extends FormRequest
                 'integer',
                 Rule::exists('requests', 'id')->where('user_id', $accountId),
             ],
+            'priority' => ['nullable', 'string', Rule::in(Task::PRIORITIES)],
             'due_date' => ['nullable', 'date'],
             'assigned_team_member_id' => [
                 'nullable',

@@ -20,6 +20,12 @@
     "filters": {
       "search_placeholder": "Buscar tareas, detalles o asignado",
       "search_placeholder_solo": "Buscar tareas o detalles",
+      "priority": {
+        "all": "Todas las prioridades"
+      },
+      "follow_up": {
+        "all": "Todos los seguimientos"
+      },
       "status": {
         "all": "Todo el estado"
       }
@@ -80,7 +86,13 @@
       "no_tasks": "Aún no hay tareas.",
       "no_tasks_in_range": "No hay tareas en este rango.",
       "no_tasks_for_date": "No hay tareas para {date}.",
-      "no_tasks_column": "Sin tareas"
+      "no_tasks_column": "Sin tareas",
+      "no_tasks_for_filter": "Ninguna tarea coincide con este filtro de seguimiento."
+    },
+    "follow_up": {
+      "all": "Todas",
+      "today": "Hoy",
+      "overdue": "Vencidas"
     },
     "labels": {
       "no_due_date": "Sin fecha de vencimiento",
@@ -89,11 +101,20 @@
       "task_count_many": "{count} tareas",
       "job_number": "Trabajo #{id}",
       "unknown_status": "Estado desconocido",
-      "task": "Tarea"
+      "task": "Tarea",
+      "prospect": "Prospecto"
+    },
+    "priority": {
+      "low": "Baja",
+      "normal": "Normal",
+      "high": "Alta",
+      "urgent": "Urgente"
     },
     "table": {
       "task": "Tarea",
       "status": "Estado",
+      "priority": "Prioridad",
+      "follow_up": "Seguimiento",
       "due": "debido",
       "assignee": "Cesionario",
       "created": "Creado",
@@ -108,6 +129,8 @@
     "details": {
       "title": "Detalles de la tarea",
       "status": "Estado",
+      "priority": "Prioridad",
+      "prospect": "Prospecto",
       "due": "debido",
       "created": "Creado",
       "assignee": "Cesionario",
@@ -157,9 +180,12 @@
       "title": "Título",
       "description_optional": "Descripción (opcional)",
       "job": "Trabajo",
+      "prospect": "Prospecto",
+      "no_prospect": "Sin prospecto vinculado",
       "select_job": "Seleccionar trabajo",
       "one_off_task": "tarea única",
       "status": "Estado",
+      "priority": "Prioridad",
       "due_date": "fecha de vencimiento",
       "delay_reason": "Motivo del retraso",
       "assignee": "Cesionario",

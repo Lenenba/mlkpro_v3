@@ -25,6 +25,7 @@ class Quote extends Model
         'customer_id',
         'property_id',
         'request_id',
+        'prospect_id',
         'parent_id',
         'work_id',
         'total',
@@ -68,18 +69,31 @@ class Quote extends Model
     {
         parent::boot();
 
+        static::saving(function ($quote) {
+            $prospectId = $quote->prospect_id ?? $quote->request_id;
+
+            if ($prospectId) {
+                $quote->prospect_id = $prospectId;
+                $quote->request_id = $prospectId;
+            }
+        });
+
         // Automatically generate the quote number before creating
         static::creating(function ($quote) {
-            // Ensure `customer_id` is set before generating the number
-            if (! $quote->customer_id) {
-                throw new \Exception('Customer ID is required to generate a quote number.');
+            $ownerId = $quote->user_id
+                ?: ($quote->customer_id ? Customer::query()->whereKey($quote->customer_id)->value('user_id') : null)
+                ?: ($quote->prospect_id ? LeadRequest::query()->whereKey($quote->prospect_id)->value('user_id') : null)
+                ?: ($quote->request_id ? LeadRequest::query()->whereKey($quote->request_id)->value('user_id') : null);
+
+            if (! $ownerId) {
+                throw new \Exception('Quote owner is required to generate a quote number.');
             }
 
-            // Generate the number scoped by customer and user
-            $quote->number = self::generateScopedNumber($quote->customer_id, 'Q');
+            $quote->user_id = $ownerId;
+            $quote->number = self::generateNumber($ownerId, 'Q');
 
             if (! $quote->currency_code) {
-                $owner = $quote->user_id ? User::query()->find($quote->user_id) : null;
+                $owner = User::query()->find($ownerId);
                 $quote->currency_code = $owner?->businessCurrencyCode() ?? CurrencyCode::default()->value;
             }
         });
@@ -117,6 +131,11 @@ class Quote extends Model
     public function request(): BelongsTo
     {
         return $this->belongsTo(Request::class);
+    }
+
+    public function prospect(): BelongsTo
+    {
+        return $this->belongsTo(Request::class, 'prospect_id');
     }
 
     public function parent(): BelongsTo

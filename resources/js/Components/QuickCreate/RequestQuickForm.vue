@@ -1,10 +1,12 @@
 <script setup>
+import axios from 'axios';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { useForm } from '@inertiajs/vue3';
+import { router, useForm } from '@inertiajs/vue3';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
+import ProspectDuplicateAlert from '@/Components/Prospects/ProspectDuplicateAlert.vue';
 import CustomerQuickForm from '@/Components/QuickCreate/CustomerQuickForm.vue';
 import { useI18n } from 'vue-i18n';
 
@@ -58,6 +60,9 @@ const serviceableOptions = computed(() => ([
 
 const mode = ref('existing');
 const searchQuery = ref('');
+const duplicateAlert = ref(null);
+const submitError = ref('');
+const isSubmitting = ref(false);
 
 const form = useForm({
     customer_id: '',
@@ -91,6 +96,26 @@ watch([() => customers.value.length, () => props.loading], ([length, loading]) =
 watch(mode, () => {
     searchQuery.value = '';
 });
+
+watch(
+    () => [
+        form.customer_id,
+        form.channel,
+        form.service_type,
+        form.urgency,
+        form.is_serviceable,
+        form.budget,
+        form.title,
+        form.description,
+        form.contact_name,
+        form.contact_email,
+        form.contact_phone,
+    ],
+    () => {
+        duplicateAlert.value = null;
+        submitError.value = '';
+    }
+);
 
 const displayCustomer = (customer) =>
     customer.company_name ||
@@ -185,6 +210,8 @@ watch(selectedCustomer, (customer) => {
 const applyPrefill = (customerId) => {
     mode.value = 'existing';
     searchQuery.value = '';
+    duplicateAlert.value = null;
+    submitError.value = '';
     form.reset();
     form.channel = 'manual';
     form.is_serviceable = '';
@@ -218,6 +245,8 @@ const handleCustomerCreated = (payload) => {
 
     mode.value = 'existing';
     searchQuery.value = '';
+    duplicateAlert.value = null;
+    submitError.value = '';
     form.customer_id = String(customerId);
 };
 
@@ -227,28 +256,74 @@ const closeOverlay = () => {
     }
 };
 
-const submit = () => {
-    if (form.processing) {
+const resetProspectForm = () => {
+    duplicateAlert.value = null;
+    submitError.value = '';
+    form.reset();
+    form.channel = 'manual';
+    form.is_serviceable = '';
+    form.budget = '';
+};
+
+const buildPayload = (ignoreDuplicates = false) => ({
+    customer_id: form.customer_id || null,
+    channel: form.channel || null,
+    service_type: form.service_type || null,
+    urgency: form.urgency || null,
+    is_serviceable: form.is_serviceable === '' ? null : form.is_serviceable === '1',
+    title: form.title || null,
+    description: form.description || null,
+    contact_name: form.contact_name || null,
+    contact_email: form.contact_email || null,
+    contact_phone: form.contact_phone || null,
+    ignore_duplicates: ignoreDuplicates,
+    meta: {
+        budget: form.budget === '' ? null : Number(form.budget),
+    },
+});
+
+const submit = async (ignoreDuplicates = false) => {
+    if (isSubmitting.value) {
         return;
     }
 
-    form.post(route('prospects.store'), {
-        transform: (data) => ({
-            ...data,
-            is_serviceable: data.is_serviceable === '' ? null : data.is_serviceable === '1',
-            meta: {
-                budget: data.budget === '' ? null : Number(data.budget),
+    isSubmitting.value = true;
+    duplicateAlert.value = null;
+    submitError.value = '';
+    form.clearErrors();
+
+    try {
+        await axios.post(route('prospects.store'), buildPayload(ignoreDuplicates), {
+            headers: {
+                Accept: 'application/json',
             },
-        }),
-        preserveScroll: true,
-        onSuccess: () => {
-            closeOverlay();
-            form.reset();
-            form.channel = 'manual';
-            form.is_serviceable = '';
-            form.budget = '';
-        },
-    });
+        });
+
+        closeOverlay();
+        resetProspectForm();
+        router.reload({
+            preserveScroll: true,
+            preserveState: true,
+        });
+    } catch (error) {
+        if (error?.response?.status === 409 && error?.response?.data?.duplicate_alert) {
+            duplicateAlert.value = {
+                ...error.response.data.duplicate_alert,
+                message: error.response.data.message || null,
+            };
+            return;
+        }
+
+        if (error?.response?.status === 422) {
+            form.setError(error.response.data?.errors || {});
+            submitError.value = error.response.data?.message || '';
+            return;
+        }
+
+        submitError.value = error?.response?.data?.message || t('requests.feedback.create_error');
+    } finally {
+        isSubmitting.value = false;
+    }
 };
 </script>
 
@@ -461,6 +536,16 @@ const submit = () => {
                 <InputError class="mt-1" :message="form.errors.description" />
             </div>
 
+            <ProspectDuplicateAlert
+                :alert="duplicateAlert"
+                :can-continue="true"
+                @continue="submit(true)"
+            />
+
+            <div v-if="submitError" class="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {{ submitError }}
+            </div>
+
             <div class="flex justify-end gap-2">
                 <button
                     type="button"
@@ -471,7 +556,7 @@ const submit = () => {
                 </button>
                 <button
                     type="submit"
-                    :disabled="form.processing"
+                    :disabled="isSubmitting"
                     class="inline-flex items-center rounded-sm border border-transparent bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
                 >
                     {{ $t('requests.actions.create_request') }}

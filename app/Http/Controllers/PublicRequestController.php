@@ -18,6 +18,7 @@ use App\Services\Campaigns\CampaignLeadAttributionService;
 use App\Services\CompanyFeatureService;
 use App\Services\CRM\OutgoingEmailLogService;
 use App\Services\LeadServiceSuggestionService;
+use App\Services\Prospects\ProspectDuplicateAlertService;
 use App\Services\ProspectStatusHistoryService;
 use App\Services\TrackingService;
 use App\Services\UsageLimitService;
@@ -197,6 +198,7 @@ class PublicRequestController extends Controller
         $this->assertLeadIntakeEnabled($user);
 
         $validated = $request->validate([
+            'ignore_duplicates' => 'nullable|boolean',
             'contact_name' => 'required|string|max:255',
             'contact_email' => 'required|email|max:255',
             'contact_phone' => 'nullable|string|max:50',
@@ -222,6 +224,7 @@ class PublicRequestController extends Controller
             ])],
         ]);
 
+        $ignoreDuplicates = (bool) ($validated['ignore_duplicates'] ?? false);
         $finalAction = (string) ($validated['final_action'] ?? self::FINAL_ACTION_REQUEST_CALL);
 
         if (
@@ -305,6 +308,47 @@ class PublicRequestController extends Controller
             contactConsent: true,
             marketingConsent: false
         );
+
+        if ($this->shouldReturnJson($request) && ! $ignoreDuplicates) {
+            $duplicateAlert = app(ProspectDuplicateAlertService::class)->forAttributes(
+                accountId: $user->id,
+                attributes: [
+                    'title' => $title,
+                    'service_type' => $validated['service_type'] ?? null,
+                    'description' => $validated['description'] ?? null,
+                    'contact_name' => $validated['contact_name'],
+                    'contact_email' => $validated['contact_email'] ?? null,
+                    'contact_phone' => $validated['contact_phone'] ?? null,
+                    'street1' => $validated['street1'] ?? null,
+                    'city' => $validated['city'] ?? null,
+                    'state' => $validated['state'] ?? null,
+                    'postal_code' => $validated['postal_code'] ?? null,
+                    'country' => $validated['country'] ?? null,
+                    'meta' => $meta,
+                ],
+                context: 'public_create',
+            );
+
+            if ($duplicateAlert) {
+                $duplicateAlert['entries'] = collect($duplicateAlert['entries'] ?? [])
+                    ->map(fn (array $entry) => [
+                        'key' => $entry['key'] ?? uniqid('public-duplicate-', false),
+                        'row_number' => $entry['row_number'] ?? null,
+                        'label' => $entry['label'] ?? 'Request draft',
+                        'subtitle' => $entry['subtitle'] ?? null,
+                        'match_count' => (int) ($entry['match_count'] ?? 0),
+                        'strongest_score' => (int) ($entry['strongest_score'] ?? 0),
+                        'duplicates' => [],
+                    ])
+                    ->values()
+                    ->all();
+
+                return response()->json([
+                    'message' => 'A similar request may already exist. Review the warning before continuing.',
+                    'duplicate_alert' => $duplicateAlert,
+                ], 409);
+            }
+        }
 
         $lead = LeadRequest::create([
             'user_id' => $user->id,
@@ -474,16 +518,61 @@ class PublicRequestController extends Controller
             ]);
             $leadAttributionService->forgetAttribution($request, $user);
 
+            $responseTone = 'success';
+            $responseMessage = 'Quote created and confirmation sent successfully.';
+
             if (! $quoteEmailQueued && ! $prospectSummaryEmailQueued) {
+                $responseTone = 'warning';
+                $responseMessage = 'Quote created, but both quote and confirmation emails failed.';
+                if ($this->shouldReturnJson($request)) {
+                    return response()->json([
+                        'message' => $responseMessage,
+                        'tone' => $responseTone,
+                        'request' => $lead->fresh(),
+                        'quote' => $quote,
+                    ], 201);
+                }
+
                 return redirect()->back()->with('warning', 'Quote created, but both quote and confirmation emails failed.');
             }
 
             if (! $quoteEmailQueued) {
+                $responseTone = 'warning';
+                $responseMessage = 'Quote created. Confirmation email sent, but quote email failed.';
+                if ($this->shouldReturnJson($request)) {
+                    return response()->json([
+                        'message' => $responseMessage,
+                        'tone' => $responseTone,
+                        'request' => $lead->fresh(),
+                        'quote' => $quote,
+                    ], 201);
+                }
+
                 return redirect()->back()->with('warning', 'Quote created. Confirmation email sent, but quote email failed.');
             }
 
             if (! $prospectSummaryEmailQueued) {
+                $responseTone = 'warning';
+                $responseMessage = 'Quote created and sent, but confirmation email failed.';
+                if ($this->shouldReturnJson($request)) {
+                    return response()->json([
+                        'message' => $responseMessage,
+                        'tone' => $responseTone,
+                        'request' => $lead->fresh(),
+                        'quote' => $quote,
+                    ], 201);
+                }
+
                 return redirect()->back()->with('warning', 'Quote created and sent, but confirmation email failed.');
+            }
+
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => $responseMessage,
+                    'tone' => $responseTone,
+                    'request' => $lead->fresh(),
+                    'quote' => $quote,
+                ], 201);
             }
 
             return redirect()->back()->with('success', 'Quote created and confirmation sent successfully.');
@@ -559,7 +648,23 @@ class PublicRequestController extends Controller
         $leadAttributionService->forgetAttribution($request, $user);
 
         if (! $prospectEmailQueued) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Call request recorded, but confirmation email failed.',
+                    'tone' => 'warning',
+                    'request' => $lead->fresh(),
+                ], 201);
+            }
+
             return redirect()->back()->with('warning', 'Call request recorded, but confirmation email failed.');
+        }
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Call request submitted successfully.',
+                'tone' => 'success',
+                'request' => $lead->fresh(),
+            ], 201);
         }
 
         return redirect()->back()->with('success', 'Call request submitted successfully.');
