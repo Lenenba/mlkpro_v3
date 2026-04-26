@@ -103,8 +103,8 @@ class SocialContentGeneratorService
         $mediaPayload = is_array(data_get($aiImage, 'media_payload'))
             ? (array) data_get($aiImage, 'media_payload')
             : $this->mediaAssetService->imageMediaPayload([
-            'image_url' => $imageUrl !== '' ? $imageUrl : null,
-        ]);
+                'image_url' => $imageUrl !== '' ? $imageUrl : null,
+            ]);
 
         return [
             'source_type' => $sourceType,

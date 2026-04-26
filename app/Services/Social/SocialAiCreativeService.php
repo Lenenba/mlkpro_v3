@@ -277,7 +277,6 @@ PROMPT;
     }
 
     /**
-     * @param  mixed  $value
      * @param  array<string, mixed>  $context
      * @return array<int, array<string, mixed>>
      */
@@ -296,7 +295,6 @@ PROMPT;
     }
 
     /**
-     * @param  mixed  $value
      * @param  array<string, mixed>  $context
      * @return array<string, mixed>
      */
@@ -405,7 +403,6 @@ PROMPT;
     }
 
     /**
-     * @param  mixed  $payload
      * @return array<string, mixed>
      */
     private function settings(mixed $payload): array
