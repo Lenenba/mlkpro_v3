@@ -637,6 +637,8 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('social.accounts.index');
         Route::post('/social/accounts', [SocialAccountConnectionController::class, 'store'])
             ->name('social.accounts.store');
+        Route::post('/social/accounts/test-connection', [SocialAccountConnectionController::class, 'storeTestConnection'])
+            ->name('social.accounts.test-connection.store');
         Route::put('/social/accounts/{connection}', [SocialAccountConnectionController::class, 'update'])
             ->name('social.accounts.update');
         Route::post('/social/accounts/{connection}/authorize', [SocialAccountConnectionController::class, 'beginAuthorization'])

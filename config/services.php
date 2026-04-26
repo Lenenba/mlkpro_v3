@@ -114,6 +114,8 @@ return [
     ],
 
     'social' => [
+        'allow_test_connections' => env('SOCIAL_ALLOW_TEST_CONNECTIONS'),
+
         'facebook' => [
             'oauth' => [
                 'client_id' => env('SOCIAL_FACEBOOK_CLIENT_ID'),

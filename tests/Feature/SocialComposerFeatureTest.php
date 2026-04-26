@@ -174,7 +174,9 @@ it('lets owners create and update pulse drafts with multi-account selection and 
 
     expect($draft->status)->toBe(SocialPost::STATUS_SCHEDULED)
         ->and((string) data_get($draft->content_payload, 'text'))->toBe('Spring launch is scheduled.')
+        ->and((string) data_get($draft->media_payload, '0.url'))->toBe('https://example.com/assets/pulse-spring-updated.jpg')
         ->and((string) $draft->link_url)->toBe('https://example.com/offers/spring-v2')
+        ->and((bool) data_get($draft->metadata, 'has_image'))->toBeTrue()
         ->and((string) data_get($draft->metadata, 'link_cta_label'))->toBe('Magasiner maintenant')
         ->and($draft->scheduled_for)->not->toBeNull()
         ->and($draft->targets)->toHaveCount(1)
