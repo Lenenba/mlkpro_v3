@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\SocialAutomationRule;
 use App\Models\SocialPost;
 use App\Models\SocialPostTemplate;
-use App\Models\SocialAutomationRule;
 use App\Models\User;
 use App\Services\Social\SocialAccountConnectionService;
 use App\Services\Social\SocialApprovalService;

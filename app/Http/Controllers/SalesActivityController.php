@@ -87,8 +87,7 @@ class SalesActivityController extends Controller
         HttpRequest $request,
         \App\Models\ActivityLog $activity,
         ?\App\Models\ProspectInteraction $interaction = null
-    )
-    {
+    ) {
         if ($this->shouldReturnJson($request)) {
             return response()->json([
                 'message' => 'Sales activity logged.',

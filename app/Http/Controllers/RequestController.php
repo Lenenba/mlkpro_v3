@@ -30,14 +30,14 @@ use App\Services\Prospects\ProspectMergeService;
 use App\Services\ProspectStatusHistoryService;
 use App\Services\TaskStatusHistoryService;
 use App\Services\UsageLimitService;
-use App\Support\Prospects\ProspectIntakeMeta;
 use App\Support\BulkActions\BulkActionRegistry;
 use App\Support\CRM\SalesActivityTaxonomy;
+use App\Support\Prospects\ProspectIntakeMeta;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class RequestController extends Controller
@@ -759,8 +759,7 @@ class RequestController extends Controller
         ConvertLeadToCustomerRequest $request,
         LeadRequest $lead,
         ProspectConversionService $convertProspect
-    )
-    {
+    ) {
         $user = $request->user();
         if (! $user) {
             abort(403);
@@ -1860,5 +1859,4 @@ class RequestController extends Controller
 
         return $normalized !== '' ? $normalized : null;
     }
-
 }
