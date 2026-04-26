@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Models\User;
 use App\Support\LocalePreference;
 use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
@@ -48,7 +49,9 @@ class SendQuoteNotification extends Notification implements ShouldQueue
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $companyUser = $this->quote?->customer?->user;
+        $companyUser = $this->quote?->customer?->user
+            ?: $this->quote?->prospect?->user
+            ?: ($this->quote?->user_id ? User::query()->find($this->quote->user_id) : null);
         $locale = LocalePreference::forNotifiable($notifiable, $companyUser);
         $companyName = $companyUser?->company_name ?: config('app.name');
         $companyLogo = $companyUser?->company_logo_url;

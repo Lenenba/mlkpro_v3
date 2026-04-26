@@ -39,26 +39,39 @@ class RetryLeadQuoteEmailJob implements ShouldQueue
     public function handle(): void
     {
         $quote = Quote::query()
-            ->with(['customer.user', 'request'])
+            ->with(['customer.user', 'prospect.user', 'request.user'])
             ->find($this->quoteId);
-        if (! $quote || ! $quote->customer || empty($quote->customer->email)) {
+        if (! $quote) {
             return;
         }
 
-        $lead = $quote->request ?: LeadRequest::query()->find($this->leadId);
+        $lead = $quote->request ?: $quote->prospect ?: LeadRequest::query()->find($this->leadId);
+        $recipientEmail = $quote->customer?->email ?: $lead?->contact_email;
+        if (! $recipientEmail) {
+            return;
+        }
 
-        $emailQueued = NotificationDispatcher::send($quote->customer, new SendQuoteNotification($quote), [
-            'quote_id' => $quote->id,
-            'customer_id' => $quote->customer_id,
-            'email' => $quote->customer->email,
-            'source' => 'lead_form_retry',
-            'retry_attempt' => $this->attempt,
-        ]);
+        $emailQueued = $quote->customer
+            ? NotificationDispatcher::send($quote->customer, new SendQuoteNotification($quote), [
+                'quote_id' => $quote->id,
+                'customer_id' => $quote->customer_id,
+                'email' => $recipientEmail,
+                'source' => 'lead_form_retry',
+                'retry_attempt' => $this->attempt,
+            ])
+            : NotificationDispatcher::sendToMail($recipientEmail, new SendQuoteNotification($quote), [
+                'quote_id' => $quote->id,
+                'customer_id' => null,
+                'request_id' => $lead?->id ?? $this->leadId,
+                'email' => $recipientEmail,
+                'source' => 'lead_form_retry',
+                'retry_attempt' => $this->attempt,
+            ]);
 
         $emailLogger = app(OutgoingEmailLogService::class);
         if ($emailQueued) {
             $emailLogger->logSent(null, $quote, [
-                'email' => $quote->customer->email,
+                'email' => $recipientEmail,
                 'source' => 'lead_form_retry',
                 'retry_attempt' => $this->attempt,
                 'notification' => SendQuoteNotification::class,
@@ -68,7 +81,7 @@ class RetryLeadQuoteEmailJob implements ShouldQueue
         }
 
         $emailLogger->logFailed(null, $quote, [
-            'email' => $quote->customer->email,
+            'email' => $recipientEmail,
             'source' => 'lead_form_retry',
             'retry_attempt' => $this->attempt,
             'notification' => SendQuoteNotification::class,
@@ -78,7 +91,7 @@ class RetryLeadQuoteEmailJob implements ShouldQueue
             $emailLogger->logFailed(null, $lead, [
                 'quote_id' => $quote->id,
                 'customer_id' => $quote->customer_id,
-                'email' => $quote->customer->email,
+                'email' => $recipientEmail,
                 'source' => 'lead_form_retry',
                 'retry_attempt' => $this->attempt,
                 'notification' => SendQuoteNotification::class,

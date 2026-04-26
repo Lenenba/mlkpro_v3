@@ -25,6 +25,7 @@ use App\Notifications\SendQuoteNotification;
 use App\Services\CompanyFeatureService;
 use App\Services\CRM\OutgoingEmailLogService;
 use App\Services\InventoryService;
+use App\Services\Prospects\ProspectConversionService;
 use App\Services\ProspectStatusHistoryService;
 use App\Services\TaskBillingService;
 use App\Services\TaskStatusHistoryService;
@@ -1801,6 +1802,9 @@ class AssistantWorkflowService
             ];
         }
 
+        app(ProspectConversionService::class)->ensureCustomerForQuoteAcceptance($quote, $user, true);
+        $quote->refresh();
+
         $existingWork = Work::where('quote_id', $quote->id)->first();
         if (! $existingWork) {
             app(UsageLimitService::class)->enforceLimit($user, 'jobs');
@@ -1861,6 +1865,7 @@ class AssistantWorkflowService
             $this->syncWorkProductsFromQuote($quote, $work);
             $this->syncChecklistFromQuote($quote, $work);
         });
+        $quote->syncRequestStatusFromQuote();
 
         return [
             'status' => 'created',
@@ -1917,6 +1922,8 @@ class AssistantWorkflowService
         }
 
         app(UsageLimitService::class)->enforceLimit($user, 'jobs');
+        app(ProspectConversionService::class)->ensureCustomerForQuoteAcceptance($quote, $user, true);
+        $quote->refresh();
 
         $work = DB::transaction(function () use ($quote) {
             $work = Work::create([
@@ -1958,6 +1965,7 @@ class AssistantWorkflowService
             'work_id' => $work->id,
             'assistant' => true,
         ], 'Quote converted to job by assistant');
+        $quote->syncRequestStatusFromQuote();
 
         return [
             'status' => 'created',

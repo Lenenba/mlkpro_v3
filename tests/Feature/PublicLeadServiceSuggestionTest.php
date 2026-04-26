@@ -346,12 +346,13 @@ it('creates and sends a quote when receive_quote is selected', function () {
     $quote = Quote::query()
         ->where('request_id', $lead->id)
         ->firstOrFail();
-    $quote->load('products', 'customer');
+    $quote->load('products', 'customer', 'prospect');
 
     expect($lead->status)->toBe(LeadRequest::STATUS_QUOTE_SENT);
+    expect($lead->customer_id)->toBeNull();
     expect($quote->status)->toBe('sent');
-    expect($quote->customer)->not->toBeNull();
-    expect($quote->customer->email)->toBe('prospect.quote@example.com');
+    expect($quote->customer)->toBeNull();
+    expect($quote->prospect?->is($lead))->toBeTrue();
     expect($quote->products->pluck('id')->all())->toContain($serviceA->id);
     expect($quote->products->pluck('id')->all())->toContain($serviceB->id);
 
@@ -365,7 +366,15 @@ it('creates and sends a quote when receive_quote is selected', function () {
     expect((float) $quote->subtotal)->toBe(1200.0);
     expect((float) $quote->total)->toBe(1200.0);
 
-    Notification::assertSentTo($quote->customer, SendQuoteNotification::class);
+    Notification::assertSentOnDemand(
+        SendQuoteNotification::class,
+        function (SendQuoteNotification $notification, array $channels, object $notifiable) {
+            $mail = data_get($notifiable, 'routes.mail');
+
+            return in_array('mail', $channels, true)
+                && $mail === 'prospect.quote@example.com';
+        }
+    );
     Notification::assertSentOnDemand(
         LeadQuoteRequestReceivedNotification::class,
         function (LeadQuoteRequestReceivedNotification $notification, array $channels, object $notifiable) use ($lead, $quote) {

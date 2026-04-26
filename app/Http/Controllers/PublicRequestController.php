@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Jobs\RetryLeadQuoteEmailJob;
 use App\Models\ActivityLog;
-use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Quote;
 use App\Models\Request as LeadRequest;
@@ -384,21 +383,9 @@ class PublicRequestController extends Controller
         if ($finalAction === self::FINAL_ACTION_RECEIVE_QUOTE) {
             app(UsageLimitService::class)->enforceLimit($user, 'quotes');
 
-            $customer = $this->resolveOrCreateCustomerForLead($user, $validated, $lead);
-            if ((int) ($lead->customer_id ?? 0) !== (int) $customer->id) {
-                $lead->update([
-                    'customer_id' => $customer->id,
-                ]);
-            }
-
-            $lead->update([
-                'converted_at' => now(),
-            ]);
-
             $quote = $this->createQuoteFromLead(
                 owner: $user,
                 lead: $lead,
-                customer: $customer,
                 selectedServiceIds: $suggestedServiceIds,
                 servicesSurDevis: $meta['services_sur_devis'] ?? [],
                 intentTags: $intentTags,
@@ -417,30 +404,30 @@ class PublicRequestController extends Controller
                 'quote_id' => $quote->id,
             ], 'Quote created from lead form');
 
-            $quoteEmailQueued = NotificationDispatcher::send($customer, new SendQuoteNotification($quote), [
+            $quoteEmailQueued = NotificationDispatcher::sendToMail($lead->contact_email, new SendQuoteNotification($quote), [
                 'quote_id' => $quote->id,
                 'customer_id' => $quote->customer_id,
-                'email' => $customer->email,
+                'email' => $lead->contact_email,
                 'source' => 'lead_form',
             ]);
 
             $emailLogger = app(OutgoingEmailLogService::class);
             if ($quoteEmailQueued) {
                 $emailLogger->logSent(null, $quote, [
-                    'email' => $customer->email,
+                    'email' => $lead->contact_email,
                     'source' => 'lead_form',
                     'notification' => SendQuoteNotification::class,
                 ], 'Quote email sent');
             } else {
                 $emailLogger->logFailed(null, $quote, [
-                    'email' => $customer->email,
+                    'email' => $lead->contact_email,
                     'source' => 'lead_form',
                     'notification' => SendQuoteNotification::class,
                 ], 'Quote email failed');
                 $emailLogger->logFailed(null, $lead, [
                     'quote_id' => $quote->id,
                     'customer_id' => $quote->customer_id,
-                    'email' => $customer->email,
+                    'email' => $lead->contact_email,
                     'source' => 'lead_form',
                     'notification' => SendQuoteNotification::class,
                 ], 'Quote email failed');
@@ -489,7 +476,6 @@ class PublicRequestController extends Controller
             $quote->syncRequestStatusFromQuote();
             $lead->refresh();
             $serviceRequest = $serviceRequestIntakeService->createFromLead($lead, [
-                'customer_id' => $customer->id,
                 'source' => 'public_form',
                 'channel' => 'web',
                 'request_type' => $finalAction === self::FINAL_ACTION_RECEIVE_QUOTE ? 'quote_request' : 'contact_request',
@@ -709,99 +695,9 @@ class PublicRequestController extends Controller
         }
     }
 
-    private function resolveCustomerId(int $accountId, ?string $email, ?string $phone): ?int
-    {
-        $query = Customer::query()->byUser($accountId);
-
-        if ($email) {
-            $customer = (clone $query)->where('email', $email)->first();
-            if ($customer) {
-                return $customer->id;
-            }
-        }
-
-        if ($phone) {
-            $customer = (clone $query)->where('phone', $phone)->first();
-            if ($customer) {
-                return $customer->id;
-            }
-        }
-
-        return null;
-    }
-
-    private function resolveOrCreateCustomerForLead(User $owner, array $validated, LeadRequest $lead): Customer
-    {
-        $accountId = $owner->id;
-        $resolvedCustomerId = $this->resolveCustomerId(
-            $accountId,
-            $validated['contact_email'] ?? null,
-            $validated['contact_phone'] ?? null
-        );
-
-        if ($resolvedCustomerId) {
-            $customer = Customer::query()->byUser($accountId)->findOrFail($resolvedCustomerId);
-            $email = trim((string) ($validated['contact_email'] ?? ''));
-            $phone = trim((string) ($validated['contact_phone'] ?? ''));
-
-            $updates = [];
-            if ($email !== '' && empty($customer->email)) {
-                $updates['email'] = $email;
-            }
-            if ($phone !== '' && empty($customer->phone)) {
-                $updates['phone'] = $phone;
-            }
-
-            if (! empty($updates)) {
-                $customer->update($updates);
-            }
-
-            return $customer;
-        }
-
-        [$firstName, $lastName] = $this->splitContactName((string) ($validated['contact_name'] ?? ''));
-
-        $companyName = trim((string) ($validated['title'] ?? $validated['service_type'] ?? ''));
-        if ($companyName === '') {
-            $companyName = trim((string) ($validated['contact_name'] ?? ''));
-        }
-
-        return Customer::query()->create([
-            'user_id' => $accountId,
-            'company_name' => $companyName !== '' ? $companyName : null,
-            'first_name' => $firstName,
-            'last_name' => $lastName,
-            'email' => $validated['contact_email'] ?? null,
-            'phone' => $validated['contact_phone'] ?? null,
-            'description' => $lead->description,
-        ]);
-    }
-
-    private function splitContactName(string $contactName): array
-    {
-        $normalized = trim($contactName);
-        if ($normalized === '') {
-            return ['Lead', 'Prospect'];
-        }
-
-        $parts = preg_split('/\s+/', $normalized, 2) ?: [];
-        $firstName = trim((string) ($parts[0] ?? 'Lead'));
-        $lastName = trim((string) ($parts[1] ?? 'Prospect'));
-
-        if ($firstName === '') {
-            $firstName = 'Lead';
-        }
-        if ($lastName === '') {
-            $lastName = 'Prospect';
-        }
-
-        return [$firstName, $lastName];
-    }
-
     private function createQuoteFromLead(
         User $owner,
         LeadRequest $lead,
-        Customer $customer,
         array $selectedServiceIds,
         array $servicesSurDevis,
         array $intentTags,
@@ -882,7 +778,8 @@ class PublicRequestController extends Controller
 
         $quote = Quote::query()->create([
             'user_id' => $owner->id,
-            'customer_id' => $customer->id,
+            'customer_id' => null,
+            'prospect_id' => $lead->id,
             'job_title' => $jobTitle !== '' ? $jobTitle : 'New Quote',
             'status' => 'draft',
             'request_id' => $lead->id,
@@ -915,7 +812,7 @@ class PublicRequestController extends Controller
 
         $quote->syncProductLines($pivotData);
 
-        return $quote->fresh(['customer.user', 'products']);
+        return $quote->fresh(['prospect.user', 'products']);
     }
 
     private function buildLeadQuoteContext(

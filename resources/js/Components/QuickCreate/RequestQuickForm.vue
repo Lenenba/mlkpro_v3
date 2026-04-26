@@ -445,7 +445,9 @@ const resetForm = () => {
     form.source = 'manual';
     form.is_serviceable = '';
     form.budget = '';
-  };
+};
+
+const shouldIgnoreDuplicates = (value) => value === true;
 
 const buildPayload = (ignoreDuplicates = false) => ({
     relation_mode: relationMode.value,
@@ -460,7 +462,7 @@ const buildPayload = (ignoreDuplicates = false) => ({
     contact_name: form.contact_name || null,
     contact_email: form.contact_email || null,
     contact_phone: form.contact_phone || null,
-    ignore_duplicates: ignoreDuplicates,
+    ignore_duplicates: shouldIgnoreDuplicates(ignoreDuplicates),
     meta: {
         budget: form.budget === '' ? null : Number(form.budget),
         request_type: 'manual_service_request',
@@ -588,7 +590,7 @@ const submit = async (ignoreDuplicates = false) => {
             />
         </div>
 
-        <form @submit.prevent="submit" class="space-y-4">
+        <form @submit.prevent="submit()" class="space-y-4">
             <div
                 v-if="relationMode === RELATION_MODE_EXISTING_CUSTOMER"
                 class="rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900"

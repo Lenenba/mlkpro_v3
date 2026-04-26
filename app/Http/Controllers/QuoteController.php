@@ -19,6 +19,7 @@ use App\Models\User;
 use App\Models\Work;
 use App\Models\WorkChecklistItem;
 use App\Queries\Quotes\BuildQuoteRecoveryIndexData;
+use App\Services\Prospects\ProspectConversionService;
 use App\Services\TemplateService;
 use App\Services\UsageLimitService;
 use App\Support\CRM\SalesActivityTaxonomy;
@@ -298,6 +299,9 @@ class QuoteController extends Controller
             ]);
         }
 
+        app(ProspectConversionService::class)->ensureCustomerForQuoteAcceptance($quote, $request->user(), true);
+        $quote->refresh();
+
         $existingWork = Work::where('quote_id', $quote->id)->first();
         if (! $existingWork) {
             app(UsageLimitService::class)->enforceLimit(Auth::user(), 'jobs');
@@ -507,6 +511,8 @@ class QuoteController extends Controller
         }
 
         $quote->load(['products', 'customer']);
+        app(ProspectConversionService::class)->ensureCustomerForQuoteAcceptance($quote, Auth::user(), true);
+        $quote->refresh()->load(['products', 'customer']);
 
         $existingWork = Work::where('quote_id', $quote->id)->first();
         if ($existingWork) {
@@ -757,6 +763,9 @@ class QuoteController extends Controller
         if ($quote->isArchived() || $quote->status === 'declined') {
             return null;
         }
+
+        app(ProspectConversionService::class)->ensureCustomerForQuoteAcceptance($quote, Auth::user(), true);
+        $quote->refresh();
 
         $previousStatus = $quote->status;
         $existingWork = Work::where('quote_id', $quote->id)->first();

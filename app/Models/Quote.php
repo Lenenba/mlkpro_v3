@@ -226,6 +226,17 @@ class Quote extends Model
             return;
         }
 
+        if ($this->status === 'accepted' && ! $this->customer_id) {
+            app(\App\Services\Prospects\ProspectConversionService::class)
+                ->ensureCustomerForQuoteAcceptance($this, null, false);
+
+            $this->refresh();
+            $request = $this->request ?: $this->prospect;
+            if (! $request) {
+                return;
+            }
+        }
+
         $targetStatus = LeadRequest::statusForQuoteStatus($this->status);
         if (! $targetStatus || $request->status === $targetStatus) {
             return;

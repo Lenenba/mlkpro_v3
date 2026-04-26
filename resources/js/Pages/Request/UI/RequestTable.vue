@@ -401,6 +401,7 @@ const queueFilterOptions = computed(() => ([
 const compactObject = (payload) => Object.fromEntries(
     Object.entries(payload || {}).filter(([, value]) => value !== '' && value !== null && value !== undefined)
 );
+const shouldIgnoreDuplicates = (value) => value === true;
 const shouldShowSavedSegments = computed(() =>
     Boolean(props.canManageSavedSegments) || (Array.isArray(props.savedSegments) && props.savedSegments.length > 0)
 );
@@ -849,7 +850,7 @@ const buildConvertPayload = (ignoreDuplicates = false) => ({
     contact_name: convertForm.contact_name || null,
     contact_email: convertForm.contact_email || null,
     contact_phone: convertForm.contact_phone || null,
-    ignore_duplicates: ignoreDuplicates,
+    ignore_duplicates: shouldIgnoreDuplicates(ignoreDuplicates),
 });
 
 const submitConvert = async (ignoreDuplicates = false) => {
@@ -1447,7 +1448,7 @@ const submitImport = async (ignoreDuplicates = false) => {
 
     const payload = new FormData();
     payload.append('file', importForm.file);
-    payload.append('ignore_duplicates', ignoreDuplicates ? '1' : '0');
+    payload.append('ignore_duplicates', shouldIgnoreDuplicates(ignoreDuplicates) ? '1' : '0');
     Object.entries(importMapping.value).forEach(([key, value]) => {
         if (value) {
             payload.append(`mapping[${key}]`, value);
@@ -2240,7 +2241,7 @@ const submitImport = async (ignoreDuplicates = false) => {
                     type="button"
                     class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
                     :disabled="importSubmitting || !importForm.file"
-                    @click="submitImport"
+                    @click="submitImport()"
                 >
                     {{ $t('requests.import.submit') }}
                 </button>
@@ -2378,7 +2379,7 @@ const submitImport = async (ignoreDuplicates = false) => {
                     :disabled="!canSubmitConvert"
                     class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
                     data-testid="request-convert-submit"
-                    @click="submitConvert"
+                    @click="submitConvert()"
                 >
                     {{ $t('requests.actions.convert') }}
                 </button>

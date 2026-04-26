@@ -6,6 +6,8 @@ use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\Quote;
 use App\Models\Request as LeadRequest;
+use App\Models\ServiceRequest;
+use App\Models\Task;
 use App\Models\User;
 use App\Services\ProspectNotificationService;
 use App\Services\ProspectStatusHistoryService;
@@ -64,6 +66,7 @@ class ProspectConversionService
 
             $customer->loadMissing('defaultProperty');
             $quoteIds = $this->attachLeadQuotesToCustomer($lead, $customer, $accountId);
+            $this->attachLeadOperationalRecordsToCustomer($lead, $customer, $accountId);
             $previousStatus = $lead->status;
 
             $lead->forceFill([
@@ -126,6 +129,131 @@ class ProspectConversionService
                 'mode' => $mode,
                 'created' => $created,
             ];
+        });
+    }
+
+    public function ensureCustomerForQuoteAcceptance(Quote $quote, ?User $actor = null, bool $strict = false): ?Customer
+    {
+        if ($quote->customer_id) {
+            return Customer::query()->find($quote->customer_id);
+        }
+
+        $lead = $quote->prospect ?: $quote->request;
+        if (! $lead) {
+            if ($strict) {
+                throw ValidationException::withMessages([
+                    'customer_id' => ['A customer or prospect is required before accepting this quote.'],
+                ]);
+            }
+
+            return null;
+        }
+
+        $accountId = (int) ($actor?->accountOwnerId() ?? $quote->user_id ?? $lead->user_id);
+        if ((int) $lead->user_id !== $accountId) {
+            if ($strict) {
+                throw ValidationException::withMessages([
+                    'lead' => ['This prospect does not belong to the quote account.'],
+                ]);
+            }
+
+            return null;
+        }
+
+        return DB::transaction(function () use ($accountId, $actor, $lead, $quote, $strict) {
+            $lead->refresh();
+            $quote->refresh();
+
+            if ($quote->customer_id) {
+                return Customer::query()->find($quote->customer_id);
+            }
+
+            if ($lead->customer_id) {
+                $customer = Customer::query()
+                    ->where('user_id', $accountId)
+                    ->find($lead->customer_id);
+
+                if ($customer) {
+                    $this->attachAcceptedQuoteRecordsToCustomer($lead, $quote, $customer, $accountId);
+
+                    return $customer;
+                }
+            }
+
+            $customer = $this->resolveAutomaticCustomerForLead($lead, $accountId);
+            $created = false;
+
+            if (! $customer) {
+                $contactEmail = $this->normalizeEmail($lead->contact_email);
+                if (! $contactEmail) {
+                    if ($strict) {
+                        throw ValidationException::withMessages([
+                            'contact_email' => ['An email address is required to convert this prospect into a customer.'],
+                        ]);
+                    }
+
+                    return null;
+                }
+
+                try {
+                    $customer = $this->createCustomerFromLead($lead, $accountId, [
+                        'contact_name' => $lead->contact_name ?: $lead->title ?: 'Accepted Prospect',
+                        'contact_email' => $contactEmail,
+                        'contact_phone' => $lead->contact_phone,
+                        'company_name' => $lead->companyName() ?: $lead->title ?: $lead->service_type,
+                        'street1' => $lead->street1,
+                        'street2' => $lead->street2,
+                        'city' => $lead->city,
+                        'state' => $lead->state,
+                        'postal_code' => $lead->postal_code,
+                        'country' => $lead->country,
+                    ]);
+                } catch (ValidationException $exception) {
+                    if ($strict) {
+                        throw $exception;
+                    }
+
+                    return null;
+                }
+                $created = true;
+            }
+
+            $quoteIds = $this->attachAcceptedQuoteRecordsToCustomer($lead, $quote, $customer, $accountId);
+            $timestamp = now();
+
+            $lead->forceFill([
+                'customer_id' => $customer->id,
+                'last_activity_at' => $timestamp,
+                'converted_at' => $lead->converted_at ?? $timestamp,
+                'meta' => $lead->mergeCustomerConversionMeta([
+                    'converted_at' => ($lead->converted_at ?? $timestamp)->toISOString(),
+                    'converted_by_user_id' => $actor?->id,
+                    'mode' => $created ? 'auto_create_on_quote_acceptance' : 'auto_link_on_quote_acceptance',
+                    'customer_id' => $customer->id,
+                    'quote_ids' => $quoteIds,
+                    'created_customer' => $created,
+                    'source' => 'quote_acceptance',
+                ]),
+            ])->save();
+
+            ActivityLog::record($actor, $lead, 'converted_to_customer', [
+                'mode' => $created ? 'auto_create_on_quote_acceptance' : 'auto_link_on_quote_acceptance',
+                'customer_id' => $customer->id,
+                'quote_ids' => $quoteIds,
+                'created_customer' => $created,
+                'source' => 'quote_acceptance',
+            ], 'Prospect converted to customer after quote acceptance');
+
+            ActivityLog::record($actor, $quote, 'prospect_attached_to_customer', [
+                'request_id' => $lead->id,
+                'customer_id' => $customer->id,
+                'created_customer' => $created,
+                'source' => 'quote_acceptance',
+            ], 'Quote attached to customer after prospect acceptance');
+
+            $quote->refresh();
+
+            return $customer->fresh(['defaultProperty:id,customer_id,street1,street2,city,state,zip,country,is_default']);
         });
     }
 
@@ -262,6 +390,95 @@ class ProspectConversionService
         }
 
         return $updatedQuoteIds;
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function attachAcceptedQuoteRecordsToCustomer(LeadRequest $lead, Quote $quote, Customer $customer, int $accountId): array
+    {
+        $customer->loadMissing('defaultProperty');
+        $quoteIds = $this->attachLeadQuotesToCustomer($lead, $customer, $accountId);
+        $this->attachLeadOperationalRecordsToCustomer($lead, $customer, $accountId);
+
+        $updates = [];
+        if (! $quote->customer_id) {
+            $updates['customer_id'] = $customer->id;
+        }
+
+        $defaultPropertyId = $customer->defaultProperty?->id;
+        if (! $quote->property_id && $defaultPropertyId) {
+            $updates['property_id'] = $defaultPropertyId;
+        }
+
+        if ($updates !== []) {
+            $quote->forceFill($updates)->save();
+            $quoteIds[] = $quote->id;
+        }
+
+        return collect($quoteIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function attachLeadOperationalRecordsToCustomer(LeadRequest $lead, Customer $customer, int $accountId): void
+    {
+        ServiceRequest::query()
+            ->where('user_id', $accountId)
+            ->where('prospect_id', $lead->id)
+            ->whereNull('customer_id')
+            ->update(['customer_id' => $customer->id]);
+
+        Task::query()
+            ->where('account_id', $accountId)
+            ->where('request_id', $lead->id)
+            ->whereNull('customer_id')
+            ->update(['customer_id' => $customer->id]);
+    }
+
+    private function resolveAutomaticCustomerForLead(LeadRequest $lead, int $accountId): ?Customer
+    {
+        $contactEmail = $this->normalizeEmail($lead->contact_email);
+        if ($contactEmail) {
+            $customer = Customer::query()
+                ->where('user_id', $accountId)
+                ->whereRaw('LOWER(email) = ?', [$contactEmail])
+                ->with('defaultProperty:id,customer_id,street1,street2,city,state,zip,country,is_default')
+                ->first();
+
+            if ($customer) {
+                return $customer;
+            }
+        }
+
+        $contactPhone = $this->normalizePhone($lead->contact_phone);
+        if ($contactPhone) {
+            $phoneTail = substr($contactPhone, -7);
+            $customer = Customer::query()
+                ->where('user_id', $accountId)
+                ->where('phone', 'like', '%'.$phoneTail.'%')
+                ->with('defaultProperty:id,customer_id,street1,street2,city,state,zip,country,is_default')
+                ->get()
+                ->first(fn (Customer $customer): bool => $this->normalizePhone($customer->phone) === $contactPhone);
+
+            if ($customer) {
+                return $customer;
+            }
+        }
+
+        $companyName = $this->normalizeText($lead->companyName());
+        if ($companyName) {
+            return Customer::query()
+                ->where('user_id', $accountId)
+                ->whereRaw('LOWER(company_name) = ?', [$companyName])
+                ->with('defaultProperty:id,customer_id,street1,street2,city,state,zip,country,is_default')
+                ->first();
+        }
+
+        return null;
     }
 
     /**

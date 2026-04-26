@@ -5,6 +5,7 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\Quote;
 use App\Models\Request as LeadRequest;
+use App\Models\ServiceRequest;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
@@ -90,7 +91,7 @@ it('creates a public contact request as a prospect without linking an existing c
     expect(Customer::query()->where('user_id', $owner->id)->count())->toBe(1);
 });
 
-it('keeps quote-request intake metadata while preserving the legacy quote branch', function () {
+it('creates a quote request as a prospect without creating a customer immediately', function () {
     $owner = inboundPublicProspectOwner();
     $service = inboundPublicProspectService($owner);
 
@@ -110,14 +111,21 @@ it('keeps quote-request intake metadata while preserving the legacy quote branch
         ->firstOrFail();
 
     expect($lead->status)->toBe(LeadRequest::STATUS_QUOTE_SENT)
-        ->and($lead->customer_id)->not->toBeNull()
+        ->and($lead->customer_id)->toBeNull()
         ->and($lead->last_activity_at)->not->toBeNull()
         ->and(data_get($lead->meta, 'intake_source'))->toBe('web_form')
         ->and(data_get($lead->meta, 'request_type'))->toBe('quote_request')
         ->and(data_get($lead->meta, 'contact_consent'))->toBeTrue()
         ->and(data_get($lead->meta, 'marketing_consent'))->toBeFalse();
 
-    expect(Quote::query()->where('request_id', $lead->id)->exists())->toBeTrue();
+    $quote = Quote::query()->where('request_id', $lead->id)->firstOrFail();
+    $serviceRequest = ServiceRequest::query()->where('prospect_id', $lead->id)->firstOrFail();
+
+    expect(Customer::query()->where('user_id', $owner->id)->count())->toBe(0)
+        ->and($quote->customer_id)->toBeNull()
+        ->and($quote->prospect_id)->toBe($lead->id)
+        ->and($serviceRequest->customer_id)->toBeNull()
+        ->and($serviceRequest->prospect_id)->toBe($lead->id);
 });
 
 it('returns a sanitized duplicate alert for public prospect intake when json is requested', function () {

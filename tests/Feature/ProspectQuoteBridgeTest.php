@@ -5,7 +5,9 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\Quote;
 use App\Models\Request as LeadRequest;
+use App\Models\ServiceRequest;
 use App\Models\User;
+use App\Models\Work;
 use Inertia\Testing\AssertableInertia as Assert;
 
 function prospectQuoteBridgeOwner(array $attributes = []): User
@@ -303,6 +305,64 @@ it('keeps a prospect aligned with quote sent then won statuses', function () {
     expect($prospect->status)->toBe(LeadRequest::STATUS_WON)
         ->and($prospect->statusHistories()->where('to_status', LeadRequest::STATUS_QUOTE_SENT)->exists())->toBeTrue()
         ->and($prospect->statusHistories()->where('to_status', LeadRequest::STATUS_WON)->exists())->toBeTrue();
+});
+
+it('converts a prospect to a customer when a prospect backed quote is accepted', function () {
+    $owner = prospectQuoteBridgeOwner();
+
+    $prospect = LeadRequest::query()->create([
+        'user_id' => $owner->id,
+        'status' => LeadRequest::STATUS_QUOTE_SENT,
+        'status_updated_at' => now(),
+        'last_activity_at' => now(),
+        'title' => 'Accepted prospect account',
+        'contact_name' => 'Riley Accepted',
+        'contact_email' => 'riley.accepted@example.com',
+        'contact_phone' => '+1 555 0199',
+        'city' => 'Montreal',
+    ]);
+
+    $serviceRequest = ServiceRequest::query()->create([
+        'user_id' => $owner->id,
+        'prospect_id' => $prospect->id,
+        'source' => 'public_form',
+        'channel' => 'web',
+        'status' => ServiceRequest::STATUS_NEW,
+        'request_type' => 'quote_request',
+        'title' => 'Accepted prospect account',
+        'requester_name' => 'Riley Accepted',
+        'requester_email' => 'riley.accepted@example.com',
+    ]);
+
+    $quote = Quote::query()->create([
+        'user_id' => $owner->id,
+        'prospect_id' => $prospect->id,
+        'job_title' => 'Accepted prospect quote',
+        'status' => 'sent',
+        'subtotal' => 1400,
+        'total' => 1400,
+        'currency_code' => 'CAD',
+    ]);
+
+    $this->actingAs($owner)
+        ->postJson(route('quote.accept', $quote), [
+            'deposit_amount' => 0,
+        ])
+        ->assertOk()
+        ->assertJsonPath('quote.status', 'accepted');
+
+    $quote->refresh();
+    $prospect->refresh();
+    $serviceRequest->refresh();
+    $work = Work::query()->where('quote_id', $quote->id)->firstOrFail();
+    $customer = Customer::query()->where('email', 'riley.accepted@example.com')->firstOrFail();
+
+    expect($quote->customer_id)->toBe($customer->id)
+        ->and($prospect->customer_id)->toBe($customer->id)
+        ->and($prospect->status)->toBe(LeadRequest::STATUS_WON)
+        ->and($prospect->converted_at)->not->toBeNull()
+        ->and($serviceRequest->customer_id)->toBe($customer->id)
+        ->and($work->customer_id)->toBe($customer->id);
 });
 
 it('keeps a prospect aligned with a declined quote status', function () {

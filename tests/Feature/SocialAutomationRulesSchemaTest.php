@@ -130,7 +130,7 @@ it('persists and relates pulse automation rules with generated posts', function 
     expect($freshRule)->not->toBeNull()
         ->and($freshRule->frequency_type)->toBe(SocialAutomationRule::FREQUENCY_DAILY)
         ->and($freshRule->approval_mode)->toBe(SocialAutomationRule::APPROVAL_REQUIRED)
-        ->and($freshRule->content_sources)->toBe([
+        ->and($freshRule->content_sources)->toEqual([
             ['type' => 'product', 'mode' => 'all'],
         ])
         ->and($freshRule->target_connection_ids)->toBe([41, 52])

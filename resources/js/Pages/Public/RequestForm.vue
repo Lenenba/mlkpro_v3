@@ -369,6 +369,8 @@ const resetRequestForm = () => {
     duplicateAlert.value = null;
 };
 
+const shouldIgnoreDuplicates = (value) => value === true;
+
 const buildPayload = (ignoreDuplicates = false) => ({
     contact_name: form.contact_name || null,
     contact_email: form.contact_email || null,
@@ -383,7 +385,7 @@ const buildPayload = (ignoreDuplicates = false) => ({
     suggested_service_ids: [...form.suggested_service_ids],
     services_sur_devis: [...form.services_sur_devis],
     final_action: form.final_action,
-    ignore_duplicates: ignoreDuplicates,
+    ignore_duplicates: shouldIgnoreDuplicates(ignoreDuplicates),
 });
 
 const submit = async (ignoreDuplicates = false) => {
@@ -537,7 +539,7 @@ onMounted(() => {
             </a>
         </div>
 
-        <form class="mt-6 space-y-4" @submit.prevent="submit">
+        <form class="mt-6 space-y-4" @submit.prevent="submit()">
             <div
                 v-if="submitMessage"
                 class="rounded-sm border px-3 py-2 text-sm"
