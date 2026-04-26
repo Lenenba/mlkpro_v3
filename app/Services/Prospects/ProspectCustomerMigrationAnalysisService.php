@@ -4,7 +4,6 @@ namespace App\Services\Prospects;
 
 use App\Models\Customer;
 use App\Models\Payment;
-use App\Models\Quote;
 use App\Models\Request as LeadRequest;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;

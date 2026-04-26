@@ -5,7 +5,6 @@ namespace App\Services\Social;
 use App\Models\SocialAutomationRule;
 use App\Models\SocialPost;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 
 class SocialContentRotationService
 {

@@ -429,8 +429,7 @@ class SocialAutomationRunnerService
         string $outcomeCode = 'skipped',
         bool $countsAsFailure = false,
         array $context = []
-    ): array
-    {
+    ): array {
         if (! $dryRun) {
             $completedAt = now();
             $metadata = $countsAsFailure
@@ -483,8 +482,7 @@ class SocialAutomationRunnerService
         ?User $owner = null,
         ?Carbon $startedAt = null,
         string $outcomeCode = 'execution_error'
-    ): array
-    {
+    ): array {
         if (! $dryRun) {
             $completedAt = now();
             $metadata = $this->markRuleFailure($rule->metadata, $message, $outcomeCode, $completedAt);

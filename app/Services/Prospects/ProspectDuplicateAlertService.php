@@ -9,8 +9,7 @@ class ProspectDuplicateAlertService
 {
     public function __construct(
         private readonly ProspectDuplicateDetectionService $duplicateDetection,
-    ) {
-    }
+    ) {}
 
     /**
      * @param  array<string, mixed>  $attributes

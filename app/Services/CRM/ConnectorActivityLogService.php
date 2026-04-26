@@ -5,8 +5,8 @@ namespace App\Services\CRM;
 use App\Models\ActivityLog;
 use App\Models\Request as LeadRequest;
 use App\Models\User;
-use App\Services\ProspectInteractionLogger;
 use App\Services\CRM\Connectors\CrmConnectorRegistry;
+use App\Services\ProspectInteractionLogger;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 

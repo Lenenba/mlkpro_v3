@@ -8,7 +8,6 @@ use App\Models\Promotion;
 use App\Models\SocialAutomationRule;
 use App\Models\SocialPostTemplate;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 

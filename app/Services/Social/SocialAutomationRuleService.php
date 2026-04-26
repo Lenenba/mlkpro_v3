@@ -7,7 +7,6 @@ use App\Models\SocialAutomationRule;
 use App\Models\User;
 use App\Support\LocalePreference;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 class SocialAutomationRuleService

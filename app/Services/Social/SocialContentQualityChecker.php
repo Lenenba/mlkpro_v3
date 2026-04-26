@@ -86,8 +86,7 @@ class SocialContentQualityChecker
         array $candidate,
         ?Carbon $now = null,
         ?int $ignorePostId = null
-    ): array
-    {
+    ): array {
         $text = trim((string) data_get($candidate, 'content_payload.text', ''));
         $imageUrl = trim((string) data_get($candidate, 'media_payload.0.url', ''));
         $linkUrl = trim((string) ($candidate['link_url'] ?? ''));
@@ -136,8 +135,7 @@ class SocialContentQualityChecker
         SocialAutomationRule $rule,
         Carbon $now,
         ?int $ignorePostId = null
-    ): bool
-    {
+    ): bool {
         $timezone = trim((string) ($rule->timezone ?: $owner->company_timezone ?: config('app.timezone', 'UTC')));
         $timezone = in_array($timezone, timezone_identifiers_list(), true)
             ? $timezone
@@ -159,8 +157,7 @@ class SocialContentQualityChecker
         string $fingerprint,
         Carbon $now,
         ?int $ignorePostId = null
-    ): bool
-    {
+    ): bool {
         $cutoff = $now->copy()->subHours(max(1, (int) ($rule->min_hours_between_similar_posts ?: 24)));
 
         return SocialPost::query()

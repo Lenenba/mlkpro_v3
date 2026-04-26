@@ -11,7 +11,7 @@ function onboardingInviteRoleId(string $name): int
 {
     return (int) Role::query()->firstOrCreate(
         ['name' => $name],
-        ['description' => $name . ' role']
+        ['description' => $name.' role']
     )->id;
 }
 
@@ -19,7 +19,7 @@ function onboardingInviteOwner(array $attributes = []): User
 {
     $defaults = [
         'name' => 'Onboarding Invite Owner',
-        'email' => 'owner-' . Str::lower(Str::random(10)) . '@example.com',
+        'email' => 'owner-'.Str::lower(Str::random(10)).'@example.com',
         'password' => 'password',
         'role_id' => onboardingInviteRoleId('owner'),
         'company_type' => 'services',
@@ -71,7 +71,7 @@ test('onboarding invites generate permissions only for enabled modules', functio
 
     $result = invokeOnboardingInviteApply($owner, [[
         'name' => 'Invite Admin',
-        'email' => 'invite-admin-' . Str::lower(Str::random(10)) . '@example.com',
+        'email' => 'invite-admin-'.Str::lower(Str::random(10)).'@example.com',
         'role' => 'admin',
     ]]);
 
@@ -107,7 +107,7 @@ test('onboarding invites keep reservation permissions when reservation module is
 
     $result = invokeOnboardingInviteApply($owner, [[
         'name' => 'Invite Member',
-        'email' => 'invite-member-' . Str::lower(Str::random(10)) . '@example.com',
+        'email' => 'invite-member-'.Str::lower(Str::random(10)).'@example.com',
         'role' => 'member',
     ]]);
 

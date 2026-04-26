@@ -117,7 +117,7 @@ class ServiceRequestIntakeService
      */
     public function prospectAttributesForDuplicateCheck(array $validated): array
     {
-        [$source, ] = $this->resolveSourceAndChannel((string) ($validated['source'] ?? ''));
+        [$source] = $this->resolveSourceAndChannel((string) ($validated['source'] ?? ''));
 
         return [
             'title' => $validated['title'] ?? null,
@@ -236,7 +236,7 @@ class ServiceRequestIntakeService
      */
     private function createProspectFromServiceRequest(int $accountId, User $actor, array $validated): LeadRequest
     {
-        [$source, ] = $this->resolveSourceAndChannel((string) ($validated['source'] ?? ''));
+        [$source] = $this->resolveSourceAndChannel((string) ($validated['source'] ?? ''));
         $meta = ProspectIntakeMeta::merge(
             $validated['meta'] ?? null,
             source: $source,
