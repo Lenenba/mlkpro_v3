@@ -10,7 +10,9 @@
         "accounts": "Comptes",
         "composer": "Composer",
         "templates": "Templates",
-        "history": "Historique"
+        "history": "Historique",
+        "autopilot": "Autopilot",
+        "approvals": "A valider"
       },
       "stats": {
         "connected_accounts": "Comptes connectes",
@@ -34,7 +36,17 @@
         "composer_title": "Composeur de brouillons",
         "composer_description": "Preparez texte, image, lien, planification et selection des comptes cibles dans un seul ecran Pulse.",
         "composer_action_manage": "Ouvrir le composeur",
-        "composer_action_view": "Voir le composeur"
+        "composer_action_view": "Voir le composeur",
+        "autopilot_title": "Pulse Autopilot",
+        "autopilot_description": "Configurez des regles qui generent regulierement des posts a partir de vos contenus metier.",
+        "autopilot_action_manage": "Gerer les regles",
+        "autopilot_action_view": "Voir les regles",
+        "active_rules": "Regles actives",
+        "approvals_title": "Publications a valider",
+        "approvals_description": "Centralisez les posts en attente, approuvez-les maintenant ou transformez-les en revision.",
+        "approvals_action_manage": "Ouvrir la file",
+        "approvals_action_view": "Voir la file",
+        "pending_approvals": "En attente"
       },
       "recent_drafts_title": "Derniers brouillons",
       "recent_drafts_description": "Reprenez les derniers brouillons Pulse sans reconstruire la selection des cibles.",
@@ -66,6 +78,16 @@
       "head_title": "Historique Malikia Pulse",
       "page_title": "Historique Malikia Pulse",
       "page_description": "Consultez les derniers posts Pulse, filtrez l historique, dupliquez les contenus utiles et relancez les posts publies en repost editable."
+    },
+    "automations_page": {
+      "head_title": "Pulse Autopilot",
+      "page_title": "Pulse Autopilot",
+      "page_description": "Configurez des regles de generation recurrente, gardez la maitrise de la validation et maintenez une presence sociale reguliere."
+    },
+    "approvals_page": {
+      "head_title": "Publications Pulse a valider",
+      "page_title": "Publications Pulse a valider",
+      "page_description": "Revoyez les posts en attente, approuvez-les maintenant, programmez-les ou demandez une nouvelle version sans quitter Pulse."
     },
     "composer_manager": {
       "title": "Composeur de brouillons",
@@ -194,7 +216,8 @@
         "promotion": "Promotion",
         "product": "Produit",
         "service": "Service",
-        "campaign": "Campagne"
+        "campaign": "Campagne",
+        "template": "Template"
       },
       "untitled_draft": "Brouillon Pulse sans titre",
       "untitled_template": "Template Pulse sans titre",
@@ -305,6 +328,207 @@
       "preview_image_alt": "Image de preview de l historique Pulse",
       "preview_cta_fallback": "Voir les details",
       "preview_link_destination": "Destination",
+      "empty_value": "Non disponible"
+    },
+    "automation_manager": {
+      "title": "Regles Pulse Autopilot",
+      "description": "Assemblez les sources, les comptes cibles et la cadence de generation pour produire des publications plus regulieres.",
+      "read_only_title": "Autopilot en lecture seule",
+      "read_only_description": "Vous pouvez consulter les regles existantes, mais il faut `social.manage` ou `social.publish` pour les modifier.",
+      "summary": {
+        "total": "Regles",
+        "active": "Actives",
+        "paused": "En pause",
+        "pending_approvals": "A valider",
+        "attention": "A surveiller",
+        "auto_paused": "Auto-pause"
+      },
+      "form": {
+        "create_title": "Nouvelle regle",
+        "edit_title": "Modifier la regle",
+        "description": "Chaque regle genere un vrai post Pulse reutilisant le moteur de publication et d approbation existant."
+      },
+      "fields": {
+        "name": "Nom de la regle",
+        "description": "Description interne",
+        "is_active": "Regle active",
+        "frequency_type": "Frequence",
+        "scheduled_time": "Heure cible",
+        "timezone": "Fuseau horaire",
+        "language": "Langue",
+        "approval_mode": "Mode de validation",
+        "max_posts_per_day": "Max posts par jour",
+        "min_hours_between_similar_posts": "Heures mini entre contenus proches"
+      },
+      "targets_title": "Comptes cibles",
+      "targets_description": "Selectionnez les comptes que la regle pourra utiliser lors de la generation automatique.",
+      "sources_title": "Sources de contenu",
+      "sources_description": "Activez une ou plusieurs familles de contenu, puis limitez-les a certains elements si necessaire.",
+      "source_types": {
+        "product": "Produits",
+        "service": "Services",
+        "promotion": "Promotions",
+        "campaign": "Campagnes",
+        "template": "Templates Pulse"
+      },
+      "source_modes": {
+        "all": "Tous les elements",
+        "selected_ids": "Elements choisis"
+      },
+      "source_items_count": "{count} element | {count} elements",
+      "frequency_options": {
+        "hourly": "Toutes les heures",
+        "daily": "Tous les jours",
+        "every_two_days": "Tous les 2 jours",
+        "weekly": "Toutes les semaines",
+        "monthly": "Tous les mois"
+      },
+      "approval_mode_options": {
+        "required": "Validation requise",
+        "auto_publish": "Publication auto"
+      },
+      "connection_states": {
+        "connected": "Pret pour la publication",
+        "needs_attention": "Connexion a verifier"
+      },
+      "statuses": {
+        "active": "Active",
+        "paused": "En pause"
+      },
+      "health_states": {
+        "healthy": "Saine",
+        "warning": "Vigilance",
+        "attention": "Attention"
+      },
+      "health_reasons": {
+        "connection_attention": "Compte a verifier",
+        "auto_paused": "Auto-pause defensive",
+        "failure_streak": "Erreurs repetees",
+        "approval_backlog": "File d approbation chargee",
+        "schedule_overdue": "Prochaine generation depassee",
+        "last_error": "Derniere erreur enregistree"
+      },
+      "run_statuses": {
+        "generated": "Genere",
+        "skipped": "Ignore",
+        "error": "Erreur"
+      },
+      "outcome_codes": {
+        "auto_published": "Publication auto",
+        "queued_for_approval": "Envoye en validation",
+        "feature_disabled": "Module desactive",
+        "targets_unavailable": "Comptes indisponibles",
+        "source_unavailable": "Source indisponible",
+        "quality_guard": "Garde-fou de contenu",
+        "validation_error": "Erreur de validation",
+        "execution_error": "Erreur d execution",
+        "auto_paused": "Regle auto-pausee"
+      },
+      "library_title": "Regles existantes",
+      "library_description": "Retrouvez les regles actives ou en pause, leur prochain passage et les derniers signaux d erreur.",
+      "recent_runs_title": "Activite recente",
+      "recent_runs_description": "Suivez les derniers passages d Autopilot pour comprendre ce qui a ete genere, bloque ou mis en pause.",
+      "meta": {
+        "next_generation_at": "Prochaine generation",
+        "last_generated_at": "Derniere generation",
+        "accounts": "Comptes",
+        "generated_posts_count": "Posts generes",
+        "pending_posts": "Posts a valider",
+        "published_posts": "Posts publies"
+      },
+      "actions": {
+        "reload": "Recharger",
+        "new_rule": "Nouvelle regle",
+        "save_rule": "Enregistrer la regle",
+        "update_rule": "Mettre a jour la regle",
+        "clear_form": "Vider le formulaire",
+        "edit_rule": "Modifier",
+        "pause_rule": "Mettre en pause",
+        "resume_rule": "Reprendre",
+        "delete_rule": "Supprimer",
+        "open_generated_post": "Ouvrir le post"
+      },
+      "messages": {
+        "load_error": "La page Autopilot n a pas pu etre rechargee.",
+        "save_error": "La regle Pulse n a pas pu etre enregistree.",
+        "save_success": "La regle Pulse a ete enregistree.",
+        "update_success": "La regle Pulse a ete mise a jour.",
+        "pause_success": "La regle Pulse a ete mise en pause.",
+        "resume_success": "La regle Pulse a ete reactivee.",
+        "toggle_error": "Le statut de la regle Pulse n a pas pu etre change.",
+        "delete_error": "La regle Pulse n a pas pu etre supprimee.",
+        "delete_success": "La regle Pulse a ete supprimee.",
+        "confirm_delete": "Supprimer la regle Pulse \"{name}\" ?"
+      },
+      "empty_rules": "Aucune regle Pulse Autopilot n a encore ete configuree.",
+      "empty_recent_runs": "Aucune execution Autopilot n a encore ete enregistree.",
+      "untitled_rule": "Regle Pulse sans titre",
+      "empty_value": "Non disponible"
+    },
+    "approval_inbox": {
+      "title": "File de validation Pulse",
+      "description": "Validez rapidement les publications en attente, basculez-les en revision ou demandez une nouvelle version generee par Autopilot.",
+      "read_only_title": "File d approbation en lecture seule",
+      "read_only_description": "Vous pouvez consulter les propositions en attente, mais il faut `social.approve` pour agir dessus.",
+      "summary": {
+        "pending": "En attente",
+        "automated": "Automatisees",
+        "manual": "Manuelles",
+        "stale": "En attente depuis longtemps"
+      },
+      "fields": {
+        "search": "Rechercher un texte, une source ou un lien",
+        "rule_id": "Regle Autopilot",
+        "origin": "Origine",
+        "source_type": "Type de source"
+      },
+      "filters": {
+        "all_rules": "Toutes les regles",
+        "all_origins": "Toutes les origines",
+        "automated_only": "Automatisees uniquement",
+        "manual_only": "Manuelles uniquement",
+        "all_sources": "Toutes les sources"
+      },
+      "meta": {
+        "requested_by": "Demande par {actor}",
+        "source_label": "Source: {source}",
+        "generation_mode": "Generation: {mode}"
+      },
+      "actions": {
+        "reload": "Recharger",
+        "reset_filters": "Reinitialiser",
+        "apply_filters": "Appliquer les filtres",
+        "open_composer": "Ouvrir le composeur",
+        "request_revision": "Modifier",
+        "approve_now": "Valider et publier maintenant",
+        "approve_schedule": "Valider et programmer",
+        "reject": "Rejeter",
+        "regenerate": "Regenerer"
+      },
+      "messages": {
+        "load_error": "La file Pulse n a pas pu etre rechargee.",
+        "revision_error": "La proposition Pulse n a pas pu etre renvoyee en revision.",
+        "revision_success": "La proposition Pulse a ete renvoyee en revision.",
+        "approve_now_error": "La proposition Pulse n a pas pu etre approuvee pour publication immediate.",
+        "approve_now_success": "La proposition Pulse a ete approuvee et envoyee en publication.",
+        "approve_schedule_error": "La proposition Pulse n a pas pu etre approuvee pour programmation.",
+        "approve_schedule_success": "La proposition Pulse a ete approuvee et programmee.",
+        "reject_error": "La proposition Pulse n a pas pu etre rejetee.",
+        "reject_success": "La proposition Pulse a ete rejetee.",
+        "regenerate_error": "Pulse Autopilot n a pas pu generer une nouvelle version.",
+        "regenerate_success": "Pulse Autopilot a genere une nouvelle proposition."
+      },
+      "status_pending": "En attente d approbation",
+      "status_stale": "A traiter vite",
+      "targets_title": "Cibles",
+      "no_targets": "Aucune cible n est rattachee a cette proposition.",
+      "untitled_post": "Proposition Pulse sans titre",
+      "empty_text": "Aucun texte n a ete enregistre sur cette proposition Pulse.",
+      "preview_image_alt": "Image de preview de la proposition Pulse",
+      "preview_cta_fallback": "Voir les details",
+      "preview_link_destination": "Destination",
+      "empty_title": "Aucune proposition Pulse a valider",
+      "empty_description": "Quand Autopilot ou un membre de l equipe soumettra un post pour validation, il apparaitra ici.",
       "empty_value": "Non disponible"
     },
     "accounts_manager": {

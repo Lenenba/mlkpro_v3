@@ -36,6 +36,7 @@
       "source": "Source"
     },
     "actions": {
+      "filters": "Filters",
       "apply_filters": "Apply",
       "reset_filters": "Reset",
       "view": "View",
@@ -45,10 +46,29 @@
       "open_customers": "Customers module",
       "open_prospects": "Prospects module"
     },
+    "view": {
+      "table": "Table",
+      "cards": "Cards"
+    },
     "list": {
+      "title": "Request list",
+      "subtitle": "Switch between table and card layouts without losing your active filters.",
       "customer": "Customer",
       "prospect": "Prospect",
       "service": "Service"
+    },
+    "table": {
+      "request": "Request",
+      "requester": "Requester",
+      "relation": "Relation",
+      "source": "Source",
+      "status": "Status",
+      "submitted": "Submitted",
+      "actions": "Actions"
+    },
+    "pagination": {
+      "showing": "Showing {from} to {to} of {total}",
+      "page_of": "Page {page} / {total}"
     },
     "side": {
       "relations": "Relation mix",

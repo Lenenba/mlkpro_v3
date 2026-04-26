@@ -6,6 +6,7 @@ use App\Models\Campaign;
 use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Promotion;
+use App\Models\SocialPostTemplate;
 use App\Models\User;
 use App\Services\CompanyFeatureService;
 use Illuminate\Support\Str;
@@ -21,6 +22,8 @@ class SocialPrefillService
 
     public const SOURCE_CAMPAIGN = 'campaign';
 
+    public const SOURCE_TEMPLATE = 'template';
+
     public function __construct(
         private readonly CompanyFeatureService $featureService,
     ) {}
@@ -35,6 +38,7 @@ class SocialPrefillService
             self::SOURCE_PRODUCT,
             self::SOURCE_SERVICE,
             self::SOURCE_CAMPAIGN,
+            self::SOURCE_TEMPLATE,
         ];
     }
 
@@ -139,6 +143,7 @@ class SocialPrefillService
             self::SOURCE_PRODUCT => $this->productPayload($owner, $sourceId),
             self::SOURCE_SERVICE => $this->servicePayload($owner, $sourceId),
             self::SOURCE_CAMPAIGN => $this->campaignPayload($owner, $sourceId),
+            self::SOURCE_TEMPLATE => $this->templatePayload($owner, $sourceId),
             default => null,
         };
     }
@@ -150,6 +155,7 @@ class SocialPrefillService
             self::SOURCE_PRODUCT => $this->featureService->hasFeature($owner, 'products'),
             self::SOURCE_SERVICE => $this->featureService->hasFeature($owner, 'services'),
             self::SOURCE_CAMPAIGN => $this->featureService->hasFeature($owner, 'campaigns'),
+            self::SOURCE_TEMPLATE => $this->featureService->hasFeature($owner, 'social'),
             default => false,
         };
     }
@@ -307,6 +313,38 @@ class SocialPrefillService
             'text' => $this->joinTextBlocks($blocks),
             'image_url' => $this->campaignImageUrl($campaign),
             'link_url' => $this->validUrl($campaign->cta_url),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function templatePayload(User $owner, int $templateId): ?array
+    {
+        $template = SocialPostTemplate::query()
+            ->byUser($owner->id)
+            ->whereKey($templateId)
+            ->first();
+
+        if (! $template) {
+            return null;
+        }
+
+        $text = trim((string) data_get($template->content_payload, 'text', ''));
+        $imageUrl = collect((array) ($template->media_payload ?? []))
+            ->map(fn (array $item): string => trim((string) ($item['url'] ?? '')))
+            ->first(fn (string $value): bool => $value !== '');
+        $linkUrl = $this->validUrl($template->link_url);
+
+        return [
+            'source_type' => self::SOURCE_TEMPLATE,
+            'source_id' => (int) $template->id,
+            'source_label' => trim((string) $template->name) !== ''
+                ? trim((string) $template->name)
+                : 'Template #'.$template->id,
+            'text' => $text !== '' ? $text : null,
+            'image_url' => $imageUrl ?: null,
+            'link_url' => $linkUrl,
         ];
     }
 

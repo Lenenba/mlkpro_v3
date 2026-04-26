@@ -53,6 +53,7 @@ use App\Services\SaleNotificationService;
 use App\Services\ServiceRequests\LegacyServiceRequestBackfillAnalysisService;
 use App\Services\ServiceRequests\LegacyServiceRequestBackfillService;
 use App\Services\ServiceRequests\LegacyServiceRequestBackfillVerificationService;
+use App\Services\Social\SocialAutomationRunnerService;
 use App\Services\SmsNotificationService;
 use App\Services\StripePlanEnvSyncService;
 use App\Services\StripePlanPriceProvisioner;
@@ -2018,6 +2019,25 @@ Artisan::command('campaigns:automations {--account_id=}', function (CampaignAuto
     return 0;
 })->purpose('Process active marketing automation rules');
 
+Artisan::command(
+    'social:run-automations {--account_id=} {--rule_id=} {--dry-run}',
+    function (SocialAutomationRunnerService $runnerService): int {
+        $accountId = $this->option('account_id');
+        $ruleId = $this->option('rule_id');
+        $dryRun = (bool) $this->option('dry-run');
+
+        $result = $runnerService->process(
+            $accountId ? (int) $accountId : null,
+            $ruleId ? (int) $ruleId : null,
+            $dryRun
+        );
+
+        $this->info('Pulse automations processed: '.json_encode($result));
+
+        return 0;
+    }
+)->purpose('Generate due Malikia Pulse automation candidates');
+
 Artisan::command('campaigns:vip-auto-sync {--account_id=} {--dry-run}', function (VipService $vipService): int {
     $accountId = $this->option('account_id');
     $dryRun = (bool) $this->option('dry-run');
@@ -2638,6 +2658,7 @@ Schedule::command('support:sla-reminders')->hourly();
 Schedule::command('reservations:notifications')->everyFifteenMinutes();
 Schedule::command('reservations:queue-alerts')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('campaigns:automations')->everyFiveMinutes()->withoutOverlapping();
+Schedule::command('social:run-automations')->everyFifteenMinutes()->withoutOverlapping();
 Schedule::command('campaigns:vip-auto-sync')->dailyAt('02:35')->withoutOverlapping();
 Schedule::command('campaigns:interest-scores')->dailyAt('02:15');
 Schedule::command('campaigns:reconcile-delivery')->everyTenMinutes()->withoutOverlapping();

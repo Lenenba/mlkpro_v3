@@ -36,6 +36,7 @@
       "source": "Source"
     },
     "actions": {
+      "filters": "Filtres",
       "apply_filters": "Appliquer",
       "reset_filters": "Reinitialiser",
       "view": "Voir",
@@ -45,10 +46,29 @@
       "open_customers": "Module clients",
       "open_prospects": "Module prospects"
     },
+    "view": {
+      "table": "Table",
+      "cards": "Cartes"
+    },
     "list": {
+      "title": "Liste des demandes",
+      "subtitle": "Basculez entre la table et les cartes sans perdre vos filtres actifs.",
       "customer": "Client",
       "prospect": "Prospect",
       "service": "Service"
+    },
+    "table": {
+      "request": "Demande",
+      "requester": "Demandeur",
+      "relation": "Rattachement",
+      "source": "Source",
+      "status": "Statut",
+      "submitted": "Soumise",
+      "actions": "Actions"
+    },
+    "pagination": {
+      "showing": "Affichage de {from} a {to} sur {total}",
+      "page_of": "Page {page} / {total}"
     },
     "side": {
       "relations": "Repartition des rattachements",

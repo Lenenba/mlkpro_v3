@@ -93,6 +93,7 @@ use App\Http\Controllers\Settings\ProductCategoryController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
 use App\Http\Controllers\Settings\SubscriptionController;
 use App\Http\Controllers\SocialAccountConnectionController;
+use App\Http\Controllers\SocialAutomationController;
 use App\Http\Controllers\SocialPostController;
 use App\Http\Controllers\SuperAdmin\AdminController as SuperAdminAdminController;
 use App\Http\Controllers\SuperAdmin\AiImageController as SuperAdminAiImageController;
@@ -588,6 +589,10 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('social.templates.index');
         Route::get('/social/history', [SocialPostController::class, 'history'])
             ->name('social.history');
+        Route::get('/social/automations', [SocialAutomationController::class, 'automations'])
+            ->name('social.automations.index');
+        Route::get('/social/approvals', [SocialAutomationController::class, 'approvals'])
+            ->name('social.approvals.index');
         Route::post('/social/suggestions', [SocialPostController::class, 'suggestions'])
             ->name('social.suggestions');
         Route::post('/social/posts', [SocialPostController::class, 'store'])
@@ -604,6 +609,10 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('social.posts.approve');
         Route::post('/social/posts/{post}/reject', [SocialPostController::class, 'reject'])
             ->name('social.posts.reject');
+        Route::post('/social/posts/{post}/prepare-revision', [SocialAutomationController::class, 'prepareRevision'])
+            ->name('social.posts.prepare-revision');
+        Route::post('/social/posts/{post}/regenerate', [SocialAutomationController::class, 'regenerate'])
+            ->name('social.posts.regenerate');
         Route::post('/social/posts/{post}/duplicate', [SocialPostController::class, 'duplicate'])
             ->name('social.posts.duplicate');
         Route::post('/social/posts/{post}/repost', [SocialPostController::class, 'repost'])
@@ -614,6 +623,16 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('social.templates.update');
         Route::delete('/social/templates/{template}', [SocialPostController::class, 'destroyTemplate'])
             ->name('social.templates.destroy');
+        Route::post('/social/automations', [SocialAutomationController::class, 'store'])
+            ->name('social.automations.store');
+        Route::put('/social/automations/{rule}', [SocialAutomationController::class, 'update'])
+            ->name('social.automations.update');
+        Route::post('/social/automations/{rule}/pause', [SocialAutomationController::class, 'pause'])
+            ->name('social.automations.pause');
+        Route::post('/social/automations/{rule}/resume', [SocialAutomationController::class, 'resume'])
+            ->name('social.automations.resume');
+        Route::delete('/social/automations/{rule}', [SocialAutomationController::class, 'destroy'])
+            ->name('social.automations.destroy');
         Route::get('/social/accounts', [SocialAccountConnectionController::class, 'index'])
             ->name('social.accounts.index');
         Route::post('/social/accounts', [SocialAccountConnectionController::class, 'store'])

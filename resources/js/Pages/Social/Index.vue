@@ -15,6 +15,14 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    automation_summary: {
+        type: Object,
+        default: () => ({}),
+    },
+    approval_summary: {
+        type: Object,
+        default: () => ({}),
+    },
     workspace_stats: {
         type: Object,
         default: () => ({}),
@@ -190,6 +198,84 @@ const formatDate = (value) => {
                             <PrimaryButton type="button">
                                 {{ access.can_manage_posts ? t('social.index_page.cards.composer_action_manage') : t('social.index_page.cards.composer_action_view') }}
                             </PrimaryButton>
+                        </Link>
+                    </div>
+                </article>
+
+                <article class="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <div class="text-xs uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
+                        {{ t('social.workspace.tabs.autopilot') }}
+                    </div>
+                    <h2 class="mt-2 text-lg font-semibold text-stone-900 dark:text-neutral-100">
+                        {{ t('social.index_page.cards.autopilot_title') }}
+                    </h2>
+                    <p class="mt-2 text-sm leading-6 text-stone-600 dark:text-neutral-300">
+                        {{ t('social.index_page.cards.autopilot_description') }}
+                    </p>
+
+                    <div class="mt-5 grid grid-cols-2 gap-3">
+                        <div class="rounded-3xl border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800/70">
+                            <div class="text-xs uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
+                                {{ t('social.index_page.cards.active_rules') }}
+                            </div>
+                            <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
+                                {{ Number(automation_summary.active || 0) }}
+                            </div>
+                        </div>
+                        <div class="rounded-3xl border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800/70">
+                            <div class="text-xs uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
+                                {{ t('social.automation_manager.summary.total') }}
+                            </div>
+                            <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
+                                {{ Number(automation_summary.total || 0) }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-5">
+                        <Link :href="route('social.automations.index')">
+                            <PrimaryButton type="button">
+                                {{ access.can_manage_automations ? t('social.index_page.cards.autopilot_action_manage') : t('social.index_page.cards.autopilot_action_view') }}
+                            </PrimaryButton>
+                        </Link>
+                    </div>
+                </article>
+
+                <article class="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <div class="text-xs uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
+                        {{ t('social.workspace.tabs.approvals') }}
+                    </div>
+                    <h2 class="mt-2 text-lg font-semibold text-stone-900 dark:text-neutral-100">
+                        {{ t('social.index_page.cards.approvals_title') }}
+                    </h2>
+                    <p class="mt-2 text-sm leading-6 text-stone-600 dark:text-neutral-300">
+                        {{ t('social.index_page.cards.approvals_description') }}
+                    </p>
+
+                    <div class="mt-5 grid grid-cols-2 gap-3">
+                        <div class="rounded-3xl border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800/70">
+                            <div class="text-xs uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
+                                {{ t('social.index_page.cards.pending_approvals') }}
+                            </div>
+                            <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
+                                {{ Number(approval_summary.pending || 0) }}
+                            </div>
+                        </div>
+                        <div class="rounded-3xl border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800/70">
+                            <div class="text-xs uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
+                                {{ t('social.workspace.stats.draft_posts') }}
+                            </div>
+                            <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
+                                {{ Number(post_summary.drafts || 0) }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-5">
+                        <Link :href="route('social.approvals.index')">
+                            <SecondaryButton type="button">
+                                {{ access.can_approve ? t('social.index_page.cards.approvals_action_manage') : t('social.index_page.cards.approvals_action_view') }}
+                            </SecondaryButton>
                         </Link>
                     </div>
                 </article>

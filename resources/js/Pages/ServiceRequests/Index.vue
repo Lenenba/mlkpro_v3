@@ -1,12 +1,18 @@
 <script setup>
-import { computed, reactive, watch } from 'vue';
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
 import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
+import { crmButtonClass, crmSegmentedControlButtonClass, crmSegmentedControlClass } from '@/utils/crmButtonStyles';
 import { humanizeDate } from '@/utils/date';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import {
     serviceRequestCustomerLabel,
+    serviceRequestProspectLabel,
     serviceRequestRelationLabel,
     serviceRequestRequesterLabel,
     serviceRequestSourceLabel,
@@ -14,7 +20,6 @@ import {
     serviceRequestStatusLabel,
     serviceRequestTitle,
 } from '@/utils/serviceRequestPresentation';
-import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     serviceRequests: {
@@ -60,90 +65,113 @@ const filterForm = reactive({
     relation: props.filters?.relation || '',
     sort: props.filters?.sort || 'submitted_at',
     direction: props.filters?.direction || 'desc',
-    per_page: Number(resolveDataTablePerPage(props.serviceRequests?.per_page, props.filters?.per_page)),
 });
 
-const rows = computed(() => Array.isArray(props.serviceRequests?.data) ? props.serviceRequests.data : []);
-const paginationLinks = computed(() => Array.isArray(props.serviceRequests?.links) ? props.serviceRequests.links : []);
+const showAdvanced = ref(false);
+const isLoading = ref(false);
+const isViewSwitching = ref(false);
+const suppressFilterWatch = ref(false);
+const allowedViews = ['table', 'cards'];
+const viewMode = ref('table');
+let filterTimeout = null;
+let viewSwitchTimeout = null;
+
+if (typeof window !== 'undefined') {
+    const storedView = window.localStorage.getItem('service_request_view_mode');
+    if (allowedViews.includes(storedView)) {
+        viewMode.value = storedView;
+    }
+}
+
+const rows = computed(() => (Array.isArray(props.serviceRequests?.data) ? props.serviceRequests.data : []));
+const requestTableRows = computed(() => (
+    isLoading.value && rows.value.length === 0
+        ? Array.from({ length: 6 }, (_, index) => ({ id: `service-request-skeleton-${index}`, __skeleton: true }))
+        : rows.value
+));
+const paginationLinks = computed(() => (Array.isArray(props.serviceRequests?.links) ? props.serviceRequests.links : []));
 const hasRows = computed(() => rows.value.length > 0);
+const currentPerPage = computed(() => resolveDataTablePerPage(props.serviceRequests?.per_page, props.filters?.per_page));
+const currentPage = computed(() => Number(props.serviceRequests?.current_page || 1));
+const lastPage = computed(() => Number(props.serviceRequests?.last_page || 1));
+const hasMultiplePages = computed(() => lastPage.value > 1);
+const resultLabel = computed(() => t('service_requests.pagination.showing', {
+    from: Number(props.serviceRequests?.from || 0),
+    to: Number(props.serviceRequests?.to || 0),
+    total: Number(props.serviceRequests?.total || rows.value.length || 0),
+}));
+const currentPageLabel = computed(() => t('service_requests.pagination.page_of', {
+    page: currentPage.value,
+    total: lastPage.value,
+}));
 
 const statusOptions = computed(() => [
-    { id: '', label: t('service_requests.filters.all_statuses') },
+    { value: '', label: t('service_requests.filters.all_statuses') },
     ...props.statusOptions.map((status) => ({
-        id: status,
+        value: status,
         label: serviceRequestStatusLabel(status, t),
     })),
 ]);
 
 const sourceOptions = computed(() => [
-    { id: '', label: t('service_requests.filters.all_sources') },
+    { value: '', label: t('service_requests.filters.all_sources') },
     ...props.sourceOptions.map((source) => ({
-        id: source,
+        value: source,
         label: serviceRequestSourceLabel(source, t),
     })),
 ]);
 
 const relationOptions = computed(() => ([
-    { id: '', label: t('service_requests.filters.all_relations') },
-    { id: 'customer', label: t('service_requests.relations.customer') },
-    { id: 'prospect', label: t('service_requests.relations.prospect') },
-    { id: 'unlinked', label: t('service_requests.relations.unlinked') },
+    { value: '', label: t('service_requests.filters.all_relations') },
+    { value: 'customer', label: t('service_requests.relations.customer') },
+    { value: 'prospect', label: t('service_requests.relations.prospect') },
+    { value: 'unlinked', label: t('service_requests.relations.unlinked') },
 ]));
 
 const sortOptions = computed(() => ([
-    { id: 'submitted_at', label: t('service_requests.sort.submitted_at') },
-    { id: 'created_at', label: t('service_requests.sort.created_at') },
-    { id: 'title', label: t('service_requests.sort.title') },
-    { id: 'status', label: t('service_requests.sort.status') },
-    { id: 'source', label: t('service_requests.sort.source') },
+    { value: 'submitted_at', label: t('service_requests.sort.submitted_at') },
+    { value: 'created_at', label: t('service_requests.sort.created_at') },
+    { value: 'title', label: t('service_requests.sort.title') },
+    { value: 'status', label: t('service_requests.sort.status') },
+    { value: 'source', label: t('service_requests.sort.source') },
 ]));
 
-const perPageOptions = computed(() => (props.perPageOptions || []).map((value) => ({
-    id: Number(value),
-    label: String(value),
-})));
+const directionOptions = computed(() => ([
+    { value: 'desc', label: t('service_requests.filters.newest_first') },
+    { value: 'asc', label: t('service_requests.filters.oldest_first') },
+]));
 
-const applyFilters = () => {
-    const query = {
-        search: filterForm.search || undefined,
-        status: filterForm.status || undefined,
-        source: filterForm.source || undefined,
-        relation: filterForm.relation || undefined,
-        sort: filterForm.sort || undefined,
-        direction: filterForm.direction || undefined,
-        per_page: filterForm.per_page || undefined,
-    };
-
-    router.get(route('service-requests.index'), query, {
-        preserveState: true,
-        preserveScroll: true,
-        replace: true,
-    });
-};
-
-const resetFilters = () => {
-    filterForm.search = '';
-    filterForm.status = '';
-    filterForm.source = '';
-    filterForm.relation = '';
-    filterForm.sort = 'submitted_at';
-    filterForm.direction = 'desc';
-    filterForm.per_page = Number(resolveDataTablePerPage(props.serviceRequests?.per_page, props.filters?.per_page));
-    applyFilters();
-};
-
-watch(() => filterForm.per_page, () => {
-    applyFilters();
-});
-
-const formatDate = (value) => humanizeDate(value);
-const requestDate = (serviceRequest) => serviceRequest?.submitted_at || serviceRequest?.created_at;
 const statCards = computed(() => ([
-    { key: 'total', label: t('service_requests.stats.total'), value: props.stats?.total || 0, tone: 'border-stone-500' },
-    { key: 'new', label: t('service_requests.stats.new'), value: props.stats?.new || 0, tone: 'border-amber-500' },
-    { key: 'active', label: t('service_requests.stats.active'), value: props.stats?.active || 0, tone: 'border-sky-500' },
-    { key: 'resolved', label: t('service_requests.stats.resolved'), value: props.stats?.resolved || 0, tone: 'border-emerald-500' },
-    { key: 'closed', label: t('service_requests.stats.closed'), value: props.stats?.closed || 0, tone: 'border-rose-500' },
+    {
+        key: 'total',
+        label: t('service_requests.stats.total'),
+        value: props.stats?.total || 0,
+        tone: 'border-stone-200 bg-stone-50 text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200',
+    },
+    {
+        key: 'new',
+        label: t('service_requests.stats.new'),
+        value: props.stats?.new || 0,
+        tone: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300',
+    },
+    {
+        key: 'active',
+        label: t('service_requests.stats.active'),
+        value: props.stats?.active || 0,
+        tone: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-300',
+    },
+    {
+        key: 'resolved',
+        label: t('service_requests.stats.resolved'),
+        value: props.stats?.resolved || 0,
+        tone: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300',
+    },
+    {
+        key: 'closed',
+        label: t('service_requests.stats.closed'),
+        value: props.stats?.closed || 0,
+        tone: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300',
+    },
 ]));
 
 const relationBreakdownMap = computed(() => {
@@ -155,288 +183,644 @@ const relationBreakdownMap = computed(() => {
 
     return map;
 });
+
+const requestDate = (serviceRequest) => serviceRequest?.submitted_at || serviceRequest?.created_at;
+const formatDate = (value) => humanizeDate(value) || '-';
+
+const excerpt = (value, limit = 110) => {
+    const normalized = String(value || '').trim();
+    if (normalized.length <= limit) {
+        return normalized;
+    }
+
+    return `${normalized.slice(0, limit - 1).trim()}…`;
+};
+
+const relationLinkLabel = (serviceRequest) => {
+    if (serviceRequest?.customer) {
+        return serviceRequestCustomerLabel(serviceRequest.customer) || t('service_requests.labels.none');
+    }
+
+    if (serviceRequest?.prospect) {
+        return serviceRequestProspectLabel(serviceRequest.prospect) || t('service_requests.labels.none');
+    }
+
+    return t('service_requests.labels.none');
+};
+
+const relationHref = (serviceRequest) => {
+    if (serviceRequest?.customer?.id) {
+        return route('customer.show', serviceRequest.customer.id);
+    }
+
+    if (serviceRequest?.prospect?.id) {
+        return route('prospects.show', serviceRequest.prospect.id);
+    }
+
+    return null;
+};
+
+const applyFilters = (overrides = {}) => {
+    const payload = {
+        search: filterForm.search,
+        status: filterForm.status,
+        source: filterForm.source,
+        relation: filterForm.relation,
+        sort: filterForm.sort,
+        direction: filterForm.direction,
+        per_page: currentPerPage.value,
+        ...overrides,
+    };
+
+    Object.keys(payload).forEach((key) => {
+        if (payload[key] === '' || payload[key] === null || payload[key] === undefined) {
+            delete payload[key];
+        }
+    });
+
+    if (Number(payload.page || 1) <= 1) {
+        delete payload.page;
+    }
+
+    isLoading.value = true;
+    router.get(route('service-requests.index'), payload, {
+        preserveScroll: true,
+        preserveState: true,
+        replace: true,
+        onFinish: () => {
+            isLoading.value = false;
+        },
+    });
+};
+
+const clearFilters = () => {
+    suppressFilterWatch.value = true;
+
+    filterForm.search = '';
+    filterForm.status = '';
+    filterForm.source = '';
+    filterForm.relation = '';
+    filterForm.sort = 'submitted_at';
+    filterForm.direction = 'desc';
+
+    if (filterTimeout) {
+        clearTimeout(filterTimeout);
+    }
+
+    applyFilters({ page: 1 });
+
+    queueMicrotask(() => {
+        suppressFilterWatch.value = false;
+    });
+};
+
+watch(
+    () => [
+        filterForm.search,
+        filterForm.status,
+        filterForm.source,
+        filterForm.relation,
+        filterForm.sort,
+        filterForm.direction,
+    ],
+    () => {
+        if (suppressFilterWatch.value) {
+            return;
+        }
+
+        if (filterTimeout) {
+            clearTimeout(filterTimeout);
+        }
+
+        filterTimeout = setTimeout(() => applyFilters({ page: 1 }), 260);
+    },
+);
+
+onBeforeUnmount(() => {
+    if (filterTimeout) {
+        clearTimeout(filterTimeout);
+    }
+
+    if (viewSwitchTimeout) {
+        clearTimeout(viewSwitchTimeout);
+    }
+});
+
+const setViewMode = (mode) => {
+    if (!allowedViews.includes(mode) || viewMode.value === mode) {
+        return;
+    }
+
+    viewMode.value = mode;
+
+    if (typeof window !== 'undefined') {
+        window.localStorage.setItem('service_request_view_mode', mode);
+    }
+
+    isViewSwitching.value = true;
+    if (viewSwitchTimeout) {
+        clearTimeout(viewSwitchTimeout);
+    }
+    viewSwitchTimeout = setTimeout(() => {
+        isViewSwitching.value = false;
+    }, 220);
+};
 </script>
 
 <template>
     <Head :title="$t('service_requests.page_title')" />
 
     <AuthenticatedLayout>
-        <div class="space-y-4">
-            <section class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                    <div>
-                        <p class="text-xs font-semibold uppercase tracking-[0.22em] text-stone-400 dark:text-neutral-500">
+        <div class="space-y-5 px-4 pb-6 sm:px-6 lg:px-8">
+            <section class="rounded-sm border border-stone-200 border-t-4 border-t-emerald-600 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+                <div class="flex flex-wrap items-start justify-between gap-4">
+                    <div class="space-y-2">
+                        <div class="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700 dark:text-emerald-300">
                             {{ $t('service_requests.eyebrow') }}
-                        </p>
-                        <h1 class="mt-2 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
+                        </div>
+                        <h1 class="text-2xl font-semibold tracking-tight text-stone-900 dark:text-white">
                             {{ $t('service_requests.workspace.title') }}
                         </h1>
-                        <p class="mt-1 max-w-3xl text-sm text-stone-500 dark:text-neutral-400">
+                        <p class="max-w-3xl text-sm leading-6 text-stone-600 dark:text-neutral-300">
                             {{ $t('service_requests.workspace.subtitle') }}
                         </p>
                     </div>
-                    <div class="flex flex-wrap items-center gap-2">
-                        <Link
-                            :href="route('customer.index')"
-                            class="inline-flex items-center gap-2 rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                        >
-                            {{ $t('service_requests.actions.open_customers') }}
-                        </Link>
-                        <Link
-                            :href="route('prospects.index')"
-                            class="inline-flex items-center gap-2 rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                        >
-                            {{ $t('service_requests.actions.open_prospects') }}
-                        </Link>
+
+                    <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                        <span class="font-medium">{{ $t('service_requests.stats.total') }}:</span>
+                        {{ Number(props.stats?.total || 0).toLocaleString() }}
                     </div>
                 </div>
             </section>
 
-            <section class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(11rem,1fr))]">
                 <article
                     v-for="card in statCards"
                     :key="card.key"
-                    class="rounded-sm border border-stone-200 border-t-4 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                    class="rounded-sm border p-3 shadow-sm"
                     :class="card.tone"
                 >
-                    <div class="text-xs uppercase tracking-wide text-stone-400">
+                    <div class="text-[11px] font-semibold uppercase tracking-[0.16em]">
                         {{ card.label }}
                     </div>
-                    <div class="mt-2 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
+                    <div class="mt-1.5 text-xl font-semibold lg:text-2xl">
                         {{ Number(card.value || 0).toLocaleString() }}
                     </div>
                 </article>
             </section>
 
-            <section class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr),320px]">
-                <div class="space-y-4">
-                    <form
-                        class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
-                        @submit.prevent="applyFilters"
+            <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+                <div class="space-y-1">
+                    <h2 class="text-sm font-semibold text-stone-900 dark:text-white">
+                        {{ $t('service_requests.list.title') }}
+                    </h2>
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                        {{ $t('service_requests.list.subtitle') }}
+                    </p>
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                        {{ resultLabel }}
+                        <span v-if="hasMultiplePages" class="mx-1 text-stone-300 dark:text-neutral-600">|</span>
+                        <span v-if="hasMultiplePages">{{ currentPageLabel }}</span>
+                    </p>
+                </div>
+
+                <div class="mt-4">
+                    <AdminDataTableToolbar
+                        :show-filters="showAdvanced"
+                        :show-apply="false"
+                        :busy="isLoading"
+                        :filters-label="$t('service_requests.actions.filters')"
+                        :clear-label="$t('service_requests.actions.reset_filters')"
+                        @toggle-filters="showAdvanced = !showAdvanced"
+                        @apply="applyFilters({ page: 1 })"
+                        @clear="clearFilters"
                     >
-                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
-                            <div class="xl:col-span-2">
-                                <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-400">
-                                    {{ $t('service_requests.filters.search') }}
-                                </label>
+                        <template #search>
+                            <div class="relative">
+                                <div class="pointer-events-none absolute inset-y-0 start-0 z-20 flex items-center ps-3.5">
+                                    <svg
+                                        class="size-4 shrink-0 text-stone-500 dark:text-neutral-400"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    >
+                                        <circle cx="11" cy="11" r="8" />
+                                        <path d="m21 21-4.3-4.3" />
+                                    </svg>
+                                </div>
                                 <input
                                     v-model="filterForm.search"
                                     type="text"
-                                    class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 shadow-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100 dark:focus:ring-emerald-500/20"
+                                    class="block w-full rounded-sm border border-stone-200 bg-white py-[7px] pe-8 ps-10 text-sm text-stone-700 placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:pointer-events-none disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:placeholder:text-neutral-400 dark:focus:ring-neutral-600"
                                     :placeholder="$t('service_requests.filters.search_placeholder')"
                                 >
                             </div>
-                            <div>
-                                <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-400">
-                                    {{ $t('service_requests.filters.status') }}
-                                </label>
-                                <select
-                                    v-model="filterForm.status"
-                                    class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 shadow-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100 dark:focus:ring-emerald-500/20"
-                                >
-                                    <option v-for="option in statusOptions" :key="option.id || 'all-status'" :value="option.id">
-                                        {{ option.label }}
-                                    </option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-400">
-                                    {{ $t('service_requests.filters.source') }}
-                                </label>
-                                <select
-                                    v-model="filterForm.source"
-                                    class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 shadow-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100 dark:focus:ring-emerald-500/20"
-                                >
-                                    <option v-for="option in sourceOptions" :key="option.id || 'all-source'" :value="option.id">
-                                        {{ option.label }}
-                                    </option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-400">
-                                    {{ $t('service_requests.filters.relation') }}
-                                </label>
-                                <select
-                                    v-model="filterForm.relation"
-                                    class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 shadow-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100 dark:focus:ring-emerald-500/20"
-                                >
-                                    <option v-for="option in relationOptions" :key="option.id || 'all-relation'" :value="option.id">
-                                        {{ option.label }}
-                                    </option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-400">
-                                    {{ $t('service_requests.filters.sort') }}
-                                </label>
-                                <select
-                                    v-model="filterForm.sort"
-                                    class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 shadow-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100 dark:focus:ring-emerald-500/20"
-                                >
-                                    <option v-for="option in sortOptions" :key="option.id" :value="option.id">
-                                        {{ option.label }}
-                                    </option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="mt-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                            <div class="flex flex-wrap items-center gap-2">
-                                <label class="text-xs font-semibold uppercase tracking-wide text-stone-400">
-                                    {{ $t('service_requests.filters.direction') }}
-                                </label>
-                                <button
-                                    type="button"
-                                    class="rounded-full border px-3 py-1 text-xs font-semibold transition"
-                                    :class="filterForm.direction === 'desc' ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-stone-200 bg-white text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300'"
-                                    @click="filterForm.direction = 'desc'"
-                                >
-                                    {{ $t('service_requests.filters.newest_first') }}
-                                </button>
-                                <button
-                                    type="button"
-                                    class="rounded-full border px-3 py-1 text-xs font-semibold transition"
-                                    :class="filterForm.direction === 'asc' ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-stone-200 bg-white text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300'"
-                                    @click="filterForm.direction = 'asc'"
-                                >
-                                    {{ $t('service_requests.filters.oldest_first') }}
-                                </button>
-                            </div>
-                            <div class="flex flex-wrap items-center gap-2">
-                                <label class="text-xs font-semibold uppercase tracking-wide text-stone-400">
-                                    {{ $t('service_requests.filters.per_page') }}
-                                </label>
-                                <select
-                                    v-model="filterForm.per_page"
-                                    class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 shadow-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100 dark:focus:ring-emerald-500/20"
-                                >
-                                    <option v-for="option in perPageOptions" :key="option.id" :value="option.id">
-                                        {{ option.label }}
-                                    </option>
-                                </select>
-                                <button
-                                    type="submit"
-                                    class="inline-flex items-center gap-2 rounded-sm bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-                                >
-                                    {{ $t('service_requests.actions.apply_filters') }}
-                                </button>
-                                <button
-                                    type="button"
-                                    class="inline-flex items-center gap-2 rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                                    @click="resetFilters"
-                                >
-                                    {{ $t('service_requests.actions.reset_filters') }}
-                                </button>
-                            </div>
-                        </div>
-                    </form>
+                        </template>
 
-                    <section v-if="hasRows" class="space-y-3">
-                        <article
-                            v-for="serviceRequest in rows"
-                            :key="serviceRequest.id"
-                            class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm transition hover:border-emerald-300 dark:border-neutral-700 dark:bg-neutral-900"
+                        <template #filters>
+                            <FloatingSelect
+                                v-model="filterForm.status"
+                                :label="$t('service_requests.filters.status')"
+                                :options="statusOptions"
+                                option-value="value"
+                                option-label="label"
+                                dense
+                            />
+                            <FloatingSelect
+                                v-model="filterForm.source"
+                                :label="$t('service_requests.filters.source')"
+                                :options="sourceOptions"
+                                option-value="value"
+                                option-label="label"
+                                dense
+                            />
+                            <FloatingSelect
+                                v-model="filterForm.relation"
+                                :label="$t('service_requests.filters.relation')"
+                                :options="relationOptions"
+                                option-value="value"
+                                option-label="label"
+                                dense
+                            />
+                            <FloatingSelect
+                                v-model="filterForm.sort"
+                                :label="$t('service_requests.filters.sort')"
+                                :options="sortOptions"
+                                option-value="value"
+                                option-label="label"
+                                dense
+                            />
+                            <FloatingSelect
+                                v-model="filterForm.direction"
+                                :label="$t('service_requests.filters.direction')"
+                                :options="directionOptions"
+                                option-value="value"
+                                option-label="label"
+                                dense
+                            />
+                        </template>
+
+                        <template #actions>
+                            <div :class="crmSegmentedControlClass()">
+                                <button
+                                    type="button"
+                                    @click="setViewMode('table')"
+                                    :class="crmSegmentedControlButtonClass(viewMode === 'table')"
+                                >
+                                    <svg
+                                        class="size-3.5"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    >
+                                        <path d="M3 3h18v6H3z" />
+                                        <path d="M3 13h18v8H3z" />
+                                    </svg>
+                                    {{ $t('service_requests.view.table') }}
+                                </button>
+                                <button
+                                    type="button"
+                                    @click="setViewMode('cards')"
+                                    :class="crmSegmentedControlButtonClass(viewMode === 'cards')"
+                                >
+                                    <svg
+                                        class="size-3.5"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    >
+                                        <rect x="3" y="3" width="7" height="7" rx="1" />
+                                        <rect x="14" y="3" width="7" height="7" rx="1" />
+                                        <rect x="3" y="14" width="7" height="7" rx="1" />
+                                        <rect x="14" y="14" width="7" height="7" rx="1" />
+                                    </svg>
+                                    {{ $t('service_requests.view.cards') }}
+                                </button>
+                            </div>
+
+                            <Link
+                                :href="route('customer.index')"
+                                :class="crmButtonClass('secondary', 'toolbar')"
+                            >
+                                {{ $t('service_requests.actions.open_customers') }}
+                            </Link>
+
+                            <Link
+                                :href="route('prospects.index')"
+                                :class="crmButtonClass('secondary', 'toolbar')"
+                            >
+                                {{ $t('service_requests.actions.open_prospects') }}
+                            </Link>
+                        </template>
+                    </AdminDataTableToolbar>
+                </div>
+            </section>
+
+            <section class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+                <div class="space-y-4">
+                    <section
+                        v-if="viewMode === 'table'"
+                        class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950"
+                    >
+                        <AdminDataTable
+                            embedded
+                            :rows="requestTableRows"
+                            :links="paginationLinks"
+                            :show-pagination="hasRows"
+                            show-per-page
+                            :per-page="currentPerPage"
+                            :per-page-options="perPageOptions"
+                            :loading="isLoading && !hasRows"
                         >
-                            <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                                <div class="min-w-0">
-                                    <div class="flex flex-wrap items-center gap-2">
-                                        <Link
-                                            :href="route('service-requests.show', serviceRequest.id)"
-                                            class="text-base font-semibold text-stone-800 hover:text-emerald-700 dark:text-neutral-100 dark:hover:text-emerald-300"
+                            <template #head>
+                                <tr class="text-left text-xs uppercase text-stone-500 dark:text-neutral-400">
+                                    <th class="px-4 py-3 font-medium">{{ $t('service_requests.table.request') }}</th>
+                                    <th class="px-4 py-3 font-medium">{{ $t('service_requests.table.requester') }}</th>
+                                    <th class="px-4 py-3 font-medium">{{ $t('service_requests.table.relation') }}</th>
+                                    <th class="px-4 py-3 font-medium">{{ $t('service_requests.table.source') }}</th>
+                                    <th class="px-4 py-3 font-medium">{{ $t('service_requests.table.status') }}</th>
+                                    <th class="px-4 py-3 font-medium">{{ $t('service_requests.table.submitted') }}</th>
+                                    <th class="px-4 py-3 text-right font-medium">{{ $t('service_requests.table.actions') }}</th>
+                                </tr>
+                            </template>
+
+                            <template #row="{ row: serviceRequest }">
+                                <tr class="text-stone-700 dark:text-neutral-200">
+                                    <template v-if="serviceRequest.__skeleton">
+                                        <td
+                                            v-for="column in 7"
+                                            :key="`service-request-skeleton-cell-${serviceRequest.id}-${column}`"
+                                            class="px-4 py-3"
                                         >
-                                            {{ serviceRequestTitle(serviceRequest, t) }}
-                                        </Link>
-                                        <span
-                                            class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
-                                            :class="serviceRequestStatusClass(serviceRequest.status)"
-                                        >
-                                            {{ serviceRequestStatusLabel(serviceRequest.status, t) }}
-                                        </span>
-                                        <span class="inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-700 dark:bg-neutral-800 dark:text-neutral-300">
-                                            {{ serviceRequestSourceLabel(serviceRequest.source, t) }}
-                                        </span>
+                                            <div class="h-3 w-full animate-pulse rounded-sm bg-stone-200 dark:bg-neutral-700" />
+                                        </td>
+                                    </template>
+
+                                    <template v-else>
+                                        <td class="px-4 py-3 align-top">
+                                            <div class="min-w-0">
+                                                <Link
+                                                    :href="route('service-requests.show', serviceRequest.id)"
+                                                    class="font-semibold text-stone-900 hover:text-emerald-700 dark:text-white dark:hover:text-emerald-300"
+                                                >
+                                                    {{ serviceRequestTitle(serviceRequest, t) }}
+                                                </Link>
+                                                <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                                    {{ serviceRequest.service_type || serviceRequest.request_type || $t('service_requests.labels.none') }}
+                                                </div>
+                                                <p
+                                                    v-if="serviceRequest.description"
+                                                    class="mt-2 max-w-md text-sm text-stone-600 dark:text-neutral-300"
+                                                >
+                                                    {{ excerpt(serviceRequest.description) }}
+                                                </p>
+                                            </div>
+                                        </td>
+
+                                        <td class="px-4 py-3 align-top">
+                                            <div class="font-medium text-stone-800 dark:text-neutral-100">
+                                                {{ serviceRequestRequesterLabel(serviceRequest, t) }}
+                                            </div>
+                                            <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                                {{ serviceRequest.requester_email || serviceRequest.requester_phone || '—' }}
+                                            </div>
+                                        </td>
+
+                                        <td class="px-4 py-3 align-top">
+                                            <div class="text-xs font-semibold uppercase tracking-[0.14em] text-stone-400">
+                                                {{ serviceRequestRelationLabel(serviceRequest, t) }}
+                                            </div>
+                                            <div class="mt-1">
+                                                <Link
+                                                    v-if="relationHref(serviceRequest)"
+                                                    :href="relationHref(serviceRequest)"
+                                                    class="font-medium text-stone-800 hover:text-emerald-700 dark:text-neutral-100 dark:hover:text-emerald-300"
+                                                >
+                                                    {{ relationLinkLabel(serviceRequest) }}
+                                                </Link>
+                                                <span v-else class="text-sm text-stone-500 dark:text-neutral-400">
+                                                    {{ relationLinkLabel(serviceRequest) }}
+                                                </span>
+                                            </div>
+                                        </td>
+
+                                        <td class="px-4 py-3 align-top">
+                                            <div class="font-medium text-stone-800 dark:text-neutral-100">
+                                                {{ serviceRequestSourceLabel(serviceRequest.source, t) }}
+                                            </div>
+                                            <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                                {{ serviceRequest.channel || '—' }}
+                                            </div>
+                                        </td>
+
+                                        <td class="px-4 py-3 align-top">
+                                            <span
+                                                class="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold"
+                                                :class="serviceRequestStatusClass(serviceRequest.status)"
+                                            >
+                                                {{ serviceRequestStatusLabel(serviceRequest.status, t) }}
+                                            </span>
+                                        </td>
+
+                                        <td class="px-4 py-3 align-top text-sm text-stone-600 dark:text-neutral-300">
+                                            {{ formatDate(requestDate(serviceRequest)) }}
+                                        </td>
+
+                                        <td class="px-4 py-3 align-top">
+                                            <div class="flex justify-end">
+                                                <Link
+                                                    :href="route('service-requests.show', serviceRequest.id)"
+                                                    :class="crmButtonClass('secondary', 'compact')"
+                                                >
+                                                    {{ $t('service_requests.actions.view') }}
+                                                </Link>
+                                            </div>
+                                        </td>
+                                    </template>
+                                </tr>
+                            </template>
+
+                            <template #empty>
+                                <div class="px-4 py-8 text-center text-stone-500 dark:text-neutral-400">
+                                    <div class="text-lg font-semibold text-stone-900 dark:text-white">
+                                        {{ $t('service_requests.empty.title') }}
                                     </div>
-                                    <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-stone-500 dark:text-neutral-400">
-                                        <span>{{ serviceRequestRequesterLabel(serviceRequest, t) }}</span>
-                                        <span>{{ serviceRequestRelationLabel(serviceRequest, t) }}</span>
-                                        <span>{{ formatDate(requestDate(serviceRequest)) }}</span>
-                                    </div>
-                                    <p v-if="serviceRequest.description" class="mt-3 text-sm text-stone-600 dark:text-neutral-300">
-                                        {{ serviceRequest.description }}
+                                    <p class="mt-2 text-sm">
+                                        {{ $t('service_requests.empty.body') }}
                                     </p>
                                 </div>
+                            </template>
 
-                                <div class="flex flex-wrap items-center gap-2">
+                            <template #pagination_prefix>
+                                <div class="text-sm text-stone-800 dark:text-neutral-200">
+                                    {{ resultLabel }}
+                                    <span v-if="hasMultiplePages" class="mx-1 text-stone-300 dark:text-neutral-600">|</span>
+                                    <span v-if="hasMultiplePages">{{ currentPageLabel }}</span>
+                                </div>
+                            </template>
+                        </AdminDataTable>
+                    </section>
+
+                    <template v-else>
+                        <section
+                            v-if="hasRows"
+                            :class="[
+                                'grid gap-4 md:grid-cols-2 2xl:grid-cols-3',
+                                isLoading || isViewSwitching ? 'opacity-70' : '',
+                            ]"
+                        >
+                            <article
+                                v-for="serviceRequest in rows"
+                                :key="serviceRequest.id"
+                                class="flex h-full flex-col rounded-sm border border-stone-200 bg-white p-4 shadow-sm transition hover:border-emerald-300 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-emerald-500/40"
+                            >
+                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                    <div class="min-w-0 space-y-3">
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <span
+                                                class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]"
+                                                :class="serviceRequestStatusClass(serviceRequest.status)"
+                                            >
+                                                {{ serviceRequestStatusLabel(serviceRequest.status, t) }}
+                                            </span>
+                                            <span class="inline-flex rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                                                {{ serviceRequestSourceLabel(serviceRequest.source, t) }}
+                                            </span>
+                                            <span class="inline-flex rounded-full border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-600 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-300">
+                                                {{ serviceRequestRelationLabel(serviceRequest, t) }}
+                                            </span>
+                                        </div>
+
+                                        <div class="min-w-0">
+                                            <Link
+                                                :href="route('service-requests.show', serviceRequest.id)"
+                                                class="block truncate text-lg font-semibold text-stone-900 hover:text-emerald-700 dark:text-white dark:hover:text-emerald-300"
+                                            >
+                                                {{ serviceRequestTitle(serviceRequest, t) }}
+                                            </Link>
+                                            <div class="mt-1 text-sm text-stone-500 dark:text-neutral-400">
+                                                {{ serviceRequestRequesterLabel(serviceRequest, t) }}
+                                            </div>
+                                            <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                                {{ formatDate(requestDate(serviceRequest)) }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <p
+                                    v-if="serviceRequest.description"
+                                    class="mt-4 text-sm leading-6 text-stone-600 dark:text-neutral-300"
+                                >
+                                    {{ excerpt(serviceRequest.description, 180) }}
+                                </p>
+
+                                <div class="mt-4 grid gap-2 sm:grid-cols-2">
+                                    <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 dark:border-neutral-800 dark:bg-neutral-900">
+                                        <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500 dark:text-neutral-500">
+                                            {{ $t('service_requests.list.customer') }}
+                                        </div>
+                                        <div class="mt-1 text-sm text-stone-800 dark:text-neutral-100">
+                                            {{ serviceRequest.customer ? serviceRequestCustomerLabel(serviceRequest.customer) : $t('service_requests.labels.none') }}
+                                        </div>
+                                    </div>
+
+                                    <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 dark:border-neutral-800 dark:bg-neutral-900">
+                                        <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500 dark:text-neutral-500">
+                                            {{ $t('service_requests.list.prospect') }}
+                                        </div>
+                                        <div class="mt-1 text-sm text-stone-800 dark:text-neutral-100">
+                                            {{ serviceRequest.prospect ? serviceRequestProspectLabel(serviceRequest.prospect) : $t('service_requests.labels.none') }}
+                                        </div>
+                                    </div>
+
+                                    <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 dark:border-neutral-800 dark:bg-neutral-900">
+                                        <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500 dark:text-neutral-500">
+                                            {{ $t('service_requests.list.service') }}
+                                        </div>
+                                        <div class="mt-1 text-sm text-stone-800 dark:text-neutral-100">
+                                            {{ serviceRequest.service_type || serviceRequest.request_type || $t('service_requests.labels.none') }}
+                                        </div>
+                                    </div>
+
+                                    <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 dark:border-neutral-800 dark:bg-neutral-900">
+                                        <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500 dark:text-neutral-500">
+                                            {{ $t('service_requests.table.source') }}
+                                        </div>
+                                        <div class="mt-1 text-sm text-stone-800 dark:text-neutral-100">
+                                            {{ serviceRequest.channel || serviceRequest.source_ref || '—' }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-auto flex flex-wrap items-center justify-end gap-2 pt-4">
+                                    <Link
+                                        v-if="serviceRequest.customer"
+                                        :href="route('customer.show', serviceRequest.customer.id)"
+                                        :class="crmButtonClass('secondary', 'compact')"
+                                    >
+                                        {{ $t('service_requests.actions.open_customer') }}
+                                    </Link>
+                                    <Link
+                                        v-if="!serviceRequest.customer && serviceRequest.prospect"
+                                        :href="route('prospects.show', serviceRequest.prospect.id)"
+                                        :class="crmButtonClass('secondary', 'compact')"
+                                    >
+                                        {{ $t('service_requests.actions.open_prospect') }}
+                                    </Link>
                                     <Link
                                         :href="route('service-requests.show', serviceRequest.id)"
-                                        class="inline-flex items-center gap-2 rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                        :class="crmButtonClass('primary', 'compact')"
                                     >
                                         {{ $t('service_requests.actions.view') }}
                                     </Link>
                                 </div>
-                            </div>
+                            </article>
+                        </section>
 
-                            <div class="mt-4 grid grid-cols-1 gap-3 border-t border-stone-200 pt-3 text-sm text-stone-600 dark:border-neutral-700 dark:text-neutral-300 md:grid-cols-3">
-                                <div>
-                                    <div class="text-xs uppercase tracking-wide text-stone-400">
-                                        {{ $t('service_requests.list.customer') }}
-                                    </div>
-                                    <div class="mt-1">
-                                        <Link
-                                            v-if="serviceRequest.customer"
-                                            :href="route('customer.show', serviceRequest.customer.id)"
-                                            class="font-medium text-stone-800 hover:text-emerald-700 dark:text-neutral-100 dark:hover:text-emerald-300"
-                                        >
-                                            {{ serviceRequestCustomerLabel(serviceRequest.customer) }}
-                                        </Link>
-                                        <span v-else>{{ $t('service_requests.labels.none') }}</span>
-                                    </div>
+                        <section
+                            v-else
+                            class="rounded-sm border border-dashed border-stone-300 bg-white px-6 py-12 text-center shadow-sm dark:border-neutral-700 dark:bg-neutral-950"
+                        >
+                            <div class="text-lg font-semibold text-stone-900 dark:text-white">
+                                {{ $t('service_requests.empty.title') }}
+                            </div>
+                            <p class="mt-2 text-sm text-stone-500 dark:text-neutral-400">
+                                {{ $t('service_requests.empty.body') }}
+                            </p>
+                        </section>
+
+                        <section
+                            v-if="hasRows && hasMultiplePages"
+                            class="rounded-sm border border-stone-200 bg-white px-4 py-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-950"
+                        >
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <div class="text-sm text-stone-600 dark:text-neutral-300">
+                                    {{ resultLabel }}
                                 </div>
-                                <div>
-                                    <div class="text-xs uppercase tracking-wide text-stone-400">
-                                        {{ $t('service_requests.list.prospect') }}
-                                    </div>
-                                    <div class="mt-1">
-                                        <Link
-                                            v-if="serviceRequest.prospect"
-                                            :href="route('prospects.show', serviceRequest.prospect.id)"
-                                            class="font-medium text-stone-800 hover:text-emerald-700 dark:text-neutral-100 dark:hover:text-emerald-300"
-                                        >
-                                            {{ serviceRequest.prospect.title || serviceRequest.prospect.contact_name || $t('service_requests.labels.none') }}
-                                        </Link>
-                                        <span v-else>{{ $t('service_requests.labels.none') }}</span>
-                                    </div>
-                                </div>
-                                <div>
-                                    <div class="text-xs uppercase tracking-wide text-stone-400">
-                                        {{ $t('service_requests.list.service') }}
-                                    </div>
-                                    <div class="mt-1 font-medium text-stone-800 dark:text-neutral-100">
-                                        {{ serviceRequest.service_type || serviceRequest.request_type || $t('service_requests.labels.none') }}
-                                    </div>
+                                <div class="flex flex-wrap items-center gap-3">
+                                    <span class="text-xs text-stone-500 dark:text-neutral-400">{{ currentPageLabel }}</span>
+                                    <AdminPaginationLinks :links="paginationLinks" />
                                 </div>
                             </div>
-                        </article>
-                    </section>
-
-                    <section
-                        v-else
-                        class="rounded-sm border border-dashed border-stone-300 bg-white px-6 py-12 text-center shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
-                    >
-                        <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ $t('service_requests.empty.title') }}
-                        </h2>
-                        <p class="mt-2 text-sm text-stone-500 dark:text-neutral-400">
-                            {{ $t('service_requests.empty.body') }}
-                        </p>
-                    </section>
-
-                    <div v-if="paginationLinks.length > 3" class="rounded-sm border border-stone-200 bg-white px-4 py-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <AdminPaginationLinks :links="paginationLinks" />
-                    </div>
+                        </section>
+                    </template>
                 </div>
 
                 <div class="space-y-4">
-                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
                         <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                             {{ $t('service_requests.side.relations') }}
                         </h2>
@@ -462,7 +846,7 @@ const relationBreakdownMap = computed(() => {
                         </div>
                     </section>
 
-                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
                         <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                             {{ $t('service_requests.side.sources') }}
                         </h2>

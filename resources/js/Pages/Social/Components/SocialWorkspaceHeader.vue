@@ -51,6 +51,16 @@ const tabs = computed(() => ([
         label: t('social.workspace.tabs.history'),
         href: route('social.history'),
     },
+    {
+        key: 'autopilot',
+        label: t('social.workspace.tabs.autopilot'),
+        href: route('social.automations.index'),
+    },
+    {
+        key: 'approvals',
+        label: t('social.workspace.tabs.approvals'),
+        href: route('social.approvals.index'),
+    },
 ]));
 
 const statCards = computed(() => ([

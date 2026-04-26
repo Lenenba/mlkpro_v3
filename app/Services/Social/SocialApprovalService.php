@@ -6,6 +6,7 @@ use App\Models\SocialApprovalRequest;
 use App\Models\SocialPost;
 use App\Models\User;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
 class SocialApprovalService
@@ -94,8 +95,19 @@ class SocialApprovalService
             'requested_mode',
             $post->scheduled_for ? 'scheduled' : 'immediate'
         );
+        $resolvedMode = $this->resolveApprovalMode($payload['mode'] ?? null, $requestedMode);
 
-        $queuedPost = $requestedMode === 'scheduled'
+        if ($resolvedMode === 'scheduled') {
+            $post->forceFill([
+                'scheduled_for' => $this->resolveScheduledFor($post, $payload, $approvedAt),
+            ])->save();
+        } else {
+            $post->forceFill([
+                'scheduled_for' => null,
+            ])->save();
+        }
+
+        $queuedPost = $resolvedMode === 'scheduled'
             ? $this->publishingService->schedule($owner, $actor, $post)
             : $this->publishingService->publishNow($owner, $actor, $post);
 
@@ -106,7 +118,7 @@ class SocialApprovalService
             'rejected_at' => null,
             'note' => $note,
             'metadata' => array_merge((array) ($approvalRequest->metadata ?? []), [
-                'resolved_mode' => $requestedMode,
+                'resolved_mode' => $resolvedMode,
             ]),
         ])->save();
 
@@ -115,6 +127,7 @@ class SocialApprovalService
                 'status' => SocialApprovalRequest::STATUS_APPROVED,
                 'request_id' => $approvalRequest->id,
                 'requested_mode' => $requestedMode,
+                'resolved_mode' => $resolvedMode,
                 'approved_at' => $approvedAt->toIso8601String(),
                 'approved_by_user_id' => $actor->id,
                 'rejected_at' => null,
@@ -222,6 +235,46 @@ class SocialApprovalService
         }
 
         return $approvalRequest;
+    }
+
+    private function resolveApprovalMode(mixed $candidate, string $fallback): string
+    {
+        $value = strtolower(trim((string) $candidate));
+
+        return in_array($value, ['immediate', 'scheduled'], true)
+            ? $value
+            : $fallback;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function resolveScheduledFor(SocialPost $post, array $payload, Carbon $reference): Carbon
+    {
+        $candidate = $payload['scheduled_for'] ?? $post->scheduled_for;
+
+        if ($candidate instanceof Carbon) {
+            $scheduledFor = $candidate->copy();
+        } elseif ($post->scheduled_for instanceof Carbon && $candidate === $post->scheduled_for) {
+            $scheduledFor = $post->scheduled_for->copy();
+        } else {
+            $raw = trim((string) $candidate);
+            if ($raw === '') {
+                throw ValidationException::withMessages([
+                    'scheduled_for' => 'Choose a future date before scheduling this Pulse post.',
+                ]);
+            }
+
+            $scheduledFor = Carbon::parse($raw);
+        }
+
+        if ($scheduledFor->lessThanOrEqualTo($reference)) {
+            throw ValidationException::withMessages([
+                'scheduled_for' => 'Choose a future date before scheduling this Pulse post.',
+            ]);
+        }
+
+        return $scheduledFor;
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Services\Social;
 
 use App\Models\SocialAccountConnection;
+use App\Models\SocialAutomationRule;
 use App\Models\SocialPost;
 use App\Models\SocialPostTarget;
 use App\Models\User;
@@ -31,6 +32,7 @@ class SocialPostService
                 SocialPost::STATUS_PENDING_APPROVAL,
             ])
             ->with([
+                'automationRule',
                 'targets.socialAccountConnection',
                 'latestApprovalRequest.requestedBy',
                 'latestApprovalRequest.resolvedBy',
@@ -61,6 +63,7 @@ class SocialPostService
         $query = SocialPost::query()
             ->byUser($owner->id)
             ->with([
+                'automationRule',
                 'targets.socialAccountConnection',
                 'latestApprovalRequest.requestedBy',
                 'latestApprovalRequest.resolvedBy',
@@ -203,6 +206,52 @@ class SocialPostService
         return $post->fresh(['targets.socialAccountConnection']);
     }
 
+    /**
+     * @param  Collection<int, SocialAccountConnection>  $targetConnections
+     * @param  array<string, mixed>  $payload
+     */
+    public function createAutomationDraft(
+        User $owner,
+        User $actor,
+        SocialAutomationRule $rule,
+        Collection $targetConnections,
+        array $payload
+    ): SocialPost {
+        if ($targetConnections->isEmpty()) {
+            throw ValidationException::withMessages([
+                'target_connection_ids' => 'Select at least one connected social account before generating an automated Pulse post.',
+            ]);
+        }
+
+        $text = trim((string) data_get($payload, 'content_payload.text', ''));
+        $mediaPayload = is_array($payload['media_payload'] ?? null) ? $payload['media_payload'] : null;
+        $linkUrl = $this->nullableString($payload, 'link_url');
+
+        if ($text === '' && $mediaPayload === null && $linkUrl === null) {
+            throw ValidationException::withMessages([
+                'content' => 'Generate some text, an image, or a destination link before creating an automated Pulse post.',
+            ]);
+        }
+
+        $post = SocialPost::query()->create([
+            'user_id' => $owner->id,
+            'created_by_user_id' => $actor->id,
+            'updated_by_user_id' => $actor->id,
+            'source_type' => $this->nullableString($payload, 'source_type'),
+            'source_id' => data_get($payload, 'source_id') ? (int) data_get($payload, 'source_id') : null,
+            'social_automation_rule_id' => $rule->id,
+            'content_payload' => $payload['content_payload'] ?? null,
+            'media_payload' => $mediaPayload,
+            'link_url' => $linkUrl,
+            'status' => SocialPost::STATUS_DRAFT,
+            'metadata' => $payload['metadata'] ?? null,
+        ]);
+
+        $this->syncTargetsFromConnections($post, $targetConnections, SocialPost::STATUS_DRAFT);
+
+        return $post->fresh(['targets.socialAccountConnection', 'automationRule']);
+    }
+
     public function duplicate(User $owner, User $actor, SocialPost $source): SocialPost
     {
         return $this->createEditableCopy($owner, $actor, $source, 'duplicate');
@@ -225,6 +274,7 @@ class SocialPostService
     public function payload(SocialPost $post): array
     {
         $post->loadMissing([
+            'automationRule',
             'targets.socialAccountConnection',
             'latestApprovalRequest.requestedBy',
             'latestApprovalRequest.resolvedBy',
@@ -232,6 +282,7 @@ class SocialPostService
 
         $text = trim((string) data_get($post->content_payload, 'text', ''));
         $approvalRequest = $post->latestApprovalRequest;
+        $automationRule = $post->automationRule;
 
         return [
             'id' => $post->id,
@@ -242,6 +293,14 @@ class SocialPostService
             'link_cta_label' => $this->linkCtaLabel($post->metadata),
             'source_type' => $post->source_type,
             'source_id' => $post->source_id,
+            'social_automation_rule_id' => $post->social_automation_rule_id,
+            'automation_rule' => $automationRule
+                ? [
+                    'id' => $automationRule->id,
+                    'name' => $automationRule->name,
+                    'is_active' => (bool) $automationRule->is_active,
+                ]
+                : null,
             'source_label' => data_get($post->metadata, 'source.label'),
             'scheduled_for' => optional($post->scheduled_for)->toIso8601String(),
             'published_at' => optional($post->published_at)->toIso8601String(),
@@ -299,6 +358,18 @@ class SocialPostService
                         : null,
                 ]
                 : null,
+            'automation' => array_filter([
+                'rule_id' => data_get($post->metadata, 'automation.rule_id'),
+                'rule_name_snapshot' => data_get($post->metadata, 'automation.rule_name_snapshot'),
+                'generated_at' => data_get($post->metadata, 'automation.generated_at'),
+                'generation_mode' => data_get($post->metadata, 'automation.generation_mode'),
+                'approval_mode' => data_get($post->metadata, 'automation.approval_mode'),
+                'language' => data_get($post->metadata, 'automation.language'),
+                'selected_source_type' => data_get($post->metadata, 'automation.selected_source_type'),
+                'selected_source_id' => data_get($post->metadata, 'automation.selected_source_id'),
+                'selected_source_label' => data_get($post->metadata, 'automation.selected_source_label'),
+                'generation_attempt' => data_get($post->metadata, 'automation.generation_attempt'),
+            ], fn ($value) => $value !== null),
             'metadata' => (array) ($post->metadata ?? []),
             'updated_at' => optional($post->updated_at)->toIso8601String(),
             'created_at' => optional($post->created_at)->toIso8601String(),

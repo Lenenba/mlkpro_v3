@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\SocialPost;
 use App\Models\SocialPostTemplate;
+use App\Models\SocialAutomationRule;
 use App\Models\User;
 use App\Services\Social\SocialAccountConnectionService;
 use App\Services\Social\SocialApprovalService;
@@ -40,6 +41,16 @@ class SocialPostController extends Controller
         return $this->inertiaOrJson('Social/Index', [
             'connection_summary' => $connectionSummary,
             'post_summary' => $postSummary,
+            'automation_summary' => [
+                'total' => SocialAutomationRule::query()->byUser($access['owner']->id)->count(),
+                'active' => SocialAutomationRule::query()->byUser($access['owner']->id)->active()->count(),
+            ],
+            'approval_summary' => [
+                'pending' => SocialPost::query()
+                    ->byUser($access['owner']->id)
+                    ->where('status', SocialPost::STATUS_PENDING_APPROVAL)
+                    ->count(),
+            ],
             'workspace_stats' => $this->workspaceStats($connectionSummary, $postSummary),
             'recent_drafts' => $this->postService->draftPayloads($access['owner'], 3),
             'access' => $this->accessPayload($access),
@@ -283,6 +294,8 @@ class SocialPostController extends Controller
 
         $validated = $request->validate([
             'note' => ['nullable', 'string', 'max:1000'],
+            'mode' => ['nullable', 'string', Rule::in(['immediate', 'scheduled'])],
+            'scheduled_for' => ['nullable', 'date'],
         ]);
 
         $draft = $approvalService->approve($access['owner'], $request->user(), $post, $validated);
@@ -513,6 +526,7 @@ class SocialPostController extends Controller
         return [
             'can_view' => $access['can_view'],
             'can_manage_posts' => $access['can_manage_posts'],
+            'can_manage_automations' => $access['can_manage_posts'],
             'can_publish' => $access['can_publish'],
             'can_submit_for_approval' => $access['can_submit_for_approval'],
             'can_approve' => $access['can_approve'],

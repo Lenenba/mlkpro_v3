@@ -36,6 +36,7 @@
       "source": "Fuente"
     },
     "actions": {
+      "filters": "Filtros",
       "apply_filters": "Aplicar",
       "reset_filters": "Restablecer",
       "view": "Ver",
@@ -45,10 +46,29 @@
       "open_customers": "Modulo clientes",
       "open_prospects": "Modulo prospectos"
     },
+    "view": {
+      "table": "Tabla",
+      "cards": "Tarjetas"
+    },
     "list": {
+      "title": "Lista de solicitudes",
+      "subtitle": "Cambia entre tabla y tarjetas sin perder los filtros activos.",
       "customer": "Cliente",
       "prospect": "Prospecto",
       "service": "Servicio"
+    },
+    "table": {
+      "request": "Solicitud",
+      "requester": "Solicitante",
+      "relation": "Relacion",
+      "source": "Fuente",
+      "status": "Estado",
+      "submitted": "Enviada",
+      "actions": "Acciones"
+    },
+    "pagination": {
+      "showing": "Mostrando de {from} a {to} de {total}",
+      "page_of": "Pagina {page} / {total}"
     },
     "side": {
       "relations": "Distribucion de relaciones",
