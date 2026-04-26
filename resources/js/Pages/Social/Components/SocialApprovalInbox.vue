@@ -343,24 +343,13 @@ const isStale = (post) => {
 
 <template>
     <div class="space-y-5">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-                <h3 class="text-lg font-semibold text-stone-900 dark:text-neutral-100">
-                    {{ t('social.approval_inbox.title') }}
-                </h3>
-                <p class="mt-1 max-w-3xl text-sm text-stone-500 dark:text-neutral-400">
-                    {{ t('social.approval_inbox.description') }}
-                </p>
-            </div>
-
-            <div class="flex flex-wrap gap-2">
-                <SecondaryButton :disabled="busy || isLoading" @click="load">
-                    {{ t('social.approval_inbox.actions.reload') }}
-                </SecondaryButton>
-                <SecondaryButton :disabled="busy || isLoading" @click="resetFilters">
-                    {{ t('social.approval_inbox.actions.reset_filters') }}
-                </SecondaryButton>
-            </div>
+        <div class="flex flex-wrap justify-end gap-2">
+            <SecondaryButton :disabled="busy || isLoading" @click="load">
+                {{ t('social.approval_inbox.actions.reload') }}
+            </SecondaryButton>
+            <SecondaryButton :disabled="busy || isLoading" @click="resetFilters">
+                {{ t('social.approval_inbox.actions.reset_filters') }}
+            </SecondaryButton>
         </div>
 
         <div

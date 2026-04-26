@@ -364,24 +364,13 @@ const resolveApproval = async (post, decision) => {
 
 <template>
     <div class="space-y-5">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-                <h3 class="text-lg font-semibold text-stone-900 dark:text-neutral-100">
-                    {{ t('social.history_manager.title') }}
-                </h3>
-                <p class="mt-1 max-w-3xl text-sm text-stone-500 dark:text-neutral-400">
-                    {{ t('social.history_manager.description') }}
-                </p>
-            </div>
-
-            <div class="flex flex-wrap gap-2">
-                <SecondaryButton :disabled="busy || isLoading" @click="load">
-                    {{ t('social.history_manager.actions.reload') }}
-                </SecondaryButton>
-                <SecondaryButton :disabled="busy || isLoading" @click="resetFilters">
-                    {{ t('social.history_manager.actions.reset_filters') }}
-                </SecondaryButton>
-            </div>
+        <div class="flex flex-wrap justify-end gap-2">
+            <SecondaryButton :disabled="busy || isLoading" @click="load">
+                {{ t('social.history_manager.actions.reload') }}
+            </SecondaryButton>
+            <SecondaryButton :disabled="busy || isLoading" @click="resetFilters">
+                {{ t('social.history_manager.actions.reset_filters') }}
+            </SecondaryButton>
         </div>
 
         <div

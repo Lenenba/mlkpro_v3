@@ -447,24 +447,13 @@ const useTemplateInComposer = (template) => {
 
 <template>
     <div class="space-y-5">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-                <h3 class="text-lg font-semibold text-stone-900 dark:text-neutral-100">
-                    {{ t('social.template_manager.title') }}
-                </h3>
-                <p class="mt-1 max-w-3xl text-sm text-stone-500 dark:text-neutral-400">
-                    {{ t('social.template_manager.description') }}
-                </p>
-            </div>
-
-            <div class="flex flex-wrap gap-2">
-                <SecondaryButton :disabled="busy || isLoading" @click="load">
-                    {{ t('social.template_manager.actions.reload') }}
-                </SecondaryButton>
-                <SecondaryButton :disabled="busy" @click="resetForm">
-                    {{ t('social.template_manager.actions.new_template') }}
-                </SecondaryButton>
-            </div>
+        <div class="flex flex-wrap justify-end gap-2">
+            <SecondaryButton :disabled="busy || isLoading" @click="load">
+                {{ t('social.template_manager.actions.reload') }}
+            </SecondaryButton>
+            <SecondaryButton :disabled="busy" @click="resetForm">
+                {{ t('social.template_manager.actions.new_template') }}
+            </SecondaryButton>
         </div>
 
         <div
