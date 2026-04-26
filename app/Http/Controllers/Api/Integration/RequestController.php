@@ -20,11 +20,11 @@ class RequestController extends Controller
         $this->ensureAbility($request, 'requests:write');
 
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
-        if (!app(CompanyFeatureService::class)->hasFeature($user, 'requests')) {
+        if (! app(CompanyFeatureService::class)->hasFeature($user, 'requests')) {
             abort(403);
         }
 
@@ -127,19 +127,19 @@ class RequestController extends Controller
     private function ensureAbility(Request $request, string $ability): void
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
         $token = $user->currentAccessToken();
-        if ($token && !$user->tokenCan($ability)) {
+        if ($token && ! $user->tokenCan($ability)) {
             abort(403);
         }
     }
 
     private function normalizeChannel(?string $value): ?string
     {
-        if (!$value) {
+        if (! $value) {
             return null;
         }
 
@@ -171,7 +171,7 @@ class RequestController extends Controller
 
     private function normalizeUrgency(?string $value): ?string
     {
-        if (!$value) {
+        if (! $value) {
             return null;
         }
 

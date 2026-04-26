@@ -166,7 +166,14 @@ class ProspectDuplicateDetectionService
             'assignee' => $candidate->assignee
                 ? [
                     'id' => $candidate->assignee->id,
+                    'user_id' => $candidate->assignee->user_id,
                     'name' => $candidate->assignee->user?->name ?? 'Team member',
+                    'user' => $candidate->assignee->user
+                        ? [
+                            'id' => $candidate->assignee->user->id,
+                            'name' => $candidate->assignee->user->name,
+                        ]
+                        : null,
                 ]
                 : null,
             'duplicate_score' => $score,
