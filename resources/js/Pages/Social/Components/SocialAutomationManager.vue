@@ -36,6 +36,22 @@ const props = defineProps({
         type: Array,
         default: () => ([]),
     },
+    initialGenerationToneOptions: {
+        type: Array,
+        default: () => ([]),
+    },
+    initialGenerationGoalOptions: {
+        type: Array,
+        default: () => ([]),
+    },
+    initialImageModeOptions: {
+        type: Array,
+        default: () => ([]),
+    },
+    initialImageFormatOptions: {
+        type: Array,
+        default: () => ([]),
+    },
     initialLocaleOptions: {
         type: Array,
         default: () => ([]),
@@ -66,6 +82,34 @@ const normalizeAccess = (payload) => ({
 const normalizeCatalog = (payload) => Array.isArray(payload) ? payload : [];
 const normalizeConnections = (payload) => Array.isArray(payload) ? payload : [];
 const normalizeOptions = (payload) => Array.isArray(payload) ? payload : [];
+const defaultGenerationSettings = () => ({
+    text_ai_enabled: false,
+    image_ai_enabled: false,
+    creative_prompt: '',
+    image_prompt: '',
+    tone: 'professional',
+    goal: 'inform',
+    image_mode: 'if_missing',
+    image_format: 'square',
+    variant_count: 3,
+});
+
+const normalizeGenerationSettings = (payload = {}) => {
+    const settings = payload && typeof payload === 'object' ? payload : {};
+    const defaults = defaultGenerationSettings();
+
+    return {
+        text_ai_enabled: Boolean(settings.text_ai_enabled ?? defaults.text_ai_enabled),
+        image_ai_enabled: Boolean(settings.image_ai_enabled ?? defaults.image_ai_enabled),
+        creative_prompt: String(settings.creative_prompt || '').trim(),
+        image_prompt: String(settings.image_prompt || '').trim(),
+        tone: String(settings.tone || defaults.tone),
+        goal: String(settings.goal || defaults.goal),
+        image_mode: String(settings.image_mode || defaults.image_mode),
+        image_format: String(settings.image_format || defaults.image_format),
+        variant_count: Math.max(1, Math.min(5, Number(settings.variant_count || defaults.variant_count))),
+    };
+};
 
 const buildSourceConfig = (catalog, contentSources = []) => {
     const config = Object.fromEntries(
@@ -112,6 +156,7 @@ const buildForm = () => ({
     source_config: buildSourceConfig(props.initialContentSourceCatalog),
     max_posts_per_day: 1,
     min_hours_between_similar_posts: 24,
+    generation_settings: defaultGenerationSettings(),
 });
 
 const rules = ref(normalizeRules(props.initialRules));
@@ -121,6 +166,10 @@ const contentSourceCatalog = ref(normalizeCatalog(props.initialContentSourceCata
 const targetConnections = ref(normalizeConnections(props.initialTargetConnections));
 const frequencyOptions = ref(normalizeOptions(props.initialFrequencyOptions));
 const approvalModeOptions = ref(normalizeOptions(props.initialApprovalModeOptions));
+const generationToneOptions = ref(normalizeOptions(props.initialGenerationToneOptions));
+const generationGoalOptions = ref(normalizeOptions(props.initialGenerationGoalOptions));
+const imageModeOptions = ref(normalizeOptions(props.initialImageModeOptions));
+const imageFormatOptions = ref(normalizeOptions(props.initialImageFormatOptions));
 const localeOptions = ref(normalizeOptions(props.initialLocaleOptions));
 const timezoneOptions = ref(normalizeOptions(props.initialTimezoneOptions));
 const access = ref(normalizeAccess(props.initialAccess));
@@ -186,6 +235,22 @@ const refreshFromPayload = (payload) => {
         approvalModeOptions.value = normalizeOptions(payload.approval_mode_options);
     }
 
+    if (Array.isArray(payload?.generation_tone_options)) {
+        generationToneOptions.value = normalizeOptions(payload.generation_tone_options);
+    }
+
+    if (Array.isArray(payload?.generation_goal_options)) {
+        generationGoalOptions.value = normalizeOptions(payload.generation_goal_options);
+    }
+
+    if (Array.isArray(payload?.image_mode_options)) {
+        imageModeOptions.value = normalizeOptions(payload.image_mode_options);
+    }
+
+    if (Array.isArray(payload?.image_format_options)) {
+        imageFormatOptions.value = normalizeOptions(payload.image_format_options);
+    }
+
     if (Array.isArray(payload?.locale_options)) {
         localeOptions.value = normalizeOptions(payload.locale_options);
     }
@@ -217,6 +282,10 @@ watch(() => props.initialAccess, (value) => {
 
 const frequencyLabel = (value) => t(`social.automation_manager.frequency_options.${value || 'daily'}`);
 const approvalModeLabel = (value) => t(`social.automation_manager.approval_mode_options.${value || 'required'}`);
+const generationToneLabel = (value) => t(`social.automation_manager.generation_tones.${value || 'professional'}`);
+const generationGoalLabel = (value) => t(`social.automation_manager.generation_goals.${value || 'inform'}`);
+const imageModeLabel = (value) => t(`social.automation_manager.image_modes.${value || 'if_missing'}`);
+const imageFormatLabel = (value) => t(`social.automation_manager.image_formats.${value || 'square'}`);
 const contentSourceTypeLabel = (type) => t(`social.automation_manager.source_types.${type || 'template'}`);
 const healthStateLabel = (value) => t(`social.automation_manager.health_states.${value || 'healthy'}`);
 const runStatusLabel = (value) => t(`social.automation_manager.run_statuses.${value || 'skipped'}`);
@@ -316,6 +385,7 @@ const hydrateForm = (rule = null) => {
         source_config: buildSourceConfig(contentSourceCatalog.value, rule.content_sources),
         max_posts_per_day: Number(rule.max_posts_per_day || 1),
         min_hours_between_similar_posts: Number(rule.min_hours_between_similar_posts || 24),
+        generation_settings: normalizeGenerationSettings(rule.generation_settings || rule.metadata?.generation_settings),
     };
     activeRuleId.value = Number(rule.id);
 };
@@ -378,6 +448,7 @@ const saveRule = async () => {
         content_sources: buildContentSourcesPayload(),
         max_posts_per_day: Number(form.value.max_posts_per_day || 1),
         min_hours_between_similar_posts: Number(form.value.min_hours_between_similar_posts || 24),
+        generation_settings: normalizeGenerationSettings(form.value.generation_settings),
     };
 
     try {
@@ -639,6 +710,71 @@ const sourceSummaryFor = (rule) => (Array.isArray(rule?.content_sources) ? rule.
                     </label>
                     <FloatingInput v-model="form.max_posts_per_day" type="number" min="1" max="20" :label="t('social.automation_manager.fields.max_posts_per_day')" :disabled="busy || !canManage" />
                     <FloatingInput v-model="form.min_hours_between_similar_posts" type="number" min="1" max="720" :label="t('social.automation_manager.fields.min_hours_between_similar_posts')" :disabled="busy || !canManage" />
+                </div>
+
+                <div class="mt-5">
+                    <div class="text-sm font-semibold text-stone-900 dark:text-neutral-100">
+                        {{ t('social.automation_manager.generation_title') }}
+                    </div>
+
+                    <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <label class="flex items-center gap-3 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-800/70 dark:text-neutral-200">
+                            <input v-model="form.generation_settings.text_ai_enabled" type="checkbox" class="rounded border-stone-300 text-sky-600 focus:ring-sky-500" :disabled="busy || !canManage">
+                            <span>{{ t('social.automation_manager.fields.text_ai_enabled') }}</span>
+                        </label>
+                        <label class="flex items-center gap-3 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-800/70 dark:text-neutral-200">
+                            <input v-model="form.generation_settings.image_ai_enabled" type="checkbox" class="rounded border-stone-300 text-sky-600 focus:ring-sky-500" :disabled="busy || !canManage">
+                            <span>{{ t('social.automation_manager.fields.image_ai_enabled') }}</span>
+                        </label>
+                        <label class="block">
+                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
+                                {{ t('social.automation_manager.fields.generation_tone') }}
+                            </span>
+                            <select v-model="form.generation_settings.tone" class="block w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100" :disabled="busy || !canManage">
+                                <option v-for="option in generationToneOptions" :key="option.value" :value="option.value">
+                                    {{ generationToneLabel(option.value) }}
+                                </option>
+                            </select>
+                        </label>
+                        <label class="block">
+                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
+                                {{ t('social.automation_manager.fields.generation_goal') }}
+                            </span>
+                            <select v-model="form.generation_settings.goal" class="block w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100" :disabled="busy || !canManage">
+                                <option v-for="option in generationGoalOptions" :key="option.value" :value="option.value">
+                                    {{ generationGoalLabel(option.value) }}
+                                </option>
+                            </select>
+                        </label>
+                        <label class="block">
+                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
+                                {{ t('social.automation_manager.fields.image_mode') }}
+                            </span>
+                            <select v-model="form.generation_settings.image_mode" class="block w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100" :disabled="busy || !canManage">
+                                <option v-for="option in imageModeOptions" :key="option.value" :value="option.value">
+                                    {{ imageModeLabel(option.value) }}
+                                </option>
+                            </select>
+                        </label>
+                        <label class="block">
+                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
+                                {{ t('social.automation_manager.fields.image_format') }}
+                            </span>
+                            <select v-model="form.generation_settings.image_format" class="block w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100" :disabled="busy || !canManage">
+                                <option v-for="option in imageFormatOptions" :key="option.value" :value="option.value">
+                                    {{ imageFormatLabel(option.value) }}
+                                </option>
+                            </select>
+                        </label>
+                        <FloatingInput v-model="form.generation_settings.variant_count" type="number" min="1" max="5" :label="t('social.automation_manager.fields.variant_count')" :disabled="busy || !canManage" />
+                        <div class="hidden md:block" />
+                        <div class="md:col-span-2">
+                            <FloatingTextarea v-model="form.generation_settings.creative_prompt" :label="t('social.automation_manager.fields.creative_prompt')" :disabled="busy || !canManage" />
+                        </div>
+                        <div class="md:col-span-2">
+                            <FloatingTextarea v-model="form.generation_settings.image_prompt" :label="t('social.automation_manager.fields.image_prompt')" :disabled="busy || !canManage" />
+                        </div>
+                    </div>
                 </div>
 
                 <div class="mt-5">

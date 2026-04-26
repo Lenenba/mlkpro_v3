@@ -4,9 +4,13 @@ namespace App\Services\Social;
 
 use App\Models\SocialApprovalRequest;
 use App\Models\SocialPost;
+use App\Models\TeamMember;
 use App\Models\User;
+use App\Notifications\SocialApprovalRequestedNotification;
+use App\Support\NotificationDispatcher;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 class SocialApprovalService
@@ -76,7 +80,10 @@ class SocialApprovalService
             ]),
         ])->save();
 
-        return $post->fresh($this->postRelations());
+        $submittedPost = $post->fresh($this->postRelationsWithRuleAndOwner());
+        $this->notifyApprovers($owner, $submittedPost, $approvalRequest);
+
+        return $submittedPost->fresh($this->postRelations());
     }
 
     /**
@@ -303,6 +310,63 @@ class SocialApprovalService
             'latestApprovalRequest.requestedBy',
             'latestApprovalRequest.resolvedBy',
         ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function postRelationsWithRuleAndOwner(): array
+    {
+        return [
+            'user',
+            'automationRule',
+            'targets.socialAccountConnection',
+            'latestApprovalRequest.requestedBy',
+            'latestApprovalRequest.resolvedBy',
+        ];
+    }
+
+    private function notifyApprovers(User $owner, SocialPost $post, SocialApprovalRequest $approvalRequest): void
+    {
+        foreach ($this->approvalRecipients($owner) as $recipient) {
+            NotificationDispatcher::send(
+                $recipient,
+                new SocialApprovalRequestedNotification($post, $approvalRequest),
+                [
+                    'user_id' => $owner->id,
+                    'social_post_id' => $post->id,
+                    'social_approval_request_id' => $approvalRequest->id,
+                ]
+            );
+        }
+    }
+
+    /**
+     * @return Collection<int, User>
+     */
+    private function approvalRecipients(User $owner): Collection
+    {
+        $recipients = collect([$owner]);
+
+        TeamMember::query()
+            ->forAccount($owner->id)
+            ->active()
+            ->with('user')
+            ->get()
+            ->each(function (TeamMember $member) use ($recipients): void {
+                if (! $member->hasPermission('social.approve')) {
+                    return;
+                }
+
+                if ($member->user instanceof User) {
+                    $recipients->push($member->user);
+                }
+            });
+
+        return $recipients
+            ->filter(fn (User $user): bool => trim((string) $user->email) !== '')
+            ->unique(fn (User $user): int => (int) $user->id)
+            ->values();
     }
 
     /**

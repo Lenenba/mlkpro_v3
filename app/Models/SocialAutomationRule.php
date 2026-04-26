@@ -27,6 +27,40 @@ class SocialAutomationRule extends Model
 
     public const APPROVAL_AUTO_PUBLISH = 'auto_publish';
 
+    public const AI_TONE_PROFESSIONAL = 'professional';
+
+    public const AI_TONE_WARM = 'warm';
+
+    public const AI_TONE_PREMIUM = 'premium';
+
+    public const AI_TONE_DIRECT = 'direct';
+
+    public const AI_TONE_PROMOTIONAL = 'promotional';
+
+    public const AI_GOAL_SELL = 'sell';
+
+    public const AI_GOAL_INFORM = 'inform';
+
+    public const AI_GOAL_BOOK = 'book';
+
+    public const AI_GOAL_ANNOUNCE = 'announce';
+
+    public const AI_GOAL_REENGAGE = 'reengage';
+
+    public const AI_IMAGE_MODE_NEVER = 'never';
+
+    public const AI_IMAGE_MODE_IF_MISSING = 'if_missing';
+
+    public const AI_IMAGE_MODE_ALWAYS = 'always';
+
+    public const AI_IMAGE_FORMAT_AUTO = 'auto';
+
+    public const AI_IMAGE_FORMAT_SQUARE = 'square';
+
+    public const AI_IMAGE_FORMAT_PORTRAIT = 'portrait';
+
+    public const AI_IMAGE_FORMAT_LANDSCAPE = 'landscape';
+
     protected $fillable = [
         'user_id',
         'created_by_user_id',
@@ -85,6 +119,62 @@ class SocialAutomationRule extends Model
         return [
             self::APPROVAL_REQUIRED,
             self::APPROVAL_AUTO_PUBLISH,
+        ];
+    }
+
+    public static function allowedAiTones(): array
+    {
+        return [
+            self::AI_TONE_PROFESSIONAL,
+            self::AI_TONE_WARM,
+            self::AI_TONE_PREMIUM,
+            self::AI_TONE_DIRECT,
+            self::AI_TONE_PROMOTIONAL,
+        ];
+    }
+
+    public static function allowedAiGoals(): array
+    {
+        return [
+            self::AI_GOAL_SELL,
+            self::AI_GOAL_INFORM,
+            self::AI_GOAL_BOOK,
+            self::AI_GOAL_ANNOUNCE,
+            self::AI_GOAL_REENGAGE,
+        ];
+    }
+
+    public static function allowedAiImageModes(): array
+    {
+        return [
+            self::AI_IMAGE_MODE_NEVER,
+            self::AI_IMAGE_MODE_IF_MISSING,
+            self::AI_IMAGE_MODE_ALWAYS,
+        ];
+    }
+
+    public static function allowedAiImageFormats(): array
+    {
+        return [
+            self::AI_IMAGE_FORMAT_AUTO,
+            self::AI_IMAGE_FORMAT_SQUARE,
+            self::AI_IMAGE_FORMAT_PORTRAIT,
+            self::AI_IMAGE_FORMAT_LANDSCAPE,
+        ];
+    }
+
+    public static function defaultGenerationSettings(): array
+    {
+        return [
+            'text_ai_enabled' => false,
+            'image_ai_enabled' => false,
+            'creative_prompt' => '',
+            'image_prompt' => '',
+            'tone' => self::AI_TONE_PROFESSIONAL,
+            'goal' => self::AI_GOAL_INFORM,
+            'image_mode' => self::AI_IMAGE_MODE_IF_MISSING,
+            'image_format' => self::AI_IMAGE_FORMAT_SQUARE,
+            'variant_count' => 3,
         ];
     }
 

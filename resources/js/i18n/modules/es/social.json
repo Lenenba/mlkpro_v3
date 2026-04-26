@@ -358,12 +358,47 @@
         "language": "Idioma",
         "approval_mode": "Modo de validacion",
         "max_posts_per_day": "Max posts por dia",
-        "min_hours_between_similar_posts": "Horas minimas entre contenidos parecidos"
+        "min_hours_between_similar_posts": "Horas minimas entre contenidos parecidos",
+        "text_ai_enabled": "Texto IA",
+        "image_ai_enabled": "Imagen IA",
+        "generation_tone": "Tono",
+        "generation_goal": "Objetivo",
+        "image_mode": "Modo de imagen",
+        "image_format": "Formato de imagen",
+        "variant_count": "Variantes de texto",
+        "creative_prompt": "Prompt general",
+        "image_prompt": "Prompt de imagen"
       },
+      "generation_title": "Instrucciones IA",
       "targets_title": "Cuentas objetivo",
       "targets_description": "Selecciona las cuentas que esta regla podra usar al generar contenido.",
       "sources_title": "Fuentes de contenido",
       "sources_description": "Activa una o varias familias de contenido y limitalas a elementos concretos cuando haga falta.",
+      "generation_tones": {
+        "professional": "Profesional",
+        "warm": "Calido",
+        "premium": "Premium",
+        "direct": "Directo",
+        "promotional": "Promocional"
+      },
+      "generation_goals": {
+        "sell": "Vender",
+        "inform": "Informar",
+        "book": "Reservar",
+        "announce": "Anunciar",
+        "reengage": "Reactivar"
+      },
+      "image_modes": {
+        "never": "Nunca",
+        "if_missing": "Si falta imagen",
+        "always": "Siempre generar"
+      },
+      "image_formats": {
+        "auto": "Auto",
+        "square": "Cuadrado",
+        "portrait": "Vertical",
+        "landscape": "Horizontal"
+      },
       "source_types": {
         "product": "Productos",
         "service": "Servicios",

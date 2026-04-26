@@ -207,14 +207,15 @@ class SocialAutomationRunnerService
                     'content_payload' => $candidate['content_payload'],
                     'media_payload' => $candidate['media_payload'],
                     'link_url' => $candidate['link_url'],
-                    'metadata' => [
+                    'metadata' => array_filter([
                         'selected_target_count' => $targetConnections->count(),
                         'draft_saved_from' => 'social_autopilot',
                         'has_image' => data_get($candidate, 'media_payload.0.url') !== null,
                         'has_link' => trim((string) ($candidate['link_url'] ?? '')) !== '',
                         'source' => $candidate['metadata']['source'] ?? null,
+                        'ai_generation' => $candidate['metadata']['ai_generation'] ?? null,
                         'automation' => $automationMetadata,
-                    ],
+                    ], fn ($value) => $value !== null),
                 ]);
 
                 return $rule->approval_mode === SocialAutomationRule::APPROVAL_AUTO_PUBLISH
@@ -246,11 +247,12 @@ class SocialAutomationRunnerService
                         : 'Pulse automation candidate generated and submitted for approval.',
                     'source_type' => $selectedSource['source_type'] ?? null,
                     'source_id' => $selectedSource['source_id'] ?? null,
-                    'metadata' => [
+                    'metadata' => array_filter([
                         'mode' => $rule->approval_mode,
                         'selected_source_label' => $selectedSource['source_label'] ?? null,
                         'content_fingerprint' => $candidate['content_fingerprint'] ?? null,
-                    ],
+                        'ai_generation' => $this->runAiGenerationMetadata($candidate),
+                    ], fn ($value) => $value !== null),
                     'started_at' => $startedAt,
                     'completed_at' => $completedAt,
                 ]);
@@ -375,14 +377,15 @@ class SocialAutomationRunnerService
                 'content_payload' => $candidate['content_payload'],
                 'media_payload' => $candidate['media_payload'],
                 'link_url' => $candidate['link_url'],
-                'metadata' => [
+                'metadata' => array_filter([
                     'selected_target_count' => $targetConnections->count(),
                     'draft_saved_from' => 'social_autopilot_regeneration',
                     'has_image' => data_get($candidate, 'media_payload.0.url') !== null,
                     'has_link' => trim((string) ($candidate['link_url'] ?? '')) !== '',
                     'source' => $candidate['metadata']['source'] ?? null,
+                    'ai_generation' => $candidate['metadata']['ai_generation'] ?? null,
                     'automation' => $automationMetadata,
-                ],
+                ], fn ($value) => $value !== null),
             ]);
 
             return $this->approvalService->submit($owner, $actor, $draft, [
@@ -414,6 +417,34 @@ class SocialAutomationRunnerService
             'selected_source_label' => $selectedSource['source_label'] ?? null,
             'content_fingerprint' => $candidate['content_fingerprint'] ?? null,
             'generation_attempt' => 1,
+            'ai_generation_mode' => data_get($candidate, 'metadata.ai_generation.generation_mode'),
+            'ai_fallback_used' => data_get($candidate, 'metadata.ai_generation.fallback_used'),
+            'ai_selected_score' => data_get($candidate, 'metadata.ai_generation.selected_score'),
+        ], fn ($value) => $value !== null);
+    }
+
+    /**
+     * @param  array<string, mixed>  $candidate
+     * @return array<string, mixed>|null
+     */
+    private function runAiGenerationMetadata(array $candidate): ?array
+    {
+        $metadata = data_get($candidate, 'metadata.ai_generation');
+        if (! is_array($metadata)) {
+            return null;
+        }
+
+        return array_filter([
+            'generation_mode' => $metadata['generation_mode'] ?? null,
+            'text_model' => $metadata['text_model'] ?? null,
+            'selected_score' => $metadata['selected_score'] ?? null,
+            'variant_count' => $metadata['variant_count'] ?? null,
+            'fallback_used' => $metadata['fallback_used'] ?? null,
+            'fallback_reason' => $metadata['fallback_reason'] ?? null,
+            'image_generated' => data_get($metadata, 'image.generated'),
+            'image_status' => data_get($metadata, 'image.status'),
+            'image_model' => data_get($metadata, 'image.model'),
+            'image_outcome_code' => data_get($metadata, 'image.outcome_code'),
         ], fn ($value) => $value !== null);
     }
 

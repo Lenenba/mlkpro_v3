@@ -74,6 +74,10 @@ class SocialAutomationController extends Controller
                 ->map(fn (string $value) => ['value' => $value])
                 ->values()
                 ->all(),
+            'generation_tone_options' => $this->optionPayload(SocialAutomationRule::allowedAiTones()),
+            'generation_goal_options' => $this->optionPayload(SocialAutomationRule::allowedAiGoals()),
+            'image_mode_options' => $this->optionPayload(SocialAutomationRule::allowedAiImageModes()),
+            'image_format_options' => $this->optionPayload(SocialAutomationRule::allowedAiImageFormats()),
             'locale_options' => $this->localeOptions(),
             'timezone_options' => $this->timezoneOptions($owner),
             'workspace_stats' => $this->workspaceStats($connectionSummary, $postSummary),
@@ -418,6 +422,9 @@ class SocialAutomationController extends Controller
                 ->all(),
             'max_posts_per_day' => (int) $rule->max_posts_per_day,
             'min_hours_between_similar_posts' => (int) $rule->min_hours_between_similar_posts,
+            'generation_settings' => $this->ruleService->normalizeGenerationSettings(
+                data_get($rule->metadata, 'generation_settings', [])
+            ),
             'last_generated_at' => optional($rule->last_generated_at)->toIso8601String(),
             'next_generation_at' => optional($rule->next_generation_at)->toIso8601String(),
             'last_error' => $rule->last_error,
@@ -741,6 +748,18 @@ class SocialAutomationController extends Controller
     }
 
     /**
+     * @param  array<int, string>  $values
+     * @return array<int, array<string, string>>
+     */
+    private function optionPayload(array $values): array
+    {
+        return collect($values)
+            ->map(fn (string $value) => ['value' => $value])
+            ->values()
+            ->all();
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function validateAutomationRule(Request $request): array
@@ -764,6 +783,16 @@ class SocialAutomationController extends Controller
             'content_sources.*.ids.*' => ['integer', 'distinct'],
             'max_posts_per_day' => ['nullable', 'integer', 'min:1', 'max:20'],
             'min_hours_between_similar_posts' => ['nullable', 'integer', 'min:1', 'max:720'],
+            'generation_settings' => ['nullable', 'array'],
+            'generation_settings.text_ai_enabled' => ['nullable', 'boolean'],
+            'generation_settings.image_ai_enabled' => ['nullable', 'boolean'],
+            'generation_settings.creative_prompt' => ['nullable', 'string', 'max:1000'],
+            'generation_settings.image_prompt' => ['nullable', 'string', 'max:1000'],
+            'generation_settings.tone' => ['nullable', 'string', Rule::in(SocialAutomationRule::allowedAiTones())],
+            'generation_settings.goal' => ['nullable', 'string', Rule::in(SocialAutomationRule::allowedAiGoals())],
+            'generation_settings.image_mode' => ['nullable', 'string', Rule::in(SocialAutomationRule::allowedAiImageModes())],
+            'generation_settings.image_format' => ['nullable', 'string', Rule::in(SocialAutomationRule::allowedAiImageFormats())],
+            'generation_settings.variant_count' => ['nullable', 'integer', 'min:1', 'max:5'],
         ]);
 
         $validated['content_sources'] = collect((array) ($validated['content_sources'] ?? []))
@@ -780,6 +809,10 @@ class SocialAutomationController extends Controller
             })
             ->values()
             ->all();
+
+        $validated['generation_settings'] = $this->ruleService->normalizeGenerationSettings(
+            $validated['generation_settings'] ?? []
+        );
 
         return $validated;
     }

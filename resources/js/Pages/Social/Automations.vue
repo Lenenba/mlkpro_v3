@@ -34,6 +34,22 @@ const props = defineProps({
         type: Array,
         default: () => ([]),
     },
+    generation_tone_options: {
+        type: Array,
+        default: () => ([]),
+    },
+    generation_goal_options: {
+        type: Array,
+        default: () => ([]),
+    },
+    image_mode_options: {
+        type: Array,
+        default: () => ([]),
+    },
+    image_format_options: {
+        type: Array,
+        default: () => ([]),
+    },
     locale_options: {
         type: Array,
         default: () => ([]),
@@ -75,6 +91,10 @@ const { t } = useI18n();
                 :initial-target-connections="props.target_connections"
                 :initial-frequency-options="props.frequency_options"
                 :initial-approval-mode-options="props.approval_mode_options"
+                :initial-generation-tone-options="props.generation_tone_options"
+                :initial-generation-goal-options="props.generation_goal_options"
+                :initial-image-mode-options="props.image_mode_options"
+                :initial-image-format-options="props.image_format_options"
                 :initial-locale-options="props.locale_options"
                 :initial-timezone-options="props.timezone_options"
                 :initial-access="props.access"

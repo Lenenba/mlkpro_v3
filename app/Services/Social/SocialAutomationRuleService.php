@@ -43,6 +43,9 @@ class SocialAutomationRuleService
             'max_posts_per_day' => array_key_exists('max_posts_per_day', $payload) ? $payload['max_posts_per_day'] : $rule->max_posts_per_day,
             'min_hours_between_similar_posts' => array_key_exists('min_hours_between_similar_posts', $payload) ? $payload['min_hours_between_similar_posts'] : $rule->min_hours_between_similar_posts,
             'metadata' => array_key_exists('metadata', $payload) ? $payload['metadata'] : $rule->metadata,
+            'generation_settings' => array_key_exists('generation_settings', $payload)
+                ? $payload['generation_settings']
+                : data_get($rule->metadata, 'generation_settings', []),
             'next_generation_at' => array_key_exists('next_generation_at', $payload) ? $payload['next_generation_at'] : null,
         ], $rule);
 
@@ -235,6 +238,47 @@ class SocialAutomationRuleService
     }
 
     /**
+     * @return array<string, mixed>
+     */
+    public function normalizeGenerationSettings(mixed $value): array
+    {
+        $settings = is_array($value) ? $value : [];
+        $defaults = SocialAutomationRule::defaultGenerationSettings();
+
+        $tone = strtolower(trim((string) ($settings['tone'] ?? $defaults['tone'])));
+        if (! in_array($tone, SocialAutomationRule::allowedAiTones(), true)) {
+            $tone = $defaults['tone'];
+        }
+
+        $goal = strtolower(trim((string) ($settings['goal'] ?? $defaults['goal'])));
+        if (! in_array($goal, SocialAutomationRule::allowedAiGoals(), true)) {
+            $goal = $defaults['goal'];
+        }
+
+        $imageMode = strtolower(trim((string) ($settings['image_mode'] ?? $defaults['image_mode'])));
+        if (! in_array($imageMode, SocialAutomationRule::allowedAiImageModes(), true)) {
+            $imageMode = $defaults['image_mode'];
+        }
+
+        $imageFormat = strtolower(trim((string) ($settings['image_format'] ?? $defaults['image_format'])));
+        if (! in_array($imageFormat, SocialAutomationRule::allowedAiImageFormats(), true)) {
+            $imageFormat = $defaults['image_format'];
+        }
+
+        return [
+            'text_ai_enabled' => $this->booleanValue($settings['text_ai_enabled'] ?? $defaults['text_ai_enabled']),
+            'image_ai_enabled' => $this->booleanValue($settings['image_ai_enabled'] ?? $defaults['image_ai_enabled']),
+            'creative_prompt' => $this->limitedString($settings['creative_prompt'] ?? $defaults['creative_prompt']),
+            'image_prompt' => $this->limitedString($settings['image_prompt'] ?? $defaults['image_prompt']),
+            'tone' => $tone,
+            'goal' => $goal,
+            'image_mode' => $imageMode,
+            'image_format' => $imageFormat,
+            'variant_count' => max(1, min(5, (int) ($settings['variant_count'] ?? $defaults['variant_count']))),
+        ];
+    }
+
+    /**
      * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
      */
@@ -294,6 +338,10 @@ class SocialAutomationRuleService
         }
 
         $metadata = is_array($payload['metadata'] ?? null) ? $payload['metadata'] : [];
+        $metadata['generation_settings'] = $this->normalizeGenerationSettings(
+            $payload['generation_settings'] ?? ($metadata['generation_settings'] ?? [])
+        );
+
         $anchorNow = now()->setTimezone($this->resolveTimezone($payload, $owner));
         $metadata['day_of_week'] = max(1, min(7, (int) ($metadata['day_of_week'] ?? $anchorNow->dayOfWeekIso)));
         $metadata['day_of_month'] = max(1, min(31, (int) ($metadata['day_of_month'] ?? $anchorNow->day)));
@@ -438,5 +486,23 @@ class SocialAutomationRuleService
         $candidate = trim((string) $value);
 
         return $candidate !== '' ? $candidate : null;
+    }
+
+    private function booleanValue(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        $filtered = filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
+
+        return $filtered ?? (bool) $value;
+    }
+
+    private function limitedString(mixed $value, int $limit = 1000): string
+    {
+        $candidate = trim((string) $value);
+
+        return mb_substr($candidate, 0, max(0, $limit));
     }
 }

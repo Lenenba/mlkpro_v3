@@ -1,6 +1,7 @@
 <?php
 
 use App\Jobs\PublishSocialPostTargetJob;
+use App\Models\AssistantCreditTransaction;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\Role;
@@ -12,8 +13,10 @@ use App\Models\SocialPost;
 use App\Models\SocialPostTarget;
 use App\Models\SocialPostTemplate;
 use App\Models\User;
+use App\Services\Assistant\OpenAiClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 uses(RefreshDatabase::class);
@@ -179,6 +182,286 @@ it('generates a pulse candidate and submits it for approval from a product autom
         ->and($run->social_post_id)->toBe($post->id)
         ->and($run->source_type)->toBe('product')
         ->and($run->source_id)->toBe($product->id);
+});
+
+it('generates an AI creative candidate and stores generation metadata', function () {
+    config()->set('services.openai.key', 'test-key');
+    config()->set('services.openai.social_creative_model', 'test-social-model');
+
+    $owner = socialAutopilotOwner([
+        'company_name' => 'Studio Pulse',
+    ]);
+    $facebook = socialAutopilotConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
+    $instagram = socialAutopilotConnection($owner, SocialAccountConnection::PLATFORM_INSTAGRAM);
+    $product = socialAutopilotProduct($owner, 'Soin visage signature');
+
+    $rule = socialAutopilotRule($owner, [
+        'name' => 'AI product autopilot',
+        'content_sources' => [
+            ['type' => 'product', 'mode' => 'selected_ids', 'ids' => [$product->id]],
+        ],
+        'target_connection_ids' => [$facebook->id, $instagram->id],
+        'approval_mode' => SocialAutomationRule::APPROVAL_REQUIRED,
+        'metadata' => [
+            'generation_settings' => [
+                'text_ai_enabled' => true,
+                'image_ai_enabled' => false,
+                'creative_prompt' => 'Keep the copy premium and local.',
+                'image_prompt' => 'Bright realistic treatment room.',
+                'tone' => 'premium',
+                'goal' => 'book',
+                'image_mode' => 'if_missing',
+                'image_format' => 'square',
+                'variant_count' => 2,
+            ],
+        ],
+    ]);
+
+    $client = \Mockery::mock(OpenAiClient::class);
+    $client->shouldReceive('chat')
+        ->once()
+        ->andReturn(['model' => 'test-social-model']);
+    $client->shouldReceive('extractMessage')
+        ->once()
+        ->andReturn(json_encode([
+            'selected' => [
+                'text' => 'Decouvrez le soin visage signature de Studio Pulse, pense pour une peau lumineuse et un vrai moment de pause.',
+                'hashtags' => ['#SoinVisage', '#StudioPulse'],
+                'cta' => 'Reservez votre moment.',
+                'image_prompt' => 'Photo realiste lumineuse d une cabine de soin premium, sans texte incruste.',
+                'score' => 91,
+                'score_reason' => 'Clair, premium et oriente reservation.',
+            ],
+            'variants' => [
+                [
+                    'text' => 'Soin visage signature disponible cette semaine chez Studio Pulse.',
+                    'hashtags' => ['#SoinVisage'],
+                    'cta' => 'Contactez-nous.',
+                    'image_prompt' => 'Cabine de soin lumineuse sans texte.',
+                    'score' => 74,
+                    'score_reason' => 'Correct mais moins distinctif.',
+                ],
+            ],
+        ]));
+    $client->shouldReceive('extractUsage')
+        ->once()
+        ->andReturn([
+            'prompt_tokens' => 120,
+            'completion_tokens' => 80,
+            'total_tokens' => 200,
+            'model' => 'test-social-model',
+        ]);
+    $this->app->instance(OpenAiClient::class, $client);
+
+    $this->artisan('social:run-automations', [
+        '--account_id' => $owner->id,
+        '--rule_id' => $rule->id,
+    ])->assertExitCode(0);
+
+    $post = SocialPost::query()->sole();
+
+    expect(data_get($post->content_payload, 'text'))->toContain('Decouvrez le soin visage signature')
+        ->and(data_get($post->content_payload, 'text'))->toContain('#SoinVisage')
+        ->and(data_get($post->metadata, 'ai_generation.text_enabled'))->toBeTrue()
+        ->and(data_get($post->metadata, 'ai_generation.text_model'))->toBe('test-social-model')
+        ->and(data_get($post->metadata, 'ai_generation.selected_score'))->toBe(91)
+        ->and(data_get($post->metadata, 'ai_generation.fallback_used'))->toBeFalse()
+        ->and(data_get($post->metadata, 'ai_generation.image_prompt'))->toContain('cabine de soin premium')
+        ->and(data_get($post->metadata, 'automation.ai_generation_mode'))->toBe('ai_creative')
+        ->and(data_get($post->metadata, 'automation.ai_selected_score'))->toBe(91);
+
+    $run = SocialAutomationRun::query()->sole();
+
+    expect(data_get($run->metadata, 'ai_generation.text_model'))->toBe('test-social-model')
+        ->and(data_get($run->metadata, 'ai_generation.selected_score'))->toBe(91)
+        ->and(data_get($run->metadata, 'ai_generation.fallback_used'))->toBeFalse();
+});
+
+it('falls back to deterministic Pulse copy when AI creative generation is unavailable', function () {
+    config()->set('services.openai.key', null);
+
+    $owner = socialAutopilotOwner();
+    $connection = socialAutopilotConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
+    $product = socialAutopilotProduct($owner, 'Fallback product');
+
+    $rule = socialAutopilotRule($owner, [
+        'name' => 'Fallback AI autopilot',
+        'content_sources' => [
+            ['type' => 'product', 'mode' => 'selected_ids', 'ids' => [$product->id]],
+        ],
+        'target_connection_ids' => [$connection->id],
+        'metadata' => [
+            'generation_settings' => [
+                'text_ai_enabled' => true,
+                'image_ai_enabled' => false,
+                'creative_prompt' => 'Use a warm tone.',
+                'image_prompt' => 'Clean product visual.',
+                'tone' => 'warm',
+                'goal' => 'inform',
+                'image_mode' => 'if_missing',
+                'image_format' => 'square',
+                'variant_count' => 3,
+            ],
+        ],
+    ]);
+
+    $this->artisan('social:run-automations', [
+        '--account_id' => $owner->id,
+        '--rule_id' => $rule->id,
+    ])->assertExitCode(0);
+
+    $post = SocialPost::query()->sole();
+
+    expect(data_get($post->content_payload, 'text'))->not->toBe('')
+        ->and(data_get($post->metadata, 'ai_generation.fallback_used'))->toBeTrue()
+        ->and(data_get($post->metadata, 'ai_generation.generation_mode'))->toBe('deterministic_fallback')
+        ->and(data_get($post->metadata, 'ai_generation.fallback_reason'))->toContain('OpenAI is not configured')
+        ->and(data_get($post->metadata, 'automation.ai_fallback_used'))->toBeTrue();
+});
+
+it('generates an AI image for an automation candidate when the source image is missing', function () {
+    Storage::fake('public');
+    config()->set('services.openai.key', 'test-key');
+    config()->set('services.openai.image_model', 'test-image-model');
+    config()->set('services.openai.image_output_format', 'png');
+
+    $owner = socialAutopilotOwner([
+        'company_name' => 'Studio Pulse',
+    ]);
+    $connection = socialAutopilotConnection($owner, SocialAccountConnection::PLATFORM_INSTAGRAM);
+    $product = socialAutopilotProduct($owner, 'Soin visage lumineux');
+    $product->forceFill(['image' => null])->save();
+
+    $rule = socialAutopilotRule($owner, [
+        'name' => 'AI image autopilot',
+        'content_sources' => [
+            ['type' => 'product', 'mode' => 'selected_ids', 'ids' => [$product->id]],
+        ],
+        'target_connection_ids' => [$connection->id],
+        'metadata' => [
+            'generation_settings' => [
+                'text_ai_enabled' => false,
+                'image_ai_enabled' => true,
+                'creative_prompt' => '',
+                'image_prompt' => 'Ambiance lumineuse et professionnelle.',
+                'tone' => 'warm',
+                'goal' => 'book',
+                'image_mode' => 'if_missing',
+                'image_format' => 'portrait',
+                'variant_count' => 3,
+            ],
+        ],
+    ]);
+
+    $client = \Mockery::mock(OpenAiClient::class);
+    $client->shouldReceive('generateImage')
+        ->once()
+        ->with(
+            \Mockery::on(fn (string $prompt): bool => str_contains($prompt, 'Soin visage lumineux')
+                && str_contains($prompt, 'Ambiance lumineuse')),
+            \Mockery::on(fn (array $options): bool => ($options['size'] ?? null) === '1024x1792')
+        )
+        ->andReturn([
+            'data' => [
+                ['b64_json' => base64_encode('fake-social-image')],
+            ],
+        ]);
+    $this->app->instance(OpenAiClient::class, $client);
+
+    $this->artisan('social:run-automations', [
+        '--account_id' => $owner->id,
+        '--rule_id' => $rule->id,
+    ])->assertExitCode(0);
+
+    $post = SocialPost::query()->sole();
+    $path = (string) data_get($post->media_payload, '0.path');
+
+    expect(data_get($post->media_payload, '0.source'))->toBe('ai')
+        ->and(data_get($post->media_payload, '0.url'))->toContain('/storage/company/ai/'.$owner->id.'/social-')
+        ->and($path)->not->toBe('')
+        ->and(data_get($post->metadata, 'ai_generation.image.generated'))->toBeTrue()
+        ->and(data_get($post->metadata, 'ai_generation.image.status'))->toBe('generated')
+        ->and(data_get($post->metadata, 'ai_generation.image.model'))->toBe('test-image-model')
+        ->and(data_get($post->metadata, 'ai_generation.image.usage_mode'))->toBe('free')
+        ->and(data_get($post->metadata, 'ai_generation.image.fallback_used'))->toBeFalse()
+        ->and(data_get($post->metadata, 'automation.ai_generation_mode'))->toBe('ai_image')
+        ->and(data_get($post->metadata, 'automation.ai_fallback_used'))->toBeFalse();
+
+    Storage::disk('public')->assertExists($path);
+
+    $transaction = AssistantCreditTransaction::query()->sole();
+
+    expect($transaction->user_id)->toBe($owner->id)
+        ->and($transaction->type)->toBe('free')
+        ->and($transaction->source)->toBe('ai_image_social')
+        ->and(data_get($transaction->meta, 'context'))->toBe('social')
+        ->and(data_get($transaction->meta, 'mode'))->toBe('free');
+});
+
+it('keeps the Pulse candidate when AI image quota is exhausted', function () {
+    Storage::fake('public');
+    config()->set('services.openai.key', 'test-key');
+
+    $owner = socialAutopilotOwner([
+        'assistant_credit_balance' => 0,
+    ]);
+    $connection = socialAutopilotConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
+    $product = socialAutopilotProduct($owner, 'Quota guarded product');
+    $product->forceFill(['image' => null])->save();
+
+    AssistantCreditTransaction::query()->create([
+        'user_id' => $owner->id,
+        'type' => 'free',
+        'credits' => 1,
+        'source' => 'ai_image_social',
+        'meta' => [
+            'context' => 'social',
+            'mode' => 'free',
+        ],
+    ]);
+
+    $rule = socialAutopilotRule($owner, [
+        'name' => 'Quota guarded image autopilot',
+        'content_sources' => [
+            ['type' => 'product', 'mode' => 'selected_ids', 'ids' => [$product->id]],
+        ],
+        'target_connection_ids' => [$connection->id],
+        'metadata' => [
+            'generation_settings' => [
+                'text_ai_enabled' => false,
+                'image_ai_enabled' => true,
+                'creative_prompt' => '',
+                'image_prompt' => 'Clean social visual.',
+                'tone' => 'professional',
+                'goal' => 'inform',
+                'image_mode' => 'if_missing',
+                'image_format' => 'square',
+                'variant_count' => 3,
+            ],
+        ],
+    ]);
+
+    $client = \Mockery::mock(OpenAiClient::class);
+    $client->shouldReceive('generateImage')->never();
+    $this->app->instance(OpenAiClient::class, $client);
+
+    $this->artisan('social:run-automations', [
+        '--account_id' => $owner->id,
+        '--rule_id' => $rule->id,
+    ])->assertExitCode(0);
+
+    $post = SocialPost::query()->sole();
+
+    expect(data_get($post->content_payload, 'text'))->not->toBe('')
+        ->and($post->media_payload)->toBeNull()
+        ->and(data_get($post->metadata, 'ai_generation.image.generated'))->toBeFalse()
+        ->and(data_get($post->metadata, 'ai_generation.image.status'))->toBe('failed')
+        ->and(data_get($post->metadata, 'ai_generation.image.outcome_code'))->toBe('credits_exhausted')
+        ->and(data_get($post->metadata, 'ai_generation.image.fallback_used'))->toBeTrue()
+        ->and(data_get($post->metadata, 'automation.ai_fallback_used'))->toBeTrue();
+
+    expect(AssistantCreditTransaction::query()->count())->toBe(1)
+        ->and(Storage::disk('public')->allFiles())->toBe([]);
 });
 
 it('can auto publish a generated pulse candidate from a template automation rule', function () {

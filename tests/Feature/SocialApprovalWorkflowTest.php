@@ -9,9 +9,11 @@ use App\Models\SocialPost;
 use App\Models\SocialPostTarget;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Notifications\SocialApprovalRequestedNotification;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 
@@ -141,6 +143,7 @@ function pulseApprovalDraft(
 beforeEach(function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
     $this->withoutMiddleware(EnsureTwoFactorVerified::class);
+    Notification::fake();
 });
 
 it('lets a publisher submit a pulse post for approval while direct publication stays blocked', function () {
@@ -182,6 +185,60 @@ it('lets a publisher submit a pulse post for approval while direct publication s
         ])
         ->assertStatus(422)
         ->assertJsonValidationErrors('post');
+});
+
+it('emails approvers a sober visual preview of the pending pulse post', function () {
+    $owner = pulseApprovalOwner([
+        'company_name' => 'Studio Pulse',
+    ]);
+    $publisher = pulseApprovalTeamMember($owner, ['social.publish']);
+    $approver = pulseApprovalTeamMember($owner, ['social.approve']);
+    $facebook = pulseApprovalConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK, [
+        'display_name' => 'Studio Pulse Facebook',
+    ]);
+    $instagram = pulseApprovalConnection($owner, SocialAccountConnection::PLATFORM_INSTAGRAM, [
+        'display_name' => 'Studio Pulse Instagram',
+    ]);
+    $draft = pulseApprovalDraft($owner, $publisher, [$facebook, $instagram], [
+        'text' => "Decouvrez notre soin signature.\n\nReservez votre moment.",
+        'image_url' => 'https://example.com/assets/social-preview.jpg',
+        'link_url' => 'https://example.com/book',
+    ]);
+
+    $this->actingAs($publisher)
+        ->postJson(route('social.posts.submit-approval', $draft), [
+            'note' => 'Ready for review.',
+        ])
+        ->assertStatus(202);
+
+    Notification::assertSentTo($owner, SocialApprovalRequestedNotification::class);
+    Notification::assertSentTo($approver, SocialApprovalRequestedNotification::class);
+    Notification::assertNotSentTo($publisher, SocialApprovalRequestedNotification::class);
+
+    $captured = null;
+    Notification::assertSentTo(
+        $owner,
+        SocialApprovalRequestedNotification::class,
+        function (SocialApprovalRequestedNotification $notification) use ($owner, &$captured): bool {
+            $captured = $notification->toMail($owner);
+
+            return true;
+        }
+    );
+
+    expect($captured)->not->toBeNull()
+        ->and($captured->subject)->toContain('Pulse');
+
+    $view = is_array($captured->view) ? $captured->view[0] : $captured->view;
+    $html = view($view, $captured->viewData)->render();
+
+    expect($html)->toContain('Post a valider')
+        ->and($html)->toContain('Facebook')
+        ->and($html)->toContain('Instagram')
+        ->and($html)->toContain('Decouvrez notre soin signature.')
+        ->and($html)->toContain('https://example.com/assets/social-preview.jpg')
+        ->and($html)->not->toContain('detail_metric')
+        ->and($html)->not->toContain('platform_tagline');
 });
 
 it('lets an approver approve a pending pulse request and queue publication', function () {

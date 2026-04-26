@@ -358,12 +358,47 @@
         "language": "Language",
         "approval_mode": "Approval mode",
         "max_posts_per_day": "Max posts per day",
-        "min_hours_between_similar_posts": "Min hours between similar posts"
+        "min_hours_between_similar_posts": "Min hours between similar posts",
+        "text_ai_enabled": "AI text",
+        "image_ai_enabled": "AI image",
+        "generation_tone": "Tone",
+        "generation_goal": "Goal",
+        "image_mode": "Image mode",
+        "image_format": "Image format",
+        "variant_count": "Text variants",
+        "creative_prompt": "Creative prompt",
+        "image_prompt": "Image prompt"
       },
+      "generation_title": "AI instructions",
       "targets_title": "Target accounts",
       "targets_description": "Select the accounts this rule may use when generating content.",
       "sources_title": "Content sources",
       "sources_description": "Enable one or more content families, then narrow them down to selected items when needed.",
+      "generation_tones": {
+        "professional": "Professional",
+        "warm": "Warm",
+        "premium": "Premium",
+        "direct": "Direct",
+        "promotional": "Promotional"
+      },
+      "generation_goals": {
+        "sell": "Sell",
+        "inform": "Inform",
+        "book": "Book",
+        "announce": "Announce",
+        "reengage": "Re-engage"
+      },
+      "image_modes": {
+        "never": "Never",
+        "if_missing": "If missing",
+        "always": "Always generate"
+      },
+      "image_formats": {
+        "auto": "Auto",
+        "square": "Square",
+        "portrait": "Portrait",
+        "landscape": "Landscape"
+      },
       "source_types": {
         "product": "Products",
         "service": "Services",

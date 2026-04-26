@@ -223,6 +223,10 @@ it('renders the pulse autopilot and approval queue workspaces', function () {
             ->component('Social/Automations')
             ->where('access.can_manage_automations', true)
             ->where('summary.total', 1)
+            ->where('generation_tone_options.0.value', 'professional')
+            ->where('generation_goal_options.0.value', 'sell')
+            ->where('image_mode_options.0.value', 'never')
+            ->where('image_format_options.0.value', 'auto')
             ->has('rules', 1)
             ->where('rules.0.id', $rule->id)
         );
@@ -260,6 +264,17 @@ it('lets a publisher manage pulse automation rules while a viewer stays read onl
         ],
         'max_posts_per_day' => 3,
         'min_hours_between_similar_posts' => 12,
+        'generation_settings' => [
+            'text_ai_enabled' => true,
+            'image_ai_enabled' => false,
+            'creative_prompt' => 'Keep the copy premium, local, and concise.',
+            'image_prompt' => 'Bright realistic service visual with no embedded text.',
+            'tone' => 'premium',
+            'goal' => 'book',
+            'image_mode' => 'if_missing',
+            'image_format' => 'portrait',
+            'variant_count' => 4,
+        ],
     ];
 
     $store = $this->actingAs($publisher)
@@ -267,9 +282,40 @@ it('lets a publisher manage pulse automation rules while a viewer stays read onl
 
     $store->assertCreated()
         ->assertJsonPath('rule.name', 'Template cadence')
-        ->assertJsonPath('rule.approval_mode', SocialAutomationRule::APPROVAL_REQUIRED);
+        ->assertJsonPath('rule.approval_mode', SocialAutomationRule::APPROVAL_REQUIRED)
+        ->assertJsonPath('rule.generation_settings.text_ai_enabled', true)
+        ->assertJsonPath('rule.generation_settings.image_ai_enabled', false)
+        ->assertJsonPath('rule.generation_settings.tone', 'premium')
+        ->assertJsonPath('rule.generation_settings.goal', 'book')
+        ->assertJsonPath('rule.generation_settings.image_format', 'portrait')
+        ->assertJsonPath('rule.generation_settings.variant_count', 4);
 
     $ruleId = (int) $store->json('rule.id');
+
+    $createdRule = SocialAutomationRule::query()->findOrFail($ruleId);
+    expect(data_get($createdRule->metadata, 'generation_settings.creative_prompt'))
+        ->toBe('Keep the copy premium, local, and concise.')
+        ->and(data_get($createdRule->metadata, 'generation_settings.image_prompt'))
+        ->toBe('Bright realistic service visual with no embedded text.');
+
+    $updatedPayload = array_merge($payload, [
+        'name' => 'Updated template cadence',
+        'generation_settings' => array_merge($payload['generation_settings'], [
+            'image_ai_enabled' => true,
+            'image_mode' => 'always',
+            'image_format' => 'square',
+            'variant_count' => 2,
+        ]),
+    ]);
+
+    $this->actingAs($publisher)
+        ->putJson(route('social.automations.update', $ruleId), $updatedPayload)
+        ->assertOk()
+        ->assertJsonPath('rule.name', 'Updated template cadence')
+        ->assertJsonPath('rule.generation_settings.image_ai_enabled', true)
+        ->assertJsonPath('rule.generation_settings.image_mode', 'always')
+        ->assertJsonPath('rule.generation_settings.image_format', 'square')
+        ->assertJsonPath('rule.generation_settings.variant_count', 2);
 
     $this->actingAs($viewer)
         ->postJson(route('social.automations.store'), $payload)
