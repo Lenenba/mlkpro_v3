@@ -8,6 +8,7 @@ import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
+import SocialMediaAssetPicker from '@/Pages/Social/Components/SocialMediaAssetPicker.vue';
 
 const props = defineProps({
     initialConnectedAccounts: {
@@ -15,6 +16,10 @@ const props = defineProps({
         default: () => ([]),
     },
     initialTemplates: {
+        type: Array,
+        default: () => ([]),
+    },
+    initialMediaAssets: {
         type: Array,
         default: () => ([]),
     },
@@ -36,6 +41,7 @@ const { t } = useI18n();
 
 const normalizeAccounts = (payload) => Array.isArray(payload) ? payload : [];
 const normalizeTemplates = (payload) => Array.isArray(payload) ? payload : [];
+const normalizeMediaAssets = (payload) => Array.isArray(payload) ? payload : [];
 const normalizeSummary = (payload) => payload && typeof payload === 'object' ? payload : {};
 const normalizeAccess = (payload) => ({
     can_view: Boolean(payload?.can_view),
@@ -51,6 +57,7 @@ const sortByUpdatedAt = (left, right) => {
 
 const connectedAccounts = ref(normalizeAccounts(props.initialConnectedAccounts));
 const templates = ref(normalizeTemplates(props.initialTemplates));
+const mediaAssets = ref(normalizeMediaAssets(props.initialMediaAssets));
 const summary = ref(normalizeSummary(props.initialSummary));
 const access = ref(normalizeAccess(props.initialAccess));
 const activeTemplateId = ref(props.selectedTemplateId);
@@ -220,6 +227,10 @@ const refreshFromPayload = (payload) => {
         templates.value = normalizeTemplates(payload.templates);
     }
 
+    if (Array.isArray(payload?.media_assets)) {
+        mediaAssets.value = normalizeMediaAssets(payload.media_assets);
+    }
+
     if (Array.isArray(payload?.connected_accounts)) {
         connectedAccounts.value = normalizeAccounts(payload.connected_accounts);
     }
@@ -243,6 +254,10 @@ watch(() => props.initialConnectedAccounts, (value) => {
 
 watch(() => props.initialTemplates, (value) => {
     templates.value = normalizeTemplates(value);
+}, { deep: true });
+
+watch(() => props.initialMediaAssets, (value) => {
+    mediaAssets.value = normalizeMediaAssets(value);
 }, { deep: true });
 
 watch(() => props.initialSummary, (value) => {
@@ -497,6 +512,12 @@ const useTemplateInComposer = (template) => {
                         <DropzoneInput
                             v-model="imageInputModel"
                             :label="t('social.template_manager.fields.image_file')"
+                        />
+
+                        <SocialMediaAssetPicker
+                            v-model="imageInputModel"
+                            :assets="mediaAssets"
+                            :disabled="!canManage || busy"
                         />
 
                         <FloatingInput

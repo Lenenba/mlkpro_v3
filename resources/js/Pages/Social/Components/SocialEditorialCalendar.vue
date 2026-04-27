@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import axios from 'axios';
 import { router } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import FloatingInput from '@/Components/FloatingInput.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import SocialPlatformLogo from '@/Pages/Social/Components/SocialPlatformLogo.vue';
@@ -639,17 +640,12 @@ const dayPostLimit = computed(() => viewMode.value === 'month' ? 3 : 5);
                         v-if="canManage && activePost.can_reschedule"
                         class="mt-4 rounded-md border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800/60"
                     >
-                        <label class="block">
-                            <span class="mb-1 block text-xs font-semibold uppercase text-stone-400 dark:text-neutral-500">
-                                {{ t('social.calendar_manager.fields.scheduled_for') }}
-                            </span>
-                            <input
-                                v-model="rescheduleInputs[activePost.id]"
-                                type="datetime-local"
-                                class="block w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-                                :disabled="busyPostId === activePost.id || isLoading"
-                            >
-                        </label>
+                        <FloatingInput
+                            v-model="rescheduleInputs[activePost.id]"
+                            type="datetime-local"
+                            :label="t('social.calendar_manager.fields.scheduled_for')"
+                            :disabled="busyPostId === activePost.id || isLoading"
+                        />
 
                         <div class="mt-3 flex flex-wrap gap-2">
                             <PrimaryButton

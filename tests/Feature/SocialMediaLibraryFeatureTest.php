@@ -157,6 +157,18 @@ it('lets authorized users upload a reusable media asset and open it in the compo
     Storage::disk('public')->assertExists($path);
 
     $this->actingAs($owner)
+        ->getJson(route('social.composer'))
+        ->assertOk()
+        ->assertJsonPath('media_assets.0.url', $url)
+        ->assertJsonPath('media_assets.0.origin', 'library');
+
+    $this->actingAs($owner)
+        ->getJson(route('social.templates.index'))
+        ->assertOk()
+        ->assertJsonPath('media_assets.0.url', $url)
+        ->assertJsonPath('media_assets.0.origin', 'library');
+
+    $this->actingAs($owner)
         ->getJson(route('social.composer', ['image_url' => $url]))
         ->assertOk()
         ->assertJsonPath('initial_media_url', $url);

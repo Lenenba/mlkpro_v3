@@ -4,6 +4,7 @@ import { router } from '@inertiajs/vue3';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
 import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
@@ -71,6 +72,10 @@ const intentionOptions = computed(() => (
         ? props.initialIntentionOptions
         : ['product_launch', 'promotion', 'event', 'service_push', 'client_reengagement'].map((value) => ({ value }))
 ));
+const intentionSelectOptions = computed(() => intentionOptions.value.map((option) => ({
+    ...option,
+    label: t(`social.campaign_manager.intentions.${option.value}`),
+})));
 
 watch(() => props.initialConnectedAccounts, (value) => {
     connectedAccounts.value = Array.isArray(value) ? value : [];
@@ -242,24 +247,12 @@ const postLabel = (post) => {
                         :disabled="busy || !canManage"
                     />
 
-                    <label class="block">
-                        <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                            {{ t('social.campaign_manager.fields.intention_type') }}
-                        </span>
-                        <select
-                            v-model="form.intention_type"
-                            class="block w-full rounded-md border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-                            :disabled="busy || !canManage"
-                        >
-                            <option
-                                v-for="option in intentionOptions"
-                                :key="option.value"
-                                :value="option.value"
-                            >
-                                {{ t(`social.campaign_manager.intentions.${option.value}`) }}
-                            </option>
-                        </select>
-                    </label>
+                    <FloatingSelect
+                        v-model="form.intention_type"
+                        :label="t('social.campaign_manager.fields.intention_type')"
+                        :options="intentionSelectOptions"
+                        :disabled="busy || !canManage"
+                    />
                 </div>
 
                 <div class="mt-4">
@@ -272,17 +265,12 @@ const postLabel = (post) => {
                 </div>
 
                 <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-                    <label class="block">
-                        <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                            {{ t('social.campaign_manager.fields.start_date') }}
-                        </span>
-                        <input
-                            v-model="form.start_date"
-                            type="date"
-                            class="block w-full rounded-md border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-                            :disabled="busy || !canManage"
-                        >
-                    </label>
+                    <FloatingInput
+                        v-model="form.start_date"
+                        type="date"
+                        :label="t('social.campaign_manager.fields.start_date')"
+                        :disabled="busy || !canManage"
+                    />
 
                     <FloatingInput
                         v-model="form.post_count"

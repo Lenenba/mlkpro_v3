@@ -9,6 +9,7 @@ import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import DateTimePicker from '@/Components/DateTimePicker.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
+import SocialMediaAssetPicker from '@/Pages/Social/Components/SocialMediaAssetPicker.vue';
 import SocialPostQualityPanel from '@/Pages/Social/Components/SocialPostQualityPanel.vue';
 import SocialVisualPostPreview from '@/Pages/Social/Components/SocialVisualPostPreview.vue';
 
@@ -22,6 +23,10 @@ const props = defineProps({
         default: () => ([]),
     },
     initialTemplates: {
+        type: Array,
+        default: () => ([]),
+    },
+    initialMediaAssets: {
         type: Array,
         default: () => ([]),
     },
@@ -65,6 +70,7 @@ const normalizeString = (value) => {
 const normalizeAccounts = (payload) => Array.isArray(payload) ? payload : [];
 const normalizeDrafts = (payload) => Array.isArray(payload) ? payload : [];
 const normalizeTemplates = (payload) => Array.isArray(payload) ? payload : [];
+const normalizeMediaAssets = (payload) => Array.isArray(payload) ? payload : [];
 const normalizeSummary = (payload) => payload && typeof payload === 'object' ? payload : {};
 const normalizeAccess = (payload) => ({
     can_view: Boolean(payload?.can_view),
@@ -220,6 +226,7 @@ const sourceHrefFor = (source) => {
 const connectedAccounts = ref(normalizeAccounts(props.initialConnectedAccounts));
 const drafts = ref(normalizeDrafts(props.initialDrafts));
 const templates = ref(normalizeTemplates(props.initialTemplates));
+const mediaAssets = ref(normalizeMediaAssets(props.initialMediaAssets));
 const prefillPayload = ref(normalizePrefill(props.initialPrefill));
 const summary = ref(normalizeSummary(props.initialSummary));
 const access = ref(normalizeAccess(props.initialAccess));
@@ -527,6 +534,10 @@ const refreshFromPayload = (payload) => {
         templates.value = normalizeTemplates(payload.templates);
     }
 
+    if (Array.isArray(payload?.media_assets)) {
+        mediaAssets.value = normalizeMediaAssets(payload.media_assets);
+    }
+
     if (Array.isArray(payload?.connected_accounts)) {
         connectedAccounts.value = normalizeAccounts(payload.connected_accounts);
     }
@@ -558,6 +569,10 @@ watch(() => props.initialDrafts, (value) => {
 
 watch(() => props.initialTemplates, (value) => {
     templates.value = normalizeTemplates(value);
+}, { deep: true });
+
+watch(() => props.initialMediaAssets, (value) => {
+    mediaAssets.value = normalizeMediaAssets(value);
 }, { deep: true });
 
 watch(() => props.initialPrefill, (value) => {
@@ -1313,6 +1328,12 @@ const resolveApproval = async (decision) => {
                         <DropzoneInput
                             v-model="imageInputModel"
                             :label="t('social.composer_manager.fields.image_file')"
+                        />
+
+                        <SocialMediaAssetPicker
+                            v-model="imageInputModel"
+                            :assets="mediaAssets"
+                            :disabled="isEditDisabled"
                         />
 
                         <FloatingInput

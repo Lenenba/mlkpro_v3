@@ -3,6 +3,9 @@ import { computed, ref, reactive, watchEffect } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import ClientPortalTabs from '@/Components/Portal/ClientPortalTabs.vue';
+import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
+import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { humanizeDate } from '@/utils/date';
 import { useCurrencyFormatter } from '@/utils/currency';
@@ -665,22 +668,16 @@ const submitProductReview = (productId) => {
                                     </span>
                                 </div>
                                 <div class="mt-3 grid gap-3 sm:grid-cols-[160px_1fr]">
-                                    <label class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                                        {{ t('portal_order.reviews.rating_label') }}
-                                        <select v-model="orderReviewForm.rating"
-                                            class="mt-1 w-full rounded-sm border border-stone-200 bg-white px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-                                        >
-                                            <option v-for="option in ratingOptions" :key="option.value" :value="option.value">
-                                                {{ option.label }}
-                                            </option>
-                                        </select>
-                                    </label>
-                                    <label class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                                        {{ t('portal_order.reviews.comment_label') }}
-                                        <textarea v-model="orderReviewForm.comment" rows="3"
-                                            class="mt-1 w-full rounded-sm border border-stone-200 bg-white px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-                                        ></textarea>
-                                    </label>
+                                    <FloatingSelect
+                                        v-model="orderReviewForm.rating"
+                                        :label="t('portal_order.reviews.rating_label')"
+                                        :options="ratingOptions"
+                                        dense
+                                    />
+                                    <FloatingTextarea
+                                        v-model="orderReviewForm.comment"
+                                        :label="t('portal_order.reviews.comment_label')"
+                                    />
                                 </div>
                                 <button
                                     type="button"
@@ -713,29 +710,21 @@ const submitProductReview = (productId) => {
                                     </div>
                                     <div v-if="productReviewForms[item.product_id]" class="mt-3 grid gap-3">
                                         <div class="grid gap-3 sm:grid-cols-[160px_1fr]">
-                                            <label class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                                                {{ t('portal_order.reviews.rating_label') }}
-                                                <select v-model="productReviewForms[item.product_id].rating"
-                                                    class="mt-1 w-full rounded-sm border border-stone-200 bg-white px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-                                                >
-                                                    <option v-for="option in ratingOptions" :key="option.value" :value="option.value">
-                                                        {{ option.label }}
-                                                    </option>
-                                                </select>
-                                            </label>
-                                            <label class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                                                {{ t('portal_order.reviews.title_label') }}
-                                                <input v-model="productReviewForms[item.product_id].title" type="text"
-                                                    class="mt-1 w-full rounded-sm border border-stone-200 bg-white px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-                                                />
-                                            </label>
+                                            <FloatingSelect
+                                                v-model="productReviewForms[item.product_id].rating"
+                                                :label="t('portal_order.reviews.rating_label')"
+                                                :options="ratingOptions"
+                                                dense
+                                            />
+                                            <FloatingInput
+                                                v-model="productReviewForms[item.product_id].title"
+                                                :label="t('portal_order.reviews.title_label')"
+                                            />
                                         </div>
-                                        <label class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                                            {{ t('portal_order.reviews.comment_label') }}
-                                            <textarea v-model="productReviewForms[item.product_id].comment" rows="3"
-                                                class="mt-1 w-full rounded-sm border border-stone-200 bg-white px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-                                            ></textarea>
-                                        </label>
+                                        <FloatingTextarea
+                                            v-model="productReviewForms[item.product_id].comment"
+                                            :label="t('portal_order.reviews.comment_label')"
+                                        />
                                         <button
                                             type="button"
                                             class="rounded-sm bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"

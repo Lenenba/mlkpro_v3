@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import axios from 'axios';
 import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
@@ -291,6 +292,20 @@ const healthStateLabel = (value) => t(`social.automation_manager.health_states.$
 const runStatusLabel = (value) => t(`social.automation_manager.run_statuses.${value || 'skipped'}`);
 const healthReasonLabel = (value) => t(`social.automation_manager.health_reasons.${value || 'last_error'}`);
 const outcomeCodeLabel = (value) => t(`social.automation_manager.outcome_codes.${value || 'skipped'}`);
+const labeledOptions = (options, labelResolver) => options.map((option) => ({
+    ...option,
+    label: labelResolver(option.value),
+}));
+const frequencySelectOptions = computed(() => labeledOptions(frequencyOptions.value, frequencyLabel));
+const approvalModeSelectOptions = computed(() => labeledOptions(approvalModeOptions.value, approvalModeLabel));
+const generationToneSelectOptions = computed(() => labeledOptions(generationToneOptions.value, generationToneLabel));
+const generationGoalSelectOptions = computed(() => labeledOptions(generationGoalOptions.value, generationGoalLabel));
+const imageModeSelectOptions = computed(() => labeledOptions(imageModeOptions.value, imageModeLabel));
+const imageFormatSelectOptions = computed(() => labeledOptions(imageFormatOptions.value, imageFormatLabel));
+const sourceModeOptions = computed(() => [
+    { value: 'all', label: t('social.automation_manager.source_modes.all') },
+    { value: 'selected_ids', label: t('social.automation_manager.source_modes.selected_ids') },
+]);
 
 const formatDate = (value) => {
     if (!value) {
@@ -656,47 +671,31 @@ const sourceSummaryFor = (rule) => (Array.isArray(rule?.content_sources) ? rule.
                     <div class="md:col-span-2">
                         <FloatingTextarea v-model="form.description" :label="t('social.automation_manager.fields.description')" :disabled="busy || !canManage" />
                     </div>
-                    <label class="block">
-                        <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                            {{ t('social.automation_manager.fields.frequency_type') }}
-                        </span>
-                        <select v-model="form.frequency_type" class="block w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100" :disabled="busy || !canManage">
-                            <option v-for="option in frequencyOptions" :key="option.value" :value="option.value">
-                                {{ frequencyLabel(option.value) }}
-                            </option>
-                        </select>
-                    </label>
+                    <FloatingSelect
+                        v-model="form.frequency_type"
+                        :label="t('social.automation_manager.fields.frequency_type')"
+                        :options="frequencySelectOptions"
+                        :disabled="busy || !canManage"
+                    />
                     <FloatingInput v-model="form.scheduled_time" type="time" :label="t('social.automation_manager.fields.scheduled_time')" :disabled="busy || !canManage" />
-                    <label class="block">
-                        <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                            {{ t('social.automation_manager.fields.timezone') }}
-                        </span>
-                        <select v-model="form.timezone" class="block w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100" :disabled="busy || !canManage">
-                            <option v-for="option in timezoneOptions" :key="option.value" :value="option.value">
-                                {{ option.label }}
-                            </option>
-                        </select>
-                    </label>
-                    <label class="block">
-                        <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                            {{ t('social.automation_manager.fields.language') }}
-                        </span>
-                        <select v-model="form.language" class="block w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100" :disabled="busy || !canManage">
-                            <option v-for="option in localeOptions" :key="option.value" :value="option.value">
-                                {{ option.label }}
-                            </option>
-                        </select>
-                    </label>
-                    <label class="block">
-                        <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                            {{ t('social.automation_manager.fields.approval_mode') }}
-                        </span>
-                        <select v-model="form.approval_mode" class="block w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100" :disabled="busy || !canManage">
-                            <option v-for="option in approvalModeOptions" :key="option.value" :value="option.value">
-                                {{ approvalModeLabel(option.value) }}
-                            </option>
-                        </select>
-                    </label>
+                    <FloatingSelect
+                        v-model="form.timezone"
+                        :label="t('social.automation_manager.fields.timezone')"
+                        :options="timezoneOptions"
+                        :disabled="busy || !canManage"
+                    />
+                    <FloatingSelect
+                        v-model="form.language"
+                        :label="t('social.automation_manager.fields.language')"
+                        :options="localeOptions"
+                        :disabled="busy || !canManage"
+                    />
+                    <FloatingSelect
+                        v-model="form.approval_mode"
+                        :label="t('social.automation_manager.fields.approval_mode')"
+                        :options="approvalModeSelectOptions"
+                        :disabled="busy || !canManage"
+                    />
                     <FloatingInput v-model="form.max_posts_per_day" type="number" min="1" max="20" :label="t('social.automation_manager.fields.max_posts_per_day')" :disabled="busy || !canManage" />
                     <FloatingInput v-model="form.min_hours_between_similar_posts" type="number" min="1" max="720" :label="t('social.automation_manager.fields.min_hours_between_similar_posts')" :disabled="busy || !canManage" />
                 </div>
@@ -715,46 +714,30 @@ const sourceSummaryFor = (rule) => (Array.isArray(rule?.content_sources) ? rule.
                             <input v-model="form.generation_settings.image_ai_enabled" type="checkbox" class="rounded border-stone-300 text-sky-600 focus:ring-sky-500" :disabled="busy || !canManage">
                             <span>{{ t('social.automation_manager.fields.image_ai_enabled') }}</span>
                         </label>
-                        <label class="block">
-                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                                {{ t('social.automation_manager.fields.generation_tone') }}
-                            </span>
-                            <select v-model="form.generation_settings.tone" class="block w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100" :disabled="busy || !canManage">
-                                <option v-for="option in generationToneOptions" :key="option.value" :value="option.value">
-                                    {{ generationToneLabel(option.value) }}
-                                </option>
-                            </select>
-                        </label>
-                        <label class="block">
-                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                                {{ t('social.automation_manager.fields.generation_goal') }}
-                            </span>
-                            <select v-model="form.generation_settings.goal" class="block w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100" :disabled="busy || !canManage">
-                                <option v-for="option in generationGoalOptions" :key="option.value" :value="option.value">
-                                    {{ generationGoalLabel(option.value) }}
-                                </option>
-                            </select>
-                        </label>
-                        <label class="block">
-                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                                {{ t('social.automation_manager.fields.image_mode') }}
-                            </span>
-                            <select v-model="form.generation_settings.image_mode" class="block w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100" :disabled="busy || !canManage">
-                                <option v-for="option in imageModeOptions" :key="option.value" :value="option.value">
-                                    {{ imageModeLabel(option.value) }}
-                                </option>
-                            </select>
-                        </label>
-                        <label class="block">
-                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                                {{ t('social.automation_manager.fields.image_format') }}
-                            </span>
-                            <select v-model="form.generation_settings.image_format" class="block w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100" :disabled="busy || !canManage">
-                                <option v-for="option in imageFormatOptions" :key="option.value" :value="option.value">
-                                    {{ imageFormatLabel(option.value) }}
-                                </option>
-                            </select>
-                        </label>
+                        <FloatingSelect
+                            v-model="form.generation_settings.tone"
+                            :label="t('social.automation_manager.fields.generation_tone')"
+                            :options="generationToneSelectOptions"
+                            :disabled="busy || !canManage"
+                        />
+                        <FloatingSelect
+                            v-model="form.generation_settings.goal"
+                            :label="t('social.automation_manager.fields.generation_goal')"
+                            :options="generationGoalSelectOptions"
+                            :disabled="busy || !canManage"
+                        />
+                        <FloatingSelect
+                            v-model="form.generation_settings.image_mode"
+                            :label="t('social.automation_manager.fields.image_mode')"
+                            :options="imageModeSelectOptions"
+                            :disabled="busy || !canManage"
+                        />
+                        <FloatingSelect
+                            v-model="form.generation_settings.image_format"
+                            :label="t('social.automation_manager.fields.image_format')"
+                            :options="imageFormatSelectOptions"
+                            :disabled="busy || !canManage"
+                        />
                         <FloatingInput v-model="form.generation_settings.variant_count" type="number" min="1" max="5" :label="t('social.automation_manager.fields.variant_count')" :disabled="busy || !canManage" />
                         <div class="hidden md:block" />
                         <div class="md:col-span-2">
@@ -816,10 +799,15 @@ const sourceSummaryFor = (rule) => (Array.isArray(rule?.content_sources) ? rule.
                                     <span>{{ contentSourceTypeLabel(entry.type) }}</span>
                                 </label>
 
-                                <select v-model="form.source_config[entry.type].mode" class="rounded-2xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100" :disabled="busy || !canManage || !form.source_config[entry.type].enabled">
-                                    <option value="all">{{ t('social.automation_manager.source_modes.all') }}</option>
-                                    <option value="selected_ids">{{ t('social.automation_manager.source_modes.selected_ids') }}</option>
-                                </select>
+                                <div class="w-full sm:w-56">
+                                    <FloatingSelect
+                                        v-model="form.source_config[entry.type].mode"
+                                        :label="t('social.automation_manager.fields.source_mode')"
+                                        :options="sourceModeOptions"
+                                        dense
+                                        :disabled="busy || !canManage || !form.source_config[entry.type].enabled"
+                                    />
+                                </div>
                             </div>
 
                             <div class="mt-3 text-xs text-stone-500 dark:text-neutral-400">
@@ -827,16 +815,14 @@ const sourceSummaryFor = (rule) => (Array.isArray(rule?.content_sources) ? rule.
                             </div>
 
                             <div v-if="form.source_config[entry.type].enabled && form.source_config[entry.type].mode === 'selected_ids'" class="mt-3">
-                                <select
+                                <FloatingSelect
                                     v-model="form.source_config[entry.type].ids"
+                                    :label="t('social.automation_manager.fields.source_items')"
+                                    :options="entry.items || []"
                                     multiple
-                                    class="block min-h-36 w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                                    class="min-h-36"
                                     :disabled="busy || !canManage"
-                                >
-                                    <option v-for="item in entry.items" :key="item.value" :value="item.value">
-                                        {{ item.label }}
-                                    </option>
-                                </select>
+                                />
                             </div>
                         </div>
                     </div>

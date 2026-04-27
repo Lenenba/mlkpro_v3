@@ -1,6 +1,8 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import { paymentMethodLabel as resolvePaymentMethodLabel, useTenantPaymentMethods } from '@/Composables/useTenantPaymentMethods';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
@@ -280,6 +282,10 @@ const paymentMethodLabel = (method) => {
         check: t('public_invoice.methods.check'),
     });
 };
+const manualPaymentSelectOptions = computed(() => manualPaymentMethodOptions.value.map((method) => ({
+    value: method,
+    label: paymentMethodLabel(method),
+})));
 
 const isSettledPayment = (payment) => {
     const status = String(payment?.status || '').toLowerCase();
@@ -713,37 +719,24 @@ const markCashPaymentAsPaid = (paymentId) => {
                         </div>
                         <form v-if="canRecordPayment" class="mt-3 space-y-2" @submit.prevent="submitPayment">
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ $t('sales.payments.amount_label') }}
-                                </label>
-                                <input
+                                <FloatingInput
                                     v-model="paymentForm.amount"
                                     type="number"
                                     min="0"
                                     step="0.01"
-                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                                    :label="$t('sales.payments.amount_label')"
                                 />
                                 <div v-if="paymentForm.errors.amount" class="text-xs text-red-600">
                                     {{ paymentForm.errors.amount }}
                                 </div>
                             </div>
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ $t('sales.payments.method_label') }}
-                                </label>
                                 <div v-if="hasMultipleManualPaymentMethods">
-                                    <select
+                                    <FloatingSelect
                                         v-model="paymentForm.method"
-                                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                                    >
-                                        <option
-                                            v-for="method in manualPaymentMethodOptions"
-                                            :key="`sale-show-payment-method-${method}`"
-                                            :value="method"
-                                        >
-                                            {{ paymentMethodLabel(method) }}
-                                        </option>
-                                    </select>
+                                        :label="$t('sales.payments.method_label')"
+                                        :options="manualPaymentSelectOptions"
+                                    />
                                 </div>
                                 <div
                                     v-else

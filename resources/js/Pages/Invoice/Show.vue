@@ -3,6 +3,9 @@ import { computed, watch } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import StarRating from '@/Components/UI/StarRating.vue';
 import DatePicker from '@/Components/DatePicker.vue';
+import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
+import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import { paymentMethodLabel as resolvePaymentMethodLabel, useTenantPaymentMethods } from '@/Composables/useTenantPaymentMethods';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
@@ -304,6 +307,10 @@ const paymentMethodLabel = (method) => {
         check: t('public_invoice.methods.check'),
     });
 };
+const paymentMethodOptions = computed(() => allowedPaymentMethods.value.map((method) => ({
+    value: method,
+    label: paymentMethodLabel(method),
+})));
 
 const isPendingCashPayment = (payment) =>
     String(payment?.method || '').toLowerCase() === 'cash'
@@ -540,11 +547,9 @@ watch(
                             </p>
                         </div>
                         <div v-if="availableApprovalActions.length" class="w-full max-w-md space-y-2">
-                            <textarea
+                            <FloatingTextarea
                                 v-model="approvalForm.comment"
-                                rows="2"
-                                class="w-full rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
-                                :placeholder="$t('invoices.show.finance_approval.comment_placeholder')"
+                                :label="$t('invoices.show.finance_approval.comment_placeholder')"
                             />
                             <div class="flex flex-wrap gap-2">
                                 <button
@@ -736,9 +741,13 @@ watch(
                 <div class="p-4 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100 mb-3">{{ $t('invoices.show.add_payment.title') }}</h2>
                     <form @submit.prevent="submitPayment" class="space-y-3">
-                        <input v-model="form.amount" type="number" min="0" step="0.01"
-                            class="w-full py-2 px-3 bg-stone-100 border-transparent rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
-                            :placeholder="$t('invoices.show.add_payment.amount')">
+                        <FloatingInput
+                            v-model="form.amount"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            :label="$t('invoices.show.add_payment.amount')"
+                        />
                         <div v-if="form.errors.amount" class="text-xs text-red-600">{{ form.errors.amount }}</div>
                         <p class="text-[11px] text-stone-500 dark:text-neutral-400">
                             For partial payments, enter an amount lower than the current balance.
@@ -777,18 +786,11 @@ watch(
                             </template>
                         </p>
                         <div v-if="hasMultiplePaymentMethods">
-                            <select
+                            <FloatingSelect
                                 v-model="form.method"
-                                class="w-full py-2 px-3 bg-stone-100 border-transparent rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
-                            >
-                                <option
-                                    v-for="method in allowedPaymentMethods"
-                                    :key="`invoice-method-${method}`"
-                                    :value="method"
-                                >
-                                    {{ paymentMethodLabel(method) }}
-                                </option>
-                            </select>
+                                :label="$t('invoices.show.add_payment.method')"
+                                :options="paymentMethodOptions"
+                            />
                         </div>
                         <div v-else class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
                             Payment method:
@@ -797,13 +799,15 @@ watch(
                             </span>
                         </div>
                         <div v-if="form.errors.method" class="text-xs text-red-600">{{ form.errors.method }}</div>
-                        <input v-model="form.reference" type="text"
-                            class="w-full py-2 px-3 bg-stone-100 border-transparent rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
-                            :placeholder="$t('invoices.show.add_payment.reference')">
+                        <FloatingInput
+                            v-model="form.reference"
+                            :label="$t('invoices.show.add_payment.reference')"
+                        />
                         <DatePicker v-model="form.paid_at" :label="$t('invoices.show.add_payment.paid_at')" />
-                        <textarea v-model="form.notes" rows="2"
-                            class="w-full py-2 px-3 bg-stone-100 border-transparent rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
-                            :placeholder="$t('invoices.show.add_payment.notes')"></textarea>
+                        <FloatingTextarea
+                            v-model="form.notes"
+                            :label="$t('invoices.show.add_payment.notes')"
+                        />
                         <button type="submit" data-testid="demo-invoice-payment-submit"
                             class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none">
                             {{ $t('invoices.show.add_payment.submit') }}

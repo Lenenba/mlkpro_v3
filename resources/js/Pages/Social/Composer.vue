@@ -18,6 +18,10 @@ const props = defineProps({
         type: Array,
         default: () => ([]),
     },
+    media_assets: {
+        type: Array,
+        default: () => ([]),
+    },
     prefill: {
         type: Object,
         default: () => null,
@@ -71,6 +75,7 @@ const { t } = useI18n();
                 :initial-connected-accounts="props.connected_accounts"
                 :initial-drafts="props.drafts"
                 :initial-templates="props.templates"
+                :initial-media-assets="props.media_assets"
                 :initial-prefill="props.prefill"
                 :initial-summary="props.summary"
                 :initial-access="props.access"

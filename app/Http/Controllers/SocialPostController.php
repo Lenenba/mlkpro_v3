@@ -75,6 +75,7 @@ class SocialPostController extends Controller
             'connected_accounts' => $this->postService->connectedAccountOptions($access['owner']),
             'drafts' => $this->postService->draftPayloads($access['owner']),
             'templates' => $this->templateService->templatePayloads($access['owner']),
+            'media_assets' => $this->mediaAssetPayloads($access['owner']),
             'prefill' => $this->prefillService->resolveComposerPrefill($access['owner'], $request->only([
                 'source_type',
                 'source_id',
@@ -102,6 +103,7 @@ class SocialPostController extends Controller
         return $this->inertiaOrJson('Social/Templates', [
             'connected_accounts' => $this->postService->connectedAccountOptions($access['owner']),
             'templates' => $this->templateService->templatePayloads($access['owner']),
+            'media_assets' => $this->mediaAssetPayloads($access['owner']),
             'summary' => $postSummary,
             'workspace_stats' => $this->workspaceStats($connectionSummary, $postSummary),
             'selected_template_id' => $request->integer('template') ?: null,
@@ -195,6 +197,7 @@ class SocialPostController extends Controller
             'message' => 'Pulse draft saved.',
             'draft' => $this->postService->payload($draft),
             'drafts' => $this->postService->draftPayloads($access['owner']),
+            'media_assets' => $this->mediaAssetPayloads($access['owner']),
             'summary' => $this->postService->summaryForOwner($access['owner']),
         ], 201);
     }
@@ -250,6 +253,7 @@ class SocialPostController extends Controller
             'message' => 'Pulse draft updated.',
             'draft' => $this->postService->payload($draft),
             'drafts' => $this->postService->draftPayloads($access['owner']),
+            'media_assets' => $this->mediaAssetPayloads($access['owner']),
             'summary' => $this->postService->summaryForOwner($access['owner']),
         ]);
     }
@@ -420,6 +424,7 @@ class SocialPostController extends Controller
             'message' => 'Pulse template saved.',
             'template' => $this->templateService->payload($template),
             'templates' => $this->templateService->templatePayloads($access['owner']),
+            'media_assets' => $this->mediaAssetPayloads($access['owner']),
         ], 201);
     }
 
@@ -450,6 +455,7 @@ class SocialPostController extends Controller
             'message' => 'Pulse template updated.',
             'template' => $this->templateService->payload($savedTemplate),
             'templates' => $this->templateService->templatePayloads($access['owner']),
+            'media_assets' => $this->mediaAssetPayloads($access['owner']),
         ]);
     }
 
@@ -465,6 +471,7 @@ class SocialPostController extends Controller
         return response()->json([
             'message' => 'Pulse template deleted.',
             'templates' => $this->templateService->templatePayloads($access['owner']),
+            'media_assets' => $this->mediaAssetPayloads($access['owner']),
         ]);
     }
 
@@ -590,6 +597,18 @@ class SocialPostController extends Controller
             'draft_posts' => (int) ($postSummary['drafts'] ?? 0),
             'scheduled_posts' => (int) ($postSummary['scheduled'] ?? 0),
         ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function mediaAssetPayloads(User $owner): array
+    {
+        return $this->mediaAssetService->libraryPayloads($owner, [
+            'source' => 'all',
+            'origin' => 'all',
+            'search' => '',
+        ], 24);
     }
 
     /**

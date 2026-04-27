@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useI18n } from 'vue-i18n';
 import DropzoneInput from '@/Components/DropzoneInput.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 
@@ -65,6 +66,15 @@ const canManage = computed(() => Boolean(access.value.can_manage_posts));
 const hasAssets = computed(() => assets.value.length > 0);
 const isFile = (value) => typeof File !== 'undefined' && value instanceof File;
 const canUploadFile = computed(() => canManage.value && isFile(uploadFile.value));
+const optionLabel = (group, value) => t(`social.media_manager.${group}.${value}`);
+const sourceFilterOptions = computed(() => sourceOptions.value.map((option) => ({
+    ...option,
+    label: optionLabel('sources', option.value),
+})));
+const originFilterOptions = computed(() => originOptions.value.map((option) => ({
+    ...option,
+    label: optionLabel('origins', option.value),
+})));
 
 const requestErrorMessage = (requestError, fallback) => {
     const validationMessage = Object.values(requestError?.response?.data?.errors || {})
@@ -207,31 +217,10 @@ const bytesLabel = (value) => {
     return `${(size / 1024 / 1024).toFixed(1)} MB`;
 };
 
-const optionLabel = (group, value) => t(`social.media_manager.${group}.${value}`);
 </script>
 
 <template>
     <div class="space-y-5">
-        <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <div
-                v-for="item in [
-                    ['total', summary.total || 0],
-                    ['uploads', summary.uploads || 0],
-                    ['ai', summary.ai || 0],
-                    ['posts', summary.posts || 0],
-                ]"
-                :key="item[0]"
-                class="rounded-md border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
-            >
-                <div class="text-2xl font-semibold text-stone-900 dark:text-neutral-100">
-                    {{ item[1] }}
-                </div>
-                <div class="mt-1 text-xs font-medium text-stone-500 dark:text-neutral-400">
-                    {{ t(`social.media_manager.summary.${item[0]}`) }}
-                </div>
-            </div>
-        </div>
-
         <div
             v-if="!canManage"
             class="rounded-md border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-300"
@@ -254,46 +243,56 @@ const optionLabel = (group, value) => t(`social.media_manager.${group}.${value}`
             {{ info }}
         </div>
 
-        <section class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <section class="grid grid-cols-1 items-start gap-4 xl:grid-cols-3">
+            <section class="rounded-md border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div class="grid grid-cols-1 gap-3">
+                    <div
+                        v-for="item in [
+                            ['total', summary.total || 0],
+                            ['uploads', summary.uploads || 0],
+                            ['ai', summary.ai || 0],
+                            ['posts', summary.posts || 0],
+                        ]"
+                        :key="item[0]"
+                        class="flex items-center justify-between gap-3 rounded-md border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800/60"
+                    >
+                        <div class="text-xs font-medium text-stone-500 dark:text-neutral-400">
+                            {{ t(`social.media_manager.summary.${item[0]}`) }}
+                        </div>
+                        <div class="text-xl font-semibold text-stone-900 dark:text-neutral-100">
+                            {{ item[1] }}
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <form class="rounded-md border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900" @submit.prevent="load">
-                <div class="grid grid-cols-1 gap-3 md:grid-cols-[1fr_180px_180px_auto]">
+                <div class="grid grid-cols-1 gap-3">
                     <FloatingInput
                         v-model="filters.search"
                         :label="t('social.media_manager.fields.search')"
                         :disabled="isLoading || busy"
                     />
 
-                    <label class="space-y-2 text-sm font-medium text-stone-700 dark:text-neutral-200">
-                        <span>{{ t('social.media_manager.fields.source') }}</span>
-                        <select
-                            v-model="filters.source"
-                            class="block w-full rounded-md border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-                            :disabled="isLoading || busy"
-                        >
-                            <option v-for="option in sourceOptions" :key="option.value" :value="option.value">
-                                {{ optionLabel('sources', option.value) }}
-                            </option>
-                        </select>
-                    </label>
+                    <FloatingSelect
+                        v-model="filters.source"
+                        :label="t('social.media_manager.fields.source')"
+                        :options="sourceFilterOptions"
+                        :disabled="isLoading || busy"
+                    />
 
-                    <label class="space-y-2 text-sm font-medium text-stone-700 dark:text-neutral-200">
-                        <span>{{ t('social.media_manager.fields.origin') }}</span>
-                        <select
-                            v-model="filters.origin"
-                            class="block w-full rounded-md border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-                            :disabled="isLoading || busy"
-                        >
-                            <option v-for="option in originOptions" :key="option.value" :value="option.value">
-                                {{ optionLabel('origins', option.value) }}
-                            </option>
-                        </select>
-                    </label>
+                    <FloatingSelect
+                        v-model="filters.origin"
+                        :label="t('social.media_manager.fields.origin')"
+                        :options="originFilterOptions"
+                        :disabled="isLoading || busy"
+                    />
 
-                    <div class="flex items-end gap-2">
-                        <PrimaryButton :disabled="isLoading || busy">
+                    <div class="grid grid-cols-2 gap-2">
+                        <PrimaryButton class="w-full justify-center" :disabled="isLoading || busy">
                             {{ t('social.media_manager.actions.apply_filters') }}
                         </PrimaryButton>
-                        <SecondaryButton type="button" :disabled="isLoading || busy" @click="resetFilters">
+                        <SecondaryButton type="button" class="w-full justify-center" :disabled="isLoading || busy" @click="resetFilters">
                             {{ t('social.media_manager.actions.reset_filters') }}
                         </SecondaryButton>
                     </div>

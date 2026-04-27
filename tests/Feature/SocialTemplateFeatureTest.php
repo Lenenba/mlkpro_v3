@@ -3,6 +3,7 @@
 use App\Http\Middleware\EnsureTwoFactorVerified;
 use App\Models\Role;
 use App\Models\SocialAccountConnection;
+use App\Models\SocialMediaAsset;
 use App\Models\SocialPostTemplate;
 use App\Models\TeamMember;
 use App\Models\User;
@@ -270,6 +271,47 @@ it('normalizes missing URL schemes before saving pulse templates', function () {
 
     expect((string) data_get($template->media_payload, '0.url'))->toBe('https://cdn.example.com/assets/pulse-template.jpg')
         ->and((string) $template->link_url)->toBe('https://example.com/offers/normalized');
+});
+
+it('exposes gallery images on pulse templates and saves the selected visual', function () {
+    $owner = pulseTemplateOwner();
+
+    $asset = SocialMediaAsset::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'media_type' => SocialMediaAsset::MEDIA_TYPE_IMAGE,
+        'source' => SocialMediaAsset::SOURCE_UPLOAD,
+        'context' => SocialMediaAsset::CONTEXT_LIBRARY,
+        'name' => 'gallery-template.png',
+        'url' => '/storage/social/library/gallery-template.png',
+        'path' => 'social/library/gallery-template.png',
+        'mime_type' => 'image/png',
+        'size' => 128000,
+    ]);
+
+    $this->actingAs($owner)
+        ->get(route('social.templates.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Social/Templates')
+            ->where('media_assets.0.url', $asset->url)
+            ->where('media_assets.0.origin', 'library')
+        );
+
+    $create = $this->actingAs($owner)
+        ->postJson(route('social.templates.store'), [
+            'name' => 'Gallery visual template',
+            'text' => 'Template using a visual from the Pulse gallery',
+            'image_url' => $asset->url,
+        ]);
+
+    $create->assertCreated()
+        ->assertJsonPath('template.image_url', $asset->url)
+        ->assertJsonPath('media_assets.0.url', $asset->url);
+
+    $template = SocialPostTemplate::query()->findOrFail((int) $create->json('template.id'));
+
+    expect((string) data_get($template->media_payload, '0.url'))->toBe($asset->url);
 });
 
 it('returns a localized French validation message when a pulse template link is invalid', function () {

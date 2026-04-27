@@ -4,6 +4,7 @@ import axios from 'axios';
 import { router } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 
@@ -62,6 +63,20 @@ const info = ref('');
 
 const canManage = computed(() => Boolean(access.value.can_manage_posts));
 const canApprove = computed(() => Boolean(access.value.can_approve));
+const statusFilterOptions = computed(() => [
+    { value: '', label: t('social.history_manager.filters.all_statuses') },
+    ...props.initialStatusFilters.map((statusOption) => ({
+        ...statusOption,
+        label: t(`social.composer_manager.statuses.${statusOption.value}`),
+    })),
+]);
+const platformFilterOptions = computed(() => [
+    { value: '', label: t('social.history_manager.filters.all_platforms') },
+    ...props.initialPlatformFilters.map((platformOption) => ({
+        ...platformOption,
+        label: platformOption.label,
+    })),
+]);
 
 const sortedPosts = computed(() => [...posts.value].sort((left, right) => {
     const leftDate = Date.parse(String(
@@ -457,49 +472,19 @@ const resolveApproval = async (post, decision) => {
                     :disabled="busy || isLoading"
                 />
 
-                <label class="block">
-                    <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                        {{ t('social.history_manager.fields.status') }}
-                    </span>
-                    <select
-                        v-model="filters.status"
-                        class="block w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-                        :disabled="busy || isLoading"
-                    >
-                        <option value="">
-                            {{ t('social.history_manager.filters.all_statuses') }}
-                        </option>
-                        <option
-                            v-for="statusOption in props.initialStatusFilters"
-                            :key="statusOption.value"
-                            :value="statusOption.value"
-                        >
-                            {{ t(`social.composer_manager.statuses.${statusOption.value}`) }}
-                        </option>
-                    </select>
-                </label>
+                <FloatingSelect
+                    v-model="filters.status"
+                    :label="t('social.history_manager.fields.status')"
+                    :options="statusFilterOptions"
+                    :disabled="busy || isLoading"
+                />
 
-                <label class="block">
-                    <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                        {{ t('social.history_manager.fields.platform') }}
-                    </span>
-                    <select
-                        v-model="filters.platform"
-                        class="block w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-                        :disabled="busy || isLoading"
-                    >
-                        <option value="">
-                            {{ t('social.history_manager.filters.all_platforms') }}
-                        </option>
-                        <option
-                            v-for="platformOption in props.initialPlatformFilters"
-                            :key="platformOption.value"
-                            :value="platformOption.value"
-                        >
-                            {{ platformOption.label }}
-                        </option>
-                    </select>
-                </label>
+                <FloatingSelect
+                    v-model="filters.platform"
+                    :label="t('social.history_manager.fields.platform')"
+                    :options="platformFilterOptions"
+                    :disabled="busy || isLoading"
+                />
 
                 <div class="flex items-end">
                     <PrimaryButton type="button" class="w-full justify-center" :disabled="busy || isLoading" @click="applyFilters">

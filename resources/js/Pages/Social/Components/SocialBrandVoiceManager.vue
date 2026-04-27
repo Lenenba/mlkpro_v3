@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
 import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
@@ -73,6 +74,10 @@ const form = ref({
 
 const canManage = computed(() => Boolean(access.value.can_manage_posts));
 const selectedToneLabel = computed(() => t(`social.brand_voice_manager.tones.${form.value.tone || 'professional'}`));
+const toneSelectOptions = computed(() => toneOptions.value.map((option) => ({
+    ...option,
+    label: t(`social.brand_voice_manager.tones.${option.value}`),
+})));
 const selectedLanguageLabel = computed(() => {
     const selected = languageOptions.value.find((option) => String(option.value) === String(form.value.language));
 
@@ -209,31 +214,19 @@ const save = async () => {
         <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(280px,0.9fr)]">
             <form class="rounded-md border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900" @submit.prevent="save">
                 <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <label class="space-y-2 text-sm font-medium text-stone-700 dark:text-neutral-200">
-                        <span>{{ t('social.brand_voice_manager.fields.tone') }}</span>
-                        <select
-                            v-model="form.tone"
-                            class="block w-full rounded-md border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-                            :disabled="busy || !canManage"
-                        >
-                            <option v-for="option in toneOptions" :key="option.value" :value="option.value">
-                                {{ t(`social.brand_voice_manager.tones.${option.value}`) }}
-                            </option>
-                        </select>
-                    </label>
+                    <FloatingSelect
+                        v-model="form.tone"
+                        :label="t('social.brand_voice_manager.fields.tone')"
+                        :options="toneSelectOptions"
+                        :disabled="busy || !canManage"
+                    />
 
-                    <label class="space-y-2 text-sm font-medium text-stone-700 dark:text-neutral-200">
-                        <span>{{ t('social.brand_voice_manager.fields.language') }}</span>
-                        <select
-                            v-model="form.language"
-                            class="block w-full rounded-md border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-                            :disabled="busy || !canManage"
-                        >
-                            <option v-for="option in languageOptions" :key="option.value" :value="option.value">
-                                {{ option.label }}
-                            </option>
-                        </select>
-                    </label>
+                    <FloatingSelect
+                        v-model="form.language"
+                        :label="t('social.brand_voice_manager.fields.language')"
+                        :options="languageOptions"
+                        :disabled="busy || !canManage"
+                    />
                 </div>
 
                 <div class="mt-3 space-y-3">

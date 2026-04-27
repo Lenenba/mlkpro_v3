@@ -522,6 +522,11 @@
       },
       "empty_preview": "The default voice stays active until a guideline is added."
     },
+    "media_picker": {
+      "title": "Gallery",
+      "select_asset": "Choose {name}",
+      "untitled_asset": "Pulse media"
+    },
     "media_manager": {
       "read_only_title": "Read-only library",
       "read_only_description": "You can review and reuse media, but `social.manage` or `social.publish` is required to upload an image.",
@@ -606,7 +611,9 @@
         "image_format": "Image format",
         "variant_count": "Text variants",
         "creative_prompt": "Creative prompt",
-        "image_prompt": "Image prompt"
+        "image_prompt": "Image prompt",
+        "source_mode": "Source mode",
+        "source_items": "Source items"
       },
       "generation_title": "AI instructions",
       "targets_title": "Target accounts",
@@ -754,7 +761,8 @@
         "search": "Search text, source, or link",
         "rule_id": "Autopilot rule",
         "origin": "Origin",
-        "source_type": "Source type"
+        "source_type": "Source type",
+        "scheduled_for": "Schedule date"
       },
       "filters": {
         "all_rules": "All rules",

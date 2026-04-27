@@ -522,6 +522,11 @@
       },
       "empty_preview": "La voix par defaut reste active tant qu aucune consigne n est ajoutee."
     },
+    "media_picker": {
+      "title": "Galerie",
+      "select_asset": "Choisir {name}",
+      "untitled_asset": "Media Pulse"
+    },
     "media_manager": {
       "read_only_title": "Bibliotheque en lecture seule",
       "read_only_description": "Vous pouvez consulter et reutiliser les medias, mais il faut `social.manage` ou `social.publish` pour importer une image.",
@@ -606,7 +611,9 @@
         "image_format": "Format image",
         "variant_count": "Variantes texte",
         "creative_prompt": "Prompt general",
-        "image_prompt": "Prompt image"
+        "image_prompt": "Prompt image",
+        "source_mode": "Mode source",
+        "source_items": "Elements source"
       },
       "generation_title": "Consignes IA",
       "targets_title": "Comptes cibles",
@@ -754,7 +761,8 @@
         "search": "Rechercher un texte, une source ou un lien",
         "rule_id": "Regle Autopilot",
         "origin": "Origine",
-        "source_type": "Type de source"
+        "source_type": "Type de source",
+        "scheduled_for": "Date de programmation"
       },
       "filters": {
         "all_rules": "Toutes les regles",

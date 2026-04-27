@@ -522,6 +522,11 @@
       },
       "empty_preview": "La voz por defecto sigue activa hasta que se agregue una consigna."
     },
+    "media_picker": {
+      "title": "Galeria",
+      "select_asset": "Elegir {name}",
+      "untitled_asset": "Medio Pulse"
+    },
     "media_manager": {
       "read_only_title": "Biblioteca de solo lectura",
       "read_only_description": "Puedes revisar y reutilizar medios, pero se necesita `social.manage` o `social.publish` para importar una imagen.",
@@ -606,7 +611,9 @@
         "image_format": "Formato de imagen",
         "variant_count": "Variantes de texto",
         "creative_prompt": "Prompt general",
-        "image_prompt": "Prompt de imagen"
+        "image_prompt": "Prompt de imagen",
+        "source_mode": "Modo de fuente",
+        "source_items": "Elementos de fuente"
       },
       "generation_title": "Instrucciones IA",
       "targets_title": "Cuentas objetivo",
@@ -754,7 +761,8 @@
         "search": "Buscar texto, fuente o enlace",
         "rule_id": "Regla Autopilot",
         "origin": "Origen",
-        "source_type": "Tipo de fuente"
+        "source_type": "Tipo de fuente",
+        "scheduled_for": "Fecha de programacion"
       },
       "filters": {
         "all_rules": "Todas las reglas",

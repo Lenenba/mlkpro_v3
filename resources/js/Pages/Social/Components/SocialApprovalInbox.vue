@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import axios from 'axios';
 import { router } from '@inertiajs/vue3';
 import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import SocialPostQualityPanel from '@/Pages/Social/Components/SocialPostQualityPanel.vue';
@@ -72,6 +73,19 @@ const info = ref('');
 const scheduleInputs = ref({});
 
 const canApprove = computed(() => Boolean(access.value.can_approve));
+const ruleFilterOptions = computed(() => [
+    { value: '', label: t('social.approval_inbox.filters.all_rules') },
+    ...ruleFilters.value,
+]);
+const originFilterOptions = computed(() => [
+    { value: 'all', label: t('social.approval_inbox.filters.all_origins') },
+    { value: 'automated', label: t('social.approval_inbox.filters.automated_only') },
+    { value: 'manual', label: t('social.approval_inbox.filters.manual_only') },
+]);
+const sourceTypeFilterOptions = computed(() => [
+    { value: '', label: t('social.approval_inbox.filters.all_sources') },
+    ...sourceFilters.value,
+]);
 
 const requestErrorMessage = (requestError, fallback) => {
     const validationMessage = Object.values(requestError?.response?.data?.errors || {})
@@ -380,38 +394,24 @@ const isStale = (post) => {
         <section class="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
             <div class="grid grid-cols-1 gap-4 xl:grid-cols-[1.1fr,0.7fr,0.7fr,0.7fr,auto]">
                 <FloatingInput v-model="filters.search" :label="t('social.approval_inbox.fields.search')" :disabled="busy || isLoading" />
-                <label class="block">
-                    <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                        {{ t('social.approval_inbox.fields.rule_id') }}
-                    </span>
-                    <select v-model="filters.rule_id" class="block w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100" :disabled="busy || isLoading">
-                        <option value="">{{ t('social.approval_inbox.filters.all_rules') }}</option>
-                        <option v-for="option in ruleFilters" :key="option.value" :value="option.value">
-                            {{ option.label }}
-                        </option>
-                    </select>
-                </label>
-                <label class="block">
-                    <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                        {{ t('social.approval_inbox.fields.origin') }}
-                    </span>
-                    <select v-model="filters.origin" class="block w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100" :disabled="busy || isLoading">
-                        <option value="all">{{ t('social.approval_inbox.filters.all_origins') }}</option>
-                        <option value="automated">{{ t('social.approval_inbox.filters.automated_only') }}</option>
-                        <option value="manual">{{ t('social.approval_inbox.filters.manual_only') }}</option>
-                    </select>
-                </label>
-                <label class="block">
-                    <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                        {{ t('social.approval_inbox.fields.source_type') }}
-                    </span>
-                    <select v-model="filters.source_type" class="block w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100" :disabled="busy || isLoading">
-                        <option value="">{{ t('social.approval_inbox.filters.all_sources') }}</option>
-                        <option v-for="option in sourceFilters" :key="option.value" :value="option.value">
-                            {{ option.label }}
-                        </option>
-                    </select>
-                </label>
+                <FloatingSelect
+                    v-model="filters.rule_id"
+                    :label="t('social.approval_inbox.fields.rule_id')"
+                    :options="ruleFilterOptions"
+                    :disabled="busy || isLoading"
+                />
+                <FloatingSelect
+                    v-model="filters.origin"
+                    :label="t('social.approval_inbox.fields.origin')"
+                    :options="originFilterOptions"
+                    :disabled="busy || isLoading"
+                />
+                <FloatingSelect
+                    v-model="filters.source_type"
+                    :label="t('social.approval_inbox.fields.source_type')"
+                    :options="sourceTypeFilterOptions"
+                    :disabled="busy || isLoading"
+                />
                 <div class="flex items-end">
                     <PrimaryButton class="w-full justify-center" :disabled="busy || isLoading" @click="load">
                         {{ t('social.approval_inbox.actions.apply_filters') }}
@@ -501,12 +501,13 @@ const isStale = (post) => {
                             <div class="text-sm font-semibold text-stone-900 dark:text-neutral-100">
                                 {{ t('social.approval_inbox.actions.approve_schedule') }}
                             </div>
-                            <input
+                            <FloatingInput
                                 v-model="scheduleInputs[post.id]"
                                 type="datetime-local"
-                                class="mt-3 block w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                                class="mt-3"
+                                :label="t('social.approval_inbox.fields.scheduled_for')"
                                 :disabled="busy"
-                            >
+                            />
                             <div class="mt-3 grid grid-cols-1 gap-2">
                                 <PrimaryButton class="justify-center" :disabled="busy" @click="approveNow(post)">
                                     {{ t('social.approval_inbox.actions.approve_now') }}

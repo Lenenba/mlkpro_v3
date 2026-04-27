@@ -14,6 +14,10 @@ const props = defineProps({
         type: Array,
         default: () => ([]),
     },
+    media_assets: {
+        type: Array,
+        default: () => ([]),
+    },
     summary: {
         type: Object,
         default: () => ({}),
@@ -50,6 +54,7 @@ const { t } = useI18n();
             <SocialTemplateManager
                 :initial-connected-accounts="props.connected_accounts"
                 :initial-templates="props.templates"
+                :initial-media-assets="props.media_assets"
                 :initial-summary="props.summary"
                 :initial-access="props.access"
                 :selected-template-id="props.selected_template_id"
