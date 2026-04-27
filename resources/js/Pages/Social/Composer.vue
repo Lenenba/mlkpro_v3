@@ -18,6 +18,10 @@ const props = defineProps({
         type: Array,
         default: () => ([]),
     },
+    media_assets: {
+        type: Array,
+        default: () => ([]),
+    },
     prefill: {
         type: Object,
         default: () => null,
@@ -37,6 +41,14 @@ const props = defineProps({
     selected_template_id: {
         type: Number,
         default: null,
+    },
+    initial_media_url: {
+        type: String,
+        default: '',
+    },
+    brand_voice: {
+        type: Object,
+        default: () => ({}),
     },
     access: {
         type: Object,
@@ -63,11 +75,14 @@ const { t } = useI18n();
                 :initial-connected-accounts="props.connected_accounts"
                 :initial-drafts="props.drafts"
                 :initial-templates="props.templates"
+                :initial-media-assets="props.media_assets"
                 :initial-prefill="props.prefill"
                 :initial-summary="props.summary"
                 :initial-access="props.access"
                 :selected-draft-id="props.selected_draft_id"
                 :selected-template-id="props.selected_template_id"
+                :initial-media-url="props.initial_media_url"
+                :brand-voice="props.brand_voice"
             />
         </div>
     </AuthenticatedLayout>

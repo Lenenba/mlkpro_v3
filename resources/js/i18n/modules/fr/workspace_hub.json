@@ -23,7 +23,7 @@
         "categories": {
             "revenue": {
                 "title": "Revenus et pipeline client",
-                "description": "Clients, demandes, devis, commandes et ventes regroupes au meme endroit."
+                "description": "Clients, demandes, prospects, devis, commandes et ventes regroupes au meme endroit."
             },
             "growth": {
                 "title": "Croissance et retention",
@@ -48,7 +48,8 @@
         },
         "modules": {
             "customers": "Fiches clients, notes, tags et historique de relation.",
-            "requests": "Intake lead, qualification et suivi de conversion.",
+            "requests": "Demandes de service, sources d entree et rattachements client ou prospect.",
+            "prospects": "Espace prospects pour qualification, relance et conversion commerciale.",
             "quotes": "Propositions commerciales et suivi des devis.",
             "manager_dashboard_label": "Dashboard manager",
             "manager_dashboard": "Pipeline pondere, stage aging, relances en retard et quote pull-through dans une vue revenue manager.",

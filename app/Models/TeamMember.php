@@ -2,10 +2,10 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -92,10 +92,22 @@ class TeamMember extends Model
     public function hasPermission(string $permission): bool
     {
         $permissions = $this->permissions ?? [];
-        if (!is_array($permissions)) {
+        if (! is_array($permissions)) {
             return false;
         }
 
-        return in_array($permission, $permissions, true);
+        if (in_array($permission, $permissions, true)) {
+            return true;
+        }
+
+        $aliases = Prospect::permissionAliases()[$permission] ?? [];
+
+        foreach ($aliases as $alias) {
+            if (in_array($alias, $permissions, true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

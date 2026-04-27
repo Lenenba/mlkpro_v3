@@ -9,13 +9,58 @@
         "overview": "Resumen",
         "accounts": "Cuentas",
         "composer": "Composer",
+        "calendar": "Calendario",
+        "brand_voice": "Voz",
+        "media": "Medios",
+        "campaigns": "Campanas",
         "templates": "Templates",
-        "history": "Historial"
+        "history": "Historial",
+        "autopilot": "Autopilot",
+        "approvals": "Por validar"
       },
       "stats": {
         "connected_accounts": "Cuentas conectadas",
         "draft_posts": "Borradores",
         "scheduled_posts": "Programadas"
+      }
+    },
+    "visual_preview": {
+      "generic_platform": "Pulse",
+      "generic_account": "Malikia Pulse",
+      "generic_meta": "Preview social",
+      "empty_text": "El texto del post aparecera aqui.",
+      "image_alt": "Imagen de preview del post Pulse",
+      "link_fallback": "Ver detalles",
+      "link_destination": "Destino"
+    },
+    "quality": {
+      "title": "Score de calidad",
+      "subtitle": "Control rapido antes de publicar.",
+      "no_issues": "No hay bloqueo visible.",
+      "issues": {
+        "no_targets": "Ningun destino seleccionado",
+        "empty_content": "Contenido vacio",
+        "text_too_long": "Texto demasiado largo",
+        "missing_image": "Imagen recomendada para esta red",
+        "cta_without_link": "CTA sin enlace",
+        "similar_recent": "Cerca de un borrador reciente",
+        "brand_voice_word": "Palabra a evitar detectada",
+        "weak_cta": "CTA a clarificar",
+        "image_text_gap": "Imagen y texto poco alineados"
+      }
+    },
+    "ai_trace": {
+      "title": "Traza IA",
+      "items": {
+        "source": "Fuente",
+        "rule": "Regla",
+        "campaign": "Campana",
+        "generation_mode": "Modo",
+        "text_model": "Modelo texto",
+        "image_model": "Modelo imagen",
+        "selected_score": "Score elegido",
+        "fallback": "Fallback",
+        "generated_at": "Generado el"
       }
     },
     "index_page": {
@@ -34,7 +79,20 @@
         "composer_title": "Composer de borradores",
         "composer_description": "Prepara texto, imagen, enlace, programacion y seleccion de cuentas objetivo desde una sola pantalla Pulse.",
         "composer_action_manage": "Abrir composer",
-        "composer_action_view": "Ver composer"
+        "composer_action_view": "Ver composer",
+        "autopilot_title": "Pulse Autopilot",
+        "autopilot_description": "Configura reglas recurrentes que generan posts desde tu contenido de negocio.",
+        "autopilot_action_manage": "Gestionar reglas",
+        "autopilot_action_view": "Ver reglas",
+        "active_rules": "Reglas activas",
+        "calendar_title": "Calendario editorial",
+        "calendar_description": "Visualiza borradores, programaciones, validaciones y publicaciones en vista semanal o mensual.",
+        "calendar_action": "Abrir calendario",
+        "approvals_title": "Posts por validar",
+        "approvals_description": "Revisa las propuestas pendientes, apruebalas ahora o devuelvelas a revision.",
+        "approvals_action_manage": "Abrir cola",
+        "approvals_action_view": "Ver cola",
+        "pending_approvals": "Pendientes"
       },
       "recent_drafts_title": "Borradores recientes",
       "recent_drafts_description": "Retoma los ultimos borradores Pulse sin reconstruir la seleccion de objetivos.",
@@ -66,6 +124,36 @@
       "head_title": "Historial de Malikia Pulse",
       "page_title": "Historial de Malikia Pulse",
       "page_description": "Revisa los ultimos posts Pulse, filtra el historial, duplica contenido util y vuelve a abrir los posts publicados como repost editable."
+    },
+    "calendar_page": {
+      "head_title": "Calendario de Malikia Pulse",
+      "page_title": "Calendario editorial Pulse",
+      "page_description": "Planifica la semana, detecta validaciones y manten las publicaciones visibles sin volver pesado el workspace."
+    },
+    "brand_voice_page": {
+      "head_title": "Voz de Malikia Pulse",
+      "page_title": "Voz de marca Pulse",
+      "page_description": "Mantiene los posts de Autopilot alineados con tu tono, CTA y hashtags sin agregar ruido."
+    },
+    "media_page": {
+      "head_title": "Medios de Malikia Pulse",
+      "page_title": "Biblioteca de medios Pulse",
+      "page_description": "Encuentra imagenes importadas, generadas o ya usadas, y reutilizalas en un borrador."
+    },
+    "campaigns_page": {
+      "head_title": "Campanas de Malikia Pulse",
+      "page_title": "Modo campana Pulse",
+      "page_description": "Convierte una intencion en varios borradores planificados, luego ajusta cada post antes de validar."
+    },
+    "automations_page": {
+      "head_title": "Pulse Autopilot",
+      "page_title": "Pulse Autopilot",
+      "page_description": "Configura reglas de generacion recurrente, mantiene la validacion en el flujo y sostén una presencia social mas regular."
+    },
+    "approvals_page": {
+      "head_title": "Cola de validacion Pulse",
+      "page_title": "Cola de validacion Pulse",
+      "page_description": "Revisa posts pendientes, apruebalos al instante, programalos o pide una nueva version sin salir de Pulse."
     },
     "composer_manager": {
       "title": "Composer de borradores",
@@ -103,6 +191,8 @@
       "preview_image_alt": "Imagen de preview del borrador Pulse",
       "preview_schedule": "Programacion",
       "preview_now": "Guardar como borrador",
+      "preview_cta_fallback": "Ver detalles",
+      "preview_link_destination": "Destino",
       "preview": {
         "status_draft": "Borrador",
         "status_scheduled": "Programado"
@@ -112,6 +202,7 @@
         "image_file": "Imagen desde tu ordenador",
         "image_url": "URL de la imagen",
         "link_url": "Enlace de destino",
+        "link_cta_label": "Texto del CTA",
         "scheduled_for": "Programar para",
         "template_name": "Nombre del template",
         "custom_hashtag": "Anadir un hashtag"
@@ -191,7 +282,8 @@
         "promotion": "Promocion",
         "product": "Producto",
         "service": "Servicio",
-        "campaign": "Campana"
+        "campaign": "Campana",
+        "template": "Template"
       },
       "untitled_draft": "Borrador Pulse sin titulo",
       "untitled_template": "Template Pulse sin titulo",
@@ -218,7 +310,8 @@
         "text": "Texto del post",
         "image_file": "Imagen desde tu ordenador",
         "image_url": "URL de la imagen",
-        "link_url": "Enlace de destino"
+        "link_url": "Enlace de destino",
+        "link_cta_label": "Texto del CTA"
       },
       "actions": {
         "reload": "Recargar",
@@ -256,6 +349,7 @@
         "published": "Publicados",
         "attention": "Con atencion"
       },
+      "quality_score": "Calidad {score}/100",
       "fields": {
         "search": "Buscar texto o enlace",
         "status": "Estado",
@@ -299,6 +393,424 @@
       "untitled_post": "Post Pulse sin titulo",
       "empty_text": "No se guardo texto en este post Pulse.",
       "preview_image_alt": "Imagen de preview del historial Pulse",
+      "preview_cta_fallback": "Ver detalles",
+      "preview_link_destination": "Destino",
+      "empty_value": "No disponible"
+    },
+    "campaign_manager": {
+      "read_only_title": "Modo campana de solo lectura",
+      "read_only_description": "Puedes consultar las campanas Pulse, pero necesitas `social.manage` o `social.publish` para generar borradores.",
+      "summary": {
+        "generated": "Generados",
+        "scheduled": "Programados",
+        "targets": "Destinos"
+      },
+      "form_title": "Nueva campana",
+      "form_description": "Describe la intencion, elige la distribucion y Pulse crea borradores planificados sin publicacion automatica.",
+      "targets_title": "Cuentas objetivo",
+      "targets_description": "Los posts generados siguen editables desde el composer antes de validar.",
+      "generated_title": "Borradores generados",
+      "generated_description": "Abre cada post para ajustar texto, visual, fecha o destinos.",
+      "recent_title": "Campanas recientes",
+      "fields": {
+        "name": "Nombre interno",
+        "intention_type": "Intencion",
+        "brief": "Brief de campana",
+        "start_date": "Fecha de inicio",
+        "post_count": "Numero de posts",
+        "duration_days": "Dias",
+        "link_url": "Enlace",
+        "image_url": "Imagen"
+      },
+      "intentions": {
+        "product_launch": "Lanzamiento producto",
+        "promotion": "Promocion",
+        "event": "Evento",
+        "service_push": "Servicio a impulsar",
+        "client_reengagement": "Reactivacion cliente"
+      },
+      "actions": {
+        "generate": "Generar campana",
+        "generating": "Generacion",
+        "edit_post": "Editar"
+      },
+      "messages": {
+        "generate_success": "Los borradores de campana Pulse fueron generados.",
+        "generate_error": "No se pudo generar la campana Pulse."
+      },
+      "selected": "Seleccionado",
+      "batch_counts": "{count} post | {count} posts, {scheduled} programados",
+      "empty_targets": "Conecta al menos una cuenta social antes de generar una campana.",
+      "empty_recent": "Todavia no se ha generado ninguna campana Pulse.",
+      "untitled_post": "Post Pulse sin titulo",
+      "empty_value": "No disponible"
+    },
+    "calendar_manager": {
+      "read_only_title": "Calendario de solo lectura",
+      "read_only_description": "Puedes seguir la planificacion Pulse, pero necesitas `social.manage` o `social.publish` para reprogramar un borrador.",
+      "summary": {
+        "draft": "Borradores",
+        "scheduled": "Programados",
+        "approval": "Por validar",
+        "published": "Publicados"
+      },
+      "fields": {
+        "scheduled_for": "Nueva fecha"
+      },
+      "actions": {
+        "previous": "Anterior",
+        "today": "Hoy",
+        "next": "Siguiente",
+        "week": "Semana",
+        "month": "Mes",
+        "reload": "Recargar",
+        "open_composer": "Abrir composer",
+        "reschedule": "Reprogramar",
+        "clear_schedule": "Quitar fecha"
+      },
+      "messages": {
+        "load_error": "No se pudo recargar el calendario Pulse.",
+        "reschedule_error": "No se pudo reprogramar el post Pulse.",
+        "reschedule_success": "El post Pulse fue reprogramado."
+      },
+      "day_detail_title": "Dia seleccionado",
+      "more_posts": "+{count} mas",
+      "empty_day": "Libre",
+      "empty_selection": "No hay ningun post Pulse en este dia.",
+      "queued_notice": "Este post ya esta en cola de publicacion. Abre el composer y duplicalo antes de cambiar la fecha.",
+      "target_count": "{count} destino | {count} destinos",
+      "untitled_post": "Post Pulse sin titulo",
+      "preview_image_alt": "Imagen del post Pulse",
+      "empty_value": "No disponible"
+    },
+    "brand_voice_manager": {
+      "read_only_title": "Voz de solo lectura",
+      "read_only_description": "Puedes revisar la voz Pulse, pero se necesita `social.manage` o `social.publish` para modificarla.",
+      "fields": {
+        "tone": "Tono",
+        "language": "Idioma",
+        "style_notes": "Notas de estilo",
+        "words_to_avoid": "Palabras a evitar",
+        "preferred_hashtags": "Hashtags favoritos",
+        "preferred_ctas": "CTA favoritos",
+        "sample_phrase": "Frase guia"
+      },
+      "tones": {
+        "professional": "Profesional",
+        "warm": "Calido",
+        "premium": "Premium",
+        "direct": "Directo",
+        "promotional": "Promocional"
+      },
+      "actions": {
+        "reload": "Recargar",
+        "save": "Guardar",
+        "saving": "Guardando"
+      },
+      "messages": {
+        "load_error": "La voz Pulse no se pudo recargar.",
+        "save_error": "La voz Pulse no se pudo guardar.",
+        "save_success": "La voz Pulse se guardo."
+      },
+      "preview_title": "Preview limpio",
+      "preview_hashtags": "Hashtags",
+      "preview_ctas": "CTA",
+      "preview_avoid": "Evitar",
+      "status": {
+        "configured": "Configurada",
+        "default": "Por defecto"
+      },
+      "empty_preview": "La voz por defecto sigue activa hasta que se agregue una consigna."
+    },
+    "media_picker": {
+      "title": "Galeria",
+      "select_asset": "Elegir {name}",
+      "untitled_asset": "Medio Pulse"
+    },
+    "media_manager": {
+      "read_only_title": "Biblioteca de solo lectura",
+      "read_only_description": "Puedes revisar y reutilizar medios, pero se necesita `social.manage` o `social.publish` para importar una imagen.",
+      "upload_title": "Importar una imagen",
+      "summary": {
+        "total": "Medios",
+        "uploads": "Imports",
+        "ai": "Imagenes IA",
+        "posts": "Posts"
+      },
+      "fields": {
+        "search": "Buscar",
+        "source": "Fuente",
+        "origin": "Origen",
+        "image_file": "Imagen para agregar"
+      },
+      "sources": {
+        "all": "Todas",
+        "upload": "Import",
+        "ai": "IA",
+        "url": "URL"
+      },
+      "origins": {
+        "all": "Todos",
+        "library": "Biblioteca",
+        "post": "Post",
+        "template": "Template"
+      },
+      "actions": {
+        "apply_filters": "Filtrar",
+        "reset_filters": "Reiniciar",
+        "upload": "Importar",
+        "uploading": "Importando",
+        "use_in_composer": "Usar",
+        "copy_url": "Copiar"
+      },
+      "messages": {
+        "load_error": "La biblioteca de medios Pulse no se pudo recargar.",
+        "upload_error": "La imagen Pulse no se pudo importar.",
+        "upload_success": "La imagen Pulse se importo.",
+        "url_copied": "URL de la imagen copiada."
+      },
+      "empty_assets": "Ningun medio Pulse coincide con estos filtros.",
+      "untitled_asset": "Medio Pulse",
+      "preview_alt": "Preview de medio Pulse",
+      "empty_value": "No disponible"
+    },
+    "automation_manager": {
+      "title": "Reglas de Pulse Autopilot",
+      "description": "Combina fuentes de contenido, cuentas objetivo y frecuencia para generar publicaciones sociales mas constantes.",
+      "read_only_title": "Autopilot de solo lectura",
+      "read_only_description": "Puedes revisar las reglas existentes, pero necesitas `social.manage` o `social.publish` para modificarlas.",
+      "summary": {
+        "total": "Reglas",
+        "active": "Activas",
+        "paused": "En pausa",
+        "pending_approvals": "Por validar",
+        "attention": "A revisar",
+        "auto_paused": "Auto-pausa"
+      },
+      "form": {
+        "create_title": "Nueva regla",
+        "edit_title": "Editar regla",
+        "description": "Cada regla genera un post Pulse real reutilizando el motor actual de publicacion y aprobacion."
+      },
+      "fields": {
+        "name": "Nombre de la regla",
+        "description": "Descripcion interna",
+        "is_active": "Regla activa",
+        "frequency_type": "Frecuencia",
+        "scheduled_time": "Hora objetivo",
+        "timezone": "Zona horaria",
+        "language": "Idioma",
+        "approval_mode": "Modo de validacion",
+        "max_posts_per_day": "Max posts por dia",
+        "min_hours_between_similar_posts": "Horas minimas entre contenidos parecidos",
+        "text_ai_enabled": "Texto IA",
+        "image_ai_enabled": "Imagen IA",
+        "generation_tone": "Tono",
+        "generation_goal": "Objetivo",
+        "image_mode": "Modo de imagen",
+        "image_format": "Formato de imagen",
+        "variant_count": "Variantes de texto",
+        "creative_prompt": "Prompt general",
+        "image_prompt": "Prompt de imagen",
+        "source_mode": "Modo de fuente",
+        "source_items": "Elementos de fuente"
+      },
+      "generation_title": "Instrucciones IA",
+      "targets_title": "Cuentas objetivo",
+      "targets_description": "Selecciona las cuentas que esta regla podra usar al generar contenido.",
+      "sources_title": "Fuentes de contenido",
+      "sources_description": "Activa una o varias familias de contenido y limitalas a elementos concretos cuando haga falta.",
+      "generation_tones": {
+        "professional": "Profesional",
+        "warm": "Calido",
+        "premium": "Premium",
+        "direct": "Directo",
+        "promotional": "Promocional"
+      },
+      "generation_goals": {
+        "sell": "Vender",
+        "inform": "Informar",
+        "book": "Reservar",
+        "announce": "Anunciar",
+        "reengage": "Reactivar"
+      },
+      "image_modes": {
+        "never": "Nunca",
+        "if_missing": "Si falta imagen",
+        "always": "Siempre generar"
+      },
+      "image_formats": {
+        "auto": "Auto",
+        "square": "Cuadrado",
+        "portrait": "Vertical",
+        "landscape": "Horizontal"
+      },
+      "source_types": {
+        "product": "Productos",
+        "service": "Servicios",
+        "promotion": "Promociones",
+        "campaign": "Campanas",
+        "template": "Templates Pulse"
+      },
+      "source_modes": {
+        "all": "Todos los elementos",
+        "selected_ids": "Elementos elegidos"
+      },
+      "source_items_count": "{count} elemento | {count} elementos",
+      "frequency_options": {
+        "hourly": "Cada hora",
+        "daily": "Cada dia",
+        "every_two_days": "Cada 2 dias",
+        "weekly": "Cada semana",
+        "monthly": "Cada mes"
+      },
+      "approval_mode_options": {
+        "required": "Validacion requerida",
+        "auto_publish": "Publicacion automatica"
+      },
+      "connection_states": {
+        "connected": "Listo para publicar",
+        "needs_attention": "Conexion por revisar"
+      },
+      "statuses": {
+        "active": "Activa",
+        "paused": "En pausa"
+      },
+      "health_states": {
+        "healthy": "Sana",
+        "warning": "Vigilancia",
+        "attention": "Atencion"
+      },
+      "health_reasons": {
+        "connection_attention": "Cuenta por verificar",
+        "auto_paused": "Auto-pausa defensiva",
+        "failure_streak": "Errores repetidos",
+        "approval_backlog": "Cola de aprobacion cargada",
+        "schedule_overdue": "Proxima generacion vencida",
+        "last_error": "Ultimo error registrado"
+      },
+      "run_statuses": {
+        "generated": "Generada",
+        "skipped": "Omitida",
+        "error": "Error"
+      },
+      "outcome_codes": {
+        "auto_published": "Publicacion auto",
+        "queued_for_approval": "Enviada a validacion",
+        "feature_disabled": "Modulo desactivado",
+        "targets_unavailable": "Destinos no disponibles",
+        "source_unavailable": "Fuente no disponible",
+        "quality_guard": "Guardarrail de contenido",
+        "validation_error": "Error de validacion",
+        "execution_error": "Error de ejecucion",
+        "auto_paused": "Regla auto-pausada"
+      },
+      "library_title": "Reglas existentes",
+      "library_description": "Consulta las reglas activas o en pausa, su siguiente paso y las ultimas senales de error.",
+      "recent_runs_title": "Actividad reciente",
+      "recent_runs_description": "Sigue las ultimas ejecuciones de Autopilot para entender rapido que se genero, bloqueo o pauso.",
+      "meta": {
+        "next_generation_at": "Proxima generacion",
+        "last_generated_at": "Ultima generacion",
+        "accounts": "Cuentas",
+        "generated_posts_count": "Posts generados",
+        "pending_posts": "Posts por validar",
+        "published_posts": "Posts publicados"
+      },
+      "actions": {
+        "reload": "Recargar",
+        "new_rule": "Nueva regla",
+        "save_rule": "Guardar regla",
+        "update_rule": "Actualizar regla",
+        "clear_form": "Limpiar formulario",
+        "edit_rule": "Editar",
+        "pause_rule": "Pausar",
+        "resume_rule": "Reanudar",
+        "delete_rule": "Eliminar",
+        "open_generated_post": "Abrir post"
+      },
+      "messages": {
+        "load_error": "La pagina Autopilot no pudo recargarse.",
+        "save_error": "La regla Pulse no pudo guardarse.",
+        "save_success": "La regla Pulse fue guardada.",
+        "update_success": "La regla Pulse fue actualizada.",
+        "pause_success": "La regla Pulse fue pausada.",
+        "resume_success": "La regla Pulse fue reactivada.",
+        "toggle_error": "No se pudo cambiar el estado de la regla Pulse.",
+        "delete_error": "La regla Pulse no pudo eliminarse.",
+        "delete_success": "La regla Pulse fue eliminada.",
+        "confirm_delete": "Eliminar la regla Pulse \"{name}\"?"
+      },
+      "empty_rules": "Todavia no se ha configurado ninguna regla de Pulse Autopilot.",
+      "empty_recent_runs": "Todavia no se ha registrado ninguna ejecucion de Autopilot.",
+      "untitled_rule": "Regla Pulse sin titulo",
+      "empty_value": "No disponible"
+    },
+    "approval_inbox": {
+      "title": "Cola de validacion Pulse",
+      "description": "Aprueba rapido los posts pendientes, devuelvelos a revision o pide una nueva version generada por Autopilot.",
+      "read_only_title": "Cola de aprobacion de solo lectura",
+      "read_only_description": "Puedes revisar las propuestas pendientes, pero necesitas `social.approve` para actuar sobre ellas.",
+      "summary": {
+        "pending": "Pendientes",
+        "automated": "Automatizadas",
+        "manual": "Manuales",
+        "stale": "Pendientes antiguas"
+      },
+      "fields": {
+        "search": "Buscar texto, fuente o enlace",
+        "rule_id": "Regla Autopilot",
+        "origin": "Origen",
+        "source_type": "Tipo de fuente",
+        "scheduled_for": "Fecha de programacion"
+      },
+      "filters": {
+        "all_rules": "Todas las reglas",
+        "all_origins": "Todos los origenes",
+        "automated_only": "Solo automatizadas",
+        "manual_only": "Solo manuales",
+        "all_sources": "Todas las fuentes"
+      },
+      "meta": {
+        "requested_by": "Solicitado por {actor}",
+        "source_label": "Fuente: {source}",
+        "generation_mode": "Generacion: {mode}"
+      },
+      "actions": {
+        "reload": "Recargar",
+        "reset_filters": "Reiniciar",
+        "apply_filters": "Aplicar filtros",
+        "open_composer": "Abrir composer",
+        "request_revision": "Modificar",
+        "approve_now": "Validar y publicar ahora",
+        "approve_schedule": "Validar y programar",
+        "reject": "Rechazar",
+        "regenerate": "Regenerar"
+      },
+      "messages": {
+        "load_error": "La cola Pulse no pudo recargarse.",
+        "revision_error": "La propuesta Pulse no pudo volver a revision.",
+        "revision_success": "La propuesta Pulse volvio a revision.",
+        "approve_now_error": "La propuesta Pulse no pudo aprobarse para publicacion inmediata.",
+        "approve_now_success": "La propuesta Pulse fue aprobada y enviada a publicacion.",
+        "approve_schedule_error": "La propuesta Pulse no pudo aprobarse para programacion.",
+        "approve_schedule_success": "La propuesta Pulse fue aprobada y programada.",
+        "reject_error": "La propuesta Pulse no pudo rechazarse.",
+        "reject_success": "La propuesta Pulse fue rechazada.",
+        "regenerate_error": "Pulse Autopilot no pudo generar una nueva version.",
+        "regenerate_success": "Pulse Autopilot genero una nueva propuesta."
+      },
+      "status_pending": "Pendiente de aprobacion",
+      "status_stale": "Revisar pronto",
+      "targets_title": "Destinos",
+      "no_targets": "Ningun destino esta vinculado a esta propuesta.",
+      "untitled_post": "Propuesta Pulse sin titulo",
+      "empty_text": "No se ha guardado texto en esta propuesta Pulse.",
+      "preview_image_alt": "Imagen de preview de la propuesta Pulse",
+      "preview_cta_fallback": "Ver detalles",
+      "preview_link_destination": "Destino",
+      "empty_title": "No hay propuestas Pulse por validar",
+      "empty_description": "Cuando Autopilot o un miembro del equipo envie un post para validacion, aparecera aqui.",
       "empty_value": "No disponible"
     },
     "accounts_manager": {
@@ -351,6 +863,7 @@
         "accounts_title": "Cuentas",
         "accounts_empty_title": "Todavia no hay cuentas en esta plataforma",
         "accounts_empty_description": "Inicia la conexion para agregar la primera cuenta.",
+        "test_connection_hint": "En local/testing, agrega un destino de prueba conectado para validar la programacion sin OAuth real.",
         "account_fallback_name": "Cuenta {number}",
         "quick_status": "Estado actual",
         "connected_at": "Conectada el",
@@ -375,6 +888,7 @@
         "manage_accounts": "Gestionar",
         "connect_platform": "Conectar",
         "add_account": "Anadir cuenta",
+        "add_test_account": "Anadir destino de prueba",
         "save_details": "Guardar",
         "reconnect_oauth": "Reconectar",
         "test_connection": "Probar conexion",
@@ -402,6 +916,8 @@
         "save_success": "La cuenta Pulse se guardo correctamente.",
         "authorize_error": "No se pudo iniciar el flujo OAuth de Pulse.",
         "authorize_redirect": "Redirigiendo al proveedor OAuth.",
+        "test_connection_success": "El destino de prueba Pulse esta conectado.",
+        "test_connection_error": "No se pudo crear el destino de prueba Pulse.",
         "test_success": "La conexion Pulse es valida.",
         "test_error": "La conexion Pulse debe revisarse.",
         "disconnect_error": "No se pudo desconectar la cuenta Pulse.",

@@ -4,6 +4,7 @@ import axios from 'axios';
 import { router } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 
@@ -62,6 +63,20 @@ const info = ref('');
 
 const canManage = computed(() => Boolean(access.value.can_manage_posts));
 const canApprove = computed(() => Boolean(access.value.can_approve));
+const statusFilterOptions = computed(() => [
+    { value: '', label: t('social.history_manager.filters.all_statuses') },
+    ...props.initialStatusFilters.map((statusOption) => ({
+        ...statusOption,
+        label: t(`social.composer_manager.statuses.${statusOption.value}`),
+    })),
+]);
+const platformFilterOptions = computed(() => [
+    { value: '', label: t('social.history_manager.filters.all_platforms') },
+    ...props.initialPlatformFilters.map((platformOption) => ({
+        ...platformOption,
+        label: platformOption.label,
+    })),
+]);
 
 const sortedPosts = computed(() => [...posts.value].sort((left, right) => {
     const leftDate = Date.parse(String(
@@ -189,6 +204,22 @@ const statusClass = (status) => {
     return 'border-stone-200 bg-stone-50 text-stone-700 dark:border-neutral-700 dark:bg-neutral-800/70 dark:text-neutral-300';
 };
 
+const qualityClass = (status) => ({
+    good: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300',
+    warning: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300',
+    attention: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300',
+}[status] || 'border-stone-200 bg-stone-50 text-stone-700 dark:border-neutral-700 dark:bg-neutral-800/70 dark:text-neutral-300');
+
+const aiTraceItems = (post) => (
+    Array.isArray(post?.ai_trace?.items) ? post.ai_trace.items : []
+);
+
+const aiTraceLabel = (key) => {
+    const translated = t(`social.ai_trace.items.${key}`);
+
+    return translated === `social.ai_trace.items.${key}` ? key : translated;
+};
+
 const formatDate = (value) => {
     if (!value) {
         return t('social.history_manager.empty_value');
@@ -200,6 +231,57 @@ const formatDate = (value) => {
         return t('social.history_manager.empty_value');
     }
 };
+const normalizeLinkCandidate = (value) => {
+    const candidate = String(value || '').trim();
+    if (candidate === '') {
+        return '';
+    }
+
+    if (/^[a-z][a-z0-9+.-]*:/i.test(candidate)) {
+        return candidate;
+    }
+
+    if (candidate.startsWith('//')) {
+        return `https:${candidate}`;
+    }
+
+    if (/\s/u.test(candidate) || !candidate.includes('.')) {
+        return candidate;
+    }
+
+    return `https://${candidate}`;
+};
+const linkHrefFor = (value) => normalizeLinkCandidate(value);
+const linkHostFor = (value) => {
+    const candidate = normalizeLinkCandidate(value);
+    if (candidate === '') {
+        return '';
+    }
+
+    try {
+        return new URL(candidate).host.replace(/^www\./i, '');
+    } catch {
+        return candidate;
+    }
+};
+const linkSummaryFor = (record) => {
+    const label = String(record?.link_cta_label || '').trim();
+    const host = linkHostFor(record?.link_url);
+
+    if (label !== '' && host !== '' && label.toLowerCase() !== host.toLowerCase()) {
+        return `${label} - ${host}`;
+    }
+
+    if (label !== '') {
+        return label;
+    }
+
+    if (host !== '') {
+        return host;
+    }
+
+    return '';
+};
 
 const draftLabel = (post) => {
     const text = String(post?.text || '').trim();
@@ -207,9 +289,9 @@ const draftLabel = (post) => {
         return text.length > 90 ? `${text.slice(0, 87)}...` : text;
     }
 
-    const link = String(post?.link_url || '').trim();
-    if (link !== '') {
-        return link;
+    const linkSummary = linkSummaryFor(post);
+    if (linkSummary !== '') {
+        return linkSummary;
     }
 
     return t('social.history_manager.untitled_post');
@@ -313,24 +395,13 @@ const resolveApproval = async (post, decision) => {
 
 <template>
     <div class="space-y-5">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-                <h3 class="text-lg font-semibold text-stone-900 dark:text-neutral-100">
-                    {{ t('social.history_manager.title') }}
-                </h3>
-                <p class="mt-1 max-w-3xl text-sm text-stone-500 dark:text-neutral-400">
-                    {{ t('social.history_manager.description') }}
-                </p>
-            </div>
-
-            <div class="flex flex-wrap gap-2">
-                <SecondaryButton :disabled="busy || isLoading" @click="load">
-                    {{ t('social.history_manager.actions.reload') }}
-                </SecondaryButton>
-                <SecondaryButton :disabled="busy || isLoading" @click="resetFilters">
-                    {{ t('social.history_manager.actions.reset_filters') }}
-                </SecondaryButton>
-            </div>
+        <div class="flex flex-wrap justify-end gap-2">
+            <SecondaryButton :disabled="busy || isLoading" @click="load">
+                {{ t('social.history_manager.actions.reload') }}
+            </SecondaryButton>
+            <SecondaryButton :disabled="busy || isLoading" @click="resetFilters">
+                {{ t('social.history_manager.actions.reset_filters') }}
+            </SecondaryButton>
         </div>
 
         <div
@@ -401,49 +472,19 @@ const resolveApproval = async (post, decision) => {
                     :disabled="busy || isLoading"
                 />
 
-                <label class="block">
-                    <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                        {{ t('social.history_manager.fields.status') }}
-                    </span>
-                    <select
-                        v-model="filters.status"
-                        class="block w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-                        :disabled="busy || isLoading"
-                    >
-                        <option value="">
-                            {{ t('social.history_manager.filters.all_statuses') }}
-                        </option>
-                        <option
-                            v-for="statusOption in props.initialStatusFilters"
-                            :key="statusOption.value"
-                            :value="statusOption.value"
-                        >
-                            {{ t(`social.composer_manager.statuses.${statusOption.value}`) }}
-                        </option>
-                    </select>
-                </label>
+                <FloatingSelect
+                    v-model="filters.status"
+                    :label="t('social.history_manager.fields.status')"
+                    :options="statusFilterOptions"
+                    :disabled="busy || isLoading"
+                />
 
-                <label class="block">
-                    <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                        {{ t('social.history_manager.fields.platform') }}
-                    </span>
-                    <select
-                        v-model="filters.platform"
-                        class="block w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-                        :disabled="busy || isLoading"
-                    >
-                        <option value="">
-                            {{ t('social.history_manager.filters.all_platforms') }}
-                        </option>
-                        <option
-                            v-for="platformOption in props.initialPlatformFilters"
-                            :key="platformOption.value"
-                            :value="platformOption.value"
-                        >
-                            {{ platformOption.label }}
-                        </option>
-                    </select>
-                </label>
+                <FloatingSelect
+                    v-model="filters.platform"
+                    :label="t('social.history_manager.fields.platform')"
+                    :options="platformFilterOptions"
+                    :disabled="busy || isLoading"
+                />
 
                 <div class="flex items-end">
                     <PrimaryButton type="button" class="w-full justify-center" :disabled="busy || isLoading" @click="applyFilters">
@@ -465,6 +506,13 @@ const resolveApproval = async (post, decision) => {
                             <span class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold" :class="statusClass(post.status)">
                                 {{ t(`social.composer_manager.statuses.${post.status || 'draft'}`) }}
                             </span>
+                            <span
+                                v-if="post.quality_review"
+                                class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold"
+                                :class="qualityClass(post.quality_review.status)"
+                            >
+                                {{ t('social.history_manager.quality_score', { score: Number(post.quality_review.score || 0) }) }}
+                            </span>
                             <span class="text-xs text-stone-500 dark:text-neutral-400">
                                 {{ primaryMetaLabel(post) }}: {{ primaryMetaValue(post) }}
                             </span>
@@ -474,9 +522,23 @@ const resolveApproval = async (post, decision) => {
                             {{ draftLabel(post) }}
                         </h4>
 
-                        <p v-if="post.link_url" class="text-sm text-sky-700 dark:text-sky-300">
-                            {{ post.link_url }}
-                        </p>
+                        <a
+                            v-if="post.link_url"
+                            :href="linkHrefFor(post.link_url)"
+                            target="_blank"
+                            rel="noreferrer"
+                            class="block rounded-3xl border border-sky-200 bg-sky-50 px-4 py-3 text-sky-800 transition hover:border-sky-300 hover:bg-sky-100 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-100 dark:hover:border-sky-500/40 dark:hover:bg-sky-500/15"
+                        >
+                            <span class="block text-sm font-semibold">
+                                {{ post.link_cta_label || t('social.history_manager.preview_cta_fallback') }}
+                            </span>
+                            <span
+                                v-if="linkHostFor(post.link_url)"
+                                class="mt-1 block text-xs text-sky-700/80 dark:text-sky-200/80"
+                            >
+                                {{ t('social.history_manager.preview_link_destination') }}: {{ linkHostFor(post.link_url) }}
+                            </span>
+                        </a>
 
                         <p
                             v-if="post.failure_reason"
@@ -502,6 +564,32 @@ const resolveApproval = async (post, decision) => {
                         >
                             {{ post.approval_request.note }}
                         </p>
+
+                        <details
+                            v-if="post.ai_trace?.has_trace"
+                            class="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-800/60"
+                        >
+                            <summary class="cursor-pointer text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ t('social.ai_trace.title') }}
+                            </summary>
+                            <p v-if="post.ai_trace.summary" class="mt-2 text-sm text-stone-600 dark:text-neutral-300">
+                                {{ post.ai_trace.summary }}
+                            </p>
+                            <dl v-if="aiTraceItems(post).length" class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+                                <div
+                                    v-for="item in aiTraceItems(post)"
+                                    :key="`${post.id}-${item.key}`"
+                                    class="rounded-xl border border-stone-200 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+                                >
+                                    <dt class="text-xs uppercase tracking-[0.14em] text-stone-400 dark:text-neutral-500">
+                                        {{ aiTraceLabel(item.key) }}
+                                    </dt>
+                                    <dd class="mt-1 text-sm text-stone-700 dark:text-neutral-200">
+                                        {{ item.value }}
+                                    </dd>
+                                </div>
+                            </dl>
+                        </details>
                     </div>
 
                     <div v-if="canManage || canApprove" class="flex flex-wrap gap-2">

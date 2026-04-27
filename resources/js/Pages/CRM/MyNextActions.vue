@@ -283,7 +283,7 @@ const statusLabel = (item) => {
 const routeForItem = (item) => {
     switch (String(item?.subject_type || '')) {
         case 'request':
-            return route('request.show', item.subject_id);
+            return route('prospects.show', item.subject_id);
         case 'quote':
             return route('customer.quote.show', item.subject_id);
         case 'task':

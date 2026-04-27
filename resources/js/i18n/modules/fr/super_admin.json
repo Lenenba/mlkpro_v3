@@ -143,7 +143,7 @@
       },
       "limits": {
         "quotes": "Devis",
-        "requests": "Demandes",
+        "requests": "Prospects",
         "plan_scan_quotes": "Devis scan plan",
         "invoices": "Factures",
         "jobs": "Chantiers",
@@ -629,7 +629,7 @@
       },
       "limits": {
         "quotes": "Devis",
-        "requests": "Demandes",
+        "requests": "Prospects",
         "plan_scan_quotes": "Devis scan plan",
         "invoices": "Factures",
         "jobs": "Chantiers",
@@ -641,7 +641,7 @@
       },
       "modules": {
         "quotes": "Devis",
-        "requests": "Demandes",
+        "requests": "Prospects",
         "reservations": "Reservations",
         "plan_scans": "Scans de plan",
         "invoices": "Factures",

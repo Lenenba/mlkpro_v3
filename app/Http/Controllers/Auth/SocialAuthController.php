@@ -6,6 +6,7 @@ use App\Enums\BillingPeriod;
 use App\Http\Controllers\Controller;
 use App\Services\Auth\FacebookSocialAuthService;
 use App\Services\Auth\GoogleSocialAuthService;
+use App\Services\Auth\LinkedInSocialAuthService;
 use App\Services\Auth\MicrosoftSocialAuthService;
 use App\Services\Auth\SocialAuthAccountService;
 use App\Services\Auth\SocialAuthProviderRegistry;
@@ -243,6 +244,7 @@ class SocialAuthController extends Controller
         return match ($provider['key'] ?? null) {
             'facebook' => app(FacebookSocialAuthService::class)->authorizationUrl($provider, $state),
             'google' => app(GoogleSocialAuthService::class)->authorizationUrl($provider, $state),
+            'linkedin' => app(LinkedInSocialAuthService::class)->authorizationUrl($provider, $state),
             'microsoft' => app(MicrosoftSocialAuthService::class)->authorizationUrl($provider, $state),
             default => throw ValidationException::withMessages([
                 'provider' => __('ui.auth.social.provider_not_ready', ['provider' => $provider['label'] ?? ucfirst((string) ($provider['key'] ?? 'provider'))]),
@@ -260,6 +262,7 @@ class SocialAuthController extends Controller
         return match ($provider['key'] ?? null) {
             'facebook' => app(FacebookSocialAuthService::class)->authenticate($request, $provider, $pending),
             'google' => app(GoogleSocialAuthService::class)->authenticate($request, $provider, $pending),
+            'linkedin' => app(LinkedInSocialAuthService::class)->authenticate($request, $provider, $pending),
             'microsoft' => app(MicrosoftSocialAuthService::class)->authenticate($request, $provider, $pending),
             default => throw ValidationException::withMessages([
                 'provider' => __('ui.auth.social.callback_not_ready', ['provider' => $provider['label'] ?? ucfirst((string) ($provider['key'] ?? 'provider'))]),

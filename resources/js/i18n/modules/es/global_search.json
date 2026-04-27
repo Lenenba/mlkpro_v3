@@ -10,6 +10,7 @@
     "hint": "Ctrl + K",
     "groups": {
       "customers": "Clientes",
+      "service_requests": "Solicitudes",
       "tasks": "Tareas",
       "quotes": "Cotizaciones",
       "employees": "Empleados"

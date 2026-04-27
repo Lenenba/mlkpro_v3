@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 class BuildRequestInboxIndexData
 {
@@ -25,14 +26,26 @@ class BuildRequestInboxIndexData
             'customer_id',
             'view',
             'queue',
+            'assigned_team_member_id',
+            'source',
+            'request_type',
+            'priority',
+            'follow_up',
+            'unassigned',
+            'archived',
         ]);
         $filters['per_page'] = DataTablePagination::fromRequest($request);
         $filters['view'] = in_array($filters['view'] ?? null, ['table', 'board'], true)
             ? $filters['view']
             : 'table';
         $filters['queue'] = $this->normalizeQueueFilter($filters['queue'] ?? null);
+        $filters['priority'] = $this->normalizePriorityFilter($filters['priority'] ?? null);
+        $filters['follow_up'] = $this->normalizeFollowUpFilter($filters['follow_up'] ?? null);
+        $filters['unassigned'] = $this->normalizeBooleanFilter($filters['unassigned'] ?? null);
+        $filters['archived'] = $this->normalizeBooleanFilter($filters['archived'] ?? null);
 
         $baseQuery = $this->baseQuery($accountId, $filters);
+        $referenceTime = now();
 
         $classifiedItems = $this->classifyInboxItems(
             (clone $baseQuery)->with([
@@ -41,11 +54,15 @@ class BuildRequestInboxIndexData
                 'assignee:id,user_id,account_id',
                 'assignee.user:id,name',
             ])->get(),
-            now()
+            $referenceTime
         );
         $stats = $this->statsForClassifiedItems($classifiedItems);
         $sortedItems = $this->sortInboxItems(
-            $this->filterInboxItems($classifiedItems, $filters['queue'])
+            $this->applyCollectionFilters(
+                $this->filterInboxItems($classifiedItems, $filters['queue']),
+                $filters,
+                $referenceTime
+            )
         );
 
         return [
@@ -62,6 +79,13 @@ class BuildRequestInboxIndexData
             'status' => $filters['status'] ?? null,
             'customer_id' => $filters['customer_id'] ?? null,
             'queue' => $this->normalizeQueueFilter($filters['queue'] ?? null),
+            'assigned_team_member_id' => $filters['assigned_team_member_id'] ?? null,
+            'source' => $filters['source'] ?? null,
+            'request_type' => $filters['request_type'] ?? null,
+            'priority' => $this->normalizePriorityFilter($filters['priority'] ?? null),
+            'follow_up' => $this->normalizeFollowUpFilter($filters['follow_up'] ?? null),
+            'unassigned' => $this->normalizeBooleanFilter($filters['unassigned'] ?? null),
+            'archived' => $this->normalizeBooleanFilter($filters['archived'] ?? null),
         ];
 
         $classifiedItems = $this->classifyInboxItems(
@@ -75,7 +99,11 @@ class BuildRequestInboxIndexData
         );
 
         return $this->sortInboxItems(
-            $this->filterInboxItems($classifiedItems, $normalizedFilters['queue'])
+            $this->applyCollectionFilters(
+                $this->filterInboxItems($classifiedItems, $normalizedFilters['queue']),
+                $normalizedFilters,
+                $referenceTime?->copy() ?? now()
+            )
         );
     }
 
@@ -83,6 +111,11 @@ class BuildRequestInboxIndexData
     {
         return LeadRequest::query()
             ->where('user_id', $accountId)
+            ->when(
+                ($filters['archived'] ?? false) === true,
+                fn (Builder $query) => $query->whereNotNull('archived_at'),
+                fn (Builder $query) => $query->whereNull('archived_at')
+            )
             ->when(
                 $filters['search'] ?? null,
                 function (Builder $query, string $search): void {
@@ -110,6 +143,18 @@ class BuildRequestInboxIndexData
             ->when(
                 $filters['customer_id'] ?? null,
                 fn (Builder $query, mixed $customerId) => $query->where('customer_id', $customerId)
+            )
+            ->when(
+                $filters['assigned_team_member_id'] ?? null,
+                fn (Builder $query, mixed $assigneeId) => $query->where('assigned_team_member_id', $assigneeId)
+            )
+            ->when(
+                $filters['source'] ?? null,
+                fn (Builder $query, string $source) => $query->where('channel', $source)
+            )
+            ->when(
+                blank($filters['assigned_team_member_id'] ?? null) && ($filters['unassigned'] ?? false) === true,
+                fn (Builder $query) => $query->whereNull('assigned_team_member_id')
             );
     }
 
@@ -147,6 +192,33 @@ class BuildRequestInboxIndexData
 
         return $items
             ->filter(fn (LeadRequest $lead): bool => $lead->getAttribute('triage_queue') === $queue)
+            ->values();
+    }
+
+    private function applyCollectionFilters(Collection $items, array $filters, Carbon $referenceTime): Collection
+    {
+        return $items
+            ->filter(function (LeadRequest $lead) use ($filters, $referenceTime): bool {
+                $requestTypeFilter = trim((string) ($filters['request_type'] ?? ''));
+                if ($requestTypeFilter !== '') {
+                    $requestType = Str::lower($this->requestTypeValue($lead));
+                    if (! Str::contains($requestType, Str::lower($requestTypeFilter))) {
+                        return false;
+                    }
+                }
+
+                $priorityFilter = $filters['priority'] ?? null;
+                if ($priorityFilter !== null && $this->priorityBucket($lead) !== $priorityFilter) {
+                    return false;
+                }
+
+                $followUpFilter = $filters['follow_up'] ?? null;
+                if ($followUpFilter !== null && ! $this->matchesFollowUpFilter($lead, $followUpFilter, $referenceTime)) {
+                    return false;
+                }
+
+                return true;
+            })
             ->values();
     }
 
@@ -267,6 +339,37 @@ class BuildRequestInboxIndexData
             : null;
     }
 
+    private function normalizePriorityFilter(?string $priority): ?string
+    {
+        $normalized = is_string($priority) ? trim(strtolower($priority)) : null;
+
+        return in_array($normalized, ['urgent', 'high', 'normal', 'low'], true)
+            ? $normalized
+            : null;
+    }
+
+    private function normalizeFollowUpFilter(?string $followUp): ?string
+    {
+        $normalized = is_string($followUp) ? trim(strtolower($followUp)) : null;
+
+        return in_array($normalized, ['today', 'overdue', 'scheduled', 'none'], true)
+            ? $normalized
+            : null;
+    }
+
+    private function normalizeBooleanFilter(mixed $value): bool
+    {
+        if ($value === true || $value === 1 || $value === '1') {
+            return true;
+        }
+
+        if (is_string($value)) {
+            return in_array(strtolower(trim($value)), ['true', 'yes', 'oui', 'on'], true);
+        }
+
+        return false;
+    }
+
     private function queueRank(string $queue): int
     {
         return match ($queue) {
@@ -276,6 +379,41 @@ class BuildRequestInboxIndexData
             LeadTriageClassifier::QUEUE_STALE => 3,
             LeadTriageClassifier::QUEUE_ACTIVE => 4,
             default => 5,
+        };
+    }
+
+    private function priorityBucket(LeadRequest $lead): string
+    {
+        $priority = (int) ($lead->getAttribute('triage_priority') ?? 0);
+
+        return match (true) {
+            $priority >= 90 => 'urgent',
+            $priority >= 70 => 'high',
+            $priority > 0 => 'normal',
+            default => 'low',
+        };
+    }
+
+    private function requestTypeValue(LeadRequest $lead): string
+    {
+        return trim((string) data_get($lead->meta, 'request_type', ''));
+    }
+
+    private function matchesFollowUpFilter(LeadRequest $lead, string $filter, Carbon $referenceTime): bool
+    {
+        $followUpAt = $lead->next_follow_up_at;
+        $isClosed = in_array((string) $lead->status, [
+            LeadRequest::STATUS_WON,
+            LeadRequest::STATUS_LOST,
+            LeadRequest::STATUS_CONVERTED,
+        ], true);
+
+        return match ($filter) {
+            'today' => $followUpAt instanceof Carbon && ! $isClosed && $followUpAt->isSameDay($referenceTime),
+            'overdue' => $followUpAt instanceof Carbon && ! $isClosed && $followUpAt->lt($referenceTime),
+            'scheduled' => $followUpAt instanceof Carbon && ! $isClosed && $followUpAt->gte($referenceTime),
+            'none' => blank($followUpAt),
+            default => true,
         };
     }
 

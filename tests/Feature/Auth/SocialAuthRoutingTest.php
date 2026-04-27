@@ -17,6 +17,10 @@ beforeEach(function () {
     config()->set('social_auth.providers.facebook.client_id', null);
     config()->set('social_auth.providers.facebook.client_secret', null);
     config()->set('social_auth.providers.facebook.redirect_uri', null);
+    config()->set('social_auth.providers.linkedin.enabled', false);
+    config()->set('social_auth.providers.linkedin.client_id', null);
+    config()->set('social_auth.providers.linkedin.client_secret', null);
+    config()->set('social_auth.providers.linkedin.redirect_uri', null);
 });
 
 test('login screen shares enabled social auth providers for frontend wiring', function () {
@@ -25,13 +29,18 @@ test('login screen shares enabled social auth providers for frontend wiring', fu
     config()->set('social_auth.providers.microsoft.client_secret', 'microsoft-client-secret');
     config()->set('social_auth.providers.microsoft.redirect_uri', 'https://app.test/auth/social/microsoft/callback');
     config()->set('social_auth.providers.microsoft.implemented', true);
+    config()->set('social_auth.providers.linkedin.enabled', true);
+    config()->set('social_auth.providers.linkedin.client_id', 'linkedin-client-id');
+    config()->set('social_auth.providers.linkedin.client_secret', 'linkedin-client-secret');
+    config()->set('social_auth.providers.linkedin.redirect_uri', 'https://app.test/auth/social/linkedin/callback');
+    config()->set('social_auth.providers.linkedin.implemented', true);
 
     $this->get(route('login'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Auth/Login')
             ->where('socialAuth.enabled', true)
-            ->has('socialAuth.providers', 2)
+            ->has('socialAuth.providers', 3)
             ->where('socialAuth.providers.0.key', 'google')
             ->where('socialAuth.providers.0.configured', true)
             ->where('socialAuth.providers.0.implemented', true)
@@ -42,6 +51,10 @@ test('login screen shares enabled social auth providers for frontend wiring', fu
             ->where('socialAuth.providers.1.configured', true)
             ->where('socialAuth.providers.1.implemented', true)
             ->where('socialAuth.providers.1.ready', true)
+            ->where('socialAuth.providers.2.key', 'linkedin')
+            ->where('socialAuth.providers.2.configured', true)
+            ->where('socialAuth.providers.2.implemented', true)
+            ->where('socialAuth.providers.2.ready', true)
         );
 });
 

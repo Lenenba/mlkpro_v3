@@ -41,19 +41,75 @@ const formatAbsoluteDate = (value) => {
 };
 const companyName = computed(() => page.props.auth?.account?.company?.name || t('quotes.company_fallback'));
 const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
+const prospect = computed(() => props.quote?.prospect || null);
+const showProspectNotice = computed(() => !props.quote?.customer && Boolean(prospect.value?.id));
 const customerLabel = computed(() => {
     const customer = props.quote?.customer;
     const label = customer?.company_name
         || `${customer?.first_name || ''} ${customer?.last_name || ''}`.trim();
-    return label || t('quotes.labels.customer_fallback');
+
+    if (label) {
+        return label;
+    }
+
+    return prospect.value?.contact_name
+        || prospect.value?.title
+        || prospect.value?.service_type
+        || t('quotes.labels.prospect_fallback');
 });
 
 const fallbackProperty = computed(() => {
     const properties = props.quote.customer?.properties || [];
-    return properties.find((item) => item.is_default) || properties[0] || null;
+    const customerProperty = properties.find((item) => item.is_default) || properties[0] || null;
+    if (customerProperty) {
+        return customerProperty;
+    }
+
+    if (!prospect.value) {
+        return null;
+    }
+
+    const preview = {
+        country: prospect.value.country || '',
+        street1: [prospect.value.street1, prospect.value.street2].filter(Boolean).join(', '),
+        locality: [prospect.value.state, prospect.value.postal_code].filter(Boolean).join(' - '),
+    };
+
+    return preview.country || preview.street1 || preview.locality ? preview : null;
 });
 
 const property = computed(() => props.quote.property || fallbackProperty.value);
+const propertyAddress = computed(() => {
+    if (!property.value) {
+        return null;
+    }
+
+    return {
+        country: property.value.country || '',
+        street1: [property.value.street1, property.value.street2].filter(Boolean).join(', '),
+        locality: [property.value.state, property.value.zip || property.value.postal_code].filter(Boolean).join(' - '),
+    };
+});
+const contactDetails = computed(() => {
+    if (props.quote?.customer) {
+        return {
+            name: `${props.quote.customer.first_name || ''} ${props.quote.customer.last_name || ''}`.trim()
+                || props.quote.customer.company_name
+                || t('quotes.labels.customer_fallback'),
+            email: props.quote.customer.email || '',
+            phone: props.quote.customer.phone || '',
+        };
+    }
+
+    return {
+        name: prospect.value?.contact_name
+            || prospect.value?.title
+            || prospect.value?.service_type
+            || t('quotes.labels.prospect_fallback'),
+        email: prospect.value?.contact_email || '',
+        phone: prospect.value?.contact_phone || '',
+    };
+});
 const taxTotal = computed(() => (props.quote.taxes || []).reduce((sum, tax) => sum + Number(tax.amount || 0), 0));
 const quoteStatusLabel = computed(() => {
     const status = props.quote?.status;
@@ -157,6 +213,9 @@ const sourceLines = computed(() => {
                             </Link>
                         </div>
                     </div>
+                    <div v-if="showProspectNotice" class="rounded-sm border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200">
+                        {{ $t('quotes.form.prospect_linked_notice') }}
+                    </div>
                     <div class="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(18rem,0.95fr)]">
                         <div class="space-y-4">
                             <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 text-base font-semibold text-stone-800 dark:border-neutral-700 dark:bg-neutral-800/50 dark:text-neutral-100">
@@ -167,10 +226,10 @@ const sourceLines = computed(() => {
                                         <p class="text-sm font-medium text-stone-700 dark:text-neutral-200">
                                             {{ $t('quotes.form.property_address') }}
                                         </p>
-                                        <div v-if="property" class="mt-3 space-y-1.5 text-sm text-stone-600 dark:text-neutral-400">
-                                            <div>{{ property.country }}</div>
-                                            <div>{{ property.street1 }}</div>
-                                            <div>{{ property.state }} - {{ property.zip }}</div>
+                                        <div v-if="propertyAddress" class="mt-3 space-y-1.5 text-sm text-stone-600 dark:text-neutral-400">
+                                            <div v-if="propertyAddress.country">{{ propertyAddress.country }}</div>
+                                            <div v-if="propertyAddress.street1">{{ propertyAddress.street1 }}</div>
+                                            <div v-if="propertyAddress.locality">{{ propertyAddress.locality }}</div>
                                         </div>
                                         <div v-else class="mt-3 text-sm text-stone-600 dark:text-neutral-400">
                                             {{ $t('quotes.form.no_property_selected') }}
@@ -181,9 +240,9 @@ const sourceLines = computed(() => {
                                             {{ $t('quotes.form.contact_details') }}
                                         </p>
                                         <div class="mt-3 space-y-1.5 text-sm text-stone-600 dark:text-neutral-400">
-                                            <div>{{ quote.customer.first_name }} {{ quote.customer.last_name }}</div>
-                                            <div>{{ quote.customer.email }}</div>
-                                            <div>{{ quote.customer.phone }}</div>
+                                            <div>{{ contactDetails.name }}</div>
+                                            <div>{{ contactDetails.email || '-' }}</div>
+                                            <div>{{ contactDetails.phone || '-' }}</div>
                                         </div>
                                     </div>
                             </div>

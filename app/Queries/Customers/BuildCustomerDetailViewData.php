@@ -12,6 +12,7 @@ use App\Models\Quote;
 use App\Models\Request as LeadRequest;
 use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Models\ServiceRequest;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\VipTier;
@@ -59,6 +60,11 @@ class BuildCustomerDetailViewData
                     ->latest()
                     ->limit(10)
                     ->with('quote:id,request_id,number,status,customer_id'),
+                'serviceRequests' => fn ($query) => $query
+                    ->select(CustomerReadSelects::detailServiceRequestColumns())
+                    ->latest()
+                    ->limit(10)
+                    ->with('prospect:id,customer_id,status,title,contact_name,contact_email,contact_phone'),
                 'invoices' => fn ($query) => $query
                     ->select(CustomerReadSelects::detailInvoiceColumns())
                     ->withSum(['payments as payments_sum_amount' => fn ($paymentQuery) => $paymentQuery->whereIn('status', Payment::settledStatuses())], 'amount')
@@ -371,6 +377,15 @@ class BuildCustomerDetailViewData
 
     private function buildServiceData(Customer $customer, int $accountId): array
     {
+        $serviceRequestCount = ServiceRequest::query()
+            ->where('customer_id', $customer->id)
+            ->where('user_id', $accountId)
+            ->count();
+        $legacyRequestCount = LeadRequest::query()
+            ->where('customer_id', $customer->id)
+            ->where('user_id', $accountId)
+            ->count();
+
         $tasks = Task::query()
             ->forAccount($accountId)
             ->where('customer_id', $customer->id)
@@ -448,10 +463,7 @@ class BuildCustomerDetailViewData
                     ->where('user_id', $accountId)
                     ->whereIn('status', $this->activeWorkStatuses())
                     ->count(),
-                'requests' => LeadRequest::query()
-                    ->where('customer_id', $customer->id)
-                    ->where('user_id', $accountId)
-                    ->count(),
+                'requests' => $serviceRequestCount > 0 ? $serviceRequestCount : $legacyRequestCount,
                 'quotes' => Quote::query()
                     ->where('customer_id', $customer->id)
                     ->where('user_id', $accountId)

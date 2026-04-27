@@ -1,0 +1,164 @@
+{
+  "service_requests": {
+    "page_title": "Requests",
+    "eyebrow": "Requests module",
+    "workspace": {
+      "title": "Service requests",
+      "subtitle": "Manage inbound service requests, their customer or prospect links, and the full intake context from one dedicated workspace."
+    },
+    "stats": {
+      "total": "Total",
+      "new": "New",
+      "active": "Active",
+      "resolved": "Resolved",
+      "closed": "Closed"
+    },
+    "filters": {
+      "search": "Search",
+      "search_placeholder": "Title, service, requester, city...",
+      "status": "Status",
+      "source": "Source",
+      "relation": "Relation",
+      "sort": "Sort",
+      "direction": "Order",
+      "per_page": "Rows",
+      "all_statuses": "All statuses",
+      "all_sources": "All sources",
+      "all_relations": "All relations",
+      "newest_first": "Newest first",
+      "oldest_first": "Oldest first"
+    },
+    "sort": {
+      "submitted_at": "Submitted date",
+      "created_at": "Created date",
+      "title": "Title",
+      "status": "Status",
+      "source": "Source"
+    },
+    "actions": {
+      "filters": "Filters",
+      "apply_filters": "Apply",
+      "reset_filters": "Reset",
+      "view": "View",
+      "back": "Back",
+      "open_customer": "Open customer",
+      "open_prospect": "Open prospect",
+      "open_customers": "Customers module",
+      "open_prospects": "Prospects module"
+    },
+    "view": {
+      "table": "Table",
+      "cards": "Cards"
+    },
+    "list": {
+      "title": "Request list",
+      "subtitle": "Switch between table and card layouts without losing your active filters.",
+      "customer": "Customer",
+      "prospect": "Prospect",
+      "service": "Service"
+    },
+    "table": {
+      "request": "Request",
+      "requester": "Requester",
+      "relation": "Relation",
+      "source": "Source",
+      "status": "Status",
+      "submitted": "Submitted",
+      "actions": "Actions"
+    },
+    "pagination": {
+      "showing": "Showing {from} to {to} of {total}",
+      "page_of": "Page {page} / {total}"
+    },
+    "side": {
+      "relations": "Relation mix",
+      "sources": "Source mix"
+    },
+    "empty": {
+      "title": "No requests yet",
+      "body": "New service requests will appear here as soon as they are created or captured."
+    },
+    "labels": {
+      "request_fallback": "Request",
+      "unknown_requester": "Unknown requester",
+      "unknown_status": "Unknown status",
+      "no_address": "No address provided.",
+      "none": "None"
+    },
+    "relations": {
+      "customer": "Linked to a customer",
+      "prospect": "Linked to a prospect",
+      "unlinked": "Unlinked"
+    },
+    "sources": {
+      "manual_admin": "Manual entry",
+      "customer_portal": "Customer portal",
+      "public_form": "Public form",
+      "campaign": "Marketing campaign",
+      "api": "API / integration",
+      "import": "Import",
+      "other": "Other"
+    },
+    "status": {
+      "new": "New",
+      "in_progress": "In progress",
+      "pending": "Pending",
+      "accepted": "Accepted",
+      "refused": "Refused",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "activity": {
+      "system": "System",
+      "empty": "No activity recorded for this request yet."
+    },
+    "show": {
+      "tabs": {
+        "left": {
+          "overview": "Overview",
+          "description": "Description",
+          "address": "Address"
+        },
+        "right": {
+          "relations": "Relations",
+          "source": "Source",
+          "activity": "Activity"
+        }
+      },
+      "summary": {
+        "status": "Status",
+        "submitted": "Submitted",
+        "relation": "Relation",
+        "source": "Source",
+        "service": "Service"
+      },
+      "overview_title": "Request summary",
+      "description_title": "Request description",
+      "address_title": "Request address",
+      "relations_title": "Business relations",
+      "source_title": "Capture context",
+      "activity_title": "History",
+      "requester": "Requester",
+      "email": "Email",
+      "phone": "Phone",
+      "request_type": "Request type",
+      "service_type": "Service type",
+      "urgency": "Urgency",
+      "budget": "Budget",
+      "serviceable": "Serviceable",
+      "source": "Source",
+      "channel": "Channel",
+      "source_ref": "Source reference",
+      "timeline": {
+        "title": "Milestones",
+        "submitted": "Submitted",
+        "accepted": "Accepted",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
+      },
+      "no_description": "No description provided yet.",
+      "yes": "Yes",
+      "no": "No"
+    }
+  }
+}

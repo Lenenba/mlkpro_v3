@@ -48,34 +48,45 @@ class QuoteEmaillingController extends Controller
             ]);
         }
 
-        $quote->load(['customer.user', 'property', 'products', 'taxes.tax']);
+        $quote->load(['customer.user', 'prospect.user', 'request.user', 'property', 'products', 'taxes.tax']);
 
-        if (! $quote->customer || ! $quote->customer->email) {
+        $recipientEmail = $quote->customer?->email
+            ?: $quote->prospect?->contact_email
+            ?: $quote->request?->contact_email;
+
+        if (! $recipientEmail) {
             if ($this->shouldReturnJson()) {
                 return response()->json([
-                    'message' => 'Customer email address is not available.',
+                    'message' => 'Recipient email address is not available.',
                 ], 422);
             }
 
-            return redirect()->back()->with('error', 'Customer email address is not available.');
+            return redirect()->back()->with('error', 'Recipient email address is not available.');
         }
 
-        $emailQueued = NotificationDispatcher::send($quote->customer, new SendQuoteNotification($quote), [
-            'quote_id' => $quote->id,
-            'customer_id' => $quote->customer->id,
-            'email' => $quote->customer->email,
-        ]);
+        $emailQueued = $quote->customer
+            ? NotificationDispatcher::send($quote->customer, new SendQuoteNotification($quote), [
+                'quote_id' => $quote->id,
+                'customer_id' => $quote->customer->id,
+                'email' => $recipientEmail,
+            ])
+            : NotificationDispatcher::sendToMail($recipientEmail, new SendQuoteNotification($quote), [
+                'quote_id' => $quote->id,
+                'customer_id' => null,
+                'request_id' => $quote->request_id,
+                'email' => $recipientEmail,
+            ]);
 
         $emailLogger = app(OutgoingEmailLogService::class);
         if ($emailQueued) {
             $emailLogger->logSent($user, $quote, [
-                'email' => $quote->customer->email,
+                'email' => $recipientEmail,
                 'source' => 'quote_manual_send',
                 'notification' => SendQuoteNotification::class,
             ], 'Quote email sent');
         } else {
             $emailLogger->logFailed($user, $quote, [
-                'email' => $quote->customer->email,
+                'email' => $recipientEmail,
                 'source' => 'quote_manual_send',
                 'notification' => SendQuoteNotification::class,
             ], 'Quote email failed');
@@ -102,7 +113,7 @@ class QuoteEmaillingController extends Controller
             }
 
             return response()->json([
-                'message' => 'Quote sent successfully to '.$quote->customer->email,
+                'message' => 'Quote sent successfully to '.$recipientEmail,
                 'quote' => $quote->fresh(),
             ]);
         }
@@ -111,7 +122,7 @@ class QuoteEmaillingController extends Controller
             return redirect()->back()->with('warning', 'Quote email could not be sent right now.');
         }
 
-        return redirect()->back()->with('success', 'Quote sent successfully to '.$quote->customer->email);
+        return redirect()->back()->with('success', 'Quote sent successfully to '.$recipientEmail);
     }
 
     private function canSendQuote(?TeamMember $membership): bool

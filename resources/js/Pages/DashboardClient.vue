@@ -11,6 +11,7 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import { buildPreviewEvents } from '@/utils/schedule';
 import { prepareMediaFile, MEDIA_LIMITS } from '@/utils/media';
 import { buildSparklinePoints, buildTrend } from '@/utils/kpi';
+import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import { useI18n } from 'vue-i18n';
 import { useCurrencyFormatter } from '@/utils/currency';
@@ -134,6 +135,10 @@ const paymentMethodLabel = (method) => {
     }
     return method || '-';
 };
+const paymentMethodOptions = computed(() => allowedPaymentMethods.value.map((method) => ({
+    value: method,
+    label: paymentMethodLabel(method),
+})));
 
 const maxTipPercent = computed(() => Number(props.tips?.max_percent ?? 30));
 const maxTipFixedAmount = computed(() => Number(props.tips?.max_fixed_amount ?? 200));
@@ -1013,14 +1018,14 @@ const submitWorkRating = (workId) => {
                             </div>
                             <form class="space-y-3" @submit.prevent="submitPayment(invoice)">
                                 <div class="space-y-2">
-                                    <input
+                                    <FloatingInput
                                         v-model.number="paymentAmounts[invoice.id]"
                                         type="number"
                                         min="0.01"
                                         :max="invoice.balance_due"
                                         step="0.01"
-                                        class="w-40 py-2 px-3 rounded-sm border border-stone-200 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                                        :placeholder="$t('client_dashboard.labels.amount')"
+                                        class="w-40"
+                                        :label="$t('client_dashboard.labels.amount')"
                                     />
                                     <div v-if="amountExceedsBalance(invoice)" class="text-xs text-red-600">
                                         {{ $t('client_dashboard.labels.amount_exceeds_due', { amount: formatCurrency(invoice.balance_due) }) }}
@@ -1053,21 +1058,13 @@ const submitWorkRating = (workId) => {
                                     </div>
 
                                     <div v-if="hasMultiplePaymentMethods" class="pt-1">
-                                        <label class="block text-[11px] text-stone-500 dark:text-neutral-400">
-                                            {{ $t('sales.payments.method_label') }}
-                                        </label>
-                                        <select
+                                        <FloatingSelect
                                             v-model="paymentMethods[invoice.id]"
-                                            class="mt-1 w-40 rounded-sm border border-stone-200 bg-white py-2 px-3 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
-                                        >
-                                            <option
-                                                v-for="method in allowedPaymentMethods"
-                                                :key="`dashboard-invoice-method-${invoice.id}-${method}`"
-                                                :value="method"
-                                            >
-                                                {{ paymentMethodLabel(method) }}
-                                            </option>
-                                        </select>
+                                            class="w-40"
+                                            :label="$t('sales.payments.method_label')"
+                                            :options="paymentMethodOptions"
+                                            dense
+                                        />
                                     </div>
                                     <div v-else class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
                                         Payment method:
@@ -1137,14 +1134,13 @@ const submitWorkRating = (workId) => {
                                                     {{ value }}%
                                                 </button>
                                             </div>
-                                            <input
+                                            <FloatingInput
                                                 v-model.number="paymentTipPercents[invoice.id]"
                                                 type="number"
                                                 min="0"
                                                 :max="maxTipPercent"
                                                 step="0.01"
-                                                class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
-                                                :placeholder="$t('client_dashboard.labels.tip_other_percent')"
+                                                :label="$t('client_dashboard.labels.tip_other_percent')"
                                             />
                                             <div class="text-[11px] text-stone-500 dark:text-neutral-400">
                                                 {{ $t('client_dashboard.labels.tip_max_percent', { value: maxTipPercent }) }}
@@ -1164,14 +1160,13 @@ const submitWorkRating = (workId) => {
                                                     {{ formatCurrency(value) }}
                                                 </button>
                                             </div>
-                                            <input
+                                            <FloatingInput
                                                 v-model.number="paymentTipFixedAmounts[invoice.id]"
                                                 type="number"
                                                 min="0"
                                                 :max="maxTipFixedAmount"
                                                 step="0.01"
-                                                class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
-                                                :placeholder="$t('client_dashboard.labels.tip_other_amount')"
+                                                :label="$t('client_dashboard.labels.tip_other_amount')"
                                             />
                                             <div class="text-[11px] text-stone-500 dark:text-neutral-400">
                                                 {{ $t('client_dashboard.labels.tip_max_amount', { amount: formatCurrency(maxTipFixedAmount) }) }}
@@ -1280,9 +1275,11 @@ const submitWorkRating = (workId) => {
                                             dense
                                             class="min-w-[140px] text-sm"
                                         />
-                                        <input v-model="ratingForms.quotes[quote.id].feedback" type="text"
-                                            class="flex-1 min-w-[160px] py-2 px-3 rounded-sm border border-stone-200 text-sm text-stone-700 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                                            :placeholder="$t('client_dashboard.labels.feedback_placeholder')" />
+                                        <FloatingInput
+                                            v-model="ratingForms.quotes[quote.id].feedback"
+                                            class="flex-1 min-w-[160px]"
+                                            :label="$t('client_dashboard.labels.feedback_placeholder')"
+                                        />
                                         <button type="submit"
                                             class="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700">
                                             {{ $t('client_dashboard.actions.submit') }}
@@ -1319,9 +1316,11 @@ const submitWorkRating = (workId) => {
                                             dense
                                             class="min-w-[140px] text-sm"
                                         />
-                                        <input v-model="ratingForms.works[work.id].feedback" type="text"
-                                            class="flex-1 min-w-[160px] py-2 px-3 rounded-sm border border-stone-200 text-sm text-stone-700 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                                            :placeholder="$t('client_dashboard.labels.feedback_placeholder')" />
+                                        <FloatingInput
+                                            v-model="ratingForms.works[work.id].feedback"
+                                            class="flex-1 min-w-[160px]"
+                                            :label="$t('client_dashboard.labels.feedback_placeholder')"
+                                        />
                                         <button type="submit"
                                             class="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700">
                                             {{ $t('client_dashboard.actions.submit') }}
@@ -1556,9 +1555,10 @@ const submitWorkRating = (workId) => {
                     </div>
 
                     <div>
-                        <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_dashboard.proof.note_optional') }}</label>
-                        <input v-model="taskProofForm.note" type="text"
-                            class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
+                        <FloatingInput
+                            v-model="taskProofForm.note"
+                            :label="$t('client_dashboard.proof.note_optional')"
+                        />
                         <div v-if="taskProofForm.errors.note" class="mt-1 text-xs text-red-600">
                             {{ taskProofForm.errors.note }}
                         </div>

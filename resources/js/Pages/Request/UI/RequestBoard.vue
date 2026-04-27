@@ -5,6 +5,11 @@ import { Link, router } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import { humanizeDate } from '@/utils/date';
 import { buildLeadScore, badgeClass } from '@/utils/leadScore';
+import {
+    prospectCustomerLabel,
+    prospectIsAnonymized,
+    prospectPrimaryLabel,
+} from '@/utils/prospectPresentation';
 
 const props = defineProps({
     requests: {
@@ -153,6 +158,10 @@ const triagePriorityClass = (priority) => {
 };
 
 const triageCardClass = (lead) => {
+    if (isArchivedLead(lead)) {
+        return 'border-amber-200 bg-amber-50/40 shadow-amber-100/40 dark:border-amber-500/30 dark:bg-amber-500/5';
+    }
+
     switch (lead?.triage_queue) {
         case 'breached':
             return 'border-rose-200 bg-rose-50/40 shadow-rose-100/40 dark:border-rose-500/30 dark:bg-rose-500/5';
@@ -228,15 +237,14 @@ const formatAbsoluteDate = (value) => {
     return date.toLocaleString();
 };
 
-const displayCustomer = (lead) =>
-    lead?.customer?.company_name ||
-    `${lead?.customer?.first_name || ''} ${lead?.customer?.last_name || ''}`.trim() ||
-    lead?.contact_name ||
-    t('requests.labels.unknown_customer');
+const displayCustomer = (lead) => prospectCustomerLabel(lead, t);
+const primaryProspectLabel = (lead) => prospectPrimaryLabel(lead, t);
 
-const isClosedStatus = (status) => ['REQ_WON', 'REQ_LOST'].includes(status);
+const isArchivedLead = (lead) => Boolean(lead?.archived_at);
+const isAnonymizedLead = (lead) => prospectIsAnonymized(lead);
+const isClosedStatus = (status) => ['REQ_WON', 'REQ_LOST', 'REQ_CONVERTED'].includes(status);
 const isOverdue = (lead) => {
-    if (!lead?.next_follow_up_at || isClosedStatus(lead?.status)) {
+    if (!lead?.next_follow_up_at || isClosedStatus(lead?.status) || isArchivedLead(lead)) {
         return false;
     }
     const dueDate = new Date(lead.next_follow_up_at);
@@ -278,13 +286,17 @@ const handleBoardChange = (status, event) => {
     if (!lead || lead.status === status) {
         return;
     }
+    if (isArchivedLead(lead)) {
+        syncBoardLeads();
+        return;
+    }
     const payload = buildStatusPayload(lead, status);
     if (!payload) {
         syncBoardLeads();
         return;
     }
     lead.status = status;
-    router.put(route('request.update', lead.id), payload, {
+    router.put(route('prospects.update', lead.id), payload, {
         preserveScroll: true,
         only: ['requests', 'stats', 'flash'],
     });
@@ -333,11 +345,11 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                             <div class="flex items-start justify-between gap-2">
                                 <div class="min-w-0">
                                     <Link
-                                        :href="route('request.show', element.id)"
+                                        :href="route('prospects.show', element.id)"
                                         class="text-sm font-semibold text-stone-800 hover:text-emerald-600 dark:text-neutral-100"
                                         @click="(event) => { if (!canOpenCard()) event.preventDefault(); }"
                                     >
-                                        {{ element.title || element.service_type || $t('requests.labels.request_number', { id: element.id }) }}
+                                        {{ primaryProspectLabel(element) }}
                                     </Link>
                                     <div class="mt-1 flex flex-wrap items-center gap-1.5">
                                         <span
@@ -386,6 +398,18 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                                     :class="triageRiskClass(element.risk_level)"
                                 >
                                     {{ triageRiskLabel(element.risk_level) }}
+                                </span>
+                                <span
+                                    v-if="isArchivedLead(element)"
+                                    class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:bg-amber-500/20 dark:text-amber-200"
+                                >
+                                    {{ $t('requests.status.archived') }}
+                                </span>
+                                <span
+                                    v-if="isAnonymizedLead(element)"
+                                    class="inline-flex items-center rounded-full bg-stone-200 px-2 py-0.5 text-[11px] font-medium text-stone-800 dark:bg-neutral-700 dark:text-neutral-100"
+                                >
+                                    {{ $t('requests.status.anonymized') }}
                                 </span>
                                 <span
                                     v-if="element.days_since_activity !== null

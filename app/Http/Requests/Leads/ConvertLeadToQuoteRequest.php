@@ -17,6 +17,7 @@ class ConvertLeadToQuoteRequest extends FormRequest
         $accountId = (int) ($this->user()?->accountOwnerId() ?? $this->user()?->id ?? 0);
 
         return [
+            'ignore_duplicates' => ['nullable', 'boolean'],
             'customer_id' => [
                 'nullable',
                 'integer',

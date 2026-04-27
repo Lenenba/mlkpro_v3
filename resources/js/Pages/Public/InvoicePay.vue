@@ -3,6 +3,9 @@ import { computed, ref, watch } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import { paymentMethodLabel as resolvePaymentMethodLabel, useTenantPaymentMethods } from '@/Composables/useTenantPaymentMethods';
+import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
+import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import { humanizeDate } from '@/utils/date';
 import { useCurrencyFormatter } from '@/utils/currency';
@@ -166,6 +169,10 @@ const paymentMethodLabel = (method) => {
         check: t('public_invoice.methods.check'),
     });
 };
+const paymentMethodOptions = computed(() => allowedPaymentMethods.value.map((method) => ({
+    value: method,
+    label: paymentMethodLabel(method),
+})));
 
 const startStripeCheckout = () => {
     if (!canSubmitPayment.value || !canUseStripe.value || stripeProcessing.value) {
@@ -311,14 +318,13 @@ const paymentChargedTotal = (payment) => {
                 </div>
 
                 <form class="space-y-3" @submit.prevent="submitPayment">
-                    <input
+                    <FloatingInput
                         v-model="form.amount"
                         type="number"
                         min="0.01"
                         step="0.01"
                         :disabled="!allowPayment"
-                        class="w-full rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 disabled:opacity-60"
-                        :placeholder="t('public_invoice.amount_placeholder')"
+                        :label="t('public_invoice.amount_placeholder')"
                     />
                     <div v-if="form.errors.amount" class="text-xs text-red-600">{{ form.errors.amount }}</div>
                     <div v-else-if="exceedsBalanceDue" class="text-xs text-red-600">
@@ -415,15 +421,14 @@ const paymentChargedTotal = (payment) => {
                                         {{ value }}%
                                     </button>
                                 </div>
-                                <input
+                                <FloatingInput
                                     v-model="tipPercent"
                                     type="number"
                                     min="0"
                                     :max="maxTipPercent"
                                     step="0.01"
                                     :disabled="!allowPayment"
-                                    class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 disabled:opacity-60"
-                                    :placeholder="t('public_invoice.tip.other_percent')"
+                                    :label="t('public_invoice.tip.other_percent')"
                                 />
                                 <div class="text-[11px] text-stone-500">{{ t('public_invoice.tip.max_percent', { value: maxTipPercent }) }}</div>
                                 <div v-if="form.errors.tip_percent" class="text-xs text-red-600">{{ form.errors.tip_percent }}</div>
@@ -443,15 +448,14 @@ const paymentChargedTotal = (payment) => {
                                         ${{ value }}
                                     </button>
                                 </div>
-                                <input
+                                <FloatingInput
                                     v-model="tipFixedAmount"
                                     type="number"
                                     min="0"
                                     :max="maxTipFixed"
                                     step="0.01"
                                     :disabled="!allowPayment"
-                                    class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 disabled:opacity-60"
-                                    :placeholder="t('public_invoice.tip.other_amount')"
+                                    :label="t('public_invoice.tip.other_amount')"
                                 />
                                 <div class="text-[11px] text-stone-500">{{ t('public_invoice.tip.max_amount', { amount: formatCurrency(maxTipFixed) }) }}</div>
                                 <div v-if="form.errors.tip_amount" class="text-xs text-red-600">{{ form.errors.tip_amount }}</div>
@@ -511,19 +515,12 @@ const paymentChargedTotal = (payment) => {
                         </summary>
                         <div class="mt-3 space-y-2">
                             <div v-if="hasMultiplePaymentMethods">
-                                <select
+                                <FloatingSelect
                                     v-model="form.method"
+                                    :label="t('public_invoice.details.method')"
+                                    :options="paymentMethodOptions"
                                     :disabled="!allowPayment"
-                                    class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 disabled:opacity-60"
-                                >
-                                    <option
-                                        v-for="method in allowedPaymentMethods"
-                                        :key="`public-invoice-method-${method}`"
-                                        :value="method"
-                                    >
-                                        {{ paymentMethodLabel(method) }}
-                                    </option>
-                                </select>
+                                />
                             </div>
                             <div v-else class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600">
                                 {{ t('public_invoice.details.method') }}
@@ -532,20 +529,16 @@ const paymentChargedTotal = (payment) => {
                                 </span>
                             </div>
                             <div v-if="form.errors.method" class="text-xs text-red-600">{{ form.errors.method }}</div>
-                            <input
+                            <FloatingInput
                                 v-model="form.reference"
-                                type="text"
                                 :disabled="!allowPayment"
-                                class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 disabled:opacity-60"
-                                :placeholder="t('public_invoice.reference_placeholder')"
+                                :label="t('public_invoice.reference_placeholder')"
                             />
-                            <textarea
+                            <FloatingTextarea
                                 v-model="form.notes"
-                                rows="2"
                                 :disabled="!allowPayment"
-                                class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 disabled:opacity-60"
-                                :placeholder="t('public_invoice.notes_placeholder')"
-                            ></textarea>
+                                :label="t('public_invoice.notes_placeholder')"
+                            />
                         </div>
                     </details>
                 </form>

@@ -82,6 +82,8 @@ return [
     'openai' => [
         'key' => env('OPENAI_API_KEY'),
         'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
+        'social_creative_model' => env('OPENAI_SOCIAL_CREATIVE_MODEL', env('OPENAI_MODEL', 'gpt-4o-mini')),
+        'social_creative_timeout' => env('OPENAI_SOCIAL_CREATIVE_TIMEOUT', 45),
         'plan_scan_model' => env('OPENAI_PLAN_SCAN_MODEL', 'gpt-4.1-mini'),
         'plan_scan_fallback_model' => env('OPENAI_PLAN_SCAN_FALLBACK_MODEL', 'gpt-4.1'),
         'plan_scan_cache_ttl' => env('OPENAI_PLAN_SCAN_CACHE_TTL', 1440),
@@ -114,6 +116,8 @@ return [
     ],
 
     'social' => [
+        'allow_test_connections' => env('SOCIAL_ALLOW_TEST_CONNECTIONS'),
+
         'facebook' => [
             'oauth' => [
                 'client_id' => env('SOCIAL_FACEBOOK_CLIENT_ID'),

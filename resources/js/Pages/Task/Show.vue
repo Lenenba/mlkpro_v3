@@ -47,6 +47,19 @@ const timingStatusClass = (status) => {
             return 'bg-stone-200 text-stone-600 dark:bg-neutral-700 dark:text-neutral-400';
     }
 };
+const priorityClass = (priority) => {
+    switch (priority) {
+        case 'urgent':
+            return 'bg-rose-100 text-rose-800 dark:bg-rose-500/10 dark:text-rose-300';
+        case 'high':
+            return 'bg-orange-100 text-orange-800 dark:bg-orange-500/10 dark:text-orange-300';
+        case 'low':
+            return 'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-300';
+        case 'normal':
+        default:
+            return 'bg-sky-100 text-sky-800 dark:bg-sky-500/10 dark:text-sky-300';
+    }
+};
 
 const statusLabel = computed(() => {
     const status = props.task?.status;
@@ -73,6 +86,13 @@ const timingStatusLabel = (status) => {
     const label = t(key);
     return label === key ? status : label;
 };
+const priorityLabel = computed(() => {
+    const priority = props.task?.priority || 'normal';
+    const key = `tasks.priority.${priority}`;
+    const label = t(key);
+
+    return label === key ? priority : label;
+});
 const completionReasonLabel = (reason) => {
     if (!reason) {
         return '';
@@ -105,6 +125,14 @@ const historyReasonLabel = (reason) => {
     const label = t(key);
     return label === key ? reason : label;
 };
+const prospectLabel = computed(() => {
+    const prospect = props.task?.request;
+    if (!prospect) {
+        return null;
+    }
+
+    return prospect.title || prospect.contact_name || `${t('tasks.labels.prospect')} #${prospect.id}`;
+});
 
 const location = computed(() => props.task?.location || null);
 const locationAddress = computed(() => {
@@ -178,6 +206,9 @@ const mapLink = computed(() =>
                             <span class="py-1 px-2 rounded-full font-medium" :class="statusClass(task.status)">
                                 {{ statusLabel }}
                             </span>
+                            <span class="py-1 px-2 rounded-full font-medium" :class="priorityClass(task.priority)">
+                                {{ priorityLabel }}
+                            </span>
                             <span v-if="timingStatus" class="py-1 px-2 rounded-full font-medium" :class="timingStatusClass(timingStatus)">
                                 {{ timingStatusLabel(timingStatus) }}
                             </span>
@@ -194,6 +225,13 @@ const mapLink = computed(() =>
                                     {{ $t('tasks.labels.unassigned') }}
                                 </span>
                             </span>
+                            <Link
+                                v-if="task.request"
+                                :href="route('prospects.show', task.request.id)"
+                                class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 font-medium text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+                            >
+                                {{ prospectLabel }}
+                            </Link>
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
@@ -230,6 +268,29 @@ const mapLink = computed(() =>
                         </div>
                         <div class="mt-1 text-stone-700 dark:text-neutral-200">
                             {{ dueLabel }}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-xs uppercase text-stone-400 dark:text-neutral-500">
+                            {{ $t('tasks.details.priority') }}
+                        </div>
+                        <div class="mt-1">
+                            <span class="inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold" :class="priorityClass(task.priority)">
+                                {{ priorityLabel }}
+                            </span>
+                        </div>
+                    </div>
+                    <div v-if="task.request">
+                        <div class="text-xs uppercase text-stone-400 dark:text-neutral-500">
+                            {{ $t('tasks.details.prospect') }}
+                        </div>
+                        <div class="mt-1">
+                            <Link
+                                :href="route('prospects.show', task.request.id)"
+                                class="text-sm font-medium text-emerald-700 hover:text-emerald-800 dark:text-emerald-300"
+                            >
+                                {{ prospectLabel }}
+                            </Link>
                         </div>
                     </div>
                     <div>

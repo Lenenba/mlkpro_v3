@@ -33,6 +33,7 @@ class SocialPost extends Model
         'updated_by_user_id',
         'source_type',
         'source_id',
+        'social_automation_rule_id',
         'content_payload',
         'media_payload',
         'link_url',
@@ -46,6 +47,7 @@ class SocialPost extends Model
 
     protected $casts = [
         'source_id' => 'integer',
+        'social_automation_rule_id' => 'integer',
         'content_payload' => 'array',
         'media_payload' => 'array',
         'link_url' => 'string',
@@ -83,6 +85,11 @@ class SocialPost extends Model
     public function updatedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'updated_by_user_id');
+    }
+
+    public function automationRule(): BelongsTo
+    {
+        return $this->belongsTo(SocialAutomationRule::class, 'social_automation_rule_id');
     }
 
     public function targets(): HasMany

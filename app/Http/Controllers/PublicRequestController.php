@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Jobs\RetryLeadQuoteEmailJob;
 use App\Models\ActivityLog;
-use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Quote;
 use App\Models\Request as LeadRequest;
@@ -18,9 +17,13 @@ use App\Services\Campaigns\CampaignLeadAttributionService;
 use App\Services\CompanyFeatureService;
 use App\Services\CRM\OutgoingEmailLogService;
 use App\Services\LeadServiceSuggestionService;
+use App\Services\Prospects\ProspectDuplicateAlertService;
+use App\Services\ProspectStatusHistoryService;
+use App\Services\ServiceRequests\ServiceRequestIntakeService;
 use App\Services\TrackingService;
 use App\Services\UsageLimitService;
 use App\Support\NotificationDispatcher;
+use App\Support\Prospects\ProspectIntakeMeta;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\URL;
@@ -191,10 +194,12 @@ class PublicRequestController extends Controller
         User $user,
         LeadServiceSuggestionService $suggestionService,
         CampaignLeadAttributionService $leadAttributionService,
+        ServiceRequestIntakeService $serviceRequestIntakeService,
     ) {
         $this->assertLeadIntakeEnabled($user);
 
         $validated = $request->validate([
+            'ignore_duplicates' => 'nullable|boolean',
             'contact_name' => 'required|string|max:255',
             'contact_email' => 'required|email|max:255',
             'contact_phone' => 'nullable|string|max:50',
@@ -220,6 +225,7 @@ class PublicRequestController extends Controller
             ])],
         ]);
 
+        $ignoreDuplicates = (bool) ($validated['ignore_duplicates'] ?? false);
         $finalAction = (string) ($validated['final_action'] ?? self::FINAL_ACTION_REQUEST_CALL);
 
         if (
@@ -235,12 +241,6 @@ class PublicRequestController extends Controller
 
         $title = $validated['service_type']
             ?? $validated['contact_name'];
-
-        $customerId = $this->resolveCustomerId(
-            $user->id,
-            $validated['contact_email'] ?? null,
-            $validated['contact_phone'] ?? null
-        );
 
         $meta = [];
         if ($finalAction === self::FINAL_ACTION_REQUEST_CALL) {
@@ -302,13 +302,62 @@ class PublicRequestController extends Controller
             $meta,
             $leadAttributionService->buildInboundAttributionMeta($request, $user)
         );
+        $meta = ProspectIntakeMeta::merge(
+            $meta,
+            source: 'web_form',
+            requestType: $finalAction === self::FINAL_ACTION_RECEIVE_QUOTE ? 'quote_request' : 'contact_request',
+            contactConsent: true,
+            marketingConsent: false
+        );
+
+        if ($this->shouldReturnJson($request) && ! $ignoreDuplicates) {
+            $duplicateAlert = app(ProspectDuplicateAlertService::class)->forAttributes(
+                accountId: $user->id,
+                attributes: [
+                    'title' => $title,
+                    'service_type' => $validated['service_type'] ?? null,
+                    'description' => $validated['description'] ?? null,
+                    'contact_name' => $validated['contact_name'],
+                    'contact_email' => $validated['contact_email'] ?? null,
+                    'contact_phone' => $validated['contact_phone'] ?? null,
+                    'street1' => $validated['street1'] ?? null,
+                    'city' => $validated['city'] ?? null,
+                    'state' => $validated['state'] ?? null,
+                    'postal_code' => $validated['postal_code'] ?? null,
+                    'country' => $validated['country'] ?? null,
+                    'meta' => $meta,
+                ],
+                context: 'public_create',
+            );
+
+            if ($duplicateAlert) {
+                $duplicateAlert['entries'] = collect($duplicateAlert['entries'] ?? [])
+                    ->map(fn (array $entry) => [
+                        'key' => $entry['key'] ?? uniqid('public-duplicate-', false),
+                        'row_number' => $entry['row_number'] ?? null,
+                        'label' => $entry['label'] ?? 'Request draft',
+                        'subtitle' => $entry['subtitle'] ?? null,
+                        'match_count' => (int) ($entry['match_count'] ?? 0),
+                        'strongest_score' => (int) ($entry['strongest_score'] ?? 0),
+                        'duplicates' => [],
+                    ])
+                    ->values()
+                    ->all();
+
+                return response()->json([
+                    'message' => 'A similar request may already exist. Review the warning before continuing.',
+                    'duplicate_alert' => $duplicateAlert,
+                ], 409);
+            }
+        }
 
         $lead = LeadRequest::create([
             'user_id' => $user->id,
-            'customer_id' => $customerId,
+            'customer_id' => null,
             'channel' => 'web_form',
             'status' => LeadRequest::STATUS_NEW,
             'status_updated_at' => now(),
+            'last_activity_at' => now(),
             'title' => $title,
             'service_type' => $validated['service_type'] ?? null,
             'description' => $validated['description'] ?? null,
@@ -326,25 +375,17 @@ class PublicRequestController extends Controller
         ActivityLog::record(null, $lead, 'created', [
             'channel' => 'web_form',
         ], 'Public lead created');
+        app(ProspectStatusHistoryService::class)->record($lead, null, [
+            'to_status' => $lead->status,
+            'metadata' => ['source' => 'public_form'],
+        ]);
 
         if ($finalAction === self::FINAL_ACTION_RECEIVE_QUOTE) {
             app(UsageLimitService::class)->enforceLimit($user, 'quotes');
 
-            $customer = $this->resolveOrCreateCustomerForLead($user, $validated, $lead);
-            if ((int) ($lead->customer_id ?? 0) !== (int) $customer->id) {
-                $lead->update([
-                    'customer_id' => $customer->id,
-                ]);
-            }
-
-            $lead->update([
-                'converted_at' => now(),
-            ]);
-
             $quote = $this->createQuoteFromLead(
                 owner: $user,
                 lead: $lead,
-                customer: $customer,
                 selectedServiceIds: $suggestedServiceIds,
                 servicesSurDevis: $meta['services_sur_devis'] ?? [],
                 intentTags: $intentTags,
@@ -363,30 +404,30 @@ class PublicRequestController extends Controller
                 'quote_id' => $quote->id,
             ], 'Quote created from lead form');
 
-            $quoteEmailQueued = NotificationDispatcher::send($customer, new SendQuoteNotification($quote), [
+            $quoteEmailQueued = NotificationDispatcher::sendToMail($lead->contact_email, new SendQuoteNotification($quote), [
                 'quote_id' => $quote->id,
                 'customer_id' => $quote->customer_id,
-                'email' => $customer->email,
+                'email' => $lead->contact_email,
                 'source' => 'lead_form',
             ]);
 
             $emailLogger = app(OutgoingEmailLogService::class);
             if ($quoteEmailQueued) {
                 $emailLogger->logSent(null, $quote, [
-                    'email' => $customer->email,
+                    'email' => $lead->contact_email,
                     'source' => 'lead_form',
                     'notification' => SendQuoteNotification::class,
                 ], 'Quote email sent');
             } else {
                 $emailLogger->logFailed(null, $quote, [
-                    'email' => $customer->email,
+                    'email' => $lead->contact_email,
                     'source' => 'lead_form',
                     'notification' => SendQuoteNotification::class,
                 ], 'Quote email failed');
                 $emailLogger->logFailed(null, $lead, [
                     'quote_id' => $quote->id,
                     'customer_id' => $quote->customer_id,
-                    'email' => $customer->email,
+                    'email' => $lead->contact_email,
                     'source' => 'lead_form',
                     'notification' => SendQuoteNotification::class,
                 ], 'Quote email failed');
@@ -434,6 +475,15 @@ class PublicRequestController extends Controller
             $quote->refresh();
             $quote->syncRequestStatusFromQuote();
             $lead->refresh();
+            $serviceRequest = $serviceRequestIntakeService->createFromLead($lead, [
+                'source' => 'public_form',
+                'channel' => 'web',
+                'request_type' => $finalAction === self::FINAL_ACTION_RECEIVE_QUOTE ? 'quote_request' : 'contact_request',
+                'meta' => [
+                    'final_action' => $finalAction,
+                    'quote_id' => $quote->id,
+                ],
+            ]);
 
             NotificationDispatcher::send($user, new LeadFormOwnerNotification(
                 event: 'quote_created_from_lead_form',
@@ -466,25 +516,81 @@ class PublicRequestController extends Controller
             ]);
             $leadAttributionService->forgetAttribution($request, $user);
 
+            $responseTone = 'success';
+            $responseMessage = 'Quote created and confirmation sent successfully.';
+
             if (! $quoteEmailQueued && ! $prospectSummaryEmailQueued) {
+                $responseTone = 'warning';
+                $responseMessage = 'Quote created, but both quote and confirmation emails failed.';
+                if ($this->shouldReturnJson($request)) {
+                    return response()->json([
+                        'message' => $responseMessage,
+                        'tone' => $responseTone,
+                        'request' => $lead->fresh(),
+                        'quote' => $quote,
+                        'service_request' => $serviceRequest,
+                    ], 201);
+                }
+
                 return redirect()->back()->with('warning', 'Quote created, but both quote and confirmation emails failed.');
             }
 
             if (! $quoteEmailQueued) {
+                $responseTone = 'warning';
+                $responseMessage = 'Quote created. Confirmation email sent, but quote email failed.';
+                if ($this->shouldReturnJson($request)) {
+                    return response()->json([
+                        'message' => $responseMessage,
+                        'tone' => $responseTone,
+                        'request' => $lead->fresh(),
+                        'quote' => $quote,
+                        'service_request' => $serviceRequest,
+                    ], 201);
+                }
+
                 return redirect()->back()->with('warning', 'Quote created. Confirmation email sent, but quote email failed.');
             }
 
             if (! $prospectSummaryEmailQueued) {
+                $responseTone = 'warning';
+                $responseMessage = 'Quote created and sent, but confirmation email failed.';
+                if ($this->shouldReturnJson($request)) {
+                    return response()->json([
+                        'message' => $responseMessage,
+                        'tone' => $responseTone,
+                        'request' => $lead->fresh(),
+                        'quote' => $quote,
+                        'service_request' => $serviceRequest,
+                    ], 201);
+                }
+
                 return redirect()->back()->with('warning', 'Quote created and sent, but confirmation email failed.');
+            }
+
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => $responseMessage,
+                    'tone' => $responseTone,
+                    'request' => $lead->fresh(),
+                    'quote' => $quote,
+                    'service_request' => $serviceRequest,
+                ], 201);
             }
 
             return redirect()->back()->with('success', 'Quote created and confirmation sent successfully.');
         }
 
+        $previousStatus = $lead->status;
         $lead->update([
             'status' => LeadRequest::STATUS_CALL_REQUESTED,
             'status_updated_at' => now(),
+            'last_activity_at' => now(),
             'next_follow_up_at' => $lead->next_follow_up_at ?? now()->addDay(),
+        ]);
+        app(ProspectStatusHistoryService::class)->record($lead, null, [
+            'from_status' => $previousStatus,
+            'to_status' => $lead->status,
+            'metadata' => ['source' => 'public_form'],
         ]);
 
         $task = $this->createLeadQualificationTask($user, $lead, $suggestedServiceIds);
@@ -542,9 +648,36 @@ class PublicRequestController extends Controller
             'campaign_id' => data_get($lead->meta, 'source_campaign_id'),
         ]);
         $leadAttributionService->forgetAttribution($request, $user);
+        $serviceRequest = $serviceRequestIntakeService->createFromLead($lead, [
+            'source' => 'public_form',
+            'channel' => 'web',
+            'request_type' => 'contact_request',
+            'meta' => [
+                'final_action' => $finalAction,
+                'task_id' => $task?->id,
+            ],
+        ]);
 
         if (! $prospectEmailQueued) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Call request recorded, but confirmation email failed.',
+                    'tone' => 'warning',
+                    'request' => $lead->fresh(),
+                    'service_request' => $serviceRequest,
+                ], 201);
+            }
+
             return redirect()->back()->with('warning', 'Call request recorded, but confirmation email failed.');
+        }
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Call request submitted successfully.',
+                'tone' => 'success',
+                'request' => $lead->fresh(),
+                'service_request' => $serviceRequest,
+            ], 201);
         }
 
         return redirect()->back()->with('success', 'Call request submitted successfully.');
@@ -562,99 +695,9 @@ class PublicRequestController extends Controller
         }
     }
 
-    private function resolveCustomerId(int $accountId, ?string $email, ?string $phone): ?int
-    {
-        $query = Customer::query()->byUser($accountId);
-
-        if ($email) {
-            $customer = (clone $query)->where('email', $email)->first();
-            if ($customer) {
-                return $customer->id;
-            }
-        }
-
-        if ($phone) {
-            $customer = (clone $query)->where('phone', $phone)->first();
-            if ($customer) {
-                return $customer->id;
-            }
-        }
-
-        return null;
-    }
-
-    private function resolveOrCreateCustomerForLead(User $owner, array $validated, LeadRequest $lead): Customer
-    {
-        $accountId = $owner->id;
-        $resolvedCustomerId = $this->resolveCustomerId(
-            $accountId,
-            $validated['contact_email'] ?? null,
-            $validated['contact_phone'] ?? null
-        );
-
-        if ($resolvedCustomerId) {
-            $customer = Customer::query()->byUser($accountId)->findOrFail($resolvedCustomerId);
-            $email = trim((string) ($validated['contact_email'] ?? ''));
-            $phone = trim((string) ($validated['contact_phone'] ?? ''));
-
-            $updates = [];
-            if ($email !== '' && empty($customer->email)) {
-                $updates['email'] = $email;
-            }
-            if ($phone !== '' && empty($customer->phone)) {
-                $updates['phone'] = $phone;
-            }
-
-            if (! empty($updates)) {
-                $customer->update($updates);
-            }
-
-            return $customer;
-        }
-
-        [$firstName, $lastName] = $this->splitContactName((string) ($validated['contact_name'] ?? ''));
-
-        $companyName = trim((string) ($validated['title'] ?? $validated['service_type'] ?? ''));
-        if ($companyName === '') {
-            $companyName = trim((string) ($validated['contact_name'] ?? ''));
-        }
-
-        return Customer::query()->create([
-            'user_id' => $accountId,
-            'company_name' => $companyName !== '' ? $companyName : null,
-            'first_name' => $firstName,
-            'last_name' => $lastName,
-            'email' => $validated['contact_email'] ?? null,
-            'phone' => $validated['contact_phone'] ?? null,
-            'description' => $lead->description,
-        ]);
-    }
-
-    private function splitContactName(string $contactName): array
-    {
-        $normalized = trim($contactName);
-        if ($normalized === '') {
-            return ['Lead', 'Prospect'];
-        }
-
-        $parts = preg_split('/\s+/', $normalized, 2) ?: [];
-        $firstName = trim((string) ($parts[0] ?? 'Lead'));
-        $lastName = trim((string) ($parts[1] ?? 'Prospect'));
-
-        if ($firstName === '') {
-            $firstName = 'Lead';
-        }
-        if ($lastName === '') {
-            $lastName = 'Prospect';
-        }
-
-        return [$firstName, $lastName];
-    }
-
     private function createQuoteFromLead(
         User $owner,
         LeadRequest $lead,
-        Customer $customer,
         array $selectedServiceIds,
         array $servicesSurDevis,
         array $intentTags,
@@ -735,7 +778,8 @@ class PublicRequestController extends Controller
 
         $quote = Quote::query()->create([
             'user_id' => $owner->id,
-            'customer_id' => $customer->id,
+            'customer_id' => null,
+            'prospect_id' => $lead->id,
             'job_title' => $jobTitle !== '' ? $jobTitle : 'New Quote',
             'status' => 'draft',
             'request_id' => $lead->id,
@@ -768,7 +812,7 @@ class PublicRequestController extends Controller
 
         $quote->syncProductLines($pivotData);
 
-        return $quote->fresh(['customer.user', 'products']);
+        return $quote->fresh(['prospect.user', 'products']);
     }
 
     private function buildLeadQuoteContext(

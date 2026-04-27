@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Prospect;
 use App\Models\Role;
 use App\Models\TeamMember;
 use App\Models\User;
@@ -27,6 +28,13 @@ class TeamMemberController extends Controller
         ['id' => 'tasks.create', 'name' => 'Create tasks'],
         ['id' => 'tasks.edit', 'name' => 'Edit tasks'],
         ['id' => 'tasks.delete', 'name' => 'Delete tasks'],
+        ['id' => Prospect::PERMISSION_VIEW, 'name' => 'View prospects'],
+        ['id' => Prospect::PERMISSION_CREATE, 'name' => 'Create prospects'],
+        ['id' => Prospect::PERMISSION_EDIT, 'name' => 'Edit prospects'],
+        ['id' => Prospect::PERMISSION_ASSIGN, 'name' => 'Assign prospects'],
+        ['id' => Prospect::PERMISSION_CONVERT, 'name' => 'Convert prospects'],
+        ['id' => Prospect::PERMISSION_MERGE, 'name' => 'Merge prospects'],
+        ['id' => Prospect::PERMISSION_EXPORT, 'name' => 'Export prospects'],
         ['id' => 'quotes.view', 'name' => 'View quotes'],
         ['id' => 'quotes.create', 'name' => 'Create quotes'],
         ['id' => 'quotes.edit', 'name' => 'Edit quotes'],
@@ -65,6 +73,13 @@ class TeamMemberController extends Controller
         'tasks.create' => 'tasks',
         'tasks.edit' => 'tasks',
         'tasks.delete' => 'tasks',
+        Prospect::PERMISSION_VIEW => 'requests',
+        Prospect::PERMISSION_CREATE => 'requests',
+        Prospect::PERMISSION_EDIT => 'requests',
+        Prospect::PERMISSION_ASSIGN => 'requests',
+        Prospect::PERMISSION_CONVERT => 'requests',
+        Prospect::PERMISSION_MERGE => 'requests',
+        Prospect::PERMISSION_EXPORT => 'requests',
         'quotes.view' => 'quotes',
         'quotes.create' => 'quotes',
         'quotes.edit' => 'quotes',
@@ -427,6 +442,13 @@ class TeamMemberController extends Controller
                 'tasks.create',
                 'tasks.edit',
                 'tasks.delete',
+                Prospect::PERMISSION_VIEW,
+                Prospect::PERMISSION_CREATE,
+                Prospect::PERMISSION_EDIT,
+                Prospect::PERMISSION_ASSIGN,
+                Prospect::PERMISSION_CONVERT,
+                Prospect::PERMISSION_MERGE,
+                Prospect::PERMISSION_EXPORT,
                 'quotes.view',
                 'quotes.create',
                 'quotes.edit',
@@ -458,6 +480,11 @@ class TeamMemberController extends Controller
             ],
             'sales_manager' => [
                 'sales.manage',
+                Prospect::PERMISSION_VIEW,
+                Prospect::PERMISSION_CREATE,
+                Prospect::PERMISSION_EDIT,
+                Prospect::PERMISSION_ASSIGN,
+                Prospect::PERMISSION_CONVERT,
                 'reservations.view',
                 'reservations.queue',
                 'reservations.manage',

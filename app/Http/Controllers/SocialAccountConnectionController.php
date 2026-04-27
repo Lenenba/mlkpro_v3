@@ -65,6 +65,29 @@ class SocialAccountConnectionController extends Controller
         ], 201);
     }
 
+    public function storeTestConnection(Request $request)
+    {
+        [$owner, , $canManageAccounts] = $this->resolveAccess($request->user());
+        if (! $canManageAccounts) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'platform' => ['required', 'string', 'max:40', Rule::in(SocialAccountConnection::allowedPlatforms())],
+            'label' => ['nullable', 'string', 'max:120', 'min:1'],
+            'display_name' => ['nullable', 'string', 'max:191'],
+            'account_handle' => ['nullable', 'string', 'max:191'],
+            'external_account_id' => ['nullable', 'string', 'max:191'],
+        ]);
+
+        $connection = $this->connectionService->createTestConnection($owner, $validated);
+
+        return response()->json([
+            'message' => 'Pulse test account connected. You can now save and schedule posts with fake publishing in local/testing.',
+            'connection' => $this->connectionService->payload($connection),
+        ], 201);
+    }
+
     public function update(Request $request, SocialAccountConnection $connection)
     {
         [$owner, , $canManageAccounts] = $this->resolveAccess($request->user());

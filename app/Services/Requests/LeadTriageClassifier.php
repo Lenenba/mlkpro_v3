@@ -69,6 +69,10 @@ class LeadTriageClassifier
 
     private function isOpen(LeadRequest $lead): bool
     {
+        if ($lead->archived_at !== null) {
+            return false;
+        }
+
         return ! in_array($lead->status, [
             LeadRequest::STATUS_CONVERTED,
             LeadRequest::STATUS_WON,

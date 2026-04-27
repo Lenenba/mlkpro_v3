@@ -29,6 +29,7 @@ use App\Models\ReservationWaitlist;
 use App\Models\Role;
 use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Models\ServiceRequest;
 use App\Models\Task;
 use App\Models\TeamMember;
 use App\Models\TeamMemberShift;
@@ -1079,6 +1080,7 @@ class DemoWorkspaceProvisioner
         $loyalty = $this->createLoyaltySetup($owner, $selectedModules, $customers);
         $requests = $this->createRequests($owner, $selectedModules, $customers, $teamMembers, (int) ($counts['quotes'] ?? 0), $catalog['services']);
         $quotes = $this->createQuotes($owner, $selectedModules, $customers, $requests, $catalog, (int) ($counts['quotes'] ?? 0));
+        $serviceRequests = $this->syncServiceRequestsFromLeads($requests);
         $works = $this->createWorks($owner, $selectedModules, $customers, $quotes, $catalog, $teamMembers, (int) ($counts['works'] ?? 0));
         $tasks = $this->createTasks($owner, $selectedModules, $customers, $works, $teamMembers, (int) ($counts['tasks'] ?? 0));
         $invoices = $this->createInvoices($owner, $selectedModules, $customers, $works, $teamMembers);
@@ -1110,6 +1112,7 @@ class DemoWorkspaceProvisioner
             'services' => $catalog['services']->count(),
             'products' => $catalog['products']->count(),
             'requests' => $requests->count(),
+            'service_requests' => $serviceRequests->count(),
             'quotes' => $quotes->count(),
             'works' => $works->count(),
             'tasks' => $tasks->count(),
@@ -1447,6 +1450,72 @@ class DemoWorkspaceProvisioner
                     'status_updated_at' => now()->subDays(3 - min($index, 3)),
                     'next_follow_up_at' => now()->addDays($index),
                 ]);
+            })
+            ->values();
+    }
+
+    /**
+     * @param  Collection<int, LeadRequest>  $requests
+     * @return Collection<int, ServiceRequest>
+     */
+    private function syncServiceRequestsFromLeads(Collection $requests): Collection
+    {
+        return $requests
+            ->map(function (LeadRequest $lead): ServiceRequest {
+                $lead->refresh();
+                [$source, $channel] = $this->serviceRequestSourceFromLeadChannel((string) ($lead->channel ?? ''));
+                $quote = $lead->quote()->first();
+                $status = $this->serviceRequestStatusFromLead($lead);
+                $requestType = $this->serviceRequestTypeFromLead($lead, $quote);
+                $submittedAt = $lead->created_at ?? now();
+                $acceptedAt = $status === ServiceRequest::STATUS_ACCEPTED
+                    ? ($quote?->accepted_at ?? $lead->converted_at ?? $lead->updated_at ?? $submittedAt)
+                    : null;
+
+                $serviceRequest = ServiceRequest::query()->updateOrCreate(
+                    [
+                        'user_id' => (int) $lead->user_id,
+                        'source_ref' => 'lead:'.$lead->id,
+                    ],
+                    [
+                        'customer_id' => $lead->customer_id,
+                        'prospect_id' => $lead->id,
+                        'source' => $source,
+                        'channel' => $channel,
+                        'status' => $status,
+                        'request_type' => $requestType,
+                        'service_type' => $lead->service_type,
+                        'title' => $lead->title,
+                        'description' => $lead->description,
+                        'requester_name' => $lead->contact_name,
+                        'requester_email' => $lead->contact_email,
+                        'requester_phone' => $lead->contact_phone,
+                        'street1' => $lead->street1,
+                        'street2' => $lead->street2,
+                        'city' => $lead->city,
+                        'state' => $lead->state,
+                        'postal_code' => $lead->postal_code,
+                        'country' => $lead->country,
+                        'source_meta' => $this->seedSourceMetaFromLead($lead),
+                        'submitted_at' => $submittedAt,
+                        'accepted_at' => $acceptedAt,
+                        'meta' => [
+                            'seed' => 'demo_workspace',
+                            'seed_origin' => 'demo_workspace_lead_sync',
+                            'legacy_request_id' => (int) $lead->id,
+                            'legacy_status' => (string) $lead->status,
+                        ],
+                    ]
+                );
+
+                $serviceRequest->timestamps = false;
+                $serviceRequest->forceFill([
+                    'created_at' => $lead->created_at ?? $submittedAt,
+                    'updated_at' => $lead->updated_at ?? ($lead->created_at ?? $submittedAt),
+                ])->saveQuietly();
+                $serviceRequest->timestamps = true;
+
+                return $serviceRequest->fresh();
             })
             ->values();
     }
@@ -2803,6 +2872,65 @@ class DemoWorkspaceProvisioner
                 ],
             ],
         };
+    }
+
+    /**
+     * @return array{0:string,1:?string}
+     */
+    private function serviceRequestSourceFromLeadChannel(string $channel): array
+    {
+        $normalized = strtolower(trim($channel));
+
+        return match ($normalized) {
+            'web', 'website', 'web_form' => ['public_form', 'web'],
+            'phone', 'call' => ['manual_admin', 'phone'],
+            'email', 'mail' => ['manual_admin', 'email'],
+            'whatsapp', 'wa' => ['manual_admin', 'whatsapp'],
+            'sms', 'text' => ['manual_admin', 'sms'],
+            'portal' => ['customer_portal', 'portal'],
+            'api', 'webhook' => ['api', 'api'],
+            'import', 'csv' => ['import', null],
+            'campaign' => ['campaign', 'email'],
+            'qr' => ['public_form', 'qr'],
+            'manual', '' => ['manual_admin', null],
+            default => ['manual_admin', $normalized !== '' ? $normalized : null],
+        };
+    }
+
+    private function serviceRequestStatusFromLead(LeadRequest $lead): string
+    {
+        return match ((string) $lead->status) {
+            LeadRequest::STATUS_CONTACTED,
+            LeadRequest::STATUS_QUALIFIED,
+            LeadRequest::STATUS_QUOTE_SENT => ServiceRequest::STATUS_IN_PROGRESS,
+            LeadRequest::STATUS_CALL_REQUESTED => ServiceRequest::STATUS_PENDING,
+            LeadRequest::STATUS_WON,
+            LeadRequest::STATUS_CONVERTED => ServiceRequest::STATUS_ACCEPTED,
+            LeadRequest::STATUS_LOST => ServiceRequest::STATUS_REFUSED,
+            default => ServiceRequest::STATUS_NEW,
+        };
+    }
+
+    private function serviceRequestTypeFromLead(LeadRequest $lead, ?Quote $quote): string
+    {
+        if ($quote !== null || $lead->status === LeadRequest::STATUS_QUOTE_SENT) {
+            return 'quote_request';
+        }
+
+        if ($lead->status === LeadRequest::STATUS_CALL_REQUESTED) {
+            return 'contact_request';
+        }
+
+        return 'service_request';
+    }
+
+    private function seedSourceMetaFromLead(LeadRequest $lead): array
+    {
+        $meta = (array) ($lead->meta ?? []);
+
+        return collect($meta)
+            ->filter(fn ($value, $key) => str_starts_with((string) $key, 'source_'))
+            ->all();
     }
 
     private function phoneForIndex(int $index): string

@@ -8,7 +8,12 @@ const props = defineProps({
     tasks: Object,
     filters: Object,
     statuses: Array,
+    priorities: Array,
     teamMembers: Array,
+    prospects: {
+        type: Array,
+        default: () => [],
+    },
     works: {
         type: Array,
         default: () => [],
@@ -36,7 +41,9 @@ const props = defineProps({
                 :tasks="tasks"
                 :filters="filters"
                 :statuses="statuses"
+                :priorities="priorities"
                 :teamMembers="teamMembers"
+                :prospects="prospects"
                 :works="works"
                 :count="count"
                 :canCreate="canCreate"

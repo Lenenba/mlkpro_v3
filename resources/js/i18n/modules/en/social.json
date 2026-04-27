@@ -9,13 +9,58 @@
         "overview": "Overview",
         "accounts": "Accounts",
         "composer": "Composer",
+        "calendar": "Calendar",
+        "brand_voice": "Voice",
+        "media": "Media",
+        "campaigns": "Campaigns",
         "templates": "Templates",
-        "history": "History"
+        "history": "History",
+        "autopilot": "Autopilot",
+        "approvals": "Approvals"
       },
       "stats": {
         "connected_accounts": "Connected accounts",
         "draft_posts": "Draft posts",
         "scheduled_posts": "Scheduled posts"
+      }
+    },
+    "visual_preview": {
+      "generic_platform": "Pulse",
+      "generic_account": "Malikia Pulse",
+      "generic_meta": "Social preview",
+      "empty_text": "The post text will appear here.",
+      "image_alt": "Pulse post preview image",
+      "link_fallback": "View details",
+      "link_destination": "Destination"
+    },
+    "quality": {
+      "title": "Quality score",
+      "subtitle": "Quick check before publication.",
+      "no_issues": "No visible blocker.",
+      "issues": {
+        "no_targets": "No target selected",
+        "empty_content": "Empty content",
+        "text_too_long": "Text too long",
+        "missing_image": "Image recommended for this network",
+        "cta_without_link": "CTA without link",
+        "similar_recent": "Close to a recent draft",
+        "brand_voice_word": "Avoided brand word detected",
+        "weak_cta": "CTA needs clarity",
+        "image_text_gap": "Image and text need alignment"
+      }
+    },
+    "ai_trace": {
+      "title": "AI trace",
+      "items": {
+        "source": "Source",
+        "rule": "Rule",
+        "campaign": "Campaign",
+        "generation_mode": "Mode",
+        "text_model": "Text model",
+        "image_model": "Image model",
+        "selected_score": "Selected score",
+        "fallback": "Fallback",
+        "generated_at": "Generated at"
       }
     },
     "index_page": {
@@ -34,7 +79,20 @@
         "composer_title": "Draft composer",
         "composer_description": "Prepare text, image, link, scheduling, and target selection from one clean Pulse screen.",
         "composer_action_manage": "Open composer",
-        "composer_action_view": "View composer"
+        "composer_action_view": "View composer",
+        "autopilot_title": "Pulse Autopilot",
+        "autopilot_description": "Configure recurring rules that generate posts from your business content.",
+        "autopilot_action_manage": "Manage rules",
+        "autopilot_action_view": "View rules",
+        "active_rules": "Active rules",
+        "calendar_title": "Editorial calendar",
+        "calendar_description": "See drafts, scheduled posts, approvals, and publications in a weekly or monthly view.",
+        "calendar_action": "Open calendar",
+        "approvals_title": "Posts awaiting approval",
+        "approvals_description": "Review pending posts, approve them now, or move them back to revision.",
+        "approvals_action_manage": "Open queue",
+        "approvals_action_view": "View queue",
+        "pending_approvals": "Pending"
       },
       "recent_drafts_title": "Recent drafts",
       "recent_drafts_description": "Pick up the last Pulse drafts without rebuilding the target selection from zero.",
@@ -66,6 +124,36 @@
       "head_title": "Malikia Pulse history",
       "page_title": "Malikia Pulse history",
       "page_description": "Review recent Pulse posts, filter the history, duplicate working content, and reopen published posts as editable reposts."
+    },
+    "calendar_page": {
+      "head_title": "Malikia Pulse calendar",
+      "page_title": "Pulse editorial calendar",
+      "page_description": "Plan the week, spot approvals, and keep publications visible without making the workspace heavy."
+    },
+    "brand_voice_page": {
+      "head_title": "Malikia Pulse voice",
+      "page_title": "Pulse brand voice",
+      "page_description": "Keep Autopilot posts aligned with your tone, CTAs, and hashtags without adding clutter."
+    },
+    "media_page": {
+      "head_title": "Malikia Pulse media",
+      "page_title": "Pulse media library",
+      "page_description": "Find imported, generated, or already used images, then reuse them in a draft."
+    },
+    "campaigns_page": {
+      "head_title": "Malikia Pulse campaigns",
+      "page_title": "Pulse campaign mode",
+      "page_description": "Turn one intention into several planned drafts, then adjust every post before approval."
+    },
+    "automations_page": {
+      "head_title": "Pulse Autopilot",
+      "page_title": "Pulse Autopilot",
+      "page_description": "Set up recurring generation rules, keep approval in the loop, and maintain a steadier social presence."
+    },
+    "approvals_page": {
+      "head_title": "Pulse approval queue",
+      "page_title": "Pulse approval queue",
+      "page_description": "Review pending posts, approve them right away, schedule them, or request a fresh version without leaving Pulse."
     },
     "composer_manager": {
       "title": "Draft composer",
@@ -103,6 +191,8 @@
       "preview_image_alt": "Pulse draft preview image",
       "preview_schedule": "Schedule",
       "preview_now": "Save as draft",
+      "preview_cta_fallback": "View details",
+      "preview_link_destination": "Destination",
       "preview": {
         "status_draft": "Draft",
         "status_scheduled": "Scheduled"
@@ -112,6 +202,7 @@
         "image_file": "Image from your computer",
         "image_url": "Image URL",
         "link_url": "Destination link",
+        "link_cta_label": "CTA label",
         "scheduled_for": "Schedule for",
         "template_name": "Template name",
         "custom_hashtag": "Add a hashtag"
@@ -191,7 +282,8 @@
         "promotion": "Promotion",
         "product": "Product",
         "service": "Service",
-        "campaign": "Campaign"
+        "campaign": "Campaign",
+        "template": "Template"
       },
       "untitled_draft": "Untitled Pulse draft",
       "untitled_template": "Untitled Pulse template",
@@ -218,7 +310,8 @@
         "text": "Post text",
         "image_file": "Image from your computer",
         "image_url": "Image URL",
-        "link_url": "Destination link"
+        "link_url": "Destination link",
+        "link_cta_label": "CTA label"
       },
       "actions": {
         "reload": "Reload",
@@ -256,6 +349,7 @@
         "published": "Published",
         "attention": "Needs attention"
       },
+      "quality_score": "Quality {score}/100",
       "fields": {
         "search": "Search text or link",
         "status": "Status",
@@ -299,6 +393,424 @@
       "untitled_post": "Untitled Pulse post",
       "empty_text": "No text was saved on this Pulse post.",
       "preview_image_alt": "Pulse history preview image",
+      "preview_cta_fallback": "View details",
+      "preview_link_destination": "Destination",
+      "empty_value": "Not available"
+    },
+    "campaign_manager": {
+      "read_only_title": "Read-only campaign mode",
+      "read_only_description": "You can review Pulse campaigns, but `social.manage` or `social.publish` is required to generate drafts.",
+      "summary": {
+        "generated": "Generated",
+        "scheduled": "Scheduled",
+        "targets": "Targets"
+      },
+      "form_title": "New campaign",
+      "form_description": "Describe the intention, choose the distribution, and Pulse creates planned drafts without automatic publishing.",
+      "targets_title": "Target accounts",
+      "targets_description": "Generated posts stay editable from the composer before approval.",
+      "generated_title": "Generated drafts",
+      "generated_description": "Open each post to adjust text, visual, date, or targets.",
+      "recent_title": "Recent campaigns",
+      "fields": {
+        "name": "Internal name",
+        "intention_type": "Intention",
+        "brief": "Campaign brief",
+        "start_date": "Start date",
+        "post_count": "Number of posts",
+        "duration_days": "Days",
+        "link_url": "Link",
+        "image_url": "Image"
+      },
+      "intentions": {
+        "product_launch": "Product launch",
+        "promotion": "Promotion",
+        "event": "Event",
+        "service_push": "Service push",
+        "client_reengagement": "Client re-engagement"
+      },
+      "actions": {
+        "generate": "Generate campaign",
+        "generating": "Generating",
+        "edit_post": "Edit"
+      },
+      "messages": {
+        "generate_success": "The Pulse campaign drafts have been generated.",
+        "generate_error": "The Pulse campaign could not be generated."
+      },
+      "selected": "Selected",
+      "batch_counts": "{count} post | {count} posts, {scheduled} scheduled",
+      "empty_targets": "Connect at least one social account before generating a campaign.",
+      "empty_recent": "No Pulse campaign has been generated yet.",
+      "untitled_post": "Untitled Pulse post",
+      "empty_value": "Not available"
+    },
+    "calendar_manager": {
+      "read_only_title": "Read-only calendar",
+      "read_only_description": "You can follow the Pulse schedule, but `social.manage` or `social.publish` is required to reschedule a draft.",
+      "summary": {
+        "draft": "Drafts",
+        "scheduled": "Scheduled",
+        "approval": "Approvals",
+        "published": "Published"
+      },
+      "fields": {
+        "scheduled_for": "New date"
+      },
+      "actions": {
+        "previous": "Previous",
+        "today": "Today",
+        "next": "Next",
+        "week": "Week",
+        "month": "Month",
+        "reload": "Reload",
+        "open_composer": "Open composer",
+        "reschedule": "Reschedule",
+        "clear_schedule": "Remove date"
+      },
+      "messages": {
+        "load_error": "The Pulse calendar could not be refreshed.",
+        "reschedule_error": "The Pulse post could not be rescheduled.",
+        "reschedule_success": "The Pulse post was rescheduled."
+      },
+      "day_detail_title": "Selected day",
+      "more_posts": "+{count} more",
+      "empty_day": "Open",
+      "empty_selection": "No Pulse post on this day.",
+      "queued_notice": "This post is already queued for publication. Open the composer and duplicate it before changing the date.",
+      "target_count": "{count} target | {count} targets",
+      "untitled_post": "Untitled Pulse post",
+      "preview_image_alt": "Pulse post image",
+      "empty_value": "Not available"
+    },
+    "brand_voice_manager": {
+      "read_only_title": "Read-only voice",
+      "read_only_description": "You can review the Pulse voice, but `social.manage` or `social.publish` is required to edit it.",
+      "fields": {
+        "tone": "Tone",
+        "language": "Language",
+        "style_notes": "Style notes",
+        "words_to_avoid": "Words to avoid",
+        "preferred_hashtags": "Favorite hashtags",
+        "preferred_ctas": "Favorite CTAs",
+        "sample_phrase": "Reference phrase"
+      },
+      "tones": {
+        "professional": "Professional",
+        "warm": "Warm",
+        "premium": "Premium",
+        "direct": "Direct",
+        "promotional": "Promotional"
+      },
+      "actions": {
+        "reload": "Reload",
+        "save": "Save",
+        "saving": "Saving"
+      },
+      "messages": {
+        "load_error": "Pulse voice could not be reloaded.",
+        "save_error": "Pulse voice could not be saved.",
+        "save_success": "Pulse voice was saved."
+      },
+      "preview_title": "Clean preview",
+      "preview_hashtags": "Hashtags",
+      "preview_ctas": "CTAs",
+      "preview_avoid": "Avoid",
+      "status": {
+        "configured": "Configured",
+        "default": "Default"
+      },
+      "empty_preview": "The default voice stays active until a guideline is added."
+    },
+    "media_picker": {
+      "title": "Gallery",
+      "select_asset": "Choose {name}",
+      "untitled_asset": "Pulse media"
+    },
+    "media_manager": {
+      "read_only_title": "Read-only library",
+      "read_only_description": "You can review and reuse media, but `social.manage` or `social.publish` is required to upload an image.",
+      "upload_title": "Upload an image",
+      "summary": {
+        "total": "Media",
+        "uploads": "Uploads",
+        "ai": "AI images",
+        "posts": "Posts"
+      },
+      "fields": {
+        "search": "Search",
+        "source": "Source",
+        "origin": "Origin",
+        "image_file": "Image to add"
+      },
+      "sources": {
+        "all": "All",
+        "upload": "Upload",
+        "ai": "AI",
+        "url": "URL"
+      },
+      "origins": {
+        "all": "All",
+        "library": "Library",
+        "post": "Post",
+        "template": "Template"
+      },
+      "actions": {
+        "apply_filters": "Filter",
+        "reset_filters": "Reset",
+        "upload": "Upload",
+        "uploading": "Uploading",
+        "use_in_composer": "Use",
+        "copy_url": "Copy"
+      },
+      "messages": {
+        "load_error": "The Pulse media library could not be refreshed.",
+        "upload_error": "The Pulse image could not be uploaded.",
+        "upload_success": "The Pulse image was uploaded.",
+        "url_copied": "Image URL copied."
+      },
+      "empty_assets": "No Pulse media matches these filters.",
+      "untitled_asset": "Pulse media",
+      "preview_alt": "Pulse media preview",
+      "empty_value": "Not available"
+    },
+    "automation_manager": {
+      "title": "Pulse Autopilot rules",
+      "description": "Combine content sources, target accounts, and cadence to generate more consistent social posts.",
+      "read_only_title": "Read-only Autopilot",
+      "read_only_description": "You can review existing rules, but you need `social.manage` or `social.publish` to change them.",
+      "summary": {
+        "total": "Rules",
+        "active": "Active",
+        "paused": "Paused",
+        "pending_approvals": "Pending approval",
+        "attention": "Needs attention",
+        "auto_paused": "Auto-paused"
+      },
+      "form": {
+        "create_title": "New rule",
+        "edit_title": "Edit rule",
+        "description": "Each rule generates a real Pulse post that still goes through the existing publishing and approval engine."
+      },
+      "fields": {
+        "name": "Rule name",
+        "description": "Internal description",
+        "is_active": "Rule active",
+        "frequency_type": "Frequency",
+        "scheduled_time": "Target time",
+        "timezone": "Time zone",
+        "language": "Language",
+        "approval_mode": "Approval mode",
+        "max_posts_per_day": "Max posts per day",
+        "min_hours_between_similar_posts": "Min hours between similar posts",
+        "text_ai_enabled": "AI text",
+        "image_ai_enabled": "AI image",
+        "generation_tone": "Tone",
+        "generation_goal": "Goal",
+        "image_mode": "Image mode",
+        "image_format": "Image format",
+        "variant_count": "Text variants",
+        "creative_prompt": "Creative prompt",
+        "image_prompt": "Image prompt",
+        "source_mode": "Source mode",
+        "source_items": "Source items"
+      },
+      "generation_title": "AI instructions",
+      "targets_title": "Target accounts",
+      "targets_description": "Select the accounts this rule may use when generating content.",
+      "sources_title": "Content sources",
+      "sources_description": "Enable one or more content families, then narrow them down to selected items when needed.",
+      "generation_tones": {
+        "professional": "Professional",
+        "warm": "Warm",
+        "premium": "Premium",
+        "direct": "Direct",
+        "promotional": "Promotional"
+      },
+      "generation_goals": {
+        "sell": "Sell",
+        "inform": "Inform",
+        "book": "Book",
+        "announce": "Announce",
+        "reengage": "Re-engage"
+      },
+      "image_modes": {
+        "never": "Never",
+        "if_missing": "If missing",
+        "always": "Always generate"
+      },
+      "image_formats": {
+        "auto": "Auto",
+        "square": "Square",
+        "portrait": "Portrait",
+        "landscape": "Landscape"
+      },
+      "source_types": {
+        "product": "Products",
+        "service": "Services",
+        "promotion": "Promotions",
+        "campaign": "Campaigns",
+        "template": "Pulse templates"
+      },
+      "source_modes": {
+        "all": "All items",
+        "selected_ids": "Selected items"
+      },
+      "source_items_count": "{count} item | {count} items",
+      "frequency_options": {
+        "hourly": "Every hour",
+        "daily": "Every day",
+        "every_two_days": "Every 2 days",
+        "weekly": "Every week",
+        "monthly": "Every month"
+      },
+      "approval_mode_options": {
+        "required": "Approval required",
+        "auto_publish": "Auto publish"
+      },
+      "connection_states": {
+        "connected": "Ready to publish",
+        "needs_attention": "Connection needs attention"
+      },
+      "statuses": {
+        "active": "Active",
+        "paused": "Paused"
+      },
+      "health_states": {
+        "healthy": "Healthy",
+        "warning": "Watch",
+        "attention": "Attention"
+      },
+      "health_reasons": {
+        "connection_attention": "Account needs review",
+        "auto_paused": "Defensive auto-pause",
+        "failure_streak": "Repeated failures",
+        "approval_backlog": "Approval backlog",
+        "schedule_overdue": "Next run is overdue",
+        "last_error": "Last error still present"
+      },
+      "run_statuses": {
+        "generated": "Generated",
+        "skipped": "Skipped",
+        "error": "Error"
+      },
+      "outcome_codes": {
+        "auto_published": "Auto publish",
+        "queued_for_approval": "Queued for approval",
+        "feature_disabled": "Feature disabled",
+        "targets_unavailable": "Targets unavailable",
+        "source_unavailable": "Source unavailable",
+        "quality_guard": "Content guardrail",
+        "validation_error": "Validation error",
+        "execution_error": "Execution error",
+        "auto_paused": "Rule auto-paused"
+      },
+      "library_title": "Existing rules",
+      "library_description": "Review active and paused rules, their next run, and the latest error signals.",
+      "recent_runs_title": "Recent activity",
+      "recent_runs_description": "Track the latest Autopilot passes so the team can quickly understand what was generated, blocked, or paused.",
+      "meta": {
+        "next_generation_at": "Next generation",
+        "last_generated_at": "Last generation",
+        "accounts": "Accounts",
+        "generated_posts_count": "Generated posts",
+        "pending_posts": "Pending approval posts",
+        "published_posts": "Published posts"
+      },
+      "actions": {
+        "reload": "Reload",
+        "new_rule": "New rule",
+        "save_rule": "Save rule",
+        "update_rule": "Update rule",
+        "clear_form": "Clear form",
+        "edit_rule": "Edit",
+        "pause_rule": "Pause",
+        "resume_rule": "Resume",
+        "delete_rule": "Delete",
+        "open_generated_post": "Open post"
+      },
+      "messages": {
+        "load_error": "The Pulse Autopilot page could not be reloaded.",
+        "save_error": "The Pulse rule could not be saved.",
+        "save_success": "The Pulse rule was saved.",
+        "update_success": "The Pulse rule was updated.",
+        "pause_success": "The Pulse rule was paused.",
+        "resume_success": "The Pulse rule was resumed.",
+        "toggle_error": "The Pulse rule status could not be changed.",
+        "delete_error": "The Pulse rule could not be deleted.",
+        "delete_success": "The Pulse rule was deleted.",
+        "confirm_delete": "Delete the Pulse rule \"{name}\"?"
+      },
+      "empty_rules": "No Pulse Autopilot rule has been configured yet.",
+      "empty_recent_runs": "No Autopilot execution has been recorded yet.",
+      "untitled_rule": "Untitled Pulse rule",
+      "empty_value": "Not available"
+    },
+    "approval_inbox": {
+      "title": "Pulse approval queue",
+      "description": "Approve pending posts quickly, move them back to revision, or request a fresh version generated by Autopilot.",
+      "read_only_title": "Read-only approval queue",
+      "read_only_description": "You can inspect pending proposals, but you need `social.approve` to act on them.",
+      "summary": {
+        "pending": "Pending",
+        "automated": "Automated",
+        "manual": "Manual",
+        "stale": "Aging approvals"
+      },
+      "fields": {
+        "search": "Search text, source, or link",
+        "rule_id": "Autopilot rule",
+        "origin": "Origin",
+        "source_type": "Source type",
+        "scheduled_for": "Schedule date"
+      },
+      "filters": {
+        "all_rules": "All rules",
+        "all_origins": "All origins",
+        "automated_only": "Automated only",
+        "manual_only": "Manual only",
+        "all_sources": "All sources"
+      },
+      "meta": {
+        "requested_by": "Requested by {actor}",
+        "source_label": "Source: {source}",
+        "generation_mode": "Generation: {mode}"
+      },
+      "actions": {
+        "reload": "Reload",
+        "reset_filters": "Reset",
+        "apply_filters": "Apply filters",
+        "open_composer": "Open composer",
+        "request_revision": "Revise",
+        "approve_now": "Approve and publish now",
+        "approve_schedule": "Approve and schedule",
+        "reject": "Reject",
+        "regenerate": "Regenerate"
+      },
+      "messages": {
+        "load_error": "The Pulse queue could not be reloaded.",
+        "revision_error": "The Pulse proposal could not be sent back to revision.",
+        "revision_success": "The Pulse proposal was sent back to revision.",
+        "approve_now_error": "The Pulse proposal could not be approved for immediate publication.",
+        "approve_now_success": "The Pulse proposal was approved and sent to publication.",
+        "approve_schedule_error": "The Pulse proposal could not be approved for scheduling.",
+        "approve_schedule_success": "The Pulse proposal was approved and scheduled.",
+        "reject_error": "The Pulse proposal could not be rejected.",
+        "reject_success": "The Pulse proposal was rejected.",
+        "regenerate_error": "Pulse Autopilot could not generate a fresh version.",
+        "regenerate_success": "Pulse Autopilot generated a fresh proposal."
+      },
+      "status_pending": "Pending approval",
+      "status_stale": "Needs fast review",
+      "targets_title": "Targets",
+      "no_targets": "No target is linked to this proposal.",
+      "untitled_post": "Untitled Pulse proposal",
+      "empty_text": "No text has been saved on this Pulse proposal.",
+      "preview_image_alt": "Pulse proposal preview image",
+      "preview_cta_fallback": "View details",
+      "preview_link_destination": "Destination",
+      "empty_title": "No Pulse proposal is waiting for approval",
+      "empty_description": "When Autopilot or a teammate submits a post for approval, it will appear here.",
       "empty_value": "Not available"
     },
     "accounts_manager": {
@@ -351,6 +863,7 @@
         "accounts_title": "Accounts",
         "accounts_empty_title": "No account on this platform yet",
         "accounts_empty_description": "Start the connection flow to add the first account.",
+        "test_connection_hint": "In local/testing, add a connected test target to validate scheduling without real OAuth.",
         "account_fallback_name": "Account {number}",
         "quick_status": "Current status",
         "connected_at": "Connected at",
@@ -375,6 +888,7 @@
         "manage_accounts": "Manage",
         "connect_platform": "Connect",
         "add_account": "Add account",
+        "add_test_account": "Add test target",
         "save_details": "Save",
         "reconnect_oauth": "Reconnect",
         "test_connection": "Test connection",
@@ -402,6 +916,8 @@
         "save_success": "The Pulse account was saved.",
         "authorize_error": "The Pulse OAuth flow could not be started.",
         "authorize_redirect": "Redirecting to the OAuth provider.",
+        "test_connection_success": "The Pulse test target is connected.",
+        "test_connection_error": "The Pulse test target could not be created.",
         "test_success": "The Pulse connection is valid.",
         "test_error": "The Pulse connection needs to be checked.",
         "disconnect_error": "The Pulse account could not be disconnected.",

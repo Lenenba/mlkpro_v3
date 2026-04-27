@@ -33,6 +33,9 @@ const searchPlaceholder = computed(() => (
 const canSales = computed(() =>
     isOwner.value || teamPermissions.value.includes('sales.manage') || teamPermissions.value.includes('sales.pos')
 );
+const canSalesManage = computed(() =>
+    isOwner.value || teamPermissions.value.includes('sales.manage')
+);
 
 const quickActions = computed(() => {
     if (isClient.value || isSeller.value) {
@@ -59,7 +62,7 @@ const quickActions = computed(() => {
                 action: () => openOverlay('#hs-quick-create-service'),
             });
         }
-        if (hasFeature('requests') && showServices.value && isOwner.value) {
+        if (hasFeature('requests') && showServices.value && canSalesManage.value) {
             actions.push({
                 id: 'request',
                 label: t('quick_create.request'),

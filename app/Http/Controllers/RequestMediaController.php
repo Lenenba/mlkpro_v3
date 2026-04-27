@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\LeadMedia;
 use App\Models\Request as LeadRequest;
+use App\Services\ProspectInteractionLogger;
 use App\Utils\FileHandler;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,9 +18,17 @@ class RequestMediaController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (!$user || $lead->user_id !== $accountId) {
+        $this->ensureProspectWorkspaceWriteAccess($user, $accountId, $request);
+
+        if ($lead->user_id !== $accountId) {
             abort(403);
         }
+
+        $this->ensureLeadIsMutable(
+            $lead,
+            'lead',
+            'Archived prospects must be restored before files can be changed.'
+        );
 
         $validated = $request->validate([
             'file' => 'required|file|mimes:pdf,jpg,jpeg,png,webp|max:10000',
@@ -47,6 +57,17 @@ class RequestMediaController extends Controller
             'meta' => $validated['meta'] ?? null,
         ]);
 
+        $lead->update([
+            'last_activity_at' => now(),
+        ]);
+
+        ActivityLog::record($user, $lead, 'file_uploaded', [
+            'media_id' => $media->id,
+            'original_name' => $media->original_name,
+            'mime' => $media->mime,
+        ], 'Prospect file uploaded');
+        app(ProspectInteractionLogger::class)->recordMediaAdded($lead, $user, $media);
+
         if ($this->shouldReturnJson($request)) {
             return response()->json([
                 'message' => 'File uploaded.',
@@ -62,9 +83,17 @@ class RequestMediaController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (!$user || $lead->user_id !== $accountId || $media->request_id !== $lead->id) {
+        $this->ensureProspectWorkspaceWriteAccess($user, $accountId, $request);
+
+        if ($lead->user_id !== $accountId || $media->request_id !== $lead->id) {
             abort(403);
         }
+
+        $this->ensureLeadIsMutable(
+            $lead,
+            'lead',
+            'Archived prospects must be restored before files can be changed.'
+        );
 
         if ($media->path && Storage::disk('public')->exists($media->path)) {
             Storage::disk('public')->delete($media->path);

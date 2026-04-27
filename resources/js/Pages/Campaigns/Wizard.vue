@@ -4107,7 +4107,7 @@ watch(isProspectingMode, async (enabled) => {
                                                 {{ humanizeValue(activeProspectDetail.converted_lead.status) }}
                                             </div>
                                             <Link
-                                                :href="route('request.show', activeProspectDetail.converted_lead.id)"
+                                                :href="route('prospects.show', activeProspectDetail.converted_lead.id)"
                                                 class="mt-2 inline-flex text-xs font-medium text-emerald-700 underline underline-offset-2 dark:text-emerald-300"
                                             >
                                                 {{ t('marketing.campaign_wizard.prospecting.detail.open_lead') }}

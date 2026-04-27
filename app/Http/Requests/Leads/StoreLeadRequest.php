@@ -12,6 +12,7 @@ class StoreLeadRequest extends LeadWriteRequest
     public function rules(): array
     {
         return [
+            'ignore_duplicates' => ['nullable', 'boolean'],
             'customer_id' => $this->customerRule(),
             'assigned_team_member_id' => $this->assigneeRule(),
             'external_customer_id' => ['nullable', 'string', 'max:100'],
@@ -35,6 +36,9 @@ class StoreLeadRequest extends LeadWriteRequest
             'next_follow_up_at' => ['nullable', 'date'],
             'meta' => ['nullable', 'array'],
             'meta.budget' => ['nullable', 'numeric'],
+            'meta.request_type' => ['nullable', 'string', 'max:100'],
+            'meta.contact_consent' => ['nullable', 'boolean'],
+            'meta.marketing_consent' => ['nullable', 'boolean'],
         ];
     }
 }

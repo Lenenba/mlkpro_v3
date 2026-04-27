@@ -63,6 +63,7 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
         'invoices.approve',
         'invoices.approve_high',
     ]);
+    const hasFinanceApprovalSources = hasFeature('expenses') || hasFeature('invoices');
 
     const unavailableCategory = (category) => ({
         ...category,
@@ -138,13 +139,21 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             tone: 'customers',
             visible: ((showServices && isOwner) || (companyType === 'products' && hasFeature('sales') && canSales)) && !isSeller,
         },
+        prospects: {
+            key: 'prospects',
+            labelKey: 'nav.prospects',
+            descriptionKey: 'workspace_hub.modules.prospects',
+            routeName: 'prospects.index',
+            tone: 'requests',
+            visible: showServices && hasFeature('requests') && canSalesManage && !isSeller,
+        },
         requests: {
             key: 'requests',
             labelKey: 'nav.requests',
             descriptionKey: 'workspace_hub.modules.requests',
-            routeName: 'request.index',
+            routeName: 'service-requests.index',
             tone: 'requests',
-            visible: showServices && hasFeature('requests') && isOwner && !isSeller,
+            visible: showServices && hasFeature('requests') && canSalesManage && !isSeller,
         },
         quotes: {
             key: 'quotes',
@@ -319,7 +328,7 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             descriptionKey: 'workspace_hub.modules.finance_approvals',
             routeName: 'finance-approvals.index',
             tone: 'finance',
-            visible: canFinanceApprovals && !isSeller,
+            visible: hasFinanceApprovalSources && canFinanceApprovals && !isSeller,
         },
         tips_owner: {
             key: 'tips_owner',
@@ -403,8 +412,8 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             titleKey: 'workspace_hub.categories.revenue.title',
             icon: 'revenue',
             tone: 'revenue',
-            match: ['customer.*', 'request.*', 'quote.*', 'crm.next-actions.*', 'crm.sales-inbox.*', 'crm.manager-dashboard.*', 'orders.*', 'sales.*'],
-            moduleKeys: ['customers', 'requests', 'quotes', 'manager_dashboard', 'sales_inbox', 'next_actions', 'orders', 'sales'],
+            match: ['customer.*', 'prospects.*', 'request.*', 'service-requests.*', 'quote.*', 'crm.next-actions.*', 'crm.sales-inbox.*', 'crm.manager-dashboard.*', 'orders.*', 'sales.*'],
+            moduleKeys: ['customers', 'requests', 'prospects', 'quotes', 'manager_dashboard', 'sales_inbox', 'next_actions', 'orders', 'sales'],
         },
         {
             key: 'growth',

@@ -8,6 +8,7 @@ import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
+import SocialMediaAssetPicker from '@/Pages/Social/Components/SocialMediaAssetPicker.vue';
 
 const props = defineProps({
     initialConnectedAccounts: {
@@ -15,6 +16,10 @@ const props = defineProps({
         default: () => ([]),
     },
     initialTemplates: {
+        type: Array,
+        default: () => ([]),
+    },
+    initialMediaAssets: {
         type: Array,
         default: () => ([]),
     },
@@ -36,6 +41,7 @@ const { t } = useI18n();
 
 const normalizeAccounts = (payload) => Array.isArray(payload) ? payload : [];
 const normalizeTemplates = (payload) => Array.isArray(payload) ? payload : [];
+const normalizeMediaAssets = (payload) => Array.isArray(payload) ? payload : [];
 const normalizeSummary = (payload) => payload && typeof payload === 'object' ? payload : {};
 const normalizeAccess = (payload) => ({
     can_view: Boolean(payload?.can_view),
@@ -51,6 +57,7 @@ const sortByUpdatedAt = (left, right) => {
 
 const connectedAccounts = ref(normalizeAccounts(props.initialConnectedAccounts));
 const templates = ref(normalizeTemplates(props.initialTemplates));
+const mediaAssets = ref(normalizeMediaAssets(props.initialMediaAssets));
 const summary = ref(normalizeSummary(props.initialSummary));
 const access = ref(normalizeAccess(props.initialAccess));
 const activeTemplateId = ref(props.selectedTemplateId);
@@ -64,6 +71,7 @@ const form = ref({
     text: '',
     image_url: '',
     link_url: '',
+    link_cta_label: '',
     target_connection_ids: [],
 });
 
@@ -93,6 +101,56 @@ const imageInputModel = computed({
         form.value.image_url = '';
     },
 });
+const normalizeLinkCandidate = (value) => {
+    const candidate = String(value || '').trim();
+    if (candidate === '') {
+        return '';
+    }
+
+    if (/^[a-z][a-z0-9+.-]*:/i.test(candidate)) {
+        return candidate;
+    }
+
+    if (candidate.startsWith('//')) {
+        return `https:${candidate}`;
+    }
+
+    if (/\s/u.test(candidate) || !candidate.includes('.')) {
+        return candidate;
+    }
+
+    return `https://${candidate}`;
+};
+const linkHostFor = (value) => {
+    const candidate = normalizeLinkCandidate(value);
+    if (candidate === '') {
+        return '';
+    }
+
+    try {
+        return new URL(candidate).host.replace(/^www\./i, '');
+    } catch {
+        return candidate;
+    }
+};
+const linkSummaryFor = (record) => {
+    const label = String(record?.link_cta_label || '').trim();
+    const host = linkHostFor(record?.link_url);
+
+    if (label !== '' && host !== '' && label.toLowerCase() !== host.toLowerCase()) {
+        return `${label} - ${host}`;
+    }
+
+    if (label !== '') {
+        return label;
+    }
+
+    if (host !== '') {
+        return host;
+    }
+
+    return '';
+};
 
 const templateLabel = (template) => {
     const name = String(template?.name || '').trim();
@@ -105,9 +163,9 @@ const templateLabel = (template) => {
         return text.length > 80 ? `${text.slice(0, 77)}...` : text;
     }
 
-    const link = String(template?.link_url || '').trim();
-    if (link !== '') {
-        return link;
+    const linkSummary = linkSummaryFor(template);
+    if (linkSummary !== '') {
+        return linkSummary;
     }
 
     return t('social.template_manager.untitled_template');
@@ -144,6 +202,7 @@ const syncFormFromTemplate = (template) => {
         text: String(template?.text || ''),
         image_url: String(template?.image_url || ''),
         link_url: String(template?.link_url || ''),
+        link_cta_label: String(template?.link_cta_label || ''),
         target_connection_ids: availableTargetConnectionIds(template?.selected_target_connection_ids),
     };
 };
@@ -156,6 +215,7 @@ const resetForm = () => {
         text: '',
         image_url: '',
         link_url: '',
+        link_cta_label: '',
         target_connection_ids: [],
     };
     error.value = '';
@@ -165,6 +225,10 @@ const resetForm = () => {
 const refreshFromPayload = (payload) => {
     if (Array.isArray(payload?.templates)) {
         templates.value = normalizeTemplates(payload.templates);
+    }
+
+    if (Array.isArray(payload?.media_assets)) {
+        mediaAssets.value = normalizeMediaAssets(payload.media_assets);
     }
 
     if (Array.isArray(payload?.connected_accounts)) {
@@ -190,6 +254,10 @@ watch(() => props.initialConnectedAccounts, (value) => {
 
 watch(() => props.initialTemplates, (value) => {
     templates.value = normalizeTemplates(value);
+}, { deep: true });
+
+watch(() => props.initialMediaAssets, (value) => {
+    mediaAssets.value = normalizeMediaAssets(value);
 }, { deep: true });
 
 watch(() => props.initialSummary, (value) => {
@@ -301,6 +369,7 @@ const templatePayload = () => {
         text: String(form.value.text || '').trim(),
         image_url: String(form.value.image_url || '').trim(),
         link_url: String(form.value.link_url || '').trim(),
+        link_cta_label: String(form.value.link_cta_label || '').trim(),
         target_connection_ids: availableTargetConnectionIds(form.value.target_connection_ids),
     };
 
@@ -315,6 +384,7 @@ const templatePayload = () => {
     appendFormDataValue(formData, 'image_url', payload.image_url);
     appendFormDataValue(formData, 'image_file', imageFile.value);
     appendFormDataValue(formData, 'link_url', payload.link_url);
+    appendFormDataValue(formData, 'link_cta_label', payload.link_cta_label);
     appendFormDataValue(formData, 'target_connection_ids', payload.target_connection_ids);
 
     return formData;
@@ -392,24 +462,13 @@ const useTemplateInComposer = (template) => {
 
 <template>
     <div class="space-y-5">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-                <h3 class="text-lg font-semibold text-stone-900 dark:text-neutral-100">
-                    {{ t('social.template_manager.title') }}
-                </h3>
-                <p class="mt-1 max-w-3xl text-sm text-stone-500 dark:text-neutral-400">
-                    {{ t('social.template_manager.description') }}
-                </p>
-            </div>
-
-            <div class="flex flex-wrap gap-2">
-                <SecondaryButton :disabled="busy || isLoading" @click="load">
-                    {{ t('social.template_manager.actions.reload') }}
-                </SecondaryButton>
-                <SecondaryButton :disabled="busy" @click="resetForm">
-                    {{ t('social.template_manager.actions.new_template') }}
-                </SecondaryButton>
-            </div>
+        <div class="flex flex-wrap justify-end gap-2">
+            <SecondaryButton :disabled="busy || isLoading" @click="load">
+                {{ t('social.template_manager.actions.reload') }}
+            </SecondaryButton>
+            <SecondaryButton :disabled="busy" @click="resetForm">
+                {{ t('social.template_manager.actions.new_template') }}
+            </SecondaryButton>
         </div>
 
         <div
@@ -455,15 +514,34 @@ const useTemplateInComposer = (template) => {
                             :label="t('social.template_manager.fields.image_file')"
                         />
 
+                        <SocialMediaAssetPicker
+                            v-model="imageInputModel"
+                            :assets="mediaAssets"
+                            :disabled="!canManage || busy"
+                        />
+
                         <FloatingInput
                             v-model="form.image_url"
+                            type="url"
                             :label="t('social.template_manager.fields.image_url')"
+                            placeholder="https://example.com/image.jpg"
+                            autocomplete="url"
                             :disabled="!canManage || busy"
                         />
 
                         <FloatingInput
                             v-model="form.link_url"
+                            type="url"
                             :label="t('social.template_manager.fields.link_url')"
+                            placeholder="https://example.com"
+                            autocomplete="url"
+                            :disabled="!canManage || busy"
+                        />
+
+                        <FloatingInput
+                            v-model="form.link_cta_label"
+                            :label="t('social.template_manager.fields.link_cta_label')"
+                            placeholder="Voir les details"
                             :disabled="!canManage || busy"
                         />
                     </div>
@@ -580,7 +658,7 @@ const useTemplateInComposer = (template) => {
                             </div>
 
                             <div class="mt-3 line-clamp-3 text-sm text-stone-600 dark:text-neutral-300">
-                                {{ template.text || template.link_url || t('social.template_manager.untitled_template') }}
+                                {{ template.text || linkSummaryFor(template) || t('social.template_manager.untitled_template') }}
                             </div>
 
                             <div v-if="template.targets?.length" class="mt-3 flex flex-wrap gap-2">

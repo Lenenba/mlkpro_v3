@@ -1,8 +1,8 @@
 {
   "requests": {
-    "title": "Demandes",
+    "title": "Prospects",
     "stats": {
-      "total": "Total demandes",
+      "total": "Total prospects",
       "new": "Nouvelles",
       "in_progress": "En cours",
       "due_soon": "A traiter bientot",
@@ -13,9 +13,17 @@
       "unassigned": "Non assignees"
     },
     "filters": {
-      "search_placeholder": "Rechercher demandes...",
+      "search_placeholder": "Rechercher prospects...",
       "all_statuses": "Tous statuts",
-      "all_customers": "Tous clients"
+      "all_customers": "Tous clients",
+      "all_assignees": "Tous assignes",
+      "all_sources": "Toutes sources",
+      "all_priorities": "Toutes priorites",
+      "request_type_placeholder": "Rechercher un type",
+      "unassigned_only": "Sans responsable",
+      "follow_up_today": "Relance aujourd'hui",
+      "follow_up_overdue": "En retard",
+      "archived_only": "Archives"
     },
     "saved_segments": {
       "title": "Segments sauvegardes",
@@ -29,7 +37,7 @@
       "select_label": "Segment sauvegarde",
       "select_placeholder": "Choisir un segment",
       "name_label": "Nom du segment",
-      "name_placeholder": "Ex. Leads Montreal a traiter",
+      "name_placeholder": "Ex. Prospects Montreal a traiter",
       "apply": "Appliquer",
       "save_current": "Sauver filtres",
       "update_selected": "Mettre a jour",
@@ -71,28 +79,43 @@
     },
     "actions": {
       "clear": "Effacer",
-      "intake": "Entrees leads",
+      "intake": "Entrees prospects",
       "import_csv": "Importer CSV",
-      "new_request": "Nouvelle demande",
+      "export_csv": "Exporter CSV",
+      "new_request": "Nouveau prospect",
       "view": "Voir",
       "back": "Retour",
       "view_quote": "Voir devis",
       "convert": "Convertir",
       "update": "Mettre a jour",
+      "change_status": "Changer statut",
+      "plan_follow_up": "Planifier relance",
+      "add_note": "Ajouter note",
+      "archive": "Archiver",
+      "restore": "Restaurer",
+      "archive_confirm": "Archiver ce prospect ?",
+      "anonymize": "Anonymiser",
+      "anonymize_confirm": "Anonymiser definitivement ce prospect archive ?",
+      "anonymize_reason_prompt": "Motif d'anonymisation (optionnel)",
       "timeline": "Historique",
       "delete": "Supprimer",
-      "delete_confirm": "Supprimer cette demande ?",
+      "delete_confirm": "Supprimer ce prospect ?",
       "cancel": "Annuler",
       "save": "Enregistrer",
-      "create_request": "Creer demande",
-      "convert_to_quote": "Convertir en devis"
+      "create_request": "Creer prospect",
+      "convert_to_quote": "Convertir en devis",
+      "convert_to_customer": "Convertir en client"
     },
     "view": {
       "table": "Table",
       "board": "Kanban"
     },
     "board": {
-      "empty": "Aucune demande ici."
+      "empty": "Aucun prospect ici."
+    },
+    "workspace": {
+      "title": "Workspace prospects",
+      "subtitle": "Qualifier, assigner, relancer et convertir les opportunites depuis un cockpit commercial unique."
     },
     "sources": {
       "manual": "Manuel",
@@ -110,6 +133,12 @@
       "other": "Autre",
       "unknown": "Inconnu"
     },
+    "priorities": {
+      "urgent": "Urgent",
+      "high": "Elevee",
+      "normal": "Normale",
+      "low": "Basse"
+    },
     "urgency": {
       "urgent": "Urgent",
       "high": "Elevee",
@@ -123,7 +152,7 @@
       "budget_amount": "Budget ${amount}"
     },
     "quality": {
-      "title": "Qualite lead",
+      "title": "Qualification prospect",
       "source": "Source",
       "source_placeholder": "Choisir la source",
       "urgency": "Urgence",
@@ -138,11 +167,93 @@
     },
     "duplicates": {
       "title": "Doublons potentiels",
+      "alert_title": "Doublons prospects detectes",
       "merge": "Fusionner",
-      "merge_confirm": "Fusionner ce doublon dans ce lead ?"
+      "merge_confirm": "Fusionner ce doublon dans ce prospect ?",
+      "review_existing": "Consultez les prospects existants ci-dessous avant de continuer.",
+      "summary": "{entries} elements signales · {matches} correspondances potentielles",
+      "match_count": "{count} correspondances",
+      "import_entry": "Ligne d'import {row}",
+      "continue_anyway": "Continuer quand meme",
+      "score": "Score {score}"
+    },
+    "feedback": {
+      "create_error": "Impossible de creer le prospect.",
+      "import_error": "Impossible d'importer les prospects.",
+      "convert_error": "Impossible de convertir le prospect.",
+      "convert_customer_error": "Impossible de convertir le prospect en client.",
+      "public_submit_error": "Impossible d'envoyer la demande."
+    },
+    "loss": {
+      "reason_placeholder": "Choisir une raison de perte",
+      "reason_required": "Choisissez une raison de perte.",
+      "reason_missing": "Raison de perte non renseignee",
+      "comment": "Commentaire de perte (optionnel)",
+      "comment_empty": "Aucun commentaire de perte.",
+      "close_open_tasks": "Fermer les taches ouvertes liees a ce prospect",
+      "close_open_tasks_short": "Fermer les taches ouvertes",
+      "reasons": {
+        "budget": "Budget bloque",
+        "timing": "Mauvais timing",
+        "no_fit": "Mauvais fit",
+        "competitor": "Perdu face a un concurrent",
+        "no_response": "Aucune reponse",
+        "duplicate": "Doublon commercial",
+        "internal_decision": "Decision interne",
+        "other": "Autre"
+      }
+    },
+    "customer_conversion": {
+      "title": "Conversion prospect vers client",
+      "subtitle": "Choisissez comment rattacher ce prospect au CRM client.",
+      "description": "Vous pouvez lier un client existant ou creer un nouveau client a partir des informations du prospect.",
+      "modes": {
+        "link_existing": "Lier un client existant",
+        "create_new": "Creer un nouveau client"
+      },
+      "mode_hints": {
+        "link_existing": "Ideal quand un doublon ou un client connu existe deja.",
+        "create_new": "Cree une fiche client complete et rattache le prospect converti."
+      },
+      "matches_title": "Doublons clients potentiels",
+      "matches_hint": "Ces fiches ressemblent deja a ce prospect. Vous pouvez les lier directement.",
+      "match_score": "Score {score}",
+      "selected_badge": "Selectionne",
+      "select_existing": "Lier ce client",
+      "search_label": "Rechercher un client existant",
+      "search_placeholder": "Nom, entreprise, email ou telephone",
+      "search_loading": "Recherche de clients en cours...",
+      "search_empty": "Aucun client trouve pour cette recherche.",
+      "search_error": "Impossible de charger les clients existants.",
+      "fields": {
+        "contact_name": "Nom du contact",
+        "company_name": "Entreprise",
+        "contact_email": "Email",
+        "contact_phone": "Telephone",
+        "street1": "Adresse",
+        "street2": "Complement d'adresse",
+        "city": "Ville",
+        "state": "Province / Etat",
+        "postal_code": "Code postal",
+        "country": "Pays"
+      },
+      "preview_title": "Resume de conversion",
+      "preview": {
+        "customer": "Client final",
+        "status_after": "Statut apres conversion",
+        "contact": "Contact",
+        "email": "Email",
+        "phone": "Telephone",
+        "address": "Adresse",
+        "quote": "Devis rattache"
+      },
+      "preview_value_missing": "A completer",
+      "no_quote": "Aucun devis rattache",
+      "submit_link": "Lier le client",
+      "submit_create": "Creer et convertir"
     },
     "intake": {
-      "title": "Entrees leads",
+      "title": "Entrees prospects",
       "public_form": "Formulaire public",
       "public_form_hint": "Partagez ce lien sur votre site, QR ou campagnes.",
       "webhook": "Webhook / API",
@@ -153,10 +264,10 @@
       "example": "Exemple de requete"
     },
     "import": {
-      "title": "Importer des leads",
+      "title": "Importer des prospects",
       "csv_file": "Fichier CSV",
       "mapping_title": "Associer les colonnes",
-      "mapping_hint": "Associez les entetes CSV aux champs lead.",
+      "mapping_hint": "Associez les entetes CSV aux champs prospect.",
       "missing_headers": "Chargez un CSV avec une ligne d'entete pour mapper les colonnes.",
       "skip": "Ignorer",
       "submit": "Importer",
@@ -201,7 +312,7 @@
         "website": "Site web / vitrine",
         "booking": "Reservation / planning",
         "payment": "Paiement",
-        "crm": "CRM / suivi leads",
+        "crm": "CRM / suivi prospects",
         "integration": "Integrations / API"
       },
       "suggestions_title": "Services suggeres",
@@ -303,26 +414,73 @@
     },
     "analytics": {
       "title": "Indicateurs (derniers {days} jours)",
-      "subtitle": "Indicateurs glissants pour suivre la performance des leads.",
+      "subtitle": "Indicateurs glissants pour suivre la performance des prospects.",
+      "dashboard": {
+        "title": "Dashboard prospects",
+        "subtitle": "Pilotez le volume, les responsables, la pression de relance et la conversion client depuis un seul cockpit.",
+        "window": "Fenetre glissante de conversion sur {days} jours",
+        "unassigned": "Sans responsable",
+        "tabs": {
+          "overview": "Vue d'ensemble",
+          "overview_note": "KPIs et signaux de conversion",
+          "pipeline": "Pipeline",
+          "pipeline_note": "Repartition par statut et source",
+          "assignees": "Responsables",
+          "assignees_note": "Charge et suivis par owner"
+        },
+        "sections": {
+          "by_status": "Par statut",
+          "by_source": "Par source",
+          "by_assignee": "Par responsable",
+          "by_assignee_note": "Trie par relances en retard puis par volume gere."
+        },
+        "labels": {
+          "due_today": "A relancer aujourd'hui",
+          "overdue": "En retard",
+          "won": "Gagnes",
+          "lost": "Perdus",
+          "converted": "Convertis"
+        },
+        "cards": {
+          "total": "Total prospects",
+          "total_note": "Pipeline actif non archive.",
+          "new_this_week": "Nouveaux cette semaine",
+          "new_this_week_note": "Crees depuis le debut de la semaine en cours.",
+          "new_this_month": "Nouveaux ce mois-ci",
+          "new_this_month_note": "Crees depuis le debut du mois en cours.",
+          "due_today": "Relance aujourd'hui",
+          "due_today_note": "Prospects ouverts avec relance prevue aujourd'hui.",
+          "overdue": "En retard",
+          "overdue_note": "Prospects ouverts avec une relance deja depassee.",
+          "won": "Gagnes",
+          "won_note": "Prospects clotures comme gagnes.",
+          "lost": "Perdus",
+          "lost_note": "Prospects clotures comme perdus.",
+          "conversion_rate": "Conversion {days}j",
+          "conversion_rate_note": "{converted} convertis / {created} crees",
+          "avg_conversion_days": "Delai moyen de conversion",
+          "avg_conversion_days_note": "Base sur les prospects convertis en clients sur la fenetre en cours."
+        }
+      },
       "first_response": "Délai moyen 1re réponse",
-      "first_response_note": "Basé sur la première action après création du lead.",
+      "first_response_note": "Base sur la premiere action apres creation du prospect.",
       "time_to_intake": "Délai moyen prise en charge",
-      "time_to_intake_note": "Mesure le temps avant qu'un lead soit réellement pris en charge.",
+      "time_to_intake_note": "Mesure le temps avant qu'un prospect soit reellement pris en charge.",
       "conversion_rate": "Taux de conversion",
-      "conversion_note": "Leads gagnés vs total créés.",
-      "total_leads": "Nouveaux leads",
-      "total_note": "Créés sur les {days} derniers jours.",
-      "stale_count": "Leads stale",
-      "stale_note": "Leads ouverts sans activité depuis au moins 7 jours.",
-      "breached_count": "Leads breached",
-      "breached_note": "Leads ouverts dont la relance ou le SLA est déjà dépassé.",
+      "conversion_note": "Prospects gagnes vs total crees.",
+      "total_leads": "Nouveaux prospects",
+      "total_note": "Crees sur les {days} derniers jours.",
+      "stale_count": "Prospects sans action",
+      "stale_note": "Prospects ouverts sans activite depuis au moins 7 jours.",
+      "breached_count": "Prospects en retard",
+      "breached_note": "Prospects ouverts dont la relance ou le SLA est deja depasse.",
       "form": {
-        "title": "Performance du formulaire",
+        "title": "Performance du formulaire prospects",
         "window": "Derniers {days} jours",
         "views": "Vues formulaire",
         "unique": "{count} visiteurs uniques",
         "submits": "Soumissions",
-        "submits_note": "Leads créés depuis le formulaire public.",
+        "submits_note": "Prospects crees depuis le formulaire public.",
         "conversion": "Conversion formulaire",
         "conversion_note": "Soumissions ÷ vues.",
         "last_view": "Dernière vue",
@@ -338,8 +496,8 @@
       },
       "by_source": "Conversion par source",
       "no_data": "Aucune donnée pour l'instant.",
-      "risk_title": "Leads à risque",
-      "no_risk": "Aucun lead à risque pour l'instant.",
+      "risk_title": "Prospects a risque",
+      "no_risk": "Aucun prospect a risque pour l'instant.",
       "last_activity": "Dernière activité",
       "follow_up": "Relance",
       "risk_7": "7+ jours sans action",
@@ -358,24 +516,54 @@
     },
     "table": {
       "request": "Demande",
+      "prospect": "Prospect",
+      "company": "Entreprise",
+      "source": "Source",
+      "type": "Type",
       "customer": "Client",
       "status": "Statut",
       "assignee": "Assigne",
       "follow_up": "Relance",
+      "priority": "Priorite",
+      "last_activity": "Derniere activite",
       "created": "Cree",
       "actions": "Actions"
     },
     "labels": {
-      "request_number": "Demande #{id}",
-      "request": "Demande",
+      "request_number": "Prospect #{id}",
+      "anonymized_request_number": "Prospect anonymise #{id}",
+      "request": "Prospect",
+      "anonymized_customer": "Client anonymise",
       "unknown_customer": "Client inconnu",
+      "anonymized_company": "Entreprise anonymisee",
+      "unknown_company": "Entreprise inconnue",
       "unknown_status": "Statut inconnu",
+      "anonymized_contact": "Coordonnees anonymisees",
       "unassigned": "Non assigne",
-      "no_follow_up": "Aucune relance"
+      "no_follow_up": "Aucune relance",
+      "no_type": "Aucun type",
+      "consent_yes": "Oui",
+      "consent_no": "Non",
+      "consent_unknown": "Inconnu"
     },
     "show": {
-      "details": "Details lead",
+      "details": "Fiche prospect",
+      "tabs": {
+        "left": {
+          "overview": "Vue d'ensemble",
+          "collaboration": "Collaboration",
+          "sales": "Activite commerciale"
+        },
+        "right": {
+          "summary": "Resume",
+          "qualification": "Qualification",
+          "history": "Historique"
+        }
+      },
+      "current_status": "Statut actuel",
       "channel_fallback": "Canal inconnu",
+      "company": "Entreprise",
+      "request_type": "Type de prospect",
       "service": "Service",
       "service_fallback": "Non renseigne",
       "urgency": "Urgence",
@@ -391,9 +579,23 @@
       "email_action": "Email",
       "call": "Appeler",
       "whatsapp": "WhatsApp",
+      "contact_consent": "Consentement de contact",
+      "marketing_consent": "Consentement marketing",
       "customer": "Client",
+      "lost_reason": "Raison de perte",
+      "lost_comment": "Commentaire de perte",
       "status_updated": "Statut mis a jour",
-      "source": "Source"
+      "source": "Source",
+      "archived_banner": "Prospect archive",
+      "archived_read_only": "Cette fiche est consultable, mais les actions de modification restent verrouillees tant que le prospect n'est pas restaure.",
+      "archived_at": "Archive le",
+      "archived_by": "Archive par",
+      "archive_reason": "Motif d'archivage",
+      "anonymized_read_only": "Ce prospect a ete anonymise de maniere irreversible. Seules les metadonnees d'audit non sensibles restent visibles.",
+      "anonymized_at": "Anonymise le",
+      "anonymized_reason": "Motif d'anonymisation",
+      "anonymized_address": "Adresse anonymisee",
+      "anonymized_description": "La description a ete anonymisee."
     },
     "origin": {
       "title": "Origine campagne",
@@ -460,15 +662,15 @@
     },
     "sales_activity": {
       "title": "Timeline CRM",
-      "subtitle": "Suivez appels, notes, emails, prochaines actions et rendez-vous depuis cette demande.",
+      "subtitle": "Suivez appels, notes, emails, prochaines actions et rendez-vous depuis ce prospect.",
       "quick_actions_title": "Actions rapides",
-      "quick_actions_hint": "Journalisez les touchpoints les plus frequents sans quitter la fiche.",
+      "quick_actions_hint": "Journalisez les touchpoints les plus frequents sans quitter la fiche prospect.",
       "open_dialog": "Journaliser",
       "current_next_action": "Prochaine action active",
       "due_prefix": "Echeance",
       "empty": "Aucune activite CRM pour le moment.",
       "dialog_title": "Journaliser une activite commerciale",
-      "dialog_hint": "Ajoutez une note, un resultat d'appel, une prochaine action ou un rendez-vous.",
+      "dialog_hint": "Ajoutez une note, un resultat d'appel, une prochaine action ou un rendez-vous depuis la timeline prospect.",
       "actor_fallback": "Systeme",
       "cancel": "Annuler",
       "save": "Enregistrer l'activite",
@@ -543,16 +745,18 @@
       "quote_sent": "Devis envoye",
       "won": "Gagnee",
       "lost": "Perdue",
-      "converted": "Convertie"
+      "converted": "Convertie",
+      "archived": "Archivee",
+      "anonymized": "Anonymise"
     },
-    "empty": "Aucune demande trouvee.",
+    "empty": "Aucun prospect trouve.",
     "pagination": {
       "previous": "Precedent",
       "next": "Suivant",
       "showing": "Affichage {from}-{to}"
     },
     "convert": {
-      "title": "Convertir la demande en devis",
+      "title": "Convertir le prospect en devis",
       "default_job_title": "Nouveau devis",
       "create_customer": "Creer un nouveau client",
       "customer": "Client",
@@ -568,11 +772,37 @@
       "notes_optional": "Notes (optionnel)"
     },
     "update": {
-      "title": "Mettre a jour la demande",
+      "title": "Mettre a jour le prospect",
       "status": "Statut",
       "assignee": "Assigne",
       "follow_up": "Prochaine relance",
-      "lost_reason": "Raison de perte"
+      "lost_reason": "Raison de perte",
+      "lost_comment": "Commentaire de perte",
+      "status_comment": "Note de statut (optionnel)"
+    },
+    "interactions": {
+      "title": "Timeline prospect",
+      "subtitle": "Centralisez notes, documents, appels, emails, rendez-vous et relances planifiees au meme endroit.",
+      "empty": "Aucune interaction prospect enregistree pour l'instant.",
+      "actor_fallback": "Systeme",
+      "attachment_prefix": "Piece jointe :",
+      "next_action_prefix": "Prochaine action",
+      "types": {
+        "note": "Note",
+        "document": "Document",
+        "call": "Appel",
+        "call_outcome": "Resultat d'appel",
+        "next_action": "Prochaine action",
+        "meeting": "Rendez-vous",
+        "email": "Email",
+        "system": "Systeme"
+      }
+    },
+    "status_history": {
+      "title": "Historique des statuts",
+      "empty": "Aucun changement de statut enregistre pour l'instant.",
+      "initial_state": "Statut initial",
+      "system": "Systeme"
     },
     "quick_actions": {
       "follow_up_tomorrow": "Demain",
@@ -582,12 +812,22 @@
     "quick_form": {
       "new_customer": "Nouveau client",
       "existing_customer": "Client existant",
+      "existing_prospect": "Prospect existant",
+      "new_prospect": "Nouveau prospect",
+      "no_relation": "Sans rattachement",
       "create_customer": "Creer client",
       "customer_optional": "Client (optionnel)",
+      "prospect_optional": "Prospect (optionnel)",
       "loading_customers": "Chargement des clients...",
+      "loading_prospects": "Chargement des prospects...",
       "search_placeholder": "Rechercher un client",
+      "search_prospect_placeholder": "Rechercher un prospect",
       "no_customer": "Aucun client",
       "continue_without": "Continuer sans client",
+      "continue_without_prospect": "Continuer sans prospect",
+      "new_customer_hint": "Creez d'abord le client, puis finalisez la demande avec ce client deja rattache.",
+      "new_prospect_hint": "Un nouveau prospect sera cree automatiquement a partir des informations de contact de cette demande.",
+      "unlinked_hint": "Cette demande sera creee sans client ni prospect rattache pour l'instant.",
       "title": "Titre",
       "service_type": "Type de service",
       "source": "Source",
@@ -601,6 +841,15 @@
       "contact_email_optional": "Email contact (optionnel)",
       "contact_phone_optional": "Telephone contact (optionnel)",
       "description_optional": "Description (optionnel)"
+    },
+    "service_request_status": {
+      "new": "Nouvelle",
+      "in_progress": "En cours",
+      "pending": "En attente",
+      "accepted": "Acceptee",
+      "refused": "Refusee",
+      "completed": "Completee",
+      "cancelled": "Annulee"
     }
   }
 }

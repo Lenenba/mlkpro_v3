@@ -154,7 +154,7 @@ class LeadFormOwnerNotification extends Notification implements ShouldQueue
 
     private function actionUrl(): string
     {
-        return route('request.show', ['lead' => $this->lead->id]);
+        return route('prospects.show', ['lead' => $this->lead->id]);
     }
 
     private function leadLabel(): string

@@ -77,6 +77,7 @@ class TaskController extends Controller
             'assignee.user:id,name',
             'materials.product:id,name,unit,price',
             'media.user:id,name',
+            'request:id,title,contact_name,status',
             'work.quote.property',
             'customer.properties',
             'customer.defaultProperty',
@@ -164,6 +165,7 @@ class TaskController extends Controller
         return $this->inertiaOrJson('Task/Show', [
             'task' => $task,
             'statuses' => Task::STATUSES,
+            'priorities' => Task::PRIORITIES,
             'teamMembers' => $teamMembers,
             'materialProducts' => $materialProducts,
             'works' => $works,
@@ -204,6 +206,14 @@ class TaskController extends Controller
             $lead = LeadRequest::query()
                 ->where('user_id', $accountId)
                 ->find($requestId);
+
+            if ($lead) {
+                $this->ensureLeadIsMutable(
+                    $lead,
+                    'request_id',
+                    'Archived prospects must be restored before they can receive new tasks.'
+                );
+            }
         }
 
         $status = $validated['status'] ?? Task::STATUS_TODO;
@@ -284,6 +294,7 @@ class TaskController extends Controller
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
             'status' => $status,
+            'priority' => $validated['priority'] ?? Task::PRIORITY_NORMAL,
             'due_date' => $validated['due_date'] ?? null,
             'start_time' => $startTime,
             'end_time' => $endTime,
@@ -322,7 +333,7 @@ class TaskController extends Controller
         if ($this->shouldReturnJson($request)) {
             return response()->json([
                 'message' => 'Task created.',
-                'task' => $task->fresh(['assignee.user', 'materials.product']),
+                'task' => $task->fresh(['assignee.user', 'materials.product', 'request']),
             ], 201);
         }
 
@@ -343,10 +354,33 @@ class TaskController extends Controller
             return $this->lockedTaskResponse($request, $task);
         }
 
+        $task->loadMissing('request');
+        if ($task->request) {
+            $this->ensureLeadIsMutable(
+                $task->request,
+                'task',
+                'Tasks linked to archived prospects are read-only until the prospect is restored.'
+            );
+        }
+
         $isManager = $request->isManager();
         $validated = $request->validated();
         if ($isManager && ! $hasTeamMembersFeature) {
             $validated['assigned_team_member_id'] = null;
+        }
+
+        if ($isManager && array_key_exists('request_id', $validated) && $validated['request_id']) {
+            $nextLead = LeadRequest::query()
+                ->where('user_id', $accountId)
+                ->find($validated['request_id']);
+
+            if ($nextLead) {
+                $this->ensureLeadIsMutable(
+                    $nextLead,
+                    'request_id',
+                    'Archived prospects must be restored before they can receive tasks.'
+                );
+            }
         }
 
         $updates = [
@@ -359,6 +393,7 @@ class TaskController extends Controller
             $updates['title'] = $validated['title'];
             $updates['description'] = $validated['description'] ?? null;
             $updates['due_date'] = $validated['due_date'] ?? null;
+            $updates['priority'] = $validated['priority'] ?? ($task->priority ?? Task::PRIORITY_NORMAL);
             $updates['assigned_team_member_id'] = $validated['assigned_team_member_id'] ?? null;
             $updates['product_id'] = $validated['product_id'] ?? null;
             $updates['request_id'] = $validated['request_id'] ?? null;
@@ -542,7 +577,7 @@ class TaskController extends Controller
         if ($this->shouldReturnJson($request)) {
             return response()->json([
                 'message' => 'Task updated.',
-                'task' => $task->fresh(['assignee.user', 'materials.product']),
+                'task' => $task->fresh(['assignee.user', 'materials.product', 'request']),
             ]);
         }
 
@@ -561,6 +596,15 @@ class TaskController extends Controller
 
         if ($task->account_id !== $accountId) {
             abort(404);
+        }
+
+        $task->loadMissing('request');
+        if ($task->request) {
+            $this->ensureLeadIsMutable(
+                $task->request,
+                'task',
+                'Tasks linked to archived prospects are read-only until the prospect is restored.'
+            );
         }
 
         $validated = $request->validated();
@@ -584,6 +628,15 @@ class TaskController extends Controller
     public function destroy(Task $task)
     {
         $this->authorize('delete', $task);
+
+        $task->loadMissing('request');
+        if ($task->request) {
+            $this->ensureLeadIsMutable(
+                $task->request,
+                'task',
+                'Tasks linked to archived prospects are read-only until the prospect is restored.'
+            );
+        }
 
         if ($task->isCancelled()) {
             return $this->validationErrorResponse(

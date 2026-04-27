@@ -22,6 +22,9 @@ const teamRole = computed(() => page.props.auth?.account?.team?.role || null);
 const canSales = computed(() =>
     isOwner.value || teamPermissions.value.includes('sales.manage') || teamPermissions.value.includes('sales.pos')
 );
+const canSalesManage = computed(() =>
+    isOwner.value || teamPermissions.value.includes('sales.manage')
+);
 const isSeller = computed(() => teamRole.value === 'seller');
 
 const quickPalette = {
@@ -62,7 +65,7 @@ const menuItems = computed(() => {
                 tone: 'service',
             });
         }
-        if (hasFeature('requests') && showServices.value && isOwner.value) {
+        if (hasFeature('requests') && showServices.value && canSalesManage.value) {
             items.push({
                 label: t('quick_create.request'),
                 overlay: '#hs-quick-create-request',

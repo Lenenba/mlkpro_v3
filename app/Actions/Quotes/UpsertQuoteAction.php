@@ -28,9 +28,26 @@ class UpsertQuoteAction
             ? Product::ITEM_TYPE_PRODUCT
             : Product::ITEM_TYPE_SERVICE;
 
-        $customer = Customer::byUser($accountId)->findOrFail((int) $validated['customer_id']);
+        $customerId = array_key_exists('customer_id', $validated) && $validated['customer_id'] !== null && $validated['customer_id'] !== ''
+            ? (int) $validated['customer_id']
+            : null;
+        $customer = $customerId
+            ? Customer::byUser($accountId)->findOrFail($customerId)
+            : null;
         $propertyId = $validated['property_id'] ?? null;
-        if ($propertyId && ! $customer->properties()->whereKey($propertyId)->exists()) {
+        if (! $quote && ! $customer) {
+            throw ValidationException::withMessages([
+                'customer_id' => 'Customer is required.',
+            ]);
+        }
+
+        if ($propertyId && ! $customer) {
+            throw ValidationException::withMessages([
+                'property_id' => 'A customer is required before selecting a property.',
+            ]);
+        }
+
+        if ($propertyId && $customer && ! $customer->properties()->whereKey($propertyId)->exists()) {
             throw ValidationException::withMessages([
                 'property_id' => 'Invalid property for this customer.',
             ]);
@@ -55,7 +72,7 @@ class UpsertQuoteAction
 
             if ($quote) {
                 $quote->update([
-                    'customer_id' => $customer->id,
+                    'customer_id' => $customer?->id,
                     'job_title' => $validated['job_title'],
                     'property_id' => $propertyId,
                     'subtotal' => $subtotal,

@@ -60,6 +60,10 @@ const providerIconClass = (provider) => {
         return 'h-[22px] w-[22px]';
     }
 
+    if (key === 'linkedin') {
+        return 'h-[22px] w-[22px]';
+    }
+
     return 'h-5 w-5';
 };
 </script>
@@ -126,6 +130,20 @@ const providerIconClass = (provider) => {
                     <path
                         fill="#fff"
                         d="M13.92 19v-5.02h1.7l.27-2.17h-1.97v-1.39c0-.63.18-1.06 1.08-1.06h.99V7.43c-.17-.02-.77-.07-1.47-.07-1.45 0-2.45.89-2.45 2.52v1.93h-1.64v2.17h1.64V19h1.85Z"
+                    />
+                </svg>
+
+                <svg
+                    v-else-if="provider.key === 'linkedin'"
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    :class="providerIconClass(provider)"
+                >
+                    <rect x="2" y="2" width="20" height="20" rx="5" fill="#0A66C2" />
+                    <path fill="#fff" d="M8.04 10.08h2.13V17H8.04v-6.92Zm1.07-3.18a1.24 1.24 0 1 1 0 2.48 1.24 1.24 0 0 1 0-2.48Z" />
+                    <path
+                        fill="#fff"
+                        d="M11.51 10.08h2.04v.95h.03c.28-.54.98-1.12 2.03-1.12 2.17 0 2.57 1.43 2.57 3.29V17h-2.13v-3.36c0-.8-.01-1.83-1.12-1.83s-1.29.87-1.29 1.77V17h-2.13v-6.92Z"
                     />
                 </svg>
 

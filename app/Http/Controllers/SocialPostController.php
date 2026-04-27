@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\SocialAutomationRule;
 use App\Models\SocialPost;
 use App\Models\SocialPostTemplate;
 use App\Models\User;
 use App\Services\Social\SocialAccountConnectionService;
 use App\Services\Social\SocialApprovalService;
+use App\Services\Social\SocialBrandVoiceService;
 use App\Services\Social\SocialMediaAssetService;
 use App\Services\Social\SocialPostService;
 use App\Services\Social\SocialPrefillService;
@@ -25,6 +27,7 @@ class SocialPostController extends Controller
         private readonly SocialPrefillService $prefillService,
         private readonly SocialSuggestionService $suggestionService,
         private readonly SocialMediaAssetService $mediaAssetService,
+        private readonly SocialBrandVoiceService $brandVoiceService,
     ) {}
 
     public function index(Request $request)
@@ -40,6 +43,16 @@ class SocialPostController extends Controller
         return $this->inertiaOrJson('Social/Index', [
             'connection_summary' => $connectionSummary,
             'post_summary' => $postSummary,
+            'automation_summary' => [
+                'total' => SocialAutomationRule::query()->byUser($access['owner']->id)->count(),
+                'active' => SocialAutomationRule::query()->byUser($access['owner']->id)->active()->count(),
+            ],
+            'approval_summary' => [
+                'pending' => SocialPost::query()
+                    ->byUser($access['owner']->id)
+                    ->where('status', SocialPost::STATUS_PENDING_APPROVAL)
+                    ->count(),
+            ],
             'workspace_stats' => $this->workspaceStats($connectionSummary, $postSummary),
             'recent_drafts' => $this->postService->draftPayloads($access['owner'], 3),
             'access' => $this->accessPayload($access),
@@ -55,11 +68,14 @@ class SocialPostController extends Controller
 
         $connectionSummary = $this->connectionService->summaryForOwner($access['owner']);
         $postSummary = $this->postService->summaryForOwner($access['owner']);
+        $initialMediaUrl = $this->normalizeUrlInputValue($request->query('image_url'));
+        $initialMediaUrl = $this->isValidImageReference($initialMediaUrl) ? $initialMediaUrl : null;
 
         return $this->inertiaOrJson('Social/Composer', [
             'connected_accounts' => $this->postService->connectedAccountOptions($access['owner']),
             'drafts' => $this->postService->draftPayloads($access['owner']),
             'templates' => $this->templateService->templatePayloads($access['owner']),
+            'media_assets' => $this->mediaAssetPayloads($access['owner']),
             'prefill' => $this->prefillService->resolveComposerPrefill($access['owner'], $request->only([
                 'source_type',
                 'source_id',
@@ -68,6 +84,8 @@ class SocialPostController extends Controller
             'workspace_stats' => $this->workspaceStats($connectionSummary, $postSummary),
             'selected_draft_id' => $request->integer('draft') ?: null,
             'selected_template_id' => $request->integer('template') ?: null,
+            'initial_media_url' => $initialMediaUrl,
+            'brand_voice' => $this->brandVoiceService->resolve($access['owner']),
             'access' => $this->accessPayload($access),
         ]);
     }
@@ -85,9 +103,28 @@ class SocialPostController extends Controller
         return $this->inertiaOrJson('Social/Templates', [
             'connected_accounts' => $this->postService->connectedAccountOptions($access['owner']),
             'templates' => $this->templateService->templatePayloads($access['owner']),
+            'media_assets' => $this->mediaAssetPayloads($access['owner']),
             'summary' => $postSummary,
             'workspace_stats' => $this->workspaceStats($connectionSummary, $postSummary),
             'selected_template_id' => $request->integer('template') ?: null,
+            'access' => $this->accessPayload($access),
+        ]);
+    }
+
+    public function calendar(Request $request)
+    {
+        $access = $this->resolveAccess($request->user());
+        if (! $access['can_view']) {
+            abort(403);
+        }
+
+        $connectionSummary = $this->connectionService->summaryForOwner($access['owner']);
+        $postSummary = $this->postService->summaryForOwner($access['owner']);
+
+        return $this->inertiaOrJson('Social/Calendar', [
+            'calendar_posts' => $this->postService->calendarPayloads($access['owner']),
+            'summary' => $postSummary,
+            'workspace_stats' => $this->workspaceStats($connectionSummary, $postSummary),
             'access' => $this->accessPayload($access),
         ]);
     }
@@ -138,11 +175,14 @@ class SocialPostController extends Controller
             abort(403);
         }
 
+        $this->normalizeUrlInputs($request, ['image_url', 'link_url']);
+
         $validated = $request->validate([
             'text' => ['nullable', 'string', 'max:4000'],
-            'image_url' => ['nullable', 'url', 'max:2048'],
+            'image_url' => $this->imageUrlRules(),
             'image_file' => ['nullable', 'file', 'image', 'max:10240'],
             'link_url' => ['nullable', 'url', 'max:2048'],
+            'link_cta_label' => ['nullable', 'string', 'max:80'],
             'scheduled_for' => ['nullable', 'date'],
             'source_type' => ['nullable', 'string', Rule::in(SocialPrefillService::allowedSourceTypes())],
             'source_id' => ['nullable', 'integer'],
@@ -157,6 +197,7 @@ class SocialPostController extends Controller
             'message' => 'Pulse draft saved.',
             'draft' => $this->postService->payload($draft),
             'drafts' => $this->postService->draftPayloads($access['owner']),
+            'media_assets' => $this->mediaAssetPayloads($access['owner']),
             'summary' => $this->postService->summaryForOwner($access['owner']),
         ], 201);
     }
@@ -168,9 +209,11 @@ class SocialPostController extends Controller
             abort(403);
         }
 
+        $this->normalizeUrlInputs($request, ['image_url', 'link_url']);
+
         $validated = $request->validate([
             'text' => ['nullable', 'string', 'max:4000'],
-            'image_url' => ['nullable', 'url', 'max:2048'],
+            'image_url' => $this->imageUrlRules(),
             'link_url' => ['nullable', 'url', 'max:2048'],
             'source_type' => ['nullable', 'string', Rule::in(SocialPrefillService::allowedSourceTypes())],
             'source_id' => ['nullable', 'integer'],
@@ -188,11 +231,14 @@ class SocialPostController extends Controller
             abort(403);
         }
 
+        $this->normalizeUrlInputs($request, ['image_url', 'link_url']);
+
         $validated = $request->validate([
             'text' => ['nullable', 'string', 'max:4000'],
-            'image_url' => ['nullable', 'url', 'max:2048'],
+            'image_url' => $this->imageUrlRules(),
             'image_file' => ['nullable', 'file', 'image', 'max:10240'],
             'link_url' => ['nullable', 'url', 'max:2048'],
+            'link_cta_label' => ['nullable', 'string', 'max:80'],
             'scheduled_for' => ['nullable', 'date'],
             'source_type' => ['nullable', 'string', Rule::in(SocialPrefillService::allowedSourceTypes())],
             'source_id' => ['nullable', 'integer'],
@@ -207,6 +253,28 @@ class SocialPostController extends Controller
             'message' => 'Pulse draft updated.',
             'draft' => $this->postService->payload($draft),
             'drafts' => $this->postService->draftPayloads($access['owner']),
+            'media_assets' => $this->mediaAssetPayloads($access['owner']),
+            'summary' => $this->postService->summaryForOwner($access['owner']),
+        ]);
+    }
+
+    public function reschedule(Request $request, SocialPost $post)
+    {
+        $access = $this->resolveAccess($request->user());
+        if (! $access['can_manage_posts']) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'scheduled_for' => ['nullable', 'date'],
+        ]);
+
+        $draft = $this->postService->rescheduleDraft($access['owner'], $request->user(), $post, $validated);
+
+        return response()->json([
+            'message' => 'Pulse post rescheduled.',
+            'draft' => $this->postService->payload($draft),
+            'calendar_posts' => $this->postService->calendarPayloads($access['owner']),
             'summary' => $this->postService->summaryForOwner($access['owner']),
         ]);
     }
@@ -275,6 +343,8 @@ class SocialPostController extends Controller
 
         $validated = $request->validate([
             'note' => ['nullable', 'string', 'max:1000'],
+            'mode' => ['nullable', 'string', Rule::in(['immediate', 'scheduled'])],
+            'scheduled_for' => ['nullable', 'date'],
         ]);
 
         $draft = $approvalService->approve($access['owner'], $request->user(), $post, $validated);
@@ -334,12 +404,15 @@ class SocialPostController extends Controller
             abort(403);
         }
 
+        $this->normalizeUrlInputs($request, ['image_url', 'link_url']);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:160'],
             'text' => ['nullable', 'string', 'max:4000'],
-            'image_url' => ['nullable', 'url', 'max:2048'],
+            'image_url' => $this->imageUrlRules(),
             'image_file' => ['nullable', 'file', 'image', 'max:10240'],
             'link_url' => ['nullable', 'url', 'max:2048'],
+            'link_cta_label' => ['nullable', 'string', 'max:80'],
             'target_connection_ids' => ['nullable', 'array'],
             'target_connection_ids.*' => ['integer', 'distinct'],
         ]);
@@ -351,6 +424,7 @@ class SocialPostController extends Controller
             'message' => 'Pulse template saved.',
             'template' => $this->templateService->payload($template),
             'templates' => $this->templateService->templatePayloads($access['owner']),
+            'media_assets' => $this->mediaAssetPayloads($access['owner']),
         ], 201);
     }
 
@@ -361,12 +435,15 @@ class SocialPostController extends Controller
             abort(403);
         }
 
+        $this->normalizeUrlInputs($request, ['image_url', 'link_url']);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:160'],
             'text' => ['nullable', 'string', 'max:4000'],
-            'image_url' => ['nullable', 'url', 'max:2048'],
+            'image_url' => $this->imageUrlRules(),
             'image_file' => ['nullable', 'file', 'image', 'max:10240'],
             'link_url' => ['nullable', 'url', 'max:2048'],
+            'link_cta_label' => ['nullable', 'string', 'max:80'],
             'target_connection_ids' => ['nullable', 'array'],
             'target_connection_ids.*' => ['integer', 'distinct'],
         ]);
@@ -378,6 +455,7 @@ class SocialPostController extends Controller
             'message' => 'Pulse template updated.',
             'template' => $this->templateService->payload($savedTemplate),
             'templates' => $this->templateService->templatePayloads($access['owner']),
+            'media_assets' => $this->mediaAssetPayloads($access['owner']),
         ]);
     }
 
@@ -393,6 +471,7 @@ class SocialPostController extends Controller
         return response()->json([
             'message' => 'Pulse template deleted.',
             'templates' => $this->templateService->templatePayloads($access['owner']),
+            'media_assets' => $this->mediaAssetPayloads($access['owner']),
         ]);
     }
 
@@ -499,6 +578,7 @@ class SocialPostController extends Controller
         return [
             'can_view' => $access['can_view'],
             'can_manage_posts' => $access['can_manage_posts'],
+            'can_manage_automations' => $access['can_manage_posts'],
             'can_publish' => $access['can_publish'],
             'can_submit_for_approval' => $access['can_submit_for_approval'],
             'can_approve' => $access['can_approve'],
@@ -520,6 +600,18 @@ class SocialPostController extends Controller
     }
 
     /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function mediaAssetPayloads(User $owner): array
+    {
+        return $this->mediaAssetService->libraryPayloads($owner, [
+            'source' => 'all',
+            'origin' => 'all',
+            'search' => '',
+        ], 24);
+    }
+
+    /**
      * @param  array<string, mixed>  $validated
      * @return array<string, mixed>
      */
@@ -535,5 +627,79 @@ class SocialPostController extends Controller
         $validated['image_upload'] = $this->mediaAssetService->storeUploadedImage($owner, $imageFile, $context);
 
         return $validated;
+    }
+
+    /**
+     * @param  array<int, string>  $keys
+     */
+    private function normalizeUrlInputs(Request $request, array $keys): void
+    {
+        $normalized = [];
+
+        foreach ($keys as $key) {
+            if (! $request->exists($key)) {
+                continue;
+            }
+
+            $normalized[$key] = $this->normalizeUrlInputValue($request->input($key));
+        }
+
+        if ($normalized !== []) {
+            $request->merge($normalized);
+        }
+    }
+
+    private function normalizeUrlInputValue(mixed $value): ?string
+    {
+        $candidate = trim((string) ($value ?? ''));
+        if ($candidate === '') {
+            return null;
+        }
+
+        if (preg_match('/^[a-z][a-z0-9+\-.]*:/i', $candidate) === 1) {
+            return $candidate;
+        }
+
+        if (str_starts_with($candidate, '//')) {
+            return 'https:'.$candidate;
+        }
+
+        if (str_starts_with($candidate, '/')) {
+            return $candidate;
+        }
+
+        if (preg_match('/\s/u', $candidate) === 1 || ! str_contains($candidate, '.')) {
+            return $candidate;
+        }
+
+        return 'https://'.$candidate;
+    }
+
+    /**
+     * @return array<int, mixed>
+     */
+    private function imageUrlRules(): array
+    {
+        return [
+            'nullable',
+            'string',
+            'max:2048',
+            function (string $attribute, mixed $value, \Closure $fail): void {
+                if (! $this->isValidImageReference($value)) {
+                    $fail('The '.$attribute.' must be a valid image URL or Pulse media path.');
+                }
+            },
+        ];
+    }
+
+    private function isValidImageReference(mixed $value): bool
+    {
+        $candidate = trim((string) ($value ?? ''));
+        if ($candidate === '') {
+            return true;
+        }
+
+        return filter_var($candidate, FILTER_VALIDATE_URL) !== false
+            || str_starts_with($candidate, '/storage/');
     }
 }

@@ -3,6 +3,7 @@
 use App\Http\Middleware\EnsureTwoFactorVerified;
 use App\Models\Role;
 use App\Models\SocialAccountConnection;
+use App\Models\SocialMediaAsset;
 use App\Models\SocialPostTemplate;
 use App\Models\TeamMember;
 use App\Models\User;
@@ -114,11 +115,13 @@ it('renders the pulse templates page and lets owners manage reusable templates',
             'text' => 'Reusable Pulse promo copy',
             'image_url' => 'https://example.com/assets/pulse-template.jpg',
             'link_url' => 'https://example.com/offers/evergreen',
+            'link_cta_label' => 'Decouvrir l offre',
             'target_connection_ids' => [$facebook->id, $linkedin->id],
         ]);
 
     $create->assertCreated()
         ->assertJsonPath('template.name', 'Evergreen promo')
+        ->assertJsonPath('template.link_cta_label', 'Decouvrir l offre')
         ->assertJsonPath('template.selected_accounts_count', 2)
         ->assertJsonCount(1, 'templates');
 
@@ -129,10 +132,12 @@ it('renders the pulse templates page and lets owners manage reusable templates',
             'name' => 'Evergreen promo v2',
             'text' => 'Updated reusable Pulse promo copy',
             'link_url' => 'https://example.com/offers/evergreen-v2',
+            'link_cta_label' => 'Voir la promo',
             'target_connection_ids' => [$linkedin->id],
         ])
         ->assertOk()
         ->assertJsonPath('template.name', 'Evergreen promo v2')
+        ->assertJsonPath('template.link_cta_label', 'Voir la promo')
         ->assertJsonPath('template.selected_accounts_count', 1)
         ->assertJsonPath('template.selected_target_connection_ids.0', $linkedin->id);
 
@@ -150,6 +155,7 @@ it('renders the pulse templates page and lets owners manage reusable templates',
     expect($template->name)->toBe('Evergreen promo v2')
         ->and((string) data_get($template->content_payload, 'text'))->toBe('Updated reusable Pulse promo copy')
         ->and((string) $template->link_url)->toBe('https://example.com/offers/evergreen-v2')
+        ->and((string) data_get($template->metadata, 'link_cta_label'))->toBe('Voir la promo')
         ->and((array) data_get($template->metadata, 'selected_target_connection_ids'))->toBe([$linkedin->id]);
 
     $this->actingAs($owner)
@@ -243,6 +249,86 @@ it('accepts pulse templates without remembered targets and keeps them reusable i
             ->where('selected_template_id', $templateId)
             ->has('templates', 1)
         );
+});
+
+it('normalizes missing URL schemes before saving pulse templates', function () {
+    $owner = pulseTemplateOwner();
+
+    $create = $this->actingAs($owner)
+        ->postJson(route('social.templates.store'), [
+            'name' => 'Normalized template',
+            'text' => 'Template with normalized links',
+            'image_url' => 'cdn.example.com/assets/pulse-template.jpg',
+            'link_url' => 'example.com/offers/normalized',
+        ]);
+
+    $create->assertCreated()
+        ->assertJsonPath('template.image_url', 'https://cdn.example.com/assets/pulse-template.jpg')
+        ->assertJsonPath('template.link_url', 'https://example.com/offers/normalized');
+
+    $templateId = (int) $create->json('template.id');
+    $template = SocialPostTemplate::query()->findOrFail($templateId);
+
+    expect((string) data_get($template->media_payload, '0.url'))->toBe('https://cdn.example.com/assets/pulse-template.jpg')
+        ->and((string) $template->link_url)->toBe('https://example.com/offers/normalized');
+});
+
+it('exposes gallery images on pulse templates and saves the selected visual', function () {
+    $owner = pulseTemplateOwner();
+
+    $asset = SocialMediaAsset::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'media_type' => SocialMediaAsset::MEDIA_TYPE_IMAGE,
+        'source' => SocialMediaAsset::SOURCE_UPLOAD,
+        'context' => SocialMediaAsset::CONTEXT_LIBRARY,
+        'name' => 'gallery-template.png',
+        'url' => '/storage/social/library/gallery-template.png',
+        'path' => 'social/library/gallery-template.png',
+        'mime_type' => 'image/png',
+        'size' => 128000,
+    ]);
+
+    $this->actingAs($owner)
+        ->get(route('social.templates.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Social/Templates')
+            ->where('media_assets.0.url', $asset->url)
+            ->where('media_assets.0.origin', 'library')
+        );
+
+    $create = $this->actingAs($owner)
+        ->postJson(route('social.templates.store'), [
+            'name' => 'Gallery visual template',
+            'text' => 'Template using a visual from the Pulse gallery',
+            'image_url' => $asset->url,
+        ]);
+
+    $create->assertCreated()
+        ->assertJsonPath('template.image_url', $asset->url)
+        ->assertJsonPath('media_assets.0.url', $asset->url);
+
+    $template = SocialPostTemplate::query()->findOrFail((int) $create->json('template.id'));
+
+    expect((string) data_get($template->media_payload, '0.url'))->toBe($asset->url);
+});
+
+it('returns a localized French validation message when a pulse template link is invalid', function () {
+    $owner = pulseTemplateOwner([
+        'locale' => 'fr',
+    ]);
+
+    $response = $this->actingAs($owner)
+        ->postJson(route('social.templates.store'), [
+            'name' => 'Template invalide',
+            'text' => 'Contenu de test',
+            'link_url' => 'pas-un-lien',
+        ]);
+
+    $response->assertUnprocessable()
+        ->assertJsonValidationErrors(['link_url'])
+        ->assertJsonPath('errors.link_url.0', 'Le champ lien de destination doit etre une URL valide.');
 });
 
 it('lets owners upload local images for pulse templates', function () {

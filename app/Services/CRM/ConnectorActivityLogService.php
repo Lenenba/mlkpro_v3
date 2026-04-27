@@ -3,8 +3,10 @@
 namespace App\Services\CRM;
 
 use App\Models\ActivityLog;
+use App\Models\Request as LeadRequest;
 use App\Models\User;
 use App\Services\CRM\Connectors\CrmConnectorRegistry;
+use App\Services\ProspectInteractionLogger;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 
@@ -27,13 +29,19 @@ class ConnectorActivityLogService
         $adapter = $this->registry->adapter($connectorKey);
         $normalized = $adapter->normalizeMessageEvent($event, $payload);
 
-        return ActivityLog::record(
+        $log = ActivityLog::record(
             $actor,
             $subject,
             $normalized['action'],
             $this->normalizeMessageProperties($subject, $normalized['properties'], $context),
             $description ?? $normalized['description']
         );
+
+        if ($subject instanceof LeadRequest) {
+            app(ProspectInteractionLogger::class)->recordActivity($subject, $actor, $log);
+        }
+
+        return $log;
     }
 
     public function logMeetingEvent(
@@ -48,13 +56,19 @@ class ConnectorActivityLogService
         $adapter = $this->registry->adapter($connectorKey);
         $normalized = $adapter->normalizeMeetingEvent($event, $payload);
 
-        return ActivityLog::record(
+        $log = ActivityLog::record(
             $actor,
             $subject,
             $normalized['action'],
             $this->normalizeMeetingProperties($subject, $normalized['properties'], $context),
             $description ?? $normalized['description']
         );
+
+        if ($subject instanceof LeadRequest) {
+            app(ProspectInteractionLogger::class)->recordActivity($subject, $actor, $log);
+        }
+
+        return $log;
     }
 
     /**

@@ -2,11 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Request as LeadRequest;
+use App\Models\User;
 use App\Support\DataTablePagination;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller as BaseController;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 abstract class Controller extends BaseController
 {
@@ -104,5 +108,68 @@ abstract class Controller extends BaseController
             'skipped_count' => $skippedCount,
             'errors' => is_array($errors) ? array_values($errors) : [],
         ], $extra);
+    }
+
+    protected function ensureLeadIsMutable(
+        LeadRequest $lead,
+        string $field = 'lead',
+        ?string $message = null
+    ): void {
+        if (! $lead->isArchived()) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            $field => [$message ?? 'Archived prospects must be restored before they can be updated.'],
+        ]);
+    }
+
+    protected function ensureProspectWorkspaceReadAccess(?User $user, int $accountId, ?Request $request = null): void
+    {
+        if (! $user) {
+            abort(403);
+        }
+
+        if ((int) $user->id === $accountId) {
+            return;
+        }
+
+        if (! $this->isProspectWorkspaceRoute($request)) {
+            abort(403);
+        }
+
+        if (! $this->teamMemberCanManageProspects($user, $accountId)) {
+            abort(403);
+        }
+    }
+
+    protected function ensureProspectWorkspaceWriteAccess(?User $user, int $accountId, ?Request $request = null): void
+    {
+        $this->ensureProspectWorkspaceReadAccess($user, $accountId, $request);
+    }
+
+    protected function teamMemberCanManageProspects(User $user, int $accountId): bool
+    {
+        if ((int) $user->id === $accountId) {
+            return true;
+        }
+
+        $membership = $user->relationLoaded('teamMembership')
+            ? $user->teamMembership
+            : $user->teamMembership()->first();
+
+        return (bool) $membership
+            && (int) $membership->account_id === $accountId
+            && $membership->hasPermission('sales.manage');
+    }
+
+    protected function isProspectWorkspaceRoute(?Request $request = null): bool
+    {
+        $request ??= request();
+        $routeName = (string) ($request->route()?->getName() ?? '');
+
+        return Str::startsWith($routeName, 'prospects.')
+            || Str::contains($routeName, '.prospects.')
+            || $request->is('prospects*');
     }
 }

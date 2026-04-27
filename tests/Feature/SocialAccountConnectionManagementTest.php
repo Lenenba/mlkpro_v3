@@ -3,6 +3,7 @@
 use App\Http\Middleware\EnsureTwoFactorVerified;
 use App\Models\Role;
 use App\Models\SocialAccountConnection;
+use App\Models\SocialPost;
 use App\Models\TeamMember;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
@@ -179,6 +180,57 @@ it('lets the owner create list update disconnect and delete pulse social account
         ->assertOk();
 
     expect(SocialAccountConnection::query()->count())->toBe(0);
+});
+
+it('lets the owner create a local pulse test connection for scheduling without oauth', function () {
+    config()->set('services.social.allow_test_connections', true);
+
+    $owner = pulseOwner();
+
+    $create = $this->actingAs($owner)
+        ->postJson(route('social.accounts.test-connection.store'), [
+            'platform' => SocialAccountConnection::PLATFORM_FACEBOOK,
+        ]);
+
+    $create->assertCreated()
+        ->assertJsonPath('connection.platform', SocialAccountConnection::PLATFORM_FACEBOOK)
+        ->assertJsonPath('connection.status', SocialAccountConnection::STATUS_CONNECTED)
+        ->assertJsonPath('connection.is_active', true)
+        ->assertJsonPath('connection.is_connected', true)
+        ->assertJsonPath('connection.auth_method', SocialAccountConnection::AUTH_METHOD_MANUAL)
+        ->assertJsonPath('connection.has_credentials', true)
+        ->assertJsonPath('connection.metadata.test_connection', true);
+
+    $connectionId = (int) $create->json('connection.id');
+
+    $this->actingAs($owner)
+        ->getJson(route('social.accounts.index'))
+        ->assertOk()
+        ->assertJsonPath('provider_definitions.0.test_connection_enabled', true)
+        ->assertJsonPath('summary.connected', 1);
+
+    $this->actingAs($owner)
+        ->postJson(route('social.posts.store'), [
+            'text' => 'Local scheduling smoke test',
+            'scheduled_for' => now()->addDay()->format('Y-m-d\TH:i'),
+            'target_connection_ids' => [$connectionId],
+        ])
+        ->assertCreated()
+        ->assertJsonPath('draft.status', SocialPost::STATUS_SCHEDULED)
+        ->assertJsonPath('draft.selected_accounts_count', 1);
+});
+
+it('blocks local pulse test connections when the environment toggle is disabled', function () {
+    config()->set('services.social.allow_test_connections', false);
+
+    $owner = pulseOwner();
+
+    $this->actingAs($owner)
+        ->postJson(route('social.accounts.test-connection.store'), [
+            'platform' => SocialAccountConnection::PLATFORM_FACEBOOK,
+        ])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['platform']);
 });
 
 it('lets the owner test a connected pulse social account without leaving the workspace', function () {

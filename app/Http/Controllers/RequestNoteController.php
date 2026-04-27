@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\LeadNote;
 use App\Models\Request as LeadRequest;
+use App\Services\ProspectInteractionLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -14,9 +16,17 @@ class RequestNoteController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (!$user || $lead->user_id !== $accountId) {
+        $this->ensureProspectWorkspaceWriteAccess($user, $accountId, $request);
+
+        if ($lead->user_id !== $accountId) {
             abort(403);
         }
+
+        $this->ensureLeadIsMutable(
+            $lead,
+            'lead',
+            'Archived prospects must be restored before notes can be changed.'
+        );
 
         $validated = $request->validate([
             'body' => 'required|string|max:5000',
@@ -27,6 +37,15 @@ class RequestNoteController extends Controller
             'user_id' => $user->id,
             'body' => $validated['body'],
         ]);
+
+        $lead->update([
+            'last_activity_at' => now(),
+        ]);
+
+        ActivityLog::record($user, $lead, 'note_added', [
+            'note_id' => $note->id,
+        ], 'Prospect note added');
+        app(ProspectInteractionLogger::class)->recordNoteAdded($lead, $user, $note);
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -43,9 +62,17 @@ class RequestNoteController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (!$user || $lead->user_id !== $accountId || $note->request_id !== $lead->id) {
+        $this->ensureProspectWorkspaceWriteAccess($user, $accountId, $request);
+
+        if ($lead->user_id !== $accountId || $note->request_id !== $lead->id) {
             abort(403);
         }
+
+        $this->ensureLeadIsMutable(
+            $lead,
+            'lead',
+            'Archived prospects must be restored before notes can be changed.'
+        );
 
         $note->delete();
 

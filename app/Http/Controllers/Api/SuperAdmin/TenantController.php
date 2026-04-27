@@ -383,7 +383,7 @@ class TenantController extends BaseController
     {
         $labels = [
             'quotes' => 'Quotes',
-            'requests' => 'Requests',
+            'requests' => 'Prospects',
             'reservations' => 'Reservations',
             'plan_scans' => 'Plan scans',
             'invoices' => 'Invoices',
@@ -443,7 +443,7 @@ class TenantController extends BaseController
     {
         $limitLabels = [
             'quotes' => 'Quotes',
-            'requests' => 'Requests',
+            'requests' => 'Prospects',
             'plan_scan_quotes' => 'Plan scan quotes',
             'invoices' => 'Invoices',
             'jobs' => 'Jobs',

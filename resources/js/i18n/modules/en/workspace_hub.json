@@ -23,7 +23,7 @@
         "categories": {
             "revenue": {
                 "title": "Revenue and customer pipeline",
-                "description": "Customers, lead intake, quotes, orders, and sales in one place."
+                "description": "Customers, requests, prospects, quotes, orders, and sales in one place."
             },
             "growth": {
                 "title": "Growth and retention",
@@ -48,7 +48,8 @@
         },
         "modules": {
             "customers": "Customer records, notes, tags, and relationship history.",
-            "requests": "Lead intake, qualification, and conversion follow-up.",
+            "requests": "Service requests, intake sources, and customer or prospect linking.",
+            "prospects": "Prospect workspace for qualification, follow-up, and commercial conversion.",
             "quotes": "Commercial proposals and quote follow-up.",
             "manager_dashboard_label": "Manager dashboard",
             "manager_dashboard": "Weighted pipeline, stage aging, overdue follow-ups, and quote pull-through in one manager revenue view.",

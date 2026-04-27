@@ -36,5 +36,9 @@ return [
             'queue' => env('ASYNC_QUEUE_CAMPAIGNS_MAINTENANCE', 'campaigns-maintenance'),
             'backoff' => [120, 300, 900],
         ],
+        'social_automation' => [
+            'queue' => env('ASYNC_QUEUE_SOCIAL_AUTOMATION', 'social-automation'),
+            'backoff' => [60, 300, 900],
+        ],
     ],
 ];

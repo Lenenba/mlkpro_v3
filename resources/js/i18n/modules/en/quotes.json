@@ -38,7 +38,8 @@
       "terms": "Terms and conditions",
       "cancel": "Cancel",
       "save_and_create_another": "Save and create another",
-      "save_quote": "Save quote"
+      "save_quote": "Save quote",
+      "prospect_linked_notice": "This quote is still linked to a prospect and can move forward without an attached customer for now."
     },
     "show": {
       "timeline": "Timeline",
@@ -251,6 +252,7 @@
     "labels": {
       "unknown_customer": "Unknown",
       "customer_fallback": "Customer",
+      "prospect_fallback": "Prospect",
       "quote_fallback": "Quote",
       "quote_initial": "Q",
       "job_fallback": "Job"

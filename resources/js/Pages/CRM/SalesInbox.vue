@@ -336,7 +336,7 @@ const queueCardClass = (queueKey) => (
 const requestRoute = (item) => {
     const requestId = item?.crm_links?.request?.id || item?.request?.id;
 
-    return requestId ? route('request.show', requestId) : null;
+    return requestId ? route('prospects.show', requestId) : null;
 };
 
 const quoteRoute = (item) => {

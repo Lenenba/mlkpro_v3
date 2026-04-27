@@ -28,15 +28,19 @@ const categoryOptionsRoutes = computed(() => {
 });
 
 const requestCustomers = ref([]);
+const requestProspects = ref([]);
 const quoteCustomers = ref([]);
 const categories = ref([]);
 const loadingRequestCustomers = ref(false);
+const loadingRequestProspects = ref(false);
 const loadingQuoteCustomers = ref(false);
 const loadingCategories = ref(false);
 const requestCustomerError = ref('');
+const requestProspectError = ref('');
 const quoteCustomerError = ref('');
 const categoryError = ref('');
 const requestCustomersLoaded = ref(false);
+const requestProspectsLoaded = ref(false);
 const quoteCustomersLoaded = ref(false);
 const categoriesLoaded = ref(false);
 
@@ -55,6 +59,13 @@ const customerScopeState = {
         error: quoteCustomerError,
         loaded: quoteCustomersLoaded,
     },
+};
+
+const prospectScopeState = {
+    rows: requestProspects,
+    loading: loadingRequestProspects,
+    error: requestProspectError,
+    loaded: requestProspectsLoaded,
 };
 
 const fetchCustomers = async (scope) => {
@@ -118,12 +129,45 @@ const fetchCategories = async () => {
     }
 };
 
+const fetchProspects = async () => {
+    if (prospectScopeState.loading.value) {
+        return;
+    }
+
+    prospectScopeState.loading.value = true;
+    prospectScopeState.error.value = '';
+    try {
+        const response = await axios.get(route('prospects.options'));
+        prospectScopeState.rows.value = Array.isArray(response.data?.prospects) ? response.data.prospects : [];
+        prospectScopeState.loaded.value = true;
+    } catch (error) {
+        prospectScopeState.error.value = t('quick_create.errors.load_customers');
+    } finally {
+        prospectScopeState.loading.value = false;
+    }
+};
+
 const ensureRequestCustomersLoaded = async () => {
     if (requestCustomersLoaded.value || (!canRequests.value && !canSales.value)) {
         return;
     }
 
     await fetchCustomers('request');
+};
+
+const ensureRequestProspectsLoaded = async () => {
+    if (requestProspectsLoaded.value || (!canRequests.value && !canSales.value)) {
+        return;
+    }
+
+    await fetchProspects();
+};
+
+const ensureRequestRelationsLoaded = async () => {
+    await Promise.all([
+        ensureRequestCustomersLoaded(),
+        ensureRequestProspectsLoaded(),
+    ]);
 };
 
 const ensureQuoteCustomersLoaded = async () => {
@@ -183,6 +227,25 @@ const buildQuoteCustomer = (payload) => {
     };
 };
 
+const buildRequestProspect = (payload) => {
+    const prospect = payload?.prospect;
+    if (!prospect?.id) {
+        return null;
+    }
+
+    return {
+        id: prospect.id,
+        customer_id: prospect.customer_id,
+        status: prospect.status,
+        title: prospect.title,
+        service_type: prospect.service_type,
+        contact_name: prospect.contact_name,
+        contact_email: prospect.contact_email,
+        contact_phone: prospect.contact_phone,
+        company_name: prospect.company_name || null,
+    };
+};
+
 const upsertCustomerOption = (rows, customer) => {
     if (!customer?.id) {
         return;
@@ -200,6 +263,24 @@ const upsertCustomerOption = (rows, customer) => {
 const handleCustomerCreated = (payload) => {
     upsertCustomerOption(requestCustomers, buildRequestCustomer(payload));
     upsertCustomerOption(quoteCustomers, buildQuoteCustomer(payload));
+};
+
+const upsertProspectOption = (prospect) => {
+    if (!prospect?.id) {
+        return;
+    }
+
+    const existingIndex = requestProspects.value.findIndex((item) => item.id === prospect.id);
+    if (existingIndex >= 0) {
+        requestProspects.value.splice(existingIndex, 1, prospect);
+        return;
+    }
+
+    requestProspects.value.unshift(prospect);
+};
+
+const handleProspectCreated = (payload) => {
+    upsertProspectOption(buildRequestProspect(payload));
 };
 
 const handleCategoryCreated = (category) => {
@@ -273,15 +354,21 @@ const handleCategoryCreated = (category) => {
         />
     </Modal>
 
-    <Modal v-if="canRequests" :title="$t('quick_create.new_request')" :id="'hs-quick-create-request'" @open="ensureRequestCustomersLoaded">
+    <Modal v-if="canRequests" :title="$t('quick_create.new_request')" :id="'hs-quick-create-request'" @open="ensureRequestRelationsLoaded">
         <div v-if="requestCustomerError" class="mb-3 text-sm text-red-600">
             {{ requestCustomerError }}
         </div>
+        <div v-if="requestProspectError" class="mb-3 text-sm text-red-600">
+            {{ requestProspectError }}
+        </div>
         <RequestQuickForm
             :customers="requestCustomers"
-            :loading="loadingRequestCustomers"
+            :prospects="requestProspects"
+            :loading-customers="loadingRequestCustomers"
+            :loading-prospects="loadingRequestProspects"
             :overlay-id="'#hs-quick-create-request'"
             @customer-created="handleCustomerCreated"
+            @prospect-created="handleProspectCreated"
         />
     </Modal>
 </template>

@@ -3,6 +3,7 @@
 namespace App\Services\Social;
 
 use App\Models\SocialAccountConnection;
+use App\Models\SocialAutomationRule;
 use App\Models\SocialPost;
 use App\Models\SocialPostTarget;
 use App\Models\User;
@@ -16,6 +17,8 @@ class SocialPostService
         private readonly SocialAccountConnectionService $connectionService,
         private readonly SocialPrefillService $prefillService,
         private readonly SocialMediaAssetService $mediaAssetService,
+        private readonly SocialPostQualityService $qualityService,
+        private readonly SocialAiTraceService $aiTraceService,
     ) {}
 
     /**
@@ -31,6 +34,7 @@ class SocialPostService
                 SocialPost::STATUS_PENDING_APPROVAL,
             ])
             ->with([
+                'automationRule',
                 'targets.socialAccountConnection',
                 'latestApprovalRequest.requestedBy',
                 'latestApprovalRequest.resolvedBy',
@@ -61,6 +65,7 @@ class SocialPostService
         $query = SocialPost::query()
             ->byUser($owner->id)
             ->with([
+                'automationRule',
                 'targets.socialAccountConnection',
                 'latestApprovalRequest.requestedBy',
                 'latestApprovalRequest.resolvedBy',
@@ -88,6 +93,7 @@ class SocialPostService
             $query->where(function ($searchQuery) use ($like): void {
                 $searchQuery
                     ->where('content_payload->text', 'like', $like)
+                    ->orWhere('metadata->link_cta_label', 'like', $like)
                     ->orWhere('link_url', 'like', $like)
                     ->orWhere('failure_reason', 'like', $like);
             });
@@ -106,6 +112,37 @@ class SocialPostService
     {
         return $this->listHistoryForOwner($owner, $filters, $limit)
             ->map(fn (SocialPost $post) => $this->payload($post))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function calendarPayloads(User $owner, int $limit = 140): array
+    {
+        return SocialPost::query()
+            ->byUser($owner->id)
+            ->with([
+                'automationRule',
+                'targets.socialAccountConnection',
+                'latestApprovalRequest.requestedBy',
+                'latestApprovalRequest.resolvedBy',
+            ])
+            ->whereIn('status', [
+                SocialPost::STATUS_DRAFT,
+                SocialPost::STATUS_SCHEDULED,
+                SocialPost::STATUS_PENDING_APPROVAL,
+                SocialPost::STATUS_PUBLISHING,
+                SocialPost::STATUS_PUBLISHED,
+                SocialPost::STATUS_PARTIAL_FAILED,
+                SocialPost::STATUS_FAILED,
+            ])
+            ->latest('updated_at')
+            ->limit(max(1, min(240, $limit)))
+            ->get()
+            ->map(fn (SocialPost $post) => $this->calendarPayload($post))
+            ->sortBy(fn (array $payload): string => (string) ($payload['calendar_at'] ?? ''))
             ->values()
             ->all();
     }
@@ -202,6 +239,86 @@ class SocialPostService
         return $post->fresh(['targets.socialAccountConnection']);
     }
 
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function rescheduleDraft(User $owner, User $actor, SocialPost $post, array $payload): SocialPost
+    {
+        $this->assertOwnership($owner, $post);
+        $this->assertEditable($post);
+
+        $scheduledFor = $this->nullableDateTime($payload, 'scheduled_for');
+        if ($scheduledFor instanceof Carbon && $scheduledFor->lessThanOrEqualTo(now())) {
+            throw ValidationException::withMessages([
+                'scheduled_for' => 'Choose a future date before scheduling this Pulse post.',
+            ]);
+        }
+
+        $status = $scheduledFor instanceof Carbon
+            ? SocialPost::STATUS_SCHEDULED
+            : SocialPost::STATUS_DRAFT;
+
+        $post->forceFill([
+            'updated_by_user_id' => $actor->id,
+            'status' => $status,
+            'scheduled_for' => $scheduledFor,
+            'metadata' => array_merge((array) ($post->metadata ?? []), [
+                'calendar_rescheduled_at' => now()->toIso8601String(),
+                'calendar_rescheduled_by_user_id' => $actor->id,
+            ]),
+        ])->save();
+
+        $this->syncExistingTargetStatus($post, $status);
+
+        return $post->fresh(['targets.socialAccountConnection']);
+    }
+
+    /**
+     * @param  Collection<int, SocialAccountConnection>  $targetConnections
+     * @param  array<string, mixed>  $payload
+     */
+    public function createAutomationDraft(
+        User $owner,
+        User $actor,
+        SocialAutomationRule $rule,
+        Collection $targetConnections,
+        array $payload
+    ): SocialPost {
+        if ($targetConnections->isEmpty()) {
+            throw ValidationException::withMessages([
+                'target_connection_ids' => 'Select at least one connected social account before generating an automated Pulse post.',
+            ]);
+        }
+
+        $text = trim((string) data_get($payload, 'content_payload.text', ''));
+        $mediaPayload = is_array($payload['media_payload'] ?? null) ? $payload['media_payload'] : null;
+        $linkUrl = $this->nullableString($payload, 'link_url');
+
+        if ($text === '' && $mediaPayload === null && $linkUrl === null) {
+            throw ValidationException::withMessages([
+                'content' => 'Generate some text, an image, or a destination link before creating an automated Pulse post.',
+            ]);
+        }
+
+        $post = SocialPost::query()->create([
+            'user_id' => $owner->id,
+            'created_by_user_id' => $actor->id,
+            'updated_by_user_id' => $actor->id,
+            'source_type' => $this->nullableString($payload, 'source_type'),
+            'source_id' => data_get($payload, 'source_id') ? (int) data_get($payload, 'source_id') : null,
+            'social_automation_rule_id' => $rule->id,
+            'content_payload' => $payload['content_payload'] ?? null,
+            'media_payload' => $mediaPayload,
+            'link_url' => $linkUrl,
+            'status' => SocialPost::STATUS_DRAFT,
+            'metadata' => $payload['metadata'] ?? null,
+        ]);
+
+        $this->syncTargetsFromConnections($post, $targetConnections, SocialPost::STATUS_DRAFT);
+
+        return $post->fresh(['targets.socialAccountConnection', 'automationRule']);
+    }
+
     public function duplicate(User $owner, User $actor, SocialPost $source): SocialPost
     {
         return $this->createEditableCopy($owner, $actor, $source, 'duplicate');
@@ -224,6 +341,8 @@ class SocialPostService
     public function payload(SocialPost $post): array
     {
         $post->loadMissing([
+            'user',
+            'automationRule',
             'targets.socialAccountConnection',
             'latestApprovalRequest.requestedBy',
             'latestApprovalRequest.resolvedBy',
@@ -231,6 +350,7 @@ class SocialPostService
 
         $text = trim((string) data_get($post->content_payload, 'text', ''));
         $approvalRequest = $post->latestApprovalRequest;
+        $automationRule = $post->automationRule;
 
         return [
             'id' => $post->id,
@@ -238,8 +358,17 @@ class SocialPostService
             'text' => $text !== '' ? $text : null,
             'image_url' => $this->mediaAssetService->imageUrl((array) ($post->media_payload ?? [])),
             'link_url' => $post->link_url,
+            'link_cta_label' => $this->linkCtaLabel($post->metadata),
             'source_type' => $post->source_type,
             'source_id' => $post->source_id,
+            'social_automation_rule_id' => $post->social_automation_rule_id,
+            'automation_rule' => $automationRule
+                ? [
+                    'id' => $automationRule->id,
+                    'name' => $automationRule->name,
+                    'is_active' => (bool) $automationRule->is_active,
+                ]
+                : null,
             'source_label' => data_get($post->metadata, 'source.label'),
             'scheduled_for' => optional($post->scheduled_for)->toIso8601String(),
             'published_at' => optional($post->published_at)->toIso8601String(),
@@ -297,10 +426,80 @@ class SocialPostService
                         : null,
                 ]
                 : null,
+            'automation' => array_filter([
+                'rule_id' => data_get($post->metadata, 'automation.rule_id'),
+                'rule_name_snapshot' => data_get($post->metadata, 'automation.rule_name_snapshot'),
+                'generated_at' => data_get($post->metadata, 'automation.generated_at'),
+                'generation_mode' => data_get($post->metadata, 'automation.generation_mode'),
+                'approval_mode' => data_get($post->metadata, 'automation.approval_mode'),
+                'language' => data_get($post->metadata, 'automation.language'),
+                'selected_source_type' => data_get($post->metadata, 'automation.selected_source_type'),
+                'selected_source_id' => data_get($post->metadata, 'automation.selected_source_id'),
+                'selected_source_label' => data_get($post->metadata, 'automation.selected_source_label'),
+                'generation_attempt' => data_get($post->metadata, 'automation.generation_attempt'),
+            ], fn ($value) => $value !== null),
+            'ai_trace' => $this->aiTraceService->payload($post),
+            'quality_review' => $this->qualityService->review($post->user, $post),
             'metadata' => (array) ($post->metadata ?? []),
             'updated_at' => optional($post->updated_at)->toIso8601String(),
             'created_at' => optional($post->created_at)->toIso8601String(),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function calendarPayload(SocialPost $post): array
+    {
+        $payload = $this->payload($post);
+        $calendarAt = $this->calendarDateFor($post);
+        $isQueuedPublication = (bool) data_get($post->metadata, 'publish_requested_at');
+
+        return array_merge($payload, [
+            'calendar_at' => optional($calendarAt)->toIso8601String(),
+            'calendar_bucket' => $this->calendarBucketFor($post),
+            'can_reschedule' => in_array((string) $post->status, [
+                SocialPost::STATUS_DRAFT,
+                SocialPost::STATUS_SCHEDULED,
+            ], true) && ! $isQueuedPublication,
+            'is_queued_publication' => $isQueuedPublication,
+        ]);
+    }
+
+    private function calendarDateFor(SocialPost $post): ?Carbon
+    {
+        if ((string) $post->status === SocialPost::STATUS_PUBLISHED && $post->published_at instanceof Carbon) {
+            return $post->published_at;
+        }
+
+        if (in_array((string) $post->status, [
+            SocialPost::STATUS_SCHEDULED,
+            SocialPost::STATUS_PENDING_APPROVAL,
+        ], true) && $post->scheduled_for instanceof Carbon) {
+            return $post->scheduled_for;
+        }
+
+        if ($post->failed_at instanceof Carbon) {
+            return $post->failed_at;
+        }
+
+        if ($post->latestApprovalRequest?->requested_at instanceof Carbon) {
+            return $post->latestApprovalRequest->requested_at;
+        }
+
+        return $post->updated_at;
+    }
+
+    private function calendarBucketFor(SocialPost $post): string
+    {
+        return match ((string) $post->status) {
+            SocialPost::STATUS_SCHEDULED => 'scheduled',
+            SocialPost::STATUS_PENDING_APPROVAL => 'approval',
+            SocialPost::STATUS_PUBLISHED => 'published',
+            SocialPost::STATUS_PARTIAL_FAILED, SocialPost::STATUS_FAILED => 'attention',
+            SocialPost::STATUS_PUBLISHING => 'publishing',
+            default => 'draft',
+        };
     }
 
     private function assertOwnership(User $owner, SocialPost $post): void
@@ -370,6 +569,7 @@ class SocialPostService
                 'draft_saved_from' => $mode === 'repost' ? 'social_history_repost' : 'social_history_duplicate',
                 'has_image' => $image !== null,
                 'has_link' => trim((string) ($source->link_url ?? '')) !== '',
+                'link_cta_label' => $this->linkCtaLabel($source->metadata),
                 'copied_from_post_id' => $source->id,
                 'copied_from_status' => (string) $source->status,
                 'copy_mode' => $mode,
@@ -431,8 +631,10 @@ class SocialPostService
         $text = $this->nullableString($payload, 'text');
         $mediaPayload = $this->mediaAssetService->imageMediaPayload($payload);
         $linkUrl = $this->nullableString($payload, 'link_url');
+        $linkCtaLabel = $linkUrl !== null ? $this->nullableString($payload, 'link_cta_label') : null;
         $scheduledFor = $this->nullableDateTime($payload, 'scheduled_for');
         $source = $this->prefillService->validateSourceReference($owner, $payload);
+        $extraMetadata = is_array($payload['metadata'] ?? null) ? $payload['metadata'] : [];
 
         if ($text === null && $mediaPayload === null && $linkUrl === null) {
             throw ValidationException::withMessages([
@@ -458,13 +660,14 @@ class SocialPostService
             'published_at' => null,
             'failed_at' => null,
             'failure_reason' => null,
-            'metadata' => array_filter([
+            'metadata' => array_filter(array_merge([
                 'selected_target_count' => $targetConnections->count(),
                 'draft_saved_from' => $source['source_type'] !== null
                     ? 'social_prefill_'.$source['source_type']
                     : 'social_composer',
                 'has_image' => $mediaPayload !== null,
                 'has_link' => $linkUrl !== null,
+                'link_cta_label' => $linkCtaLabel,
                 'source' => $source['source_type'] !== null
                     ? [
                         'type' => $source['source_type'],
@@ -472,7 +675,7 @@ class SocialPostService
                         'label' => $source['source_label'],
                     ]
                     : null,
-            ], fn ($value) => $value !== null),
+            ], $extraMetadata), fn ($value) => $value !== null),
         ];
     }
 
@@ -520,12 +723,33 @@ class SocialPostService
         );
     }
 
+    private function syncExistingTargetStatus(SocialPost $post, string $postStatus): void
+    {
+        $targetStatus = $postStatus === SocialPost::STATUS_SCHEDULED
+            ? SocialPostTarget::STATUS_SCHEDULED
+            : SocialPostTarget::STATUS_PENDING;
+
+        $post->targets()->update([
+            'status' => $targetStatus,
+        ]);
+    }
+
     /**
      * @param  array<string, mixed>  $payload
      */
     private function nullableString(array $payload, string $key): ?string
     {
         $value = trim((string) ($payload[$key] ?? ''));
+
+        return $value !== '' ? $value : null;
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $metadata
+     */
+    private function linkCtaLabel(?array $metadata): ?string
+    {
+        $value = trim((string) data_get($metadata, 'link_cta_label', ''));
 
         return $value !== '' ? $value : null;
     }

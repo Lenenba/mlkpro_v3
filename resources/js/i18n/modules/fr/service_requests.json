@@ -1,0 +1,164 @@
+{
+  "service_requests": {
+    "page_title": "Demandes",
+    "eyebrow": "Module demandes",
+    "workspace": {
+      "title": "Demandes de service",
+      "subtitle": "Centralisez les demandes entrantes, leur rattachement client ou prospect, et le contexte de traitement dans un espace dedie."
+    },
+    "stats": {
+      "total": "Total",
+      "new": "Nouvelles",
+      "active": "Actives",
+      "resolved": "Resolues",
+      "closed": "Cloturees"
+    },
+    "filters": {
+      "search": "Recherche",
+      "search_placeholder": "Titre, service, demandeur, ville...",
+      "status": "Statut",
+      "source": "Source",
+      "relation": "Rattachement",
+      "sort": "Tri",
+      "direction": "Ordre",
+      "per_page": "Lignes",
+      "all_statuses": "Tous les statuts",
+      "all_sources": "Toutes les sources",
+      "all_relations": "Tous les rattachements",
+      "newest_first": "Plus recentes",
+      "oldest_first": "Plus anciennes"
+    },
+    "sort": {
+      "submitted_at": "Date de soumission",
+      "created_at": "Date de creation",
+      "title": "Titre",
+      "status": "Statut",
+      "source": "Source"
+    },
+    "actions": {
+      "filters": "Filtres",
+      "apply_filters": "Appliquer",
+      "reset_filters": "Reinitialiser",
+      "view": "Voir",
+      "back": "Retour",
+      "open_customer": "Ouvrir le client",
+      "open_prospect": "Ouvrir le prospect",
+      "open_customers": "Module clients",
+      "open_prospects": "Module prospects"
+    },
+    "view": {
+      "table": "Table",
+      "cards": "Cartes"
+    },
+    "list": {
+      "title": "Liste des demandes",
+      "subtitle": "Basculez entre la table et les cartes sans perdre vos filtres actifs.",
+      "customer": "Client",
+      "prospect": "Prospect",
+      "service": "Service"
+    },
+    "table": {
+      "request": "Demande",
+      "requester": "Demandeur",
+      "relation": "Rattachement",
+      "source": "Source",
+      "status": "Statut",
+      "submitted": "Soumise",
+      "actions": "Actions"
+    },
+    "pagination": {
+      "showing": "Affichage de {from} a {to} sur {total}",
+      "page_of": "Page {page} / {total}"
+    },
+    "side": {
+      "relations": "Repartition des rattachements",
+      "sources": "Mix des sources"
+    },
+    "empty": {
+      "title": "Aucune demande pour le moment",
+      "body": "Les nouvelles demandes de service apparaitront ici des qu elles seront creees ou capturees."
+    },
+    "labels": {
+      "request_fallback": "Demande",
+      "unknown_requester": "Demandeur inconnu",
+      "unknown_status": "Statut inconnu",
+      "no_address": "Aucune adresse renseignee.",
+      "none": "Aucun"
+    },
+    "relations": {
+      "customer": "Liee a un client",
+      "prospect": "Liee a un prospect",
+      "unlinked": "Sans rattachement"
+    },
+    "sources": {
+      "manual_admin": "Creation manuelle",
+      "customer_portal": "Espace client",
+      "public_form": "Formulaire public",
+      "campaign": "Campagne marketing",
+      "api": "API / integration",
+      "import": "Import",
+      "other": "Autre"
+    },
+    "status": {
+      "new": "Nouvelle",
+      "in_progress": "En cours",
+      "pending": "En attente",
+      "accepted": "Acceptee",
+      "refused": "Refusee",
+      "completed": "Completee",
+      "cancelled": "Annulee"
+    },
+    "activity": {
+      "system": "Systeme",
+      "empty": "Aucune activite enregistree pour cette demande."
+    },
+    "show": {
+      "tabs": {
+        "left": {
+          "overview": "Vue d ensemble",
+          "description": "Description",
+          "address": "Adresse"
+        },
+        "right": {
+          "relations": "Relations",
+          "source": "Source",
+          "activity": "Activite"
+        }
+      },
+      "summary": {
+        "status": "Statut",
+        "submitted": "Soumise",
+        "relation": "Rattachement",
+        "source": "Source",
+        "service": "Service"
+      },
+      "overview_title": "Resume demande",
+      "description_title": "Description de la demande",
+      "address_title": "Adresse de la demande",
+      "relations_title": "Relations metier",
+      "source_title": "Contexte de capture",
+      "activity_title": "Historique",
+      "requester": "Demandeur",
+      "email": "Email",
+      "phone": "Telephone",
+      "request_type": "Type de demande",
+      "service_type": "Type de service",
+      "urgency": "Urgence",
+      "budget": "Budget",
+      "serviceable": "Desservi",
+      "source": "Source",
+      "channel": "Canal",
+      "source_ref": "Reference source",
+      "timeline": {
+        "title": "Jalons",
+        "submitted": "Soumise",
+        "accepted": "Acceptee",
+        "completed": "Completee",
+        "cancelled": "Annulee"
+      },
+      "no_description": "Aucune description renseignee pour le moment.",
+      "yes": "Oui",
+      "no": "Non"
+    }
+  }
+}

@@ -36,7 +36,13 @@ class SocialAccountConnectionService
      */
     public function definitions(): array
     {
-        return $this->registry->definitions();
+        return collect($this->registry->definitions())
+            ->map(fn (array $definition): array => [
+                ...$definition,
+                'test_connection_enabled' => $this->testConnectionsEnabled(),
+            ])
+            ->values()
+            ->all();
     }
 
     /**
@@ -125,6 +131,73 @@ class SocialAccountConnectionService
                 'requested_scopes' => array_values($publisher->definition()['scopes'] ?? []),
             ]),
         ])->fresh();
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function createTestConnection(User $owner, array $payload): SocialAccountConnection
+    {
+        if (! $this->testConnectionsEnabled()) {
+            throw ValidationException::withMessages([
+                'platform' => 'Pulse test connections are only available in local or testing environments.',
+            ]);
+        }
+
+        $platform = strtolower(trim((string) ($payload['platform'] ?? '')));
+        $publisher = $this->registry->publisher($platform);
+        $externalAccountId = $this->nullableString($payload, 'external_account_id')
+            ?: sprintf('pulse-test-%d-%s', $owner->id, $platform);
+
+        $connection = SocialAccountConnection::query()
+            ->byUser($owner->id)
+            ->where('platform', $platform)
+            ->where('external_account_id', $externalAccountId)
+            ->first();
+
+        if (! $connection) {
+            $this->ensureUniqueExternalAccountId($owner->id, $platform, $externalAccountId);
+            $connection = new SocialAccountConnection([
+                'user_id' => $owner->id,
+                'platform' => $platform,
+            ]);
+        }
+
+        $definition = $publisher->definition();
+        $now = Carbon::now();
+
+        $connection->forceFill([
+            'user_id' => $owner->id,
+            'platform' => $platform,
+            'label' => $this->nullableString($payload, 'label') ?: sprintf('%s test account', $publisher->label()),
+            'display_name' => $this->nullableString($payload, 'display_name') ?: sprintf('Pulse test %s', $publisher->label()),
+            'account_handle' => $this->nullableString($payload, 'account_handle') ?: '@pulse-test-'.$platform,
+            'external_account_id' => $externalAccountId,
+            'auth_method' => SocialAccountConnection::AUTH_METHOD_MANUAL,
+            'credentials' => [
+                'access_token' => 'pulse-test-token-'.$platform,
+                'token_type' => 'Bearer',
+            ],
+            'permissions' => array_values($definition['scopes'] ?? []),
+            'status' => SocialAccountConnection::STATUS_CONNECTED,
+            'is_active' => true,
+            'connected_at' => $connection->connected_at ?: $now,
+            'last_synced_at' => $now,
+            'token_expires_at' => $now->copy()->addYear(),
+            'oauth_state' => null,
+            'oauth_state_expires_at' => null,
+            'last_error' => null,
+            'metadata' => $this->mergedMetadata($connection, $publisher, [
+                'connection_flow' => 'local_test_connection',
+                'oauth_ready' => true,
+                'oauth_code_verifier' => null,
+                'test_connection' => true,
+                'provider_target_id' => $externalAccountId,
+                'publish_fake_mode' => true,
+            ]),
+        ])->save();
+
+        return $connection->fresh();
     }
 
     /**
@@ -761,6 +834,17 @@ class SocialAccountConnectionService
             ->first();
 
         return is_string($message) && $message !== '' ? $message : $fallback;
+    }
+
+    private function testConnectionsEnabled(): bool
+    {
+        $configured = config('services.social.allow_test_connections');
+
+        if ($configured !== null) {
+            return filter_var($configured, FILTER_VALIDATE_BOOLEAN);
+        }
+
+        return app()->environment(['local', 'testing']);
     }
 
     private function ensureUniqueExternalAccountId(

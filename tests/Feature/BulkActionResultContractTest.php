@@ -134,7 +134,7 @@ test('request bulk json response uses the standard bulk result contract and keep
     ]);
 
     $response->assertOk()
-        ->assertJsonPath('message', 'Requests updated.')
+        ->assertJsonPath('message', 'Prospects updated.')
         ->assertJsonPath('ids', [$lead->id])
         ->assertJsonPath('processed_ids', [$lead->id])
         ->assertJsonPath('selected_count', 1)

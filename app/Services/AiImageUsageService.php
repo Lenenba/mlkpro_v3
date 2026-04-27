@@ -12,6 +12,8 @@ class AiImageUsageService
 
     public const CONTEXT_PRODUCT = 'product';
 
+    public const CONTEXT_SOCIAL = 'social';
+
     public const FREE_DAILY_LIMIT = 1;
 
     public function contexts(): array
@@ -19,6 +21,7 @@ class AiImageUsageService
         return [
             self::CONTEXT_STORE,
             self::CONTEXT_PRODUCT,
+            self::CONTEXT_SOCIAL,
         ];
     }
 

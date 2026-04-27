@@ -4,6 +4,7 @@ return [
     'required' => 'El campo :attribute es obligatorio.',
     'string' => 'El campo :attribute debe ser una cadena de texto.',
     'email' => 'El campo :attribute debe ser un correo electronico valido.',
+    'url' => 'El campo :attribute debe ser una URL valida.',
     'confirmed' => 'La confirmacion de :attribute no coincide.',
     'current_password' => 'La contrasena es incorrecta.',
     'unique' => 'El valor de :attribute ya esta en uso.',
@@ -23,8 +24,13 @@ return [
     'attributes' => [
         'name' => 'nombre',
         'email' => 'email',
+        'text' => 'texto del post',
+        'image_url' => 'URL de imagen',
+        'link_url' => 'enlace de destino',
+        'link_cta_label' => 'texto del CTA',
         'password' => 'contrasena',
         'password_confirmation' => 'confirmacion de la contrasena',
         'code' => 'codigo de verificacion',
+        'target_connection_ids' => 'cuentas objetivo',
     ],
 ];

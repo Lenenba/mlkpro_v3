@@ -1,8 +1,8 @@
 {
   "requests": {
-    "title": "Solicitudes",
+    "title": "Prospectos",
     "stats": {
-      "total": "Solicitudes totales",
+      "total": "Prospectos totales",
       "new": "Nuevo",
       "in_progress": "En progreso",
       "due_soon": "Por vencer",
@@ -13,9 +13,17 @@
       "unassigned": "No asignado"
     },
     "filters": {
-      "search_placeholder": "Solicitudes de búsqueda...",
+      "search_placeholder": "Buscar prospectos...",
       "all_statuses": "Todos los estados",
-      "all_customers": "Todos los clientes"
+      "all_customers": "Todos los clientes",
+      "all_assignees": "Todos los responsables",
+      "all_sources": "Todas las fuentes",
+      "all_priorities": "Todas las prioridades",
+      "request_type_placeholder": "Buscar un tipo",
+      "unassigned_only": "Solo sin responsable",
+      "follow_up_today": "Seguimiento hoy",
+      "follow_up_overdue": "Atrasados",
+      "archived_only": "Archivados"
     },
     "saved_segments": {
       "title": "Segmentos guardados",
@@ -29,7 +37,7 @@
       "select_label": "Segmento guardado",
       "select_placeholder": "Elegir un segmento",
       "name_label": "Nombre del segmento",
-      "name_placeholder": "Ej. Leads Montreal por atender",
+      "name_placeholder": "Ej. Prospectos de Montreal por atender",
       "apply": "Aplicar",
       "save_current": "Guardar filtros",
       "update_selected": "Actualizar",
@@ -71,20 +79,30 @@
     },
     "actions": {
       "clear": "Borrar",
-      "intake": "Ingesta de plomo",
+      "intake": "Captacion de prospectos",
       "import_csv": "Importar CSV",
-      "new_request": "Nueva solicitud",
+      "export_csv": "Exportar CSV",
+      "new_request": "Nuevo prospecto",
       "view": "Ver",
       "back": "Atrás",
       "view_quote": "Ver cotización",
       "convert": "Convertir",
       "update": "Actualizar",
+      "change_status": "Cambiar estado",
+      "plan_follow_up": "Planificar seguimiento",
+      "add_note": "Agregar nota",
+      "archive": "Archivar",
+      "restore": "Restaurar",
+      "archive_confirm": "Archivar este prospecto?",
+      "anonymize": "Anonimizar",
+      "anonymize_confirm": "Anonimizar definitivamente este prospecto archivado?",
+      "anonymize_reason_prompt": "Motivo de anonimización (opcional)",
       "timeline": "Línea de tiempo",
       "delete": "Eliminar",
-      "delete_confirm": "¿Eliminar esta solicitud?",
+      "delete_confirm": "Eliminar este prospecto?",
       "cancel": "Cancelar",
       "save": "Guardar",
-      "create_request": "Crear solicitud",
+      "create_request": "Crear prospecto",
       "convert_to_quote": "Convertir a cotización"
     },
     "view": {
@@ -92,7 +110,11 @@
       "board": "tablero"
     },
     "board": {
-      "empty": "No hay pistas aquí todavía."
+      "empty": "No hay prospectos aqui todavia."
+    },
+    "workspace": {
+      "title": "Espacio de prospectos",
+      "subtitle": "Califica, asigna, relanza y convierte oportunidades desde un mismo espacio comercial."
     },
     "sources": {
       "manual": "manuales",
@@ -110,6 +132,12 @@
       "other": "Otro",
       "unknown": "Desconocido"
     },
+    "priorities": {
+      "urgent": "Urgente",
+      "high": "Alta",
+      "normal": "Normal",
+      "low": "Baja"
+    },
     "urgency": {
       "urgent": "Urgente",
       "high": "Alto",
@@ -123,7 +151,7 @@
       "budget_amount": "Presupuesto ${amount}"
     },
     "quality": {
-      "title": "Calidad del plomo",
+      "title": "Calificacion del prospecto",
       "source": "Fuente",
       "source_placeholder": "Seleccionar fuente",
       "urgency": "Urgencia",
@@ -138,11 +166,43 @@
     },
     "duplicates": {
       "title": "Posibles duplicados",
+      "alert_title": "Se detectaron posibles prospectos duplicados",
       "merge": "Fusionarse aquí",
-      "merge_confirm": "¿Fusionar este duplicado con el cliente potencial actual?"
+      "merge_confirm": "Fusionar este duplicado con el prospecto actual?",
+      "review_existing": "Revise los prospectos existentes a continuación antes de continuar.",
+      "summary": "{entries} elementos marcados · {matches} coincidencias posibles",
+      "match_count": "{count} coincidencias",
+      "import_entry": "Fila de importación {row}",
+      "continue_anyway": "Continuar de todos modos",
+      "score": "Puntuación {score}"
+    },
+    "feedback": {
+      "create_error": "No se pudo crear el prospecto.",
+      "import_error": "No se pudieron importar los prospectos.",
+      "convert_error": "No se pudo convertir el prospecto.",
+      "public_submit_error": "No se pudo enviar la solicitud."
+    },
+    "loss": {
+      "reason_placeholder": "Selecciona un motivo de perdida",
+      "reason_required": "Selecciona un motivo de perdida.",
+      "reason_missing": "Motivo de perdida no especificado",
+      "comment": "Comentario de perdida (opcional)",
+      "comment_empty": "Sin comentario de perdida.",
+      "close_open_tasks": "Cerrar las tareas abiertas vinculadas a este prospecto",
+      "close_open_tasks_short": "Cerrar tareas abiertas",
+      "reasons": {
+        "budget": "Presupuesto bloqueado",
+        "timing": "Mal momento",
+        "no_fit": "No encaja",
+        "competitor": "Perdido frente a un competidor",
+        "no_response": "Sin respuesta",
+        "duplicate": "Oportunidad duplicada",
+        "internal_decision": "Decision interna",
+        "other": "Otro"
+      }
     },
     "intake": {
-      "title": "Ingesta de plomo",
+      "title": "Captacion de prospectos",
       "public_form": "Forma pública",
       "public_form_hint": "Comparte este enlace en tu sitio web, QR o campañas.",
       "webhook": "Webhook/API",
@@ -153,10 +213,10 @@
       "example": "Solicitud de ejemplo"
     },
     "import": {
-      "title": "Importar clientes potenciales",
+      "title": "Importar prospectos",
       "csv_file": "archivo CSV",
       "mapping_title": "Columnas del mapa",
-      "mapping_hint": "Haga coincidir sus encabezados CSV con los campos de clientes potenciales.",
+      "mapping_hint": "Haga coincidir sus encabezados CSV con los campos del prospecto.",
       "missing_headers": "Cargue un archivo CSV con una fila de encabezado para asignar columnas.",
       "skip": "Saltar",
       "submit": "Importar",
@@ -201,7 +261,7 @@
         "website": "Sitio web / escaparate",
         "booking": "Reservas / reservas",
         "payment": "Pagos",
-        "crm": "CRM / seguimiento de leads",
+        "crm": "CRM / seguimiento de prospectos",
         "integration": "Integraciones/API"
       },
       "suggestions_title": "Servicios sugeridos",
@@ -303,26 +363,73 @@
     },
     "analytics": {
       "title": "Análisis (últimos {days} días)",
-      "subtitle": "Información continua para realizar un seguimiento del rendimiento de los clientes potenciales.",
+      "subtitle": "Informacion continua para seguir el rendimiento de los prospectos.",
+      "dashboard": {
+        "title": "Dashboard de prospectos",
+        "subtitle": "Sigue el volumen, responsables, presion de seguimiento y conversion a cliente desde un solo cockpit.",
+        "window": "Ventana movil de conversion de {days} dias",
+        "unassigned": "Sin responsable",
+        "tabs": {
+          "overview": "Resumen",
+          "overview_note": "KPIs clave y señales de conversion",
+          "pipeline": "Pipeline",
+          "pipeline_note": "Distribucion por estado y fuente",
+          "assignees": "Responsables",
+          "assignees_note": "Carga y seguimientos por owner"
+        },
+        "sections": {
+          "by_status": "Por estado",
+          "by_source": "Por fuente",
+          "by_assignee": "Por responsable",
+          "by_assignee_note": "Ordenado por seguimientos atrasados y luego por volumen."
+        },
+        "labels": {
+          "due_today": "Seguimiento hoy",
+          "overdue": "Atrasado",
+          "won": "Ganado",
+          "lost": "Perdido",
+          "converted": "Convertido"
+        },
+        "cards": {
+          "total": "Prospectos totales",
+          "total_note": "Pipeline activo no archivado.",
+          "new_this_week": "Nuevos esta semana",
+          "new_this_week_note": "Creados desde el inicio de la semana actual.",
+          "new_this_month": "Nuevos este mes",
+          "new_this_month_note": "Creados desde el inicio del mes actual.",
+          "due_today": "Seguimiento hoy",
+          "due_today_note": "Prospectos abiertos con seguimiento previsto hoy.",
+          "overdue": "Atrasados",
+          "overdue_note": "Prospectos abiertos con seguimiento vencido.",
+          "won": "Ganados",
+          "won_note": "Prospectos cerrados como ganados.",
+          "lost": "Perdidos",
+          "lost_note": "Prospectos cerrados como perdidos.",
+          "conversion_rate": "Conversion {days}d",
+          "conversion_rate_note": "{converted} convertidos / {created} creados",
+          "avg_conversion_days": "Tiempo medio de conversion",
+          "avg_conversion_days_note": "Basado en prospectos convertidos en clientes durante la ventana actual."
+        }
+      },
       "first_response": "Promedio de primera respuesta",
-      "first_response_note": "Basado en la primera acción después de la creación del cliente potencial.",
+      "first_response_note": "Basado en la primera accion despues de crear el prospecto.",
       "time_to_intake": "Tiempo medio de atención",
-      "time_to_intake_note": "Mide cuánto tarda un lead en ser atendido de verdad.",
+      "time_to_intake_note": "Mide cuanto tarda un prospecto en ser atendido de verdad.",
       "conversion_rate": "Tasa de conversión",
-      "conversion_note": "Clientes potenciales ganados vs total creado.",
-      "total_leads": "Nuevos clientes potenciales",
+      "conversion_note": "Prospectos ganados frente al total creado.",
+      "total_leads": "Nuevos prospectos",
       "total_note": "Creado en los últimos {days} días.",
-      "stale_count": "Leads sin actividad",
-      "stale_note": "Leads abiertos sin actividad durante al menos 7 días.",
-      "breached_count": "Leads vencidos",
-      "breached_note": "Leads abiertos con seguimiento atrasado o SLA vencido.",
+      "stale_count": "Prospectos sin actividad",
+      "stale_note": "Prospectos abiertos sin actividad durante al menos 7 dias.",
+      "breached_count": "Prospectos vencidos",
+      "breached_note": "Prospectos abiertos con seguimiento atrasado o SLA vencido.",
       "form": {
-        "title": "Rendimiento del formulario de clientes potenciales",
+        "title": "Rendimiento del formulario de prospectos",
         "window": "Últimos {days} días",
         "views": "Vistas de formulario",
         "unique": "{count} visitantes únicos",
         "submits": "Envíos de formularios",
-        "submits_note": "Clientes potenciales creados a partir del formulario público.",
+        "submits_note": "Prospectos creados a partir del formulario publico.",
         "conversion": "Conversión de formulario",
         "conversion_note": "Envíos ÷ vistas.",
         "last_view": "Última vista",
@@ -338,8 +445,8 @@
       },
       "by_source": "Conversión por fuente",
       "no_data": "Aún no hay datos.",
-      "risk_title": "Clientes potenciales en riesgo",
-      "no_risk": "No hay pistas en riesgo en este momento.",
+      "risk_title": "Prospectos en riesgo",
+      "no_risk": "No hay prospectos en riesgo en este momento.",
       "last_activity": "Última actividad",
       "follow_up": "Seguimiento",
       "risk_7": "Más de 7 días sin acción",
@@ -358,24 +465,54 @@
     },
     "table": {
       "request": "Solicitar",
+      "prospect": "Prospecto",
+      "company": "Empresa",
+      "source": "Fuente",
+      "type": "Tipo",
       "customer": "Cliente",
       "status": "Estado",
       "assignee": "Cesionario",
       "follow_up": "Seguimiento",
+      "priority": "Prioridad",
+      "last_activity": "Última actividad",
       "created": "Creado",
       "actions": "Acciones"
     },
     "labels": {
-      "request_number": "Solicitud #{id}",
-      "request": "Solicitar",
+      "request_number": "Prospecto #{id}",
+      "anonymized_request_number": "Prospecto anonimizado #{id}",
+      "request": "Prospecto",
+      "anonymized_customer": "Cliente anonimizado",
       "unknown_customer": "Cliente desconocido",
+      "anonymized_company": "Empresa anonimizada",
+      "unknown_company": "Empresa desconocida",
       "unknown_status": "Estado desconocido",
+      "anonymized_contact": "Datos de contacto anonimizados",
       "unassigned": "No asignado",
-      "no_follow_up": "Sin seguimiento"
+      "no_follow_up": "Sin seguimiento",
+      "no_type": "Sin tipo",
+      "consent_yes": "Si",
+      "consent_no": "No",
+      "consent_unknown": "Desconocido"
     },
     "show": {
       "details": "Detalles del cliente potencial",
+      "tabs": {
+        "left": {
+          "overview": "Vista general",
+          "collaboration": "Colaboracion",
+          "sales": "Actividad comercial"
+        },
+        "right": {
+          "summary": "Resumen",
+          "qualification": "Calificacion",
+          "history": "Historial"
+        }
+      },
+      "current_status": "Estado actual",
       "channel_fallback": "Canal desconocido",
+      "company": "Empresa",
+      "request_type": "Tipo de prospecto",
       "service": "Servicio",
       "service_fallback": "No especificado",
       "urgency": "Urgencia",
@@ -391,9 +528,23 @@
       "email_action": "Correo electrónico",
       "call": "llamar",
       "whatsapp": "WhatsApp",
+      "contact_consent": "Consentimiento de contacto",
+      "marketing_consent": "Consentimiento de marketing",
       "customer": "Cliente",
+      "lost_reason": "Motivo de perdida",
+      "lost_comment": "Comentario de perdida",
       "status_updated": "Estado actualizado",
-      "source": "Fuente"
+      "source": "Fuente",
+      "archived_banner": "Prospecto archivado",
+      "archived_read_only": "Este registro sigue visible, pero las acciones de edicion quedan bloqueadas hasta restaurar el prospecto.",
+      "archived_at": "Archivado el",
+      "archived_by": "Archivado por",
+      "archive_reason": "Motivo de archivo",
+      "anonymized_read_only": "Este prospecto ha sido anonimizado de forma irreversible. Solo permanece visible la metadata de auditoría no sensible.",
+      "anonymized_at": "Anonimizado el",
+      "anonymized_reason": "Motivo de anonimización",
+      "anonymized_address": "Dirección anonimizada",
+      "anonymized_description": "La descripción ha sido anonimizada."
     },
     "origin": {
       "title": "Origen de la campaña",
@@ -460,15 +611,15 @@
     },
     "sales_activity": {
       "title": "Timeline CRM",
-      "subtitle": "Siga llamadas, notas, correos, proximas acciones y reuniones desde esta solicitud.",
+      "subtitle": "Siga llamadas, notas, correos, proximas acciones y reuniones desde este prospecto.",
       "quick_actions_title": "Acciones rapidas",
-      "quick_actions_hint": "Registre los touchpoints mas comunes sin salir de la solicitud.",
+      "quick_actions_hint": "Registre los touchpoints mas comunes sin salir de la ficha del prospecto.",
       "open_dialog": "Registrar actividad",
       "current_next_action": "Proxima accion activa",
       "due_prefix": "Vence",
       "empty": "Aun no hay actividad CRM.",
       "dialog_title": "Registrar una actividad comercial",
-      "dialog_hint": "Agregue una nota, un resultado de llamada, una proxima accion o una reunion desde la solicitud.",
+      "dialog_hint": "Agregue una nota, un resultado de llamada, una proxima accion o una reunion desde la cronologia del prospecto.",
       "actor_fallback": "Sistema",
       "cancel": "Cancelar",
       "save": "Guardar actividad",
@@ -543,16 +694,18 @@
       "quote_sent": "Cotización enviada",
       "won": "Ganado",
       "lost": "perdido",
-      "converted": "Convertido"
+      "converted": "Convertido",
+      "archived": "Archivado",
+      "anonymized": "Anonimizado"
     },
-    "empty": "No se encontraron solicitudes.",
+    "empty": "No se encontraron prospectos.",
     "pagination": {
       "previous": "Anterior",
       "next": "Siguiente",
       "showing": "Mostrando {from}-{to}"
     },
     "convert": {
-      "title": "Convertir solicitud en cotización",
+      "title": "Convertir prospecto en cotizacion",
       "default_job_title": "Nueva cotización",
       "create_customer": "Crear nuevo cliente",
       "customer": "Cliente",
@@ -568,11 +721,37 @@
       "notes_optional": "Notas (opcional)"
     },
     "update": {
-      "title": "Solicitud de actualización",
+      "title": "Actualizar prospecto",
       "status": "Estado",
       "assignee": "Cesionario",
       "follow_up": "Próximo seguimiento",
-      "lost_reason": "razón perdida"
+      "lost_reason": "razón perdida",
+      "lost_comment": "Comentario de perdida",
+      "status_comment": "Nota de estado (opcional)"
+    },
+    "interactions": {
+      "title": "Linea de tiempo del prospecto",
+      "subtitle": "Centraliza notas, documentos, llamadas, correos, reuniones y proximas acciones en un solo lugar.",
+      "empty": "Todavia no hay interacciones del prospecto registradas.",
+      "actor_fallback": "Sistema",
+      "attachment_prefix": "Adjunto:",
+      "next_action_prefix": "Proxima accion",
+      "types": {
+        "note": "Nota",
+        "document": "Documento",
+        "call": "Llamada",
+        "call_outcome": "Resultado de llamada",
+        "next_action": "Proxima accion",
+        "meeting": "Reunion",
+        "email": "Correo",
+        "system": "Sistema"
+      }
+    },
+    "status_history": {
+      "title": "Historial de estados",
+      "empty": "Aun no hay cambios de estado registrados.",
+      "initial_state": "Estado inicial",
+      "system": "Sistema"
     },
     "quick_actions": {
       "follow_up_tomorrow": "Mañana",
@@ -582,12 +761,22 @@
     "quick_form": {
       "new_customer": "Nuevo cliente",
       "existing_customer": "Cliente existente",
+      "existing_prospect": "Prospecto existente",
+      "new_prospect": "Nuevo prospecto",
+      "no_relation": "Sin vinculo",
       "create_customer": "Crear cliente",
       "customer_optional": "Cliente (opcional)",
+      "prospect_optional": "Prospecto (opcional)",
       "loading_customers": "Cargando clientes...",
+      "loading_prospects": "Cargando prospectos...",
       "search_placeholder": "Buscar clientes",
+      "search_prospect_placeholder": "Buscar prospectos",
       "no_customer": "Ningún cliente",
       "continue_without": "Continuar sin cliente",
+      "continue_without_prospect": "Continuar sin prospecto",
+      "new_customer_hint": "Crea primero el cliente y luego termina la solicitud con ese cliente ya vinculado.",
+      "new_prospect_hint": "Se creara automaticamente un nuevo prospecto a partir de la informacion de contacto de esta solicitud.",
+      "unlinked_hint": "Esta solicitud se creara por ahora sin cliente ni prospecto vinculado.",
       "title": "Título",
       "service_type": "Tipo de servicio",
       "source": "Fuente",
@@ -601,6 +790,15 @@
       "contact_email_optional": "Correo electrónico de contacto (opcional)",
       "contact_phone_optional": "Teléfono de contacto (opcional)",
       "description_optional": "Descripción (opcional)"
+    },
+    "service_request_status": {
+      "new": "Nueva",
+      "in_progress": "En curso",
+      "pending": "En espera",
+      "accepted": "Aceptada",
+      "refused": "Rechazada",
+      "completed": "Completada",
+      "cancelled": "Cancelada"
     }
   }
 }

@@ -295,7 +295,7 @@ it('queues scheduled pulse publication with a delayed job per target', function 
 
     $owner = pulsePublishingOwner();
     $instagram = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_INSTAGRAM);
-    $scheduledFor = Carbon::parse('2026-04-24 14:30:00');
+    $scheduledFor = Carbon::now()->addDays(2)->setTime(14, 30);
     $draft = pulsePublishingDraft($owner, $owner, [$instagram], [
         'scheduled_for' => $scheduledFor,
     ]);
@@ -368,7 +368,7 @@ it('requires social approve in addition to social publish for direct pulse publi
     $manager = pulsePublishingTeamMember($owner, ['social.manage']);
     $connection = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_X);
     $draft = pulsePublishingDraft($owner, $owner, [$connection], [
-        'scheduled_for' => Carbon::parse('2026-04-24 16:45:00'),
+        'scheduled_for' => Carbon::now()->addDays(2)->setTime(16, 45),
     ]);
 
     $this->actingAs($manager)
@@ -405,7 +405,7 @@ it('blocks pulse publish and schedule routes when the social feature is disabled
     ]);
     $connection = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
     $draft = pulsePublishingDraft($owner, $owner, [$connection], [
-        'scheduled_for' => Carbon::parse('2026-04-24 09:15:00'),
+        'scheduled_for' => Carbon::now()->addDays(2)->setTime(9, 15),
     ]);
 
     $this->actingAs($owner)

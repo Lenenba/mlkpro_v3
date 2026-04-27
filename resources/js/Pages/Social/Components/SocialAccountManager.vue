@@ -310,8 +310,10 @@ const load = async () => {
 };
 
 const openProvider = (definition) => {
-    openPlatformKey.value = definition.key;
-    selectedConnectionId.value = definition.primary_connection?.id || definition.connections?.[0]?.id || null;
+    const currentDefinition = providerCards.value.find((provider) => provider.key === definition.key) || definition;
+
+    openPlatformKey.value = currentDefinition.key;
+    selectedConnectionId.value = currentDefinition.primary_connection?.id || currentDefinition.connections?.[0]?.id || null;
     error.value = '';
 };
 
@@ -379,12 +381,43 @@ const connectPlatform = async (definition, { openAfterLoad = true } = {}) => {
 };
 
 const handleProviderCard = async (definition) => {
+    if (canManage.value && definition.connection_count === 0 && definition.setup_required && definition.test_connection_enabled) {
+        openProvider(definition);
+        return;
+    }
+
     if (canManage.value && definition.connection_count === 0) {
         await connectPlatform(definition, { openAfterLoad: false });
         return;
     }
 
     openProvider(definition);
+};
+
+const createTestConnection = async (definition) => {
+    if (!canManage.value || !definition?.test_connection_enabled) {
+        return;
+    }
+
+    busy.value = true;
+    error.value = '';
+    info.value = '';
+
+    try {
+        const response = await axios.post(route('social.accounts.test-connection.store'), {
+            platform: definition.key,
+        });
+
+        info.value = String(response.data?.message || t('social.accounts_manager.messages.test_connection_success'));
+        await load();
+        openProvider(definition);
+    } catch (requestError) {
+        await load();
+        openProvider(definition);
+        error.value = requestErrorMessage(requestError, t('social.accounts_manager.messages.test_connection_error'));
+    } finally {
+        busy.value = false;
+    }
 };
 
 const authorizeConnection = async (connection) => {
@@ -637,6 +670,15 @@ const deleteConnection = async (connection) => {
 
                     <div class="flex flex-wrap gap-2">
                         <SecondaryButton
+                            v-if="canManage && activeProviderCard.test_connection_enabled"
+                            type="button"
+                            :disabled="busy || isLoading"
+                            @click="createTestConnection(activeProviderCard)"
+                        >
+                            {{ t('social.accounts_manager.actions.add_test_account') }}
+                        </SecondaryButton>
+
+                        <SecondaryButton
                             v-if="canManage"
                             type="button"
                             :disabled="busy || isLoading"
@@ -696,6 +738,12 @@ const deleteConnection = async (connection) => {
                             </div>
                             <div class="mt-2">
                                 {{ t('social.accounts_manager.modal.accounts_empty_description') }}
+                            </div>
+                            <div
+                                v-if="canManage && activeProviderCard.test_connection_enabled"
+                                class="mt-3 rounded-sm border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-700 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-300"
+                            >
+                                {{ t('social.accounts_manager.modal.test_connection_hint') }}
                             </div>
                         </div>
                     </section>

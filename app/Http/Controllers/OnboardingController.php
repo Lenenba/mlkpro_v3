@@ -6,6 +6,7 @@ use App\Enums\BillingPeriod;
 use App\Enums\CurrencyCode;
 use App\Models\PlatformSetting;
 use App\Models\ProductCategory;
+use App\Models\Prospect;
 use App\Models\Role;
 use App\Models\TeamMember;
 use App\Models\User;
@@ -54,6 +55,13 @@ class OnboardingController extends Controller
         'tasks.create' => 'tasks',
         'tasks.edit' => 'tasks',
         'tasks.delete' => 'tasks',
+        Prospect::PERMISSION_VIEW => 'requests',
+        Prospect::PERMISSION_CREATE => 'requests',
+        Prospect::PERMISSION_EDIT => 'requests',
+        Prospect::PERMISSION_ASSIGN => 'requests',
+        Prospect::PERMISSION_CONVERT => 'requests',
+        Prospect::PERMISSION_MERGE => 'requests',
+        Prospect::PERMISSION_EXPORT => 'requests',
         'quotes.view' => 'quotes',
         'quotes.create' => 'quotes',
         'quotes.edit' => 'quotes',
@@ -755,6 +763,13 @@ class OnboardingController extends Controller
                 'tasks.create',
                 'tasks.edit',
                 'tasks.delete',
+                Prospect::PERMISSION_VIEW,
+                Prospect::PERMISSION_CREATE,
+                Prospect::PERMISSION_EDIT,
+                Prospect::PERMISSION_ASSIGN,
+                Prospect::PERMISSION_CONVERT,
+                Prospect::PERMISSION_MERGE,
+                Prospect::PERMISSION_EXPORT,
                 'quotes.view',
                 'quotes.create',
                 'quotes.edit',
@@ -770,6 +785,7 @@ class OnboardingController extends Controller
                 'jobs.view',
                 'tasks.view',
                 'tasks.edit',
+                Prospect::PERMISSION_VIEW,
                 'reservations.view',
                 'reservations.queue',
                 'campaigns.view',

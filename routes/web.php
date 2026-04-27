@@ -55,6 +55,7 @@ use App\Http\Controllers\ProductPriceLookupController;
 use App\Http\Controllers\ProductsSearchController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PromotionController;
+use App\Http\Controllers\ProspectController;
 use App\Http\Controllers\PublicInvoiceController;
 use App\Http\Controllers\PublicPageController;
 use App\Http\Controllers\PublicQuoteController;
@@ -80,6 +81,7 @@ use App\Http\Controllers\SalesInboxController;
 use App\Http\Controllers\SalesManagerDashboardController;
 use App\Http\Controllers\SavedSegmentController;
 use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\ServiceRequestController;
 use App\Http\Controllers\Settings\ApiTokenController;
 use App\Http\Controllers\Settings\BillingSettingsController;
 use App\Http\Controllers\Settings\CompanySettingsController;
@@ -91,6 +93,10 @@ use App\Http\Controllers\Settings\ProductCategoryController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
 use App\Http\Controllers\Settings\SubscriptionController;
 use App\Http\Controllers\SocialAccountConnectionController;
+use App\Http\Controllers\SocialAutomationController;
+use App\Http\Controllers\SocialBrandVoiceController;
+use App\Http\Controllers\SocialCampaignController;
+use App\Http\Controllers\SocialMediaLibraryController;
 use App\Http\Controllers\SocialPostController;
 use App\Http\Controllers\SuperAdmin\AdminController as SuperAdminAdminController;
 use App\Http\Controllers\SuperAdmin\AiImageController as SuperAdminAiImageController;
@@ -383,7 +389,37 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
 
     // Lead Requests
     Route::middleware('company.feature:requests')->group(function () {
+        Route::get('/prospects/options', [ProspectController::class, 'options'])->name('prospects.options');
+        Route::get('/prospects', [ProspectController::class, 'index'])->name('prospects.index');
+        Route::get('/prospects/export', [ProspectController::class, 'export'])->name('prospects.export');
+        Route::patch('/prospects/bulk', [ProspectController::class, 'bulkUpdate'])->name('prospects.bulk');
+        Route::post('/prospects', [ProspectController::class, 'store'])->name('prospects.store');
+        Route::post('/prospects/import', [ProspectController::class, 'import'])->name('prospects.import');
+        Route::get('/prospects/{lead}', [ProspectController::class, 'show'])->name('prospects.show');
+        Route::post('/prospects/{lead}/sales-activities', [SalesActivityController::class, 'storeForRequest'])
+            ->name('crm.sales-activities.prospects.store');
+        Route::put('/prospects/{lead}', [ProspectController::class, 'update'])->name('prospects.update');
+        Route::post('/prospects/{lead}/merge', [ProspectController::class, 'merge'])->name('prospects.merge');
+        Route::post('/prospects/{lead}/convert', [ProspectController::class, 'convert'])
+            ->middleware('company.feature:quotes')
+            ->name('prospects.convert');
+        Route::post('/prospects/{lead}/convert-to-customer', [ProspectController::class, 'convertToCustomer'])
+            ->name('prospects.convert-customer');
+        Route::patch('/prospects/{lead}/archive', [ProspectController::class, 'archive'])->name('prospects.archive');
+        Route::post('/prospects/{lead}/restore', [ProspectController::class, 'restore'])->name('prospects.restore');
+        Route::patch('/prospects/{lead}/anonymize', [ProspectController::class, 'anonymize'])->name('prospects.anonymize');
+        Route::post('/prospects/{lead}/notes', [RequestNoteController::class, 'store'])->name('prospects.notes.store');
+        Route::delete('/prospects/{lead}/notes/{note}', [RequestNoteController::class, 'destroy'])->name('prospects.notes.destroy');
+        Route::post('/prospects/{lead}/media', [RequestMediaController::class, 'store'])->name('prospects.media.store');
+        Route::delete('/prospects/{lead}/media/{media}', [RequestMediaController::class, 'destroy'])->name('prospects.media.destroy');
+        Route::delete('/prospects/{lead}', [ProspectController::class, 'destroy'])->name('prospects.destroy');
+
+        Route::get('/service-requests', [ServiceRequestController::class, 'index'])->name('service-requests.index');
+        Route::get('/service-requests/{serviceRequest}', [ServiceRequestController::class, 'show'])->name('service-requests.show');
+        Route::post('/service-requests', [ServiceRequestController::class, 'store'])->name('service-requests.store');
+
         Route::get('/requests', [RequestController::class, 'index'])->name('request.index');
+        Route::get('/requests/export', [RequestController::class, 'export'])->name('request.export');
         Route::patch('/requests/bulk', [RequestController::class, 'bulkUpdate'])->name('request.bulk');
         Route::post('/requests', [RequestController::class, 'store'])->name('request.store');
         Route::post('/requests/import', [RequestController::class, 'import'])->name('request.import');
@@ -395,6 +431,11 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::post('/requests/{lead}/convert', [RequestController::class, 'convert'])
             ->middleware('company.feature:quotes')
             ->name('request.convert');
+        Route::post('/requests/{lead}/convert-to-customer', [RequestController::class, 'convertToCustomer'])
+            ->name('request.convert-customer');
+        Route::patch('/requests/{lead}/archive', [RequestController::class, 'archive'])->name('request.archive');
+        Route::post('/requests/{lead}/restore', [RequestController::class, 'restore'])->name('request.restore');
+        Route::patch('/requests/{lead}/anonymize', [RequestController::class, 'anonymize'])->name('request.anonymize');
         Route::post('/requests/{lead}/notes', [RequestNoteController::class, 'store'])->name('request.notes.store');
         Route::delete('/requests/{lead}/notes/{note}', [RequestNoteController::class, 'destroy'])->name('request.notes.destroy');
         Route::post('/requests/{lead}/media', [RequestMediaController::class, 'store'])->name('request.media.store');
@@ -547,16 +588,36 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('social.index');
         Route::get('/social/composer', [SocialPostController::class, 'composer'])
             ->name('social.composer');
+        Route::get('/social/calendar', [SocialPostController::class, 'calendar'])
+            ->name('social.calendar');
+        Route::get('/social/brand-voice', [SocialBrandVoiceController::class, 'edit'])
+            ->name('social.brand-voice');
+        Route::get('/social/media', [SocialMediaLibraryController::class, 'index'])
+            ->name('social.media.index');
+        Route::get('/social/campaigns', [SocialCampaignController::class, 'index'])
+            ->name('social.campaigns.index');
         Route::get('/social/templates', [SocialPostController::class, 'templates'])
             ->name('social.templates.index');
         Route::get('/social/history', [SocialPostController::class, 'history'])
             ->name('social.history');
+        Route::get('/social/automations', [SocialAutomationController::class, 'automations'])
+            ->name('social.automations.index');
+        Route::get('/social/approvals', [SocialAutomationController::class, 'approvals'])
+            ->name('social.approvals.index');
         Route::post('/social/suggestions', [SocialPostController::class, 'suggestions'])
             ->name('social.suggestions');
         Route::post('/social/posts', [SocialPostController::class, 'store'])
             ->name('social.posts.store');
         Route::put('/social/posts/{post}', [SocialPostController::class, 'update'])
             ->name('social.posts.update');
+        Route::put('/social/posts/{post}/reschedule', [SocialPostController::class, 'reschedule'])
+            ->name('social.posts.reschedule');
+        Route::put('/social/brand-voice', [SocialBrandVoiceController::class, 'update'])
+            ->name('social.brand-voice.update');
+        Route::post('/social/media', [SocialMediaLibraryController::class, 'store'])
+            ->name('social.media.store');
+        Route::post('/social/campaigns', [SocialCampaignController::class, 'store'])
+            ->name('social.campaigns.store');
         Route::post('/social/posts/{post}/publish', [SocialPostController::class, 'publish'])
             ->name('social.posts.publish');
         Route::post('/social/posts/{post}/schedule', [SocialPostController::class, 'schedule'])
@@ -567,6 +628,10 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('social.posts.approve');
         Route::post('/social/posts/{post}/reject', [SocialPostController::class, 'reject'])
             ->name('social.posts.reject');
+        Route::post('/social/posts/{post}/prepare-revision', [SocialAutomationController::class, 'prepareRevision'])
+            ->name('social.posts.prepare-revision');
+        Route::post('/social/posts/{post}/regenerate', [SocialAutomationController::class, 'regenerate'])
+            ->name('social.posts.regenerate');
         Route::post('/social/posts/{post}/duplicate', [SocialPostController::class, 'duplicate'])
             ->name('social.posts.duplicate');
         Route::post('/social/posts/{post}/repost', [SocialPostController::class, 'repost'])
@@ -577,10 +642,22 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('social.templates.update');
         Route::delete('/social/templates/{template}', [SocialPostController::class, 'destroyTemplate'])
             ->name('social.templates.destroy');
+        Route::post('/social/automations', [SocialAutomationController::class, 'store'])
+            ->name('social.automations.store');
+        Route::put('/social/automations/{rule}', [SocialAutomationController::class, 'update'])
+            ->name('social.automations.update');
+        Route::post('/social/automations/{rule}/pause', [SocialAutomationController::class, 'pause'])
+            ->name('social.automations.pause');
+        Route::post('/social/automations/{rule}/resume', [SocialAutomationController::class, 'resume'])
+            ->name('social.automations.resume');
+        Route::delete('/social/automations/{rule}', [SocialAutomationController::class, 'destroy'])
+            ->name('social.automations.destroy');
         Route::get('/social/accounts', [SocialAccountConnectionController::class, 'index'])
             ->name('social.accounts.index');
         Route::post('/social/accounts', [SocialAccountConnectionController::class, 'store'])
             ->name('social.accounts.store');
+        Route::post('/social/accounts/test-connection', [SocialAccountConnectionController::class, 'storeTestConnection'])
+            ->name('social.accounts.test-connection.store');
         Route::put('/social/accounts/{connection}', [SocialAccountConnectionController::class, 'update'])
             ->name('social.accounts.update');
         Route::post('/social/accounts/{connection}/authorize', [SocialAccountConnectionController::class, 'beginAuthorization'])

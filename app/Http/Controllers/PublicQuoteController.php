@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\Work;
 use App\Models\WorkChecklistItem;
 use App\Notifications\ActionEmailNotification;
+use App\Services\Prospects\ProspectConversionService;
 use App\Services\UsageLimitService;
 use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
@@ -154,6 +155,9 @@ class PublicQuoteController extends Controller
                 'deposit_amount' => __('public.quote.actions.deposit_below_required'),
             ]);
         }
+
+        app(ProspectConversionService::class)->ensureCustomerForQuoteAcceptance($quote, null, true);
+        $quote->refresh();
 
         $existingWork = Work::where('quote_id', $quote->id)->first();
         if (! $existingWork) {

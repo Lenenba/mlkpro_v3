@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Quote;
 use App\Models\Request as LeadRequest;
 use App\Models\User;
+use App\Services\ProspectStatusHistoryService;
 use App\Services\UsageLimitService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -20,20 +21,24 @@ class ConvertLeadRequestToQuoteAction
         $customerId = $validated['customer_id'] ?? $lead->customer_id;
         $propertyId = $validated['property_id'] ?? null;
         $quote = null;
+        $previousStatus = $lead->status;
 
-        DB::transaction(function () use (&$customerId, &$propertyId, &$quote, $accountId, $createCustomer, $lead, $validated, $actor) {
-            if ($createCustomer || ! $customerId) {
+        DB::transaction(function () use (&$customerId, &$propertyId, &$quote, $accountId, $createCustomer, $lead, $validated, $actor, $previousStatus) {
+            if ($createCustomer) {
                 [$customerId, $propertyId] = $this->createCustomerFromLead($lead, $validated, $accountId);
             }
 
-            if (! $customerId) {
+            $customer = $customerId
+                ? Customer::byUser($accountId)->findOrFail((int) $customerId)
+                : null;
+
+            if ($propertyId && ! $customer) {
                 throw ValidationException::withMessages([
-                    'customer_id' => 'Customer is required.',
+                    'property_id' => 'A customer is required before selecting a property.',
                 ]);
             }
 
-            $customer = Customer::byUser($accountId)->findOrFail((int) $customerId);
-            if ($propertyId && ! $customer->properties()->whereKey($propertyId)->exists()) {
+            if ($propertyId && $customer && ! $customer->properties()->whereKey($propertyId)->exists()) {
                 throw ValidationException::withMessages([
                     'property_id' => 'Invalid property for this customer.',
                 ]);
@@ -45,7 +50,7 @@ class ConvertLeadRequestToQuoteAction
 
             $quote = Quote::create([
                 'user_id' => $accountId,
-                'customer_id' => $customer->id,
+                'customer_id' => $customer?->id,
                 'property_id' => $propertyId,
                 'job_title' => $jobTitle,
                 'status' => 'draft',
@@ -54,21 +59,40 @@ class ConvertLeadRequestToQuoteAction
             ]);
 
             $lead->update([
-                'customer_id' => $customer->id,
+                'customer_id' => $customer?->id,
                 'status' => LeadRequest::STATUS_QUALIFIED,
                 'status_updated_at' => now(),
                 'converted_at' => now(),
+                'last_activity_at' => now(),
             ]);
 
             ActivityLog::record($actor, $lead, 'converted', [
                 'quote_id' => $quote->id,
                 'customer_id' => $quote->customer_id,
-            ], 'Request converted to quote');
+            ], 'Prospect converted to quote');
+
+            ActivityLog::record($actor, $lead, 'status_changed', [
+                'from_status' => $previousStatus,
+                'to_status' => $lead->status,
+                'source' => 'quote_conversion',
+                'quote_id' => $quote->id,
+                'customer_id' => $quote->customer_id,
+            ], 'Prospect status changed');
 
             ActivityLog::record($actor, $quote, 'created', [
                 'request_id' => $lead->id,
                 'customer_id' => $quote->customer_id,
-            ], 'Quote created from request');
+            ], 'Quote created from prospect');
+
+            app(ProspectStatusHistoryService::class)->record($lead, $actor, [
+                'from_status' => $previousStatus,
+                'to_status' => $lead->status,
+                'comment' => 'Quote draft created from prospect.',
+                'metadata' => [
+                    'source' => 'quote_conversion',
+                    'quote_id' => $quote->id,
+                ],
+            ]);
         });
 
         return [
