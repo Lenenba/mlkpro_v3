@@ -63,6 +63,8 @@ const info = ref('');
 
 const canManage = computed(() => Boolean(access.value.can_manage_posts));
 const hasAssets = computed(() => assets.value.length > 0);
+const isFile = (value) => typeof File !== 'undefined' && value instanceof File;
+const canUploadFile = computed(() => canManage.value && isFile(uploadFile.value));
 
 const requestErrorMessage = (requestError, fallback) => {
     const validationMessage = Object.values(requestError?.response?.data?.errors || {})
@@ -118,7 +120,7 @@ const load = async () => {
 };
 
 const upload = async () => {
-    if (!canManage.value || !(uploadFile.value instanceof File)) {
+    if (!canUploadFile.value) {
         return;
     }
 
@@ -311,7 +313,7 @@ const optionLabel = (group, value) => t(`social.media_manager.${group}.${value}`
                 />
 
                 <div class="mt-3 flex justify-end">
-                    <PrimaryButton :disabled="busy || !canManage || !(uploadFile instanceof File)" @click="upload">
+                    <PrimaryButton :disabled="busy || !canUploadFile" @click="upload">
                         {{ busy ? t('social.media_manager.actions.uploading') : t('social.media_manager.actions.upload') }}
                     </PrimaryButton>
                 </div>

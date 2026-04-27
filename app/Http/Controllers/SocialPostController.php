@@ -8,6 +8,7 @@ use App\Models\SocialPostTemplate;
 use App\Models\User;
 use App\Services\Social\SocialAccountConnectionService;
 use App\Services\Social\SocialApprovalService;
+use App\Services\Social\SocialBrandVoiceService;
 use App\Services\Social\SocialMediaAssetService;
 use App\Services\Social\SocialPostService;
 use App\Services\Social\SocialPrefillService;
@@ -26,6 +27,7 @@ class SocialPostController extends Controller
         private readonly SocialPrefillService $prefillService,
         private readonly SocialSuggestionService $suggestionService,
         private readonly SocialMediaAssetService $mediaAssetService,
+        private readonly SocialBrandVoiceService $brandVoiceService,
     ) {}
 
     public function index(Request $request)
@@ -82,6 +84,7 @@ class SocialPostController extends Controller
             'selected_draft_id' => $request->integer('draft') ?: null,
             'selected_template_id' => $request->integer('template') ?: null,
             'initial_media_url' => $initialMediaUrl,
+            'brand_voice' => $this->brandVoiceService->resolve($access['owner']),
             'access' => $this->accessPayload($access),
         ]);
     }

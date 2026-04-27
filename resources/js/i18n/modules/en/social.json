@@ -12,6 +12,7 @@
         "calendar": "Calendar",
         "brand_voice": "Voice",
         "media": "Media",
+        "campaigns": "Campaigns",
         "templates": "Templates",
         "history": "History",
         "autopilot": "Autopilot",
@@ -42,7 +43,24 @@
         "text_too_long": "Text too long",
         "missing_image": "Image recommended for this network",
         "cta_without_link": "CTA without link",
-        "similar_recent": "Close to a recent draft"
+        "similar_recent": "Close to a recent draft",
+        "brand_voice_word": "Avoided brand word detected",
+        "weak_cta": "CTA needs clarity",
+        "image_text_gap": "Image and text need alignment"
+      }
+    },
+    "ai_trace": {
+      "title": "AI trace",
+      "items": {
+        "source": "Source",
+        "rule": "Rule",
+        "campaign": "Campaign",
+        "generation_mode": "Mode",
+        "text_model": "Text model",
+        "image_model": "Image model",
+        "selected_score": "Selected score",
+        "fallback": "Fallback",
+        "generated_at": "Generated at"
       }
     },
     "index_page": {
@@ -121,6 +139,11 @@
       "head_title": "Malikia Pulse media",
       "page_title": "Pulse media library",
       "page_description": "Find imported, generated, or already used images, then reuse them in a draft."
+    },
+    "campaigns_page": {
+      "head_title": "Malikia Pulse campaigns",
+      "page_title": "Pulse campaign mode",
+      "page_description": "Turn one intention into several planned drafts, then adjust every post before approval."
     },
     "automations_page": {
       "head_title": "Pulse Autopilot",
@@ -326,6 +349,7 @@
         "published": "Published",
         "attention": "Needs attention"
       },
+      "quality_score": "Quality {score}/100",
       "fields": {
         "search": "Search text or link",
         "status": "Status",
@@ -371,6 +395,54 @@
       "preview_image_alt": "Pulse history preview image",
       "preview_cta_fallback": "View details",
       "preview_link_destination": "Destination",
+      "empty_value": "Not available"
+    },
+    "campaign_manager": {
+      "read_only_title": "Read-only campaign mode",
+      "read_only_description": "You can review Pulse campaigns, but `social.manage` or `social.publish` is required to generate drafts.",
+      "summary": {
+        "generated": "Generated",
+        "scheduled": "Scheduled",
+        "targets": "Targets"
+      },
+      "form_title": "New campaign",
+      "form_description": "Describe the intention, choose the distribution, and Pulse creates planned drafts without automatic publishing.",
+      "targets_title": "Target accounts",
+      "targets_description": "Generated posts stay editable from the composer before approval.",
+      "generated_title": "Generated drafts",
+      "generated_description": "Open each post to adjust text, visual, date, or targets.",
+      "recent_title": "Recent campaigns",
+      "fields": {
+        "name": "Internal name",
+        "intention_type": "Intention",
+        "brief": "Campaign brief",
+        "start_date": "Start date",
+        "post_count": "Number of posts",
+        "duration_days": "Days",
+        "link_url": "Link",
+        "image_url": "Image"
+      },
+      "intentions": {
+        "product_launch": "Product launch",
+        "promotion": "Promotion",
+        "event": "Event",
+        "service_push": "Service push",
+        "client_reengagement": "Client re-engagement"
+      },
+      "actions": {
+        "generate": "Generate campaign",
+        "generating": "Generating",
+        "edit_post": "Edit"
+      },
+      "messages": {
+        "generate_success": "The Pulse campaign drafts have been generated.",
+        "generate_error": "The Pulse campaign could not be generated."
+      },
+      "selected": "Selected",
+      "batch_counts": "{count} post | {count} posts, {scheduled} scheduled",
+      "empty_targets": "Connect at least one social account before generating a campaign.",
+      "empty_recent": "No Pulse campaign has been generated yet.",
+      "untitled_post": "Untitled Pulse post",
       "empty_value": "Not available"
     },
     "calendar_manager": {

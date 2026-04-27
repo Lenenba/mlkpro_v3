@@ -27,6 +27,14 @@ const props = defineProps({
         type: Array,
         default: () => ([]),
     },
+    brandVoice: {
+        type: Object,
+        default: () => ({}),
+    },
+    serverQuality: {
+        type: Object,
+        default: () => null,
+    },
 });
 
 const { t } = useI18n();
@@ -50,6 +58,11 @@ const textLimit = computed(() => {
     return limits.length > 0 ? Math.min(...limits) : 900;
 });
 const requiresImage = computed(() => targetPlatforms.value.includes('instagram'));
+const configuredBrandVoice = computed(() => (
+    props.brandVoice && typeof props.brandVoice === 'object'
+        ? props.brandVoice
+        : {}
+));
 
 const comparableText = (value) => String(value || '')
     .toLowerCase()
@@ -89,6 +102,14 @@ const isSimilarToRecent = computed(() => {
 });
 
 const quality = computed(() => {
+    if (props.serverQuality && typeof props.serverQuality === 'object' && Number.isFinite(Number(props.serverQuality.score))) {
+        return {
+            score: Number(props.serverQuality.score || 0),
+            issues: Array.isArray(props.serverQuality.issues) ? props.serverQuality.issues : [],
+            status: String(props.serverQuality.status || 'warning'),
+        };
+    }
+
     const issues = [];
     let score = 100;
 
@@ -120,6 +141,26 @@ const quality = computed(() => {
     if (isSimilarToRecent.value) {
         issues.push({ key: 'similar_recent', level: 'warning', points: 16 });
         score -= 16;
+    }
+
+    const blockedWord = (Array.isArray(configuredBrandVoice.value.words_to_avoid) ? configuredBrandVoice.value.words_to_avoid : [])
+        .map((word) => String(word || '').trim())
+        .find((word) => word !== '' && normalizedText.value.toLowerCase().includes(word.toLowerCase()));
+
+    if (blockedWord) {
+        issues.push({ key: 'brand_voice_word', level: 'warning', points: 12 });
+        score -= 12;
+    }
+
+    if ((hasLink.value || hasLinkLabel.value) && !hasLinkLabel.value && !/(reserve|reservez|book|contact|message|decouvrir|discover|voir|shop|acheter|buy|learn)/i.test(normalizedText.value)) {
+        issues.push({ key: 'weak_cta', level: 'notice', points: 8 });
+        score -= 8;
+    }
+
+    if ((hasImage.value && normalizedText.value.length > 0 && normalizedText.value.length < 20)
+        || (!hasImage.value && /(photo|image|visuel|look|voir en image)/i.test(normalizedText.value))) {
+        issues.push({ key: 'image_text_gap', level: 'notice', points: 7 });
+        score -= 7;
     }
 
     score = Math.max(0, Math.min(100, score));

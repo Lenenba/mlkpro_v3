@@ -189,6 +189,22 @@ const statusClass = (status) => {
     return 'border-stone-200 bg-stone-50 text-stone-700 dark:border-neutral-700 dark:bg-neutral-800/70 dark:text-neutral-300';
 };
 
+const qualityClass = (status) => ({
+    good: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300',
+    warning: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300',
+    attention: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300',
+}[status] || 'border-stone-200 bg-stone-50 text-stone-700 dark:border-neutral-700 dark:bg-neutral-800/70 dark:text-neutral-300');
+
+const aiTraceItems = (post) => (
+    Array.isArray(post?.ai_trace?.items) ? post.ai_trace.items : []
+);
+
+const aiTraceLabel = (key) => {
+    const translated = t(`social.ai_trace.items.${key}`);
+
+    return translated === `social.ai_trace.items.${key}` ? key : translated;
+};
+
 const formatDate = (value) => {
     if (!value) {
         return t('social.history_manager.empty_value');
@@ -505,6 +521,13 @@ const resolveApproval = async (post, decision) => {
                             <span class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold" :class="statusClass(post.status)">
                                 {{ t(`social.composer_manager.statuses.${post.status || 'draft'}`) }}
                             </span>
+                            <span
+                                v-if="post.quality_review"
+                                class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold"
+                                :class="qualityClass(post.quality_review.status)"
+                            >
+                                {{ t('social.history_manager.quality_score', { score: Number(post.quality_review.score || 0) }) }}
+                            </span>
                             <span class="text-xs text-stone-500 dark:text-neutral-400">
                                 {{ primaryMetaLabel(post) }}: {{ primaryMetaValue(post) }}
                             </span>
@@ -556,6 +579,32 @@ const resolveApproval = async (post, decision) => {
                         >
                             {{ post.approval_request.note }}
                         </p>
+
+                        <details
+                            v-if="post.ai_trace?.has_trace"
+                            class="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-800/60"
+                        >
+                            <summary class="cursor-pointer text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ t('social.ai_trace.title') }}
+                            </summary>
+                            <p v-if="post.ai_trace.summary" class="mt-2 text-sm text-stone-600 dark:text-neutral-300">
+                                {{ post.ai_trace.summary }}
+                            </p>
+                            <dl v-if="aiTraceItems(post).length" class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+                                <div
+                                    v-for="item in aiTraceItems(post)"
+                                    :key="`${post.id}-${item.key}`"
+                                    class="rounded-xl border border-stone-200 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+                                >
+                                    <dt class="text-xs uppercase tracking-[0.14em] text-stone-400 dark:text-neutral-500">
+                                        {{ aiTraceLabel(item.key) }}
+                                    </dt>
+                                    <dd class="mt-1 text-sm text-stone-700 dark:text-neutral-200">
+                                        {{ item.value }}
+                                    </dd>
+                                </div>
+                            </dl>
+                        </details>
                     </div>
 
                     <div v-if="canManage || canApprove" class="flex flex-wrap gap-2">

@@ -77,6 +77,7 @@ use App\Http\Controllers\Settings\SecuritySettingsController;
 use App\Http\Controllers\Settings\SubscriptionController;
 use App\Http\Controllers\SocialAccountConnectionController;
 use App\Http\Controllers\SocialBrandVoiceController;
+use App\Http\Controllers\SocialCampaignController;
 use App\Http\Controllers\SocialMediaLibraryController;
 use App\Http\Controllers\SocialPostController;
 use App\Http\Controllers\SupportTicketController;
@@ -476,6 +477,7 @@ Route::name('api.')->group(function () {
                 Route::get('social/calendar', [SocialPostController::class, 'calendar']);
                 Route::get('social/brand-voice', [SocialBrandVoiceController::class, 'edit']);
                 Route::get('social/media', [SocialMediaLibraryController::class, 'index']);
+                Route::get('social/campaigns', [SocialCampaignController::class, 'index']);
                 Route::get('social/templates', [SocialPostController::class, 'templates']);
                 Route::get('social/history', [SocialPostController::class, 'history']);
                 Route::post('social/suggestions', [SocialPostController::class, 'suggestions']);
@@ -484,6 +486,7 @@ Route::name('api.')->group(function () {
                 Route::put('social/posts/{post}/reschedule', [SocialPostController::class, 'reschedule']);
                 Route::put('social/brand-voice', [SocialBrandVoiceController::class, 'update']);
                 Route::post('social/media', [SocialMediaLibraryController::class, 'store']);
+                Route::post('social/campaigns', [SocialCampaignController::class, 'store']);
                 Route::post('social/posts/{post}/publish', [SocialPostController::class, 'publish']);
                 Route::post('social/posts/{post}/schedule', [SocialPostController::class, 'schedule']);
                 Route::post('social/posts/{post}/submit-approval', [SocialPostController::class, 'submitApproval']);

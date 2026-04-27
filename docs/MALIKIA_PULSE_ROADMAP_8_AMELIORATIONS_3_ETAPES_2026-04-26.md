@@ -145,6 +145,16 @@ Ameliorations incluses:
 - 8. Mode campagne
 - 4. Score qualite avant publication, version avancee
 
+Statut au 2026-04-26:
+
+- termine
+- trace IA lisible ajoutee dans l historique Pulse
+- source, regle, campagne, modele texte, modele image, score choisi, fallback et date de generation affiches sous forme resumee
+- mode campagne ajoute dans Pulse pour generer plusieurs brouillons planifies depuis une intention
+- intentions couvertes: lancement produit, promotion, evenement, service a pousser, relance client
+- chaque post de campagne reste modifiable dans le composeur avant validation ou publication
+- score qualite avance ajoute aux payloads Pulse avec verification Brand Voice, repetition recente, adequation reseau, CTA et coherence image / texte
+
 Livrables recommandes:
 
 - ajouter un historique IA lisible sur chaque post genere:

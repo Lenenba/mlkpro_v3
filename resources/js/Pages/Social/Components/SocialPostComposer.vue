@@ -49,6 +49,10 @@ const props = defineProps({
         type: String,
         default: '',
     },
+    brandVoice: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const { t } = useI18n();
@@ -1755,6 +1759,7 @@ const resolveApproval = async (decision) => {
                     :link-label="form.link_cta_label"
                     :targets="selectedAccounts"
                     :recent-texts="recentQualityTexts"
+                    :brand-voice="props.brandVoice"
                 />
 
                 <SocialVisualPostPreview

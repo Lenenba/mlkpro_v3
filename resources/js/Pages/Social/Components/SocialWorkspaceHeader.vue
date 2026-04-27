@@ -56,6 +56,11 @@ const tabs = computed(() => ([
         href: route('social.media.index'),
     },
     {
+        key: 'campaigns',
+        label: t('social.workspace.tabs.campaigns'),
+        href: route('social.campaigns.index'),
+    },
+    {
         key: 'templates',
         label: t('social.workspace.tabs.templates'),
         href: route('social.templates.index'),

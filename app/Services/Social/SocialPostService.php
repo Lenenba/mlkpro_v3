@@ -17,6 +17,8 @@ class SocialPostService
         private readonly SocialAccountConnectionService $connectionService,
         private readonly SocialPrefillService $prefillService,
         private readonly SocialMediaAssetService $mediaAssetService,
+        private readonly SocialPostQualityService $qualityService,
+        private readonly SocialAiTraceService $aiTraceService,
     ) {}
 
     /**
@@ -339,6 +341,7 @@ class SocialPostService
     public function payload(SocialPost $post): array
     {
         $post->loadMissing([
+            'user',
             'automationRule',
             'targets.socialAccountConnection',
             'latestApprovalRequest.requestedBy',
@@ -435,6 +438,8 @@ class SocialPostService
                 'selected_source_label' => data_get($post->metadata, 'automation.selected_source_label'),
                 'generation_attempt' => data_get($post->metadata, 'automation.generation_attempt'),
             ], fn ($value) => $value !== null),
+            'ai_trace' => $this->aiTraceService->payload($post),
+            'quality_review' => $this->qualityService->review($post->user, $post),
             'metadata' => (array) ($post->metadata ?? []),
             'updated_at' => optional($post->updated_at)->toIso8601String(),
             'created_at' => optional($post->created_at)->toIso8601String(),
@@ -629,6 +634,7 @@ class SocialPostService
         $linkCtaLabel = $linkUrl !== null ? $this->nullableString($payload, 'link_cta_label') : null;
         $scheduledFor = $this->nullableDateTime($payload, 'scheduled_for');
         $source = $this->prefillService->validateSourceReference($owner, $payload);
+        $extraMetadata = is_array($payload['metadata'] ?? null) ? $payload['metadata'] : [];
 
         if ($text === null && $mediaPayload === null && $linkUrl === null) {
             throw ValidationException::withMessages([
@@ -654,7 +660,7 @@ class SocialPostService
             'published_at' => null,
             'failed_at' => null,
             'failure_reason' => null,
-            'metadata' => array_filter([
+            'metadata' => array_filter(array_merge([
                 'selected_target_count' => $targetConnections->count(),
                 'draft_saved_from' => $source['source_type'] !== null
                     ? 'social_prefill_'.$source['source_type']
@@ -669,7 +675,7 @@ class SocialPostService
                         'label' => $source['source_label'],
                     ]
                     : null,
-            ], fn ($value) => $value !== null),
+            ], $extraMetadata), fn ($value) => $value !== null),
         ];
     }
 

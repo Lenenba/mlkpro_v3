@@ -95,6 +95,7 @@ use App\Http\Controllers\Settings\SubscriptionController;
 use App\Http\Controllers\SocialAccountConnectionController;
 use App\Http\Controllers\SocialAutomationController;
 use App\Http\Controllers\SocialBrandVoiceController;
+use App\Http\Controllers\SocialCampaignController;
 use App\Http\Controllers\SocialMediaLibraryController;
 use App\Http\Controllers\SocialPostController;
 use App\Http\Controllers\SuperAdmin\AdminController as SuperAdminAdminController;
@@ -593,6 +594,8 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('social.brand-voice');
         Route::get('/social/media', [SocialMediaLibraryController::class, 'index'])
             ->name('social.media.index');
+        Route::get('/social/campaigns', [SocialCampaignController::class, 'index'])
+            ->name('social.campaigns.index');
         Route::get('/social/templates', [SocialPostController::class, 'templates'])
             ->name('social.templates.index');
         Route::get('/social/history', [SocialPostController::class, 'history'])
@@ -613,6 +616,8 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('social.brand-voice.update');
         Route::post('/social/media', [SocialMediaLibraryController::class, 'store'])
             ->name('social.media.store');
+        Route::post('/social/campaigns', [SocialCampaignController::class, 'store'])
+            ->name('social.campaigns.store');
         Route::post('/social/posts/{post}/publish', [SocialPostController::class, 'publish'])
             ->name('social.posts.publish');
         Route::post('/social/posts/{post}/schedule', [SocialPostController::class, 'schedule'])

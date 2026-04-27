@@ -12,6 +12,7 @@
         "calendar": "Calendario",
         "brand_voice": "Voz",
         "media": "Medios",
+        "campaigns": "Campanas",
         "templates": "Templates",
         "history": "Historial",
         "autopilot": "Autopilot",
@@ -42,7 +43,24 @@
         "text_too_long": "Texto demasiado largo",
         "missing_image": "Imagen recomendada para esta red",
         "cta_without_link": "CTA sin enlace",
-        "similar_recent": "Cerca de un borrador reciente"
+        "similar_recent": "Cerca de un borrador reciente",
+        "brand_voice_word": "Palabra a evitar detectada",
+        "weak_cta": "CTA a clarificar",
+        "image_text_gap": "Imagen y texto poco alineados"
+      }
+    },
+    "ai_trace": {
+      "title": "Traza IA",
+      "items": {
+        "source": "Fuente",
+        "rule": "Regla",
+        "campaign": "Campana",
+        "generation_mode": "Modo",
+        "text_model": "Modelo texto",
+        "image_model": "Modelo imagen",
+        "selected_score": "Score elegido",
+        "fallback": "Fallback",
+        "generated_at": "Generado el"
       }
     },
     "index_page": {
@@ -121,6 +139,11 @@
       "head_title": "Medios de Malikia Pulse",
       "page_title": "Biblioteca de medios Pulse",
       "page_description": "Encuentra imagenes importadas, generadas o ya usadas, y reutilizalas en un borrador."
+    },
+    "campaigns_page": {
+      "head_title": "Campanas de Malikia Pulse",
+      "page_title": "Modo campana Pulse",
+      "page_description": "Convierte una intencion en varios borradores planificados, luego ajusta cada post antes de validar."
     },
     "automations_page": {
       "head_title": "Pulse Autopilot",
@@ -326,6 +349,7 @@
         "published": "Publicados",
         "attention": "Con atencion"
       },
+      "quality_score": "Calidad {score}/100",
       "fields": {
         "search": "Buscar texto o enlace",
         "status": "Estado",
@@ -371,6 +395,54 @@
       "preview_image_alt": "Imagen de preview del historial Pulse",
       "preview_cta_fallback": "Ver detalles",
       "preview_link_destination": "Destino",
+      "empty_value": "No disponible"
+    },
+    "campaign_manager": {
+      "read_only_title": "Modo campana de solo lectura",
+      "read_only_description": "Puedes consultar las campanas Pulse, pero necesitas `social.manage` o `social.publish` para generar borradores.",
+      "summary": {
+        "generated": "Generados",
+        "scheduled": "Programados",
+        "targets": "Destinos"
+      },
+      "form_title": "Nueva campana",
+      "form_description": "Describe la intencion, elige la distribucion y Pulse crea borradores planificados sin publicacion automatica.",
+      "targets_title": "Cuentas objetivo",
+      "targets_description": "Los posts generados siguen editables desde el composer antes de validar.",
+      "generated_title": "Borradores generados",
+      "generated_description": "Abre cada post para ajustar texto, visual, fecha o destinos.",
+      "recent_title": "Campanas recientes",
+      "fields": {
+        "name": "Nombre interno",
+        "intention_type": "Intencion",
+        "brief": "Brief de campana",
+        "start_date": "Fecha de inicio",
+        "post_count": "Numero de posts",
+        "duration_days": "Dias",
+        "link_url": "Enlace",
+        "image_url": "Imagen"
+      },
+      "intentions": {
+        "product_launch": "Lanzamiento producto",
+        "promotion": "Promocion",
+        "event": "Evento",
+        "service_push": "Servicio a impulsar",
+        "client_reengagement": "Reactivacion cliente"
+      },
+      "actions": {
+        "generate": "Generar campana",
+        "generating": "Generacion",
+        "edit_post": "Editar"
+      },
+      "messages": {
+        "generate_success": "Los borradores de campana Pulse fueron generados.",
+        "generate_error": "No se pudo generar la campana Pulse."
+      },
+      "selected": "Seleccionado",
+      "batch_counts": "{count} post | {count} posts, {scheduled} programados",
+      "empty_targets": "Conecta al menos una cuenta social antes de generar una campana.",
+      "empty_recent": "Todavia no se ha generado ninguna campana Pulse.",
+      "untitled_post": "Post Pulse sin titulo",
       "empty_value": "No disponible"
     },
     "calendar_manager": {

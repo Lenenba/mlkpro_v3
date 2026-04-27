@@ -42,6 +42,10 @@ const props = defineProps({
         type: String,
         default: '',
     },
+    brand_voice: {
+        type: Object,
+        default: () => ({}),
+    },
     access: {
         type: Object,
         default: () => ({}),
@@ -73,6 +77,7 @@ const { t } = useI18n();
                 :selected-draft-id="props.selected_draft_id"
                 :selected-template-id="props.selected_template_id"
                 :initial-media-url="props.initial_media_url"
+                :brand-voice="props.brand_voice"
             />
         </div>
     </AuthenticatedLayout>

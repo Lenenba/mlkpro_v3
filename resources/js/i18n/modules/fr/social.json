@@ -12,6 +12,7 @@
         "calendar": "Calendrier",
         "brand_voice": "Voix",
         "media": "Medias",
+        "campaigns": "Campagnes",
         "templates": "Templates",
         "history": "Historique",
         "autopilot": "Autopilot",
@@ -42,7 +43,24 @@
         "text_too_long": "Texte trop long",
         "missing_image": "Image conseillee pour ce reseau",
         "cta_without_link": "CTA sans lien",
-        "similar_recent": "Proche d un brouillon recent"
+        "similar_recent": "Proche d un brouillon recent",
+        "brand_voice_word": "Mot a eviter detecte",
+        "weak_cta": "CTA a clarifier",
+        "image_text_gap": "Image et texte peu relies"
+      }
+    },
+    "ai_trace": {
+      "title": "Trace IA",
+      "items": {
+        "source": "Source",
+        "rule": "Regle",
+        "campaign": "Campagne",
+        "generation_mode": "Mode",
+        "text_model": "Modele texte",
+        "image_model": "Modele image",
+        "selected_score": "Score choisi",
+        "fallback": "Fallback",
+        "generated_at": "Genere le"
       }
     },
     "index_page": {
@@ -121,6 +139,11 @@
       "head_title": "Medias Malikia Pulse",
       "page_title": "Bibliotheque medias Pulse",
       "page_description": "Retrouvez les images importees, generees ou deja utilisees, puis reutilisez-les dans un brouillon."
+    },
+    "campaigns_page": {
+      "head_title": "Campagnes Malikia Pulse",
+      "page_title": "Mode campagne Pulse",
+      "page_description": "Transformez une intention en plusieurs brouillons planifies, puis ajustez chaque post avant validation."
     },
     "automations_page": {
       "head_title": "Pulse Autopilot",
@@ -326,6 +349,7 @@
         "published": "Publies",
         "attention": "A surveiller"
       },
+      "quality_score": "Qualite {score}/100",
       "fields": {
         "search": "Rechercher un texte ou un lien",
         "status": "Statut",
@@ -371,6 +395,54 @@
       "preview_image_alt": "Image de preview de l historique Pulse",
       "preview_cta_fallback": "Voir les details",
       "preview_link_destination": "Destination",
+      "empty_value": "Non disponible"
+    },
+    "campaign_manager": {
+      "read_only_title": "Mode campagne en lecture seule",
+      "read_only_description": "Vous pouvez consulter les campagnes Pulse, mais il faut `social.manage` ou `social.publish` pour generer des brouillons.",
+      "summary": {
+        "generated": "Generes",
+        "scheduled": "Programmes",
+        "targets": "Cibles"
+      },
+      "form_title": "Nouvelle campagne",
+      "form_description": "Decrivez l intention, choisissez la repartition et Pulse cree des brouillons planifies sans publication automatique.",
+      "targets_title": "Comptes cibles",
+      "targets_description": "Les posts generes resteront modifiables depuis le composeur avant validation.",
+      "generated_title": "Brouillons generes",
+      "generated_description": "Ouvrez chaque post pour ajuster le texte, le visuel, la date ou les cibles.",
+      "recent_title": "Campagnes recentes",
+      "fields": {
+        "name": "Nom interne",
+        "intention_type": "Intention",
+        "brief": "Brief de campagne",
+        "start_date": "Date de depart",
+        "post_count": "Nombre de posts",
+        "duration_days": "Jours",
+        "link_url": "Lien",
+        "image_url": "Image"
+      },
+      "intentions": {
+        "product_launch": "Lancement produit",
+        "promotion": "Promotion",
+        "event": "Evenement",
+        "service_push": "Service a pousser",
+        "client_reengagement": "Relance client"
+      },
+      "actions": {
+        "generate": "Generer la campagne",
+        "generating": "Generation",
+        "edit_post": "Modifier"
+      },
+      "messages": {
+        "generate_success": "Les brouillons de campagne Pulse ont ete generes.",
+        "generate_error": "La campagne Pulse n a pas pu etre generee."
+      },
+      "selected": "Selectionne",
+      "batch_counts": "{count} post | {count} posts, {scheduled} programmes",
+      "empty_targets": "Connectez au moins un compte social avant de generer une campagne.",
+      "empty_recent": "Aucune campagne Pulse n a encore ete generee.",
+      "untitled_post": "Post Pulse sans titre",
       "empty_value": "Non disponible"
     },
     "calendar_manager": {
