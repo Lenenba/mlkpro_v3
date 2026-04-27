@@ -39,6 +39,17 @@ Ameliorations incluses:
 - 1. Page de validation enrichie
 - 4. Score qualite avant publication, version MVP
 
+Statut au 2026-04-26:
+
+- demarre
+- preview reseau ajoutee dans le composeur
+- preview reseau ajoutee dans la file de validation
+- score qualite MVP ajoute avant publication et validation
+- detection simple de brouillon recent proche ajoutee dans le composeur
+- preview limitee a un reseau actif a la fois pour eviter l empilement visuel
+- score qualite ajuste selon les limites du reseau cible
+- alerte image affichee seulement quand le reseau la rend vraiment utile
+
 Livrables recommandes:
 
 - ajouter dans le composeur une preview par reseau cible
@@ -75,6 +86,20 @@ Ameliorations incluses:
 - 2. Calendrier editorial Pulse
 - 3. Brand Voice par tenant
 - 6. Bibliotheque medias Pulse
+
+Statut au 2026-04-26:
+
+- demarre
+- onglet calendrier editorial ajoute dans Pulse
+- vue semaine/mois ajoutee pour brouillons, programmations, validations et publications
+- reprogrammation simple ajoutee pour les brouillons non encore mis en file de publication
+- garde-fou ajoute pour ne pas modifier directement un post deja queue pour publication
+- onglet Brand Voice ajoute dans Pulse
+- ton, langue, mots a eviter, hashtags, CTA et phrase repere configurables par tenant
+- Brand Voice branchee dans la generation Autopilot texte et dans les metadonnees du post genere
+- onglet Bibliotheque medias ajoute dans Pulse
+- images importees, images IA et medias attaches aux posts/templates visibles dans une grille sobre
+- reutilisation d un media dans le composeur via un brouillon pre-rempli avec l image
 
 Livrables recommandes:
 

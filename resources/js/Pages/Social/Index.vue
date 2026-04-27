@@ -77,6 +77,16 @@ const actionCards = computed(() => ([
         metricLabel: t('social.index_page.cards.active_rules'),
     },
     {
+        key: 'calendar',
+        section: t('social.workspace.tabs.calendar'),
+        title: t('social.index_page.cards.calendar_title'),
+        description: t('social.index_page.cards.calendar_description'),
+        href: route('social.calendar'),
+        action: t('social.index_page.cards.calendar_action'),
+        metricValue: Number(props.post_summary?.scheduled || 0),
+        metricLabel: t('social.workspace.stats.scheduled_posts'),
+    },
+    {
         key: 'approvals',
         section: t('social.workspace.tabs.approvals'),
         title: t('social.index_page.cards.approvals_title'),

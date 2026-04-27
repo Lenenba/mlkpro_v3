@@ -18,6 +18,7 @@ class SocialContentGeneratorService
         private readonly SocialMediaAssetService $mediaAssetService,
         private readonly SocialAiCreativeService $aiCreativeService,
         private readonly SocialAiImageGenerationService $aiImageGenerationService,
+        private readonly SocialBrandVoiceService $brandVoiceService,
     ) {}
 
     /**
@@ -46,6 +47,8 @@ class SocialContentGeneratorService
         $imageUrl = trim((string) ($prefill['image_url'] ?? ''));
         $sourceLabel = trim((string) ($prefill['source_label'] ?? $source['source_label'] ?? ''));
         $settings = $this->generationSettings($rule);
+        $brandVoice = $this->brandVoiceService->resolve($owner);
+        $brandVoiceContext = $this->brandVoiceService->aiContext($brandVoice);
 
         $selectedCaption = null;
         $aiCreative = null;
@@ -54,6 +57,7 @@ class SocialContentGeneratorService
                 'locale' => $locale,
                 'settings' => $settings,
                 'targets' => $this->targetPlatforms($owner, $rule),
+                'brand_voice' => $brandVoiceContext,
                 'source' => [
                     'type' => $sourceType,
                     'id' => $sourceId,
@@ -86,6 +90,7 @@ class SocialContentGeneratorService
 
             $finalText = trim((string) ($selectedCaption['text'] ?? $baseText));
         }
+        $finalText = $this->applyBrandVoice($finalText, $brandVoice);
 
         $aiImage = $this->aiImageGenerationService->generateIfNeeded($owner, $rule, $settings, [
             'company_name' => trim((string) ($owner->company_name ?: $owner->name ?: config('app.name'))),
@@ -123,6 +128,7 @@ class SocialContentGeneratorService
                 'generated_caption_key' => $selectedCaption['key'] ?? null,
                 'generated_caption_label' => $selectedCaption['label'] ?? null,
                 'generated_locale' => $locale,
+                'brand_voice' => $this->brandVoiceMetadata($brandVoice),
                 'ai_generation' => $this->aiGenerationMetadata($settings, $aiCreative, $aiImage),
             ],
             'content_fingerprint' => $this->fingerprint(
@@ -134,6 +140,72 @@ class SocialContentGeneratorService
                 $locale
             ),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $brandVoice
+     */
+    private function applyBrandVoice(string $text, array $brandVoice): string
+    {
+        $blocks = [];
+        $baseText = trim($text);
+
+        if ($baseText !== '') {
+            $blocks[] = $baseText;
+        }
+
+        $cta = collect((array) ($brandVoice['preferred_ctas'] ?? []))
+            ->map(fn ($item): string => trim((string) $item))
+            ->first(fn (string $item): bool => $item !== '');
+
+        if ($cta && ! Str::contains(Str::lower($baseText), Str::lower($cta))) {
+            $blocks[] = $cta;
+        }
+
+        $existingHashtags = $this->hashtagsIn($baseText);
+        $hashtags = collect((array) ($brandVoice['preferred_hashtags'] ?? []))
+            ->map(fn ($hashtag): string => trim((string) $hashtag))
+            ->filter()
+            ->reject(fn (string $hashtag): bool => in_array(Str::lower($hashtag), $existingHashtags, true))
+            ->take(max(0, 5 - count($existingHashtags)))
+            ->values()
+            ->all();
+
+        if ($hashtags !== []) {
+            $blocks[] = implode(' ', $hashtags);
+        }
+
+        return Str::limit(trim(implode("\n\n", $blocks)), 900, '');
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function hashtagsIn(string $text): array
+    {
+        preg_match_all('/#[\pL\pN_]+/u', $text, $matches);
+
+        return collect($matches[0] ?? [])
+            ->map(fn ($hashtag): string => Str::lower((string) $hashtag))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $brandVoice
+     * @return array<string, mixed>
+     */
+    private function brandVoiceMetadata(array $brandVoice): array
+    {
+        return array_filter([
+            'tone' => $brandVoice['tone'] ?? null,
+            'language' => $brandVoice['language'] ?? null,
+            'is_configured' => (bool) ($brandVoice['is_configured'] ?? false),
+            'preferred_hashtags' => array_values((array) ($brandVoice['preferred_hashtags'] ?? [])),
+            'preferred_ctas' => array_values((array) ($brandVoice['preferred_ctas'] ?? [])),
+            'words_to_avoid_count' => count((array) ($brandVoice['words_to_avoid'] ?? [])),
+        ], fn ($value): bool => $value !== null && $value !== []);
     }
 
     /**

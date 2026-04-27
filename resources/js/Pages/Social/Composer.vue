@@ -38,6 +38,10 @@ const props = defineProps({
         type: Number,
         default: null,
     },
+    initial_media_url: {
+        type: String,
+        default: '',
+    },
     access: {
         type: Object,
         default: () => ({}),
@@ -68,6 +72,7 @@ const { t } = useI18n();
                 :initial-access="props.access"
                 :selected-draft-id="props.selected_draft_id"
                 :selected-template-id="props.selected_template_id"
+                :initial-media-url="props.initial_media_url"
             />
         </div>
     </AuthenticatedLayout>

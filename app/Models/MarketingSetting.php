@@ -110,6 +110,15 @@ class MarketingSetting extends Model
                     'whatsapp_url' => null,
                     'footer_note' => null,
                 ],
+                'brand_voice' => [
+                    'tone' => 'professional',
+                    'language' => null,
+                    'style_notes' => null,
+                    'words_to_avoid' => [],
+                    'preferred_hashtags' => [],
+                    'preferred_ctas' => [],
+                    'sample_phrase' => null,
+                ],
             ],
             'tracking' => [
                 'click_tracking_enabled' => true,

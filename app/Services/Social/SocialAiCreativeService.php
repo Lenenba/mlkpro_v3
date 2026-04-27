@@ -119,6 +119,7 @@ Return exactly this JSON shape:
 
 Scoring is from 0 to 100 and should reward clarity, source accuracy, a strong CTA, the requested tone, channel fit, freshness, length discipline, and image prompt quality.
 Keep text under 900 characters. Keep hashtags relevant and limited to 6. Do not invent prices, dates, discounts, availability, or guarantees that are not present in the source.
+Respect the brand voice when provided: tone, style notes, sample phrase, preferred CTAs, preferred hashtags, and words to avoid.
 Image prompts must describe a realistic social visual and must not request embedded text, logos, watermarks, or UI screenshots.
 PROMPT;
     }
@@ -150,6 +151,7 @@ PROMPT;
                 'image_format' => data_get($context, 'settings.image_format'),
                 'variant_count' => data_get($context, 'settings.variant_count'),
             ],
+            'brand_voice' => is_array($context['brand_voice'] ?? null) ? $context['brand_voice'] : [],
             'targets' => array_values((array) ($context['targets'] ?? [])),
         ];
 
@@ -214,6 +216,7 @@ PROMPT;
     private function fallback(User $owner, SocialAutomationRule $rule, array $context, string $reason): array
     {
         $source = is_array($context['source'] ?? null) ? $context['source'] : [];
+        $brandVoice = is_array($context['brand_voice'] ?? null) ? $context['brand_voice'] : [];
         $locale = (string) ($context['locale'] ?? LocalePreference::normalize((string) ($rule->language ?: $owner->locale)));
         $suggestions = $this->suggestionService->suggest($owner, [
             'text' => $this->normalizeString($source['summary'] ?? null, 900) ?: null,
@@ -222,8 +225,12 @@ PROMPT;
             'source_id' => $source['id'] ?? null,
         ], $locale);
 
-        $hashtags = $this->normalizeHashtags($suggestions['hashtags'] ?? []);
-        $cta = $this->normalizeString(data_get($suggestions, 'ctas.0.text'), 180);
+        $hashtags = $this->normalizeHashtags([
+            ...((array) ($brandVoice['preferred_hashtags'] ?? [])),
+            ...((array) ($suggestions['hashtags'] ?? [])),
+        ]);
+        $cta = $this->normalizeString(data_get($brandVoice, 'preferred_ctas.0'), 180)
+            ?: $this->normalizeString(data_get($suggestions, 'ctas.0.text'), 180);
         $imagePrompt = $this->fallbackImagePrompt($context);
 
         $variants = collect((array) ($suggestions['captions'] ?? []))
@@ -368,6 +375,13 @@ PROMPT;
 
         if (Str::length($text) > 900) {
             $score -= 15;
+        }
+
+        foreach ((array) data_get($context, 'brand_voice.words_to_avoid', []) as $word) {
+            $word = trim((string) $word);
+            if ($word !== '' && Str::contains(Str::lower($text), Str::lower($word))) {
+                $score -= 10;
+            }
         }
 
         return max(0, min(100, $score));

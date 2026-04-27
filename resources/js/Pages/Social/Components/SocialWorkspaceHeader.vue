@@ -41,6 +41,21 @@ const tabs = computed(() => ([
         href: route('social.composer'),
     },
     {
+        key: 'calendar',
+        label: t('social.workspace.tabs.calendar'),
+        href: route('social.calendar'),
+    },
+    {
+        key: 'brand_voice',
+        label: t('social.workspace.tabs.brand_voice'),
+        href: route('social.brand-voice'),
+    },
+    {
+        key: 'media',
+        label: t('social.workspace.tabs.media'),
+        href: route('social.media.index'),
+    },
+    {
         key: 'templates',
         label: t('social.workspace.tabs.templates'),
         href: route('social.templates.index'),

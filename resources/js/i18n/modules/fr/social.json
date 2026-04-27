@@ -9,6 +9,9 @@
         "overview": "Vue d ensemble",
         "accounts": "Comptes",
         "composer": "Composer",
+        "calendar": "Calendrier",
+        "brand_voice": "Voix",
+        "media": "Medias",
         "templates": "Templates",
         "history": "Historique",
         "autopilot": "Autopilot",
@@ -18,6 +21,28 @@
         "connected_accounts": "Comptes connectes",
         "draft_posts": "Brouillons",
         "scheduled_posts": "Programmations"
+      }
+    },
+    "visual_preview": {
+      "generic_platform": "Pulse",
+      "generic_account": "Malikia Pulse",
+      "generic_meta": "Apercu social",
+      "empty_text": "Le texte du post s affichera ici.",
+      "image_alt": "Image de preview du post Pulse",
+      "link_fallback": "Voir les details",
+      "link_destination": "Destination"
+    },
+    "quality": {
+      "title": "Score qualite",
+      "subtitle": "Controle rapide avant publication.",
+      "no_issues": "Aucun point bloquant visible.",
+      "issues": {
+        "no_targets": "Aucune cible selectionnee",
+        "empty_content": "Contenu vide",
+        "text_too_long": "Texte trop long",
+        "missing_image": "Image conseillee pour ce reseau",
+        "cta_without_link": "CTA sans lien",
+        "similar_recent": "Proche d un brouillon recent"
       }
     },
     "index_page": {
@@ -42,6 +67,9 @@
         "autopilot_action_manage": "Gerer les regles",
         "autopilot_action_view": "Voir les regles",
         "active_rules": "Regles actives",
+        "calendar_title": "Calendrier editorial",
+        "calendar_description": "Visualisez les brouillons, programmations, validations et publications dans une vue semaine ou mois.",
+        "calendar_action": "Ouvrir le calendrier",
         "approvals_title": "Publications a valider",
         "approvals_description": "Centralisez les posts en attente, approuvez-les maintenant ou transformez-les en revision.",
         "approvals_action_manage": "Ouvrir la file",
@@ -78,6 +106,21 @@
       "head_title": "Historique Malikia Pulse",
       "page_title": "Historique Malikia Pulse",
       "page_description": "Consultez les derniers posts Pulse, filtrez l historique, dupliquez les contenus utiles et relancez les posts publies en repost editable."
+    },
+    "calendar_page": {
+      "head_title": "Calendrier Malikia Pulse",
+      "page_title": "Calendrier editorial Pulse",
+      "page_description": "Planifiez la semaine, reperez les validations et gardez les publications visibles sans alourdir le workspace."
+    },
+    "brand_voice_page": {
+      "head_title": "Voix Malikia Pulse",
+      "page_title": "Voix de marque Pulse",
+      "page_description": "Gardez les posts Autopilot alignes sur votre ton, vos CTA et vos hashtags sans ajouter de bruit."
+    },
+    "media_page": {
+      "head_title": "Medias Malikia Pulse",
+      "page_title": "Bibliotheque medias Pulse",
+      "page_description": "Retrouvez les images importees, generees ou deja utilisees, puis reutilisez-les dans un brouillon."
     },
     "automations_page": {
       "head_title": "Pulse Autopilot",
@@ -328,6 +371,130 @@
       "preview_image_alt": "Image de preview de l historique Pulse",
       "preview_cta_fallback": "Voir les details",
       "preview_link_destination": "Destination",
+      "empty_value": "Non disponible"
+    },
+    "calendar_manager": {
+      "read_only_title": "Calendrier en lecture seule",
+      "read_only_description": "Vous pouvez suivre le planning Pulse, mais il faut `social.manage` ou `social.publish` pour reprogrammer un brouillon.",
+      "summary": {
+        "draft": "Brouillons",
+        "scheduled": "Programmes",
+        "approval": "A valider",
+        "published": "Publies"
+      },
+      "fields": {
+        "scheduled_for": "Nouvelle date"
+      },
+      "actions": {
+        "previous": "Precedent",
+        "today": "Aujourd hui",
+        "next": "Suivant",
+        "week": "Semaine",
+        "month": "Mois",
+        "reload": "Recharger",
+        "open_composer": "Ouvrir le composeur",
+        "reschedule": "Reprogrammer",
+        "clear_schedule": "Retirer la date"
+      },
+      "messages": {
+        "load_error": "Le calendrier Pulse n a pas pu etre recharge.",
+        "reschedule_error": "Le post Pulse n a pas pu etre reprogramme.",
+        "reschedule_success": "Le post Pulse a ete reprogramme."
+      },
+      "day_detail_title": "Jour selectionne",
+      "more_posts": "+{count} autre | +{count} autres",
+      "empty_day": "Libre",
+      "empty_selection": "Aucun post Pulse sur ce jour.",
+      "queued_notice": "Ce post est deja en file de publication. Ouvrez le composeur pour le dupliquer avant de changer la date.",
+      "target_count": "{count} cible | {count} cibles",
+      "untitled_post": "Post Pulse sans titre",
+      "preview_image_alt": "Image du post Pulse",
+      "empty_value": "Non disponible"
+    },
+    "brand_voice_manager": {
+      "read_only_title": "Voix en lecture seule",
+      "read_only_description": "Vous pouvez consulter la voix Pulse, mais il faut `social.manage` ou `social.publish` pour la modifier.",
+      "fields": {
+        "tone": "Ton",
+        "language": "Langue",
+        "style_notes": "Notes de style",
+        "words_to_avoid": "Mots a eviter",
+        "preferred_hashtags": "Hashtags favoris",
+        "preferred_ctas": "CTA favoris",
+        "sample_phrase": "Phrase repere"
+      },
+      "tones": {
+        "professional": "Professionnel",
+        "warm": "Chaleureux",
+        "premium": "Premium",
+        "direct": "Direct",
+        "promotional": "Promotionnel"
+      },
+      "actions": {
+        "reload": "Recharger",
+        "save": "Enregistrer",
+        "saving": "Enregistrement"
+      },
+      "messages": {
+        "load_error": "La voix Pulse n a pas pu etre rechargee.",
+        "save_error": "La voix Pulse n a pas pu etre enregistree.",
+        "save_success": "La voix Pulse a ete enregistree."
+      },
+      "preview_title": "Apercu sobre",
+      "preview_hashtags": "Hashtags",
+      "preview_ctas": "CTA",
+      "preview_avoid": "A eviter",
+      "status": {
+        "configured": "Configuree",
+        "default": "Par defaut"
+      },
+      "empty_preview": "La voix par defaut reste active tant qu aucune consigne n est ajoutee."
+    },
+    "media_manager": {
+      "read_only_title": "Bibliotheque en lecture seule",
+      "read_only_description": "Vous pouvez consulter et reutiliser les medias, mais il faut `social.manage` ou `social.publish` pour importer une image.",
+      "upload_title": "Importer une image",
+      "summary": {
+        "total": "Medias",
+        "uploads": "Imports",
+        "ai": "Images IA",
+        "posts": "Posts"
+      },
+      "fields": {
+        "search": "Rechercher",
+        "source": "Source",
+        "origin": "Origine",
+        "image_file": "Image a ajouter"
+      },
+      "sources": {
+        "all": "Toutes",
+        "upload": "Import",
+        "ai": "IA",
+        "url": "URL"
+      },
+      "origins": {
+        "all": "Toutes",
+        "library": "Bibliotheque",
+        "post": "Post",
+        "template": "Template"
+      },
+      "actions": {
+        "apply_filters": "Filtrer",
+        "reset_filters": "Reinitialiser",
+        "upload": "Importer",
+        "uploading": "Import",
+        "use_in_composer": "Utiliser",
+        "copy_url": "Copier"
+      },
+      "messages": {
+        "load_error": "La bibliotheque medias Pulse n a pas pu etre rechargee.",
+        "upload_error": "L image Pulse n a pas pu etre importee.",
+        "upload_success": "L image Pulse a ete importee.",
+        "url_copied": "URL de l image copiee."
+      },
+      "empty_assets": "Aucun media Pulse ne correspond a ces filtres.",
+      "untitled_asset": "Media Pulse",
+      "preview_alt": "Preview media Pulse",
       "empty_value": "Non disponible"
     },
     "automation_manager": {

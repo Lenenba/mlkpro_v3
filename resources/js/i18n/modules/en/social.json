@@ -9,6 +9,9 @@
         "overview": "Overview",
         "accounts": "Accounts",
         "composer": "Composer",
+        "calendar": "Calendar",
+        "brand_voice": "Voice",
+        "media": "Media",
         "templates": "Templates",
         "history": "History",
         "autopilot": "Autopilot",
@@ -18,6 +21,28 @@
         "connected_accounts": "Connected accounts",
         "draft_posts": "Draft posts",
         "scheduled_posts": "Scheduled posts"
+      }
+    },
+    "visual_preview": {
+      "generic_platform": "Pulse",
+      "generic_account": "Malikia Pulse",
+      "generic_meta": "Social preview",
+      "empty_text": "The post text will appear here.",
+      "image_alt": "Pulse post preview image",
+      "link_fallback": "View details",
+      "link_destination": "Destination"
+    },
+    "quality": {
+      "title": "Quality score",
+      "subtitle": "Quick check before publication.",
+      "no_issues": "No visible blocker.",
+      "issues": {
+        "no_targets": "No target selected",
+        "empty_content": "Empty content",
+        "text_too_long": "Text too long",
+        "missing_image": "Image recommended for this network",
+        "cta_without_link": "CTA without link",
+        "similar_recent": "Close to a recent draft"
       }
     },
     "index_page": {
@@ -42,6 +67,9 @@
         "autopilot_action_manage": "Manage rules",
         "autopilot_action_view": "View rules",
         "active_rules": "Active rules",
+        "calendar_title": "Editorial calendar",
+        "calendar_description": "See drafts, scheduled posts, approvals, and publications in a weekly or monthly view.",
+        "calendar_action": "Open calendar",
         "approvals_title": "Posts awaiting approval",
         "approvals_description": "Review pending posts, approve them now, or move them back to revision.",
         "approvals_action_manage": "Open queue",
@@ -78,6 +106,21 @@
       "head_title": "Malikia Pulse history",
       "page_title": "Malikia Pulse history",
       "page_description": "Review recent Pulse posts, filter the history, duplicate working content, and reopen published posts as editable reposts."
+    },
+    "calendar_page": {
+      "head_title": "Malikia Pulse calendar",
+      "page_title": "Pulse editorial calendar",
+      "page_description": "Plan the week, spot approvals, and keep publications visible without making the workspace heavy."
+    },
+    "brand_voice_page": {
+      "head_title": "Malikia Pulse voice",
+      "page_title": "Pulse brand voice",
+      "page_description": "Keep Autopilot posts aligned with your tone, CTAs, and hashtags without adding clutter."
+    },
+    "media_page": {
+      "head_title": "Malikia Pulse media",
+      "page_title": "Pulse media library",
+      "page_description": "Find imported, generated, or already used images, then reuse them in a draft."
     },
     "automations_page": {
       "head_title": "Pulse Autopilot",
@@ -328,6 +371,130 @@
       "preview_image_alt": "Pulse history preview image",
       "preview_cta_fallback": "View details",
       "preview_link_destination": "Destination",
+      "empty_value": "Not available"
+    },
+    "calendar_manager": {
+      "read_only_title": "Read-only calendar",
+      "read_only_description": "You can follow the Pulse schedule, but `social.manage` or `social.publish` is required to reschedule a draft.",
+      "summary": {
+        "draft": "Drafts",
+        "scheduled": "Scheduled",
+        "approval": "Approvals",
+        "published": "Published"
+      },
+      "fields": {
+        "scheduled_for": "New date"
+      },
+      "actions": {
+        "previous": "Previous",
+        "today": "Today",
+        "next": "Next",
+        "week": "Week",
+        "month": "Month",
+        "reload": "Reload",
+        "open_composer": "Open composer",
+        "reschedule": "Reschedule",
+        "clear_schedule": "Remove date"
+      },
+      "messages": {
+        "load_error": "The Pulse calendar could not be refreshed.",
+        "reschedule_error": "The Pulse post could not be rescheduled.",
+        "reschedule_success": "The Pulse post was rescheduled."
+      },
+      "day_detail_title": "Selected day",
+      "more_posts": "+{count} more",
+      "empty_day": "Open",
+      "empty_selection": "No Pulse post on this day.",
+      "queued_notice": "This post is already queued for publication. Open the composer and duplicate it before changing the date.",
+      "target_count": "{count} target | {count} targets",
+      "untitled_post": "Untitled Pulse post",
+      "preview_image_alt": "Pulse post image",
+      "empty_value": "Not available"
+    },
+    "brand_voice_manager": {
+      "read_only_title": "Read-only voice",
+      "read_only_description": "You can review the Pulse voice, but `social.manage` or `social.publish` is required to edit it.",
+      "fields": {
+        "tone": "Tone",
+        "language": "Language",
+        "style_notes": "Style notes",
+        "words_to_avoid": "Words to avoid",
+        "preferred_hashtags": "Favorite hashtags",
+        "preferred_ctas": "Favorite CTAs",
+        "sample_phrase": "Reference phrase"
+      },
+      "tones": {
+        "professional": "Professional",
+        "warm": "Warm",
+        "premium": "Premium",
+        "direct": "Direct",
+        "promotional": "Promotional"
+      },
+      "actions": {
+        "reload": "Reload",
+        "save": "Save",
+        "saving": "Saving"
+      },
+      "messages": {
+        "load_error": "Pulse voice could not be reloaded.",
+        "save_error": "Pulse voice could not be saved.",
+        "save_success": "Pulse voice was saved."
+      },
+      "preview_title": "Clean preview",
+      "preview_hashtags": "Hashtags",
+      "preview_ctas": "CTAs",
+      "preview_avoid": "Avoid",
+      "status": {
+        "configured": "Configured",
+        "default": "Default"
+      },
+      "empty_preview": "The default voice stays active until a guideline is added."
+    },
+    "media_manager": {
+      "read_only_title": "Read-only library",
+      "read_only_description": "You can review and reuse media, but `social.manage` or `social.publish` is required to upload an image.",
+      "upload_title": "Upload an image",
+      "summary": {
+        "total": "Media",
+        "uploads": "Uploads",
+        "ai": "AI images",
+        "posts": "Posts"
+      },
+      "fields": {
+        "search": "Search",
+        "source": "Source",
+        "origin": "Origin",
+        "image_file": "Image to add"
+      },
+      "sources": {
+        "all": "All",
+        "upload": "Upload",
+        "ai": "AI",
+        "url": "URL"
+      },
+      "origins": {
+        "all": "All",
+        "library": "Library",
+        "post": "Post",
+        "template": "Template"
+      },
+      "actions": {
+        "apply_filters": "Filter",
+        "reset_filters": "Reset",
+        "upload": "Upload",
+        "uploading": "Uploading",
+        "use_in_composer": "Use",
+        "copy_url": "Copy"
+      },
+      "messages": {
+        "load_error": "The Pulse media library could not be refreshed.",
+        "upload_error": "The Pulse image could not be uploaded.",
+        "upload_success": "The Pulse image was uploaded.",
+        "url_copied": "Image URL copied."
+      },
+      "empty_assets": "No Pulse media matches these filters.",
+      "untitled_asset": "Pulse media",
+      "preview_alt": "Pulse media preview",
       "empty_value": "Not available"
     },
     "automation_manager": {

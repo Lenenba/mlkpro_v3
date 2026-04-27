@@ -117,6 +117,37 @@ class SocialPostService
     /**
      * @return array<int, array<string, mixed>>
      */
+    public function calendarPayloads(User $owner, int $limit = 140): array
+    {
+        return SocialPost::query()
+            ->byUser($owner->id)
+            ->with([
+                'automationRule',
+                'targets.socialAccountConnection',
+                'latestApprovalRequest.requestedBy',
+                'latestApprovalRequest.resolvedBy',
+            ])
+            ->whereIn('status', [
+                SocialPost::STATUS_DRAFT,
+                SocialPost::STATUS_SCHEDULED,
+                SocialPost::STATUS_PENDING_APPROVAL,
+                SocialPost::STATUS_PUBLISHING,
+                SocialPost::STATUS_PUBLISHED,
+                SocialPost::STATUS_PARTIAL_FAILED,
+                SocialPost::STATUS_FAILED,
+            ])
+            ->latest('updated_at')
+            ->limit(max(1, min(240, $limit)))
+            ->get()
+            ->map(fn (SocialPost $post) => $this->calendarPayload($post))
+            ->sortBy(fn (array $payload): string => (string) ($payload['calendar_at'] ?? ''))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     public function connectedAccountOptions(User $owner): array
     {
         return collect($this->connectionService->listPayloads($owner))
@@ -202,6 +233,40 @@ class SocialPostService
         ])->save();
 
         $this->syncTargets($post, $targetConnections, $attributes['status']);
+
+        return $post->fresh(['targets.socialAccountConnection']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function rescheduleDraft(User $owner, User $actor, SocialPost $post, array $payload): SocialPost
+    {
+        $this->assertOwnership($owner, $post);
+        $this->assertEditable($post);
+
+        $scheduledFor = $this->nullableDateTime($payload, 'scheduled_for');
+        if ($scheduledFor instanceof Carbon && $scheduledFor->lessThanOrEqualTo(now())) {
+            throw ValidationException::withMessages([
+                'scheduled_for' => 'Choose a future date before scheduling this Pulse post.',
+            ]);
+        }
+
+        $status = $scheduledFor instanceof Carbon
+            ? SocialPost::STATUS_SCHEDULED
+            : SocialPost::STATUS_DRAFT;
+
+        $post->forceFill([
+            'updated_by_user_id' => $actor->id,
+            'status' => $status,
+            'scheduled_for' => $scheduledFor,
+            'metadata' => array_merge((array) ($post->metadata ?? []), [
+                'calendar_rescheduled_at' => now()->toIso8601String(),
+                'calendar_rescheduled_by_user_id' => $actor->id,
+            ]),
+        ])->save();
+
+        $this->syncExistingTargetStatus($post, $status);
 
         return $post->fresh(['targets.socialAccountConnection']);
     }
@@ -374,6 +439,62 @@ class SocialPostService
             'updated_at' => optional($post->updated_at)->toIso8601String(),
             'created_at' => optional($post->created_at)->toIso8601String(),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function calendarPayload(SocialPost $post): array
+    {
+        $payload = $this->payload($post);
+        $calendarAt = $this->calendarDateFor($post);
+        $isQueuedPublication = (bool) data_get($post->metadata, 'publish_requested_at');
+
+        return array_merge($payload, [
+            'calendar_at' => optional($calendarAt)->toIso8601String(),
+            'calendar_bucket' => $this->calendarBucketFor($post),
+            'can_reschedule' => in_array((string) $post->status, [
+                SocialPost::STATUS_DRAFT,
+                SocialPost::STATUS_SCHEDULED,
+            ], true) && ! $isQueuedPublication,
+            'is_queued_publication' => $isQueuedPublication,
+        ]);
+    }
+
+    private function calendarDateFor(SocialPost $post): ?Carbon
+    {
+        if ((string) $post->status === SocialPost::STATUS_PUBLISHED && $post->published_at instanceof Carbon) {
+            return $post->published_at;
+        }
+
+        if (in_array((string) $post->status, [
+            SocialPost::STATUS_SCHEDULED,
+            SocialPost::STATUS_PENDING_APPROVAL,
+        ], true) && $post->scheduled_for instanceof Carbon) {
+            return $post->scheduled_for;
+        }
+
+        if ($post->failed_at instanceof Carbon) {
+            return $post->failed_at;
+        }
+
+        if ($post->latestApprovalRequest?->requested_at instanceof Carbon) {
+            return $post->latestApprovalRequest->requested_at;
+        }
+
+        return $post->updated_at;
+    }
+
+    private function calendarBucketFor(SocialPost $post): string
+    {
+        return match ((string) $post->status) {
+            SocialPost::STATUS_SCHEDULED => 'scheduled',
+            SocialPost::STATUS_PENDING_APPROVAL => 'approval',
+            SocialPost::STATUS_PUBLISHED => 'published',
+            SocialPost::STATUS_PARTIAL_FAILED, SocialPost::STATUS_FAILED => 'attention',
+            SocialPost::STATUS_PUBLISHING => 'publishing',
+            default => 'draft',
+        };
     }
 
     private function assertOwnership(User $owner, SocialPost $post): void
@@ -594,6 +715,17 @@ class SocialPostService
                 ->values()
                 ->all()
         );
+    }
+
+    private function syncExistingTargetStatus(SocialPost $post, string $postStatus): void
+    {
+        $targetStatus = $postStatus === SocialPost::STATUS_SCHEDULED
+            ? SocialPostTarget::STATUS_SCHEDULED
+            : SocialPostTarget::STATUS_PENDING;
+
+        $post->targets()->update([
+            'status' => $targetStatus,
+        ]);
     }
 
     /**

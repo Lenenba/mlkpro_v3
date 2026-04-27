@@ -5,6 +5,8 @@ import { router } from '@inertiajs/vue3';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
+import SocialPostQualityPanel from '@/Pages/Social/Components/SocialPostQualityPanel.vue';
+import SocialVisualPostPreview from '@/Pages/Social/Components/SocialVisualPostPreview.vue';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -272,40 +274,6 @@ const regeneratePost = async (post) => {
     );
 };
 
-const normalizeLinkCandidate = (value) => {
-    const candidate = String(value || '').trim();
-    if (candidate === '') {
-        return '';
-    }
-
-    if (/^[a-z][a-z0-9+.-]*:/i.test(candidate)) {
-        return candidate;
-    }
-
-    if (candidate.startsWith('//')) {
-        return `https:${candidate}`;
-    }
-
-    if (/\s/u.test(candidate) || !candidate.includes('.')) {
-        return candidate;
-    }
-
-    return `https://${candidate}`;
-};
-
-const linkHostFor = (value) => {
-    const candidate = normalizeLinkCandidate(value);
-    if (candidate === '') {
-        return '';
-    }
-
-    try {
-        return new URL(candidate).host.replace(/^www\./i, '');
-    } catch {
-        return candidate;
-    }
-};
-
 const draftLabel = (post) => {
     const text = String(post?.text || '').trim();
     if (text !== '') {
@@ -505,57 +473,31 @@ const isStale = (post) => {
                     </div>
                 </div>
 
-                <div class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[1fr,320px]">
+                <div
+                    class="mt-4 grid grid-cols-1 gap-4"
+                    :class="canApprove ? 'xl:grid-cols-[1fr,320px]' : 'xl:grid-cols-1'"
+                >
                     <div class="space-y-4">
-                        <p class="text-sm whitespace-pre-line text-stone-700 dark:text-neutral-200">
-                            {{ post.text || t('social.approval_inbox.empty_text') }}
-                        </p>
+                        <SocialPostQualityPanel
+                            :text="post.text"
+                            :image-url="post.image_url"
+                            :link-url="post.link_url"
+                            :link-label="post.link_cta_label"
+                            :targets="post.targets"
+                        />
 
-                        <div v-if="post.image_url" class="overflow-hidden rounded-3xl border border-stone-200 dark:border-neutral-700">
-                            <img :src="post.image_url" :alt="t('social.approval_inbox.preview_image_alt')" class="h-48 w-full object-cover md:h-56">
-                        </div>
-
-                        <a
-                            v-if="post.link_url"
-                            :href="normalizeLinkCandidate(post.link_url)"
-                            target="_blank"
-                            rel="noreferrer"
-                            class="block rounded-3xl border border-sky-200 bg-sky-50 px-4 py-3 text-sky-800 transition hover:border-sky-300 hover:bg-sky-100 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-100 dark:hover:border-sky-500/40 dark:hover:bg-sky-500/15"
-                        >
-                            <span class="block text-sm font-semibold">
-                                {{ post.link_cta_label || t('social.approval_inbox.preview_cta_fallback') }}
-                            </span>
-                            <span v-if="linkHostFor(post.link_url)" class="mt-1 block text-xs text-sky-700/80 dark:text-sky-200/80">
-                                {{ t('social.approval_inbox.preview_link_destination') }}: {{ linkHostFor(post.link_url) }}
-                            </span>
-                        </a>
+                        <SocialVisualPostPreview
+                            :text="post.text"
+                            :image-url="post.image_url"
+                            :link-url="post.link_url"
+                            :link-label="post.link_cta_label || t('social.approval_inbox.preview_cta_fallback')"
+                            :targets="post.targets"
+                            :empty-text="t('social.approval_inbox.empty_text')"
+                        />
                     </div>
 
-                    <div class="space-y-4">
-                        <div class="rounded-3xl border border-stone-200 bg-stone-50 p-4 text-sm dark:border-neutral-700 dark:bg-neutral-800/60">
-                            <div class="text-xs uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                                {{ t('social.approval_inbox.targets_title') }}
-                            </div>
-                            <div v-if="post.targets?.length" class="mt-3 space-y-2">
-                                <div
-                                    v-for="target in post.targets"
-                                    :key="target.id"
-                                    class="rounded-2xl border border-stone-200 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
-                                >
-                                    <div class="font-medium text-stone-900 dark:text-neutral-100">
-                                        {{ target.label || t('social.approval_inbox.empty_value') }}
-                                    </div>
-                                    <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ target.provider_label || target.platform || t('social.approval_inbox.empty_value') }}
-                                    </div>
-                                </div>
-                            </div>
-                            <div v-else class="mt-3 text-sm text-stone-500 dark:text-neutral-400">
-                                {{ t('social.approval_inbox.no_targets') }}
-                            </div>
-                        </div>
-
-                        <div v-if="canApprove" class="rounded-3xl border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
+                    <div v-if="canApprove" class="space-y-4">
+                        <div class="rounded-3xl border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
                             <div class="text-sm font-semibold text-stone-900 dark:text-neutral-100">
                                 {{ t('social.approval_inbox.actions.approve_schedule') }}
                             </div>

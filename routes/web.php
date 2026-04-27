@@ -94,6 +94,8 @@ use App\Http\Controllers\Settings\SecuritySettingsController;
 use App\Http\Controllers\Settings\SubscriptionController;
 use App\Http\Controllers\SocialAccountConnectionController;
 use App\Http\Controllers\SocialAutomationController;
+use App\Http\Controllers\SocialBrandVoiceController;
+use App\Http\Controllers\SocialMediaLibraryController;
 use App\Http\Controllers\SocialPostController;
 use App\Http\Controllers\SuperAdmin\AdminController as SuperAdminAdminController;
 use App\Http\Controllers\SuperAdmin\AiImageController as SuperAdminAiImageController;
@@ -585,6 +587,12 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('social.index');
         Route::get('/social/composer', [SocialPostController::class, 'composer'])
             ->name('social.composer');
+        Route::get('/social/calendar', [SocialPostController::class, 'calendar'])
+            ->name('social.calendar');
+        Route::get('/social/brand-voice', [SocialBrandVoiceController::class, 'edit'])
+            ->name('social.brand-voice');
+        Route::get('/social/media', [SocialMediaLibraryController::class, 'index'])
+            ->name('social.media.index');
         Route::get('/social/templates', [SocialPostController::class, 'templates'])
             ->name('social.templates.index');
         Route::get('/social/history', [SocialPostController::class, 'history'])
@@ -599,6 +607,12 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('social.posts.store');
         Route::put('/social/posts/{post}', [SocialPostController::class, 'update'])
             ->name('social.posts.update');
+        Route::put('/social/posts/{post}/reschedule', [SocialPostController::class, 'reschedule'])
+            ->name('social.posts.reschedule');
+        Route::put('/social/brand-voice', [SocialBrandVoiceController::class, 'update'])
+            ->name('social.brand-voice.update');
+        Route::post('/social/media', [SocialMediaLibraryController::class, 'store'])
+            ->name('social.media.store');
         Route::post('/social/posts/{post}/publish', [SocialPostController::class, 'publish'])
             ->name('social.posts.publish');
         Route::post('/social/posts/{post}/schedule', [SocialPostController::class, 'schedule'])

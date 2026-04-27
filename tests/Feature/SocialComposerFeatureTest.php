@@ -4,11 +4,13 @@ use App\Http\Middleware\EnsureTwoFactorVerified;
 use App\Models\Role;
 use App\Models\SocialAccountConnection;
 use App\Models\SocialPost;
+use App\Models\SocialPostTarget;
 use App\Models\TeamMember;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -181,6 +183,146 @@ it('lets owners create and update pulse drafts with multi-account selection and 
         ->and($draft->scheduled_for)->not->toBeNull()
         ->and($draft->targets)->toHaveCount(1)
         ->and((int) $draft->targets->first()->social_account_connection_id)->toBe((int) $linkedin->id);
+});
+
+it('renders the pulse editorial calendar from existing posts', function () {
+    $owner = pulseComposerOwner();
+
+    SocialPost::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'content_payload' => [
+            'text' => 'Draft calendar idea',
+        ],
+        'status' => SocialPost::STATUS_DRAFT,
+    ]);
+
+    SocialPost::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'content_payload' => [
+            'text' => 'Scheduled calendar idea',
+        ],
+        'status' => SocialPost::STATUS_SCHEDULED,
+        'scheduled_for' => Carbon::now()->addDays(2)->setTime(10, 30),
+    ]);
+
+    SocialPost::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'content_payload' => [
+            'text' => 'Published calendar idea',
+        ],
+        'status' => SocialPost::STATUS_PUBLISHED,
+        'published_at' => Carbon::now()->subDay()->setTime(14, 0),
+    ]);
+
+    $this->actingAs($owner)
+        ->get(route('social.calendar'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Social/Calendar')
+            ->has('calendar_posts', 3)
+            ->where('summary.scheduled', 1)
+            ->where('summary.published', 1)
+            ->where('access.can_manage_posts', true)
+        );
+
+    $this->actingAs($owner)
+        ->getJson(route('social.calendar'))
+        ->assertOk()
+        ->assertJsonCount(3, 'calendar_posts')
+        ->assertJsonFragment(['calendar_bucket' => 'draft'])
+        ->assertJsonFragment(['calendar_bucket' => 'scheduled'])
+        ->assertJsonFragment(['calendar_bucket' => 'published']);
+});
+
+it('lets owners reschedule editable pulse drafts from the calendar', function () {
+    $owner = pulseComposerOwner();
+
+    $connection = SocialAccountConnection::query()->create([
+        'user_id' => $owner->id,
+        'platform' => SocialAccountConnection::PLATFORM_LINKEDIN,
+        'label' => 'Calendar page',
+        'external_account_id' => 'li-calendar',
+        'status' => SocialAccountConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'connected_at' => now(),
+    ]);
+
+    $draft = SocialPost::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'content_payload' => [
+            'text' => 'Calendar reschedule draft',
+        ],
+        'status' => SocialPost::STATUS_DRAFT,
+    ]);
+
+    SocialPostTarget::query()->create([
+        'social_post_id' => $draft->id,
+        'social_account_connection_id' => $connection->id,
+        'status' => SocialPostTarget::STATUS_PENDING,
+    ]);
+
+    $scheduledFor = Carbon::now()->addDays(3)->setTime(11, 15);
+
+    $this->actingAs($owner)
+        ->putJson(route('social.posts.reschedule', $draft), [
+            'scheduled_for' => $scheduledFor->toIso8601String(),
+        ])
+        ->assertOk()
+        ->assertJsonPath('draft.status', SocialPost::STATUS_SCHEDULED)
+        ->assertJsonPath('summary.scheduled', 1)
+        ->assertJsonFragment(['calendar_bucket' => 'scheduled']);
+
+    $scheduledDraft = $draft->fresh(['targets']);
+
+    expect($scheduledDraft?->status)->toBe(SocialPost::STATUS_SCHEDULED)
+        ->and($scheduledDraft?->scheduled_for?->equalTo($scheduledFor))->toBeTrue()
+        ->and($scheduledDraft?->targets->first()?->status)->toBe(SocialPostTarget::STATUS_SCHEDULED);
+
+    $this->actingAs($owner)
+        ->putJson(route('social.posts.reschedule', $draft), [
+            'scheduled_for' => null,
+        ])
+        ->assertOk()
+        ->assertJsonPath('draft.status', SocialPost::STATUS_DRAFT)
+        ->assertJsonPath('summary.scheduled', 0);
+
+    $unscheduledDraft = $draft->fresh(['targets']);
+
+    expect($unscheduledDraft?->status)->toBe(SocialPost::STATUS_DRAFT)
+        ->and($unscheduledDraft?->scheduled_for)->toBeNull()
+        ->and($unscheduledDraft?->targets->first()?->status)->toBe(SocialPostTarget::STATUS_PENDING);
+});
+
+it('blocks calendar rescheduling for queued pulse publications', function () {
+    $owner = pulseComposerOwner();
+
+    $post = SocialPost::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'content_payload' => [
+            'text' => 'Already queued calendar post',
+        ],
+        'status' => SocialPost::STATUS_SCHEDULED,
+        'scheduled_for' => Carbon::now()->addDays(2),
+        'metadata' => [
+            'publish_requested_at' => now()->toIso8601String(),
+        ],
+    ]);
+
+    $this->actingAs($owner)
+        ->putJson(route('social.posts.reschedule', $post), [
+            'scheduled_for' => Carbon::now()->addDays(5)->toIso8601String(),
+        ])
+        ->assertUnprocessable();
 });
 
 it('lets owners upload local images for pulse drafts', function () {

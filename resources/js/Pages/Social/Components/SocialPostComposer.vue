@@ -9,6 +9,8 @@ import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import DateTimePicker from '@/Components/DateTimePicker.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
+import SocialPostQualityPanel from '@/Pages/Social/Components/SocialPostQualityPanel.vue';
+import SocialVisualPostPreview from '@/Pages/Social/Components/SocialVisualPostPreview.vue';
 
 const props = defineProps({
     initialConnectedAccounts: {
@@ -42,6 +44,10 @@ const props = defineProps({
     selectedTemplateId: {
         type: Number,
         default: null,
+    },
+    initialMediaUrl: {
+        type: String,
+        default: '',
     },
 });
 
@@ -231,7 +237,7 @@ const imageFile = ref(null);
 const localImagePreviewUrl = ref('');
 const form = ref({
     text: '',
-    image_url: '',
+    image_url: String(props.initialMediaUrl || '').trim(),
     link_url: '',
     link_cta_label: '',
     scheduled_for: '',
@@ -357,7 +363,6 @@ const normalizeLinkCandidate = (value) => {
 
     return `https://${candidate}`;
 };
-const linkHrefFor = (value) => normalizeLinkCandidate(value);
 const linkHostFor = (value) => {
     const candidate = normalizeLinkCandidate(value);
     if (candidate === '') {
@@ -391,7 +396,10 @@ const linkSummaryFor = (record) => {
 const previewLinkLabel = computed(() => (
     String(form.value.link_cta_label || '').trim() || t('social.composer_manager.preview_cta_fallback')
 ));
-const previewLinkHost = computed(() => linkHostFor(form.value.link_url));
+const recentQualityTexts = computed(() => sortedDrafts.value
+    .filter((draft) => Number(draft.id) !== Number(activeDraftId.value))
+    .map((draft) => String(draft?.text || '').trim())
+    .filter((text) => text !== ''));
 
 const formatDate = (value) => {
     if (!value) {
@@ -1724,75 +1732,40 @@ const resolveApproval = async (decision) => {
                 </div>
             </section>
 
-            <section class="space-y-5">
-                <div class="rounded-3xl border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="flex items-start justify-between gap-3">
-                        <div>
-                            <h4 class="text-base font-semibold text-stone-900 dark:text-neutral-100">
-                                {{ t('social.composer_manager.preview_title') }}
-                            </h4>
-                            <p class="mt-1 text-sm text-stone-500 dark:text-neutral-400">
-                                {{ t('social.composer_manager.preview_description') }}
-                            </p>
-                        </div>
-
-                        <span class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold" :class="statusClass(currentStatus)">
-                            {{ previewStatus }}
-                        </span>
+            <section class="space-y-4">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <h4 class="text-base font-semibold text-stone-900 dark:text-neutral-100">
+                            {{ t('social.composer_manager.preview_title') }}
+                        </h4>
+                        <p class="mt-1 text-sm text-stone-500 dark:text-neutral-400">
+                            {{ t('social.composer_manager.preview_description') }}
+                        </p>
                     </div>
 
-                    <div class="mt-4 space-y-4">
-                        <div class="rounded-3xl border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800/60">
-                            <div class="text-xs uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                                {{ t('social.composer_manager.preview_targets') }}
-                            </div>
-                            <div v-if="selectedAccounts.length" class="mt-3 flex flex-wrap gap-2">
-                                <span
-                                    v-for="account in selectedAccounts"
-                                    :key="`preview-account-${account.id}`"
-                                    class="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-300"
-                                >
-                                    {{ account.label }}
-                                </span>
-                            </div>
-                            <div v-else class="mt-2 text-sm text-stone-500 dark:text-neutral-400">
-                                {{ t('social.composer_manager.preview_no_targets') }}
-                            </div>
-                        </div>
-
-                        <div class="rounded-3xl border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
-                            <div class="text-sm whitespace-pre-line text-stone-800 dark:text-neutral-100">
-                                {{ form.text || t('social.composer_manager.preview_empty_text') }}
-                            </div>
-
-                            <div v-if="previewImageSrc" class="mt-4 overflow-hidden rounded-3xl border border-stone-200 dark:border-neutral-700">
-                                <img :src="previewImageSrc" :alt="t('social.composer_manager.preview_image_alt')" class="h-52 w-full object-cover">
-                            </div>
-
-                            <a
-                                v-if="form.link_url"
-                                :href="linkHrefFor(form.link_url)"
-                                target="_blank"
-                                rel="noreferrer"
-                                class="mt-4 block rounded-3xl border border-sky-200 bg-sky-50 px-4 py-4 text-sky-800 transition hover:border-sky-300 hover:bg-sky-100 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-100 dark:hover:border-sky-500/40 dark:hover:bg-sky-500/15"
-                            >
-                                <span class="block text-sm font-semibold">
-                                    {{ previewLinkLabel }}
-                                </span>
-                                <span
-                                    v-if="previewLinkHost"
-                                    class="mt-1 block text-xs text-sky-700/80 dark:text-sky-200/80"
-                                >
-                                    {{ t('social.composer_manager.preview_link_destination') }}: {{ previewLinkHost }}
-                                </span>
-                            </a>
-
-                            <div class="mt-4 text-xs text-stone-500 dark:text-neutral-400">
-                                {{ t('social.composer_manager.preview_schedule') }}: {{ form.scheduled_for ? formatDate(form.scheduled_for) : t('social.composer_manager.preview_now') }}
-                            </div>
-                        </div>
-                    </div>
+                    <span class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold" :class="statusClass(currentStatus)">
+                        {{ previewStatus }}
+                    </span>
                 </div>
+
+                <SocialPostQualityPanel
+                    :text="form.text"
+                    :image-url="previewImageSrc"
+                    :link-url="form.link_url"
+                    :link-label="form.link_cta_label"
+                    :targets="selectedAccounts"
+                    :recent-texts="recentQualityTexts"
+                />
+
+                <SocialVisualPostPreview
+                    :text="form.text"
+                    :image-url="previewImageSrc"
+                    :link-url="form.link_url"
+                    :link-label="previewLinkLabel"
+                    :targets="selectedAccounts"
+                    :empty-text="t('social.composer_manager.preview_empty_text')"
+                    compact
+                />
             </section>
         </div>
     </div>
