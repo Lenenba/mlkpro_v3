@@ -51,6 +51,10 @@ const props = defineProps({
         type: String,
         default: 'CAD',
     },
+    pettyCash: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const emit = defineEmits(['submitted']);
@@ -58,6 +62,11 @@ const { t } = useI18n();
 const fileInput = ref(null);
 const cameraInput = ref(null);
 const overlayTarget = computed(() => (props.id ? `#${props.id}` : null));
+const canCreatePettyCash = computed(() => !props.expense?.id && Boolean(props.pettyCash?.canCreate));
+const canPostPettyCash = computed(() => Boolean(props.pettyCash?.canPost));
+const defaultResponsibleId = computed(() => props.pettyCash?.account?.responsible_user_id
+    || props.pettyCash?.responsibleOptions?.[0]?.id
+    || '');
 
 const categoryOptions = computed(() =>
     (props.categories || []).map((item) => ({
@@ -91,6 +100,20 @@ const teamMemberOptions = computed(() =>
             : member.name,
     }))
 );
+const responsibleOptions = computed(() => (props.pettyCash?.responsibleOptions || []).map((item) => ({
+    value: item.id,
+    label: item.name,
+})));
+const pettyCashStatusOptions = computed(() => [
+    {
+        value: 'draft',
+        label: t('expenses.petty_cash.status.draft'),
+    },
+    ...(canPostPettyCash.value ? [{
+        value: 'posted',
+        label: t('expenses.petty_cash.status.posted'),
+    }] : []),
+]);
 const customerOptions = computed(() =>
     (props.linkOptions?.customers || []).map((item) => ({
         value: item.id,
@@ -149,6 +172,10 @@ const form = useForm({
     description: props.expense?.description || '',
     notes: props.expense?.notes || '',
     attachments: [],
+    petty_cash_create: false,
+    petty_cash_status: canPostPettyCash.value ? 'posted' : 'draft',
+    petty_cash_responsible_user_id: defaultResponsibleId.value,
+    petty_cash_note: '',
 });
 
 const selectedFiles = computed(() => Array.isArray(form.attachments) ? form.attachments : []);
@@ -324,6 +351,43 @@ const submit = () => {
                 {{ recurrencePreview
                     ? $t('expenses.form.recurrence_preview', { date: recurrencePreview })
                     : $t('expenses.form.recurrence_help') }}
+            </div>
+        </div>
+
+        <div v-if="canCreatePettyCash" class="space-y-3 rounded-sm border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-500/30 dark:bg-emerald-500/10">
+            <label class="flex items-start gap-3 text-sm text-stone-800 dark:text-neutral-100">
+                <input
+                    v-model="form.petty_cash_create"
+                    type="checkbox"
+                    class="mt-0.5 rounded border-stone-300 text-emerald-600 focus:ring-emerald-600 dark:border-neutral-700 dark:bg-neutral-900"
+                >
+                <span>
+                    <span class="block font-medium">{{ $t('expenses.ai_scan.petty_cash_create') }}</span>
+                    <span class="mt-0.5 block text-xs text-stone-500 dark:text-neutral-400">
+                        {{ $t('expenses.ai_scan.petty_cash_hint') }}
+                    </span>
+                </span>
+            </label>
+
+            <div v-if="form.petty_cash_create" class="grid gap-3 md:grid-cols-2">
+                <FloatingSelect
+                    v-model="form.petty_cash_status"
+                    :label="$t('expenses.ai_scan.petty_cash_status')"
+                    :options="pettyCashStatusOptions"
+                    required
+                />
+                <FloatingSelect
+                    v-model="form.petty_cash_responsible_user_id"
+                    :label="$t('expenses.ai_scan.petty_cash_responsible')"
+                    :options="responsibleOptions"
+                    required
+                />
+                <div class="md:col-span-2">
+                    <FloatingTextarea
+                        v-model="form.petty_cash_note"
+                        :label="$t('expenses.ai_scan.petty_cash_note')"
+                    />
+                </div>
             </div>
         </div>
 

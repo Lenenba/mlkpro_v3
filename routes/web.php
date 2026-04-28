@@ -835,6 +835,22 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::post('/expenses/scan-ai', [ExpenseController::class, 'scanWithAi'])
             ->middleware('company.feature:assistant')
             ->name('expense.scan-ai');
+        Route::get('/expenses/petty-cash/export', [ExpenseController::class, 'exportPettyCash'])
+            ->name('expense.petty-cash.export');
+        Route::patch('/expenses/petty-cash/account', [ExpenseController::class, 'updatePettyCashAccount'])
+            ->name('expense.petty-cash.account.update');
+        Route::post('/expenses/petty-cash/movements', [ExpenseController::class, 'storePettyCashMovement'])
+            ->name('expense.petty-cash.movements.store');
+        Route::patch('/expenses/petty-cash/movements/{movement}/post', [ExpenseController::class, 'postPettyCashMovement'])
+            ->name('expense.petty-cash.movements.post');
+        Route::patch('/expenses/petty-cash/movements/{movement}/void', [ExpenseController::class, 'voidPettyCashMovement'])
+            ->name('expense.petty-cash.movements.void');
+        Route::post('/expenses/petty-cash/closures', [ExpenseController::class, 'storePettyCashClosure'])
+            ->name('expense.petty-cash.closures.store');
+        Route::patch('/expenses/petty-cash/closures/{closure}/close', [ExpenseController::class, 'closePettyCashClosure'])
+            ->name('expense.petty-cash.closures.close');
+        Route::patch('/expenses/petty-cash/closures/{closure}/reopen', [ExpenseController::class, 'reopenPettyCashClosure'])
+            ->name('expense.petty-cash.closures.reopen');
         Route::patch('/expenses/{expense}/submit', [ExpenseController::class, 'submit'])->name('expense.submit');
         Route::patch('/expenses/{expense}/approve', [ExpenseController::class, 'approve'])->name('expense.approve');
         Route::patch('/expenses/{expense}/reject', [ExpenseController::class, 'reject'])->name('expense.reject');

@@ -10,6 +10,10 @@ use App\Models\Customer;
 use App\Models\Expense;
 use App\Models\ExpenseAttachment;
 use App\Models\Invoice;
+use App\Models\PettyCashAccount;
+use App\Models\PettyCashAttachment;
+use App\Models\PettyCashClosure;
+use App\Models\PettyCashMovement;
 use App\Models\Sale;
 use App\Models\TeamMember;
 use App\Models\User;
@@ -21,7 +25,9 @@ use App\Utils\FileHandler;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class ExpenseController extends Controller
@@ -48,6 +54,15 @@ class ExpenseController extends Controller
             'expense_date_to',
             'created_from',
             'created_to',
+            'recap_period',
+            'recap_from',
+            'recap_to',
+            'petty_type',
+            'petty_status',
+            'petty_responsible_user_id',
+            'petty_from',
+            'petty_to',
+            'petty_page',
             'sort',
             'direction',
         ]);
@@ -107,23 +122,29 @@ class ExpenseController extends Controller
             'top_categories' => $this->topCategoryStats(clone $baseQuery),
             'top_suppliers' => $this->topSupplierStats(clone $baseQuery),
         ];
+        $periodRecap = $this->buildPeriodRecap(clone $baseQuery, $filters);
 
         $owner = $user && (int) $user->id === $accountId
             ? $user
             : User::query()->find($accountId);
+        $tenantCurrencyCode = $owner?->businessCurrencyCode() ?? CurrencyCode::default()->value;
+        $teamMembers = $this->teamMemberOptions($user, $accountId);
+        $pettyCash = $this->buildPettyCashPanel($user, $accountId, $filters, $tenantCurrencyCode, $teamMembers);
 
         return $this->inertiaOrJson('Expense/Index', [
             'filters' => $filters,
             'expenses' => $expenses,
             'count' => (clone $filteredQuery)->count(),
             'stats' => $stats,
+            'periodRecap' => $periodRecap,
+            'pettyCash' => $pettyCash,
             'categories' => config('expenses.categories', []),
             'paymentMethods' => config('expenses.payment_methods', []),
             'statuses' => Expense::STATUSES,
             'recurrenceFrequencies' => Expense::RECURRENCE_FREQUENCIES,
-            'teamMembers' => $this->teamMemberOptions($user, $accountId),
+            'teamMembers' => $teamMembers,
             'linkOptions' => $this->expenseLinkOptions($user, $accountId),
-            'tenantCurrencyCode' => $owner?->businessCurrencyCode() ?? CurrencyCode::default()->value,
+            'tenantCurrencyCode' => $tenantCurrencyCode,
             'canUseAiIntake' => ($user?->can('create', Expense::class) ?? false)
                 && ($user?->hasCompanyFeature('assistant') ?? false),
         ]);
@@ -169,30 +190,47 @@ class ExpenseController extends Controller
         $user = $request->user();
         $accountId = (int) ($user?->accountOwnerId() ?? 0);
         $validated = $request->validated();
+        $pettyCashMovement = null;
 
-        $expense = Expense::query()->create($this->buildExpensePayload(
-            $validated,
-            $accountId,
-            (int) $user->id,
-            null,
-            $recurringService,
-            $user
-        ));
+        $expense = DB::transaction(function () use ($request, $validated, $accountId, $user, $recurringService, &$pettyCashMovement) {
+            $expense = Expense::query()->create($this->buildExpensePayload(
+                $validated,
+                $accountId,
+                (int) $user->id,
+                null,
+                $recurringService,
+                $user
+            ));
 
-        $this->storeAttachments($request, $expense, (int) $user->id);
-        $this->recordExpenseAuditEvent($user, $expense, 'created', [
-            'status' => $expense->status,
-            'approval_policy_snapshot' => data_get($expense->meta, 'approval.policy_snapshot'),
-        ], 'Expense created');
-        if (data_get($expense->meta, 'approval.policy_snapshot.auto_approved')) {
-            $this->recordExpenseAuditEvent($user, $expense, 'auto_approved', [
+            $this->storeAttachments($request, $expense, (int) $user->id);
+
+            if ($request->boolean('petty_cash_create')) {
+                $pettyCashMovement = $this->createPettyCashMovementFromManualExpense($request, $expense, $validated);
+            }
+
+            $this->recordExpenseAuditEvent($user, $expense, 'created', [
                 'status' => $expense->status,
-                'approval_mode' => data_get($expense->meta, 'approval.policy_snapshot.approval_mode'),
-            ], 'Expense auto-approved from plan-based workflow');
+                'approval_policy_snapshot' => data_get($expense->meta, 'approval.policy_snapshot'),
+            ], 'Expense created');
+            if (data_get($expense->meta, 'approval.policy_snapshot.auto_approved')) {
+                $this->recordExpenseAuditEvent($user, $expense, 'auto_approved', [
+                    'status' => $expense->status,
+                    'approval_mode' => data_get($expense->meta, 'approval.policy_snapshot.approval_mode'),
+                ], 'Expense auto-approved from plan-based workflow');
+            }
+
+            return $expense;
+        });
+
+        $message = 'Expense created successfully.';
+        if ($pettyCashMovement) {
+            $message .= $pettyCashMovement->status === PettyCashMovement::STATUS_POSTED
+                ? ' Petty cash movement posted.'
+                : ' Petty cash movement drafted.';
         }
 
         $payload = [
-            'message' => 'Expense created successfully.',
+            'message' => $message,
             'expense' => $this->presentExpenseDetail($expense->fresh([
                 'creator:id,name',
                 'teamMember.user:id,name',
@@ -203,6 +241,9 @@ class ExpenseController extends Controller
                 'campaign:id,name',
                 'attachments',
             ]), $user),
+            'pettyCashMovement' => $pettyCashMovement
+                ? $this->presentPettyCashMovement($pettyCashMovement->fresh($this->pettyCashMovementRelations()), $user)
+                : null,
         ];
 
         if ($this->shouldReturnJson($request)) {
@@ -264,6 +305,10 @@ class ExpenseController extends Controller
         $validated = $request->validate([
             'document' => 'required|file|mimes:pdf,png,jpg,jpeg,webp|max:10240',
             'note' => 'nullable|string|max:1000',
+            'petty_cash_create' => ['nullable', 'boolean'],
+            'petty_cash_status' => ['nullable', 'string', Rule::in([PettyCashMovement::STATUS_DRAFT, PettyCashMovement::STATUS_POSTED])],
+            'petty_cash_responsible_user_id' => ['nullable', 'integer'],
+            'petty_cash_note' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $user = $request->user();
@@ -278,13 +323,29 @@ class ExpenseController extends Controller
         $draft = $draftService->createFromDocument($user, $document, [
             'note' => $validated['note'] ?? null,
         ]);
-        $expense = $this->presentExpenseDetail($draft['expense'], $user);
+        $pettyCashMovement = $request->boolean('petty_cash_create')
+            ? $this->createPettyCashMovementFromScannedExpense($request, $draft['expense'], $validated)
+            : null;
+        $expense = $this->presentExpenseDetail($draft['expense']->fresh([
+            'creator:id,name',
+            'approver:id,name',
+            'payer:id,name',
+            'attachments.user:id,name',
+        ]), $user);
         $message = (string) ($draft['message'] ?? 'AI draft created successfully.');
+        if ($pettyCashMovement) {
+            $message .= $pettyCashMovement->status === PettyCashMovement::STATUS_POSTED
+                ? ' Petty cash movement posted.'
+                : ' Petty cash movement drafted.';
+        }
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
                 'message' => $message,
                 'expense' => $expense,
+                'pettyCashMovement' => $pettyCashMovement
+                    ? $this->presentPettyCashMovement($pettyCashMovement->fresh($this->pettyCashMovementRelations()), $user)
+                    : null,
             ], 201);
         }
 
@@ -404,6 +465,106 @@ class ExpenseController extends Controller
                             $expense->attachments_count,
                             $expense->attachments->pluck('id')->implode('|'),
                             optional($expense->created_at)->toDateTimeString(),
+                        ]);
+                    }
+                });
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv',
+        ]);
+    }
+
+    public function exportPettyCash(Request $request)
+    {
+        $this->authorize('viewAny', Expense::class);
+
+        $user = $request->user();
+        $accountId = (int) ($user?->accountOwnerId() ?? 0);
+        $owner = $accountId > 0 ? User::query()->find($accountId) : null;
+        $pettyCashAccount = $this->resolvePettyCashAccount(
+            $accountId,
+            $owner?->businessCurrencyCode() ?? CurrencyCode::default()->value,
+            $user
+        );
+        $filters = $request->only([
+            'petty_type',
+            'petty_status',
+            'petty_responsible_user_id',
+            'petty_from',
+            'petty_to',
+        ]);
+
+        $query = $this->applyPettyCashFilters(
+            PettyCashMovement::query()
+                ->where('petty_cash_account_id', $pettyCashAccount->id)
+                ->with([
+                    'creator:id,name',
+                    'responsible:id,name',
+                    'teamMember.user:id,name',
+                    'expense:id,title,total,expense_date',
+                    'attachments:id,petty_cash_movement_id,path,original_name',
+                ])
+                ->withCount('attachments'),
+            $filters
+        );
+
+        $filename = 'petty-cash-'.now()->format('Ymd-His').'.csv';
+
+        return response()->streamDownload(function () use ($query): void {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, [
+                'type',
+                'status',
+                'amount',
+                'balance_delta',
+                'currency_code',
+                'movement_date',
+                'responsible',
+                'team_member',
+                'linked_expense_id',
+                'linked_expense',
+                'note',
+                'requires_receipt',
+                'receipt_attached',
+                'attachments_count',
+                'attachment_ids',
+                'attachment_paths',
+                'posted_at',
+                'voided_at',
+                'void_reason',
+                'created_by',
+                'accounting_event',
+                'created_at',
+            ]);
+
+            $query->orderByDesc('movement_date')
+                ->orderByDesc('id')
+                ->chunk(200, function ($movements) use ($handle): void {
+                    foreach ($movements as $movement) {
+                        fputcsv($handle, [
+                            $movement->type,
+                            $movement->status,
+                            $movement->amount,
+                            $this->pettyCashMovementDelta($movement),
+                            strtoupper((string) $movement->currency_code),
+                            optional($movement->movement_date)->toDateString(),
+                            $movement->responsible?->name,
+                            $movement->teamMember?->user?->name ?: $movement->teamMember?->title,
+                            $movement->expense?->id,
+                            $movement->expense?->title,
+                            $movement->note,
+                            $movement->requires_receipt ? '1' : '0',
+                            $movement->receipt_attached ? '1' : '0',
+                            $movement->attachments_count,
+                            $movement->attachments->pluck('id')->implode('|'),
+                            $movement->attachments->pluck('path')->implode('|'),
+                            optional($movement->posted_at)->toDateTimeString(),
+                            optional($movement->voided_at)->toDateTimeString(),
+                            $movement->void_reason,
+                            $movement->creator?->name,
+                            $this->pettyCashAccountingEvent($movement),
+                            optional($movement->created_at)->toDateTimeString(),
                         ]);
                     }
                 });
@@ -627,6 +788,383 @@ class ExpenseController extends Controller
                 'clear_approver' => true,
             ]
         );
+    }
+
+    public function storePettyCashMovement(Request $request)
+    {
+        $this->authorize('viewAny', Expense::class);
+
+        $user = $request->user();
+        $accountId = (int) ($user?->accountOwnerId() ?? 0);
+        $owner = $user && (int) $user->id === $accountId
+            ? $user
+            : User::query()->find($accountId);
+        $pettyCashAccount = $this->resolvePettyCashAccount(
+            $accountId,
+            $owner?->businessCurrencyCode() ?? CurrencyCode::default()->value,
+            $user
+        );
+
+        if (! $this->canCreatePettyCashMovement($user)) {
+            abort(403);
+        }
+
+        $validated = $this->validatePettyCashMovement($request, $accountId, $pettyCashAccount);
+        $status = (string) ($validated['status'] ?? PettyCashMovement::STATUS_DRAFT);
+        if ($status === PettyCashMovement::STATUS_POSTED && ! $this->canPostPettyCashMovement($user)) {
+            abort(403);
+        }
+        if ($validated['type'] === PettyCashMovement::TYPE_ADJUSTMENT && ! $this->canAdjustPettyCash($user)) {
+            abort(403);
+        }
+
+        $movementDate = Carbon::parse((string) $validated['movement_date'])->startOfDay();
+        $this->ensurePettyCashDateIsOpen($pettyCashAccount, $movementDate);
+        $requiresReceipt = $this->pettyCashMovementRequiresReceipt(
+            $pettyCashAccount,
+            (string) $validated['type'],
+            (float) $validated['amount'],
+            (bool) ($validated['requires_receipt'] ?? false)
+        );
+        $receiptMandatory = $this->pettyCashReceiptIsMandatory($pettyCashAccount, (float) $validated['amount']);
+        $this->ensurePettyCashReceiptRequirementIsMet($request, $receiptMandatory, $status, (bool) ($validated['receipt_attached'] ?? false));
+
+        $movement = DB::transaction(function () use ($request, $validated, $pettyCashAccount, $accountId, $user, $status, $requiresReceipt) {
+            $movement = PettyCashMovement::query()->create([
+                'user_id' => $accountId,
+                'petty_cash_account_id' => $pettyCashAccount->id,
+                'expense_id' => $validated['expense_id'] ?? null,
+                'team_member_id' => $validated['team_member_id'] ?? null,
+                'created_by_user_id' => $user?->id,
+                'responsible_user_id' => $validated['responsible_user_id'] ?? $user?->id,
+                'type' => $validated['type'],
+                'status' => $status,
+                'amount' => round((float) $validated['amount'], 2),
+                'currency_code' => $pettyCashAccount->currency_code,
+                'movement_date' => $validated['movement_date'],
+                'note' => $validated['note'] ?? null,
+                'requires_receipt' => $requiresReceipt,
+                'receipt_attached' => (bool) ($validated['receipt_attached'] ?? false),
+                'posted_at' => $status === PettyCashMovement::STATUS_POSTED ? now() : null,
+                'meta' => [
+                    'source' => 'expense_petty_cash_controls',
+                    'accounting_event' => $status === PettyCashMovement::STATUS_POSTED
+                        ? $this->pettyCashAccountingEventForType((string) $validated['type'])
+                        : null,
+                ],
+            ]);
+
+            if ($request->hasFile('receipt')) {
+                $this->storePettyCashAttachment($request->file('receipt'), $movement, (int) $user->id);
+                $movement->forceFill(['receipt_attached' => true])->save();
+            }
+
+            if ($movement->status === PettyCashMovement::STATUS_POSTED) {
+                $this->recalculatePettyCashBalance($pettyCashAccount);
+            }
+
+            ActivityLog::record($user, $movement, 'petty_cash_movement_created', [
+                'type' => $movement->type,
+                'status' => $movement->status,
+                'amount' => (float) $movement->amount,
+                'currency_code' => $movement->currency_code,
+            ], 'Petty cash movement created');
+
+            return $movement;
+        });
+
+        return $this->pettyCashMutationResponse($request, $movement->fresh($this->pettyCashMovementRelations()), 'Petty cash movement created.', 201);
+    }
+
+    public function postPettyCashMovement(Request $request, PettyCashMovement $movement)
+    {
+        $this->authorize('viewAny', Expense::class);
+
+        $user = $request->user();
+        $this->ensurePettyCashMovementBelongsToActor($movement, $user);
+        if (! $this->canPostPettyCashMovement($user)) {
+            abort(403);
+        }
+        if ($movement->type === PettyCashMovement::TYPE_ADJUSTMENT && ! $this->canAdjustPettyCash($user)) {
+            abort(403);
+        }
+
+        if ($movement->status !== PettyCashMovement::STATUS_DRAFT) {
+            throw ValidationException::withMessages([
+                'status' => 'Only draft petty cash movements can be posted.',
+            ]);
+        }
+        $this->ensurePettyCashDateIsOpen($movement->account, $movement->movement_date);
+        $this->ensurePettyCashReceiptRequirementIsMet(
+            $request,
+            $this->pettyCashReceiptIsMandatory($movement->account, (float) $movement->amount),
+            PettyCashMovement::STATUS_POSTED,
+            (bool) $movement->receipt_attached
+        );
+
+        $movement = DB::transaction(function () use ($movement, $user) {
+            $movement->forceFill([
+                'status' => PettyCashMovement::STATUS_POSTED,
+                'posted_at' => now(),
+                'meta' => array_replace((array) ($movement->meta ?? []), [
+                    'accounting_event' => $this->pettyCashAccountingEvent($movement),
+                ]),
+            ])->save();
+
+            $this->recalculatePettyCashBalance($movement->account);
+
+            ActivityLog::record($user, $movement, 'petty_cash_movement_posted', [
+                'type' => $movement->type,
+                'amount' => (float) $movement->amount,
+                'balance_delta' => $this->pettyCashMovementDelta($movement),
+            ], 'Petty cash movement posted');
+
+            return $movement;
+        });
+
+        return $this->pettyCashMutationResponse($request, $movement->fresh($this->pettyCashMovementRelations()), 'Petty cash movement posted.');
+    }
+
+    public function voidPettyCashMovement(Request $request, PettyCashMovement $movement)
+    {
+        $this->authorize('viewAny', Expense::class);
+
+        $user = $request->user();
+        $this->ensurePettyCashMovementBelongsToActor($movement, $user);
+        if (! $this->canPostPettyCashMovement($user)) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'void_reason' => 'required|string|max:1000',
+        ]);
+
+        if ($movement->status === PettyCashMovement::STATUS_VOIDED) {
+            throw ValidationException::withMessages([
+                'status' => 'This petty cash movement is already voided.',
+            ]);
+        }
+        $this->ensurePettyCashDateIsOpen($movement->account, $movement->movement_date);
+
+        $movement = DB::transaction(function () use ($movement, $user, $validated) {
+            $wasPosted = $movement->status === PettyCashMovement::STATUS_POSTED;
+            $movement->forceFill([
+                'status' => PettyCashMovement::STATUS_VOIDED,
+                'voided_at' => now(),
+                'voided_by_user_id' => $user?->id,
+                'void_reason' => $validated['void_reason'],
+            ])->save();
+
+            if ($wasPosted) {
+                $this->recalculatePettyCashBalance($movement->account);
+            }
+
+            ActivityLog::record($user, $movement, 'petty_cash_movement_voided', [
+                'type' => $movement->type,
+                'amount' => (float) $movement->amount,
+                'void_reason' => $validated['void_reason'],
+            ], 'Petty cash movement voided');
+
+            return $movement;
+        });
+
+        return $this->pettyCashMutationResponse($request, $movement->fresh($this->pettyCashMovementRelations()), 'Petty cash movement voided.');
+    }
+
+    public function updatePettyCashAccount(Request $request)
+    {
+        $this->authorize('viewAny', Expense::class);
+
+        $user = $request->user();
+        $accountId = (int) ($user?->accountOwnerId() ?? 0);
+        if (! $this->canManagePettyCash($user)) {
+            abort(403);
+        }
+
+        $owner = $accountId > 0 ? User::query()->find($accountId) : null;
+        $pettyCashAccount = $this->resolvePettyCashAccount(
+            $accountId,
+            $owner?->businessCurrencyCode() ?? CurrencyCode::default()->value,
+            $user
+        );
+
+        $validated = $request->validate([
+            'responsible_user_id' => ['required', 'integer'],
+            'low_balance_threshold' => ['nullable', 'numeric', 'min:0', 'max:999999999.99'],
+            'receipt_required_above' => ['nullable', 'numeric', 'min:0', 'max:999999999.99'],
+        ]);
+
+        $this->ensureResponsibleBelongsToAccount((int) $validated['responsible_user_id'], $accountId);
+
+        $pettyCashAccount->forceFill([
+            'responsible_user_id' => (int) $validated['responsible_user_id'],
+            'low_balance_threshold' => round((float) ($validated['low_balance_threshold'] ?? 0), 2),
+            'receipt_required_above' => round((float) ($validated['receipt_required_above'] ?? 0), 2),
+        ])->save();
+
+        ActivityLog::record($user, $pettyCashAccount, 'petty_cash_account_updated', [
+            'responsible_user_id' => (int) $pettyCashAccount->responsible_user_id,
+            'low_balance_threshold' => (float) $pettyCashAccount->low_balance_threshold,
+            'receipt_required_above' => (float) $pettyCashAccount->receipt_required_above,
+        ], 'Petty cash account controls updated');
+
+        return $this->pettyCashPanelResponse($request, 'Petty cash settings updated.');
+    }
+
+    public function storePettyCashClosure(Request $request)
+    {
+        $this->authorize('viewAny', Expense::class);
+
+        $user = $request->user();
+        $accountId = (int) ($user?->accountOwnerId() ?? 0);
+        if (! $this->canClosePettyCash($user)) {
+            abort(403);
+        }
+
+        $owner = $accountId > 0 ? User::query()->find($accountId) : null;
+        $pettyCashAccount = $this->resolvePettyCashAccount(
+            $accountId,
+            $owner?->businessCurrencyCode() ?? CurrencyCode::default()->value,
+            $user
+        );
+        $validated = $this->validatePettyCashClosure($request);
+        [$periodStart, $periodEnd] = $this->normalizePettyCashClosurePeriod(
+            $validated['period_start'],
+            $validated['period_end']
+        );
+        $status = (string) ($validated['status'] ?? PettyCashClosure::STATUS_IN_REVIEW);
+        $expectedBalance = $this->pettyCashExpectedBalanceAt($pettyCashAccount, $periodEnd);
+        $countedBalance = round((float) $validated['counted_balance'], 2);
+        $difference = round($countedBalance - $expectedBalance, 2);
+
+        if (abs($difference) >= 0.01 && trim((string) ($validated['comment'] ?? '')) === '') {
+            throw ValidationException::withMessages([
+                'comment' => 'A comment is required when the counted balance differs from the expected balance.',
+            ]);
+        }
+
+        $this->ensurePettyCashClosurePeriodIsAvailable($pettyCashAccount, $periodStart, $periodEnd);
+
+        $closure = DB::transaction(function () use ($pettyCashAccount, $accountId, $user, $validated, $periodStart, $periodEnd, $status, $expectedBalance, $countedBalance, $difference) {
+            $closure = PettyCashClosure::query()->create([
+                'user_id' => $accountId,
+                'petty_cash_account_id' => $pettyCashAccount->id,
+                'period_start' => $periodStart->toDateString(),
+                'period_end' => $periodEnd->toDateString(),
+                'expected_balance' => $expectedBalance,
+                'counted_balance' => $countedBalance,
+                'difference' => $difference,
+                'status' => $status,
+                'reviewed_by_user_id' => $status === PettyCashClosure::STATUS_IN_REVIEW ? $user?->id : null,
+                'closed_by_user_id' => $status === PettyCashClosure::STATUS_CLOSED ? $user?->id : null,
+                'closed_at' => $status === PettyCashClosure::STATUS_CLOSED ? now() : null,
+                'comment' => $validated['comment'] ?? null,
+                'meta' => [
+                    'accounting_event' => $status === PettyCashClosure::STATUS_CLOSED
+                        ? 'petty_cash_period_closed'
+                        : 'petty_cash_closure_submitted',
+                ],
+            ]);
+
+            ActivityLog::record($user, $closure, $status === PettyCashClosure::STATUS_CLOSED ? 'petty_cash_period_closed' : 'petty_cash_closure_submitted', [
+                'period_start' => $closure->period_start?->toDateString(),
+                'period_end' => $closure->period_end?->toDateString(),
+                'expected_balance' => (float) $closure->expected_balance,
+                'counted_balance' => (float) $closure->counted_balance,
+                'difference' => (float) $closure->difference,
+                'status' => $closure->status,
+            ], $status === PettyCashClosure::STATUS_CLOSED ? 'Petty cash period closed' : 'Petty cash closure submitted');
+
+            return $closure;
+        });
+
+        return $this->pettyCashPanelResponse($request, 'Petty cash closure saved.', [
+            'closure' => $this->presentPettyCashClosure($closure->fresh($this->pettyCashClosureRelations())),
+        ], 201);
+    }
+
+    public function closePettyCashClosure(Request $request, PettyCashClosure $closure)
+    {
+        $this->authorize('viewAny', Expense::class);
+
+        $user = $request->user();
+        $this->ensurePettyCashClosureBelongsToActor($closure, $user);
+        if (! $this->canClosePettyCash($user)) {
+            abort(403);
+        }
+
+        if ($closure->status === PettyCashClosure::STATUS_CLOSED) {
+            throw ValidationException::withMessages([
+                'status' => 'This petty cash period is already closed.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'comment' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $closure->forceFill([
+            'status' => PettyCashClosure::STATUS_CLOSED,
+            'closed_by_user_id' => $user?->id,
+            'closed_at' => now(),
+            'comment' => $validated['comment'] ?? $closure->comment,
+            'meta' => array_replace((array) ($closure->meta ?? []), [
+                'accounting_event' => 'petty_cash_period_closed',
+            ]),
+        ])->save();
+
+        ActivityLog::record($user, $closure, 'petty_cash_period_closed', [
+            'period_start' => $closure->period_start?->toDateString(),
+            'period_end' => $closure->period_end?->toDateString(),
+            'difference' => (float) $closure->difference,
+        ], 'Petty cash period closed');
+
+        return $this->pettyCashPanelResponse($request, 'Petty cash period closed.', [
+            'closure' => $this->presentPettyCashClosure($closure->fresh($this->pettyCashClosureRelations())),
+        ]);
+    }
+
+    public function reopenPettyCashClosure(Request $request, PettyCashClosure $closure)
+    {
+        $this->authorize('viewAny', Expense::class);
+
+        $user = $request->user();
+        $this->ensurePettyCashClosureBelongsToActor($closure, $user);
+        if (! $this->canClosePettyCash($user)) {
+            abort(403);
+        }
+
+        if ($closure->status !== PettyCashClosure::STATUS_CLOSED) {
+            throw ValidationException::withMessages([
+                'status' => 'Only closed petty cash periods can be reopened.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'comment' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $closure->forceFill([
+            'status' => PettyCashClosure::STATUS_REOPENED,
+            'reopened_by_user_id' => $user?->id,
+            'reopened_at' => now(),
+            'comment' => trim((string) $closure->comment) !== ''
+                ? trim((string) $closure->comment)."\n\nReopened: ".$validated['comment']
+                : $validated['comment'],
+            'meta' => array_replace((array) ($closure->meta ?? []), [
+                'reopened_reason' => $validated['comment'],
+            ]),
+        ])->save();
+
+        ActivityLog::record($user, $closure, 'petty_cash_period_reopened', [
+            'period_start' => $closure->period_start?->toDateString(),
+            'period_end' => $closure->period_end?->toDateString(),
+            'reason' => $validated['comment'],
+        ], 'Petty cash period reopened');
+
+        return $this->pettyCashPanelResponse($request, 'Petty cash period reopened.', [
+            'closure' => $this->presentPettyCashClosure($closure->fresh($this->pettyCashClosureRelations())),
+        ]);
     }
 
     public function destroy(Request $request, Expense $expense)
@@ -1209,6 +1747,1434 @@ class ExpenseController extends Controller
             'invoices' => $invoices,
             'campaigns' => $campaigns,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @param  array<int, array<string, mixed>>  $teamMembers
+     * @return array<string, mixed>
+     */
+    private function buildPettyCashPanel(?User $user, int $accountId, array $filters, string $currencyCode, array $teamMembers): array
+    {
+        if (! $user || $accountId <= 0) {
+            return [
+                'account' => null,
+                'stats' => [],
+                'filters' => [],
+                'movements' => [],
+                'movementLinks' => [],
+                'movementCount' => 0,
+                'closures' => [],
+                'reconciliation' => [],
+                'types' => PettyCashMovement::TYPES,
+                'statuses' => PettyCashMovement::STATUSES,
+                'closureStatuses' => PettyCashClosure::STATUSES,
+                'responsibleOptions' => [],
+                'expenseOptions' => [],
+                'canCreate' => false,
+                'canPost' => false,
+                'canManage' => false,
+                'canClose' => false,
+                'canAdjust' => false,
+            ];
+        }
+
+        $account = $this->resolvePettyCashAccount($accountId, $currencyCode, $user);
+        $movementQuery = $this->applyPettyCashFilters(
+            PettyCashMovement::query()
+                ->where('petty_cash_account_id', $account->id)
+                ->with($this->pettyCashMovementRelations())
+                ->withCount('attachments'),
+            $filters
+        );
+        $periodStart = $this->parseDateOrNull($filters['petty_from'] ?? null)?->startOfDay()
+            ?: now()->startOfMonth();
+        $periodEnd = $this->parseDateOrNull($filters['petty_to'] ?? null)?->endOfDay()
+            ?: now()->endOfMonth();
+        if ($periodEnd->lt($periodStart)) {
+            [$periodStart, $periodEnd] = [$periodEnd->copy()->startOfDay(), $periodStart->copy()->endOfDay()];
+        }
+
+        $periodPosted = PettyCashMovement::query()
+            ->where('petty_cash_account_id', $account->id)
+            ->where('status', PettyCashMovement::STATUS_POSTED)
+            ->whereBetween('movement_date', [$periodStart->toDateString(), $periodEnd->toDateString()])
+            ->get();
+        $periodInflows = $periodPosted
+            ->sum(fn (PettyCashMovement $movement) => max(0, $this->pettyCashMovementDelta($movement)));
+        $periodOutflows = abs($periodPosted
+            ->sum(fn (PettyCashMovement $movement) => min(0, $this->pettyCashMovementDelta($movement))));
+        $reconciliation = $this->buildPettyCashReconciliation($account, $periodStart, $periodEnd);
+        $movementPaginator = (clone $movementQuery)
+            ->orderByDesc('movement_date')
+            ->orderByDesc('id')
+            ->paginate(20, ['*'], 'petty_page')
+            ->withQueryString();
+        $movementRows = $movementPaginator->getCollection()
+            ->map(fn (PettyCashMovement $movement) => $this->presentPettyCashMovement($movement, $user))
+            ->values()
+            ->all();
+
+        return [
+            'account' => $this->presentPettyCashAccount($account->fresh('responsible')),
+            'stats' => [
+                'period_start' => $periodStart->toDateString(),
+                'period_end' => $periodEnd->toDateString(),
+                'period_inflows' => round((float) $periodInflows, 2),
+                'period_outflows' => round((float) $periodOutflows, 2),
+                'draft_count' => (int) PettyCashMovement::query()
+                    ->where('petty_cash_account_id', $account->id)
+                    ->where('status', PettyCashMovement::STATUS_DRAFT)
+                    ->count(),
+                'posted_count' => (int) PettyCashMovement::query()
+                    ->where('petty_cash_account_id', $account->id)
+                    ->where('status', PettyCashMovement::STATUS_POSTED)
+                    ->count(),
+                'voided_count' => (int) PettyCashMovement::query()
+                    ->where('petty_cash_account_id', $account->id)
+                    ->where('status', PettyCashMovement::STATUS_VOIDED)
+                    ->count(),
+                'missing_receipt_count' => (int) PettyCashMovement::query()
+                    ->where('petty_cash_account_id', $account->id)
+                    ->where('requires_receipt', true)
+                    ->where('receipt_attached', false)
+                    ->where('status', '!=', PettyCashMovement::STATUS_VOIDED)
+                    ->count(),
+                'unlinked_expense_count' => (int) PettyCashMovement::query()
+                    ->where('petty_cash_account_id', $account->id)
+                    ->whereIn('type', [PettyCashMovement::TYPE_EXPENSE, PettyCashMovement::TYPE_ADVANCE])
+                    ->whereNull('expense_id')
+                    ->where('status', '!=', PettyCashMovement::STATUS_VOIDED)
+                    ->count(),
+                'low_balance' => (float) $account->low_balance_threshold > 0
+                    && (float) $account->current_balance <= (float) $account->low_balance_threshold,
+            ],
+            'reconciliation' => $reconciliation,
+            'filters' => [
+                'petty_type' => $filters['petty_type'] ?? '',
+                'petty_status' => $filters['petty_status'] ?? '',
+                'petty_responsible_user_id' => $filters['petty_responsible_user_id'] ?? '',
+                'petty_from' => $filters['petty_from'] ?? '',
+                'petty_to' => $filters['petty_to'] ?? '',
+            ],
+            'movements' => $movementRows,
+            'movementLinks' => $movementPaginator->linkCollection()->toArray(),
+            'movementCount' => (int) $movementPaginator->total(),
+            'closures' => PettyCashClosure::query()
+                ->where('petty_cash_account_id', $account->id)
+                ->with($this->pettyCashClosureRelations())
+                ->orderByDesc('period_end')
+                ->orderByDesc('id')
+                ->limit(8)
+                ->get()
+                ->map(fn (PettyCashClosure $closure) => $this->presentPettyCashClosure($closure))
+                ->values()
+                ->all(),
+            'types' => PettyCashMovement::TYPES,
+            'statuses' => PettyCashMovement::STATUSES,
+            'closureStatuses' => PettyCashClosure::STATUSES,
+            'responsibleOptions' => $this->pettyCashResponsibleOptions($user, $accountId),
+            'expenseOptions' => $this->pettyCashExpenseOptions($accountId),
+            'teamMemberOptions' => $teamMembers,
+            'canCreate' => $this->canCreatePettyCashMovement($user),
+            'canPost' => $this->canPostPettyCashMovement($user),
+            'canManage' => $this->canManagePettyCash($user),
+            'canClose' => $this->canClosePettyCash($user),
+            'canAdjust' => $this->canAdjustPettyCash($user),
+        ];
+    }
+
+    private function applyPettyCashFilters($query, array $filters)
+    {
+        return $query
+            ->when($filters['petty_type'] ?? null, fn ($builder, $type) => $builder->where('type', $type))
+            ->when($filters['petty_status'] ?? null, fn ($builder, $status) => $builder->where('status', $status))
+            ->when($filters['petty_responsible_user_id'] ?? null, fn ($builder, $responsibleId) => $builder->where('responsible_user_id', $responsibleId))
+            ->when($filters['petty_from'] ?? null, fn ($builder, $date) => $builder->whereDate('movement_date', '>=', $date))
+            ->when($filters['petty_to'] ?? null, fn ($builder, $date) => $builder->whereDate('movement_date', '<=', $date));
+    }
+
+    private function resolvePettyCashAccount(int $accountId, string $currencyCode, ?User $actor = null): PettyCashAccount
+    {
+        $currencyCode = strtoupper((string) ($currencyCode ?: CurrencyCode::default()->value));
+
+        return PettyCashAccount::query()->firstOrCreate(
+            [
+                'user_id' => $accountId,
+                'currency_code' => $currencyCode,
+            ],
+            [
+                'responsible_user_id' => $actor?->id,
+                'name' => 'Petite caisse',
+                'opening_balance' => 0,
+                'current_balance' => 0,
+                'low_balance_threshold' => 0,
+                'receipt_required_above' => 0,
+                'is_active' => true,
+            ]
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function presentPettyCashAccount(PettyCashAccount $account): array
+    {
+        return [
+            'id' => (int) $account->id,
+            'name' => (string) $account->name,
+            'currency_code' => strtoupper((string) $account->currency_code),
+            'opening_balance' => round((float) $account->opening_balance, 2),
+            'current_balance' => round((float) $account->current_balance, 2),
+            'low_balance_threshold' => round((float) $account->low_balance_threshold, 2),
+            'receipt_required_above' => round((float) $account->receipt_required_above, 2),
+            'responsible_user_id' => $account->responsible_user_id ? (int) $account->responsible_user_id : null,
+            'responsible_name' => $account->responsible?->name,
+            'is_active' => (bool) $account->is_active,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function presentPettyCashMovement(PettyCashMovement $movement, ?User $actor = null): array
+    {
+        $movement->loadMissing($this->pettyCashMovementRelations());
+        if (! array_key_exists('attachments_count', $movement->getAttributes())) {
+            $movement->loadCount('attachments');
+        }
+
+        return [
+            'id' => (int) $movement->id,
+            'type' => (string) $movement->type,
+            'status' => (string) $movement->status,
+            'amount' => round((float) $movement->amount, 2),
+            'balance_delta' => $this->pettyCashMovementDelta($movement),
+            'currency_code' => strtoupper((string) $movement->currency_code),
+            'movement_date' => optional($movement->movement_date)->toDateString(),
+            'note' => $movement->note,
+            'requires_receipt' => (bool) $movement->requires_receipt,
+            'receipt_attached' => (bool) $movement->receipt_attached,
+            'attachments_count' => (int) ($movement->attachments_count ?? 0),
+            'posted_at' => optional($movement->posted_at)->toDateTimeString(),
+            'voided_at' => optional($movement->voided_at)->toDateTimeString(),
+            'void_reason' => $movement->void_reason,
+            'locked_by_closure' => $this->pettyCashMovementIsLocked($movement),
+            'accounting_event' => $this->pettyCashAccountingEvent($movement),
+            'responsible' => $movement->responsible ? [
+                'id' => (int) $movement->responsible->id,
+                'name' => (string) $movement->responsible->name,
+            ] : null,
+            'creator' => $movement->creator ? [
+                'id' => (int) $movement->creator->id,
+                'name' => (string) $movement->creator->name,
+            ] : null,
+            'team_member' => $movement->teamMember ? [
+                'id' => (int) $movement->teamMember->id,
+                'name' => (string) ($movement->teamMember->user?->name ?: $movement->teamMember->title ?: 'Member'),
+            ] : null,
+            'expense' => $movement->expense ? [
+                'id' => (int) $movement->expense->id,
+                'title' => (string) $movement->expense->title,
+                'total' => round((float) $movement->expense->total, 2),
+                'expense_date' => optional($movement->expense->expense_date)->toDateString(),
+            ] : null,
+            'available_actions' => $this->pettyCashMovementActions($movement, $actor),
+        ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function pettyCashMovementActions(PettyCashMovement $movement, ?User $actor): array
+    {
+        if (! $actor || ! $this->canPostPettyCashMovement($actor)) {
+            return [];
+        }
+
+        if ($this->pettyCashMovementIsLocked($movement)) {
+            return [];
+        }
+
+        if ($movement->type === PettyCashMovement::TYPE_ADJUSTMENT && ! $this->canAdjustPettyCash($actor)) {
+            return [];
+        }
+
+        return match ($movement->status) {
+            PettyCashMovement::STATUS_DRAFT => ['post', 'void'],
+            PettyCashMovement::STATUS_POSTED => ['void'],
+            default => [],
+        };
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function pettyCashMovementRelations(): array
+    {
+        return [
+            'creator:id,name',
+            'responsible:id,name',
+            'teamMember.user:id,name',
+            'expense:id,title,total,expense_date',
+            'account:id,user_id,currency_code,opening_balance,current_balance',
+        ];
+    }
+
+    /**
+     * @return array<int, array{id:int,name:string}>
+     */
+    private function pettyCashResponsibleOptions(?User $user, int $accountId): array
+    {
+        $owner = User::query()->find($accountId);
+        $options = collect();
+
+        if ($owner) {
+            $options->push([
+                'id' => (int) $owner->id,
+                'name' => (string) $owner->name,
+            ]);
+        }
+
+        if ($user?->hasCompanyFeature('team_members')) {
+            TeamMember::query()
+                ->forAccount($accountId)
+                ->active()
+                ->with('user:id,name')
+                ->get()
+                ->each(function (TeamMember $member) use ($options) {
+                    if ($member->user) {
+                        $options->push([
+                            'id' => (int) $member->user->id,
+                            'name' => (string) $member->user->name,
+                        ]);
+                    }
+                });
+        }
+
+        return $options
+            ->unique('id')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array{id:int,name:string}>
+     */
+    private function pettyCashExpenseOptions(int $accountId): array
+    {
+        return Expense::query()
+            ->byAccount($accountId)
+            ->orderByDesc('expense_date')
+            ->orderByDesc('id')
+            ->limit(100)
+            ->get(['id', 'title', 'total', 'expense_date'])
+            ->map(function (Expense $expense) {
+                $expenseDate = $expense->expense_date?->toDateString();
+
+                return [
+                    'id' => (int) $expense->id,
+                    'name' => trim($expense->title.' - '.$expenseDate.' - '.number_format((float) $expense->total, 2)),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    private function canCreatePettyCashMovement(?User $user): bool
+    {
+        if (! $user || ! $user->hasCompanyFeature('expenses')) {
+            return false;
+        }
+
+        if ($user->isAccountOwner() && (int) $user->id === (int) $user->accountOwnerId()) {
+            return true;
+        }
+
+        $membership = $this->expenseActorMembership($user);
+
+        return (bool) $membership && (
+            $membership->hasPermission('expenses.create')
+            || $membership->hasPermission('expenses.edit')
+            || $membership->hasPermission('expenses.pay')
+        );
+    }
+
+    private function canPostPettyCashMovement(?User $user): bool
+    {
+        if (! $user || ! $user->hasCompanyFeature('expenses')) {
+            return false;
+        }
+
+        if ($user->isAccountOwner() && (int) $user->id === (int) $user->accountOwnerId()) {
+            return true;
+        }
+
+        $membership = $this->expenseActorMembership($user);
+
+        return (bool) $membership && (
+            $membership->hasPermission('expenses.pay')
+            || $membership->hasPermission('expenses.approve_high')
+        );
+    }
+
+    private function canManagePettyCash(?User $user): bool
+    {
+        if (! $user || ! $user->hasCompanyFeature('expenses')) {
+            return false;
+        }
+
+        if ($user->isAccountOwner() && (int) $user->id === (int) $user->accountOwnerId()) {
+            return true;
+        }
+
+        $membership = $this->expenseActorMembership($user);
+
+        return (bool) $membership && (
+            $membership->hasPermission('expenses.pay')
+            || $membership->hasPermission('expenses.approve_high')
+        );
+    }
+
+    private function canClosePettyCash(?User $user): bool
+    {
+        if (! $user || ! $user->hasCompanyFeature('expenses')) {
+            return false;
+        }
+
+        if ($user->isAccountOwner() && (int) $user->id === (int) $user->accountOwnerId()) {
+            return true;
+        }
+
+        $membership = $this->expenseActorMembership($user);
+
+        return (bool) $membership && (
+            $membership->hasPermission('expenses.approve')
+            || $membership->hasPermission('expenses.approve_high')
+            || $membership->hasPermission('expenses.pay')
+        );
+    }
+
+    private function canAdjustPettyCash(?User $user): bool
+    {
+        if (! $user || ! $user->hasCompanyFeature('expenses')) {
+            return false;
+        }
+
+        if ($user->isAccountOwner() && (int) $user->id === (int) $user->accountOwnerId()) {
+            return true;
+        }
+
+        $membership = $this->expenseActorMembership($user);
+
+        return (bool) $membership && $membership->hasPermission('expenses.approve_high');
+    }
+
+    private function expenseActorMembership(User $user): ?TeamMember
+    {
+        return $user->relationLoaded('teamMembership')
+            ? $user->teamMembership
+            : $user->teamMembership()->first();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validatePettyCashMovement(Request $request, int $accountId, PettyCashAccount $account): array
+    {
+        $validated = $request->validate([
+            'type' => ['required', 'string', Rule::in(PettyCashMovement::TYPES)],
+            'status' => ['nullable', 'string', Rule::in([PettyCashMovement::STATUS_DRAFT, PettyCashMovement::STATUS_POSTED])],
+            'amount' => [
+                'required',
+                'numeric',
+                function (string $attribute, mixed $value, \Closure $fail) use ($request): void {
+                    $numeric = (float) $value;
+                    $type = (string) $request->input('type');
+
+                    if ($type === PettyCashMovement::TYPE_ADJUSTMENT) {
+                        if (abs($numeric) < 0.01) {
+                            $fail('Adjustment amount must be different from zero.');
+                        }
+
+                        return;
+                    }
+
+                    if ($numeric <= 0) {
+                        $fail('Amount must be greater than zero.');
+                    }
+                },
+            ],
+            'movement_date' => ['required', 'date'],
+            'responsible_user_id' => ['required', 'integer'],
+            'team_member_id' => ['nullable', 'integer'],
+            'expense_id' => ['nullable', 'integer'],
+            'note' => ['nullable', 'string', 'max:2000'],
+            'requires_receipt' => ['nullable', 'boolean'],
+            'receipt_attached' => ['nullable', 'boolean'],
+            'receipt' => ['nullable', 'file', 'mimes:pdf,png,jpg,jpeg,webp', 'max:10240'],
+        ]);
+
+        $this->ensureResponsibleBelongsToAccount((int) $validated['responsible_user_id'], $accountId);
+
+        if (($validated['type'] ?? null) === PettyCashMovement::TYPE_ADJUSTMENT && trim((string) ($validated['note'] ?? '')) === '') {
+            throw ValidationException::withMessages([
+                'note' => 'A comment is required for petty cash adjustments.',
+            ]);
+        }
+
+        if (! empty($validated['team_member_id'])) {
+            $this->ensureTeamMemberBelongsToAccount((int) $validated['team_member_id'], $accountId);
+        }
+
+        if (! empty($validated['expense_id'])) {
+            $this->ensureExpenseBelongsToAccount((int) $validated['expense_id'], $accountId);
+        }
+
+        $requiresReceipt = $this->pettyCashMovementRequiresReceipt(
+            $account,
+            (string) $validated['type'],
+            (float) $validated['amount'],
+            (bool) ($validated['requires_receipt'] ?? false)
+        );
+        if ($requiresReceipt) {
+            $validated['requires_receipt'] = true;
+        }
+
+        return $validated;
+    }
+
+    private function ensureResponsibleBelongsToAccount(int $responsibleUserId, int $accountId): void
+    {
+        if ($responsibleUserId === $accountId) {
+            return;
+        }
+
+        $exists = TeamMember::query()
+            ->where('account_id', $accountId)
+            ->where('user_id', $responsibleUserId)
+            ->exists();
+
+        if (! $exists) {
+            throw ValidationException::withMessages([
+                'responsible_user_id' => 'The selected responsible user is not part of this account.',
+            ]);
+        }
+    }
+
+    private function ensureTeamMemberBelongsToAccount(int $teamMemberId, int $accountId): void
+    {
+        $exists = TeamMember::query()
+            ->where('account_id', $accountId)
+            ->whereKey($teamMemberId)
+            ->exists();
+
+        if (! $exists) {
+            throw ValidationException::withMessages([
+                'team_member_id' => 'The selected team member is not part of this account.',
+            ]);
+        }
+    }
+
+    private function ensureExpenseBelongsToAccount(int $expenseId, int $accountId): void
+    {
+        $exists = Expense::query()
+            ->byAccount($accountId)
+            ->whereKey($expenseId)
+            ->exists();
+
+        if (! $exists) {
+            throw ValidationException::withMessages([
+                'expense_id' => 'The selected expense is not part of this account.',
+            ]);
+        }
+    }
+
+    private function ensurePettyCashMovementBelongsToActor(PettyCashMovement $movement, ?User $user): void
+    {
+        if (! $user || (int) $movement->user_id !== (int) $user->accountOwnerId()) {
+            abort(404);
+        }
+    }
+
+    private function ensurePettyCashClosureBelongsToActor(PettyCashClosure $closure, ?User $user): void
+    {
+        if (! $user || (int) $closure->user_id !== (int) $user->accountOwnerId()) {
+            abort(404);
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validatePettyCashClosure(Request $request): array
+    {
+        return $request->validate([
+            'period_start' => ['required', 'date'],
+            'period_end' => ['required', 'date'],
+            'counted_balance' => ['required', 'numeric', 'min:-999999999.99', 'max:999999999.99'],
+            'status' => ['nullable', 'string', Rule::in([PettyCashClosure::STATUS_IN_REVIEW, PettyCashClosure::STATUS_CLOSED])],
+            'comment' => ['nullable', 'string', 'max:2000'],
+        ]);
+    }
+
+    /**
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    private function normalizePettyCashClosurePeriod(mixed $periodStart, mixed $periodEnd): array
+    {
+        $start = Carbon::parse((string) $periodStart)->startOfDay();
+        $end = Carbon::parse((string) $periodEnd)->startOfDay();
+
+        if ($end->lt($start)) {
+            [$start, $end] = [$end, $start];
+        }
+
+        return [$start, $end];
+    }
+
+    private function ensurePettyCashClosurePeriodIsAvailable(PettyCashAccount $account, Carbon $periodStart, Carbon $periodEnd): void
+    {
+        $overlap = PettyCashClosure::query()
+            ->where('petty_cash_account_id', $account->id)
+            ->whereIn('status', [PettyCashClosure::STATUS_IN_REVIEW, PettyCashClosure::STATUS_CLOSED])
+            ->whereDate('period_start', '<=', $periodEnd->toDateString())
+            ->whereDate('period_end', '>=', $periodStart->toDateString())
+            ->exists();
+
+        if ($overlap) {
+            throw ValidationException::withMessages([
+                'period_start' => 'This petty cash period already has an active closure.',
+            ]);
+        }
+    }
+
+    private function ensurePettyCashDateIsOpen(PettyCashAccount $account, mixed $date): void
+    {
+        if (! $date) {
+            return;
+        }
+
+        $movementDate = $date instanceof Carbon
+            ? $date->copy()->startOfDay()
+            : Carbon::parse((string) $date)->startOfDay();
+
+        if ($this->pettyCashClosedClosureForDate($account, $movementDate)) {
+            throw ValidationException::withMessages([
+                'movement_date' => 'This petty cash period is closed. Reopen the closure before changing movements in this period.',
+            ]);
+        }
+    }
+
+    private function pettyCashMovementIsLocked(PettyCashMovement $movement): bool
+    {
+        if (! $movement->movement_date) {
+            return false;
+        }
+
+        $account = $movement->relationLoaded('account')
+            ? $movement->account
+            : $movement->account()->first();
+
+        return $account
+            ? (bool) $this->pettyCashClosedClosureForDate($account, $movement->movement_date)
+            : false;
+    }
+
+    private function pettyCashClosedClosureForDate(PettyCashAccount $account, mixed $date): ?PettyCashClosure
+    {
+        $cashDate = $date instanceof Carbon
+            ? $date->copy()->toDateString()
+            : Carbon::parse((string) $date)->toDateString();
+
+        return PettyCashClosure::query()
+            ->where('petty_cash_account_id', $account->id)
+            ->where('status', PettyCashClosure::STATUS_CLOSED)
+            ->whereDate('period_start', '<=', $cashDate)
+            ->whereDate('period_end', '>=', $cashDate)
+            ->latest('id')
+            ->first();
+    }
+
+    private function pettyCashExpectedBalanceAt(PettyCashAccount $account, Carbon $periodEnd): float
+    {
+        $postedMovements = PettyCashMovement::query()
+            ->where('petty_cash_account_id', $account->id)
+            ->where('status', PettyCashMovement::STATUS_POSTED)
+            ->whereDate('movement_date', '<=', $periodEnd->toDateString())
+            ->get();
+        $delta = $postedMovements->sum(fn (PettyCashMovement $movement) => $this->pettyCashMovementDelta($movement));
+
+        return round((float) $account->opening_balance + (float) $delta, 2);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildPettyCashReconciliation(PettyCashAccount $account, Carbon $periodStart, Carbon $periodEnd): array
+    {
+        $movements = PettyCashMovement::query()
+            ->where('petty_cash_account_id', $account->id)
+            ->where('status', '!=', PettyCashMovement::STATUS_VOIDED)
+            ->whereBetween('movement_date', [$periodStart->toDateString(), $periodEnd->toDateString()])
+            ->withCount('attachments')
+            ->get();
+        $latestClosure = PettyCashClosure::query()
+            ->where('petty_cash_account_id', $account->id)
+            ->whereDate('period_start', '<=', $periodEnd->toDateString())
+            ->whereDate('period_end', '>=', $periodStart->toDateString())
+            ->whereIn('status', [PettyCashClosure::STATUS_IN_REVIEW, PettyCashClosure::STATUS_CLOSED])
+            ->with($this->pettyCashClosureRelations())
+            ->orderByRaw("CASE WHEN status = ? THEN 0 ELSE 1 END", [PettyCashClosure::STATUS_CLOSED])
+            ->orderByDesc('period_end')
+            ->orderByDesc('id')
+            ->first();
+        $missingReceiptCount = $movements
+            ->filter(fn (PettyCashMovement $movement) => (bool) $movement->requires_receipt && ! (bool) $movement->receipt_attached)
+            ->count();
+        $unlinkedCount = $movements
+            ->filter(fn (PettyCashMovement $movement) => in_array($movement->type, [PettyCashMovement::TYPE_EXPENSE, PettyCashMovement::TYPE_ADVANCE], true) && ! $movement->expense_id)
+            ->count();
+
+        return [
+            'period_start' => $periodStart->toDateString(),
+            'period_end' => $periodEnd->toDateString(),
+            'movement_count' => $movements->count(),
+            'justified_count' => $movements->count() - $missingReceiptCount,
+            'missing_receipt_count' => $missingReceiptCount,
+            'unlinked_expense_count' => $unlinkedCount,
+            'expected_balance' => $this->pettyCashExpectedBalanceAt($account, $periodEnd),
+            'counted_balance' => $latestClosure ? round((float) $latestClosure->counted_balance, 2) : null,
+            'difference' => $latestClosure ? round((float) $latestClosure->difference, 2) : null,
+            'closure' => $latestClosure ? $this->presentPettyCashClosure($latestClosure) : null,
+        ];
+    }
+
+    private function pettyCashTypeRequiresReceipt(string $type): bool
+    {
+        return in_array($type, [PettyCashMovement::TYPE_EXPENSE, PettyCashMovement::TYPE_ADVANCE], true);
+    }
+
+    private function pettyCashMovementRequiresReceipt(PettyCashAccount $account, string $type, float $amount, bool $requested): bool
+    {
+        $threshold = round((float) $account->receipt_required_above, 2);
+
+        return $requested
+            || $this->pettyCashTypeRequiresReceipt($type)
+            || ($threshold > 0 && abs($amount) >= $threshold);
+    }
+
+    private function pettyCashReceiptIsMandatory(PettyCashAccount $account, float $amount): bool
+    {
+        $threshold = round((float) $account->receipt_required_above, 2);
+
+        return $threshold > 0 && abs($amount) >= $threshold;
+    }
+
+    private function ensurePettyCashReceiptRequirementIsMet(Request $request, bool $receiptMandatory, string $status, bool $receiptAttached): void
+    {
+        if ($status !== PettyCashMovement::STATUS_POSTED || ! $receiptMandatory) {
+            return;
+        }
+
+        if ($receiptAttached || $request->hasFile('receipt')) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'receipt' => 'A receipt is required before posting this petty cash movement.',
+        ]);
+    }
+
+    private function pettyCashMovementDelta(PettyCashMovement $movement): float
+    {
+        $amount = round((float) $movement->amount, 2);
+
+        return match ($movement->type) {
+            PettyCashMovement::TYPE_FUNDING,
+            PettyCashMovement::TYPE_REIMBURSEMENT => abs($amount),
+            PettyCashMovement::TYPE_EXPENSE,
+            PettyCashMovement::TYPE_ADVANCE => -abs($amount),
+            PettyCashMovement::TYPE_ADJUSTMENT => $amount,
+            default => 0.0,
+        };
+    }
+
+    private function pettyCashAccountingEvent(PettyCashMovement $movement): ?string
+    {
+        if ($movement->status !== PettyCashMovement::STATUS_POSTED) {
+            return null;
+        }
+
+        return $this->pettyCashAccountingEventForType((string) $movement->type);
+    }
+
+    private function pettyCashAccountingEventForType(string $type): ?string
+    {
+        return match ($type) {
+            PettyCashMovement::TYPE_FUNDING => 'petty_cash_funded',
+            PettyCashMovement::TYPE_EXPENSE => 'petty_cash_expense_posted',
+            PettyCashMovement::TYPE_ADVANCE => 'petty_cash_advance_posted',
+            PettyCashMovement::TYPE_REIMBURSEMENT => 'petty_cash_reimbursement_posted',
+            PettyCashMovement::TYPE_ADJUSTMENT => 'petty_cash_adjustment_posted',
+            default => null,
+        };
+    }
+
+    private function recalculatePettyCashBalance(PettyCashAccount $account): PettyCashAccount
+    {
+        $postedMovements = PettyCashMovement::query()
+            ->where('petty_cash_account_id', $account->id)
+            ->where('status', PettyCashMovement::STATUS_POSTED)
+            ->get();
+        $delta = $postedMovements->sum(fn (PettyCashMovement $movement) => $this->pettyCashMovementDelta($movement));
+        $account->forceFill([
+            'current_balance' => round((float) $account->opening_balance + (float) $delta, 2),
+        ])->save();
+
+        return $account->refresh();
+    }
+
+    private function storePettyCashAttachment(mixed $file, PettyCashMovement $movement, int $userId): void
+    {
+        if (! $file instanceof UploadedFile) {
+            return;
+        }
+
+        $mime = $file->getClientMimeType() ?? $file->getMimeType();
+        $path = str_starts_with((string) $mime, 'image/')
+            ? FileHandler::storeFile('petty-cash-attachments', $file)
+            : $file->store('petty-cash-attachments', 'public');
+
+        PettyCashAttachment::query()->create([
+            'user_id' => (int) $movement->user_id,
+            'petty_cash_movement_id' => $movement->id,
+            'uploaded_by_user_id' => $userId,
+            'disk' => 'public',
+            'path' => $path,
+            'original_name' => $file->getClientOriginalName(),
+            'mime_type' => $mime,
+            'size' => $file->getSize(),
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function createPettyCashMovementFromManualExpense(Request $request, Expense $expense, array $validated): PettyCashMovement
+    {
+        $user = $request->user();
+        $accountId = (int) ($user?->accountOwnerId() ?? 0);
+        if (! $this->canCreatePettyCashMovement($user)) {
+            abort(403);
+        }
+
+        $owner = $accountId > 0 ? User::query()->find($accountId) : null;
+        $pettyCashAccount = $this->resolvePettyCashAccount(
+            $accountId,
+            $owner?->businessCurrencyCode() ?? CurrencyCode::default()->value,
+            $user
+        );
+        $status = (string) ($validated['petty_cash_status'] ?? PettyCashMovement::STATUS_DRAFT);
+        if ($status === PettyCashMovement::STATUS_POSTED && ! $this->canPostPettyCashMovement($user)) {
+            abort(403);
+        }
+
+        $amount = round((float) $expense->total, 2);
+        if ($amount <= 0) {
+            throw ValidationException::withMessages([
+                'petty_cash_create' => 'The expense amount must be greater than zero to create a petty cash movement.',
+            ]);
+        }
+
+        $movementDate = $expense->expense_date
+            ? $expense->expense_date->copy()->startOfDay()
+            : now()->startOfDay();
+        $this->ensurePettyCashDateIsOpen($pettyCashAccount, $movementDate);
+
+        $responsibleUserId = (int) ($validated['petty_cash_responsible_user_id']
+            ?? $pettyCashAccount->responsible_user_id
+            ?? $user?->id);
+        $this->ensureResponsibleBelongsToAccount($responsibleUserId, $accountId);
+
+        $expense->loadMissing('attachments');
+        $receiptAttached = $expense->attachments->isNotEmpty();
+        $requiresReceipt = $this->pettyCashMovementRequiresReceipt(
+            $pettyCashAccount,
+            PettyCashMovement::TYPE_EXPENSE,
+            $amount,
+            true
+        );
+        $receiptMandatory = $this->pettyCashReceiptIsMandatory($pettyCashAccount, $amount);
+        $this->ensurePettyCashReceiptRequirementIsMet($request, $receiptMandatory, $status, $receiptAttached);
+
+        $note = trim((string) ($validated['petty_cash_note'] ?? ''));
+        if ($note === '') {
+            $note = trim('Expense: '.(string) $expense->title);
+        }
+
+        $movement = PettyCashMovement::query()->create([
+            'user_id' => $accountId,
+            'petty_cash_account_id' => $pettyCashAccount->id,
+            'expense_id' => $expense->id,
+            'team_member_id' => $expense->team_member_id,
+            'created_by_user_id' => $user?->id,
+            'responsible_user_id' => $responsibleUserId,
+            'type' => PettyCashMovement::TYPE_EXPENSE,
+            'status' => $status,
+            'amount' => $amount,
+            'currency_code' => $pettyCashAccount->currency_code,
+            'movement_date' => $movementDate->toDateString(),
+            'note' => $note,
+            'requires_receipt' => $requiresReceipt,
+            'receipt_attached' => $receiptAttached,
+            'posted_at' => $status === PettyCashMovement::STATUS_POSTED ? now() : null,
+            'meta' => [
+                'source' => 'expense_manual_create',
+                'source_expense_attachment_ids' => $expense->attachments->pluck('id')->values()->all(),
+                'accounting_event' => $status === PettyCashMovement::STATUS_POSTED
+                    ? $this->pettyCashAccountingEventForType(PettyCashMovement::TYPE_EXPENSE)
+                    : null,
+            ],
+        ]);
+
+        if ($movement->status === PettyCashMovement::STATUS_POSTED) {
+            $this->recalculatePettyCashBalance($pettyCashAccount);
+        }
+
+        ActivityLog::record($user, $movement, 'petty_cash_movement_created_from_expense', [
+            'expense_id' => (int) $expense->id,
+            'status' => $movement->status,
+            'amount' => (float) $movement->amount,
+            'currency_code' => $movement->currency_code,
+        ], 'Petty cash movement created from expense form');
+        ActivityLog::record($user, $expense, 'petty_cash_movement_linked_from_expense', [
+            'petty_cash_movement_id' => (int) $movement->id,
+            'status' => $movement->status,
+            'amount' => (float) $movement->amount,
+        ], 'Expense linked to petty cash');
+
+        return $movement;
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function createPettyCashMovementFromScannedExpense(Request $request, Expense $expense, array $validated): PettyCashMovement
+    {
+        $user = $request->user();
+        $accountId = (int) ($user?->accountOwnerId() ?? 0);
+        if (! $this->canCreatePettyCashMovement($user)) {
+            abort(403);
+        }
+
+        $owner = $accountId > 0 ? User::query()->find($accountId) : null;
+        $pettyCashAccount = $this->resolvePettyCashAccount(
+            $accountId,
+            $owner?->businessCurrencyCode() ?? CurrencyCode::default()->value,
+            $user
+        );
+        $status = (string) ($validated['petty_cash_status'] ?? PettyCashMovement::STATUS_DRAFT);
+        if ($status === PettyCashMovement::STATUS_POSTED && ! $this->canPostPettyCashMovement($user)) {
+            abort(403);
+        }
+
+        $amount = round((float) $expense->total, 2);
+        if ($amount <= 0) {
+            throw ValidationException::withMessages([
+                'petty_cash_create' => 'The scanned expense amount must be greater than zero to create a petty cash movement.',
+            ]);
+        }
+
+        $movementDate = $expense->expense_date
+            ? $expense->expense_date->copy()->startOfDay()
+            : now()->startOfDay();
+        $this->ensurePettyCashDateIsOpen($pettyCashAccount, $movementDate);
+
+        $responsibleUserId = (int) ($validated['petty_cash_responsible_user_id']
+            ?? $pettyCashAccount->responsible_user_id
+            ?? $user?->id);
+        $this->ensureResponsibleBelongsToAccount($responsibleUserId, $accountId);
+
+        $requiresReceipt = $this->pettyCashMovementRequiresReceipt(
+            $pettyCashAccount,
+            PettyCashMovement::TYPE_EXPENSE,
+            $amount,
+            true
+        );
+        $expense->loadMissing('attachments');
+
+        $movement = PettyCashMovement::query()->create([
+            'user_id' => $accountId,
+            'petty_cash_account_id' => $pettyCashAccount->id,
+            'expense_id' => $expense->id,
+            'team_member_id' => $expense->team_member_id,
+            'created_by_user_id' => $user?->id,
+            'responsible_user_id' => $responsibleUserId,
+            'type' => PettyCashMovement::TYPE_EXPENSE,
+            'status' => $status,
+            'amount' => $amount,
+            'currency_code' => $pettyCashAccount->currency_code,
+            'movement_date' => $movementDate->toDateString(),
+            'note' => $validated['petty_cash_note']
+                ?? trim('AI scan: '.(string) $expense->title),
+            'requires_receipt' => $requiresReceipt,
+            'receipt_attached' => true,
+            'posted_at' => $status === PettyCashMovement::STATUS_POSTED ? now() : null,
+            'meta' => [
+                'source' => 'expense_ai_scan',
+                'source_expense_attachment_ids' => $expense->attachments->pluck('id')->values()->all(),
+                'accounting_event' => $status === PettyCashMovement::STATUS_POSTED
+                    ? $this->pettyCashAccountingEventForType(PettyCashMovement::TYPE_EXPENSE)
+                    : null,
+            ],
+        ]);
+
+        if ($movement->status === PettyCashMovement::STATUS_POSTED) {
+            $this->recalculatePettyCashBalance($pettyCashAccount);
+        }
+
+        ActivityLog::record($user, $movement, 'petty_cash_movement_created_from_scan', [
+            'expense_id' => (int) $expense->id,
+            'status' => $movement->status,
+            'amount' => (float) $movement->amount,
+            'currency_code' => $movement->currency_code,
+        ], 'Petty cash movement created from AI expense scan');
+        ActivityLog::record($user, $expense, 'petty_cash_movement_linked_from_scan', [
+            'petty_cash_movement_id' => (int) $movement->id,
+            'status' => $movement->status,
+            'amount' => (float) $movement->amount,
+        ], 'AI scanned expense linked to petty cash');
+
+        return $movement;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function pettyCashClosureRelations(): array
+    {
+        return [
+            'reviewer:id,name',
+            'closer:id,name',
+            'reopener:id,name',
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function presentPettyCashClosure(PettyCashClosure $closure): array
+    {
+        $closure->loadMissing($this->pettyCashClosureRelations());
+
+        return [
+            'id' => (int) $closure->id,
+            'period_start' => optional($closure->period_start)->toDateString(),
+            'period_end' => optional($closure->period_end)->toDateString(),
+            'expected_balance' => round((float) $closure->expected_balance, 2),
+            'counted_balance' => round((float) $closure->counted_balance, 2),
+            'difference' => round((float) $closure->difference, 2),
+            'status' => (string) $closure->status,
+            'comment' => $closure->comment,
+            'closed_at' => optional($closure->closed_at)->toDateTimeString(),
+            'reopened_at' => optional($closure->reopened_at)->toDateTimeString(),
+            'reviewer' => $closure->reviewer ? [
+                'id' => (int) $closure->reviewer->id,
+                'name' => (string) $closure->reviewer->name,
+            ] : null,
+            'closer' => $closure->closer ? [
+                'id' => (int) $closure->closer->id,
+                'name' => (string) $closure->closer->name,
+            ] : null,
+            'reopener' => $closure->reopener ? [
+                'id' => (int) $closure->reopener->id,
+                'name' => (string) $closure->reopener->name,
+            ] : null,
+            'accounting_event' => data_get($closure->meta, 'accounting_event'),
+        ];
+    }
+
+    private function pettyCashPanelResponse(Request $request, string $message, array $extra = [], int $status = 200)
+    {
+        if ($this->shouldReturnJson($request)) {
+            $user = $request->user();
+            $accountId = (int) ($user?->accountOwnerId() ?? 0);
+            $owner = $accountId > 0 ? User::query()->find($accountId) : null;
+            $currencyCode = $owner?->businessCurrencyCode() ?? CurrencyCode::default()->value;
+            $teamMembers = $this->teamMemberOptions($user, $accountId);
+
+            return response()->json(array_merge([
+                'message' => $message,
+                'pettyCash' => $this->buildPettyCashPanel($user, $accountId, $request->only([
+                    'petty_type',
+                    'petty_status',
+                    'petty_responsible_user_id',
+                    'petty_from',
+                    'petty_to',
+                ]), $currencyCode, $teamMembers),
+            ], $extra), $status);
+        }
+
+        return redirect()->back()->with('success', $message);
+    }
+
+    private function pettyCashMutationResponse(Request $request, PettyCashMovement $movement, string $message, int $status = 200)
+    {
+        if ($this->shouldReturnJson($request)) {
+            $user = $request->user();
+            $accountId = (int) ($user?->accountOwnerId() ?? 0);
+            $owner = $accountId > 0 ? User::query()->find($accountId) : null;
+            $currencyCode = $owner?->businessCurrencyCode() ?? CurrencyCode::default()->value;
+            $teamMembers = $this->teamMemberOptions($user, $accountId);
+
+            return response()->json([
+                'message' => $message,
+                'movement' => $this->presentPettyCashMovement($movement, $user),
+                'pettyCash' => $this->buildPettyCashPanel($user, $accountId, $request->only([
+                    'petty_type',
+                    'petty_status',
+                    'petty_responsible_user_id',
+                    'petty_from',
+                    'petty_to',
+                ]), $currencyCode, $teamMembers),
+            ], $status);
+        }
+
+        return redirect()->back()->with('success', $message);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildPeriodRecap($baseQuery, array $filters): array
+    {
+        $period = $this->resolveRecapPeriod($filters);
+        $periodQuery = $this->periodExpenseQuery(clone $baseQuery, $period['start'], $period['end']);
+        $activeQuery = $this->activeExpenseQuery(clone $periodQuery);
+        $totalSpent = $this->sumExpenseTotal(clone $activeQuery);
+        $previousTotal = $this->sumExpenseTotal($this->activeExpenseQuery(
+            $this->periodExpenseQuery(clone $baseQuery, $period['previous_start'], $period['previous_end'])
+        ));
+
+        $approvedStatuses = [
+            Expense::STATUS_APPROVED,
+            Expense::STATUS_DUE,
+            Expense::STATUS_PAID,
+            Expense::STATUS_REIMBURSED,
+        ];
+        $pendingStatuses = [
+            Expense::STATUS_SUBMITTED,
+            Expense::STATUS_PENDING_APPROVAL,
+        ];
+
+        $paidTotal = $this->sumExpenseTotal(
+            (clone $baseQuery)
+                ->whereIn('status', [Expense::STATUS_PAID, Expense::STATUS_REIMBURSED])
+                ->whereBetween('paid_date', [$period['start']->toDateString(), $period['end']->toDateString()])
+        );
+        $toPayTotal = $this->sumExpenseTotal(
+            (clone $activeQuery)->whereIn('status', [Expense::STATUS_APPROVED, Expense::STATUS_DUE])
+        );
+        $reimbursementTotal = $this->sumExpenseTotal(
+            (clone $activeQuery)->where('reimbursement_status', Expense::REIMBURSEMENT_STATUS_PENDING)
+        );
+        $pendingApprovalCount = (int) (clone $periodQuery)
+            ->whereIn('status', $pendingStatuses)
+            ->count();
+        $rejectedCount = (int) (clone $periodQuery)
+            ->where('status', Expense::STATUS_REJECTED)
+            ->count();
+        $missingReceiptCount = (int) (clone $activeQuery)
+            ->whereDoesntHave('attachments')
+            ->count();
+        $recurringCount = (int) (clone $activeQuery)
+            ->where('is_recurring', true)
+            ->count();
+
+        $kpis = [
+            'total_spent' => $totalSpent,
+            'previous_total_spent' => $previousTotal,
+            'total_delta_percent' => $this->percentageChange($totalSpent, $previousTotal),
+            'approved_total' => $this->sumExpenseTotal((clone $activeQuery)->whereIn('status', $approvedStatuses)),
+            'paid_total' => $paidTotal,
+            'to_pay_total' => $toPayTotal,
+            'reimbursement_total' => $reimbursementTotal,
+            'pending_approval_count' => $pendingApprovalCount,
+            'rejected_count' => $rejectedCount,
+            'missing_receipt_count' => $missingReceiptCount,
+            'recurring_count' => $recurringCount,
+            'expense_count' => (int) (clone $activeQuery)->count(),
+        ];
+
+        return [
+            'period' => [
+                'key' => $period['key'],
+                'start' => $period['start']->toDateString(),
+                'end' => $period['end']->toDateString(),
+                'previous_start' => $period['previous_start']->toDateString(),
+                'previous_end' => $period['previous_end']->toDateString(),
+            ],
+            'kpis' => $kpis,
+            'breakdowns' => [
+                'categories' => $this->periodCategoryBreakdown(clone $activeQuery, $totalSpent),
+                'suppliers' => $this->periodSupplierBreakdown(clone $activeQuery, $totalSpent),
+                'team_members' => $this->periodTeamMemberBreakdown(clone $activeQuery, $totalSpent),
+                'payment_methods' => $this->periodPaymentMethodBreakdown(clone $activeQuery, $totalSpent),
+                'linked_contexts' => $this->periodLinkedContextBreakdown(clone $activeQuery),
+            ],
+            'alerts' => $this->periodRecapAlerts($kpis),
+        ];
+    }
+
+    /**
+     * @return array{key:string,start:Carbon,end:Carbon,previous_start:Carbon,previous_end:Carbon}
+     */
+    private function resolveRecapPeriod(array $filters): array
+    {
+        $allowedPeriods = ['week', 'month', 'quarter', 'year', 'custom'];
+        $periodKey = in_array($filters['recap_period'] ?? null, $allowedPeriods, true)
+            ? (string) $filters['recap_period']
+            : 'month';
+        $today = now();
+
+        if ($periodKey === 'custom') {
+            $start = $this->parseDateOrNull($filters['recap_from'] ?? null)?->startOfDay()
+                ?: $today->copy()->startOfMonth();
+            $end = $this->parseDateOrNull($filters['recap_to'] ?? null)?->endOfDay()
+                ?: $today->copy()->endOfDay();
+
+            if ($end->lt($start)) {
+                [$start, $end] = [$end->copy()->startOfDay(), $start->copy()->endOfDay()];
+            }
+        } else {
+            $start = match ($periodKey) {
+                'week' => $today->copy()->startOfWeek(),
+                'quarter' => $today->copy()->startOfQuarter(),
+                'year' => $today->copy()->startOfYear(),
+                default => $today->copy()->startOfMonth(),
+            };
+            $end = match ($periodKey) {
+                'week' => $today->copy()->endOfWeek(),
+                'quarter' => $today->copy()->endOfQuarter(),
+                'year' => $today->copy()->endOfYear(),
+                default => $today->copy()->endOfMonth(),
+            };
+        }
+
+        if ($periodKey === 'custom') {
+            $days = max(1, $start->diffInDays($end) + 1);
+            $previousEnd = $start->copy()->subDay()->endOfDay();
+            $previousStart = $previousEnd->copy()->subDays($days - 1)->startOfDay();
+        } else {
+            $previousStart = match ($periodKey) {
+                'week' => $start->copy()->subWeek()->startOfWeek(),
+                'quarter' => $start->copy()->subQuarter()->startOfQuarter(),
+                'year' => $start->copy()->subYear()->startOfYear(),
+                default => $start->copy()->subMonthNoOverflow()->startOfMonth(),
+            };
+            $previousEnd = match ($periodKey) {
+                'week' => $previousStart->copy()->endOfWeek(),
+                'quarter' => $previousStart->copy()->endOfQuarter(),
+                'year' => $previousStart->copy()->endOfYear(),
+                default => $previousStart->copy()->endOfMonth(),
+            };
+        }
+
+        return [
+            'key' => $periodKey,
+            'start' => $start->copy()->startOfDay(),
+            'end' => $end->copy()->endOfDay(),
+            'previous_start' => $previousStart->copy()->startOfDay(),
+            'previous_end' => $previousEnd->copy()->endOfDay(),
+        ];
+    }
+
+    private function parseDateOrNull(mixed $value): ?Carbon
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function periodExpenseQuery($query, Carbon $start, Carbon $end)
+    {
+        return $query->whereBetween('expense_date', [$start->toDateString(), $end->toDateString()]);
+    }
+
+    private function activeExpenseQuery($query)
+    {
+        return $query->whereNotIn('status', [Expense::STATUS_CANCELLED, Expense::STATUS_REJECTED]);
+    }
+
+    private function sumExpenseTotal($query): float
+    {
+        return round((float) ($query->sum('total') ?? 0), 2);
+    }
+
+    private function percentageChange(float $current, float $previous): ?float
+    {
+        if (abs($previous) < 0.01) {
+            return abs($current) < 0.01 ? 0.0 : null;
+        }
+
+        return round((($current - $previous) / $previous) * 100, 1);
+    }
+
+    /**
+     * @return array<int, array{key:string,label:string,total:float,count:int,share:float}>
+     */
+    private function periodCategoryBreakdown($query, float $periodTotal): array
+    {
+        return $query
+            ->selectRaw('COALESCE(category_key, ?) as category_key, COUNT(*) as total_count, COALESCE(SUM(total), 0) as total_amount', ['other'])
+            ->groupBy('category_key')
+            ->orderByDesc('total_amount')
+            ->limit(5)
+            ->get()
+            ->map(fn ($row) => [
+                'key' => (string) ($row->category_key ?: 'other'),
+                'label' => (string) ($row->category_key ?: 'other'),
+                'count' => (int) ($row->total_count ?? 0),
+                'total' => round((float) ($row->total_amount ?? 0), 2),
+                'share' => $this->breakdownShare((float) ($row->total_amount ?? 0), $periodTotal),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array{name:string,total:float,count:int,share:float}>
+     */
+    private function periodSupplierBreakdown($query, float $periodTotal): array
+    {
+        return $query
+            ->selectRaw("COALESCE(NULLIF(supplier_name, ''), 'No supplier') as supplier_label, COUNT(*) as total_count, COALESCE(SUM(total), 0) as total_amount")
+            ->groupBy('supplier_name')
+            ->orderByDesc('total_amount')
+            ->limit(5)
+            ->get()
+            ->map(fn ($row) => [
+                'name' => (string) ($row->supplier_label ?: 'No supplier'),
+                'count' => (int) ($row->total_count ?? 0),
+                'total' => round((float) ($row->total_amount ?? 0), 2),
+                'share' => $this->breakdownShare((float) ($row->total_amount ?? 0), $periodTotal),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array{id:?int,label:string,total:float,count:int,share:float}>
+     */
+    private function periodTeamMemberBreakdown($query, float $periodTotal): array
+    {
+        $rows = $query
+            ->selectRaw('team_member_id, COUNT(*) as total_count, COALESCE(SUM(total), 0) as total_amount')
+            ->groupBy('team_member_id')
+            ->orderByDesc('total_amount')
+            ->limit(5)
+            ->get();
+        $memberNames = TeamMember::query()
+            ->whereIn('id', $rows->pluck('team_member_id')->filter()->values())
+            ->with('user:id,name')
+            ->get()
+            ->mapWithKeys(fn (TeamMember $member) => [
+                (int) $member->id => (string) ($member->user?->name ?: $member->title ?: 'Member'),
+            ]);
+
+        return $rows
+            ->map(fn ($row) => [
+                'id' => $row->team_member_id ? (int) $row->team_member_id : null,
+                'label' => $row->team_member_id ? (string) ($memberNames[(int) $row->team_member_id] ?? 'Member') : 'No team member',
+                'count' => (int) ($row->total_count ?? 0),
+                'total' => round((float) ($row->total_amount ?? 0), 2),
+                'share' => $this->breakdownShare((float) ($row->total_amount ?? 0), $periodTotal),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array{key:string,label:string,total:float,count:int,share:float}>
+     */
+    private function periodPaymentMethodBreakdown($query, float $periodTotal): array
+    {
+        return $query
+            ->selectRaw("COALESCE(NULLIF(payment_method, ''), 'other') as payment_method_key, COUNT(*) as total_count, COALESCE(SUM(total), 0) as total_amount")
+            ->groupBy('payment_method')
+            ->orderByDesc('total_amount')
+            ->limit(5)
+            ->get()
+            ->map(fn ($row) => [
+                'key' => (string) ($row->payment_method_key ?: 'other'),
+                'label' => (string) ($row->payment_method_key ?: 'other'),
+                'count' => (int) ($row->total_count ?? 0),
+                'total' => round((float) ($row->total_amount ?? 0), 2),
+                'share' => $this->breakdownShare((float) ($row->total_amount ?? 0), $periodTotal),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array{key:string,total:float,count:int}>
+     */
+    private function periodLinkedContextBreakdown($query): array
+    {
+        $contexts = [
+            'customer' => 'customer_id',
+            'work' => 'work_id',
+            'sale' => 'sale_id',
+            'invoice' => 'invoice_id',
+            'campaign' => 'campaign_id',
+        ];
+
+        return collect($contexts)
+            ->map(function (string $column, string $key) use ($query) {
+                $contextQuery = (clone $query)->whereNotNull($column);
+
+                return [
+                    'key' => $key,
+                    'count' => (int) $contextQuery->count(),
+                    'total' => $this->sumExpenseTotal(clone $contextQuery),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $kpis
+     * @return array<int, array<string, mixed>>
+     */
+    private function periodRecapAlerts(array $kpis): array
+    {
+        return collect([
+            ['key' => 'missing_receipts', 'count' => (int) ($kpis['missing_receipt_count'] ?? 0), 'total' => null],
+            ['key' => 'pending_approval', 'count' => (int) ($kpis['pending_approval_count'] ?? 0), 'total' => null],
+            ['key' => 'to_pay', 'count' => null, 'total' => (float) ($kpis['to_pay_total'] ?? 0)],
+            ['key' => 'reimbursements', 'count' => null, 'total' => (float) ($kpis['reimbursement_total'] ?? 0)],
+            ['key' => 'recurring', 'count' => (int) ($kpis['recurring_count'] ?? 0), 'total' => null],
+        ])
+            ->filter(fn (array $alert) => ($alert['count'] ?? 0) > 0 || ($alert['total'] ?? 0) > 0)
+            ->values()
+            ->all();
+    }
+
+    private function breakdownShare(float $value, float $total): float
+    {
+        if ($total <= 0) {
+            return 0.0;
+        }
+
+        return round(($value / $total) * 100, 1);
     }
 
     /**

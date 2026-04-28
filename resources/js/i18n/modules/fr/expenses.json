@@ -1,6 +1,11 @@
 {
   "expenses": {
     "title": "Depenses",
+    "tabs": {
+      "list": "Liste",
+      "recap": "Suivi",
+      "petty_cash": "Petite caisse"
+    },
     "stats": {
       "total": "Depenses totales",
       "draft": "Brouillons",
@@ -11,6 +16,163 @@
       "top_categories": "Top categories",
       "top_suppliers": "Top fournisseurs",
       "no_breakdown": "Pas encore de ventilation"
+    },
+    "recap": {
+      "eyebrow": "Suivi",
+      "title": "Recap des depenses",
+      "description": "Suis les sorties par periode, les montants a payer et les points qui demandent une action.",
+      "period": "Periode",
+      "periods": {
+        "week": "Cette semaine",
+        "month": "Ce mois",
+        "quarter": "Ce trimestre",
+        "year": "Cette annee",
+        "custom": "Personnalisee"
+      },
+      "from": "Du",
+      "to": "Au",
+      "compared_to": "vs {period}",
+      "delta_new": "Nouveau",
+      "row_count": "{count} depense(s)",
+      "actions": {
+        "apply": "Appliquer",
+        "filter_list": "Filtrer la liste"
+      },
+      "kpis": {
+        "total_spent": "Total periode",
+        "approved_total": "Approuve",
+        "paid_total": "Paye",
+        "to_pay_total": "A payer",
+        "reimbursement_total": "A rembourser",
+        "pending_approval_count": "A valider"
+      },
+      "breakdowns": {
+        "categories": "Par categorie",
+        "suppliers": "Par fournisseur",
+        "payment_methods": "Par paiement",
+        "team_members": "Par membre",
+        "linked_contexts": "Lie aux operations"
+      },
+      "linked_contexts": {
+        "customer": "Clients",
+        "work": "Jobs",
+        "sale": "Ventes",
+        "invoice": "Factures",
+        "campaign": "Campagnes"
+      },
+      "alerts_title": "Points d'attention",
+      "no_alerts": "Aucun point critique sur cette periode.",
+      "alerts": {
+        "missing_receipts": "Pieces manquantes",
+        "pending_approval": "Validation requise",
+        "to_pay": "Paiements a faire",
+        "reimbursements": "Remboursements",
+        "recurring": "Depenses recurrentes"
+      }
+    },
+    "petty_cash": {
+      "eyebrow": "Petite caisse",
+      "title": "Caisse de depense",
+      "description": "Trace les petites sorties terrain, avances, remboursements et ajustements sans melanger la liste principale.",
+      "modal_title": "Ajouter un mouvement de caisse",
+      "low_balance": "Solde bas",
+      "receipt_ok": "Justifie",
+      "receipt_missing": "Sans justificatif",
+      "linked_expense": "Lie a {name}",
+      "empty": "Aucun mouvement de petite caisse pour le moment.",
+      "void_prompt": "Raison de l'annulation",
+      "reopen_prompt": "Raison de la reouverture",
+      "locked": "Periode cloturee",
+      "actions": {
+        "add": "Ajouter un mouvement",
+        "settings": "Reglages",
+        "close_period": "Cloturer periode",
+        "export": "Exporter CSV",
+        "filter": "Filtrer",
+        "clear": "Reinitialiser",
+        "post": "Poster",
+        "void": "Annuler",
+        "close": "Cloturer",
+        "reopen": "Reouvrir",
+        "cancel": "Fermer",
+        "save": "Enregistrer"
+      },
+      "kpis": {
+        "balance": "Solde courant",
+        "inflows": "Entrees periode",
+        "outflows": "Sorties periode",
+        "drafts": "Brouillons",
+        "missing_receipts": "Sans justificatif",
+        "unlinked": "Non liees"
+      },
+      "settings": {
+        "title": "Controles petite caisse",
+        "low_balance_threshold": "Seuil de solde bas",
+        "receipt_required_above": "Justificatif obligatoire au-dessus de"
+      },
+      "reconciliation": {
+        "title": "Rapprochement",
+        "period": "{period}",
+        "expected": "Solde attendu",
+        "counted": "Solde compte",
+        "difference": "Ecart",
+        "justified": "Mouvements justifies",
+        "missing_receipts": "{count} sans justificatif",
+        "unlinked": "{count} non lies a une depense"
+      },
+      "closures": {
+        "title": "Clotures",
+        "empty": "Aucune cloture de caisse pour le moment.",
+        "modal_title": "Cloturer une periode",
+        "period_start": "Debut periode",
+        "period_end": "Fin periode",
+        "counted_balance": "Solde compte",
+        "comment": "Commentaire"
+      },
+      "filters": {
+        "type": "Type",
+        "status": "Statut",
+        "responsible": "Responsable",
+        "from": "Depuis",
+        "to": "Jusqu'a"
+      },
+      "form": {
+        "type": "Type de mouvement",
+        "status": "Statut",
+        "amount": "Montant",
+        "date": "Date",
+        "responsible": "Responsable",
+        "team_member": "Membre equipe",
+        "expense": "Depense liee",
+        "note": "Note",
+        "requires_receipt": "Justificatif attendu",
+        "receipt_attached": "Justificatif deja conserve"
+      },
+      "table": {
+        "movement": "Mouvement",
+        "responsible": "Responsable",
+        "receipt": "Justificatif",
+        "amount": "Montant",
+        "results": "mouvement(s)"
+      },
+      "types": {
+        "funding": "Approvisionnement",
+        "expense": "Depense",
+        "advance": "Avance",
+        "reimbursement": "Remboursement",
+        "adjustment": "Ajustement"
+      },
+      "status": {
+        "draft": "Brouillon",
+        "posted": "Poste",
+        "voided": "Annule"
+      },
+      "closure_status": {
+        "open": "Ouverte",
+        "in_review": "En revue",
+        "closed": "Cloturee",
+        "reopened": "Reouverte"
+      }
     },
     "filters": {
       "search_placeholder": "Rechercher depenses, fournisseurs ou references",
@@ -124,6 +286,7 @@
     "labels": {
       "uncategorized": "Sans categorie",
       "no_supplier": "Sans fournisseur",
+      "no_team_member": "Sans membre equipe",
       "not_set": "Non defini",
       "none": "Aucune information",
       "yes": "Oui",
@@ -201,6 +364,11 @@
       "mobile_hint": "Sur mobile, prends directement la facture en photo ou ajoute un PDF depuis les fichiers.",
       "note_label": "Contexte optionnel",
       "note_hint": "Ajoute un indice utile si tu veux aider l extraction, par exemple le contexte du fournisseur ou de l achat.",
+      "petty_cash_create": "Creer un mouvement de petite caisse",
+      "petty_cash_hint": "Utilise ceci quand le recu scanne a ete paye depuis la caisse. Les mouvements postes mettent le solde a jour tout de suite.",
+      "petty_cash_status": "Statut caisse",
+      "petty_cash_responsible": "Responsable caisse",
+      "petty_cash_note": "Note caisse",
       "review_notice": "Le brouillon cree par IA reste en brouillon ou en revue. Les champs detectes doivent etre verifies avant approbation.",
       "review_title": "Revue extraction IA",
       "review_required": "Revue requise",

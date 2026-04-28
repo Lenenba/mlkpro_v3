@@ -383,6 +383,14 @@ Route::name('api.')->group(function () {
                 Route::post('expenses', [ExpenseController::class, 'store']);
                 Route::post('expenses/scan-ai', [ExpenseController::class, 'scanWithAi'])
                     ->middleware('company.feature:assistant');
+                Route::get('expenses/petty-cash/export', [ExpenseController::class, 'exportPettyCash']);
+                Route::patch('expenses/petty-cash/account', [ExpenseController::class, 'updatePettyCashAccount']);
+                Route::post('expenses/petty-cash/movements', [ExpenseController::class, 'storePettyCashMovement']);
+                Route::patch('expenses/petty-cash/movements/{movement}/post', [ExpenseController::class, 'postPettyCashMovement']);
+                Route::patch('expenses/petty-cash/movements/{movement}/void', [ExpenseController::class, 'voidPettyCashMovement']);
+                Route::post('expenses/petty-cash/closures', [ExpenseController::class, 'storePettyCashClosure']);
+                Route::patch('expenses/petty-cash/closures/{closure}/close', [ExpenseController::class, 'closePettyCashClosure']);
+                Route::patch('expenses/petty-cash/closures/{closure}/reopen', [ExpenseController::class, 'reopenPettyCashClosure']);
                 Route::patch('expenses/{expense}/submit', [ExpenseController::class, 'submit']);
                 Route::patch('expenses/{expense}/approve', [ExpenseController::class, 'approve']);
                 Route::patch('expenses/{expense}/reject', [ExpenseController::class, 'reject']);

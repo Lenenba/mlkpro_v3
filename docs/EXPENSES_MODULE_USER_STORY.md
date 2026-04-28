@@ -4,6 +4,7 @@ Last updated: 2026-04-14
 
 Related backlog:
 - `Nice to have`: `docs/EXPENSES_MODULE_NICE_TO_HAVE.md`
+- `Recap and petite caisse`: `docs/EXPENSES_RECAP_PETTY_CASH_PLAN_2026-04-28.md`
 
 ## Goal
 Ajouter un module `Expenses` pour capturer, classer, valider, payer, rembourser et analyser les depenses d entreprise dans la meme plateforme que `Sales`, `Invoices`, `Quotes`, `Requests` et `Products`, avec une couche optionnelle `AI-assisted intake` pour lire une facture ou un recu et preparer automatiquement un brouillon de depense.

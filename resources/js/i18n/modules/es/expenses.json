@@ -1,6 +1,11 @@
 {
   "expenses": {
     "title": "Gastos",
+    "tabs": {
+      "list": "Lista",
+      "recap": "Seguimiento",
+      "petty_cash": "Caja chica"
+    },
     "stats": {
       "total": "Gastos totales",
       "draft": "Borradores",
@@ -11,6 +16,163 @@
       "top_categories": "Categorias principales",
       "top_suppliers": "Proveedores principales",
       "no_breakdown": "Todavia no hay desglose"
+    },
+    "recap": {
+      "eyebrow": "Seguimiento",
+      "title": "Resumen de gastos",
+      "description": "Sigue los gastos por periodo, los pagos pendientes y los puntos que requieren accion.",
+      "period": "Periodo",
+      "periods": {
+        "week": "Esta semana",
+        "month": "Este mes",
+        "quarter": "Este trimestre",
+        "year": "Este ano",
+        "custom": "Personalizado"
+      },
+      "from": "Desde",
+      "to": "Hasta",
+      "compared_to": "vs {period}",
+      "delta_new": "Nuevo",
+      "row_count": "{count} gasto(s)",
+      "actions": {
+        "apply": "Aplicar",
+        "filter_list": "Filtrar lista"
+      },
+      "kpis": {
+        "total_spent": "Total periodo",
+        "approved_total": "Aprobado",
+        "paid_total": "Pagado",
+        "to_pay_total": "Por pagar",
+        "reimbursement_total": "Por reembolsar",
+        "pending_approval_count": "Por aprobar"
+      },
+      "breakdowns": {
+        "categories": "Por categoria",
+        "suppliers": "Por proveedor",
+        "payment_methods": "Por pago",
+        "team_members": "Por miembro",
+        "linked_contexts": "Vinculado a operaciones"
+      },
+      "linked_contexts": {
+        "customer": "Clientes",
+        "work": "Trabajos",
+        "sale": "Ventas",
+        "invoice": "Facturas",
+        "campaign": "Campanas"
+      },
+      "alerts_title": "Puntos de atencion",
+      "no_alerts": "No hay puntos criticos para este periodo.",
+      "alerts": {
+        "missing_receipts": "Recibos faltantes",
+        "pending_approval": "Aprobacion requerida",
+        "to_pay": "Pagos por hacer",
+        "reimbursements": "Reembolsos",
+        "recurring": "Gastos recurrentes"
+      }
+    },
+    "petty_cash": {
+      "eyebrow": "Caja chica",
+      "title": "Caja de gastos",
+      "description": "Registra pequenos gastos de campo, anticipos, reembolsos y ajustes sin mezclarlos con la lista principal.",
+      "modal_title": "Agregar movimiento de caja",
+      "low_balance": "Saldo bajo",
+      "receipt_ok": "Justificado",
+      "receipt_missing": "Sin comprobante",
+      "linked_expense": "Vinculado a {name}",
+      "empty": "Todavia no hay movimientos de caja chica.",
+      "void_prompt": "Razon de la anulacion",
+      "reopen_prompt": "Razon de la reapertura",
+      "locked": "Periodo cerrado",
+      "actions": {
+        "add": "Agregar movimiento",
+        "settings": "Ajustes",
+        "close_period": "Cerrar periodo",
+        "export": "Exportar CSV",
+        "filter": "Filtrar",
+        "clear": "Restablecer",
+        "post": "Asentar",
+        "void": "Anular",
+        "close": "Cerrar",
+        "reopen": "Reabrir",
+        "cancel": "Cerrar",
+        "save": "Guardar"
+      },
+      "kpis": {
+        "balance": "Saldo actual",
+        "inflows": "Entradas periodo",
+        "outflows": "Salidas periodo",
+        "drafts": "Borradores",
+        "missing_receipts": "Sin comprobante",
+        "unlinked": "Sin vinculo"
+      },
+      "settings": {
+        "title": "Controles de caja chica",
+        "low_balance_threshold": "Umbral de saldo bajo",
+        "receipt_required_above": "Comprobante obligatorio por encima de"
+      },
+      "reconciliation": {
+        "title": "Conciliacion",
+        "period": "{period}",
+        "expected": "Saldo esperado",
+        "counted": "Saldo contado",
+        "difference": "Diferencia",
+        "justified": "Movimientos justificados",
+        "missing_receipts": "{count} sin comprobante",
+        "unlinked": "{count} sin vincular a un gasto"
+      },
+      "closures": {
+        "title": "Cierres",
+        "empty": "Aun no hay cierres de caja.",
+        "modal_title": "Cerrar periodo de caja chica",
+        "period_start": "Inicio del periodo",
+        "period_end": "Fin del periodo",
+        "counted_balance": "Saldo contado",
+        "comment": "Comentario"
+      },
+      "filters": {
+        "type": "Tipo",
+        "status": "Estado",
+        "responsible": "Responsable",
+        "from": "Desde",
+        "to": "Hasta"
+      },
+      "form": {
+        "type": "Tipo de movimiento",
+        "status": "Estado",
+        "amount": "Monto",
+        "date": "Fecha",
+        "responsible": "Responsable",
+        "team_member": "Miembro del equipo",
+        "expense": "Gasto vinculado",
+        "note": "Nota",
+        "requires_receipt": "Comprobante esperado",
+        "receipt_attached": "Comprobante ya guardado"
+      },
+      "table": {
+        "movement": "Movimiento",
+        "responsible": "Responsable",
+        "receipt": "Comprobante",
+        "amount": "Monto",
+        "results": "movimiento(s)"
+      },
+      "types": {
+        "funding": "Abastecimiento",
+        "expense": "Gasto",
+        "advance": "Anticipo",
+        "reimbursement": "Reembolso",
+        "adjustment": "Ajuste"
+      },
+      "status": {
+        "draft": "Borrador",
+        "posted": "Asentado",
+        "voided": "Anulado"
+      },
+      "closure_status": {
+        "open": "Abierto",
+        "in_review": "En revision",
+        "closed": "Cerrado",
+        "reopened": "Reabierto"
+      }
     },
     "filters": {
       "search_placeholder": "Buscar gastos, proveedores o referencias",
@@ -124,6 +286,7 @@
     "labels": {
       "uncategorized": "Sin categoria",
       "no_supplier": "Sin proveedor",
+      "no_team_member": "Sin miembro de equipo",
       "not_set": "No definido",
       "none": "Sin informacion adicional",
       "yes": "Si",
@@ -201,6 +364,11 @@
       "mobile_hint": "En movil, toma la factura en foto al instante o adjunta un PDF desde tus archivos.",
       "note_label": "Contexto opcional",
       "note_hint": "Agrega una nota corta si quieres ayudar a la extraccion con contexto del proveedor o de la compra.",
+      "petty_cash_create": "Crear un movimiento de caja chica",
+      "petty_cash_hint": "Usa esto cuando el recibo escaneado se pago desde la caja. Los movimientos asentados actualizan el saldo al instante.",
+      "petty_cash_status": "Estado de caja",
+      "petty_cash_responsible": "Responsable de caja",
+      "petty_cash_note": "Nota de caja",
       "review_notice": "Los borradores creados por IA quedan en borrador o en revision. Los campos detectados deben verificarse antes de aprobar.",
       "review_title": "Revision de extraccion IA",
       "review_required": "Revision requerida",
