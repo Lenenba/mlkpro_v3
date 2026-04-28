@@ -2425,7 +2425,7 @@ class ExpenseController extends Controller
             ->whereDate('period_end', '>=', $periodStart->toDateString())
             ->whereIn('status', [PettyCashClosure::STATUS_IN_REVIEW, PettyCashClosure::STATUS_CLOSED])
             ->with($this->pettyCashClosureRelations())
-            ->orderByRaw("CASE WHEN status = ? THEN 0 ELSE 1 END", [PettyCashClosure::STATUS_CLOSED])
+            ->orderByRaw('CASE WHEN status = ? THEN 0 ELSE 1 END', [PettyCashClosure::STATUS_CLOSED])
             ->orderByDesc('period_end')
             ->orderByDesc('id')
             ->first();
