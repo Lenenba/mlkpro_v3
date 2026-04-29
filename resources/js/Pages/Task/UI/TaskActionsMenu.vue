@@ -29,14 +29,14 @@ defineProps({
     },
 });
 
-defineEmits(['set-status', 'edit', 'add-proof', 'delete']);
+defineEmits(['set-status', 'edit', 'reschedule', 'add-proof', 'delete']);
 
 const { t } = useI18n();
 </script>
 
 <template>
     <div class="inline-flex" @click.stop>
-        <AdminDataTableActions :label="t('tasks.table.actions')" menu-width-class="w-44">
+        <AdminDataTableActions :label="t('tasks.table.actions')" menu-width-class="w-48">
             <div class="px-2 py-1 text-[11px] uppercase tracking-wide text-stone-400 dark:text-neutral-500">
                 {{ $t('tasks.actions.set_status') }}
             </div>
@@ -86,6 +86,15 @@ const { t } = useI18n();
                 @click="$emit('edit')"
             >
                 {{ $t('tasks.actions.edit') }}
+            </button>
+            <button
+                v-if="canManage"
+                type="button"
+                :disabled="locked"
+                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback"
+                @click="$emit('reschedule')"
+            >
+                {{ $t('tasks.actions.reschedule') }}
             </button>
             <button
                 v-if="canChangeStatus"

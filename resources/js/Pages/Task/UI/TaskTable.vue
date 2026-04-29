@@ -1468,6 +1468,12 @@ const cancellationTask = ref(null);
 const cancellationForm = useForm({
     cancellation_reason: '',
 });
+const rescheduleTask = ref(null);
+const rescheduleForm = useForm({
+    due_date: '',
+    delay_reason: '',
+    notify_customer: true,
+});
 
 const completionReasonRequired = computed(() => {
     if (!completionTask.value) {
@@ -1487,16 +1493,18 @@ const buildStatusPayload = (task, status, extra = {}) => {
     }
 
     return {
-        ...payload,
         title: task.title || '',
         description: task.description || '',
         due_date: task.due_date || null,
+        priority: task.priority || 'normal',
         assigned_team_member_id: hasTeamMembersFeature.value ? (task.assigned_team_member_id ?? null) : null,
         work_id: task.work_id ?? null,
         standalone: !task.work_id,
+        request_id: task.request_id ?? null,
         customer_id: task.customer_id ?? null,
         product_id: task.product_id ?? null,
         delay_reason: task.delay_reason ?? null,
+        ...payload,
     };
 };
 
@@ -1537,6 +1545,30 @@ const closeCancellationModal = () => {
     }
 };
 
+const openRescheduleModal = (task) => {
+    if (!props.canManage || isTaskLocked(task)) {
+        return;
+    }
+
+    rescheduleTask.value = task;
+    rescheduleForm.clearErrors();
+    rescheduleForm.due_date = normalizeDateKey(task.due_date) || '';
+    rescheduleForm.delay_reason = '';
+    rescheduleForm.notify_customer = true;
+
+    if (window.HSOverlay) {
+        window.HSOverlay.open('#hs-task-reschedule');
+    }
+};
+
+const closeRescheduleModal = () => {
+    rescheduleTask.value = null;
+    rescheduleForm.reset();
+    if (window.HSOverlay) {
+        window.HSOverlay.close('#hs-task-reschedule');
+    }
+};
+
 const submitCancellation = () => {
     if (!cancellationTask.value || cancellationForm.processing) {
         return;
@@ -1556,6 +1588,43 @@ const submitCancellation = () => {
             preserveScroll: true,
             only: ['tasks', 'flash'],
             onSuccess: closeCancellationModal,
+        });
+};
+
+const submitReschedule = () => {
+    if (!rescheduleTask.value || rescheduleForm.processing) {
+        return;
+    }
+
+    rescheduleForm.clearErrors('due_date', 'delay_reason');
+    rescheduleForm.due_date = normalizeDateKey(rescheduleForm.due_date) || '';
+    rescheduleForm.delay_reason = normalizeTextValue(rescheduleForm.delay_reason);
+
+    const currentDueDate = normalizeDateKey(rescheduleTask.value.due_date);
+    if (!rescheduleForm.due_date) {
+        rescheduleForm.setError('due_date', t('tasks.reschedule.date_required'));
+        return;
+    }
+    if (currentDueDate && currentDueDate === rescheduleForm.due_date) {
+        rescheduleForm.setError('due_date', t('tasks.reschedule.date_changed_required'));
+        return;
+    }
+    if (!rescheduleForm.delay_reason) {
+        rescheduleForm.setError('delay_reason', t('tasks.reschedule.reason_required'));
+        return;
+    }
+
+    const task = rescheduleTask.value;
+    rescheduleForm
+        .transform((data) => buildStatusPayload(task, task.status, {
+            due_date: data.due_date,
+            delay_reason: data.delay_reason,
+            notify_customer: data.notify_customer,
+        }))
+        .put(route('task.update', task.id), {
+            preserveScroll: true,
+            only: ['tasks', 'flash'],
+            onSuccess: closeRescheduleModal,
         });
 };
 
@@ -1999,6 +2068,7 @@ const submitProof = () => {
                                     :locked="isTaskLocked(task)"
                                     @set-status="setTaskStatus(task, $event)"
                                     @edit="openEditTask(task)"
+                                    @reschedule="openRescheduleModal(task)"
                                     @add-proof="openProofUpload(task)"
                                     @delete="deleteTask(task)"
                                 />
@@ -2251,6 +2321,7 @@ const submitProof = () => {
                                         :locked="isTaskLocked(task)"
                                         @set-status="setTaskStatus(task, $event)"
                                         @edit="openEditTask(task)"
+                                        @reschedule="openRescheduleModal(task)"
                                         @add-proof="openProofUpload(task)"
                                         @delete="deleteTask(task)"
                                     />
@@ -2353,6 +2424,7 @@ const submitProof = () => {
                                         :locked="isTaskLocked(task)"
                                         @set-status="setTaskStatus(task, $event)"
                                         @edit="openEditTask(task)"
+                                        @reschedule="openRescheduleModal(task)"
                                         @add-proof="openProofUpload(task)"
                                         @delete="deleteTask(task)"
                                     />
@@ -3123,6 +3195,46 @@ const submitProof = () => {
                 <button type="submit" :disabled="cancellationForm.processing"
                     class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50 action-feedback">
                     {{ $t('tasks.cancellation.confirm') }}
+                </button>
+            </div>
+        </form>
+    </Modal>
+
+    <Modal v-if="canManage" :title="$t('tasks.reschedule.title')" :id="'hs-task-reschedule'">
+        <form class="space-y-4" @submit.prevent="submitReschedule">
+            <div>
+                <DatePicker v-model="rescheduleForm.due_date" :label="$t('tasks.reschedule.new_date')" />
+                <InputError class="mt-1" :message="rescheduleForm.errors.due_date" />
+            </div>
+
+            <div>
+                <FloatingTextarea
+                    v-model="rescheduleForm.delay_reason"
+                    :label="$t('tasks.reschedule.reason')"
+                />
+                <InputError class="mt-1" :message="rescheduleForm.errors.delay_reason" />
+            </div>
+
+            <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-900/60">
+                <label class="flex items-start gap-2">
+                    <Checkbox v-model:checked="rescheduleForm.notify_customer" />
+                    <span class="text-sm font-medium text-stone-800 dark:text-neutral-200">
+                        {{ $t('tasks.reschedule.notify_customer') }}
+                    </span>
+                </label>
+                <p class="mt-1 pl-7 text-xs text-stone-500 dark:text-neutral-400">
+                    {{ $t('tasks.reschedule.notify_hint') }}
+                </p>
+            </div>
+
+            <div class="flex justify-end gap-2">
+                <button type="button" @click="closeRescheduleModal"
+                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 action-feedback">
+                    {{ $t('tasks.actions.cancel') }}
+                </button>
+                <button type="submit" :disabled="rescheduleForm.processing"
+                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 action-feedback">
+                    {{ $t('tasks.reschedule.confirm') }}
                 </button>
             </div>
         </form>

@@ -36,6 +36,7 @@
       "add_task": "Add task",
       "set_status": "Set status",
       "edit": "Edit",
+      "reschedule": "Reschedule",
       "add_proof": "Add proof",
       "delete": "Delete",
       "delete_confirm": "Delete task \"{title}\"?",
@@ -168,6 +169,7 @@
         "auto_completed": "Auto completed",
         "overdue": "Marked overdue",
         "cancelled": "Cancelled",
+        "rescheduled": "Rescheduled",
         "delay_reason_updated": "Delay reason updated",
         "client_notified": "Client notified"
       }
@@ -209,6 +211,17 @@
       "reason": "Cancellation reason",
       "confirm": "Confirm cancellation",
       "reason_required": "A cancellation reason is required."
+    },
+    "reschedule": {
+      "title": "Reschedule visit",
+      "new_date": "New date",
+      "reason": "Reschedule reason",
+      "notify_customer": "Notify customer",
+      "notify_hint": "The customer will receive a notification through the active task update channels.",
+      "confirm": "Reschedule",
+      "date_required": "The new date is required.",
+      "date_changed_required": "Choose a different date to reschedule the visit.",
+      "reason_required": "The reschedule reason is required."
     },
     "reasons": {
       "client_available": "Client available",
