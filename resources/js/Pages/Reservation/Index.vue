@@ -102,6 +102,10 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    focus_reservation_id: {
+        type: [Number, String],
+        default: 0,
+    },
 });
 
 const viewMode = ref(props.filters?.view_mode || 'calendar');
@@ -147,6 +151,7 @@ const showEditor = ref(false);
 const showDetails = ref(false);
 const activeReservation = ref(null);
 const showAdvanced = ref(false);
+const lastFocusedReservationId = ref(null);
 
 watch(
     () => [hasQueueTab.value, hasWaitlistTab.value],
@@ -247,6 +252,7 @@ const isDateSort = computed(() => ['date_asc', 'date_desc'].includes(filterForm.
 const isDateSortAsc = computed(() => filterForm.sort === 'date_asc');
 const isStatusSort = computed(() => filterForm.sort === 'status');
 const reservationRows = computed(() => (Array.isArray(props.reservations?.data) ? props.reservations.data : []));
+const focusReservationId = computed(() => Number(props.focus_reservation_id || 0));
 const reservationLinks = computed(() => props.reservations?.links || []);
 const currentPerPage = computed(() => resolveDataTablePerPage(props.reservations?.per_page, props.filters?.per_page));
 const reservationPaginationLabel = computed(() => t('reservations.pagination.showing', {
@@ -514,6 +520,27 @@ const openDetails = (reservation) => {
     activeReservation.value = reservation;
     showDetails.value = true;
 };
+
+watch(
+    () => [focusReservationId.value, reservationRows.value.map((reservation) => reservation.id).join(',')],
+    () => {
+        const id = focusReservationId.value;
+        if (!id || lastFocusedReservationId.value === id) {
+            return;
+        }
+
+        const reservation = reservationMap.value.get(id);
+        if (!reservation) {
+            return;
+        }
+
+        activeDataTab.value = 'reservations';
+        viewMode.value = 'list';
+        lastFocusedReservationId.value = id;
+        openDetails(reservation);
+    },
+    { immediate: true }
+);
 
 const openFromEvent = (rawEvent) => {
     const eventId = Number(rawEvent?.id || rawEvent?.original?.id || 0);

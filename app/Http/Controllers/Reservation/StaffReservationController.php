@@ -51,6 +51,7 @@ class StaffReservationController extends Controller
         $access = $this->resolveTeamAccess($user, $account->id);
         $props = app(BuildStaffReservationIndexData::class)->index($account, $access, $request);
         $props['settings'] = $this->effectiveSettings($account, $props['settings'] ?? []);
+        $props['focus_reservation_id'] = (int) $request->query('reservation_id', 0);
 
         return $this->inertiaOrJson('Reservation/Index', $props);
     }
