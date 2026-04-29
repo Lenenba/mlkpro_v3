@@ -28,7 +28,12 @@ class TaskLifecycleNotificationService
         $this->notify($task, 'overdue', $actor);
     }
 
-    private function notify(Task $task, string $type, ?User $actor = null): void
+    public function sendRescheduled(Task $task, ?User $actor = null, ?string $previousDueDate = null, ?string $reason = null): void
+    {
+        $this->notify($task, 'rescheduled', $actor, $previousDueDate, $reason);
+    }
+
+    private function notify(Task $task, string $type, ?User $actor = null, ?string $previousDueDate = null, ?string $reason = null): void
     {
         $task->loadMissing([
             'account:id,name,email,phone_number,locale,company_name,company_notification_settings',
@@ -47,11 +52,11 @@ class TaskLifecycleNotificationService
             return;
         }
 
-        $this->notifyInternalRecipients($task, $owner, $type);
-        $this->notifyExternalRecipients($task, $owner, $type, $actor);
+        $this->notifyInternalRecipients($task, $owner, $type, $previousDueDate, $reason);
+        $this->notifyExternalRecipients($task, $owner, $type, $actor, $previousDueDate, $reason);
     }
 
-    private function notifyInternalRecipients(Task $task, User $owner, string $type): void
+    private function notifyInternalRecipients(Task $task, User $owner, string $type, ?string $previousDueDate = null, ?string $reason = null): void
     {
         $recipients = $this->resolveInternalRecipients($task, $owner);
         if ($recipients->isEmpty()) {
@@ -59,19 +64,23 @@ class TaskLifecycleNotificationService
         }
 
         foreach ($recipients as $user) {
-            $message = $this->messageSet($type, $user->locale ?? $owner->locale, $task);
+            $message = $this->messageSet($type, $user->locale ?? $owner->locale, $task, $previousDueDate, $reason);
             $this->push->sendToUsers([$user->id], [
                 'title' => $message['push_title'],
                 'body' => $message['push_body'],
                 'data' => [
-                    'type' => $type === 'cancelled' ? 'task_cancelled' : 'task_overdue',
+                    'type' => match ($type) {
+                        'cancelled' => 'task_cancelled',
+                        'rescheduled' => 'task_rescheduled',
+                        default => 'task_overdue',
+                    },
                     'task_id' => $task->id,
                 ],
             ]);
         }
     }
 
-    private function notifyExternalRecipients(Task $task, User $owner, string $type, ?User $actor = null): void
+    private function notifyExternalRecipients(Task $task, User $owner, string $type, ?User $actor = null, ?string $previousDueDate = null, ?string $reason = null): void
     {
         $channels = $this->companyPreferences->taskUpdateChannels($owner);
         if (! array_filter($channels)) {
@@ -82,21 +91,21 @@ class TaskLifecycleNotificationService
         $customerSent = false;
 
         if ($customer instanceof Customer) {
-            $customerSent = $this->deliverToCustomer($customer, $owner, $task, $type, $channels) || $customerSent;
+            $customerSent = $this->deliverToCustomer($customer, $owner, $task, $type, $channels, $previousDueDate, $reason) || $customerSent;
         }
 
         if ($customerSent) {
             return;
         }
 
-        $this->deliverToOwner($owner, $task, $type, $channels, $actor);
+        $this->deliverToOwner($owner, $task, $type, $channels, $actor, $previousDueDate, $reason);
     }
 
-    private function deliverToCustomer(Customer $customer, User $owner, Task $task, string $type, array $channels): bool
+    private function deliverToCustomer(Customer $customer, User $owner, Task $task, string $type, array $channels, ?string $previousDueDate = null, ?string $reason = null): bool
     {
         $locale = LocalePreference::forCustomer($customer, $owner);
-        $message = $this->messageSet($type, $locale, $task);
-        $details = $this->emailDetails($message, $task);
+        $message = $this->messageSet($type, $locale, $task, $previousDueDate, $reason);
+        $details = $this->emailDetails($message, $task, $previousDueDate);
 
         $sent = false;
         if ((bool) ($channels[CompanyNotificationPreferenceService::CHANNEL_EMAIL] ?? false) && $customer->email) {
@@ -121,11 +130,11 @@ class TaskLifecycleNotificationService
         return $sent;
     }
 
-    private function deliverToOwner(User $owner, Task $task, string $type, array $channels, ?User $actor = null): bool
+    private function deliverToOwner(User $owner, Task $task, string $type, array $channels, ?User $actor = null, ?string $previousDueDate = null, ?string $reason = null): bool
     {
         $locale = $owner->preferredLocale();
-        $message = $this->messageSet($type, $locale, $task);
-        $details = $this->emailDetails($message, $task);
+        $message = $this->messageSet($type, $locale, $task, $previousDueDate, $reason);
+        $details = $this->emailDetails($message, $task, $previousDueDate);
         $actorName = $actor?->name;
 
         if ($actorName) {
@@ -180,14 +189,28 @@ class TaskLifecycleNotificationService
         return $users->merge($admins)->filter()->unique('id')->values();
     }
 
-    private function emailDetails(array $message, Task $task): array
+    private function emailDetails(array $message, Task $task, ?string $previousDueDate = null): array
     {
         $details = [
             ['label' => $message['task_label'], 'value' => $task->title ?: 'Task #'.$task->id],
             ['label' => $message['status_label'], 'value' => $message['status_value']],
         ];
 
-        if ($task->due_date) {
+        if (($message['type'] ?? null) === 'rescheduled') {
+            if ($previousDueDate) {
+                $details[] = [
+                    'label' => $message['previous_due_label'],
+                    'value' => $previousDueDate,
+                ];
+            }
+
+            if ($task->due_date) {
+                $details[] = [
+                    'label' => $message['new_due_label'],
+                    'value' => $task->due_date->toDateString(),
+                ];
+            }
+        } elseif ($task->due_date) {
             $details[] = [
                 'label' => $message['due_label'],
                 'value' => $task->due_date->toDateString(),
@@ -201,7 +224,7 @@ class TaskLifecycleNotificationService
             ];
         }
 
-        $reason = $task->cancellation_reason ?: $task->delay_reason;
+        $reason = $message['reason_value'] ?? ($task->cancellation_reason ?: $task->delay_reason);
         if ($reason) {
             $details[] = [
                 'label' => $message['reason_label'],
@@ -212,7 +235,7 @@ class TaskLifecycleNotificationService
         return $details;
     }
 
-    private function messageSet(string $type, ?string $locale, Task $task): array
+    private function messageSet(string $type, ?string $locale, Task $task, ?string $previousDueDate = null, ?string $reasonOverride = null): array
     {
         $code = strtolower((string) $locale);
         $lang = str_starts_with($code, 'fr')
@@ -220,16 +243,87 @@ class TaskLifecycleNotificationService
             : (str_starts_with($code, 'es') ? 'es' : 'en');
         $title = $task->title ?: 'Task #'.$task->id;
         $dueDate = $task->due_date?->toDateString();
-        $reason = $task->cancellation_reason ?: $task->delay_reason;
+        $reason = $reasonOverride ?: ($task->cancellation_reason ?: $task->delay_reason);
 
         $statusValue = match ([$type, $lang]) {
             ['cancelled', 'fr'] => 'Annulee',
             ['cancelled', 'es'] => 'Cancelada',
             ['cancelled', 'en'] => 'Cancelled',
+            ['rescheduled', 'fr'] => 'Reportee',
+            ['rescheduled', 'es'] => 'Reprogramada',
+            ['rescheduled', 'en'] => 'Rescheduled',
             ['overdue', 'fr'] => 'En retard',
             ['overdue', 'es'] => 'Atrasada',
             default => 'Overdue',
         };
+
+        if ($type === 'rescheduled') {
+            return match ($lang) {
+                'fr' => [
+                    'type' => 'rescheduled',
+                    'push_title' => 'Visite reportee',
+                    'push_body' => "La visite \"{$title}\" a ete reportee.".($dueDate ? " Nouvelle date: {$dueDate}." : '').($reason ? " Motif: {$reason}." : ''),
+                    'email_subject' => 'Visite reportee',
+                    'email_title' => 'Visite reportee',
+                    'email_intro' => "Votre visite \"{$title}\" a ete reportee.".($dueDate ? " Nouvelle date: {$dueDate}." : ''),
+                    'email_note' => $reason ? "Motif: {$reason}" : null,
+                    'sms' => "Visite reportee: {$title}".($dueDate ? " nouvelle date {$dueDate}" : '').($reason ? " - {$reason}" : ''),
+                    'action_label' => 'Voir la tache',
+                    'task_label' => 'Visite',
+                    'status_label' => 'Statut',
+                    'status_value' => $statusValue,
+                    'due_label' => 'Date prevue',
+                    'previous_due_label' => 'Ancienne date',
+                    'new_due_label' => 'Nouvelle date',
+                    'assignee_label' => 'Assigne',
+                    'reason_label' => 'Motif du report',
+                    'reason_value' => $reason,
+                    'actor_label' => 'Par',
+                ],
+                'es' => [
+                    'type' => 'rescheduled',
+                    'push_title' => 'Visita reprogramada',
+                    'push_body' => "La visita \"{$title}\" fue reprogramada.".($dueDate ? " Nueva fecha: {$dueDate}." : '').($reason ? " Motivo: {$reason}." : ''),
+                    'email_subject' => 'Visita reprogramada',
+                    'email_title' => 'Visita reprogramada',
+                    'email_intro' => "Su visita \"{$title}\" fue reprogramada.".($dueDate ? " Nueva fecha: {$dueDate}." : ''),
+                    'email_note' => $reason ? "Motivo: {$reason}" : null,
+                    'sms' => "Visita reprogramada: {$title}".($dueDate ? " nueva fecha {$dueDate}" : '').($reason ? " - {$reason}" : ''),
+                    'action_label' => 'Ver tarea',
+                    'task_label' => 'Visita',
+                    'status_label' => 'Estado',
+                    'status_value' => $statusValue,
+                    'due_label' => 'Fecha prevista',
+                    'previous_due_label' => 'Fecha anterior',
+                    'new_due_label' => 'Nueva fecha',
+                    'assignee_label' => 'Asignado',
+                    'reason_label' => 'Motivo de reprogramacion',
+                    'reason_value' => $reason,
+                    'actor_label' => 'Por',
+                ],
+                default => [
+                    'type' => 'rescheduled',
+                    'push_title' => 'Visit rescheduled',
+                    'push_body' => "Visit \"{$title}\" was rescheduled.".($dueDate ? " New date: {$dueDate}." : '').($reason ? " Reason: {$reason}." : ''),
+                    'email_subject' => 'Visit rescheduled',
+                    'email_title' => 'Visit rescheduled',
+                    'email_intro' => "Your visit \"{$title}\" was rescheduled.".($dueDate ? " New date: {$dueDate}." : ''),
+                    'email_note' => $reason ? "Reason: {$reason}" : null,
+                    'sms' => "Visit rescheduled: {$title}".($dueDate ? " new date {$dueDate}" : '').($reason ? " - {$reason}" : ''),
+                    'action_label' => 'View task',
+                    'task_label' => 'Visit',
+                    'status_label' => 'Status',
+                    'status_value' => $statusValue,
+                    'due_label' => 'Planned date',
+                    'previous_due_label' => 'Previous date',
+                    'new_due_label' => 'New date',
+                    'assignee_label' => 'Assignee',
+                    'reason_label' => 'Reschedule reason',
+                    'reason_value' => $reason,
+                    'actor_label' => 'By',
+                ],
+            };
+        }
 
         if ($type === 'cancelled') {
             return match ($lang) {

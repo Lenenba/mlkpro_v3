@@ -26,6 +26,7 @@ abstract class TaskWriteRequest extends FormRequest
             'completion_reason' => ['nullable', 'string', Rule::in(\App\Services\TaskTimingService::completionReasons())],
             'cancellation_reason' => ['nullable', 'string', 'max:255'],
             'delay_reason' => ['nullable', 'string', 'max:255'],
+            'notify_customer' => ['nullable', 'boolean'],
         ];
     }
 

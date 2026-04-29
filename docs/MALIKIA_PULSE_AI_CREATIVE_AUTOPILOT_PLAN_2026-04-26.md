@@ -1,4 +1,4 @@
-# Malikia Pulse Autopilot - plan IA creative
+<!-- # Malikia Pulse Autopilot - plan IA creative -->
 
 Derniere mise a jour: 2026-04-26
 

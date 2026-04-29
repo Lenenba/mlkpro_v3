@@ -36,6 +36,7 @@
       "add_task": "Ajouter tache",
       "set_status": "Definir statut",
       "edit": "Modifier",
+      "reschedule": "Reporter",
       "add_proof": "Ajouter preuve",
       "delete": "Supprimer",
       "delete_confirm": "Supprimer la tache \"{title}\" ?",
@@ -168,6 +169,7 @@
         "auto_completed": "Terminee automatiquement",
         "overdue": "Marquee en retard",
         "cancelled": "Annulee",
+        "rescheduled": "Reportee",
         "delay_reason_updated": "Motif du retard mis a jour",
         "client_notified": "Client notifie"
       }
@@ -209,6 +211,17 @@
       "reason": "Motif d annulation",
       "confirm": "Confirmer l annulation",
       "reason_required": "Le motif d annulation est requis."
+    },
+    "reschedule": {
+      "title": "Reporter la visite",
+      "new_date": "Nouvelle date",
+      "reason": "Motif du report",
+      "notify_customer": "Avertir le client",
+      "notify_hint": "Le client recevra une notification selon les canaux actives pour les mises a jour de taches.",
+      "confirm": "Reporter",
+      "date_required": "La nouvelle date est requise.",
+      "date_changed_required": "Choisissez une date differente pour reporter la visite.",
+      "reason_required": "Le motif du report est requis."
     },
     "reasons": {
       "client_available": "Client disponible",

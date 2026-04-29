@@ -54,6 +54,10 @@ const props = defineProps({
             campaigns: [],
         }),
     },
+    pettyCash: {
+        type: Object,
+        default: () => ({}),
+    },
     canUseAiIntake: {
         type: Boolean,
         default: false,
@@ -153,6 +157,9 @@ const filterPayload = () => {
         campaign_id: filterForm.campaign_id,
         expense_date_from: filterForm.expense_date_from,
         expense_date_to: filterForm.expense_date_to,
+        recap_period: props.filters?.recap_period,
+        recap_from: props.filters?.recap_from,
+        recap_to: props.filters?.recap_to,
         sort: filterForm.sort,
         direction: filterForm.direction,
         per_page: currentPerPage.value,
@@ -177,7 +184,7 @@ const autoFilter = () => {
     filterTimeout = setTimeout(() => {
         isLoading.value = true;
         router.get(route('expense.index'), filterPayload(), {
-            only: ['expenses', 'filters', 'stats', 'count'],
+            only: ['expenses', 'filters', 'stats', 'periodRecap', 'count'],
             preserveState: true,
             preserveScroll: true,
             replace: true,
@@ -765,6 +772,7 @@ const exportExpenses = () => {
                 :recurrence-frequencies="recurrenceFrequencies"
                 :team-members="teamMembers"
                 :link-options="linkOptions"
+                :petty-cash="pettyCash"
                 :tenant-currency-code="tenantCurrencyCode"
                 @submitted="editingExpense = null"
             />
@@ -777,6 +785,7 @@ const exportExpenses = () => {
         >
             <ExpenseAiScanForm
                 :id="'hs-expense-ai-scan'"
+                :petty-cash="pettyCash"
             />
         </Modal>
 
@@ -784,7 +793,7 @@ const exportExpenses = () => {
             id="hs-expense-workflow-action"
             :expense="workflowExpense"
             :action="workflowAction"
-            :reload-only="['expenses', 'filters', 'stats', 'count']"
+            :reload-only="['expenses', 'filters', 'stats', 'periodRecap', 'count']"
             @start="isLoading = true"
             @finished="isLoading = false"
             @closed="clearWorkflowSelection"

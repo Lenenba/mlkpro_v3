@@ -1,6 +1,11 @@
 {
   "expenses": {
     "title": "Expenses",
+    "tabs": {
+      "list": "List",
+      "recap": "Tracking",
+      "petty_cash": "Petty cash"
+    },
     "stats": {
       "total": "Total expenses",
       "draft": "Drafts",
@@ -11,6 +16,163 @@
       "top_categories": "Top categories",
       "top_suppliers": "Top suppliers",
       "no_breakdown": "No breakdown yet"
+    },
+    "recap": {
+      "eyebrow": "Tracking",
+      "title": "Expense recap",
+      "description": "Track spend by period, upcoming payments, and items that need action.",
+      "period": "Period",
+      "periods": {
+        "week": "This week",
+        "month": "This month",
+        "quarter": "This quarter",
+        "year": "This year",
+        "custom": "Custom"
+      },
+      "from": "From",
+      "to": "To",
+      "compared_to": "vs {period}",
+      "delta_new": "New",
+      "row_count": "{count} expense(s)",
+      "actions": {
+        "apply": "Apply",
+        "filter_list": "Filter list"
+      },
+      "kpis": {
+        "total_spent": "Period total",
+        "approved_total": "Approved",
+        "paid_total": "Paid",
+        "to_pay_total": "To pay",
+        "reimbursement_total": "To reimburse",
+        "pending_approval_count": "To approve"
+      },
+      "breakdowns": {
+        "categories": "By category",
+        "suppliers": "By supplier",
+        "payment_methods": "By payment",
+        "team_members": "By member",
+        "linked_contexts": "Linked to operations"
+      },
+      "linked_contexts": {
+        "customer": "Customers",
+        "work": "Work",
+        "sale": "Sales",
+        "invoice": "Invoices",
+        "campaign": "Campaigns"
+      },
+      "alerts_title": "Attention points",
+      "no_alerts": "No critical point for this period.",
+      "alerts": {
+        "missing_receipts": "Missing receipts",
+        "pending_approval": "Approval required",
+        "to_pay": "Payments to make",
+        "reimbursements": "Reimbursements",
+        "recurring": "Recurring expenses"
+      }
+    },
+    "petty_cash": {
+      "eyebrow": "Petty cash",
+      "title": "Expense cashbox",
+      "description": "Track small field spend, advances, reimbursements, and adjustments without mixing them into the main list.",
+      "modal_title": "Add cashbox movement",
+      "low_balance": "Low balance",
+      "receipt_ok": "Documented",
+      "receipt_missing": "Missing receipt",
+      "linked_expense": "Linked to {name}",
+      "empty": "No petty cash movement yet.",
+      "void_prompt": "Reason for voiding",
+      "reopen_prompt": "Reason for reopening",
+      "locked": "Closed period",
+      "actions": {
+        "add": "Add movement",
+        "settings": "Settings",
+        "close_period": "Close period",
+        "export": "Export CSV",
+        "filter": "Filter",
+        "clear": "Reset",
+        "post": "Post",
+        "void": "Void",
+        "close": "Close",
+        "reopen": "Reopen",
+        "cancel": "Close",
+        "save": "Save"
+      },
+      "kpis": {
+        "balance": "Current balance",
+        "inflows": "Period inflows",
+        "outflows": "Period outflows",
+        "drafts": "Drafts",
+        "missing_receipts": "Missing receipts",
+        "unlinked": "Unlinked"
+      },
+      "settings": {
+        "title": "Petty cash controls",
+        "low_balance_threshold": "Low balance threshold",
+        "receipt_required_above": "Receipt required above"
+      },
+      "reconciliation": {
+        "title": "Reconciliation",
+        "period": "{period}",
+        "expected": "Expected balance",
+        "counted": "Counted balance",
+        "difference": "Difference",
+        "justified": "Justified movements",
+        "missing_receipts": "{count} missing receipts",
+        "unlinked": "{count} not linked to an expense"
+      },
+      "closures": {
+        "title": "Closures",
+        "empty": "No cashbox closure yet.",
+        "modal_title": "Close petty cash period",
+        "period_start": "Period start",
+        "period_end": "Period end",
+        "counted_balance": "Counted balance",
+        "comment": "Comment"
+      },
+      "filters": {
+        "type": "Type",
+        "status": "Status",
+        "responsible": "Responsible",
+        "from": "From",
+        "to": "To"
+      },
+      "form": {
+        "type": "Movement type",
+        "status": "Status",
+        "amount": "Amount",
+        "date": "Date",
+        "responsible": "Responsible",
+        "team_member": "Team member",
+        "expense": "Linked expense",
+        "note": "Note",
+        "requires_receipt": "Receipt expected",
+        "receipt_attached": "Receipt already kept"
+      },
+      "table": {
+        "movement": "Movement",
+        "responsible": "Responsible",
+        "receipt": "Receipt",
+        "amount": "Amount",
+        "results": "movement(s)"
+      },
+      "types": {
+        "funding": "Funding",
+        "expense": "Expense",
+        "advance": "Advance",
+        "reimbursement": "Reimbursement",
+        "adjustment": "Adjustment"
+      },
+      "status": {
+        "draft": "Draft",
+        "posted": "Posted",
+        "voided": "Voided"
+      },
+      "closure_status": {
+        "open": "Open",
+        "in_review": "In review",
+        "closed": "Closed",
+        "reopened": "Reopened"
+      }
     },
     "filters": {
       "search_placeholder": "Search expenses, suppliers, or references",
@@ -124,6 +286,7 @@
     "labels": {
       "uncategorized": "Uncategorized",
       "no_supplier": "No supplier",
+      "no_team_member": "No team member",
       "not_set": "Not set",
       "none": "No additional information",
       "yes": "Yes",
@@ -201,6 +364,11 @@
       "mobile_hint": "On mobile, capture the invoice right away or attach a PDF from files.",
       "note_label": "Optional context",
       "note_hint": "Add a short note if you want to help extraction with supplier or purchase context.",
+      "petty_cash_create": "Create a petty cash movement",
+      "petty_cash_hint": "Use this when the scanned receipt was paid from the cashbox. Posted movements update the balance right away.",
+      "petty_cash_status": "Cashbox status",
+      "petty_cash_responsible": "Cashbox responsible",
+      "petty_cash_note": "Cashbox note",
       "review_notice": "AI-created drafts stay in draft or review mode. Detected fields must be checked before approval.",
       "review_title": "AI extraction review",
       "review_required": "Review required",

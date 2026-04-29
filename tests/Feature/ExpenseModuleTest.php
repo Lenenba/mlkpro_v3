@@ -6,6 +6,9 @@ use App\Models\Customer;
 use App\Models\Expense;
 use App\Models\ExpenseAttachment;
 use App\Models\Invoice;
+use App\Models\PettyCashAccount;
+use App\Models\PettyCashClosure;
+use App\Models\PettyCashMovement;
 use App\Models\Role;
 use App\Models\Sale;
 use App\Models\TeamMember;
@@ -222,6 +225,326 @@ test('owner can open expense index and receive expense data', function () {
         );
 });
 
+test('expense index exposes period recap for the selected month', function () {
+    $this->travelTo(Carbon::parse('2026-04-28 12:00:00'));
+
+    $owner = expenseOwner([
+        'team_members' => true,
+    ]);
+    $member = expenseTeamMember($owner);
+
+    seedExpense($owner, [
+        'title' => 'CRM renewal',
+        'category_key' => 'software',
+        'supplier_name' => 'Acme SaaS',
+        'subtotal' => 100,
+        'tax_amount' => 0,
+        'total' => 100,
+        'expense_date' => '2026-04-10',
+        'paid_date' => '2026-04-11',
+        'status' => Expense::STATUS_PAID,
+        'payment_method' => 'card',
+        'team_member_id' => $member->id,
+    ]);
+    seedExpense($owner, [
+        'title' => 'Fuel advance',
+        'category_key' => 'fuel',
+        'supplier_name' => 'Station Nord',
+        'subtotal' => 50,
+        'tax_amount' => 0,
+        'total' => 50,
+        'expense_date' => '2026-04-15',
+        'status' => Expense::STATUS_PENDING_APPROVAL,
+        'reimbursable' => true,
+        'reimbursement_status' => Expense::REIMBURSEMENT_STATUS_PENDING,
+        'payment_method' => 'cash',
+    ]);
+    seedExpense($owner, [
+        'title' => 'March fuel',
+        'category_key' => 'fuel',
+        'supplier_name' => 'Station Nord',
+        'subtotal' => 40,
+        'tax_amount' => 0,
+        'total' => 40,
+        'expense_date' => '2026-03-12',
+        'status' => Expense::STATUS_PAID,
+        'paid_date' => '2026-03-14',
+    ]);
+    seedExpense($owner, [
+        'title' => 'Cancelled charge',
+        'total' => 999,
+        'expense_date' => '2026-04-20',
+        'status' => Expense::STATUS_CANCELLED,
+    ]);
+
+    $this->actingAs($owner)
+        ->getJson(route('expense.index', ['recap_period' => 'month']))
+        ->assertOk()
+        ->assertJsonPath('periodRecap.period.key', 'month')
+        ->assertJsonPath('periodRecap.period.start', '2026-04-01')
+        ->assertJsonPath('periodRecap.period.end', '2026-04-30')
+        ->assertJsonPath('periodRecap.kpis.total_spent', 150)
+        ->assertJsonPath('periodRecap.kpis.previous_total_spent', 40)
+        ->assertJsonPath('periodRecap.kpis.paid_total', 100)
+        ->assertJsonPath('periodRecap.kpis.pending_approval_count', 1)
+        ->assertJsonPath('periodRecap.kpis.reimbursement_total', 50)
+        ->assertJsonPath('periodRecap.kpis.expense_count', 2)
+        ->assertJsonPath('periodRecap.breakdowns.categories.0.key', 'software')
+        ->assertJsonPath('periodRecap.breakdowns.payment_methods.0.key', 'card')
+        ->assertJsonPath('periodRecap.alerts.0.key', 'missing_receipts');
+
+    $this->travelBack();
+});
+
+test('expense index exposes a default petty cash account', function () {
+    $owner = expenseOwner();
+
+    $this->actingAs($owner)
+        ->getJson(route('expense.index'))
+        ->assertOk()
+        ->assertJsonPath('pettyCash.account.currency_code', 'CAD')
+        ->assertJsonPath('pettyCash.account.current_balance', 0)
+        ->assertJsonPath('pettyCash.canCreate', true)
+        ->assertJsonPath('pettyCash.canPost', true);
+
+    expect(PettyCashAccount::query()->where('user_id', $owner->id)->count())->toBe(1);
+});
+
+test('owner can manage petty cash movements without affecting balance for drafts', function () {
+    $this->travelTo(Carbon::parse('2026-04-28 12:00:00'));
+
+    $owner = expenseOwner([
+        'team_members' => true,
+    ]);
+    $member = expenseTeamMember($owner);
+    $expense = seedExpense($owner, [
+        'title' => 'Parking receipt',
+        'total' => 25,
+        'expense_date' => '2026-04-28',
+    ]);
+
+    $fundingId = $this->actingAs($owner)
+        ->postJson(route('expense.petty-cash.movements.store'), [
+            'type' => PettyCashMovement::TYPE_FUNDING,
+            'status' => PettyCashMovement::STATUS_POSTED,
+            'amount' => 200,
+            'movement_date' => '2026-04-28',
+            'responsible_user_id' => $owner->id,
+            'note' => 'Initial cash funding',
+        ])
+        ->assertCreated()
+        ->assertJsonPath('pettyCash.account.current_balance', 200)
+        ->json('movement.id');
+
+    expect($fundingId)->not->toBeNull();
+
+    $draftId = $this->actingAs($owner)
+        ->postJson(route('expense.petty-cash.movements.store'), [
+            'type' => PettyCashMovement::TYPE_EXPENSE,
+            'status' => PettyCashMovement::STATUS_DRAFT,
+            'amount' => 25,
+            'movement_date' => '2026-04-28',
+            'responsible_user_id' => $owner->id,
+            'team_member_id' => $member->id,
+            'expense_id' => $expense->id,
+            'requires_receipt' => true,
+            'receipt_attached' => false,
+            'note' => 'Parking paid from cashbox',
+        ])
+        ->assertCreated()
+        ->assertJsonPath('pettyCash.account.current_balance', 200)
+        ->assertJsonPath('movement.status', PettyCashMovement::STATUS_DRAFT)
+        ->json('movement.id');
+
+    $this->actingAs($owner)
+        ->patchJson(route('expense.petty-cash.movements.post', $draftId))
+        ->assertOk()
+        ->assertJsonPath('pettyCash.account.current_balance', 175)
+        ->assertJsonPath('movement.status', PettyCashMovement::STATUS_POSTED)
+        ->assertJsonPath('movement.balance_delta', -25);
+
+    $this->actingAs($owner)
+        ->patchJson(route('expense.petty-cash.movements.void', $draftId), [
+            'void_reason' => 'Receipt duplicated in main expense',
+        ])
+        ->assertOk()
+        ->assertJsonPath('pettyCash.account.current_balance', 200)
+        ->assertJsonPath('movement.status', PettyCashMovement::STATUS_VOIDED);
+
+    expect(PettyCashMovement::query()->where('user_id', $owner->id)->count())->toBe(2)
+        ->and(PettyCashMovement::query()->where('status', PettyCashMovement::STATUS_VOIDED)->count())->toBe(1);
+
+    $this->travelBack();
+});
+
+test('petty cash controls enforce receipt thresholds and adjustment permission', function () {
+    $owner = expenseOwner([
+        'team_members' => true,
+    ]);
+    $cashier = expenseTeamMember($owner, [
+        'permissions' => ['expenses.view', 'expenses.pay'],
+    ]);
+
+    $this->actingAs($owner)
+        ->patchJson(route('expense.petty-cash.account.update'), [
+            'responsible_user_id' => $owner->id,
+            'low_balance_threshold' => 150,
+            'receipt_required_above' => 50,
+        ])
+        ->assertOk()
+        ->assertJsonPath('pettyCash.account.low_balance_threshold', 150)
+        ->assertJsonPath('pettyCash.account.receipt_required_above', 50);
+
+    $this->actingAs($owner)
+        ->postJson(route('expense.petty-cash.movements.store'), [
+            'type' => PettyCashMovement::TYPE_EXPENSE,
+            'status' => PettyCashMovement::STATUS_POSTED,
+            'amount' => 75,
+            'movement_date' => '2026-04-28',
+            'responsible_user_id' => $owner->id,
+            'note' => 'Field fuel',
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('receipt');
+
+    $this->actingAs($owner)
+        ->postJson(route('expense.petty-cash.movements.store'), [
+            'type' => PettyCashMovement::TYPE_EXPENSE,
+            'status' => PettyCashMovement::STATUS_POSTED,
+            'amount' => 75,
+            'movement_date' => '2026-04-28',
+            'responsible_user_id' => $owner->id,
+            'receipt_attached' => true,
+            'note' => 'Field fuel',
+        ])
+        ->assertCreated()
+        ->assertJsonPath('movement.requires_receipt', true)
+        ->assertJsonPath('movement.accounting_event', 'petty_cash_expense_posted');
+
+    $this->actingAs($owner)
+        ->postJson(route('expense.petty-cash.movements.store'), [
+            'type' => PettyCashMovement::TYPE_ADJUSTMENT,
+            'status' => PettyCashMovement::STATUS_POSTED,
+            'amount' => -5,
+            'movement_date' => '2026-04-28',
+            'responsible_user_id' => $owner->id,
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('note');
+
+    $this->actingAs($cashier->user)
+        ->postJson(route('expense.petty-cash.movements.store'), [
+            'type' => PettyCashMovement::TYPE_ADJUSTMENT,
+            'status' => PettyCashMovement::STATUS_POSTED,
+            'amount' => -5,
+            'movement_date' => '2026-04-28',
+            'responsible_user_id' => $cashier->user_id,
+            'note' => 'Cash count correction',
+        ])
+        ->assertForbidden();
+});
+
+test('petty cash closures reconcile and lock closed periods until reopened', function () {
+    $this->travelTo(Carbon::parse('2026-04-28 12:00:00'));
+
+    $owner = expenseOwner();
+
+    $fundingId = $this->actingAs($owner)
+        ->postJson(route('expense.petty-cash.movements.store'), [
+            'type' => PettyCashMovement::TYPE_FUNDING,
+            'status' => PettyCashMovement::STATUS_POSTED,
+            'amount' => 200,
+            'movement_date' => '2026-04-01',
+            'responsible_user_id' => $owner->id,
+            'note' => 'Monthly funding',
+        ])
+        ->assertCreated()
+        ->json('movement.id');
+
+    $this->actingAs($owner)
+        ->postJson(route('expense.petty-cash.movements.store'), [
+            'type' => PettyCashMovement::TYPE_EXPENSE,
+            'status' => PettyCashMovement::STATUS_POSTED,
+            'amount' => 25,
+            'movement_date' => '2026-04-12',
+            'responsible_user_id' => $owner->id,
+            'note' => 'Parking',
+        ])
+        ->assertCreated();
+
+    $closureId = $this->actingAs($owner)
+        ->postJson(route('expense.petty-cash.closures.store'), [
+            'period_start' => '2026-04-01',
+            'period_end' => '2026-04-30',
+            'counted_balance' => 175,
+            'status' => PettyCashClosure::STATUS_CLOSED,
+            'comment' => 'Cash counted',
+        ])
+        ->assertCreated()
+        ->assertJsonPath('closure.expected_balance', 175)
+        ->assertJsonPath('closure.counted_balance', 175)
+        ->assertJsonPath('closure.difference', 0)
+        ->assertJsonPath('pettyCash.reconciliation.closure.status', PettyCashClosure::STATUS_CLOSED)
+        ->json('closure.id');
+
+    $this->actingAs($owner)
+        ->patchJson(route('expense.petty-cash.movements.void', $fundingId), [
+            'void_reason' => 'Trying to modify closed period',
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('movement_date');
+
+    $this->actingAs($owner)
+        ->patchJson(route('expense.petty-cash.closures.reopen', $closureId), [
+            'comment' => 'Correction needed',
+        ])
+        ->assertOk()
+        ->assertJsonPath('closure.status', PettyCashClosure::STATUS_REOPENED);
+
+    $this->actingAs($owner)
+        ->patchJson(route('expense.petty-cash.movements.void', $fundingId), [
+            'void_reason' => 'Funding duplicated',
+        ])
+        ->assertOk()
+        ->assertJsonPath('movement.status', PettyCashMovement::STATUS_VOIDED);
+
+    $this->travelBack();
+});
+
+test('petty cash export includes movement reconciliation context', function () {
+    $owner = expenseOwner();
+    $expense = seedExpense($owner, [
+        'title' => 'Taxi receipt',
+        'total' => 30,
+        'expense_date' => '2026-04-28',
+    ]);
+
+    $this->actingAs($owner)
+        ->postJson(route('expense.petty-cash.movements.store'), [
+            'type' => PettyCashMovement::TYPE_EXPENSE,
+            'status' => PettyCashMovement::STATUS_POSTED,
+            'amount' => 30,
+            'movement_date' => '2026-04-28',
+            'responsible_user_id' => $owner->id,
+            'expense_id' => $expense->id,
+            'receipt_attached' => true,
+            'note' => 'Taxi from job site',
+        ])
+        ->assertCreated();
+
+    $response = $this->actingAs($owner)
+        ->get(route('expense.petty-cash.export'));
+
+    $response->assertOk();
+    $content = $response->streamedContent();
+
+    expect($content)
+        ->toContain('linked_expense_id')
+        ->toContain('Taxi receipt')
+        ->toContain('Taxi from job site')
+        ->toContain('petty_cash_expense_posted');
+});
+
 test('owner can create an expense with an attachment', function () {
     Storage::fake('public');
 
@@ -259,6 +582,51 @@ test('owner can create an expense with an attachment', function () {
         ->and($attachment->original_name)->toBe('receipt.pdf');
 
     Storage::disk('public')->assertExists($attachment->path);
+});
+
+test('owner can create a manual expense with a linked petty cash movement', function () {
+    Storage::fake('public');
+
+    $owner = expenseOwner();
+
+    $this->actingAs($owner)
+        ->post(route('expense.store'), [
+            'title' => 'Field parking',
+            'category_key' => 'travel',
+            'supplier_name' => 'Downtown Parking',
+            'tax_amount' => 0,
+            'total' => 18.50,
+            'expense_date' => '2026-04-28',
+            'payment_method' => 'cash',
+            'status' => Expense::STATUS_PAID,
+            'attachments' => [
+                UploadedFile::fake()->image('parking-receipt.jpg'),
+            ],
+            'petty_cash_create' => true,
+            'petty_cash_status' => PettyCashMovement::STATUS_POSTED,
+            'petty_cash_responsible_user_id' => $owner->id,
+            'petty_cash_note' => 'Paid from the field cashbox',
+        ], [
+            'Accept' => 'application/json',
+        ])
+        ->assertCreated()
+        ->assertJsonPath('expense.title', 'Field parking')
+        ->assertJsonPath('pettyCashMovement.type', PettyCashMovement::TYPE_EXPENSE)
+        ->assertJsonPath('pettyCashMovement.status', PettyCashMovement::STATUS_POSTED)
+        ->assertJsonPath('pettyCashMovement.amount', 18.5)
+        ->assertJsonPath('pettyCashMovement.receipt_attached', true)
+        ->assertJsonPath('pettyCashMovement.accounting_event', 'petty_cash_expense_posted');
+
+    $expense = Expense::query()->latest('id')->first();
+    $movement = PettyCashMovement::query()->latest('id')->first();
+    $account = PettyCashAccount::query()->where('user_id', $owner->id)->first();
+
+    expect($expense)->not->toBeNull()
+        ->and($movement)->not->toBeNull()
+        ->and((int) $movement->expense_id)->toBe((int) $expense->id)
+        ->and($movement->receipt_attached)->toBeTrue()
+        ->and(data_get($movement->meta, 'source'))->toBe('expense_manual_create')
+        ->and($account?->current_balance)->toBe('-18.50');
 });
 
 test('owner can create a reimbursable recurring expense linked to a team member', function () {
@@ -387,6 +755,70 @@ test('owner can create an expense draft from ai invoice scan', function () {
         ->and($attachment)->not->toBeNull();
 
     Storage::disk('public')->assertExists($attachment->path);
+});
+
+test('ai expense scan can also create a linked petty cash movement', function () {
+    Storage::fake('public');
+
+    config()->set('services.openai.key', 'test-openai-key');
+    config()->set('services.openai.expense_scan_model', 'gpt-4.1-mini');
+
+    fakeExpenseScanOpenAi([
+        'document_type' => 'receipt',
+        'title' => 'Parking receipt',
+        'supplier_name' => 'Downtown Parking',
+        'reference_number' => 'PARK-204',
+        'expense_date' => '2026-04-28',
+        'due_date' => null,
+        'currency_code' => 'CAD',
+        'subtotal' => 20,
+        'tax_amount' => 3,
+        'total' => 23,
+        'suggested_category' => 'travel',
+        'description' => 'Parking near the job site',
+        'assumptions' => [],
+        'review_flags' => [],
+        'confidence' => [
+            'overall' => 94,
+            'supplier' => 95,
+            'amounts' => 94,
+            'dates' => 90,
+            'category' => 88,
+        ],
+    ]);
+
+    $owner = expenseOwner([
+        'assistant' => true,
+    ]);
+
+    $this->actingAs($owner)
+        ->post(route('expense.scan-ai'), [
+            'document' => UploadedFile::fake()->image('parking-receipt.jpg'),
+            'note' => 'Paid from the field cashbox.',
+            'petty_cash_create' => true,
+            'petty_cash_status' => PettyCashMovement::STATUS_POSTED,
+            'petty_cash_responsible_user_id' => $owner->id,
+            'petty_cash_note' => 'Parking paid from cashbox',
+        ], [
+            'Accept' => 'application/json',
+        ])
+        ->assertCreated()
+        ->assertJsonPath('expense.title', 'Parking receipt')
+        ->assertJsonPath('pettyCashMovement.type', PettyCashMovement::TYPE_EXPENSE)
+        ->assertJsonPath('pettyCashMovement.status', PettyCashMovement::STATUS_POSTED)
+        ->assertJsonPath('pettyCashMovement.amount', 23)
+        ->assertJsonPath('pettyCashMovement.receipt_attached', true)
+        ->assertJsonPath('pettyCashMovement.accounting_event', 'petty_cash_expense_posted');
+
+    $expense = Expense::query()->latest('id')->first();
+    $movement = PettyCashMovement::query()->latest('id')->first();
+    $account = PettyCashAccount::query()->where('user_id', $owner->id)->first();
+
+    expect($expense)->not->toBeNull()
+        ->and($movement)->not->toBeNull()
+        ->and((int) $movement->expense_id)->toBe((int) $expense->id)
+        ->and($movement->receipt_attached)->toBeTrue()
+        ->and($account?->current_balance)->toBe('-23.00');
 });
 
 test('ai expense scan falls back to review mode when openai is unavailable', function () {

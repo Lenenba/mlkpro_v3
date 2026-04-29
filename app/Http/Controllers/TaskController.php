@@ -444,6 +444,7 @@ class TaskController extends Controller
         $wasInProgress = $task->status === Task::STATUS_IN_PROGRESS;
         $wasDone = $task->status === Task::STATUS_DONE;
         $previousDelayStartedAt = $task->delay_started_at?->toDateTimeString();
+        $previousDueDate = $task->due_date?->toDateString();
         $isDone = $updates['status'] === Task::STATUS_DONE;
         $isCancelled = $updates['status'] === Task::STATUS_CANCELLED;
 
@@ -531,6 +532,12 @@ class TaskController extends Controller
         $cancellationReasonChanged = ($task->cancellation_reason ?? null) !== ($updates['cancellation_reason'] ?? null);
         $delayReasonChanged = ($task->delay_reason ?? null) !== ($updates['delay_reason'] ?? null);
         $delayStartedAtChanged = $previousDelayStartedAt !== ($updates['delay_started_at']?->toDateTimeString() ?? null);
+        $nextDueDate = array_key_exists('due_date', $updates)
+            ? ($updates['due_date'] ? Carbon::parse($updates['due_date'])->toDateString() : null)
+            : $previousDueDate;
+        $dueDateChanged = $previousDueDate !== $nextDueDate;
+        $rescheduleReason = $dueDateChanged && $delayReasonProvided ? $delayReason : null;
+        $shouldNotifyReschedule = $isManager && $dueDateChanged && (bool) ($validated['notify_customer'] ?? false);
 
         $task->update($updates);
 
@@ -547,10 +554,12 @@ class TaskController extends Controller
                 ->handleTaskCompleted($task, $user);
         }
 
-        if ($statusChanged || $completedAtChanged || $completionReasonChanged || $cancelledAtChanged || $cancellationReasonChanged || $delayReasonChanged || $delayStartedAtChanged) {
+        if ($statusChanged || $completedAtChanged || $completionReasonChanged || $cancelledAtChanged || $cancellationReasonChanged || $delayReasonChanged || $delayStartedAtChanged || $dueDateChanged) {
             $historyAction = 'manual';
             if ($task->isCancelled() && $previousStatus !== Task::STATUS_CANCELLED) {
                 $historyAction = 'cancelled';
+            } elseif ($dueDateChanged && $task->isOpen()) {
+                $historyAction = 'rescheduled';
             } elseif ($delayReasonChanged && ! $statusChanged && $task->isOpen()) {
                 $historyAction = 'delay_reason_updated';
             }
@@ -560,16 +569,23 @@ class TaskController extends Controller
                 'to_status' => $task->status,
                 'action' => $historyAction,
                 'reason_code' => $task->completion_reason,
-                'note' => $task->cancellation_reason ?: ($delayReasonChanged ? $task->delay_reason : null),
+                'note' => $task->cancellation_reason ?: ($dueDateChanged ? $rescheduleReason : ($delayReasonChanged ? $task->delay_reason : null)),
                 'metadata' => [
                     'delay_reason' => $task->delay_reason,
                     'cancellation_reason' => $task->cancellation_reason,
+                    'previous_due_date' => $dueDateChanged ? $previousDueDate : null,
+                    'new_due_date' => $dueDateChanged ? $nextDueDate : null,
+                    'reschedule_reason' => $dueDateChanged ? $rescheduleReason : null,
+                    'notify_customer' => $dueDateChanged ? $shouldNotifyReschedule : null,
                 ],
             ]);
         }
 
         if ($task->isCancelled() && $previousStatus !== Task::STATUS_CANCELLED) {
             app(TaskLifecycleNotificationService::class)->sendCancelled($task, $user);
+        } elseif ($dueDateChanged && $shouldNotifyReschedule && $task->isOpen()) {
+            app(TaskLifecycleNotificationService::class)->sendRescheduled($task, $user, $previousDueDate, $rescheduleReason);
+            $task->forceFill(['client_notified_at' => now()])->save();
         } elseif (! $previousDelayStartedAt && $task->delay_started_at) {
             app(TaskLifecycleNotificationService::class)->sendOverdue($task, $user);
         }

@@ -7,6 +7,7 @@ use App\Models\Campaign;
 use App\Models\Customer;
 use App\Models\Expense;
 use App\Models\Invoice;
+use App\Models\PettyCashMovement;
 use App\Models\Sale;
 use App\Models\TeamMember;
 use App\Models\Work;
@@ -63,6 +64,10 @@ class ExpenseWriteRequest extends FormRequest
             'notes' => 'nullable|string|max:5000',
             'attachments' => 'nullable|array|max:6',
             'attachments.*' => 'file|mimes:pdf,jpg,jpeg,png,webp|max:10000',
+            'petty_cash_create' => ['nullable', 'boolean'],
+            'petty_cash_status' => ['nullable', 'string', Rule::in([PettyCashMovement::STATUS_DRAFT, PettyCashMovement::STATUS_POSTED])],
+            'petty_cash_responsible_user_id' => ['nullable', 'integer'],
+            'petty_cash_note' => ['nullable', 'string', 'max:1000'],
         ];
     }
 

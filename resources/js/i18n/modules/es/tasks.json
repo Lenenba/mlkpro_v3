@@ -36,6 +36,7 @@
       "add_task": "Agregar tarea",
       "set_status": "Establecer estado",
       "edit": "Editar",
+      "reschedule": "Reprogramar",
       "add_proof": "Agregar prueba",
       "delete": "Eliminar",
       "delete_confirm": "¿Eliminar la tarea \"{title}\"?",
@@ -168,6 +169,7 @@
         "auto_completed": "Auto completado",
         "overdue": "Marcado vencido",
         "cancelled": "Cancelada",
+        "rescheduled": "Reprogramada",
         "delay_reason_updated": "Motivo del retraso actualizado",
         "client_notified": "Cliente notificado"
       }
@@ -209,6 +211,17 @@
       "reason": "Motivo de cancelación",
       "confirm": "Confirmar cancelación",
       "reason_required": "Se requiere un motivo de cancelación."
+    },
+    "reschedule": {
+      "title": "Reprogramar visita",
+      "new_date": "Nueva fecha",
+      "reason": "Motivo de reprogramacion",
+      "notify_customer": "Avisar al cliente",
+      "notify_hint": "El cliente recibira una notificacion por los canales activos de actualizacion de tareas.",
+      "confirm": "Reprogramar",
+      "date_required": "La nueva fecha es obligatoria.",
+      "date_changed_required": "Elija una fecha diferente para reprogramar la visita.",
+      "reason_required": "El motivo de reprogramacion es obligatorio."
     },
     "reasons": {
       "client_available": "Cliente disponible",
