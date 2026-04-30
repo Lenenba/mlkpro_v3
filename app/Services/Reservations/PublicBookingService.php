@@ -7,9 +7,11 @@ use App\Models\PublicBookingLink;
 use App\Models\Request as LeadRequest;
 use App\Models\Reservation;
 use App\Models\User;
+use App\Notifications\ActionEmailNotification;
 use App\Notifications\ReservationDatabaseNotification;
 use App\Services\CompanyFeatureService;
 use App\Services\ReservationAvailabilityService;
+use App\Services\ReservationNotificationPreferenceService;
 use App\Support\LocalePreference;
 use App\Support\NotificationDispatcher;
 use Illuminate\Support\Carbon;
@@ -20,7 +22,8 @@ class PublicBookingService
 {
     public function __construct(
         private readonly CompanyFeatureService $featureService,
-        private readonly ReservationAvailabilityService $availabilityService
+        private readonly ReservationAvailabilityService $availabilityService,
+        private readonly ReservationNotificationPreferenceService $notificationPreferences
     ) {}
 
     public function assertAvailable(User $account, PublicBookingLink $link): void
@@ -263,7 +266,16 @@ class PublicBookingService
 
     private function notifyTenant(User $account, PublicBookingLink $link, Reservation $reservation): void
     {
-        $reservation->loadMissing(['teamMember.user:id,name,email']);
+        $settings = $this->notificationPreferences->resolveFor($account);
+        if (empty($settings['enabled']) || empty($settings['notify_on_created'])) {
+            return;
+        }
+
+        $reservation->loadMissing([
+            'teamMember.user:id,name,email',
+            'service:id,name',
+            'prospect:id,contact_name,contact_email,contact_phone',
+        ]);
         $isFr = str_starts_with(LocalePreference::forUser($account), 'fr');
         $title = $isFr ? 'Nouvelle reservation publique' : 'New public booking';
         $message = ($isFr ? 'Nouvelle reservation publique recue depuis ' : 'New public booking received from ')
@@ -279,23 +291,79 @@ class PublicBookingService
         $recipients = collect([$account, $reservation->teamMember?->user])
             ->filter(fn ($user) => $user instanceof User)
             ->unique('id');
+        $details = [
+            ['label' => $isFr ? 'Source' : 'Source', 'value' => $link->name],
+            ['label' => $isFr ? 'Service' : 'Service', 'value' => $reservation->service?->name ?: '-'],
+            [
+                'label' => $isFr ? 'Client' : 'Client',
+                'value' => $reservation->prospect?->contact_name ?: ($isFr ? 'Invite public' : 'Public guest'),
+            ],
+            [
+                'label' => $isFr ? 'Quand' : 'When',
+                'value' => $reservation->starts_at
+                    ? $reservation->starts_at
+                        ->copy()
+                        ->setTimezone($account->company_timezone ?: config('app.timezone', 'UTC'))
+                        ->format('Y-m-d H:i')
+                    : '-',
+            ],
+            ['label' => $isFr ? 'Statut' : 'Status', 'value' => $reservation->status],
+        ];
 
         foreach ($recipients as $recipient) {
-            NotificationDispatcher::send($recipient, new ReservationDatabaseNotification([
-                'title' => $title,
-                'message' => $message,
-                'event' => 'public_booking_received',
-                'action_url' => $actionUrl,
-                'reservation_id' => $reservation->id,
-                'prospect_id' => $reservation->prospect_id,
-                'public_booking_link_id' => $link->id,
-                'status' => $reservation->status,
-                'starts_at' => $reservation->starts_at?->toIso8601String(),
-            ]), [
+            $context = [
                 'reservation_id' => $reservation->id,
                 'prospect_id' => $reservation->prospect_id,
                 'public_booking_link_id' => $link->id,
                 'event' => 'public_booking_received',
+            ];
+
+            if ((bool) ($settings['in_app'] ?? false)) {
+                NotificationDispatcher::send($recipient, new ReservationDatabaseNotification([
+                    'title' => $title,
+                    'message' => $message,
+                    'event' => 'public_booking_received',
+                    'action_url' => $actionUrl,
+                    'reservation_id' => $reservation->id,
+                    'prospect_id' => $reservation->prospect_id,
+                    'public_booking_link_id' => $link->id,
+                    'status' => $reservation->status,
+                    'starts_at' => $reservation->starts_at?->toIso8601String(),
+                ]), $context);
+            }
+
+            if ((bool) ($settings['email'] ?? false) && filled($recipient->email)) {
+                NotificationDispatcher::send($recipient, new ActionEmailNotification(
+                    $title,
+                    $message,
+                    $details,
+                    $actionUrl,
+                    $isFr ? 'Ouvrir les reservations' : 'Open reservations',
+                    $title
+                ), $context);
+            }
+        }
+
+        $guestEmail = trim((string) ($reservation->prospect?->contact_email ?? ''));
+        if ((bool) ($settings['email'] ?? false) && $guestEmail !== '') {
+            NotificationDispatcher::sendToMail($guestEmail, new ActionEmailNotification(
+                $link->requires_manual_confirmation
+                    ? ($isFr ? 'Demande de reservation recue' : 'Booking request received')
+                    : ($isFr ? 'Reservation confirmee' : 'Booking confirmed'),
+                $link->requires_manual_confirmation
+                    ? ($isFr ? 'Votre demande a ete transmise a l equipe. Elle vous recontactera pour confirmer le rendez-vous.' : 'Your request was sent to the team. They will follow up to confirm the appointment.')
+                    : ($isFr ? 'Votre reservation est confirmee.' : 'Your booking is confirmed.'),
+                $details,
+                $link->publicUrl($account),
+                $isFr ? 'Voir la page de reservation' : 'View booking page',
+                $link->requires_manual_confirmation
+                    ? ($isFr ? 'Demande de reservation recue' : 'Booking request received')
+                    : ($isFr ? 'Reservation confirmee' : 'Booking confirmed')
+            ), [
+                'reservation_id' => $reservation->id,
+                'prospect_id' => $reservation->prospect_id,
+                'public_booking_link_id' => $link->id,
+                'event' => 'public_booking_guest_confirmation',
             ]);
         }
     }

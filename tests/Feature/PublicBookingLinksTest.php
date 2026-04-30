@@ -10,8 +10,11 @@ use App\Models\Role;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\WeeklyAvailability;
+use App\Notifications\ActionEmailNotification;
+use App\Notifications\ReservationDatabaseNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 
 uses(RefreshDatabase::class);
@@ -28,9 +31,9 @@ function publicBookingRole(string $name, string $description): int
     )->id;
 }
 
-function publicBookingOwner(): User
+function publicBookingOwner(array $overrides = []): User
 {
-    return User::query()->create([
+    return User::query()->create(array_replace_recursive([
         'name' => 'Public Booking Owner',
         'email' => 'public.booking.owner@example.com',
         'password' => 'password',
@@ -43,7 +46,7 @@ function publicBookingOwner(): User
         'company_features' => [
             'reservations' => true,
         ],
-    ]);
+    ], $overrides));
 }
 
 function publicBookingTeamMember(User $owner): TeamMember
@@ -169,6 +172,104 @@ it('creates a prospect and reservation from a public booking link without creati
         'notifiable_type' => User::class,
         'notifiable_id' => $owner->id,
     ]);
+});
+
+it('notifies the owner and assigned staff when a public booking is created', function () {
+    Notification::fake();
+
+    $owner = publicBookingOwner();
+    $member = publicBookingTeamMember($owner);
+    $service = publicBookingService($owner);
+    $link = publicBookingLinkFor($owner, $service);
+    $startsAt = Carbon::now('UTC')->addDays(3)->setTime(10, 0);
+    publicBookingAvailability($owner, $member, $startsAt);
+
+    $slot = collect($this->getJson(route('public.booking.slots', [
+        'company' => $owner->company_slug,
+        'slug' => $link->slug,
+        'service_id' => $service->id,
+        'range_start' => $startsAt->copy()->startOfDay()->toIso8601String(),
+        'range_end' => $startsAt->copy()->endOfDay()->toIso8601String(),
+    ]))->json('slots'))->first();
+
+    $this->postJson(route('public.booking.store', [
+        'company' => $owner->company_slug,
+        'slug' => $link->slug,
+    ]), [
+        'service_id' => $service->id,
+        'team_member_id' => $slot['team_member_id'],
+        'starts_at' => $slot['starts_at'],
+        'ends_at' => $slot['ends_at'],
+        'first_name' => 'Amina',
+        'last_name' => 'Diallo',
+        'phone' => '+15145550123',
+        'email' => 'amina.notify@example.com',
+    ])->assertCreated();
+
+    $staffUser = $member->user()->firstOrFail();
+
+    foreach ([$owner, $staffUser] as $recipient) {
+        Notification::assertSentTo($recipient, ReservationDatabaseNotification::class, function (ReservationDatabaseNotification $notification) {
+            return ($notification->payload['event'] ?? null) === 'public_booking_received';
+        });
+
+        Notification::assertSentTo($recipient, ActionEmailNotification::class, function (ActionEmailNotification $notification) {
+            return str_contains(strtolower($notification->title), 'public booking');
+        });
+    }
+
+    Notification::assertSentOnDemand(
+        ActionEmailNotification::class,
+        function (ActionEmailNotification $notification, array $channels, object $notifiable) {
+            return in_array('mail', $channels, true)
+                && data_get($notifiable, 'routes.mail') === 'amina.notify@example.com'
+                && str_contains(strtolower($notification->title), 'booking request');
+        }
+    );
+});
+
+it('does not notify anyone for public bookings when reservation creation notifications are disabled', function () {
+    Notification::fake();
+
+    $owner = publicBookingOwner([
+        'company_notification_settings' => [
+            'reservations' => [
+                'enabled' => true,
+                'email' => true,
+                'in_app' => true,
+                'notify_on_created' => false,
+            ],
+        ],
+    ]);
+    $member = publicBookingTeamMember($owner);
+    $service = publicBookingService($owner);
+    $link = publicBookingLinkFor($owner, $service);
+    $startsAt = Carbon::now('UTC')->addDays(3)->setTime(10, 0);
+    publicBookingAvailability($owner, $member, $startsAt);
+
+    $slot = collect($this->getJson(route('public.booking.slots', [
+        'company' => $owner->company_slug,
+        'slug' => $link->slug,
+        'service_id' => $service->id,
+        'range_start' => $startsAt->copy()->startOfDay()->toIso8601String(),
+        'range_end' => $startsAt->copy()->endOfDay()->toIso8601String(),
+    ]))->json('slots'))->first();
+
+    $this->postJson(route('public.booking.store', [
+        'company' => $owner->company_slug,
+        'slug' => $link->slug,
+    ]), [
+        'service_id' => $service->id,
+        'team_member_id' => $slot['team_member_id'],
+        'starts_at' => $slot['starts_at'],
+        'ends_at' => $slot['ends_at'],
+        'first_name' => 'Amina',
+        'last_name' => 'Diallo',
+        'phone' => '+15145550123',
+        'email' => 'amina.silent@example.com',
+    ])->assertCreated();
+
+    Notification::assertNothingSent();
 });
 
 it('shows public booking prospect names in reservation calendar events', function () {
