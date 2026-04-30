@@ -35,7 +35,7 @@ return new class extends Migration
                 $table->timestamps();
 
                 $table->index(['user_id', 'status']);
-                $table->index(['petty_cash_account_id', 'period_start', 'period_end']);
+                $table->index(['petty_cash_account_id', 'period_start', 'period_end'], 'petty_cash_closures_account_period_idx');
                 $table->index(['petty_cash_account_id', 'status']);
             });
         }
