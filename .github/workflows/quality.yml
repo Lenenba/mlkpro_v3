@@ -148,7 +148,7 @@ jobs:
         run: composer qa:analyse
 
       - name: Run test suite on MySQL
-        run: php artisan test
+        run: php artisan test --stop-on-failure
 
       - name: Build frontend assets
         run: npm run qa:build
