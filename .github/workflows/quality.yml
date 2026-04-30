@@ -8,9 +8,14 @@ on:
       - develop
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   laravel-quality:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
 
     env:
       APP_ENV: testing
@@ -67,6 +72,7 @@ jobs:
 
   laravel-quality-mysql:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
 
     services:
       mysql:
@@ -149,6 +155,7 @@ jobs:
 
   browser-smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs:
       - laravel-quality
 
