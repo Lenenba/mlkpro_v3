@@ -305,7 +305,8 @@
       "rescheduled": "Rescheduled",
       "completed": "Completed",
       "cancelled": "Cancelled",
-      "no_show": "No show"
+      "no_show": "No show",
+      "expired": "Expired"
     },
     "legend": {
       "title": "Status legend",
@@ -315,7 +316,8 @@
       "rescheduled": "Time was changed. You can confirm or decline.",
       "completed": "Service finished. No further status action is required.",
       "cancelled": "Reservation was cancelled or declined.",
-      "no_show": "Client did not attend."
+      "no_show": "Client did not attend.",
+      "expired": "Reservation expired before being confirmed."
     },
     "errors": {
       "load_events": "Unable to load reservation events.",

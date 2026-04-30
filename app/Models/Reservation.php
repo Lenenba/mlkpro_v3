@@ -14,11 +14,18 @@ class Reservation extends Model
     use HasFactory;
 
     public const STATUS_PENDING = 'pending';
+
     public const STATUS_CONFIRMED = 'confirmed';
+
     public const STATUS_CANCELLED = 'cancelled';
+
     public const STATUS_RESCHEDULED = 'rescheduled';
+
     public const STATUS_COMPLETED = 'completed';
+
     public const STATUS_NO_SHOW = 'no_show';
+
+    public const STATUS_EXPIRED = 'expired';
 
     public const STATUSES = [
         self::STATUS_PENDING,
@@ -27,6 +34,7 @@ class Reservation extends Model
         self::STATUS_RESCHEDULED,
         self::STATUS_COMPLETED,
         self::STATUS_NO_SHOW,
+        self::STATUS_EXPIRED,
     ];
 
     public const ACTIVE_STATUSES = [
@@ -36,14 +44,20 @@ class Reservation extends Model
     ];
 
     public const SOURCE_STAFF = 'staff';
+
     public const SOURCE_CLIENT = 'client';
+
     public const SOURCE_API = 'api';
+
+    public const SOURCE_PUBLIC_BOOKING = 'public_booking';
 
     protected $fillable = [
         'account_id',
         'team_member_id',
         'client_id',
         'client_user_id',
+        'prospect_id',
+        'public_booking_link_id',
         'service_id',
         'status',
         'source',
@@ -89,6 +103,16 @@ class Reservation extends Model
     public function clientUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'client_user_id');
+    }
+
+    public function prospect(): BelongsTo
+    {
+        return $this->belongsTo(Request::class, 'prospect_id');
+    }
+
+    public function publicBookingLink(): BelongsTo
+    {
+        return $this->belongsTo(PublicBookingLink::class);
     }
 
     public function service(): BelongsTo

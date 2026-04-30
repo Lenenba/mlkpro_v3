@@ -15,6 +15,7 @@ use App\Services\BillingPlanService;
 use App\Services\BillingSubscriptionService;
 use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationNotificationPreferenceService;
+use App\Services\Reservations\PublicBookingLinkPresenter;
 use App\Support\ReservationPresetResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +25,8 @@ class ReservationSettingsController extends Controller
 {
     public function __construct(
         private readonly ReservationAvailabilityService $availabilityService,
-        private readonly ReservationNotificationPreferenceService $notificationPreferences
+        private readonly ReservationNotificationPreferenceService $notificationPreferences,
+        private readonly PublicBookingLinkPresenter $publicBookingLinks
     ) {}
 
     public function edit(Request $request)
@@ -147,6 +149,8 @@ class ReservationSettingsController extends Controller
             'exceptions' => $exceptions,
             'accountSettings' => $this->formatSettings($accountSettings, $resolvedAccountSettings),
             'notificationSettings' => $this->notificationPreferences->resolveFor($account),
+            'publicBookingLinks' => $this->publicBookingLinks->linksForAccount($account),
+            'publicBookingServices' => $this->publicBookingLinks->servicesForAccount($account),
             'teamSettings' => $teamSettings
                 ->map(fn (ReservationSetting $item) => [
                     ...$this->formatSettings($item),

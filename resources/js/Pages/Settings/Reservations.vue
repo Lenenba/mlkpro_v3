@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import axios from 'axios';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
@@ -42,6 +43,14 @@ const props = defineProps({
     notificationSettings: {
         type: Object,
         default: () => ({}),
+    },
+    publicBookingLinks: {
+        type: Array,
+        default: () => [],
+    },
+    publicBookingServices: {
+        type: Array,
+        default: () => [],
     },
 });
 const ownerOnlyMode = computed(() => Boolean(props.accountSettings?.owner_only_mode));
@@ -245,6 +254,25 @@ const resourceDraft = ref({
     is_active: true,
 });
 
+const publicLinks = ref([...(props.publicBookingLinks || [])]);
+const publicLinkSaving = ref(false);
+const publicLinkMessage = ref('');
+const publicLinkError = ref('');
+const publicLinkErrors = ref({});
+const publicLinkDraft = ref({
+    id: null,
+    name: '',
+    slug: '',
+    description: '',
+    is_active: true,
+    requires_manual_confirmation: true,
+    requires_deposit: false,
+    expires_at: '',
+    source: '',
+    campaign: '',
+    service_ids: [],
+});
+
 const summaryCards = computed(() => ([
     {
         key: 'timezone',
@@ -380,6 +408,144 @@ const addResource = () => {
 
 const removeResource = (index) => {
     form.resources.splice(index, 1);
+};
+
+const publicBookingServiceOptions = computed(() => (props.publicBookingServices || []).map((service) => ({
+    id: Number(service.id),
+    name: service.name,
+    price: service.price,
+})));
+
+const resetPublicLinkDraft = () => {
+    publicLinkDraft.value = {
+        id: null,
+        name: '',
+        slug: '',
+        description: '',
+        is_active: true,
+        requires_manual_confirmation: true,
+        requires_deposit: false,
+        expires_at: '',
+        source: '',
+        campaign: '',
+        service_ids: [],
+    };
+    publicLinkErrors.value = {};
+    publicLinkError.value = '';
+};
+
+const editPublicLink = (link) => {
+    publicLinkDraft.value = {
+        id: link.id,
+        name: link.name || '',
+        slug: link.slug || '',
+        description: link.description || '',
+        is_active: Boolean(link.is_active),
+        requires_manual_confirmation: Boolean(link.requires_manual_confirmation),
+        requires_deposit: Boolean(link.requires_deposit),
+        expires_at: link.expires_at || '',
+        source: link.source || '',
+        campaign: link.campaign || '',
+        service_ids: [...(link.service_ids || [])].map((id) => Number(id)),
+    };
+    publicLinkErrors.value = {};
+    publicLinkError.value = '';
+};
+
+const togglePublicLinkService = (serviceId) => {
+    const id = Number(serviceId);
+    const services = new Set((publicLinkDraft.value.service_ids || []).map((value) => Number(value)));
+    if (services.has(id)) {
+        services.delete(id);
+    } else {
+        services.add(id);
+    }
+
+    publicLinkDraft.value.service_ids = Array.from(services);
+};
+
+const publicLinkHasService = (serviceId) => (publicLinkDraft.value.service_ids || [])
+    .map((value) => Number(value))
+    .includes(Number(serviceId));
+const publicLinkFieldError = (field) => {
+    const value = publicLinkErrors.value?.[field];
+    if (Array.isArray(value)) {
+        return value[0] || '';
+    }
+
+    return value || '';
+};
+
+const savePublicLink = async () => {
+    publicLinkSaving.value = true;
+    publicLinkMessage.value = '';
+    publicLinkError.value = '';
+    publicLinkErrors.value = {};
+
+    const payload = {
+        ...publicLinkDraft.value,
+        service_ids: (publicLinkDraft.value.service_ids || []).map((id) => Number(id)),
+    };
+
+    try {
+        const response = publicLinkDraft.value.id
+            ? await axios.put(route('settings.reservations.public-links.update', publicLinkDraft.value.id), payload)
+            : await axios.post(route('settings.reservations.public-links.store'), payload);
+        const link = response?.data?.link;
+        if (link) {
+            const existingIndex = publicLinks.value.findIndex((item) => Number(item.id) === Number(link.id));
+            if (existingIndex >= 0) {
+                publicLinks.value.splice(existingIndex, 1, link);
+            } else {
+                publicLinks.value.unshift(link);
+            }
+        }
+        publicLinkMessage.value = response?.data?.message || 'Lien de reservation publique enregistre.';
+        resetPublicLinkDraft();
+    } catch (error) {
+        if (error?.response?.status === 422) {
+            publicLinkErrors.value = error.response.data?.errors || {};
+            const firstError = Object.values(publicLinkErrors.value).find((value) => Array.isArray(value) ? value.length : value);
+            publicLinkError.value = (Array.isArray(firstError) ? firstError[0] : firstError) || 'Verifiez les champs du lien public.';
+        } else {
+            publicLinkError.value = error?.response?.data?.message || 'Impossible d enregistrer le lien public.';
+        }
+    } finally {
+        publicLinkSaving.value = false;
+    }
+};
+
+const togglePublicLink = async (link) => {
+    publicLinkMessage.value = '';
+    publicLinkError.value = '';
+
+    try {
+        const response = await axios.patch(route('settings.reservations.public-links.toggle', link.id), {
+            is_active: !link.is_active,
+        });
+        const updated = response?.data?.link;
+        if (updated) {
+            publicLinks.value = publicLinks.value.map((item) => (
+                Number(item.id) === Number(updated.id) ? updated : item
+            ));
+        }
+        publicLinkMessage.value = response?.data?.message || 'Statut du lien mis a jour.';
+    } catch (error) {
+        publicLinkError.value = error?.response?.data?.message || 'Impossible de modifier le statut du lien.';
+    }
+};
+
+const copyPublicLink = async (link) => {
+    if (!link?.public_url) {
+        return;
+    }
+
+    try {
+        await navigator.clipboard.writeText(link.public_url);
+        publicLinkMessage.value = 'Lien copie.';
+    } catch (error) {
+        publicLinkError.value = 'Impossible de copier le lien automatiquement.';
+    }
 };
 
 const toggleReminderHour = (hour) => {
@@ -766,6 +932,129 @@ const submit = () => {
 
                         <div v-if="!form.resources.length" class="rounded-sm border border-dashed border-stone-300 bg-stone-50 px-3 py-3 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
                             {{ $t('settings.reservations.resources.empty') }}
+                        </div>
+                    </div>
+                </section>
+
+                <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Public Booking Links</h2>
+                            <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">Creez des liens partageables pour recevoir des demandes de reservation depuis WhatsApp, Google, campagnes ou reseaux sociaux.</p>
+                        </div>
+                        <button
+                            type="button"
+                            class="rounded-sm border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                            @click="resetPublicLinkDraft"
+                        >
+                            Nouveau lien
+                        </button>
+                    </div>
+
+                    <div class="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]">
+                        <div class="space-y-3">
+                            <div
+                                v-for="link in publicLinks"
+                                :key="`public-booking-link-${link.id}`"
+                                class="rounded-sm border border-stone-200 p-3 text-sm dark:border-neutral-700"
+                            >
+                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <div class="font-semibold text-stone-800 dark:text-neutral-100">{{ link.name }}</div>
+                                        <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ link.description || 'Aucune description' }}</div>
+                                        <div class="mt-2 break-all rounded-sm bg-stone-50 px-2 py-1 text-xs text-stone-600 dark:bg-neutral-800 dark:text-neutral-300">{{ link.public_url }}</div>
+                                    </div>
+                                    <span
+                                        class="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                                        :class="link.is_active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200' : 'bg-stone-100 text-stone-500 dark:bg-neutral-800 dark:text-neutral-400'"
+                                    >
+                                        {{ link.is_active ? 'Actif' : 'Inactif' }}
+                                    </span>
+                                </div>
+                                <div class="mt-3 flex flex-wrap gap-2 text-[11px] text-stone-500 dark:text-neutral-400">
+                                    <span class="rounded-sm bg-stone-100 px-2 py-1 dark:bg-neutral-800">{{ link.stats?.reservations || 0 }} reservations</span>
+                                    <span class="rounded-sm bg-stone-100 px-2 py-1 dark:bg-neutral-800">{{ link.stats?.prospects || 0 }} prospects</span>
+                                    <span class="rounded-sm bg-stone-100 px-2 py-1 dark:bg-neutral-800">{{ link.stats?.converted_prospects || 0 }} conversions</span>
+                                </div>
+                                <div class="mt-3 flex flex-wrap justify-end gap-2">
+                                    <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 text-xs dark:border-neutral-700" @click="copyPublicLink(link)">Copier</button>
+                                    <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 text-xs dark:border-neutral-700" @click="editPublicLink(link)">Modifier</button>
+                                    <button type="button" class="rounded-sm bg-stone-900 px-2 py-1 text-xs text-white dark:bg-white dark:text-neutral-900" @click="togglePublicLink(link)">
+                                        {{ link.is_active ? 'Desactiver' : 'Activer' }}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div v-if="!publicLinks.length" class="rounded-sm border border-dashed border-stone-300 bg-stone-50 px-3 py-4 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
+                                Aucun lien public cree pour le moment.
+                            </div>
+                        </div>
+
+                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                            <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ publicLinkDraft.id ? 'Modifier le lien' : 'Ajouter un lien public' }}</h3>
+                            <div class="mt-3 space-y-3">
+                                <FloatingInput v-model="publicLinkDraft.name" label="Nom du lien" />
+                                <InputError :message="publicLinkFieldError('name')" />
+                                <FloatingInput v-model="publicLinkDraft.slug" label="Slug optionnel" />
+                                <InputError :message="publicLinkFieldError('slug')" />
+                                <FloatingTextarea v-model="publicLinkDraft.description" label="Description" />
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <FloatingInput v-model="publicLinkDraft.source" label="Source" />
+                                    <FloatingInput v-model="publicLinkDraft.campaign" label="Campagne" />
+                                    <FloatingInput v-model="publicLinkDraft.expires_at" type="date" label="Expiration" />
+                                </div>
+                                <div class="grid gap-2 text-sm text-stone-700 dark:text-neutral-200">
+                                    <label class="inline-flex items-center gap-2">
+                                        <input v-model="publicLinkDraft.is_active" type="checkbox" class="rounded border-stone-300">
+                                        Lien actif
+                                    </label>
+                                    <label class="inline-flex items-center gap-2">
+                                        <input v-model="publicLinkDraft.requires_manual_confirmation" type="checkbox" class="rounded border-stone-300">
+                                        Confirmation manuelle requise
+                                    </label>
+                                    <label class="inline-flex items-center gap-2">
+                                        <input v-model="publicLinkDraft.requires_deposit" type="checkbox" class="rounded border-stone-300">
+                                        Acompte requis si configure
+                                    </label>
+                                </div>
+
+                                <div>
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">Services disponibles</p>
+                                    <div class="mt-2 max-h-48 space-y-2 overflow-auto rounded-sm border border-stone-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900">
+                                        <label
+                                            v-for="service in publicBookingServiceOptions"
+                                            :key="`public-link-service-${service.id}`"
+                                            class="flex items-center justify-between gap-3 rounded-sm px-2 py-1 text-sm hover:bg-stone-50 dark:hover:bg-neutral-800"
+                                        >
+                                            <span>{{ service.name }}</span>
+                                            <input
+                                                type="checkbox"
+                                                class="rounded border-stone-300"
+                                                :checked="publicLinkHasService(service.id)"
+                                                @change="togglePublicLinkService(service.id)"
+                                            >
+                                        </label>
+                                        <div v-if="!publicBookingServiceOptions.length" class="px-2 py-2 text-xs text-stone-500">
+                                            Ajoutez d abord des services actifs au catalogue.
+                                        </div>
+                                    </div>
+                                    <InputError class="mt-1" :message="publicLinkFieldError('service_ids')" />
+                                </div>
+
+                                <div v-if="publicLinkError" class="rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{{ publicLinkError }}</div>
+                                <div v-if="publicLinkMessage" class="rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{{ publicLinkMessage }}</div>
+                                <div class="flex justify-end gap-2">
+                                    <button type="button" class="rounded-sm border border-stone-200 px-3 py-2 text-xs dark:border-neutral-700" @click="resetPublicLinkDraft">Annuler</button>
+                                    <button
+                                        type="button"
+                                        class="rounded-sm bg-emerald-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                                        :disabled="publicLinkSaving"
+                                        @click="savePublicLink"
+                                    >
+                                        {{ publicLinkSaving ? 'Enregistrement...' : 'Enregistrer le lien' }}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </section>

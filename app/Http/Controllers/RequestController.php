@@ -939,6 +939,51 @@ class RequestController extends Controller
         return redirect()->back()->with('success', 'Prospect updated successfully.');
     }
 
+    public function assignToCurrentUser(Request $request, LeadRequest $lead)
+    {
+        $user = $request->user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+
+        $this->ensureProspectWorkspaceWriteAccess($user, $accountId, $request);
+
+        if ($lead->user_id !== $accountId) {
+            abort(403);
+        }
+
+        $this->ensureLeadIsMutable($lead);
+
+        $assignee = $this->resolveCurrentUserTeamMember($user, $accountId);
+        $previousAssigneeId = $lead->assigned_team_member_id;
+
+        if ((int) $previousAssigneeId !== (int) $assignee->id) {
+            $lead->update([
+                'assigned_team_member_id' => $assignee->id,
+                'last_activity_at' => now(),
+            ]);
+
+            $this->recordLeadAssignmentAudit($user, $lead, $previousAssigneeId, $lead->assigned_team_member_id, [
+                'source' => 'self_assign',
+            ]);
+
+            app(ProspectNotificationService::class)->notifyAssigned($lead, $user, $previousAssigneeId);
+
+            ActivityLog::record($user, $lead, 'updated', [
+                'assigned_team_member_id' => $lead->assigned_team_member_id,
+                'previous_assigned_team_member_id' => $previousAssigneeId,
+                'source' => 'self_assign',
+            ], 'Prospect assigned to current user');
+        }
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Prospect assigned to you.',
+                'request' => $lead->fresh(['assignee.user', 'customer', 'quote']),
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Prospect assigned to you.');
+    }
+
     public function bulkUpdate(BulkUpdateLeadRequest $request)
     {
         $user = $request->user();
@@ -1069,6 +1114,44 @@ class RequestController extends Controller
         }
 
         return redirect()->back()->with('success', 'Prospects updated.');
+    }
+
+    private function resolveCurrentUserTeamMember(User $user, int $accountId): TeamMember
+    {
+        $member = TeamMember::query()
+            ->where('account_id', $accountId)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if ($member) {
+            if (! $member->is_active) {
+                $member->forceFill(['is_active' => true])->save();
+            }
+
+            return $member->loadMissing('user:id,name');
+        }
+
+        return TeamMember::query()
+            ->create([
+                'account_id' => $accountId,
+                'user_id' => $user->id,
+                'role' => (int) $user->id === $accountId ? 'admin' : 'member',
+                'permissions' => [
+                    Prospect::PERMISSION_VIEW,
+                    Prospect::PERMISSION_CREATE,
+                    Prospect::PERMISSION_EDIT,
+                    Prospect::PERMISSION_ASSIGN,
+                    Prospect::PERMISSION_CONVERT,
+                    Prospect::PERMISSION_MERGE,
+                    Prospect::PERMISSION_EXPORT,
+                    'tasks.view',
+                    'tasks.create',
+                    'tasks.edit',
+                    'sales.manage',
+                ],
+                'is_active' => true,
+            ])
+            ->loadMissing('user:id,name');
     }
 
     public function merge(MergeLeadRequest $request, LeadRequest $lead, ProspectMergeService $mergeProspects)

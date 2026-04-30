@@ -7,6 +7,7 @@ use App\Http\Requests\Reservation\SlotRequest;
 use App\Http\Requests\Reservation\StoreReservationRequest;
 use App\Http\Requests\Reservation\UpdateReservationRequest;
 use App\Models\Payment;
+use App\Models\Request as LeadRequest;
 use App\Models\Reservation;
 use App\Models\ReservationQueueItem;
 use App\Models\ReservationResource;
@@ -308,6 +309,7 @@ class StaffReservationController extends Controller
         }
 
         $reservation->update($payload);
+        $this->syncPublicBookingProspectStatus($reservation, (string) $validated['status']);
         $reservation->load(['teamMember.user:id,name', 'client:id,first_name,last_name,company_name', 'service:id,name,price']);
         $this->notificationService->handleStatusChanged($reservation, $user, $previousStatus);
 
@@ -315,6 +317,36 @@ class StaffReservationController extends Controller
             'message' => 'Reservation status updated.',
             'reservation' => $reservation,
         ]);
+    }
+
+    private function syncPublicBookingProspectStatus(Reservation $reservation, string $reservationStatus): void
+    {
+        if (! $reservation->prospect_id || ! $reservation->public_booking_link_id) {
+            return;
+        }
+
+        $prospect = $reservation->prospect()->first();
+        if (! $prospect) {
+            return;
+        }
+
+        $publicStatus = match ($reservationStatus) {
+            Reservation::STATUS_CONFIRMED, Reservation::STATUS_RESCHEDULED => LeadRequest::PUBLIC_STATUS_BOOKING_CONFIRMED,
+            Reservation::STATUS_COMPLETED => LeadRequest::PUBLIC_STATUS_VISITED,
+            Reservation::STATUS_CANCELLED => LeadRequest::PUBLIC_STATUS_CANCELLED,
+            Reservation::STATUS_NO_SHOW => LeadRequest::PUBLIC_STATUS_NO_SHOW,
+            Reservation::STATUS_EXPIRED => LeadRequest::PUBLIC_STATUS_LOST,
+            default => LeadRequest::PUBLIC_STATUS_BOOKING_REQUESTED,
+        };
+
+        $prospect->forceFill([
+            'last_activity_at' => now(),
+            'meta' => $prospect->mergePublicBookingMeta([
+                'status' => $publicStatus,
+                'reservation_status' => $reservationStatus,
+                'status_updated_at' => now('UTC')->toIso8601String(),
+            ]),
+        ])->save();
     }
 
     public function destroy(Request $request, Reservation $reservation)

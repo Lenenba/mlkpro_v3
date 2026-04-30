@@ -240,12 +240,32 @@ const lostComment = computed(() => props.lead?.meta?.loss?.comment || '');
 const canConvertToCustomer = computed(() =>
     Boolean(props.customerConversion?.can_convert) && !isArchived.value && !isAnonymized.value && !props.lead?.customer
 );
+const assigningLeadToMe = ref(false);
+const canAssignLeadToMe = computed(() =>
+    Boolean(props.lead?.id) && !props.lead?.assigned_team_member_id && !isArchived.value && !isAnonymized.value
+);
 
 const normalizePhone = (value) => String(value || '').replace(/\D/g, '');
 const whatsAppLink = computed(() => {
     const digits = normalizePhone(contactPhone.value);
     return digits ? `https://wa.me/${digits}` : null;
 });
+
+const assignLeadToMe = () => {
+    if (!canAssignLeadToMe.value || assigningLeadToMe.value) {
+        return;
+    }
+
+    assigningLeadToMe.value = true;
+
+    router.patch(route('prospects.assign-self', props.lead.id), {}, {
+        preserveScroll: true,
+        only: ['lead', 'activity', 'assignees', 'flash'],
+        onFinish: () => {
+            assigningLeadToMe.value = false;
+        },
+    });
+};
 
 const archiveLead = () => {
     if (isArchived.value) {
@@ -950,6 +970,16 @@ const openCustomerConversion = () => {
                     <div class="mt-2 text-sm font-medium text-stone-800 dark:text-neutral-100">
                         {{ lead.assignee?.user?.name || lead.assignee?.name || $t('requests.labels.unassigned') }}
                     </div>
+                    <button
+                        v-if="canAssignLeadToMe"
+                        type="button"
+                        class="mt-3 inline-flex items-center rounded-sm border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/20"
+                        :disabled="assigningLeadToMe"
+                        data-testid="request-show-assign-to-me"
+                        @click="assignLeadToMe"
+                    >
+                        {{ $t('requests.actions.assign_to_me') }}
+                    </button>
                 </section>
 
                 <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">

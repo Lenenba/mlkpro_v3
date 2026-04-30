@@ -180,6 +180,7 @@ return [
         'public_lead_lookup_per_minute' => env('PUBLIC_LEAD_LOOKUP_RATE_LIMIT_PER_MINUTE', 20),
         'public_lead_submit_per_minute' => env('PUBLIC_LEAD_SUBMIT_RATE_LIMIT_PER_MINUTE', 6),
         'public_kiosk_per_minute' => env('PUBLIC_KIOSK_RATE_LIMIT_PER_MINUTE', 40),
+        'public_booking_per_minute' => env('PUBLIC_BOOKING_RATE_LIMIT_PER_MINUTE', 20),
         'ai_images_per_minute' => env('AI_IMAGES_RATE_LIMIT_PER_MINUTE', 6),
         'register_per_minute' => env('REGISTER_RATE_LIMIT_PER_MINUTE', 10),
     ],

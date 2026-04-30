@@ -152,6 +152,11 @@ const showDetails = ref(false);
 const activeReservation = ref(null);
 const showAdvanced = ref(false);
 const lastFocusedReservationId = ref(null);
+const conversionLoading = ref(false);
+const conversionSubmitting = ref(false);
+const conversionPayload = ref(null);
+const conversionError = ref('');
+const conversionSuccess = ref('');
 
 watch(
     () => [hasQueueTab.value, hasWaitlistTab.value],
@@ -190,6 +195,15 @@ const reservationForm = useForm({
     internal_notes: '',
     client_notes: '',
     timezone: props.timezone || 'UTC',
+});
+
+const conversionForm = useForm({
+    mode: 'create_new',
+    customer_id: '',
+    contact_name: '',
+    contact_email: '',
+    contact_phone: '',
+    company_name: '',
 });
 
 const reservationMap = computed(() => {
@@ -277,6 +291,8 @@ const formatDateTime = (value) => (value ? dayjs(value).locale(dayjsLocale.value
 const reservationClientName = (reservation) => (
     reservation?.client?.company_name
     || `${reservation?.client?.first_name || ''} ${reservation?.client?.last_name || ''}`.trim()
+    || reservation?.prospect?.contact_name
+    || reservation?.metadata?.public_booking?.contact_name
     || '-'
 );
 const reservationMemberName = (reservation) => (
@@ -288,6 +304,22 @@ const formatMoney = (value) => Number(value || 0).toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
 });
+const firstValidationMessage = (errors) => {
+    if (!errors || typeof errors !== 'object') {
+        return '';
+    }
+
+    for (const value of Object.values(errors)) {
+        if (Array.isArray(value) && value[0]) {
+            return value[0];
+        }
+        if (typeof value === 'string' && value) {
+            return value;
+        }
+    }
+
+    return '';
+};
 const toLocalInput = (value) => (value ? dayjs(value).format('YYYY-MM-DDTHH:mm') : '');
 const isPast = (value) => (value ? dayjs(value).isBefore(dayjs()) : false);
 const activePaymentPolicy = computed(() => activeReservation.value?.metadata?.payment_policy || {});
@@ -296,6 +328,18 @@ const hasPaymentPolicy = computed(() => (
     Boolean(activePaymentPolicy.value?.deposit_required)
     || Boolean(activePaymentPolicy.value?.no_show_fee_enabled)
 ));
+const isPublicBookingProspect = computed(() => Boolean(activeReservation.value?.prospect_id && !activeReservation.value?.client_id));
+const publicBookingContact = computed(() => {
+    const prospect = activeReservation.value?.prospect || {};
+    const meta = activeReservation.value?.metadata?.public_booking || {};
+
+    return {
+        name: prospect.contact_name || meta.contact_name || '',
+        email: prospect.contact_email || meta.contact_email || '',
+        phone: prospect.contact_phone || meta.contact_phone || '',
+        link: activeReservation.value?.public_booking_link?.name || activeReservation.value?.publicBookingLink?.name || meta.link_name || '',
+    };
+});
 
 const canConfirmStatus = (status) => ['pending', 'rescheduled'].includes(String(status || ''));
 const isConfirmedStatus = (status) => String(status || '') === 'confirmed';
@@ -517,8 +561,88 @@ const submitReservation = () => {
 
 const openDetails = (reservation) => {
     detailsActionError.value = '';
+    conversionError.value = '';
+    conversionSuccess.value = '';
+    conversionPayload.value = null;
     activeReservation.value = reservation;
     showDetails.value = true;
+    if (reservation?.prospect_id && !reservation?.client_id) {
+        loadPublicBookingConversion();
+    }
+};
+
+const hydrateConversionForm = () => {
+    const contact = publicBookingContact.value;
+    conversionForm.clearErrors();
+    conversionForm.mode = conversionPayload.value?.default_mode || ((conversionPayload.value?.matches || []).length ? 'link_existing' : 'create_new');
+    conversionForm.customer_id = conversionPayload.value?.matches?.[0]?.id ? String(conversionPayload.value.matches[0].id) : '';
+    conversionForm.contact_name = contact.name;
+    conversionForm.contact_email = contact.email;
+    conversionForm.contact_phone = contact.phone;
+    conversionForm.company_name = contact.name;
+};
+
+const loadPublicBookingConversion = async () => {
+    if (!activeReservation.value?.id) {
+        return;
+    }
+
+    conversionLoading.value = true;
+    conversionError.value = '';
+
+    try {
+        const response = await axios.get(route('reservation.public-booking-conversion.show', activeReservation.value.id));
+        conversionPayload.value = {
+            ...response?.data,
+            default_mode: (response?.data?.matches || []).length ? 'link_existing' : 'create_new',
+        };
+        hydrateConversionForm();
+    } catch (error) {
+        conversionError.value = error?.response?.data?.message || 'Impossible de charger les options de conversion.';
+    } finally {
+        conversionLoading.value = false;
+    }
+};
+
+const convertPublicBooking = async (mode, customerId = null) => {
+    if (!activeReservation.value?.id) {
+        return;
+    }
+
+    conversionSubmitting.value = true;
+    conversionError.value = '';
+    conversionSuccess.value = '';
+    conversionForm.clearErrors();
+
+    const payload = {
+        mode,
+        customer_id: customerId || conversionForm.customer_id || null,
+        contact_name: conversionForm.contact_name || publicBookingContact.value.name || null,
+        contact_email: conversionForm.contact_email || publicBookingContact.value.email || null,
+        contact_phone: conversionForm.contact_phone || publicBookingContact.value.phone || null,
+        company_name: conversionForm.company_name || null,
+    };
+
+    try {
+        const response = await axios.post(route('reservation.public-booking-conversion.store', activeReservation.value.id), payload);
+        activeReservation.value = response?.data?.reservation || activeReservation.value;
+        conversionSuccess.value = response?.data?.message || 'Prospect converti en client.';
+        conversionPayload.value = {
+            ...(conversionPayload.value || {}),
+            already_converted: true,
+            matches: response?.data?.matches || conversionPayload.value?.matches || [],
+        };
+        refreshList();
+    } catch (error) {
+        if (error?.response?.status === 422) {
+            conversionForm.setError(error.response.data?.errors || {});
+            conversionError.value = firstValidationMessage(error.response.data?.errors || {}) || 'Impossible de convertir ce prospect.';
+        } else {
+            conversionError.value = error?.response?.data?.message || 'Impossible de convertir ce prospect.';
+        }
+    } finally {
+        conversionSubmitting.value = false;
+    }
 };
 
 watch(
@@ -1527,6 +1651,68 @@ const removeReservation = (reservation) => {
                     </div>
                     <div>{{ $t('reservations.client.book.fields.client_notes') }}: {{ activeReservation.client_notes || '-' }}</div>
                     <div>{{ $t('reservations.form.internal_notes') }}: {{ activeReservation.internal_notes || '-' }}</div>
+                    <div v-if="activeReservation.prospect_id" class="rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100">
+                        <div class="font-semibold">Reservation publique</div>
+                        <div class="mt-1">{{ publicBookingContact.name || '-' }} · {{ publicBookingContact.email || '-' }} · {{ publicBookingContact.phone || '-' }}</div>
+                        <div v-if="publicBookingContact.link" class="mt-1 text-emerald-700 dark:text-emerald-200">{{ publicBookingContact.link }}</div>
+                    </div>
+                    <div v-if="isPublicBookingProspect" class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 text-xs dark:border-neutral-700 dark:bg-neutral-800">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <div class="font-semibold text-stone-800 dark:text-neutral-100">Conversion client</div>
+                                <div class="mt-1 text-stone-500 dark:text-neutral-400">Verifiez les doublons avant de creer un nouveau client.</div>
+                            </div>
+                            <button
+                                type="button"
+                                class="rounded-sm border border-stone-200 px-2 py-1 text-[11px] dark:border-neutral-700"
+                                :disabled="conversionLoading"
+                                @click="loadPublicBookingConversion"
+                            >
+                                {{ conversionLoading ? 'Chargement...' : 'Verifier' }}
+                            </button>
+                        </div>
+
+                        <div v-if="conversionPayload?.matches?.length" class="mt-3 space-y-2">
+                            <div
+                                v-for="match in conversionPayload.matches"
+                                :key="`customer-match-${match.id}`"
+                                class="flex items-center justify-between gap-3 rounded-sm border border-white bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+                            >
+                                <div>
+                                    <div class="font-medium text-stone-800 dark:text-neutral-100">{{ match.display_name || `#${match.id}` }}</div>
+                                    <div class="text-stone-500 dark:text-neutral-400">{{ match.email || '-' }} · {{ match.phone || '-' }}</div>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="rounded-sm bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-white disabled:opacity-50"
+                                    :disabled="conversionSubmitting"
+                                    @click="convertPublicBooking('link_existing', match.id)"
+                                >
+                                    Lier
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 grid gap-2 md:grid-cols-2">
+                            <FloatingInput v-model="conversionForm.contact_name" label="Nom du client" />
+                            <FloatingInput v-model="conversionForm.contact_email" type="email" label="Email" />
+                            <FloatingInput v-model="conversionForm.contact_phone" label="Telephone" />
+                            <FloatingInput v-model="conversionForm.company_name" label="Entreprise (optionnel)" />
+                        </div>
+                        <InputError class="mt-2" :message="conversionForm.errors.customer_id || conversionForm.errors.contact_email || conversionForm.errors.contact_phone || conversionForm.errors.contact_name" />
+                        <div v-if="conversionError" class="mt-2 rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-rose-700">{{ conversionError }}</div>
+                        <div v-if="conversionSuccess" class="mt-2 rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-700">{{ conversionSuccess }}</div>
+                        <div class="mt-3 flex justify-end">
+                            <button
+                                type="button"
+                                class="rounded-sm bg-stone-900 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
+                                :disabled="conversionSubmitting"
+                                @click="convertPublicBooking('create_new')"
+                            >
+                                {{ conversionSubmitting ? 'Conversion...' : 'Creer le client' }}
+                            </button>
+                        </div>
+                    </div>
                     <div v-if="hasPaymentPolicy" class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs dark:border-neutral-700 dark:bg-neutral-800">
                         <div class="font-semibold text-stone-700 dark:text-neutral-200">{{ $t('reservations.payment_policy.title') }}</div>
                         <div class="mt-1 text-stone-600 dark:text-neutral-300">

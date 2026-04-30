@@ -118,6 +118,17 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(max(1, $limit))->by($key);
         });
 
+        RateLimiter::for('public-booking', function (Request $request) {
+            $limit = (int) config('services.rate_limits.public_booking_per_minute', 20);
+            $company = (string) ($request->route('company') ?? 'unknown');
+            $slug = (string) ($request->route('slug') ?? 'unknown');
+            $email = strtolower(trim((string) $request->input('email')));
+            $fingerprint = $email !== '' ? sha1($email) : $request->ip();
+            $key = 'public-booking:'.$company.':'.$slug.':'.$fingerprint;
+
+            return Limit::perMinute(max(1, $limit))->by($key);
+        });
+
         RateLimiter::for('ai-images', function (Request $request) {
             $limit = (int) config('services.rate_limits.ai_images_per_minute', 6);
             $user = $request->user();

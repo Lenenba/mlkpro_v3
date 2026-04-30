@@ -305,7 +305,8 @@
       "rescheduled": "Replanifiee",
       "completed": "Terminee",
       "cancelled": "Annulee",
-      "no_show": "Absence client"
+      "no_show": "Absence client",
+      "expired": "Expiree"
     },
     "legend": {
       "title": "Legende des statuts",
@@ -315,7 +316,8 @@
       "rescheduled": "Le creneau a ete modifie. Vous pouvez confirmer ou refuser.",
       "completed": "Service termine. Aucune action de statut supplementaire.",
       "cancelled": "Reservation annulee ou refusee.",
-      "no_show": "Le client ne s'est pas presente."
+      "no_show": "Le client ne s'est pas presente.",
+      "expired": "La reservation a expire avant confirmation."
     },
     "errors": {
       "load_events": "Impossible de charger les reservations.",

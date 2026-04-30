@@ -438,6 +438,8 @@ class ReservationAvailabilityService
                 'team_member_id' => $teamMemberId,
                 'client_id' => $payload['client_id'] ?? null,
                 'client_user_id' => $payload['client_user_id'] ?? null,
+                'prospect_id' => $payload['prospect_id'] ?? null,
+                'public_booking_link_id' => $payload['public_booking_link_id'] ?? null,
                 'service_id' => $payload['service_id'] ?? null,
                 'created_by_user_id' => $actor->id,
                 'status' => $payload['status'] ?? Reservation::STATUS_PENDING,
