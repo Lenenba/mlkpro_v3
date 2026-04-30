@@ -417,11 +417,85 @@
         "pickup_notes_optional": "Pickup notes (optional)"
       },
       "notifications": {
-        "title": "Task-day notifications",
-        "description": "Choose how clients are notified on the day of the task.",
+        "title": "Company alerts",
+        "description": "Choose the preferred method and allowed channels for each alert type.",
         "email": "Email",
         "sms": "SMS",
         "whatsapp": "WhatsApp",
+        "preferred_title": "Preferred method",
+        "preferred_description": "This preference is used as the default channel when a new alert is added.",
+        "matrix_title": "Available alerts",
+        "matrix_description": "Enable Email, SMS, or WhatsApp depending on the alert type the company wants to send.",
+        "alert_column": "Alert",
+        "delivery_hint": "SMS and WhatsApp are used only when the provider is configured and a phone number is available.",
+        "channels": {
+          "email": "Email",
+          "sms": "SMS",
+          "whatsapp": "WhatsApp"
+        },
+        "channel_descriptions": {
+          "email": "Best for complete details and links.",
+          "sms": "Short and direct for urgent reminders.",
+          "whatsapp": "Useful for clients who respond through messaging."
+        },
+        "alerts": {
+          "task_day": {
+            "label": "Today visits",
+            "description": "Reminder sent to the client on the day of the task or service visit."
+          },
+          "task_updates": {
+            "label": "Rescheduled or cancelled tasks",
+            "description": "Notifies the client when a task is rescheduled, cancelled, or overdue."
+          },
+          "reservations": {
+            "label": "Reservations",
+            "description": "Creation, reminders, rescheduling, cancellations, and reservation reviews."
+          },
+          "orders": {
+            "label": "Orders",
+            "description": "New orders, status changes, and client actions."
+          },
+          "sales": {
+            "label": "Sales",
+            "description": "New sales, commercial follow-ups, and important results."
+          },
+          "stock": {
+            "label": "Stock",
+            "description": "Low stock alerts and important inventory movements."
+          },
+          "planning": {
+            "label": "Planning",
+            "description": "Agenda reminders, shift changes, and attendance alerts."
+          },
+          "billing": {
+            "label": "Invoices and payments",
+            "description": "Invoices, payments, approvals, and billing reminders."
+          },
+          "expenses": {
+            "label": "Expenses",
+            "description": "Expenses to approve, rejections, reimbursements, and petty cash."
+          },
+          "crm": {
+            "label": "CRM and prospects",
+            "description": "Unassigned leads, prospects to follow up, and client actions."
+          },
+          "support": {
+            "label": "Support",
+            "description": "Client requests, inbound messages, and service follow-ups."
+          },
+          "security": {
+            "label": "Security",
+            "description": "Login, verification, and sensitive account alerts."
+          },
+          "emails_mirror": {
+            "label": "Email copies",
+            "description": "Internal copies of important emails sent by the platform."
+          },
+          "system": {
+            "label": "System",
+            "description": "General information, usage limits, and useful technical alerts."
+          }
+        },
         "two_factor_sms": "Allow SMS 2FA",
         "two_factor_sms_hint": "If enabled, the account owner can choose SMS as the 2FA method in Security."
       },

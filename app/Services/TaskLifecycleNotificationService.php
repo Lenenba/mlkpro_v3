@@ -16,6 +16,7 @@ class TaskLifecycleNotificationService
         private PushNotificationService $push,
         private SmsNotificationService $sms,
         private CompanyNotificationPreferenceService $companyPreferences,
+        private WhatsappAlertMessageFormatter $whatsappFormatter,
     ) {}
 
     public function sendCancelled(Task $task, ?User $actor = null): void
@@ -127,6 +128,15 @@ class TaskLifecycleNotificationService
             $sent = $this->sms->send($customer->phone, $message['sms']) || $sent;
         }
 
+        if ((bool) ($channels[CompanyNotificationPreferenceService::CHANNEL_WHATSAPP] ?? false) && $customer->phone) {
+            $sent = app(WhatsappNotificationService::class)->send($customer->phone, $this->whatsappFormatter->build(
+                $owner->company_name ?: $owner->name ?: 'Malikia Pro',
+                $message['email_title'],
+                $message['email_intro'],
+                $details
+            )) || $sent;
+        }
+
         return $sent;
     }
 
@@ -163,6 +173,17 @@ class TaskLifecycleNotificationService
 
         if ((bool) ($channels[CompanyNotificationPreferenceService::CHANNEL_SMS] ?? false) && $owner->phone_number) {
             $sent = $this->sms->send($owner->phone_number, $message['sms']) || $sent;
+        }
+
+        if ((bool) ($channels[CompanyNotificationPreferenceService::CHANNEL_WHATSAPP] ?? false) && $owner->phone_number) {
+            $sent = app(WhatsappNotificationService::class)->send($owner->phone_number, $this->whatsappFormatter->build(
+                $owner->company_name ?: $owner->name ?: 'Malikia Pro',
+                $message['email_title'],
+                $message['email_intro'],
+                $details,
+                route('task.show', $task),
+                $message['action_label']
+            )) || $sent;
         }
 
         return $sent;
