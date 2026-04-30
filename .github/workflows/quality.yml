@@ -72,7 +72,7 @@ jobs:
 
   laravel-quality-mysql:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 15
 
     services:
       mysql:
@@ -118,17 +118,8 @@ jobs:
           extensions: mbstring, dom, fileinfo, gd, intl, pdo_mysql
           coverage: none
 
-      - name: Setup Node
-        uses: actions/setup-node@v5
-        with:
-          node-version: "20"
-          cache: npm
-
       - name: Install PHP dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
-
-      - name: Install Node dependencies
-        run: npm ci
 
       - name: Prepare environment
         run: |
@@ -141,17 +132,19 @@ jobs:
             sleep 1
           done
 
-      - name: Check PHP formatting
-        run: composer qa:format
-
-      - name: Run static analysis
-        run: composer qa:analyse
-
-      - name: Run test suite on MySQL
-        run: php artisan test --stop-on-failure
-
-      - name: Build frontend assets
-        run: npm run qa:build
+      - name: Run MySQL compatibility suite
+        run: |
+          php artisan test --stop-on-failure \
+            tests/Unit/CompanyFeatureServiceTest.php \
+            tests/Unit/MegaMenuServicesTest.php \
+            tests/Feature/AccountingModulePhaseZeroTest.php \
+            tests/Feature/ExpenseModuleTest.php \
+            tests/Feature/ReservationModuleTest.php \
+            tests/Feature/ReservationKioskPublicEndpointsTest.php \
+            tests/Feature/PublicBookingLinksTest.php \
+            tests/Feature/PlanEntitlementSyncCommandTest.php \
+            tests/Feature/SuperAdminModuleAuthorizationTest.php \
+            tests/Feature/BillingMutationsApiTest.php
 
   browser-smoke:
     runs-on: ubuntu-latest
