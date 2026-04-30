@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Customer;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\DatabaseNotification;
@@ -25,12 +26,12 @@ function logInAppNotification(User $user, array $payload): DatabaseNotification
 
         public function toArray(object $notifiable): array
         {
-            return [
+            return array_merge($this->payload, [
                 'title' => (string) ($this->payload['title'] ?? 'Notification'),
                 'message' => (string) ($this->payload['message'] ?? ''),
                 'action_url' => $this->payload['action_url'] ?? null,
                 'category' => $this->payload['category'] ?? 'system',
-            ];
+            ]);
         }
     });
 
@@ -104,6 +105,61 @@ test('opening a notification from the header marks it read and archived before r
 
     expect($notification->read_at)->not->toBeNull()
         ->and($notification->getAttribute('archived_at'))->not->toBeNull();
+});
+
+test('opening a notification without action url resolves the linked customer page', function () {
+    $user = User::factory()->create([
+        'company_type' => 'services',
+    ]);
+
+    $customer = Customer::factory()->create([
+        'user_id' => $user->id,
+    ]);
+
+    $notification = logInAppNotification($user, [
+        'title' => 'Customer notification',
+        'message' => 'Review this customer.',
+        'category' => 'crm',
+        'customer_id' => $customer->id,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('notifications.open', [
+            'notification' => $notification,
+            'source' => 'header',
+        ]))
+        ->assertRedirect(route('customer.show', $customer));
+
+    $notification->refresh();
+
+    expect($notification->read_at)->not->toBeNull()
+        ->and($notification->getAttribute('archived_at'))->not->toBeNull();
+});
+
+test('opening a notification with a missing linked entity returns a clean warning', function () {
+    $user = User::factory()->create([
+        'company_type' => 'services',
+    ]);
+
+    $notification = logInAppNotification($user, [
+        'title' => 'Missing customer notification',
+        'message' => 'The linked customer was deleted.',
+        'category' => 'crm',
+        'customer_id' => 999999,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('notifications.open', [
+            'notification' => $notification,
+            'source' => 'history',
+        ]))
+        ->assertRedirect(route('notifications.index'))
+        ->assertSessionHas('warning', 'L element lie a cette notification n est plus disponible.');
+
+    $notification->refresh();
+
+    expect($notification->read_at)->not->toBeNull()
+        ->and($notification->getAttribute('archived_at'))->toBeNull();
 });
 
 test('notifications page keeps full history and filters by status and type', function () {

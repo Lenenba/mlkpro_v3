@@ -388,21 +388,21 @@ const destroyService = (service) => {
                                 </span>
                             </td>
                             <td class="size-px whitespace-nowrap px-5 py-2 text-end">
-                                <AdminDataTableActions :label="$t('services.aria.dropdown')">
+                                <AdminDataTableActions :label="$t('services.aria.dropdown')" menu-width-class="w-56">
                                     <button type="button" @click="openEdit(service)"
-                                        class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                        class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-start text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
                                         {{ $t('services.actions.edit') }}
                                     </button>
                                     <Link
                                         v-if="canOpenPulseComposer"
                                         :href="route('social.composer', { source_type: 'service', source_id: service.id })"
-                                        class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                        class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-start text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
                                     >
                                         {{ $t('social.composer_manager.actions.publish_with_pulse') }}
                                     </Link>
                                     <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
                                     <button type="button" @click="destroyService(service)"
-                                        class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800">
+                                        class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-start text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800">
                                         {{ $t('services.actions.delete') }}
                                     </button>
                                 </AdminDataTableActions>

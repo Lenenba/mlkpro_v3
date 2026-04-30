@@ -84,6 +84,7 @@ const RESERVATION_STATUS_STYLE_MAP = {
             'dark:border-neutral-400',
         ],
     },
+    expired: DEFAULT_STATUS_STYLE,
 };
 
 const getReservationStatusStyle = (status) => RESERVATION_STATUS_STYLE_MAP[String(status || '')] || DEFAULT_STATUS_STYLE;

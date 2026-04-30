@@ -1152,6 +1152,24 @@ const setLeadAssignee = (lead, assigneeId) => {
     });
 };
 
+const canAssignLeadToMe = (lead) => Boolean(lead?.id) && !lead?.assigned_team_member_id && !isArchivedLead(lead);
+
+const assignLeadToMe = (lead) => {
+    if (!canAssignLeadToMe(lead) || processingId.value) {
+        return;
+    }
+
+    processingId.value = lead.id;
+
+    router.patch(route('prospects.assign-self', lead.id), {}, {
+        preserveScroll: true,
+        only: ['requests', 'stats', 'analytics', 'assignees', 'flash'],
+        onFinish: () => {
+            processingId.value = null;
+        },
+    });
+};
+
 const buildQuickFollowUpAt = (days) => {
     const date = new Date();
     date.setHours(9, 0, 0, 0);
@@ -1798,7 +1816,11 @@ const submitImport = async (ignoreDuplicates = false) => {
         </AdminDataTableBulkBar>
 
         <div v-if="viewMode === 'board'" class="pt-2">
-            <RequestBoard :requests="requests.data" :statuses="statuses" />
+            <RequestBoard
+                :requests="requests.data"
+                :statuses="statuses"
+                @assign-to-me="assignLeadToMe"
+            />
         </div>
 
         <AdminDataTable
@@ -1991,7 +2013,18 @@ const submitImport = async (ignoreDuplicates = false) => {
                                 <span v-else class="text-xs text-stone-500 dark:text-neutral-400">
                                     {{ $t('requests.labels.unassigned') }}
                                 </span>
+                                <button
+                                    v-if="canAssignLeadToMe(lead)"
+                                    type="button"
+                                    class="inline-flex items-center rounded-sm border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/20"
+                                    :disabled="processingId === lead.id"
+                                    :data-testid="`request-assign-to-me-${lead.id}`"
+                                    @click="assignLeadToMe(lead)"
+                                >
+                                    {{ $t('requests.actions.assign_to_me') }}
+                                </button>
                                 <select
+                                    v-if="assigneeSelectOptions.length > 1 || lead.assigned_team_member_id"
                                     class="w-full rounded-sm border border-stone-200 bg-white px-2 py-1.5 text-xs text-stone-700 focus:border-emerald-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
                                     :value="lead.assigned_team_member_id ? String(lead.assigned_team_member_id) : ''"
                                     :disabled="processingId === lead.id || isArchivedLead(lead)"

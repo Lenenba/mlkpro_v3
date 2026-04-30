@@ -16,7 +16,7 @@
       "clear": "Effacer"
     },
     "actions": {
-      "open": "Ouvrir",
+      "open": "Voir",
       "mark_read": "Marquer comme lue",
       "archive": "Archiver",
       "restore": "Restaurer"

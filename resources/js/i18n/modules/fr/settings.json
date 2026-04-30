@@ -417,11 +417,85 @@
         "pickup_notes_optional": "Notes retrait (optionnel)"
       },
       "notifications": {
-        "title": "Notifications jour de tache",
-        "description": "Choisissez comment informer le client le jour de la tache.",
+        "title": "Alertes entreprise",
+        "description": "Choisissez la methode preferee et les canaux autorises pour chaque type d alerte.",
         "email": "Email",
         "sms": "SMS",
         "whatsapp": "WhatsApp",
+        "preferred_title": "Methode preferee",
+        "preferred_description": "Cette preference sert de canal par defaut quand une nouvelle alerte est ajoutee.",
+        "matrix_title": "Alertes disponibles",
+        "matrix_description": "Activez Email, SMS ou WhatsApp selon le type d alerte que l entreprise veut envoyer.",
+        "alert_column": "Alerte",
+        "delivery_hint": "SMS et WhatsApp seront utilises seulement si le fournisseur est configure et si un numero est disponible.",
+        "channels": {
+          "email": "Email",
+          "sms": "SMS",
+          "whatsapp": "WhatsApp"
+        },
+        "channel_descriptions": {
+          "email": "Canal le plus complet pour les details et les liens.",
+          "sms": "Court et direct pour les rappels urgents.",
+          "whatsapp": "Pratique pour les clients qui repondent par messagerie."
+        },
+        "alerts": {
+          "task_day": {
+            "label": "Visites du jour",
+            "description": "Rappel envoye au client le jour de la tache ou de l intervention."
+          },
+          "task_updates": {
+            "label": "Taches reportees ou annulees",
+            "description": "Avertit le client quand une tache est reportee, annulee ou en retard."
+          },
+          "reservations": {
+            "label": "Reservations",
+            "description": "Creation, rappel, replanification, annulation et avis de reservation."
+          },
+          "orders": {
+            "label": "Commandes",
+            "description": "Nouvelles commandes, changements de statut et actions client."
+          },
+          "sales": {
+            "label": "Ventes",
+            "description": "Nouvelles ventes, suivis commerciaux et resultats importants."
+          },
+          "stock": {
+            "label": "Stock",
+            "description": "Alertes de stock faible et mouvements importants d inventaire."
+          },
+          "planning": {
+            "label": "Planning",
+            "description": "Rappels d agenda, changements de quart et alertes de presence."
+          },
+          "billing": {
+            "label": "Factures et paiements",
+            "description": "Factures, paiements, approbations et rappels de facturation."
+          },
+          "expenses": {
+            "label": "Depenses",
+            "description": "Depenses a approuver, refus, remboursements et petite caisse."
+          },
+          "crm": {
+            "label": "CRM et prospects",
+            "description": "Leads non assignes, prospects a relancer et actions client."
+          },
+          "support": {
+            "label": "Support",
+            "description": "Demandes client, messages entrants et suivis de service."
+          },
+          "security": {
+            "label": "Securite",
+            "description": "Connexion, verification et alertes sensibles du compte."
+          },
+          "emails_mirror": {
+            "label": "Copies email",
+            "description": "Copies internes des emails importants envoyes par la plateforme."
+          },
+          "system": {
+            "label": "Systeme",
+            "description": "Informations generales, limites d usage et alertes techniques utiles."
+          }
+        },
         "two_factor_sms": "Autoriser le 2FA par SMS",
         "two_factor_sms_hint": "Si active, le proprietaire peut choisir SMS comme methode 2FA dans Securite."
       },

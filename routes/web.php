@@ -71,6 +71,9 @@ use App\Http\Controllers\RequestController;
 use App\Http\Controllers\RequestMediaController;
 use App\Http\Controllers\RequestNoteController;
 use App\Http\Controllers\Reservation\ClientReservationController;
+use App\Http\Controllers\Reservation\PublicBookingController;
+use App\Http\Controllers\Reservation\PublicBookingConversionController;
+use App\Http\Controllers\Reservation\PublicBookingLinkController;
 use App\Http\Controllers\Reservation\PublicKioskReservationController;
 use App\Http\Controllers\Reservation\ReservationSettingsController;
 use App\Http\Controllers\Reservation\StaffReservationController;
@@ -182,6 +185,15 @@ Route::middleware('guest')->group(function () {
     Route::get('/demo', [DemoController::class, 'index'])->name('demo.index');
     Route::post('/demo/login/{type}', [DemoController::class, 'login'])->name('demo.login');
 });
+
+Route::prefix('/book/{company}/{slug}')
+    ->name('public.booking.')
+    ->middleware('throttle:public-booking')
+    ->group(function () {
+        Route::get('/', [PublicBookingController::class, 'show'])->name('show');
+        Route::get('/slots', [PublicBookingController::class, 'slots'])->name('slots');
+        Route::post('/', [PublicBookingController::class, 'store'])->name('store');
+    });
 
 Route::middleware(['signed', 'throttle:public-signed'])->group(function () {
     Route::get('/pay/invoices/{invoice}', [PublicInvoiceController::class, 'show'])->name('public.invoices.show');
@@ -395,6 +407,8 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::patch('/prospects/bulk', [ProspectController::class, 'bulkUpdate'])->name('prospects.bulk');
         Route::post('/prospects', [ProspectController::class, 'store'])->name('prospects.store');
         Route::post('/prospects/import', [ProspectController::class, 'import'])->name('prospects.import');
+        Route::patch('/prospects/{lead}/assign-to-me', [ProspectController::class, 'assignToCurrentUser'])
+            ->name('prospects.assign-self');
         Route::get('/prospects/{lead}', [ProspectController::class, 'show'])->name('prospects.show');
         Route::post('/prospects/{lead}/sales-activities', [SalesActivityController::class, 'storeForRequest'])
             ->name('crm.sales-activities.prospects.store');
@@ -454,6 +468,10 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::put('/app/reservations/{reservation}', [StaffReservationController::class, 'update'])->name('reservation.update');
         Route::patch('/app/reservations/{reservation}/status', [StaffReservationController::class, 'updateStatus'])
             ->name('reservation.status');
+        Route::get('/app/reservations/{reservation}/public-booking-conversion', [PublicBookingConversionController::class, 'show'])
+            ->name('reservation.public-booking-conversion.show');
+        Route::post('/app/reservations/{reservation}/public-booking-conversion', [PublicBookingConversionController::class, 'store'])
+            ->name('reservation.public-booking-conversion.store');
         Route::patch('/app/reservations/waitlist/{waitlist}/status', [StaffReservationController::class, 'updateWaitlistStatus'])
             ->name('reservation.waitlist.status');
         Route::patch('/app/reservations/queue/{item}/check-in', [StaffReservationController::class, 'queueCheckIn'])
@@ -475,6 +493,12 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('settings.reservations.edit');
         Route::put('/settings/reservations', [ReservationSettingsController::class, 'update'])
             ->name('settings.reservations.update');
+        Route::post('/settings/reservations/public-links', [PublicBookingLinkController::class, 'store'])
+            ->name('settings.reservations.public-links.store');
+        Route::put('/settings/reservations/public-links/{publicBookingLink}', [PublicBookingLinkController::class, 'update'])
+            ->name('settings.reservations.public-links.update');
+        Route::patch('/settings/reservations/public-links/{publicBookingLink}/toggle', [PublicBookingLinkController::class, 'toggle'])
+            ->name('settings.reservations.public-links.toggle');
         Route::redirect('/app/reservations/settings', '/settings/reservations')
             ->name('reservation.settings.legacy');
         Route::redirect('/reservations', '/app/reservations')->name('reservation.legacy');

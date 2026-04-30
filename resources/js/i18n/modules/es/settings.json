@@ -51,6 +51,89 @@
           "seller": "Vendedor"
         }
       },
+      "notifications": {
+        "title": "Alertas de empresa",
+        "description": "Elige el metodo preferido y los canales permitidos para cada tipo de alerta.",
+        "email": "Email",
+        "sms": "SMS",
+        "whatsapp": "WhatsApp",
+        "preferred_title": "Metodo preferido",
+        "preferred_description": "Esta preferencia se usa como canal por defecto cuando se agrega una nueva alerta.",
+        "matrix_title": "Alertas disponibles",
+        "matrix_description": "Activa Email, SMS o WhatsApp segun el tipo de alerta que la empresa quiere enviar.",
+        "alert_column": "Alerta",
+        "delivery_hint": "SMS y WhatsApp se usan solo si el proveedor esta configurado y hay un numero disponible.",
+        "channels": {
+          "email": "Email",
+          "sms": "SMS",
+          "whatsapp": "WhatsApp"
+        },
+        "channel_descriptions": {
+          "email": "El canal mas completo para detalles y enlaces.",
+          "sms": "Corto y directo para recordatorios urgentes.",
+          "whatsapp": "Practico para clientes que responden por mensajeria."
+        },
+        "alerts": {
+          "task_day": {
+            "label": "Visitas del dia",
+            "description": "Recordatorio enviado al cliente el dia de la tarea o visita."
+          },
+          "task_updates": {
+            "label": "Tareas reprogramadas o canceladas",
+            "description": "Avisa al cliente cuando una tarea se reprograma, cancela o atrasa."
+          },
+          "reservations": {
+            "label": "Reservas",
+            "description": "Creacion, recordatorios, reprogramacion, cancelaciones y resenas."
+          },
+          "orders": {
+            "label": "Pedidos",
+            "description": "Nuevos pedidos, cambios de estado y acciones del cliente."
+          },
+          "sales": {
+            "label": "Ventas",
+            "description": "Nuevas ventas, seguimientos comerciales y resultados importantes."
+          },
+          "stock": {
+            "label": "Stock",
+            "description": "Alertas de bajo stock y movimientos importantes de inventario."
+          },
+          "planning": {
+            "label": "Planificacion",
+            "description": "Recordatorios de agenda, cambios de turno y alertas de asistencia."
+          },
+          "billing": {
+            "label": "Facturas y pagos",
+            "description": "Facturas, pagos, aprobaciones y recordatorios de cobro."
+          },
+          "expenses": {
+            "label": "Gastos",
+            "description": "Gastos por aprobar, rechazos, reembolsos y caja chica."
+          },
+          "crm": {
+            "label": "CRM y prospectos",
+            "description": "Leads sin asignar, prospectos por relanzar y acciones de cliente."
+          },
+          "support": {
+            "label": "Soporte",
+            "description": "Solicitudes de cliente, mensajes entrantes y seguimientos de servicio."
+          },
+          "security": {
+            "label": "Seguridad",
+            "description": "Inicio de sesion, verificacion y alertas sensibles de la cuenta."
+          },
+          "emails_mirror": {
+            "label": "Copias email",
+            "description": "Copias internas de emails importantes enviados por la plataforma."
+          },
+          "system": {
+            "label": "Sistema",
+            "description": "Informacion general, limites de uso y alertas tecnicas utiles."
+          }
+        },
+        "two_factor_sms": "Permitir 2FA por SMS",
+        "two_factor_sms_hint": "Si esta activo, el propietario puede elegir SMS como metodo 2FA en Seguridad."
+      },
       "store": {
         "title": "Configuracion de la tienda",
         "description": "Personaliza el encabezado publico de tu tienda y el producto destacado.",

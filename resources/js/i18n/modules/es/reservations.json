@@ -305,7 +305,8 @@
       "rescheduled": "Reprogramado",
       "completed": "Completado",
       "cancelled": "Cancelado",
-      "no_show": "No presentarse"
+      "no_show": "No presentarse",
+      "expired": "Expirado"
     },
     "legend": {
       "title": "Leyenda de estado",
@@ -315,7 +316,8 @@
       "rescheduled": "El tiempo fue cambiado. Puedes confirmar o rechazar.",
       "completed": "Servicio terminado. No se requiere ninguna otra acción de estado.",
       "cancelled": "La reserva fue cancelada o rechazada.",
-      "no_show": "El cliente no asistió."
+      "no_show": "El cliente no asistió.",
+      "expired": "La reserva expiró antes de confirmarse."
     },
     "errors": {
       "load_events": "No se pueden cargar eventos de reserva.",

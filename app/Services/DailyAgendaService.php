@@ -17,7 +17,10 @@ use Illuminate\Support\Facades\URL;
 
 class DailyAgendaService
 {
-    public function __construct(private PushNotificationService $push) {}
+    public function __construct(
+        private PushNotificationService $push,
+        private WhatsappAlertMessageFormatter $whatsappFormatter,
+    ) {}
 
     public function process(?Carbon $now = null): array
     {
@@ -569,7 +572,14 @@ class DailyAgendaService
         }
 
         if ((bool) ($channels[CompanyNotificationPreferenceService::CHANNEL_WHATSAPP] ?? false) && $customer->phone) {
-            $message = $intro ?: ($isFr ? 'Intervention prevue aujourd hui.' : 'Service scheduled today.');
+            $message = $this->whatsappFormatter->build(
+                $owner->company_name ?: $owner->name ?: 'Malikia Pro',
+                $title,
+                $intro ?: ($isFr ? 'Intervention prevue aujourd hui.' : 'Service scheduled today.'),
+                $details,
+                $actionUrl,
+                $actionLabel
+            );
             $sent = app(WhatsappNotificationService::class)->send($customer->phone, $message) || $sent;
         }
 

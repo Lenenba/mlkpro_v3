@@ -68,21 +68,34 @@ class ProspectConversionService
             $quoteIds = $this->attachLeadQuotesToCustomer($lead, $customer, $accountId);
             $this->attachLeadOperationalRecordsToCustomer($lead, $customer, $accountId);
             $previousStatus = $lead->status;
+            $conversionMeta = $lead->mergeCustomerConversionMeta([
+                'converted_at' => $timestamp->toISOString(),
+                'converted_by_user_id' => $actor->id,
+                'mode' => $mode,
+                'customer_id' => $customer->id,
+                'matched_customer_ids' => $matchedCustomerIds,
+                'quote_ids' => $quoteIds,
+            ]);
+
+            if ($lead->public_booking_link_id) {
+                data_set($conversionMeta, LeadRequest::PUBLIC_BOOKING_META_KEY, array_merge(
+                    $lead->publicBookingMeta(),
+                    [
+                        'status' => LeadRequest::PUBLIC_STATUS_CONVERTED_TO_CUSTOMER,
+                        'converted_at' => $timestamp->toISOString(),
+                        'converted_customer_id' => $customer->id,
+                    ]
+                ));
+            }
 
             $lead->forceFill([
                 'customer_id' => $customer->id,
+                'converted_customer_id' => $customer->id,
                 'status' => LeadRequest::STATUS_CONVERTED,
                 'status_updated_at' => $timestamp,
                 'last_activity_at' => $timestamp,
                 'converted_at' => $timestamp,
-                'meta' => $lead->mergeCustomerConversionMeta([
-                    'converted_at' => $timestamp->toISOString(),
-                    'converted_by_user_id' => $actor->id,
-                    'mode' => $mode,
-                    'customer_id' => $customer->id,
-                    'matched_customer_ids' => $matchedCustomerIds,
-                    'quote_ids' => $quoteIds,
-                ]),
+                'meta' => $conversionMeta,
             ])->save();
 
             $this->statusHistoryService->record($lead, $actor, [
@@ -220,20 +233,33 @@ class ProspectConversionService
 
             $quoteIds = $this->attachAcceptedQuoteRecordsToCustomer($lead, $quote, $customer, $accountId);
             $timestamp = now();
+            $acceptedConversionMeta = $lead->mergeCustomerConversionMeta([
+                'converted_at' => ($lead->converted_at ?? $timestamp)->toISOString(),
+                'converted_by_user_id' => $actor?->id,
+                'mode' => $created ? 'auto_create_on_quote_acceptance' : 'auto_link_on_quote_acceptance',
+                'customer_id' => $customer->id,
+                'quote_ids' => $quoteIds,
+                'created_customer' => $created,
+                'source' => 'quote_acceptance',
+            ]);
+
+            if ($lead->public_booking_link_id) {
+                data_set($acceptedConversionMeta, LeadRequest::PUBLIC_BOOKING_META_KEY, array_merge(
+                    $lead->publicBookingMeta(),
+                    [
+                        'status' => LeadRequest::PUBLIC_STATUS_CONVERTED_TO_CUSTOMER,
+                        'converted_at' => ($lead->converted_at ?? $timestamp)->toISOString(),
+                        'converted_customer_id' => $customer->id,
+                    ]
+                ));
+            }
 
             $lead->forceFill([
                 'customer_id' => $customer->id,
+                'converted_customer_id' => $customer->id,
                 'last_activity_at' => $timestamp,
                 'converted_at' => $lead->converted_at ?? $timestamp,
-                'meta' => $lead->mergeCustomerConversionMeta([
-                    'converted_at' => ($lead->converted_at ?? $timestamp)->toISOString(),
-                    'converted_by_user_id' => $actor?->id,
-                    'mode' => $created ? 'auto_create_on_quote_acceptance' : 'auto_link_on_quote_acceptance',
-                    'customer_id' => $customer->id,
-                    'quote_ids' => $quoteIds,
-                    'created_customer' => $created,
-                    'source' => 'quote_acceptance',
-                ]),
+                'meta' => $acceptedConversionMeta,
             ])->save();
 
             ActivityLog::record($actor, $lead, 'converted_to_customer', [

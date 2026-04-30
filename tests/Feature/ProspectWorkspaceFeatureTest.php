@@ -174,6 +174,43 @@ it('updates quick-action prospect fields and refreshes the activity trail', func
         ->and((int) data_get($activity?->properties, 'assigned_team_member_id'))->toBe($assignee->id);
 });
 
+it('assigns a prospect to the current user even without existing team members', function () {
+    $owner = prospectWorkspaceOwner();
+
+    $lead = LeadRequest::query()->create([
+        'user_id' => $owner->id,
+        'status' => LeadRequest::STATUS_NEW,
+        'title' => 'Solo owner prospect',
+        'contact_name' => 'Solo Prospect',
+        'contact_email' => 'solo.prospect@example.com',
+    ]);
+
+    expect(TeamMember::query()->where('account_id', $owner->id)->count())->toBe(0);
+
+    $this->actingAs($owner)
+        ->patchJson(route('prospects.assign-self', $lead))
+        ->assertOk()
+        ->assertJsonPath('message', 'Prospect assigned to you.')
+        ->assertJsonPath('request.assignee.user.name', $owner->name);
+
+    $member = TeamMember::query()
+        ->where('account_id', $owner->id)
+        ->where('user_id', $owner->id)
+        ->first();
+
+    $lead->refresh();
+
+    expect($member)->not->toBeNull()
+        ->and($member?->role)->toBe('admin')
+        ->and($member?->is_active)->toBeTrue()
+        ->and($lead->assigned_team_member_id)->toBe($member?->id)
+        ->and(ActivityLog::query()
+            ->where('subject_type', $lead->getMorphClass())
+            ->where('subject_id', $lead->id)
+            ->where('action', 'assignment_changed')
+            ->exists())->toBeTrue();
+});
+
 it('returns a prospect cockpit payload with timeline, duplicates, notes, files, and tasks', function () {
     $owner = prospectWorkspaceOwner();
     $assigneeUser = User::factory()->create(['name' => 'Prospect Owner']);

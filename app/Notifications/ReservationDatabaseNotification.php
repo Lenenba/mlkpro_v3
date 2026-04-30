@@ -40,6 +40,8 @@ class ReservationDatabaseNotification extends Notification implements ShouldQueu
             'category' => NotificationPreferenceService::CATEGORY_PLANNING,
             'event' => $this->payload['event'] ?? null,
             'reservation_id' => $this->payload['reservation_id'] ?? null,
+            'prospect_id' => $this->payload['prospect_id'] ?? null,
+            'public_booking_link_id' => $this->payload['public_booking_link_id'] ?? null,
             'queue_item_id' => $this->payload['queue_item_id'] ?? null,
             'status' => $this->payload['status'] ?? null,
             'starts_at' => $this->payload['starts_at'] ?? null,

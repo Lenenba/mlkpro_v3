@@ -370,11 +370,6 @@ const form = useForm({
     store_hero_copy_fr: props.company.store_settings?.hero_copy?.fr ?? '',
     store_hero_copy_es: props.company.store_settings?.hero_copy?.es ?? '',
     store_hero_copy_en: props.company.store_settings?.hero_copy?.en ?? '',
-    notification_task_day_email: props.company.company_notification_settings?.task_day?.email ?? true,
-    notification_task_day_sms: props.company.company_notification_settings?.task_day?.sms ?? false,
-    notification_task_day_whatsapp: props.company.company_notification_settings?.task_day?.whatsapp ?? false,
-    notification_security_two_factor_sms:
-        props.company.company_notification_settings?.security?.two_factor_sms ?? false,
     finance_expense_role_1: financeRoleAt('expense', 0, 'role_key', ''),
     finance_expense_max_1: financeRoleAt('expense', 0, 'max_amount', '') !== ''
         ? String(financeRoleAt('expense', 0, 'max_amount', ''))
@@ -1052,17 +1047,6 @@ const submit = () => {
                 payload.store_hero_images_files = data.store_hero_images_files;
             }
 
-            payload.company_notification_settings = {
-                task_day: {
-                    email: Boolean(data.notification_task_day_email),
-                    sms: Boolean(data.notification_task_day_sms),
-                    whatsapp: Boolean(data.notification_task_day_whatsapp),
-                },
-                security: {
-                    two_factor_sms: Boolean(data.notification_security_two_factor_sms),
-                },
-            };
-
             const buildFinanceRoles = (documentType) => {
                 const roles = [
                     {
@@ -1458,38 +1442,6 @@ watch(activeTab, (value) => {
                             </label>
                         </div>
                         <InputError class="mt-1" :message="form.errors.company_type" />
-                    </div>
-
-                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 space-y-3 dark:border-neutral-700 dark:bg-neutral-900">
-                        <div>
-                            <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">
-                                {{ $t('settings.company.notifications.title') }}
-                            </h3>
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('settings.company.notifications.description') }}
-                            </p>
-                        </div>
-                        <div class="flex flex-wrap gap-4 text-sm text-stone-700 dark:text-neutral-200">
-                            <label class="flex items-center gap-2">
-                                <input type="checkbox" v-model="form.notification_task_day_email" />
-                                <span>{{ $t('settings.company.notifications.email') }}</span>
-                            </label>
-                            <label class="flex items-center gap-2">
-                                <input type="checkbox" v-model="form.notification_task_day_sms" />
-                                <span>{{ $t('settings.company.notifications.sms') }}</span>
-                            </label>
-                            <label class="flex items-center gap-2">
-                                <input type="checkbox" v-model="form.notification_task_day_whatsapp" />
-                                <span>{{ $t('settings.company.notifications.whatsapp') }}</span>
-                            </label>
-                            <label class="flex items-center gap-2">
-                                <input type="checkbox" v-model="form.notification_security_two_factor_sms" />
-                                <span>{{ $t('settings.company.notifications.two_factor_sms') }}</span>
-                            </label>
-                        </div>
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">
-                            {{ $t('settings.company.notifications.two_factor_sms_hint') }}
-                        </p>
                     </div>
 
                     <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 space-y-4 dark:border-neutral-700 dark:bg-neutral-900">

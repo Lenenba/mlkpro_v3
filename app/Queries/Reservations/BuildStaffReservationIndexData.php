@@ -55,6 +55,7 @@ class BuildStaffReservationIndexData
                 'id',
                 'team_member_id',
                 'client_id',
+                'prospect_id',
                 'service_id',
                 'status',
                 'source',
@@ -195,19 +196,22 @@ class BuildStaffReservationIndexData
     public function events(int $accountId, array $access, Request $request, array $validated): array
     {
         $filters = $this->normalizeFilters($request, $access);
+        $start = Carbon::parse((string) $validated['start'])->utc();
+        $end = Carbon::parse((string) $validated['end'])->utc();
 
         return $this->reservationEventQuery($accountId)
             ->tap(fn (Builder $builder) => $this->applyReservationFilters($builder, $filters, $access, [
                 'search' => false,
                 'date' => false,
             ]))
-            ->where('starts_at', '<', $validated['end'])
-            ->where('ends_at', '>', $validated['start'])
+            ->where('starts_at', '<', $end)
+            ->where('ends_at', '>', $start)
             ->orderBy('starts_at')
             ->get([
                 'id',
                 'team_member_id',
                 'client_id',
+                'prospect_id',
                 'service_id',
                 'status',
                 'source',
@@ -231,6 +235,8 @@ class BuildStaffReservationIndexData
         return $query->with([
             'teamMember.user:id,name',
             'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
+            'prospect:id,contact_name,contact_email,contact_phone,status,converted_at,converted_customer_id,customer_id,meta,public_booking_link_id',
+            'publicBookingLink:id,name,slug',
             'service:id,name,price,item_type',
             'creator:id,name',
             'canceller:id,name',
@@ -244,6 +250,7 @@ class BuildStaffReservationIndexData
             ->with([
                 'teamMember.user:id,name',
                 'client:id,first_name,last_name,company_name',
+                'prospect:id,contact_name',
                 'service:id,name',
             ]);
     }
@@ -354,6 +361,10 @@ class BuildStaffReservationIndexData
                         ->orWhere('email', 'like', '%'.$search.'%');
                 })->orWhereHas('service', function (Builder $serviceQuery) use ($search) {
                     $serviceQuery->where('name', 'like', '%'.$search.'%');
+                })->orWhereHas('prospect', function (Builder $prospectQuery) use ($search) {
+                    $prospectQuery->where('contact_name', 'like', '%'.$search.'%')
+                        ->orWhere('contact_email', 'like', '%'.$search.'%')
+                        ->orWhere('contact_phone', 'like', '%'.$search.'%');
                 });
             });
         }
@@ -389,6 +400,7 @@ class BuildStaffReservationIndexData
                 WHEN 'completed' THEN 4
                 WHEN 'no_show' THEN 5
                 WHEN 'cancelled' THEN 6
+                WHEN 'expired' THEN 7
                 ELSE 99
             END ASC");
             $query->orderBy('starts_at');
@@ -683,6 +695,9 @@ class BuildStaffReservationIndexData
     {
         $clientLabel = $reservation->client?->company_name
             ?: trim(($reservation->client?->first_name ?? '').' '.($reservation->client?->last_name ?? ''));
+        if (! $clientLabel) {
+            $clientLabel = $reservation->prospect?->contact_name;
+        }
         $serviceLabel = $reservation->service?->name ?: 'Reservation';
         $memberLabel = $reservation->teamMember?->user?->name ?: 'Team';
         $title = trim($serviceLabel.' · '.($clientLabel ?: 'Client'));

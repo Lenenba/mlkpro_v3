@@ -35,6 +35,24 @@ class Request extends Model
 
     public const STATUS_CONVERTED = 'REQ_CONVERTED';
 
+    public const PUBLIC_BOOKING_META_KEY = 'public_booking';
+
+    public const PUBLIC_STATUS_NEW = 'new';
+
+    public const PUBLIC_STATUS_BOOKING_REQUESTED = 'booking_requested';
+
+    public const PUBLIC_STATUS_BOOKING_CONFIRMED = 'booking_confirmed';
+
+    public const PUBLIC_STATUS_VISITED = 'visited';
+
+    public const PUBLIC_STATUS_CONVERTED_TO_CUSTOMER = 'converted_to_customer';
+
+    public const PUBLIC_STATUS_CANCELLED = 'cancelled';
+
+    public const PUBLIC_STATUS_NO_SHOW = 'no_show';
+
+    public const PUBLIC_STATUS_LOST = 'lost';
+
     public const LOST_REASON_OPTIONS = [
         'budget' => 'requests.loss.reasons.budget',
         'timing' => 'requests.loss.reasons.timing',
@@ -66,6 +84,8 @@ class Request extends Model
     protected $fillable = [
         'user_id',
         'customer_id',
+        'converted_customer_id',
+        'public_booking_link_id',
         'assigned_team_member_id',
         'external_customer_id',
         'channel',
@@ -130,6 +150,16 @@ class Request extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function convertedCustomer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class, 'converted_customer_id');
+    }
+
+    public function publicBookingLink(): BelongsTo
+    {
+        return $this->belongsTo(PublicBookingLink::class);
     }
 
     public function assignee(): BelongsTo
@@ -238,6 +268,14 @@ class Request extends Model
     /**
      * @return array<string, mixed>
      */
+    public function publicBookingMeta(): array
+    {
+        return (array) data_get($this->meta, self::PUBLIC_BOOKING_META_KEY, []);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     public function lossMeta(): array
     {
         return (array) data_get($this->meta, self::LOSS_META_KEY, []);
@@ -282,6 +320,22 @@ class Request extends Model
             $meta,
             self::CUSTOMER_CONVERSION_META_KEY,
             array_merge($this->customerConversionMeta(), $attributes)
+        );
+
+        return $meta;
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
+     */
+    public function mergePublicBookingMeta(array $attributes): array
+    {
+        $meta = (array) ($this->meta ?? []);
+        data_set(
+            $meta,
+            self::PUBLIC_BOOKING_META_KEY,
+            array_merge($this->publicBookingMeta(), $attributes)
         );
 
         return $meta;

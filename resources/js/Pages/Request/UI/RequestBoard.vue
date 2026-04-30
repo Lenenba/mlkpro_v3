@@ -22,6 +22,8 @@ const props = defineProps({
     },
 });
 
+const emit = defineEmits(['assignToMe']);
+
 const { t } = useI18n();
 
 const requestList = computed(() => (Array.isArray(props.requests) ? props.requests : []));
@@ -304,6 +306,8 @@ const handleBoardChange = (status, event) => {
 
 const canOpenCard = () => !(dragInProgress.value || Date.now() - lastDragAt.value < 200);
 
+const canAssignLeadToMe = (lead) => Boolean(lead?.id) && !lead?.assigned_team_member_id && !isArchivedLead(lead);
+
 const scoreInfo = (lead) => buildLeadScore(lead, t);
 </script>
 
@@ -435,9 +439,20 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                                 </div>
                                 <div class="flex items-center justify-between">
                                     <span>{{ $t('requests.table.assignee') }}</span>
-                                    <span class="text-stone-700 dark:text-neutral-200">
-                                        {{ element.assignee?.user?.name || element.assignee?.name || $t('requests.labels.unassigned') }}
-                                    </span>
+                                    <div class="flex items-center gap-2 text-right">
+                                        <button
+                                            v-if="canAssignLeadToMe(element)"
+                                            type="button"
+                                            class="rounded-sm border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+                                            :data-testid="`request-board-assign-to-me-${element.id}`"
+                                            @click.stop="emit('assignToMe', element)"
+                                        >
+                                            {{ $t('requests.actions.assign_to_me') }}
+                                        </button>
+                                        <span class="text-stone-700 dark:text-neutral-200">
+                                            {{ element.assignee?.user?.name || element.assignee?.name || $t('requests.labels.unassigned') }}
+                                        </span>
+                                    </div>
                                 </div>
                                 <div class="flex items-center justify-between">
                                     <span>{{ $t('requests.table.created') }}</span>

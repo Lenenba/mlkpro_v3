@@ -91,12 +91,18 @@ test('task can be cancelled with a reason and stays preserved for history', func
 });
 
 test('task can be rescheduled and notify the customer', function () {
+    config()->set('services.twilio.sid', 'AC123');
+    config()->set('services.twilio.token', 'secret');
+    config()->set('services.twilio.whatsapp_from', 'whatsapp:+15550000000');
+
     $owner = User::factory()->create([
+        'company_name' => 'Reschedule Co',
         'company_features' => ['tasks' => true],
         'company_notification_settings' => [
             'task_updates' => [
                 'email' => true,
                 'sms' => false,
+                'whatsapp' => true,
             ],
         ],
     ]);
@@ -156,6 +162,71 @@ test('task can be rescheduled and notify the customer', function () {
             && str_contains($notification->intro ?? '', '2026-05-02')
             && collect($notification->details)->contains(fn (array $detail) => ($detail['label'] ?? null) === 'Previous date' && ($detail['value'] ?? null) === '2026-04-28')
             && collect($notification->details)->contains(fn (array $detail) => ($detail['label'] ?? null) === 'New date' && ($detail['value'] ?? null) === '2026-05-02');
+    });
+
+    Http::assertSent(function ($request): bool {
+        $body = (string) ($request->data()['Body'] ?? '');
+
+        return str_contains((string) $request->url(), 'api.twilio.com')
+            && ($request->data()['To'] ?? null) === 'whatsapp:+15145550003'
+            && str_contains($body, '*Reschedule Co*')
+            && str_contains($body, "Visit rescheduled\n")
+            && str_contains($body, 'Visit: Inspect client office')
+            && str_contains($body, 'Previous date: 2026-04-28')
+            && str_contains($body, 'New date: 2026-05-02');
+    });
+});
+
+test('daily agenda sends a branded whatsapp visit reminder', function () {
+    config()->set('services.twilio.sid', 'AC123');
+    config()->set('services.twilio.token', 'secret');
+    config()->set('services.twilio.whatsapp_from', 'whatsapp:+15550000000');
+
+    $owner = User::factory()->create([
+        'company_name' => 'North Visit Team',
+        'company_features' => ['tasks' => true],
+        'company_timezone' => 'America/Toronto',
+        'locale' => 'fr',
+        'company_notification_settings' => [
+            'task_day' => [
+                'email' => false,
+                'sms' => false,
+                'whatsapp' => true,
+            ],
+        ],
+    ]);
+
+    $customer = Customer::create([
+        'user_id' => $owner->id,
+        'first_name' => 'Lea',
+        'last_name' => 'Client',
+        'company_name' => 'Visit Client',
+        'email' => 'lea@example.com',
+        'phone' => '+15145550004',
+        'salutation' => 'Mrs',
+    ]);
+
+    Task::create([
+        'account_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'title' => 'Nettoyage vitres',
+        'status' => Task::STATUS_TODO,
+        'due_date' => '2026-04-30',
+        'start_time' => '09:30:00',
+    ]);
+
+    app(DailyAgendaService::class)->process(Carbon::parse('2026-04-30 08:00:00', 'America/Toronto'));
+
+    Http::assertSent(function ($request): bool {
+        $body = (string) ($request->data()['Body'] ?? '');
+
+        return str_contains((string) $request->url(), 'api.twilio.com')
+            && ($request->data()['To'] ?? null) === 'whatsapp:+15145550004'
+            && str_contains($body, '*North Visit Team*')
+            && str_contains($body, "Intervention aujourd hui\n")
+            && str_contains($body, 'Tache: Nettoyage vitres')
+            && str_contains($body, 'Heure estimee: 09:30');
     });
 });
 

@@ -198,8 +198,8 @@ class AccountingReadService
         $end = (clone $start)->endOfMonth();
 
         return [
-            $start->toDateString(),
-            $end->toDateString(),
+            $start->startOfDay()->toDateTimeString(),
+            $end->endOfDay()->toDateTimeString(),
         ];
     }
 }

@@ -107,3 +107,100 @@ test('company settings update stores the minimal corporate invoice template key'
 
     expect($owner->fresh()->company_store_settings['invoice_template_key'])->toBe('minimal_corporate');
 });
+
+test('company settings update stores company alert channels and preserves reservation settings', function () {
+    $owner = User::factory()->create([
+        'company_name' => 'Casa Norte',
+        'company_type' => 'services',
+        'company_notification_settings' => [
+            'reservations' => [
+                'enabled' => true,
+                'email' => true,
+                'in_app' => true,
+                'sms' => false,
+                'notify_on_reminder' => true,
+                'reminder_hours' => [24],
+            ],
+        ],
+    ]);
+
+    $response = $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->from(route('settings.company.edit'))
+        ->put(route('settings.company.update'), [
+            'company_name' => 'Casa Norte',
+            'company_type' => 'services',
+            'company_notification_settings' => [
+                'preferred_channel' => 'whatsapp',
+                'alerts' => [
+                    'task_day' => [
+                        'email' => true,
+                        'sms' => true,
+                        'whatsapp' => true,
+                    ],
+                    'task_updates' => [
+                        'email' => false,
+                        'sms' => true,
+                        'whatsapp' => true,
+                    ],
+                    'crm' => [
+                        'email' => true,
+                        'sms' => false,
+                        'whatsapp' => true,
+                    ],
+                    'expenses' => [
+                        'email' => true,
+                        'sms' => true,
+                        'whatsapp' => false,
+                    ],
+                    'reservations' => [
+                        'email' => false,
+                        'sms' => true,
+                        'whatsapp' => true,
+                    ],
+                ],
+                'task_day' => [
+                    'email' => true,
+                    'sms' => true,
+                    'whatsapp' => true,
+                ],
+                'task_updates' => [
+                    'email' => false,
+                    'sms' => true,
+                    'whatsapp' => true,
+                ],
+                'security' => [
+                    'two_factor_sms' => true,
+                ],
+            ],
+        ]);
+
+    $response
+        ->assertRedirect(route('settings.company.edit'))
+        ->assertSessionHasNoErrors();
+
+    $settings = $owner->fresh()->company_notification_settings;
+
+    expect($settings['preferred_channel'])->toBe('whatsapp')
+        ->and($settings['alerts']['task_day'])->toBe([
+            'email' => true,
+            'sms' => true,
+            'whatsapp' => true,
+        ])
+        ->and($settings['task_day'])->toBe($settings['alerts']['task_day'])
+        ->and($settings['alerts']['task_updates'])->toBe([
+            'email' => false,
+            'sms' => true,
+            'whatsapp' => true,
+        ])
+        ->and($settings['task_updates'])->toBe($settings['alerts']['task_updates'])
+        ->and($settings['alerts']['crm']['whatsapp'])->toBeTrue()
+        ->and($settings['alerts']['expenses']['sms'])->toBeTrue()
+        ->and($settings['alerts']['orders']['email'])->toBeTrue()
+        ->and($settings['security']['two_factor_sms'])->toBeTrue()
+        ->and($settings['reservations']['enabled'])->toBeTrue()
+        ->and($settings['reservations']['email'])->toBeFalse()
+        ->and($settings['reservations']['sms'])->toBeTrue()
+        ->and($settings['reservations']['whatsapp'])->toBeTrue()
+        ->and($settings['reservations']['reminder_hours'])->toBe([24]);
+});
