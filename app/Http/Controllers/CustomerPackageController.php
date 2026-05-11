@@ -82,4 +82,52 @@ class CustomerPackageController extends Controller
             ->route('customer.show', $customer)
             ->with('success', 'Forfait usage recorded.');
     }
+
+    public function renew(Request $request, Customer $customer, CustomerPackage $customerPackage, CustomerPackageService $service)
+    {
+        $this->authorize('update', $customer);
+
+        $validated = $request->validate([
+            'initial_quantity' => ['nullable', 'integer', 'min:1', 'max:100000'],
+            'starts_at' => ['nullable', 'date'],
+            'expires_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
+            'price_paid' => ['nullable', 'numeric', 'min:0', 'max:999999999.99'],
+            'note' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $package = $service->renew($request->user(), $customer, $customerPackage, $validated);
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Recurring forfait renewed.',
+                'customerPackage' => $package,
+            ], 201);
+        }
+
+        return redirect()
+            ->route('customer.show', $customer)
+            ->with('success', 'Recurring forfait renewed.');
+    }
+
+    public function renewalInvoice(Request $request, Customer $customer, CustomerPackage $customerPackage, CustomerPackageService $service)
+    {
+        $this->authorize('update', $customer);
+
+        $validated = $request->validate([
+            'price_paid' => ['nullable', 'numeric', 'min:0', 'max:999999999.99'],
+        ]);
+
+        $invoice = $service->createRenewalInvoice($request->user(), $customer, $customerPackage, $validated);
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Renewal invoice created.',
+                'invoice' => $invoice,
+            ], 201);
+        }
+
+        return redirect()
+            ->route('invoice.show', $invoice)
+            ->with('success', 'Renewal invoice created.');
+    }
 }

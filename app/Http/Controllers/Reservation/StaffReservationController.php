@@ -19,6 +19,7 @@ use App\Models\WeeklyAvailability;
 use App\Queries\Reservations\BuildStaffReservationIndexData;
 use App\Services\BillingPlanService;
 use App\Services\BillingSubscriptionService;
+use App\Services\OfferPackages\CustomerPackageService;
 use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationNotificationService;
 use App\Services\ReservationQueueService;
@@ -36,7 +37,8 @@ class StaffReservationController extends Controller
     public function __construct(
         private readonly ReservationAvailabilityService $availabilityService,
         private readonly ReservationNotificationService $notificationService,
-        private readonly ReservationQueueService $queueService
+        private readonly ReservationQueueService $queueService,
+        private readonly CustomerPackageService $customerPackageService
     ) {}
 
     public function index(Request $request)
@@ -309,6 +311,13 @@ class StaffReservationController extends Controller
         }
 
         $reservation->update($payload);
+        if ($previousStatus !== (string) $validated['status']) {
+            if ($validated['status'] === Reservation::STATUS_COMPLETED) {
+                $this->customerPackageService->consumeForReservation($user, $reservation);
+            } elseif ($previousStatus === Reservation::STATUS_COMPLETED) {
+                $this->customerPackageService->restoreReservationUsage($user, $reservation);
+            }
+        }
         $this->syncPublicBookingProspectStatus($reservation, (string) $validated['status']);
         $reservation->load(['teamMember.user:id,name', 'client:id,first_name,last_name,company_name', 'service:id,name,price']);
         $this->notificationService->handleStatusChanged($reservation, $user, $previousStatus);

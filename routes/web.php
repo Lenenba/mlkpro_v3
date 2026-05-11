@@ -938,6 +938,10 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         ->name('customer.packages.store');
     Route::post('/customer/{customer}/packages/{customerPackage}/usages', [CustomerPackageController::class, 'consume'])
         ->name('customer.packages.usages.store');
+    Route::post('/customer/{customer}/packages/{customerPackage}/renew', [CustomerPackageController::class, 'renew'])
+        ->name('customer.packages.renew');
+    Route::post('/customer/{customer}/packages/{customerPackage}/renewal-invoice', [CustomerPackageController::class, 'renewalInvoice'])
+        ->name('customer.packages.renewal-invoice');
     Route::post('/customer/bulk', [CustomerController::class, 'bulk'])
         ->name('customer.bulk');
     Route::post('/customer/bulk-contact/preview', [CustomerController::class, 'previewBulkContact'])

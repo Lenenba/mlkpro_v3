@@ -505,12 +505,16 @@
         "assign_submit": "Attribuer",
         "consume_action": "Consommer",
         "consume_submit": "Enregistrer consommation",
+        "renew_action": "Renouveler",
+        "renew_submit": "Renouveler forfait",
         "select_placeholder": "Choisir un forfait actif",
         "no_options": "Aucun forfait actif disponible dans le catalogue.",
         "empty": "Aucun forfait attribue a ce client.",
         "starts": "Debut",
         "expires": "Expire",
         "no_expiry": "Sans expiration",
+        "recurrence_label": "Recurrence",
+        "next_renewal": "Prochain renouvellement",
         "recent_usages": "Consommations recentes",
         "summary": {
           "total": "Total",
@@ -527,7 +531,8 @@
           "note": "Note interne",
           "usage_quantity": "Quantite consommee",
           "used_at": "Date de consommation",
-          "usage_note": "Note de consommation"
+          "usage_note": "Note de consommation",
+          "renewal_note": "Note de renouvellement"
         },
         "statuses": {
           "active": "Actif",
@@ -541,6 +546,11 @@
           "visit": "visite(s)",
           "credit": "credit(s)",
           "month": "mois"
+        },
+        "recurrence": {
+          "monthly": "mensuelle",
+          "quarterly": "trimestrielle",
+          "yearly": "annuelle"
         }
       },
       "notes": {

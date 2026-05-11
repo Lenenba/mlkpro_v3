@@ -873,7 +873,7 @@ Sortie livree:
 
 ### Phase 2 - Vente via devis/factures
 
-Statut: en cours pour le socle interne devis/factures.
+Statut: termine pour le socle interne devis/factures.
 
 - ajout d un pack a un devis
 - ajout d un pack/forfait a une facture
@@ -893,7 +893,7 @@ Sortie livree:
 
 ### Phase 3 - Forfaits client manuels
 
-Statut: en cours pour le socle interne fiche client.
+Statut: termine pour le socle interne fiche client.
 
 - creation `customer_packages`
 - attribution a un client
@@ -915,17 +915,55 @@ Sortie livree:
 
 ### Phase 4 - Reservation et automatisation
 
+Statut: termine pour le socle reservation + automatisation interne.
+
 - consommation depuis reservation
 - expiration automatique
 - alertes solde bas
 - relances marketing
 
+Sortie livree:
+
+- consommation automatique d un forfait client quand une reservation est marquee `completed`
+- selection prioritaire du forfait qui contient le service reserve
+- idempotence pour eviter une double consommation sur la meme reservation
+- restauration du solde si une reservation terminee est repassee a un autre statut
+- commande `offer-packages:automation` planifiee
+- expiration automatique des forfaits actifs depasses
+- alertes internes de solde bas
+- rappels marketing internes pour forfaits expirant sous 7 jours
+- traces CRM/activite pour relance marketing
+- tests reservation, restauration, expiration et alertes
+
 ### Phase 5 - Recurrence
+
+Statut: en cours pour le socle recurrent interne.
 
 - forfait recurrent
 - paiement automatique
 - portail client
 - renouvellement
+
+Sortie livree:
+
+- champs recurrents sur `offer_packages` pour les forfaits catalogue
+- champs de cycle recurrent sur `customer_packages`
+- frequences mensuelle, trimestrielle et annuelle
+- attribution client d un forfait recurrent avec calcul du premier cycle
+- renouvellement manuel depuis la fiche client
+- fermeture de l ancienne periode lors d un renouvellement
+- lien `renewed_from_customer_package_id` entre periodes
+- affichage fiche client: recurrence, prochain renouvellement et action renouveler
+- rappel interne automatique quand un renouvellement arrive sous 7 jours
+- traces CRM/activite pour forfait renouvele et renouvellement a venir
+- tests creation, attribution, renouvellement et rappel recurrent
+
+Reste a livrer plus tard:
+
+- paiement automatique Stripe
+- portail client complet pour suivre/renouveler
+- upgrade/downgrade recurrent
+- gestion paiement en retard/suspension
 
 ## 15. Risques a eviter
 

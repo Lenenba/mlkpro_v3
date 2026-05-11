@@ -505,12 +505,16 @@
         "assign_submit": "Assign",
         "consume_action": "Consume",
         "consume_submit": "Record usage",
+        "renew_action": "Renew",
+        "renew_submit": "Renew forfait",
         "select_placeholder": "Choose an active forfait",
         "no_options": "No active forfait is available in the catalog.",
         "empty": "No forfait has been assigned to this customer yet.",
         "starts": "Starts",
         "expires": "Expires",
         "no_expiry": "No expiry",
+        "recurrence_label": "Recurrence",
+        "next_renewal": "Next renewal",
         "recent_usages": "Recent usage",
         "summary": {
           "total": "Total",
@@ -527,7 +531,8 @@
           "note": "Internal note",
           "usage_quantity": "Consumed quantity",
           "used_at": "Usage date",
-          "usage_note": "Usage note"
+          "usage_note": "Usage note",
+          "renewal_note": "Renewal note"
         },
         "statuses": {
           "active": "Active",
@@ -541,6 +546,11 @@
           "visit": "visit(s)",
           "credit": "credit(s)",
           "month": "month(s)"
+        },
+        "recurrence": {
+          "monthly": "monthly",
+          "quarterly": "quarterly",
+          "yearly": "yearly"
         }
       },
       "notes": {

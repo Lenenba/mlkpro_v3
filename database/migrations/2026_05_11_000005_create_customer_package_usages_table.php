@@ -20,12 +20,16 @@ return new class extends Migration
             $table->foreignId('created_by_user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->unsignedInteger('quantity')->default(1);
             $table->timestamp('used_at');
+            $table->timestamp('reversed_at')->nullable();
+            $table->foreignId('reversed_by_user_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->string('reversal_reason')->nullable();
             $table->text('note')->nullable();
             $table->json('metadata')->nullable();
             $table->timestamps();
 
             $table->index(['user_id', 'customer_id']);
             $table->index(['customer_package_id', 'used_at']);
+            $table->index(['reservation_id', 'reversed_at']);
         });
     }
 

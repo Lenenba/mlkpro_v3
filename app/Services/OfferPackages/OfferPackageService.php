@@ -125,11 +125,35 @@ class OfferPackageService
         $unitType = $type === OfferPackage::TYPE_FORFAIT
             ? (string) ($payload['unit_type'] ?? $existing?->unit_type ?? OfferPackage::UNIT_SESSION)
             : null;
+        $isRecurring = $type === OfferPackage::TYPE_FORFAIT
+            && (bool) ($payload['is_recurring'] ?? $existing?->is_recurring ?? false);
+        $recurrenceFrequency = null;
+        $renewalNoticeDays = null;
 
         if ($unitType !== null && ! in_array($unitType, OfferPackage::unitTypes(), true)) {
             throw ValidationException::withMessages([
                 'unit_type' => 'Choose a valid forfait unit.',
             ]);
+        }
+
+        if ($isRecurring) {
+            $recurrenceFrequency = (string) (
+                $payload['recurrence_frequency']
+                ?? $existing?->recurrence_frequency
+                ?? OfferPackage::RECURRENCE_MONTHLY
+            );
+
+            if (! in_array($recurrenceFrequency, OfferPackage::recurrenceFrequencies(), true)) {
+                throw ValidationException::withMessages([
+                    'recurrence_frequency' => 'Choose a valid renewal frequency.',
+                ]);
+            }
+
+            $renewalNoticeDays = $this->nullablePositiveInt(
+                $payload,
+                'renewal_notice_days',
+                $existing?->renewal_notice_days ?? 7
+            ) ?? 7;
         }
 
         return [
@@ -146,12 +170,16 @@ class OfferPackageService
             'included_quantity' => $includedQuantity,
             'unit_type' => $unitType,
             'is_public' => (bool) ($payload['is_public'] ?? $existing?->is_public ?? false),
+            'is_recurring' => $isRecurring,
+            'recurrence_frequency' => $recurrenceFrequency,
+            'renewal_notice_days' => $renewalNoticeDays,
             'metadata' => [
                 ...((array) ($existing?->metadata ?? [])),
                 'phase' => 'v1_catalog',
                 'non_refundable' => true,
                 'nested_packages_allowed' => false,
                 'optional_items_allowed' => false,
+                'recurrence_enabled' => $isRecurring,
             ],
         ];
     }

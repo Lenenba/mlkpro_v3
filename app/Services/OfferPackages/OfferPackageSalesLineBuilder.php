@@ -43,6 +43,9 @@ class OfferPackageSalesLineBuilder
             'included_quantity' => $offer->included_quantity,
             'unit_type' => $offer->unit_type,
             'validity_days' => $offer->validity_days,
+            'is_recurring' => (bool) $offer->is_recurring,
+            'recurrence_frequency' => $offer->recurrence_frequency,
+            'renewal_notice_days' => $offer->renewal_notice_days,
             'description' => $offer->description,
             'items' => $this->snapshotItems($offer),
             'quote_line' => $this->quoteLinePayload($offer),
@@ -127,6 +130,9 @@ class OfferPackageSalesLineBuilder
             'validity_days' => $offer->validity_days,
             'included_quantity' => $offer->included_quantity,
             'unit_type' => $offer->unit_type,
+            'is_recurring' => (bool) $offer->is_recurring,
+            'recurrence_frequency' => $offer->recurrence_frequency,
+            'renewal_notice_days' => $offer->renewal_notice_days,
             'items' => $this->snapshotItems($offer),
         ];
     }
@@ -178,6 +184,10 @@ class OfferPackageSalesLineBuilder
 
         if ($offer->validity_days) {
             $parts[] = 'Validite: '.$offer->validity_days.' jours';
+        }
+
+        if ($offer->is_recurring && $offer->recurrence_frequency) {
+            $parts[] = 'Renouvellement: '.$offer->recurrence_frequency;
         }
 
         return implode("\n", $parts);

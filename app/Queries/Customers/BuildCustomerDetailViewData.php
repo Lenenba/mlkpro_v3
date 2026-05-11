@@ -497,11 +497,11 @@ class BuildCustomerDetailViewData
 
     private function buildCustomerPackages(Customer $customer, int $accountId): Collection
     {
-        return CustomerPackage::query()
+        $packages = CustomerPackage::query()
             ->forAccount($accountId)
             ->where('customer_id', $customer->id)
             ->with([
-                'offerPackage:id,name,type,status',
+                'offerPackage:id,name,type,status,is_recurring,recurrence_frequency,renewal_notice_days',
                 'usages' => fn ($query) => $query
                     ->with('creator:id,name')
                     ->limit(5),
@@ -509,8 +509,23 @@ class BuildCustomerDetailViewData
             ->latest('starts_at')
             ->latest('id')
             ->limit(12)
-            ->get()
-            ->map(fn (CustomerPackage $package): array => [
+            ->get();
+
+        $renewalInvoices = Invoice::query()
+            ->where('user_id', $accountId)
+            ->whereIn('id', $packages
+                ->map(fn (CustomerPackage $package): int => (int) data_get($package->metadata, 'recurrence.pending_invoice_id', 0))
+                ->filter()
+                ->unique()
+                ->values())
+            ->get(['id', 'number', 'status', 'total', 'currency_code'])
+            ->keyBy('id');
+
+        return $packages
+            ->map(function (CustomerPackage $package) use ($renewalInvoices): array {
+                $renewalInvoice = $renewalInvoices->get((int) data_get($package->metadata, 'recurrence.pending_invoice_id', 0));
+
+                return [
                 'id' => $package->id,
                 'offer_package_id' => $package->offer_package_id,
                 'name' => data_get($package->source_details, 'offer_package.name')
@@ -525,6 +540,21 @@ class BuildCustomerDetailViewData
                 'unit_type' => $package->unit_type,
                 'price_paid' => (float) $package->price_paid,
                 'currency_code' => $package->currency_code,
+                'is_recurring' => (bool) $package->is_recurring,
+                'recurrence_frequency' => $package->recurrence_frequency,
+                'recurrence_status' => $package->recurrence_status,
+                'current_period_starts_at' => $package->current_period_starts_at,
+                'current_period_ends_at' => $package->current_period_ends_at,
+                'next_renewal_at' => $package->next_renewal_at,
+                'renewal_count' => (int) $package->renewal_count,
+                'renewed_from_customer_package_id' => $package->renewed_from_customer_package_id,
+                'renewal_invoice' => $renewalInvoice ? [
+                    'id' => $renewalInvoice->id,
+                    'number' => $renewalInvoice->number,
+                    'status' => $renewalInvoice->status,
+                    'total' => (float) $renewalInvoice->total,
+                    'currency_code' => $renewalInvoice->currency_code,
+                ] : null,
                 'assigned_at' => $package->created_at,
                 'usages' => $package->usages
                     ->map(fn ($usage): array => [
@@ -536,7 +566,8 @@ class BuildCustomerDetailViewData
                     ])
                     ->values()
                     ->all(),
-            ])
+                ];
+            })
             ->values();
     }
 
@@ -573,6 +604,9 @@ class BuildCustomerDetailViewData
                 'included_quantity',
                 'unit_type',
                 'validity_days',
+                'is_recurring',
+                'recurrence_frequency',
+                'renewal_notice_days',
             ])
             ->map(fn (OfferPackage $offer): array => [
                 'id' => $offer->id,
@@ -583,6 +617,9 @@ class BuildCustomerDetailViewData
                 'included_quantity' => $offer->included_quantity,
                 'unit_type' => $offer->unit_type,
                 'validity_days' => $offer->validity_days,
+                'is_recurring' => (bool) $offer->is_recurring,
+                'recurrence_frequency' => $offer->recurrence_frequency,
+                'renewal_notice_days' => $offer->renewal_notice_days,
             ])
             ->values()
             ->all();

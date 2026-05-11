@@ -37,6 +37,7 @@ use App\Services\DailyAgendaService;
 use App\Services\Demo\DemoWorkspacePurgeService;
 use App\Services\ExpenseRecurringService;
 use App\Services\Observability\ObservabilityReportService;
+use App\Services\OfferPackages\CustomerPackageAutomationService;
 use App\Services\PlanEntitlementSyncService;
 use App\Services\PlatformAdminNotifier;
 use App\Services\ProspectFollowUpReminderService;
@@ -76,6 +77,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 Artisan::command('inspire', function () {
@@ -99,6 +101,23 @@ Artisan::command('workflow:auto-validate', function (WorkBillingService $billing
 
     $this->info("Auto-validated {$count} jobs.");
 })->purpose('Auto validate jobs after 48h')->hourly();
+
+Artisan::command('offer-packages:automation {--date=}', function (CustomerPackageAutomationService $automation) {
+    $date = $this->option('date');
+    $reference = $date ? Carbon::parse((string) $date) : null;
+    $summary = $automation->process($reference);
+
+    $this->info(sprintf(
+        'Offer package automation: expired %d, low balance alerts %d, marketing reminders %d, renewal reminders %d, renewal invoices %d.',
+        (int) ($summary['expired'] ?? 0),
+        (int) ($summary['low_balance_alerts'] ?? 0),
+        (int) ($summary['marketing_reminders'] ?? 0),
+        (int) ($summary['renewal_reminders'] ?? 0),
+        (int) ($summary['renewal_invoices'] ?? 0)
+    ));
+
+    return 0;
+})->purpose('Expire customer forfaits and prepare balance/marketing reminders');
 
 Artisan::command('superadmin:create {email} {password}', function () {
     $email = (string) $this->argument('email');
@@ -2657,6 +2676,7 @@ Schedule::command('prospects:stale-reminders')->hourlyAt(20)->withoutOverlapping
 Schedule::command('support:sla-reminders')->hourly();
 Schedule::command('reservations:notifications')->everyFifteenMinutes();
 Schedule::command('reservations:queue-alerts')->everyFiveMinutes()->withoutOverlapping();
+Schedule::command('offer-packages:automation')->hourlyAt(5)->withoutOverlapping();
 Schedule::command('campaigns:automations')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('social:run-automations')->everyFifteenMinutes()->withoutOverlapping();
 Schedule::command('campaigns:vip-auto-sync')->dailyAt('02:35')->withoutOverlapping();

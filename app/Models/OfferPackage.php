@@ -36,6 +36,12 @@ class OfferPackage extends Model
 
     public const UNIT_MONTH = 'month';
 
+    public const RECURRENCE_MONTHLY = 'monthly';
+
+    public const RECURRENCE_QUARTERLY = 'quarterly';
+
+    public const RECURRENCE_YEARLY = 'yearly';
+
     protected $fillable = [
         'user_id',
         'name',
@@ -51,6 +57,9 @@ class OfferPackage extends Model
         'included_quantity',
         'unit_type',
         'is_public',
+        'is_recurring',
+        'recurrence_frequency',
+        'renewal_notice_days',
         'metadata',
     ];
 
@@ -61,6 +70,8 @@ class OfferPackage extends Model
             'validity_days' => 'integer',
             'included_quantity' => 'integer',
             'is_public' => 'boolean',
+            'is_recurring' => 'boolean',
+            'renewal_notice_days' => 'integer',
             'metadata' => 'array',
         ];
     }
@@ -98,6 +109,11 @@ class OfferPackage extends Model
     public static function unitTypes(): array
     {
         return [self::UNIT_SESSION, self::UNIT_HOUR, self::UNIT_VISIT, self::UNIT_CREDIT, self::UNIT_MONTH];
+    }
+
+    public static function recurrenceFrequencies(): array
+    {
+        return [self::RECURRENCE_MONTHLY, self::RECURRENCE_QUARTERLY, self::RECURRENCE_YEARLY];
     }
 
     public static function uniqueSlug(int $userId, string $name, ?int $ignoreId = null): string
@@ -146,6 +162,11 @@ class OfferPackage extends Model
     public function scopePublic(Builder $query): Builder
     {
         return $query->where('is_public', true);
+    }
+
+    public function scopeRecurring(Builder $query): Builder
+    {
+        return $query->where('is_recurring', true);
     }
 
     public function scopeFilter(Builder $query, array $filters): Builder

@@ -3,6 +3,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import axios from 'axios';
+import { ReceiptText } from 'lucide-vue-next';
 import Header from './UI/Header.vue';
 import Card from '@/Components/UI/Card.vue';
 import DescriptionList from '@/Components/UI/DescriptionList.vue';
@@ -266,6 +267,27 @@ const addDaysInputValue = (dateValue, days) => {
     date.setDate(date.getDate() + Number(days));
     return date.toISOString().slice(0, 10);
 };
+const nextDayInputValue = (dateValue) => addDaysInputValue(dateValue, 1);
+const recurringPeriodEndInputValue = (dateValue, frequency) => {
+    if (!dateValue) {
+        return '';
+    }
+
+    const date = new Date(`${dateValue}T00:00:00`);
+    if (Number.isNaN(date.getTime())) {
+        return '';
+    }
+
+    const normalized = String(frequency || 'monthly');
+    if (normalized === 'yearly') {
+        date.setFullYear(date.getFullYear() + 1);
+    } else {
+        date.setMonth(date.getMonth() + (normalized === 'quarterly' ? 3 : 1));
+    }
+    date.setDate(date.getDate() - 1);
+
+    return date.toISOString().slice(0, 10);
+};
 
 const showAssignPackage = ref(false);
 const assignPackageForm = useForm({
@@ -345,6 +367,8 @@ const consumePackageForm = useForm({
 });
 
 const startConsumePackage = (customerPackage) => {
+    renewingPackageId.value = null;
+    renewalInvoicePackageId.value = null;
     consumingPackageId.value = customerPackage.id;
     consumePackageForm.reset();
     consumePackageForm.clearErrors();
@@ -381,6 +405,99 @@ const submitConsumePackage = () => {
         );
 };
 
+const renewingPackageId = ref(null);
+const renewPackageForm = useForm({
+    initial_quantity: 1,
+    starts_at: todayInputValue(),
+    expires_at: '',
+    price_paid: '',
+    note: '',
+});
+const renewingPackage = computed(() =>
+    assignedPackages.value.find((customerPackage) => Number(customerPackage.id) === Number(renewingPackageId.value))
+);
+
+watch(() => renewPackageForm.starts_at, () => {
+    if (renewingPackage.value?.recurrence_frequency) {
+        renewPackageForm.expires_at = recurringPeriodEndInputValue(
+            renewPackageForm.starts_at,
+            renewingPackage.value.recurrence_frequency
+        );
+    }
+});
+
+const startRenewPackage = (customerPackage) => {
+    consumingPackageId.value = null;
+    renewalInvoicePackageId.value = null;
+    renewingPackageId.value = customerPackage.id;
+    renewPackageForm.reset();
+    renewPackageForm.clearErrors();
+    renewPackageForm.initial_quantity = customerPackage.initial_quantity || 1;
+    renewPackageForm.price_paid = customerPackage.price_paid ?? '';
+    renewPackageForm.starts_at = customerPackage.next_renewal_at
+        || (customerPackage.expires_at ? nextDayInputValue(customerPackage.expires_at) : todayInputValue());
+    renewPackageForm.expires_at = recurringPeriodEndInputValue(
+        renewPackageForm.starts_at,
+        customerPackage.recurrence_frequency
+    );
+};
+
+const cancelRenewPackage = () => {
+    renewingPackageId.value = null;
+    renewPackageForm.clearErrors();
+};
+
+const submitRenewPackage = () => {
+    if (!renewingPackageId.value || renewPackageForm.processing) {
+        return;
+    }
+
+    renewPackageForm
+        .transform((data) => ({
+            ...data,
+            initial_quantity: data.initial_quantity ? Number(data.initial_quantity) : null,
+            starts_at: data.starts_at || null,
+            expires_at: data.expires_at || null,
+            price_paid: data.price_paid !== '' ? Number(data.price_paid) : null,
+            note: data.note || null,
+        }))
+        .post(
+            route('customer.packages.renew', {
+                customer: props.customer.id,
+                customerPackage: renewingPackageId.value,
+            }),
+            {
+                preserveScroll: true,
+                onSuccess: () => cancelRenewPackage(),
+            }
+        );
+};
+
+const renewalInvoicePackageId = ref(null);
+const createRenewalInvoice = (customerPackage) => {
+    if (!customerPackage?.id || renewalInvoicePackageId.value) {
+        return;
+    }
+
+    consumingPackageId.value = null;
+    renewingPackageId.value = null;
+    renewalInvoicePackageId.value = customerPackage.id;
+
+    router.post(
+        route('customer.packages.renewal-invoice', {
+            customer: props.customer.id,
+            customerPackage: customerPackage.id,
+        }),
+        {},
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                renewalInvoicePackageId.value = null;
+            },
+        }
+    );
+};
+
 const packageStatusLabel = (status) => {
     const key = `customers.details.customer_packages.statuses.${status || 'active'}`;
     const translated = t(key);
@@ -400,6 +517,13 @@ const packageUnitLabel = (unitType) => {
     const translated = t(key);
 
     return translated && translated !== key ? translated : (unitType || 'credit');
+};
+
+const recurrenceLabel = (frequency) => {
+    const key = `customers.details.customer_packages.recurrence.${frequency || 'monthly'}`;
+    const translated = t(key);
+
+    return translated && translated !== key ? translated : (frequency || 'monthly');
 };
 
 const packageProgress = (customerPackage) => {
@@ -1491,6 +1615,12 @@ const deleteProperty = (property) => {
                                         <span>{{ $t('customers.details.customer_packages.starts') }} {{ formatDate(customerPackage.starts_at) }}</span>
                                         <span v-if="customerPackage.expires_at">{{ $t('customers.details.customer_packages.expires') }} {{ formatDate(customerPackage.expires_at) }}</span>
                                         <span v-else>{{ $t('customers.details.customer_packages.no_expiry') }}</span>
+                                        <span v-if="customerPackage.is_recurring">
+                                            {{ $t('customers.details.customer_packages.recurrence_label') }} {{ recurrenceLabel(customerPackage.recurrence_frequency) }}
+                                        </span>
+                                        <span v-if="customerPackage.next_renewal_at">
+                                            {{ $t('customers.details.customer_packages.next_renewal') }} {{ formatDate(customerPackage.next_renewal_at) }}
+                                        </span>
                                     </div>
                                 </div>
                                 <div class="text-left sm:text-right">
@@ -1510,6 +1640,34 @@ const deleteProperty = (property) => {
                                     class="h-full rounded-full bg-green-600"
                                     :style="{ width: `${packageProgress(customerPackage)}%` }"
                                 ></div>
+                            </div>
+
+                            <div
+                                v-if="customerPackage.renewal_invoice"
+                                class="mt-3 flex flex-col gap-2 rounded-sm border border-green-100 bg-green-50/70 px-3 py-2 text-sm dark:border-green-500/20 dark:bg-green-500/10 sm:flex-row sm:items-center sm:justify-between"
+                            >
+                                <div class="flex min-w-0 items-center gap-2">
+                                    <ReceiptText class="size-4 shrink-0 text-green-700 dark:text-green-300" aria-hidden="true" />
+                                    <div class="min-w-0">
+                                        <div class="text-xs font-semibold uppercase text-green-700 dark:text-green-300">
+                                            {{ $t('customers.details.customer_packages.renewal_invoice') }}
+                                        </div>
+                                        <Link
+                                            :href="route('invoice.show', customerPackage.renewal_invoice.id)"
+                                            class="truncate text-sm font-medium text-stone-800 hover:underline dark:text-neutral-100"
+                                        >
+                                            {{ customerPackage.renewal_invoice.number || $t('customers.details.customer_packages.renewal_invoice_fallback') }}
+                                        </Link>
+                                    </div>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
+                                    <span class="font-semibold text-stone-800 dark:text-neutral-100">
+                                        {{ formatCurrency(customerPackage.renewal_invoice.total || 0) }}
+                                    </span>
+                                    <span class="rounded-sm bg-white px-2 py-0.5 font-medium text-stone-600 dark:bg-neutral-900 dark:text-neutral-300">
+                                        {{ formatStatus(customerPackage.renewal_invoice.status) }}
+                                    </span>
+                                </div>
                             </div>
 
                             <div v-if="customerPackage.usages?.length" class="mt-4 space-y-2">
@@ -1537,7 +1695,74 @@ const deleteProperty = (property) => {
                             </div>
 
                             <form
-                                v-if="consumingPackageId === customerPackage.id"
+                                v-if="renewingPackageId === customerPackage.id"
+                                class="mt-4 rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-950"
+                                @submit.prevent="submitRenewPackage"
+                            >
+                                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                    <div>
+                                        <FloatingInput
+                                            v-model="renewPackageForm.initial_quantity"
+                                            type="number"
+                                            min="1"
+                                            :label="$t('customers.details.customer_packages.fields.initial_quantity')"
+                                        />
+                                        <InputError class="mt-1" :message="renewPackageForm.errors.initial_quantity" />
+                                    </div>
+                                    <div>
+                                        <FloatingInput
+                                            v-model="renewPackageForm.price_paid"
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            :label="$t('customers.details.customer_packages.fields.price_paid')"
+                                        />
+                                        <InputError class="mt-1" :message="renewPackageForm.errors.price_paid" />
+                                    </div>
+                                    <div>
+                                        <FloatingInput
+                                            v-model="renewPackageForm.starts_at"
+                                            type="date"
+                                            :label="$t('customers.details.customer_packages.fields.starts_at')"
+                                        />
+                                        <InputError class="mt-1" :message="renewPackageForm.errors.starts_at" />
+                                    </div>
+                                    <div>
+                                        <FloatingInput
+                                            v-model="renewPackageForm.expires_at"
+                                            type="date"
+                                            :label="$t('customers.details.customer_packages.fields.expires_at')"
+                                        />
+                                        <InputError class="mt-1" :message="renewPackageForm.errors.expires_at" />
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <FloatingTextarea
+                                            v-model="renewPackageForm.note"
+                                            :label="$t('customers.details.customer_packages.fields.renewal_note')"
+                                        />
+                                        <InputError class="mt-1" :message="renewPackageForm.errors.note" />
+                                    </div>
+                                </div>
+                                <div class="mt-3 flex items-center justify-end gap-2">
+                                    <button
+                                        type="button"
+                                        @click="cancelRenewPackage"
+                                        class="inline-flex items-center gap-x-1.5 rounded-sm border border-stone-200 bg-white px-2.5 py-2 text-xs font-medium text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                                    >
+                                        {{ $t('customers.actions.cancel') }}
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        :disabled="renewPackageForm.processing"
+                                        class="inline-flex items-center gap-x-1.5 rounded-sm border border-transparent bg-green-600 px-2.5 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    >
+                                        {{ $t('customers.details.customer_packages.renew_submit') }}
+                                    </button>
+                                </div>
+                            </form>
+
+                            <form
+                                v-else-if="consumingPackageId === customerPackage.id"
                                 class="mt-4 rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-950"
                                 @submit.prevent="submitConsumePackage"
                             >
@@ -1585,8 +1810,31 @@ const deleteProperty = (property) => {
                                 </div>
                             </form>
 
-                            <div v-else-if="canEdit && customerPackage.status === 'active'" class="mt-4 flex justify-end">
+                            <div v-else-if="canEdit && customerPackage.status !== 'cancelled'" class="mt-4 flex flex-wrap justify-end gap-2">
                                 <button
+                                    v-if="customerPackage.is_recurring && !customerPackage.renewal_invoice"
+                                    type="button"
+                                    :disabled="renewalInvoicePackageId === customerPackage.id"
+                                    @click="createRenewalInvoice(customerPackage)"
+                                    class="inline-flex items-center gap-x-1.5 rounded-sm border border-green-200 bg-white px-2.5 py-2 text-xs font-medium text-green-700 shadow-sm hover:bg-green-50 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:border-green-500/20 dark:bg-neutral-800 dark:text-green-300 dark:hover:bg-green-500/10"
+                                >
+                                    <ReceiptText class="size-3.5" aria-hidden="true" />
+                                    {{
+                                        renewalInvoicePackageId === customerPackage.id
+                                            ? $t('customers.details.customer_packages.creating_invoice')
+                                            : $t('customers.details.customer_packages.create_invoice_action')
+                                    }}
+                                </button>
+                                <button
+                                    v-if="customerPackage.is_recurring"
+                                    type="button"
+                                    @click="startRenewPackage(customerPackage)"
+                                    class="inline-flex items-center gap-x-1.5 rounded-sm border border-green-200 bg-green-50 px-2.5 py-2 text-xs font-medium text-green-700 shadow-sm hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-500 dark:border-green-500/20 dark:bg-green-500/10 dark:text-green-300 dark:hover:bg-green-500/20"
+                                >
+                                    {{ $t('customers.details.customer_packages.renew_action') }}
+                                </button>
+                                <button
+                                    v-if="customerPackage.status === 'active'"
                                     type="button"
                                     @click="startConsumePackage(customerPackage)"
                                     class="inline-flex items-center gap-x-1.5 rounded-sm border border-stone-200 bg-white px-2.5 py-2 text-xs font-medium text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"

@@ -22,6 +22,9 @@ class CustomerPackageUsage extends Model
         'created_by_user_id',
         'quantity',
         'used_at',
+        'reversed_at',
+        'reversed_by_user_id',
+        'reversal_reason',
         'note',
         'metadata',
     ];
@@ -31,6 +34,7 @@ class CustomerPackageUsage extends Model
         return [
             'quantity' => 'integer',
             'used_at' => 'datetime',
+            'reversed_at' => 'datetime',
             'metadata' => 'array',
         ];
     }
@@ -73,6 +77,16 @@ class CustomerPackageUsage extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by_user_id');
+    }
+
+    public function reverser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reversed_by_user_id');
+    }
+
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->whereNull('reversed_at');
     }
 
     public function scopeForAccount(Builder $query, int $accountId): Builder
