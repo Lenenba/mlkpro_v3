@@ -10,6 +10,7 @@ use App\Http\Controllers\CampaignProspectingController;
 use App\Http\Controllers\CampaignRunController;
 use App\Http\Controllers\CampaignTrackingController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\CustomerPackageController;
 use App\Http\Controllers\CustomerPropertyController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DemoController;
@@ -31,8 +32,8 @@ use App\Http\Controllers\MarketingTemplateController;
 use App\Http\Controllers\MarketingVipController;
 use App\Http\Controllers\MyNextActionsController;
 use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\OfferSearchController;
 use App\Http\Controllers\OfferPackageController;
+use App\Http\Controllers\OfferSearchController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PerformanceController;
@@ -933,6 +934,10 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         ->name('customer.tags.update');
     Route::patch('/customer/{customer}/auto-validation', [CustomerController::class, 'updateAutoValidation'])
         ->name('customer.auto-validation.update');
+    Route::post('/customer/{customer}/packages', [CustomerPackageController::class, 'store'])
+        ->name('customer.packages.store');
+    Route::post('/customer/{customer}/packages/{customerPackage}/usages', [CustomerPackageController::class, 'consume'])
+        ->name('customer.packages.usages.store');
     Route::post('/customer/bulk', [CustomerController::class, 'bulk'])
         ->name('customer.bulk');
     Route::post('/customer/bulk-contact/preview', [CustomerController::class, 'previewBulkContact'])
@@ -991,6 +996,7 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoice.index');
         Route::get('/invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoice.show');
         Route::get('/invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])->name('invoice.pdf');
+        Route::post('/invoices/{invoice}/offer-packages', [InvoiceController::class, 'addOfferPackage'])->name('invoice.offer-packages.store');
         Route::post('/invoices/{invoice}/send-email', [InvoiceController::class, 'sendEmail'])->name('invoice.send.email');
         Route::patch('/invoices/{invoice}/approve', [InvoiceController::class, 'approve'])->name('invoice.approve');
         Route::patch('/invoices/{invoice}/reject', [InvoiceController::class, 'reject'])->name('invoice.reject');

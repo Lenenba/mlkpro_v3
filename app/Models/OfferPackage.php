@@ -128,6 +128,11 @@ class OfferPackage extends Model
         return $this->hasMany(OfferPackageItem::class)->orderBy('sort_order');
     }
 
+    public function customerPackages(): HasMany
+    {
+        return $this->hasMany(CustomerPackage::class);
+    }
+
     public function scopeForAccount(Builder $query, int $accountId): Builder
     {
         return $query->where('user_id', $accountId);

@@ -4,9 +4,11 @@ namespace App\Queries\Customers;
 
 use App\Models\ActivityLog;
 use App\Models\Customer;
+use App\Models\CustomerPackage;
 use App\Models\Invoice;
 use App\Models\LoyaltyPointLedger;
 use App\Models\LoyaltyProgram;
+use App\Models\OfferPackage;
 use App\Models\Payment;
 use App\Models\Quote;
 use App\Models\Request as LeadRequest;
@@ -124,6 +126,7 @@ class BuildCustomerDetailViewData
         }
 
         $activity = $this->buildActivity($customer, $accountId, $isProductAccount);
+        $customerPackages = $this->buildCustomerPackages($customer, $accountId);
 
         return [
             'customer' => $customer,
@@ -145,6 +148,9 @@ class BuildCustomerDetailViewData
             'loyalty' => $loyalty,
             'activity' => $activity,
             'lastInteraction' => $activity->first(),
+            'customerPackages' => $customerPackages,
+            'customerPackageSummary' => $this->buildCustomerPackageSummary($customer, $accountId),
+            'customerPackageOptions' => $this->buildCustomerPackageOptions($accountId),
             'vipTiers' => $vipTiers,
             'campaignsFeatureEnabled' => $campaignsFeatureEnabled,
             'canManageMailingLists' => $canManageMailingLists,
@@ -487,6 +493,99 @@ class BuildCustomerDetailViewData
                 'balance_due' => max(0, round($totalInvoiced - $totalPaid, 2)),
             ],
         ];
+    }
+
+    private function buildCustomerPackages(Customer $customer, int $accountId): Collection
+    {
+        return CustomerPackage::query()
+            ->forAccount($accountId)
+            ->where('customer_id', $customer->id)
+            ->with([
+                'offerPackage:id,name,type,status',
+                'usages' => fn ($query) => $query
+                    ->with('creator:id,name')
+                    ->limit(5),
+            ])
+            ->latest('starts_at')
+            ->latest('id')
+            ->limit(12)
+            ->get()
+            ->map(fn (CustomerPackage $package): array => [
+                'id' => $package->id,
+                'offer_package_id' => $package->offer_package_id,
+                'name' => data_get($package->source_details, 'offer_package.name')
+                    ?: $package->offerPackage?->name
+                    ?: 'Forfait',
+                'status' => $package->status,
+                'starts_at' => $package->starts_at,
+                'expires_at' => $package->expires_at,
+                'initial_quantity' => (int) $package->initial_quantity,
+                'consumed_quantity' => (int) $package->consumed_quantity,
+                'remaining_quantity' => (int) $package->remaining_quantity,
+                'unit_type' => $package->unit_type,
+                'price_paid' => (float) $package->price_paid,
+                'currency_code' => $package->currency_code,
+                'assigned_at' => $package->created_at,
+                'usages' => $package->usages
+                    ->map(fn ($usage): array => [
+                        'id' => $usage->id,
+                        'quantity' => (int) $usage->quantity,
+                        'used_at' => $usage->used_at,
+                        'note' => $usage->note,
+                        'created_by' => $usage->creator?->name,
+                    ])
+                    ->values()
+                    ->all(),
+            ])
+            ->values();
+    }
+
+    private function buildCustomerPackageSummary(Customer $customer, int $accountId): array
+    {
+        $baseQuery = CustomerPackage::query()
+            ->forAccount($accountId)
+            ->where('customer_id', $customer->id);
+        $activeQuery = (clone $baseQuery)->active();
+
+        return [
+            'total' => (clone $baseQuery)->count(),
+            'active' => (clone $activeQuery)->count(),
+            'remaining_quantity' => (int) (clone $activeQuery)->sum('remaining_quantity'),
+            'expiring_soon' => (clone $activeQuery)
+                ->whereBetween('expires_at', [today()->toDateString(), today()->addDays(30)->toDateString()])
+                ->count(),
+        ];
+    }
+
+    private function buildCustomerPackageOptions(int $accountId): array
+    {
+        return OfferPackage::query()
+            ->forAccount($accountId)
+            ->active()
+            ->where('type', OfferPackage::TYPE_FORFAIT)
+            ->orderBy('name')
+            ->get([
+                'id',
+                'name',
+                'description',
+                'price',
+                'currency_code',
+                'included_quantity',
+                'unit_type',
+                'validity_days',
+            ])
+            ->map(fn (OfferPackage $offer): array => [
+                'id' => $offer->id,
+                'name' => $offer->name,
+                'description' => $offer->description,
+                'price' => (float) $offer->price,
+                'currency_code' => $offer->currency_code,
+                'included_quantity' => $offer->included_quantity,
+                'unit_type' => $offer->unit_type,
+                'validity_days' => $offer->validity_days,
+            ])
+            ->values()
+            ->all();
     }
 
     /**

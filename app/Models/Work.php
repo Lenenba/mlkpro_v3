@@ -167,7 +167,7 @@ class Work extends Model
     public function products(): BelongsToMany
     {
         return $this->belongsToMany(Product::class, 'product_works')
-            ->withPivot(['quantity', 'price', 'description', 'total']);
+            ->withPivot(['quote_id', 'quantity', 'price', 'description', 'source_details', 'total']);
     }
 
     public function teamMembers(): BelongsToMany

@@ -78,6 +78,23 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    customerPackages: {
+        type: Array,
+        default: () => [],
+    },
+    customerPackageSummary: {
+        type: Object,
+        default: () => ({
+            total: 0,
+            active: 0,
+            remaining_quantity: 0,
+            expiring_soon: 0,
+        }),
+    },
+    customerPackageOptions: {
+        type: Array,
+        default: () => [],
+    },
     vipTiers: {
         type: Array,
         default: () => [],
@@ -150,6 +167,10 @@ const formatStatus = (status, keyPrefix = '') => {
 };
 const hasValue = (value) => value !== null && value !== undefined;
 const topProducts = computed(() => props.topProducts || []);
+const assignedPackages = computed(() => props.customerPackages || []);
+const packageSummary = computed(() => props.customerPackageSummary || {});
+const customerPackageOptions = computed(() => props.customerPackageOptions || []);
+const showCustomerPackages = computed(() => props.canEdit || assignedPackages.value.length > 0);
 const loyaltyPointLabel = computed(() => loyalty.value?.label || t('customers.details.loyalty.points_unit'));
 const loyaltyRecent = computed(() => loyalty.value?.recent || []);
 const loyaltyRoundingLabel = computed(() => {
@@ -222,6 +243,173 @@ const purchaseCards = computed(() => {
         },
     ];
 });
+
+const packageOfferOptions = computed(() => ([
+    { id: '', name: t('customers.details.customer_packages.select_placeholder') },
+    ...customerPackageOptions.value.map((offer) => ({
+        id: String(offer.id),
+        name: `${offer.name} - ${formatCurrency(offer.price || 0)}`,
+    })),
+]));
+
+const todayInputValue = () => new Date().toISOString().slice(0, 10);
+const addDaysInputValue = (dateValue, days) => {
+    if (!dateValue || !days) {
+        return '';
+    }
+
+    const date = new Date(`${dateValue}T00:00:00`);
+    if (Number.isNaN(date.getTime())) {
+        return '';
+    }
+
+    date.setDate(date.getDate() + Number(days));
+    return date.toISOString().slice(0, 10);
+};
+
+const showAssignPackage = ref(false);
+const assignPackageForm = useForm({
+    offer_package_id: '',
+    initial_quantity: '',
+    starts_at: todayInputValue(),
+    expires_at: '',
+    price_paid: '',
+    note: '',
+});
+
+const selectedPackageOffer = computed(() =>
+    customerPackageOptions.value.find((offer) => String(offer.id) === String(assignPackageForm.offer_package_id))
+);
+
+const hydrateAssignPackageFromOffer = () => {
+    const offer = selectedPackageOffer.value;
+    if (!offer) {
+        return;
+    }
+
+    assignPackageForm.initial_quantity = offer.included_quantity || 1;
+    assignPackageForm.price_paid = offer.price ?? '';
+    assignPackageForm.expires_at = addDaysInputValue(assignPackageForm.starts_at, offer.validity_days);
+};
+
+watch(() => assignPackageForm.offer_package_id, hydrateAssignPackageFromOffer);
+watch(() => assignPackageForm.starts_at, () => {
+    const offer = selectedPackageOffer.value;
+    if (offer?.validity_days) {
+        assignPackageForm.expires_at = addDaysInputValue(assignPackageForm.starts_at, offer.validity_days);
+    }
+});
+
+const startAssignPackage = () => {
+    assignPackageForm.reset();
+    assignPackageForm.clearErrors();
+    assignPackageForm.starts_at = todayInputValue();
+    assignPackageForm.offer_package_id = customerPackageOptions.value.length === 1
+        ? String(customerPackageOptions.value[0].id)
+        : '';
+    showAssignPackage.value = true;
+    hydrateAssignPackageFromOffer();
+};
+
+const cancelAssignPackage = () => {
+    assignPackageForm.clearErrors();
+    showAssignPackage.value = false;
+};
+
+const submitAssignPackage = () => {
+    if (assignPackageForm.processing) {
+        return;
+    }
+
+    assignPackageForm
+        .transform((data) => ({
+            ...data,
+            offer_package_id: data.offer_package_id ? Number(data.offer_package_id) : null,
+            initial_quantity: data.initial_quantity ? Number(data.initial_quantity) : null,
+            starts_at: data.starts_at || null,
+            expires_at: data.expires_at || null,
+            price_paid: data.price_paid !== '' ? Number(data.price_paid) : null,
+            note: data.note || null,
+        }))
+        .post(route('customer.packages.store', props.customer.id), {
+            preserveScroll: true,
+            onSuccess: () => cancelAssignPackage(),
+        });
+};
+
+const consumingPackageId = ref(null);
+const consumePackageForm = useForm({
+    quantity: 1,
+    used_at: todayInputValue(),
+    note: '',
+});
+
+const startConsumePackage = (customerPackage) => {
+    consumingPackageId.value = customerPackage.id;
+    consumePackageForm.reset();
+    consumePackageForm.clearErrors();
+    consumePackageForm.quantity = 1;
+    consumePackageForm.used_at = todayInputValue();
+};
+
+const cancelConsumePackage = () => {
+    consumingPackageId.value = null;
+    consumePackageForm.clearErrors();
+};
+
+const submitConsumePackage = () => {
+    if (!consumingPackageId.value || consumePackageForm.processing) {
+        return;
+    }
+
+    consumePackageForm
+        .transform((data) => ({
+            ...data,
+            quantity: Number(data.quantity || 1),
+            used_at: data.used_at || null,
+            note: data.note || null,
+        }))
+        .post(
+            route('customer.packages.usages.store', {
+                customer: props.customer.id,
+                customerPackage: consumingPackageId.value,
+            }),
+            {
+                preserveScroll: true,
+                onSuccess: () => cancelConsumePackage(),
+            }
+        );
+};
+
+const packageStatusLabel = (status) => {
+    const key = `customers.details.customer_packages.statuses.${status || 'active'}`;
+    const translated = t(key);
+
+    return translated && translated !== key ? translated : formatStatus(status);
+};
+
+const packageStatusClass = (status) => ({
+    'bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400': status === 'active',
+    'bg-stone-100 text-stone-700 dark:bg-neutral-800 dark:text-neutral-300': status === 'consumed',
+    'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300': status === 'expired',
+    'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400': status === 'cancelled',
+});
+
+const packageUnitLabel = (unitType) => {
+    const key = `customers.details.customer_packages.units.${unitType || 'credit'}`;
+    const translated = t(key);
+
+    return translated && translated !== key ? translated : (unitType || 'credit');
+};
+
+const packageProgress = (customerPackage) => {
+    const initial = Number(customerPackage?.initial_quantity || 0);
+    if (!initial) {
+        return 0;
+    }
+
+    return Math.min(100, Math.max(0, (Number(customerPackage?.consumed_quantity || 0) / initial) * 100));
+};
 
 const propertyTypes = computed(() => [
     { id: 'physical', name: t('customers.properties.types.physical') },
@@ -1160,6 +1348,254 @@ const deleteProperty = (property) => {
                             </div>
                         </li>
                     </ul>
+                </Card>
+
+                <Card v-if="showCustomerPackages" class="mt-5">
+                    <template #title>
+                        <div class="flex items-center justify-between gap-3">
+                            <span>{{ $t('customers.details.customer_packages.title') }}</span>
+                            <button
+                                v-if="canEdit"
+                                type="button"
+                                @click="showAssignPackage ? cancelAssignPackage() : startAssignPackage()"
+                                class="inline-flex items-center gap-x-1.5 rounded-sm border border-transparent bg-green-600 px-2.5 py-2 text-xs font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                            >
+                                {{ showAssignPackage ? $t('customers.actions.cancel') : $t('customers.details.customer_packages.assign_action') }}
+                            </button>
+                        </div>
+                    </template>
+
+                    <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm dark:border-neutral-700 dark:bg-neutral-900">
+                            <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.customer_packages.summary.total') }}</div>
+                            <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ packageSummary.total || 0 }}</div>
+                        </div>
+                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm dark:border-neutral-700 dark:bg-neutral-900">
+                            <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.customer_packages.summary.active') }}</div>
+                            <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ packageSummary.active || 0 }}</div>
+                        </div>
+                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm dark:border-neutral-700 dark:bg-neutral-900">
+                            <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.customer_packages.summary.remaining') }}</div>
+                            <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ formatNumber(packageSummary.remaining_quantity || 0) }}</div>
+                        </div>
+                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm dark:border-neutral-700 dark:bg-neutral-900">
+                            <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.customer_packages.summary.expiring') }}</div>
+                            <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ packageSummary.expiring_soon || 0 }}</div>
+                        </div>
+                    </div>
+
+                    <div
+                        v-if="showAssignPackage"
+                        class="mt-4 rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-900"
+                    >
+                        <div v-if="!customerPackageOptions.length" class="text-sm text-stone-500 dark:text-neutral-400">
+                            {{ $t('customers.details.customer_packages.no_options') }}
+                        </div>
+                        <form v-else class="space-y-3" @submit.prevent="submitAssignPackage">
+                            <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                <div class="md:col-span-2">
+                                    <FloatingSelect
+                                        v-model="assignPackageForm.offer_package_id"
+                                        :label="$t('customers.details.customer_packages.fields.offer')"
+                                        :options="packageOfferOptions"
+                                        filterable
+                                    />
+                                    <InputError class="mt-1" :message="assignPackageForm.errors.offer_package_id" />
+                                </div>
+                                <div>
+                                    <FloatingInput
+                                        v-model="assignPackageForm.initial_quantity"
+                                        type="number"
+                                        min="1"
+                                        :label="$t('customers.details.customer_packages.fields.initial_quantity')"
+                                    />
+                                    <InputError class="mt-1" :message="assignPackageForm.errors.initial_quantity" />
+                                </div>
+                                <div>
+                                    <FloatingInput
+                                        v-model="assignPackageForm.price_paid"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        :label="$t('customers.details.customer_packages.fields.price_paid')"
+                                    />
+                                    <InputError class="mt-1" :message="assignPackageForm.errors.price_paid" />
+                                </div>
+                                <div>
+                                    <FloatingInput
+                                        v-model="assignPackageForm.starts_at"
+                                        type="date"
+                                        :label="$t('customers.details.customer_packages.fields.starts_at')"
+                                    />
+                                    <InputError class="mt-1" :message="assignPackageForm.errors.starts_at" />
+                                </div>
+                                <div>
+                                    <FloatingInput
+                                        v-model="assignPackageForm.expires_at"
+                                        type="date"
+                                        :label="$t('customers.details.customer_packages.fields.expires_at')"
+                                    />
+                                    <InputError class="mt-1" :message="assignPackageForm.errors.expires_at" />
+                                </div>
+                                <div class="md:col-span-2">
+                                    <FloatingTextarea
+                                        v-model="assignPackageForm.note"
+                                        :label="$t('customers.details.customer_packages.fields.note')"
+                                    />
+                                    <InputError class="mt-1" :message="assignPackageForm.errors.note" />
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-end gap-2">
+                                <button
+                                    type="button"
+                                    @click="cancelAssignPackage"
+                                    class="inline-flex items-center gap-x-1.5 rounded-sm border border-stone-200 bg-white px-2.5 py-2 text-xs font-medium text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                                >
+                                    {{ $t('customers.actions.cancel') }}
+                                </button>
+                                <button
+                                    type="submit"
+                                    :disabled="assignPackageForm.processing"
+                                    class="inline-flex items-center gap-x-1.5 rounded-sm border border-transparent bg-green-600 px-2.5 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                >
+                                    {{ $t('customers.details.customer_packages.assign_submit') }}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div v-if="!assignedPackages.length" class="mt-4 text-sm text-stone-500 dark:text-neutral-400">
+                        {{ $t('customers.details.customer_packages.empty') }}
+                    </div>
+                    <div v-else class="mt-4 space-y-3">
+                        <div
+                            v-for="customerPackage in assignedPackages"
+                            :key="customerPackage.id"
+                            class="rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900"
+                        >
+                            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div>
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                            {{ customerPackage.name }}
+                                        </h3>
+                                        <span
+                                            class="inline-flex rounded-sm px-2 py-0.5 text-xs font-semibold"
+                                            :class="packageStatusClass(customerPackage.status)"
+                                        >
+                                            {{ packageStatusLabel(customerPackage.status) }}
+                                        </span>
+                                    </div>
+                                    <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-stone-500 dark:text-neutral-400">
+                                        <span>{{ $t('customers.details.customer_packages.starts') }} {{ formatDate(customerPackage.starts_at) }}</span>
+                                        <span v-if="customerPackage.expires_at">{{ $t('customers.details.customer_packages.expires') }} {{ formatDate(customerPackage.expires_at) }}</span>
+                                        <span v-else>{{ $t('customers.details.customer_packages.no_expiry') }}</span>
+                                    </div>
+                                </div>
+                                <div class="text-left sm:text-right">
+                                    <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                        {{ formatNumber(customerPackage.remaining_quantity || 0) }} /
+                                        {{ formatNumber(customerPackage.initial_quantity || 0) }}
+                                        {{ packageUnitLabel(customerPackage.unit_type) }}
+                                    </div>
+                                    <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                        {{ formatCurrency(customerPackage.price_paid || 0) }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mt-3 h-2 overflow-hidden rounded-full bg-stone-100 dark:bg-neutral-800">
+                                <div
+                                    class="h-full rounded-full bg-green-600"
+                                    :style="{ width: `${packageProgress(customerPackage)}%` }"
+                                ></div>
+                            </div>
+
+                            <div v-if="customerPackage.usages?.length" class="mt-4 space-y-2">
+                                <div class="text-xs font-semibold uppercase text-stone-400">
+                                    {{ $t('customers.details.customer_packages.recent_usages') }}
+                                </div>
+                                <div
+                                    v-for="usage in customerPackage.usages"
+                                    :key="usage.id"
+                                    class="flex items-start justify-between gap-3 rounded-sm border border-stone-100 px-3 py-2 text-sm dark:border-neutral-800"
+                                >
+                                    <div>
+                                        <div class="font-medium text-stone-800 dark:text-neutral-200">
+                                            {{ formatNumber(usage.quantity || 0) }} {{ packageUnitLabel(customerPackage.unit_type) }}
+                                        </div>
+                                        <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                            {{ formatDate(usage.used_at) }}
+                                            <span v-if="usage.created_by"> - {{ usage.created_by }}</span>
+                                        </div>
+                                        <div v-if="usage.note" class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                            {{ usage.note }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <form
+                                v-if="consumingPackageId === customerPackage.id"
+                                class="mt-4 rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-950"
+                                @submit.prevent="submitConsumePackage"
+                            >
+                                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                    <div>
+                                        <FloatingInput
+                                            v-model="consumePackageForm.quantity"
+                                            type="number"
+                                            min="1"
+                                            :label="$t('customers.details.customer_packages.fields.usage_quantity')"
+                                        />
+                                        <InputError class="mt-1" :message="consumePackageForm.errors.quantity" />
+                                    </div>
+                                    <div>
+                                        <FloatingInput
+                                            v-model="consumePackageForm.used_at"
+                                            type="date"
+                                            :label="$t('customers.details.customer_packages.fields.used_at')"
+                                        />
+                                        <InputError class="mt-1" :message="consumePackageForm.errors.used_at" />
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <FloatingTextarea
+                                            v-model="consumePackageForm.note"
+                                            :label="$t('customers.details.customer_packages.fields.usage_note')"
+                                        />
+                                        <InputError class="mt-1" :message="consumePackageForm.errors.note" />
+                                    </div>
+                                </div>
+                                <div class="mt-3 flex items-center justify-end gap-2">
+                                    <button
+                                        type="button"
+                                        @click="cancelConsumePackage"
+                                        class="inline-flex items-center gap-x-1.5 rounded-sm border border-stone-200 bg-white px-2.5 py-2 text-xs font-medium text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                                    >
+                                        {{ $t('customers.actions.cancel') }}
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        :disabled="consumePackageForm.processing"
+                                        class="inline-flex items-center gap-x-1.5 rounded-sm border border-transparent bg-stone-900 px-2.5 py-2 text-xs font-medium text-white hover:bg-stone-800 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-stone-500 dark:bg-white dark:text-stone-900"
+                                    >
+                                        {{ $t('customers.details.customer_packages.consume_submit') }}
+                                    </button>
+                                </div>
+                            </form>
+
+                            <div v-else-if="canEdit && customerPackage.status === 'active'" class="mt-4 flex justify-end">
+                                <button
+                                    type="button"
+                                    @click="startConsumePackage(customerPackage)"
+                                    class="inline-flex items-center gap-x-1.5 rounded-sm border border-stone-200 bg-white px-2.5 py-2 text-xs font-medium text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                                >
+                                    {{ $t('customers.details.customer_packages.consume_action') }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </Card>
 
                 <CardNav v-if="showServiceOps" class="mt-5" :customer="customer" />

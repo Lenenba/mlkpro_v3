@@ -873,13 +873,27 @@ Sortie livree:
 
 ### Phase 2 - Vente via devis/factures
 
+Statut: en cours pour le socle interne devis/factures.
+
 - ajout d un pack a un devis
 - ajout d un pack/forfait a une facture
 - snapshot des lignes incluses
 - affichage clair dans PDF/preview si applicable
 - tests devis/factures
 
+Sortie livree:
+
+- selection d une offre active depuis le formulaire devis
+- ajout manuel d une offre active sur une facture editable
+- snapshot `offer_package` conserve dans `quote_products.source_details`
+- propagation du snapshot vers `product_works.source_details`
+- reprise du snapshot dans `invoice_items.meta`
+- affichage des inclusions dans la preview facture et les PDF
+- tests de non-regression devis -> job -> facture
+
 ### Phase 3 - Forfaits client manuels
+
+Statut: en cours pour le socle interne fiche client.
 
 - creation `customer_packages`
 - attribution a un client
@@ -887,6 +901,17 @@ Sortie livree:
 - consommation manuelle
 - historique
 - tests solde/statut
+
+Sortie livree:
+
+- creation `customer_packages` et `customer_package_usages`
+- attribution manuelle d un forfait actif depuis la fiche client
+- snapshot catalogue conserve dans `customer_packages.source_details`
+- solde initial, consomme et restant suivis en unites entieres
+- consommation manuelle avec historique recent
+- statut automatique `consumed` quand le solde atteint zero
+- bloc fiche client avec synthese, attribution et consommation
+- tests attribution, garde-fous et solde/statut
 
 ### Phase 4 - Reservation et automatisation
 

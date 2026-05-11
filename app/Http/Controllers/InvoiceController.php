@@ -5,16 +5,20 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\OfferPackage;
 use App\Models\Payment;
 use App\Models\Work;
 use App\Services\CRM\OutgoingEmailLogService;
 use App\Services\FinanceApprovalService;
 use App\Services\InvoiceDocumentService;
+use App\Services\OfferPackages\OfferPackageSalesLineBuilder;
 use App\Services\UsageLimitService;
 use App\Services\WorkBillingService;
 use App\Support\TenantPaymentMethodsResolver;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class InvoiceController extends Controller
@@ -119,6 +123,7 @@ class InvoiceController extends Controller
         $payload = [
             'invoice' => $invoice,
             'paymentMethodSettings' => TenantPaymentMethodsResolver::forAccountId((int) $invoice->user_id),
+            'offerPackages' => $this->offerPackageOptions((int) $invoice->user_id),
         ];
 
         if ($this->shouldReturnJson($request)) {
@@ -130,6 +135,78 @@ class InvoiceController extends Controller
         }
 
         return $this->inertiaOrJson('Invoice/Show', $payload);
+    }
+
+    public function addOfferPackage(Request $request, Invoice $invoice, OfferPackageSalesLineBuilder $builder)
+    {
+        $this->authorize('update', $invoice);
+
+        if (in_array($invoice->status, ['paid', 'void'], true)) {
+            throw ValidationException::withMessages([
+                'offer_package_id' => ['Paid or void invoices cannot receive new pack/forfait lines.'],
+            ]);
+        }
+
+        $accountId = (int) $request->user()->accountOwnerId();
+        $validated = $request->validate([
+            'offer_package_id' => [
+                'required',
+                'integer',
+                Rule::exists('offer_packages', 'id')
+                    ->where(fn ($query) => $query
+                        ->where('user_id', $accountId)
+                        ->where('status', OfferPackage::STATUS_ACTIVE)),
+            ],
+            'quantity' => ['nullable', 'integer', 'min:1', 'max:100000'],
+            'unit_price' => ['nullable', 'numeric', 'min:0', 'max:999999999.99'],
+        ]);
+
+        $offer = OfferPackage::query()
+            ->forAccount($accountId)
+            ->active()
+            ->with('items')
+            ->findOrFail((int) $validated['offer_package_id']);
+
+        $builder->assertSellableFor($request->user(), $offer);
+
+        $item = DB::transaction(function () use ($invoice, $offer, $builder, $validated) {
+            $attributes = $builder->invoiceItemAttributes(
+                $offer,
+                (int) ($validated['quantity'] ?? 1),
+                ($validated['unit_price'] ?? null) !== null ? (float) $validated['unit_price'] : null,
+                [
+                    'added_from' => 'invoice_manual_add',
+                ]
+            );
+
+            $item = $invoice->items()->create(array_merge($attributes, [
+                'work_id' => $invoice->work_id,
+            ]));
+
+            $invoice->forceFill([
+                'total' => round((float) $invoice->total + (float) $item->total, 2),
+            ])->save();
+
+            return $item;
+        });
+
+        ActivityLog::record($request->user(), $invoice, 'offer_package_added', [
+            'invoice_item_id' => $item->id,
+            'offer_package_id' => $offer->id,
+            'offer_package_type' => $offer->type,
+            'quantity' => (int) ($validated['quantity'] ?? 1),
+            'total' => (float) $item->total,
+        ], 'Pack/forfait added to invoice');
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Pack/forfait added to invoice.',
+                'invoice' => $invoice->fresh(['items', 'customer', 'work']),
+                'item' => $item->fresh(),
+            ], 201);
+        }
+
+        return redirect()->back()->with('success', 'Pack/forfait added to invoice.');
     }
 
     public function pdf(Request $request, Invoice $invoice, InvoiceDocumentService $invoiceDocumentService)
@@ -466,6 +543,22 @@ class InvoiceController extends Controller
         $invoice->setAttribute('approval_history', is_array($history) ? array_values($history) : []);
 
         return $invoice;
+    }
+
+    private function offerPackageOptions(int $accountId): array
+    {
+        $builder = app(OfferPackageSalesLineBuilder::class);
+
+        return OfferPackage::query()
+            ->forAccount($accountId)
+            ->active()
+            ->with('items')
+            ->orderBy('type')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (OfferPackage $offer): array => $builder->catalogPayload($offer))
+            ->values()
+            ->all();
     }
 
     private function canSendInvoice($actor, Invoice $invoice): bool

@@ -499,6 +499,50 @@
           "ceil": "Superieur"
         }
       },
+      "customer_packages": {
+        "title": "Forfaits client",
+        "assign_action": "Attribuer forfait",
+        "assign_submit": "Attribuer",
+        "consume_action": "Consommer",
+        "consume_submit": "Enregistrer consommation",
+        "select_placeholder": "Choisir un forfait actif",
+        "no_options": "Aucun forfait actif disponible dans le catalogue.",
+        "empty": "Aucun forfait attribue a ce client.",
+        "starts": "Debut",
+        "expires": "Expire",
+        "no_expiry": "Sans expiration",
+        "recent_usages": "Consommations recentes",
+        "summary": {
+          "total": "Total",
+          "active": "Actifs",
+          "remaining": "Solde",
+          "expiring": "Expire bientot"
+        },
+        "fields": {
+          "offer": "Forfait",
+          "initial_quantity": "Quantite initiale",
+          "price_paid": "Prix paye",
+          "starts_at": "Date de debut",
+          "expires_at": "Date d'expiration",
+          "note": "Note interne",
+          "usage_quantity": "Quantite consommee",
+          "used_at": "Date de consommation",
+          "usage_note": "Note de consommation"
+        },
+        "statuses": {
+          "active": "Actif",
+          "consumed": "Consomme",
+          "expired": "Expire",
+          "cancelled": "Annule"
+        },
+        "units": {
+          "session": "session(s)",
+          "hour": "heure(s)",
+          "visit": "visite(s)",
+          "credit": "credit(s)",
+          "month": "mois"
+        }
+      },
       "notes": {
         "title": "Notes internes",
         "field": "Notes internes",

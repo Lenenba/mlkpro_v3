@@ -563,6 +563,7 @@ Route::name('api.')->group(function () {
                 Route::get('invoices', [InvoiceController::class, 'index']);
                 Route::get('invoices/{invoice}', [InvoiceController::class, 'show']);
                 Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'pdf']);
+                Route::post('invoices/{invoice}/offer-packages', [InvoiceController::class, 'addOfferPackage']);
                 Route::post('invoices/{invoice}/send-email', [InvoiceController::class, 'sendEmail']);
                 Route::post('work/{work}/invoice', [InvoiceController::class, 'storeFromWork']);
             });

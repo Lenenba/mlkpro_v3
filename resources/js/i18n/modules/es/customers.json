@@ -499,6 +499,50 @@
           "ceil": "Al alza"
         }
       },
+      "customer_packages": {
+        "title": "Forfaits del cliente",
+        "assign_action": "Asignar forfait",
+        "assign_submit": "Asignar",
+        "consume_action": "Consumir",
+        "consume_submit": "Registrar consumo",
+        "select_placeholder": "Elegir un forfait activo",
+        "no_options": "No hay ningun forfait activo disponible en el catalogo.",
+        "empty": "Aun no se ha asignado ningun forfait a este cliente.",
+        "starts": "Inicio",
+        "expires": "Vence",
+        "no_expiry": "Sin vencimiento",
+        "recent_usages": "Consumos recientes",
+        "summary": {
+          "total": "Total",
+          "active": "Activos",
+          "remaining": "Saldo",
+          "expiring": "Vencen pronto"
+        },
+        "fields": {
+          "offer": "Forfait",
+          "initial_quantity": "Cantidad inicial",
+          "price_paid": "Precio pagado",
+          "starts_at": "Fecha de inicio",
+          "expires_at": "Fecha de vencimiento",
+          "note": "Nota interna",
+          "usage_quantity": "Cantidad consumida",
+          "used_at": "Fecha de consumo",
+          "usage_note": "Nota de consumo"
+        },
+        "statuses": {
+          "active": "Activo",
+          "consumed": "Consumido",
+          "expired": "Vencido",
+          "cancelled": "Cancelado"
+        },
+        "units": {
+          "session": "sesion(es)",
+          "hour": "hora(s)",
+          "visit": "visita(s)",
+          "credit": "credito(s)",
+          "month": "mes(es)"
+        }
+      },
       "notes": {
         "title": "Notas internas",
         "field": "Notas internas",

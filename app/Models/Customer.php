@@ -208,6 +208,13 @@ class Customer extends Model implements HasLocalePreferenceContract
         return $this->hasMany(LoyaltyPointLedger::class);
     }
 
+    public function customerPackages(): HasMany
+    {
+        return $this->hasMany(CustomerPackage::class)
+            ->latest('starts_at')
+            ->latest('id');
+    }
+
     public function campaignRecipients(): HasMany
     {
         return $this->hasMany(CampaignRecipient::class);

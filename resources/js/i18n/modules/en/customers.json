@@ -499,6 +499,50 @@
           "ceil": "Ceil"
         }
       },
+      "customer_packages": {
+        "title": "Customer forfaits",
+        "assign_action": "Assign forfait",
+        "assign_submit": "Assign",
+        "consume_action": "Consume",
+        "consume_submit": "Record usage",
+        "select_placeholder": "Choose an active forfait",
+        "no_options": "No active forfait is available in the catalog.",
+        "empty": "No forfait has been assigned to this customer yet.",
+        "starts": "Starts",
+        "expires": "Expires",
+        "no_expiry": "No expiry",
+        "recent_usages": "Recent usage",
+        "summary": {
+          "total": "Total",
+          "active": "Active",
+          "remaining": "Balance",
+          "expiring": "Expiring soon"
+        },
+        "fields": {
+          "offer": "Forfait",
+          "initial_quantity": "Initial quantity",
+          "price_paid": "Price paid",
+          "starts_at": "Start date",
+          "expires_at": "Expiry date",
+          "note": "Internal note",
+          "usage_quantity": "Consumed quantity",
+          "used_at": "Usage date",
+          "usage_note": "Usage note"
+        },
+        "statuses": {
+          "active": "Active",
+          "consumed": "Consumed",
+          "expired": "Expired",
+          "cancelled": "Cancelled"
+        },
+        "units": {
+          "session": "session(s)",
+          "hour": "hour(s)",
+          "visit": "visit(s)",
+          "credit": "credit(s)",
+          "month": "month(s)"
+        }
+      },
       "notes": {
         "title": "Internal notes",
         "field": "Internal notes",
