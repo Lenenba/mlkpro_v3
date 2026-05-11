@@ -10,6 +10,7 @@ use App\Models\Invoice;
 use App\Models\OfferPackage;
 use App\Models\Reservation;
 use App\Models\User;
+use App\Models\Work;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -518,10 +519,21 @@ class CustomerPackageService
             }
 
             $price = round((float) ($payload['price_paid'] ?? $locked->offerPackage->price ?? $locked->price_paid ?? 0), 2);
+            $work = Work::query()->create([
+                'user_id' => $accountId,
+                'customer_id' => $customer->id,
+                'job_title' => 'Recurring forfait renewal',
+                'instructions' => 'Renewal invoice for '.$locked->offerPackage->name,
+                'status' => Work::STATUS_CLOSED,
+                'subtotal' => $price,
+                'total' => $price,
+            ]);
+
             $invoice = Invoice::query()->create([
                 'customer_id' => $customer->id,
                 'user_id' => $accountId,
                 'created_by_user_id' => $actor->id,
+                'work_id' => $work->id,
                 'status' => $payload['status'] ?? 'sent',
                 'total' => $price,
                 'currency_code' => $locked->currency_code,

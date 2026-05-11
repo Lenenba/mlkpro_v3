@@ -1,7 +1,8 @@
 <script setup>
 import { computed, reactive, ref } from 'vue';
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import FloatingInput from '@/Components/FloatingInput.vue';
@@ -569,9 +570,12 @@ const restoreOffer = (offer) => {
                             </template>
                             <template v-else>
                                 <td class="px-5 py-3">
-                                    <div class="font-semibold text-stone-800 dark:text-neutral-100">
+                                    <Link
+                                        :href="route('offer-packages.show', offer.id)"
+                                        class="font-semibold text-stone-800 transition hover:text-green-700 dark:text-neutral-100 dark:hover:text-green-300"
+                                    >
                                         {{ offer.name }}
-                                    </div>
+                                    </Link>
                                     <div class="mt-1 max-w-xs truncate text-xs text-stone-500 dark:text-neutral-400">
                                         {{ offer.description || 'Aucune description' }}
                                     </div>
@@ -614,37 +618,48 @@ const restoreOffer = (offer) => {
                                     {{ formatDate(offer.created_at) }}
                                 </td>
                                 <td class="px-5 py-3">
-                                    <div class="flex flex-wrap items-center justify-end gap-2">
+                                    <div class="flex justify-end">
+                                        <AdminDataTableActions label="Actions" menu-width-class="w-44">
+                                        <Link
+                                            :href="route('offer-packages.show', offer.id)"
+                                            class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                        >
+                                            Voir
+                                        </Link>
                                         <button
                                             type="button"
-                                            :class="crmButtonClass('primary', 'compact')"
+                                            class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-start text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
                                             @click="startEdit(offer)"
                                         >
                                             Modifier
                                         </button>
                                         <button
                                             type="button"
-                                            :class="crmButtonClass('secondary', 'compact')"
+                                            class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-start text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
                                             @click="duplicateOffer(offer)"
                                         >
                                             Dupliquer
                                         </button>
-                                        <button
-                                            v-if="offer.status === 'archived'"
-                                            type="button"
-                                            :class="crmButtonClass('secondary', 'compact')"
-                                            @click="restoreOffer(offer)"
-                                        >
-                                            Reactiver
-                                        </button>
-                                        <button
-                                            v-else
-                                            type="button"
-                                            :class="crmButtonClass('danger', 'compact')"
-                                            @click="archiveOffer(offer)"
-                                        >
-                                            Archiver
-                                        </button>
+                                        <template v-if="offer.status === 'archived'">
+                                            <button
+                                                type="button"
+                                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-start text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                                @click="restoreOffer(offer)"
+                                            >
+                                                Reactiver
+                                            </button>
+                                        </template>
+                                        <template v-else>
+                                            <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
+                                            <button
+                                                type="button"
+                                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-start text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800"
+                                                @click="archiveOffer(offer)"
+                                            >
+                                                Archiver
+                                            </button>
+                                        </template>
+                                        </AdminDataTableActions>
                                     </div>
                                 </td>
                             </template>

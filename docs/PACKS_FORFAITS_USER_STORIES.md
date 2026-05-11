@@ -937,7 +937,7 @@ Sortie livree:
 
 ### Phase 5 - Recurrence
 
-Statut: en cours pour le socle recurrent interne.
+Statut: en cours pour le socle recurrent interne et la facturation de renouvellement.
 
 - forfait recurrent
 - paiement automatique
@@ -954,9 +954,14 @@ Sortie livree:
 - fermeture de l ancienne periode lors d un renouvellement
 - lien `renewed_from_customer_package_id` entre periodes
 - affichage fiche client: recurrence, prochain renouvellement et action renouveler
+- generation manuelle d une facture de renouvellement depuis la fiche client
+- generation automatique des factures de renouvellement dues via `offer-packages:automation`
+- idempotence pour eviter plusieurs factures ouvertes sur la meme echeance
+- affichage de la facture de renouvellement liee dans la fiche client
 - rappel interne automatique quand un renouvellement arrive sous 7 jours
-- traces CRM/activite pour forfait renouvele et renouvellement a venir
-- tests creation, attribution, renouvellement et rappel recurrent
+- statut recurrent `payment_due` quand une facture de renouvellement attend paiement
+- traces CRM/activite pour forfait renouvele, renouvellement a venir et facture creee
+- tests creation, attribution, renouvellement, rappel recurrent et facture de renouvellement
 
 Reste a livrer plus tard:
 
@@ -964,6 +969,129 @@ Reste a livrer plus tard:
 - portail client complet pour suivre/renouveler
 - upgrade/downgrade recurrent
 - gestion paiement en retard/suspension
+
+Phases restantes pour terminer l epique:
+
+1. Finaliser la facturation recurrente Stripe
+
+   But:
+
+   - passer de la facture de renouvellement generee a une tentative de paiement
+     automatique quand Stripe est configure
+
+   Livrables:
+
+   - liaison entre forfait recurrent, facture de renouvellement et moyen de paiement
+   - tentative de paiement Stripe sur les renouvellements dus
+   - fallback facture a payer si aucun moyen de paiement automatique n est disponible
+   - journal des tentatives de paiement
+   - synchronisation des statuts facture/paiement/forfait
+
+   Sortie attendue:
+
+   - un forfait recurrent peut etre facture et paye automatiquement, ou rester en
+     attente de paiement avec une facture claire
+
+2. Gerer paiement en retard, suspension et reprise
+
+   But:
+
+   - rendre les echecs de paiement lisibles et actionnables
+
+   Livrables:
+
+   - statut `payment_due` confirme sur facture ouverte
+   - statut `suspended` apres echec ou retard selon une regle simple
+   - reprise du forfait apres paiement
+   - traces CRM/activite pour echec, suspension et reprise
+   - notifications internes et client selon preferences
+
+   Sortie attendue:
+
+   - l entreprise sait quels forfaits recurrents demandent une action et le client
+     comprend pourquoi son forfait est bloque
+
+3. Annulation recurrente, upgrade et downgrade
+
+   But:
+
+   - permettre de modifier ou fermer proprement un forfait recurrent
+
+   Livrables:
+
+   - annulation fin de periode
+   - annulation immediate admin avec raison obligatoire
+   - upgrade manuel vers une autre offre recurrente
+   - downgrade manuel vers une autre offre recurrente
+   - historique des changements dans les metadonnees et l activite CRM
+   - premiere version sans prorata automatique
+
+   Sortie attendue:
+
+   - l entreprise peut faire evoluer ou arreter un forfait recurrent sans perdre
+     l historique des periodes
+
+4. Portail client forfaits
+
+   But:
+
+   - donner au client final une vue autonome sur ses forfaits
+
+   Livrables:
+
+   - liste des forfaits actifs, consommes, expires et annules
+   - solde restant, expiration et prochaine date de renouvellement
+   - historique des consommations
+   - factures liees au forfait
+   - demande de renouvellement
+   - demande d annulation selon les regles de l entreprise
+
+   Sortie attendue:
+
+   - le client peut suivre ses forfaits et ses factures sans contacter
+     l entreprise
+
+5. Declencheurs marketing et segments forfaits
+
+   But:
+
+   - utiliser les forfaits comme leviers de retention et relance
+
+   Livrables:
+
+   - evenement forfait achete
+   - evenement solde bas
+   - evenement expiration proche
+   - evenement forfait expire
+   - evenement forfait renouvele
+   - segments clients bases sur forfait actif, solde, expiration et recurrence
+   - respect des preferences de communication client
+
+   Sortie attendue:
+
+   - les forfaits peuvent alimenter des campagnes ciblees et des relances
+     automatiques
+
+6. Reporting V3 et QA finale
+
+   But:
+
+   - fermer l epique avec des indicateurs fiables et une couverture de tests
+
+   Livrables:
+
+   - rapport ventes ponctuelles vs forfaits consommables vs forfaits recurrents
+   - rapport forfaits actifs, suspendus, annules, expires et renouveles
+   - tests echec paiement et reprise
+   - tests portail client
+   - tests upgrade/downgrade/annulation
+   - tests declencheurs marketing
+   - verification non-regression V1/V2/V3
+
+   Sortie attendue:
+
+   - tous les criteres de la DoD V3 sont couverts, testables et utilisables en
+     production
 
 ## 15. Risques a eviter
 

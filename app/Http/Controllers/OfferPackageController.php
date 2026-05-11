@@ -3,11 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Enums\CurrencyCode;
+use App\Models\CustomerPackage;
+use App\Models\CustomerPackageUsage;
+use App\Models\Invoice;
 use App\Models\OfferPackage;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\OfferPackages\OfferPackageService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class OfferPackageController extends Controller
@@ -80,6 +84,30 @@ class OfferPackageController extends Controller
         return redirect()->route('offer-packages.index')->with('success', 'Offer package created.');
     }
 
+    public function show(Request $request, OfferPackage $offerPackage)
+    {
+        $user = $request->user();
+        if (! $user) {
+            abort(403);
+        }
+
+        $accountId = (int) $user->accountOwnerId();
+        if ((int) $offerPackage->user_id !== $accountId) {
+            abort(404);
+        }
+
+        $offerPackage->load(['items.product']);
+        $owner = User::query()->find($accountId);
+
+        return $this->inertiaOrJson('OfferPackages/Show', [
+            'offer' => $this->payload($offerPackage),
+            'kpis' => $this->detailKpis($offerPackage, $accountId),
+            'customers' => $this->detailCustomers($offerPackage, $accountId),
+            'recentUsages' => $this->detailRecentUsages($offerPackage, $accountId),
+            'tenantCurrencyCode' => $owner?->businessCurrencyCode() ?? $user->businessCurrencyCode(),
+        ]);
+    }
+
     public function update(Request $request, OfferPackage $offerPackage)
     {
         $offer = $this->offers->update($request->user(), $offerPackage, $this->validatedPayload($request));
@@ -98,10 +126,16 @@ class OfferPackageController extends Controller
     {
         $offer = $this->offers->duplicate($request->user(), $offerPackage);
 
-        return response()->json([
-            'message' => 'Offer package duplicated.',
-            'offer' => $this->payload($offer),
-        ], 201);
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Offer package duplicated.',
+                'offer' => $this->payload($offer),
+            ], 201);
+        }
+
+        return redirect()
+            ->route('offer-packages.index')
+            ->with('success', 'Offer package duplicated.');
     }
 
     public function destroy(Request $request, OfferPackage $offerPackage)
@@ -122,10 +156,16 @@ class OfferPackageController extends Controller
     {
         $offer = $this->offers->reactivate($request->user(), $offerPackage);
 
-        return response()->json([
-            'message' => 'Offer package reactivated.',
-            'offer' => $this->payload($offer),
-        ]);
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Offer package reactivated.',
+                'offer' => $this->payload($offer),
+            ]);
+        }
+
+        return redirect()
+            ->route('offer-packages.index')
+            ->with('success', 'Offer package reactivated.');
     }
 
     private function validatedPayload(Request $request): array
@@ -195,15 +235,230 @@ class OfferPackageController extends Controller
             'recurrence_frequency' => $offer->recurrence_frequency,
             'renewal_notice_days' => $offer->renewal_notice_days,
             'items_count' => $offer->items->count(),
+            'created_at' => $offer->created_at,
+            'updated_at' => $offer->updated_at,
             'items' => $offer->items->map(fn ($item): array => [
                 'id' => $item->id,
                 'product_id' => $item->product_id,
                 'item_type_snapshot' => $item->item_type_snapshot,
                 'name_snapshot' => $item->name_snapshot,
+                'product_name' => $item->product?->name,
+                'product_type' => $item->product?->item_type,
                 'quantity' => (float) $item->quantity,
                 'unit_price' => (float) $item->unit_price,
                 'sort_order' => $item->sort_order,
             ])->values()->all(),
         ];
+    }
+
+    private function detailKpis(OfferPackage $offerPackage, int $accountId): array
+    {
+        $baseQuery = CustomerPackage::query()
+            ->forAccount($accountId)
+            ->where('offer_package_id', $offerPackage->id);
+
+        $initialQuantity = (int) (clone $baseQuery)->sum('initial_quantity');
+        $consumedQuantity = (int) (clone $baseQuery)->sum('consumed_quantity');
+        $remainingQuantity = (int) (clone $baseQuery)->sum('remaining_quantity');
+        $soldCount = (clone $baseQuery)->count();
+        $assignedCustomers = (clone $baseQuery)->distinct('customer_id')->count('customer_id');
+
+        return [
+            'sold_count' => $soldCount,
+            'assigned_customers' => $assignedCustomers,
+            'active_customers' => (clone $baseQuery)
+                ->active()
+                ->distinct('customer_id')
+                ->count('customer_id'),
+            'active_count' => (clone $baseQuery)->where('status', CustomerPackage::STATUS_ACTIVE)->count(),
+            'consumed_count' => (clone $baseQuery)->where('status', CustomerPackage::STATUS_CONSUMED)->count(),
+            'expired_count' => (clone $baseQuery)->where('status', CustomerPackage::STATUS_EXPIRED)->count(),
+            'cancelled_count' => (clone $baseQuery)->where('status', CustomerPackage::STATUS_CANCELLED)->count(),
+            'recurring_count' => (clone $baseQuery)->recurring()->count(),
+            'payment_due_count' => (clone $baseQuery)
+                ->where('recurrence_status', CustomerPackage::RECURRENCE_PAYMENT_DUE)
+                ->count(),
+            'suspended_count' => (clone $baseQuery)
+                ->where('recurrence_status', CustomerPackage::RECURRENCE_SUSPENDED)
+                ->count(),
+            'total_revenue' => round((float) (clone $baseQuery)->sum('price_paid'), 2),
+            'average_revenue' => $soldCount > 0
+                ? round((float) (clone $baseQuery)->sum('price_paid') / $soldCount, 2)
+                : 0.0,
+            'initial_quantity' => $initialQuantity,
+            'consumed_quantity' => $consumedQuantity,
+            'remaining_quantity' => $remainingQuantity,
+            'usage_rate' => $initialQuantity > 0
+                ? round(($consumedQuantity / $initialQuantity) * 100, 1)
+                : 0.0,
+            'status_breakdown' => [
+                CustomerPackage::STATUS_ACTIVE => (clone $baseQuery)->where('status', CustomerPackage::STATUS_ACTIVE)->count(),
+                CustomerPackage::STATUS_CONSUMED => (clone $baseQuery)->where('status', CustomerPackage::STATUS_CONSUMED)->count(),
+                CustomerPackage::STATUS_EXPIRED => (clone $baseQuery)->where('status', CustomerPackage::STATUS_EXPIRED)->count(),
+                CustomerPackage::STATUS_CANCELLED => (clone $baseQuery)->where('status', CustomerPackage::STATUS_CANCELLED)->count(),
+            ],
+        ];
+    }
+
+    private function detailCustomers(OfferPackage $offerPackage, int $accountId): array
+    {
+        $usagesCount = CustomerPackageUsage::query()
+            ->selectRaw('count(*)')
+            ->whereColumn('customer_package_usages.customer_package_id', 'customer_packages.id');
+        $lastUsedAt = CustomerPackageUsage::query()
+            ->select('used_at')
+            ->whereColumn('customer_package_usages.customer_package_id', 'customer_packages.id')
+            ->latest('used_at')
+            ->latest('id')
+            ->limit(1);
+
+        if ($this->usageReversalColumnExists()) {
+            $usagesCount->whereNull('reversed_at');
+            $lastUsedAt->whereNull('reversed_at');
+        }
+
+        $packages = CustomerPackage::query()
+            ->forAccount($accountId)
+            ->where('offer_package_id', $offerPackage->id)
+            ->with([
+                'customer:id,number,first_name,last_name,company_name,email,phone',
+                'invoice:id,number,status,total,currency_code',
+            ])
+            ->addSelect([
+                'usages_count' => $usagesCount,
+                'last_used_at' => $lastUsedAt,
+            ])
+            ->latest('starts_at')
+            ->latest('id')
+            ->limit(15)
+            ->get();
+
+        $renewalInvoices = $this->renewalInvoicesFor($packages, $accountId);
+
+        return $packages
+            ->map(function (CustomerPackage $package) use ($renewalInvoices): array {
+                $customer = $package->customer;
+                $renewalInvoice = $renewalInvoices->get((int) data_get($package->metadata, 'recurrence.pending_invoice_id', 0));
+
+                return [
+                    'id' => $package->id,
+                    'customer' => $customer ? [
+                        'id' => $customer->id,
+                        'number' => $customer->number,
+                        'name' => $this->customerName($customer),
+                        'email' => $customer->email,
+                        'phone' => $customer->phone,
+                    ] : null,
+                    'invoice' => $package->invoice ? [
+                        'id' => $package->invoice->id,
+                        'number' => $package->invoice->number,
+                        'status' => $package->invoice->status,
+                        'total' => (float) $package->invoice->total,
+                        'currency_code' => $package->invoice->currency_code,
+                    ] : null,
+                    'renewal_invoice' => $renewalInvoice ? [
+                        'id' => $renewalInvoice->id,
+                        'number' => $renewalInvoice->number,
+                        'status' => $renewalInvoice->status,
+                        'total' => (float) $renewalInvoice->total,
+                        'currency_code' => $renewalInvoice->currency_code,
+                    ] : null,
+                    'status' => $package->status,
+                    'starts_at' => $package->starts_at,
+                    'expires_at' => $package->expires_at,
+                    'initial_quantity' => (int) $package->initial_quantity,
+                    'consumed_quantity' => (int) $package->consumed_quantity,
+                    'remaining_quantity' => (int) $package->remaining_quantity,
+                    'unit_type' => $package->unit_type,
+                    'price_paid' => (float) $package->price_paid,
+                    'currency_code' => $package->currency_code,
+                    'is_recurring' => (bool) $package->is_recurring,
+                    'recurrence_status' => $package->recurrence_status,
+                    'next_renewal_at' => $package->next_renewal_at,
+                    'usages_count' => (int) $package->usages_count,
+                    'last_used_at' => $package->last_used_at,
+                    'assigned_at' => $package->created_at,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    private function detailRecentUsages(OfferPackage $offerPackage, int $accountId): array
+    {
+        $query = CustomerPackageUsage::query()
+            ->forAccount($accountId)
+            ->whereHas('customerPackage', fn ($query) => $query->where('offer_package_id', $offerPackage->id))
+            ->with([
+                'customer:id,number,first_name,last_name,company_name,email',
+                'creator:id,name',
+            ]);
+
+        if ($this->usageReversalColumnExists()) {
+            $query->whereNull('reversed_at');
+        }
+
+        return $query
+            ->latest('used_at')
+            ->latest('id')
+            ->limit(10)
+            ->get()
+            ->map(fn (CustomerPackageUsage $usage): array => [
+                'id' => $usage->id,
+                'customer_package_id' => $usage->customer_package_id,
+                'customer' => $usage->customer ? [
+                    'id' => $usage->customer->id,
+                    'number' => $usage->customer->number,
+                    'name' => $this->customerName($usage->customer),
+                    'email' => $usage->customer->email,
+                ] : null,
+                'quantity' => (int) $usage->quantity,
+                'used_at' => $usage->used_at,
+                'note' => $usage->note,
+                'source' => data_get($usage->metadata, 'source'),
+                'created_by' => $usage->creator?->name,
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function renewalInvoicesFor($packages, int $accountId)
+    {
+        $invoiceIds = $packages
+            ->map(fn (CustomerPackage $package): int => (int) data_get($package->metadata, 'recurrence.pending_invoice_id', 0))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($invoiceIds->isEmpty()) {
+            return collect();
+        }
+
+        return Invoice::query()
+            ->where('user_id', $accountId)
+            ->whereIn('id', $invoiceIds)
+            ->get(['id', 'number', 'status', 'total', 'currency_code'])
+            ->keyBy('id');
+    }
+
+    private function customerName($customer): string
+    {
+        return (string) (
+            $customer->company_name
+            ?: trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''))
+            ?: $customer->email
+            ?: 'Client #'.$customer->id
+        );
+    }
+
+    private function usageReversalColumnExists(): bool
+    {
+        static $exists = null;
+
+        if ($exists === null) {
+            $exists = Schema::hasColumn('customer_package_usages', 'reversed_at');
+        }
+
+        return $exists;
     }
 }

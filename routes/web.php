@@ -554,6 +554,7 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
     });
     Route::get('/catalog/search', ProductsSearchController::class)->name('catalog.search');
     Route::get('/offer-packages', [OfferPackageController::class, 'index'])->name('offer-packages.index');
+    Route::get('/offer-packages/{offerPackage}', [OfferPackageController::class, 'show'])->name('offer-packages.show');
     Route::post('/offer-packages', [OfferPackageController::class, 'store'])->name('offer-packages.store');
     Route::put('/offer-packages/{offerPackage}', [OfferPackageController::class, 'update'])->name('offer-packages.update');
     Route::delete('/offer-packages/{offerPackage}', [OfferPackageController::class, 'destroy'])->name('offer-packages.destroy');

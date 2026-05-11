@@ -253,6 +253,13 @@ it('creates an idempotent renewal invoice for a recurring forfait', function () 
     expect(Invoice::query()->count())->toBe(1)
         ->and(InvoiceItem::query()->count())->toBe(1);
 
+    $this->actingAs($owner)
+        ->get(route('customer.show', $customer))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Customer/Show')
+            ->where('customerPackages.0.renewal_invoice.id', $invoice->id)
+            ->where('customerPackages.0.renewal_invoice.status', 'sent'));
+
     Carbon::setTestNow();
 });
 

@@ -1,6 +1,9 @@
 <?php
 
 use App\Http\Middleware\EnsureTwoFactorVerified;
+use App\Models\Customer;
+use App\Models\CustomerPackage;
+use App\Models\CustomerPackageUsage;
 use App\Models\OfferPackage;
 use App\Models\Product;
 use App\Models\ProductCategory;
@@ -9,6 +12,7 @@ use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
 
@@ -159,6 +163,114 @@ it('creates a forfait with included quantity and unit type', function () {
         ->and($offer->validity_days)->toBe(180);
 });
 
+it('renders an offer package detail sheet with kpis and linked customers', function () {
+    $owner = offerPackageOwner();
+    $service = offerPackageCatalogItem($owner, [
+        'name' => 'Coaching session',
+        'price' => 100,
+    ]);
+    $offer = OfferPackage::query()->create([
+        'user_id' => $owner->id,
+        'name' => 'Forfait coaching',
+        'type' => OfferPackage::TYPE_FORFAIT,
+        'status' => OfferPackage::STATUS_ACTIVE,
+        'price' => 500,
+        'currency_code' => 'CAD',
+        'included_quantity' => 5,
+        'unit_type' => OfferPackage::UNIT_SESSION,
+        'is_recurring' => true,
+        'recurrence_frequency' => OfferPackage::RECURRENCE_MONTHLY,
+        'renewal_notice_days' => 7,
+    ]);
+    $offer->items()->create([
+        'product_id' => $service->id,
+        'item_type_snapshot' => $service->item_type,
+        'name_snapshot' => $service->name,
+        'quantity' => 5,
+        'unit_price' => 100,
+        'included' => true,
+        'is_optional' => false,
+    ]);
+
+    $activeCustomer = Customer::factory()->create([
+        'user_id' => $owner->id,
+        'company_name' => null,
+        'first_name' => 'Amina',
+        'last_name' => 'Diallo',
+        'email' => 'amina@example.com',
+    ]);
+    $consumedCustomer = Customer::factory()->create([
+        'user_id' => $owner->id,
+        'company_name' => 'Studio Nord',
+        'email' => 'studio@example.com',
+    ]);
+
+    $activePackage = CustomerPackage::query()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $activeCustomer->id,
+        'offer_package_id' => $offer->id,
+        'status' => CustomerPackage::STATUS_ACTIVE,
+        'starts_at' => '2026-05-01',
+        'expires_at' => '2026-05-31',
+        'initial_quantity' => 5,
+        'consumed_quantity' => 2,
+        'remaining_quantity' => 3,
+        'unit_type' => OfferPackage::UNIT_SESSION,
+        'price_paid' => 500,
+        'currency_code' => 'CAD',
+        'is_recurring' => true,
+        'recurrence_frequency' => OfferPackage::RECURRENCE_MONTHLY,
+        'recurrence_status' => CustomerPackage::RECURRENCE_ACTIVE,
+        'next_renewal_at' => '2026-06-01',
+        'source_details' => ['offer_package' => ['name' => $offer->name]],
+    ]);
+
+    CustomerPackage::query()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $consumedCustomer->id,
+        'offer_package_id' => $offer->id,
+        'status' => CustomerPackage::STATUS_CONSUMED,
+        'starts_at' => '2026-04-01',
+        'expires_at' => '2026-04-30',
+        'consumed_at' => '2026-04-20',
+        'initial_quantity' => 5,
+        'consumed_quantity' => 5,
+        'remaining_quantity' => 0,
+        'unit_type' => OfferPackage::UNIT_SESSION,
+        'price_paid' => 450,
+        'currency_code' => 'CAD',
+        'is_recurring' => false,
+        'source_details' => ['offer_package' => ['name' => $offer->name]],
+    ]);
+
+    CustomerPackageUsage::query()->create([
+        'customer_package_id' => $activePackage->id,
+        'user_id' => $owner->id,
+        'customer_id' => $activeCustomer->id,
+        'created_by_user_id' => $owner->id,
+        'quantity' => 2,
+        'used_at' => '2026-05-10 10:00:00',
+        'note' => 'Session completee',
+        'metadata' => ['source' => 'manual'],
+    ]);
+
+    $this->actingAs($owner)
+        ->get(route('offer-packages.show', $offer))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('OfferPackages/Show')
+            ->where('offer.name', 'Forfait coaching')
+            ->where('kpis.sold_count', 2)
+            ->where('kpis.assigned_customers', 2)
+            ->where('kpis.total_revenue', 950)
+            ->where('kpis.consumed_quantity', 7)
+            ->where('kpis.remaining_quantity', 3)
+            ->where('customers.0.customer.name', 'Amina Diallo')
+            ->where('customers.0.remaining_quantity', 3)
+            ->where('recentUsages.0.quantity', 2)
+            ->where('recentUsages.0.customer.name', 'Amina Diallo'));
+});
+
 it('updates an offer and replaces included items', function () {
     $owner = offerPackageOwner();
     $first = offerPackageCatalogItem($owner, ['name' => 'Premier service', 'price' => 100]);
@@ -258,6 +370,44 @@ it('archives and restores offers instead of deleting them', function () {
         ->assertJsonPath('offer.status', OfferPackage::STATUS_ACTIVE);
 
     expect($offer->fresh()->status)->toBe(OfferPackage::STATUS_ACTIVE);
+});
+
+it('returns redirects instead of plain json for inertia duplicate and restore actions', function () {
+    $owner = offerPackageOwner();
+    $product = offerPackageCatalogItem($owner);
+    $offer = OfferPackage::query()->create([
+        'user_id' => $owner->id,
+        'name' => 'Pack inertia',
+        'type' => OfferPackage::TYPE_PACK,
+        'status' => OfferPackage::STATUS_ACTIVE,
+        'price' => 120,
+        'currency_code' => 'CAD',
+        'is_public' => true,
+    ]);
+    $offer->items()->create([
+        'product_id' => $product->id,
+        'item_type_snapshot' => $product->item_type,
+        'name_snapshot' => $product->name,
+        'quantity' => 1,
+        'unit_price' => 125,
+        'included' => true,
+        'is_optional' => false,
+    ]);
+
+    $this->actingAs($owner)
+        ->withHeader('X-Inertia', 'true')
+        ->post(route('offer-packages.duplicate', $offer))
+        ->assertRedirect(route('offer-packages.index'));
+
+    $offer->forceFill([
+        'status' => OfferPackage::STATUS_ARCHIVED,
+        'is_public' => false,
+    ])->save();
+
+    $this->actingAs($owner)
+        ->withHeader('X-Inertia', 'true')
+        ->post(route('offer-packages.restore', $offer))
+        ->assertRedirect(route('offer-packages.index'));
 });
 
 it('rejects optional items and catalog items from another account', function () {
