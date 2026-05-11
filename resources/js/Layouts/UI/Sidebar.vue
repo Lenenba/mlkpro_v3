@@ -87,6 +87,12 @@ const canPromotionsManage = computed(() =>
     || teamPermissions.value.includes('tasks.edit')
     || teamPermissions.value.includes('campaigns.manage')
 );
+const canOfferPackages = computed(() =>
+    !isClient.value
+    && !isSeller.value
+    && (isOwner.value || canSalesManage.value || canServiceManage.value)
+    && (hasFeature('products') || hasFeature('services') || hasFeature('sales'))
+);
 const canExpensesNav = computed(() =>
     isOwner.value
     || teamPermissions.value.includes('expenses.view')
@@ -527,6 +533,25 @@ const isCustomerActive = computed(() => {
                                             <line x1="12" x2="12" y1="22" y2="12" />
                                             <circle cx="18.5" cy="15.5" r="2.5" />
                                             <path d="M20.27 17.27 22 19" />
+                                        </svg>
+                                    </template>
+                                </LinkAncor>
+                                <!-- End Item -->
+
+                                <!-- Item -->
+                                <LinkAncor v-if="canOfferPackages" :label="$t('nav.offer_packages')" :href="'offer-packages.index'" tone="products"
+                                    :active="route().current('offer-packages.*')">
+                                    <template #icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-package-plus">
+                                            <path d="M16 16h6" />
+                                            <path d="M19 13v6" />
+                                            <path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14" />
+                                            <path d="m7.5 4.27 9 5.15" />
+                                            <polyline points="3.29 7 12 12 20.71 7" />
+                                            <line x1="12" x2="12" y1="22" y2="12" />
                                         </svg>
                                     </template>
                                 </LinkAncor>

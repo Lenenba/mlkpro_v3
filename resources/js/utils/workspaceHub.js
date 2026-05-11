@@ -35,6 +35,10 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
         'tasks.edit',
         'campaigns.manage',
     ]);
+    const canOfferPackages = !isClient
+        && !isSeller
+        && (isOwner || canSalesManage || canServiceManage)
+        && (hasFeature('products') || hasFeature('services') || hasFeature('sales'));
     const canSocial = isOwner || hasAnyPermission(teamPermissions, [
         'social.view',
         'social.manage',
@@ -370,6 +374,14 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             tone: 'products',
             visible: showProducts && hasFeature('products') && (isOwner || canSales) && !isSeller,
         },
+        offer_packages: {
+            key: 'offer_packages',
+            labelKey: 'nav.offer_packages',
+            descriptionKey: 'workspace_hub.modules.offer_packages',
+            routeName: 'offer-packages.index',
+            tone: 'products',
+            visible: canOfferPackages,
+        },
         plan_scans: {
             key: 'plan_scans',
             labelKey: 'nav.plan_scans',
@@ -452,8 +464,8 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             titleKey: 'workspace_hub.categories.catalog.title',
             icon: 'catalog',
             tone: 'catalog',
-            match: ['service.*', 'product.*', 'plan-scans.*'],
-            moduleKeys: ['services', 'categories', 'products', 'plan_scans'],
+            match: ['service.*', 'product.*', 'offer-packages.*', 'plan-scans.*'],
+            moduleKeys: ['services', 'categories', 'products', 'offer_packages', 'plan_scans'],
         },
         {
             key: 'workspace',

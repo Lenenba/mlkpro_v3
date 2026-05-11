@@ -79,6 +79,7 @@
             "services": "Catalogo de servicios listo para cotizar y reservar.",
             "categories": "Categorias de servicios y estructura comercial.",
             "products": "Productos, precios, stock y catalogo vendible.",
+            "offer_packages": "Paquetes y planes compuestos desde productos y servicios.",
             "plan_scans": "Escaneos tecnicos y apoyo de estimacion.",
             "company_settings_label": "Configuracion de empresa",
             "company_settings": "Marca, finanzas, empresa y ajustes del espacio.",

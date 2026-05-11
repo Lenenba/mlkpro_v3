@@ -32,6 +32,7 @@ use App\Http\Controllers\MarketingVipController;
 use App\Http\Controllers\MyNextActionsController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OfferSearchController;
+use App\Http\Controllers\OfferPackageController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PerformanceController;
@@ -551,6 +552,12 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::get('/services/categories', [ServiceController::class, 'categories'])->name('service.categories');
     });
     Route::get('/catalog/search', ProductsSearchController::class)->name('catalog.search');
+    Route::get('/offer-packages', [OfferPackageController::class, 'index'])->name('offer-packages.index');
+    Route::post('/offer-packages', [OfferPackageController::class, 'store'])->name('offer-packages.store');
+    Route::put('/offer-packages/{offerPackage}', [OfferPackageController::class, 'update'])->name('offer-packages.update');
+    Route::delete('/offer-packages/{offerPackage}', [OfferPackageController::class, 'destroy'])->name('offer-packages.destroy');
+    Route::post('/offer-packages/{offerPackage}/duplicate', [OfferPackageController::class, 'duplicate'])->name('offer-packages.duplicate');
+    Route::post('/offer-packages/{offerPackage}/restore', [OfferPackageController::class, 'restore'])->name('offer-packages.restore');
     Route::get('/customers/options', [CustomerController::class, 'options'])->name('customer.options');
     Route::post('/customers/quick', [CustomerController::class, 'storeQuick'])->name('customer.quick.store');
 

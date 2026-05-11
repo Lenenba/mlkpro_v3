@@ -79,6 +79,7 @@
             "services": "Service catalog ready for quoting and booking.",
             "categories": "Service categories and commercial structure.",
             "products": "Products, prices, stock, and sellable catalog items.",
+            "offer_packages": "Packs and plans composed from products and services.",
             "plan_scans": "Technical scans and estimation support.",
             "company_settings_label": "Company settings",
             "company_settings": "Brand, finance, company, and workspace-level settings.",
