@@ -6,6 +6,7 @@ use App\Enums\CampaignAudienceSourceLogic;
 use App\Models\Campaign;
 use App\Models\CampaignRecipient;
 use App\Models\Customer;
+use App\Models\CustomerPackage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
@@ -639,6 +640,35 @@ class AudienceResolver
                 $this->applyBehaviorEventRule($query, $operator, $value);
 
                 return;
+            case 'has_active_package':
+                $this->applyActivePackagePresenceRule($query, $operator, $value);
+
+                return;
+            case 'package_status':
+                $this->applyPackageStatusRule($query, $operator, $value);
+
+                return;
+            case 'package_remaining_lte':
+                $this->applyPackageNumericRule($query, 'remaining_quantity', 'lte', $value, true);
+
+                return;
+            case 'package_remaining_quantity':
+            case 'package_balance':
+                $this->applyPackageNumericRule($query, 'remaining_quantity', $operator, $value, true);
+
+                return;
+            case 'package_expires_within_days':
+                $this->applyPackageExpiresWithinRule($query, $operator, $value);
+
+                return;
+            case 'package_is_recurring':
+                $this->applyPackageRecurringRule($query, $operator, $value);
+
+                return;
+            case 'package_recurrence_status':
+                $this->applyPackageRecurrenceStatusRule($query, $operator, $value);
+
+                return;
             default:
                 return;
         }
@@ -918,6 +948,153 @@ class AudienceResolver
         }
 
         $query->whereExists($callback);
+    }
+
+    private function applyActivePackagePresenceRule(Builder $query, string $operator, mixed $value): void
+    {
+        $parsed = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        if ($parsed === null) {
+            return;
+        }
+
+        $callback = function ($exists): void {
+            $exists->selectRaw('1')
+                ->from('customer_packages')
+                ->whereColumn('customer_packages.user_id', 'customers.user_id')
+                ->whereColumn('customer_packages.customer_id', 'customers.id')
+                ->where('customer_packages.status', CustomerPackage::STATUS_ACTIVE);
+        };
+
+        $exclude = ! $parsed || in_array($operator, ['not_equals', 'not_in', 'exclude'], true);
+        $exclude ? $query->whereNotExists($callback) : $query->whereExists($callback);
+    }
+
+    private function applyPackageStatusRule(Builder $query, string $operator, mixed $value): void
+    {
+        $statuses = $this->normalizedPackageValues($value, CustomerPackage::statuses());
+        if ($statuses === []) {
+            return;
+        }
+
+        $callback = function ($exists) use ($statuses): void {
+            $exists->selectRaw('1')
+                ->from('customer_packages')
+                ->whereColumn('customer_packages.user_id', 'customers.user_id')
+                ->whereColumn('customer_packages.customer_id', 'customers.id')
+                ->whereIn('customer_packages.status', $statuses);
+        };
+
+        in_array($operator, ['not_equals', 'not_in', 'exclude'], true)
+            ? $query->whereNotExists($callback)
+            : $query->whereExists($callback);
+    }
+
+    private function applyPackageNumericRule(
+        Builder $query,
+        string $column,
+        string $operator,
+        mixed $value,
+        bool $activeOnly = false
+    ): void {
+        $comparison = $this->comparisonOperator($operator);
+        if (! $comparison || ! is_numeric($value)) {
+            return;
+        }
+
+        $callback = function ($exists) use ($column, $comparison, $value, $activeOnly): void {
+            $exists->selectRaw('1')
+                ->from('customer_packages')
+                ->whereColumn('customer_packages.user_id', 'customers.user_id')
+                ->whereColumn('customer_packages.customer_id', 'customers.id')
+                ->whereRaw("customer_packages.{$column} {$comparison} ?", [(int) $value]);
+
+            if ($activeOnly) {
+                $exists->where('customer_packages.status', CustomerPackage::STATUS_ACTIVE);
+            }
+        };
+
+        $query->whereExists($callback);
+    }
+
+    private function applyPackageExpiresWithinRule(Builder $query, string $operator, mixed $value): void
+    {
+        if (! is_numeric($value)) {
+            return;
+        }
+
+        $days = max(0, (int) $value);
+        $callback = function ($exists) use ($days): void {
+            $exists->selectRaw('1')
+                ->from('customer_packages')
+                ->whereColumn('customer_packages.user_id', 'customers.user_id')
+                ->whereColumn('customer_packages.customer_id', 'customers.id')
+                ->where('customer_packages.status', CustomerPackage::STATUS_ACTIVE)
+                ->whereNotNull('customer_packages.expires_at')
+                ->whereDate('customer_packages.expires_at', '>=', today()->toDateString())
+                ->whereDate('customer_packages.expires_at', '<=', today()->addDays($days)->toDateString());
+        };
+
+        in_array($operator, ['not_equals', 'not_in', 'exclude'], true)
+            ? $query->whereNotExists($callback)
+            : $query->whereExists($callback);
+    }
+
+    private function applyPackageRecurringRule(Builder $query, string $operator, mixed $value): void
+    {
+        $parsed = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        if ($parsed === null) {
+            return;
+        }
+
+        $callback = function ($exists) use ($parsed): void {
+            $exists->selectRaw('1')
+                ->from('customer_packages')
+                ->whereColumn('customer_packages.user_id', 'customers.user_id')
+                ->whereColumn('customer_packages.customer_id', 'customers.id')
+                ->where('customer_packages.is_recurring', $parsed);
+        };
+
+        in_array($operator, ['not_equals', 'not_in', 'exclude'], true)
+            ? $query->whereNotExists($callback)
+            : $query->whereExists($callback);
+    }
+
+    private function applyPackageRecurrenceStatusRule(Builder $query, string $operator, mixed $value): void
+    {
+        $statuses = $this->normalizedPackageValues($value, [
+            CustomerPackage::RECURRENCE_ACTIVE,
+            CustomerPackage::RECURRENCE_PAYMENT_DUE,
+            CustomerPackage::RECURRENCE_SUSPENDED,
+            CustomerPackage::RECURRENCE_CANCELLED,
+        ]);
+        if ($statuses === []) {
+            return;
+        }
+
+        $callback = function ($exists) use ($statuses): void {
+            $exists->selectRaw('1')
+                ->from('customer_packages')
+                ->whereColumn('customer_packages.user_id', 'customers.user_id')
+                ->whereColumn('customer_packages.customer_id', 'customers.id')
+                ->whereIn('customer_packages.recurrence_status', $statuses);
+        };
+
+        in_array($operator, ['not_equals', 'not_in', 'exclude'], true)
+            ? $query->whereNotExists($callback)
+            : $query->whereExists($callback);
+    }
+
+    /**
+     * @param  array<int, string>  $allowed
+     * @return array<int, string>
+     */
+    private function normalizedPackageValues(mixed $value, array $allowed): array
+    {
+        return collect(Arr::wrap($value))
+            ->map(fn (mixed $item): string => trim((string) $item))
+            ->filter(fn (string $item): bool => in_array($item, $allowed, true))
+            ->values()
+            ->all();
     }
 
     private function applyStringComparison(Builder $query, string $field, string $operator, mixed $value): void

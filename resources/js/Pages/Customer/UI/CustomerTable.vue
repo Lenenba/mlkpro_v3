@@ -83,6 +83,12 @@ const filterForm = useForm({
     status: props.filters?.status ?? '',
     created_from: props.filters?.created_from ?? '',
     created_to: props.filters?.created_to ?? '',
+    has_active_package: props.filters?.has_active_package ?? '',
+    package_status: props.filters?.package_status ?? '',
+    package_remaining_lte: props.filters?.package_remaining_lte ?? '',
+    package_expires_within_days: props.filters?.package_expires_within_days ?? '',
+    package_is_recurring: props.filters?.package_is_recurring ?? '',
+    package_recurrence_status: props.filters?.package_recurrence_status ?? '',
     sort: props.filters?.sort ?? 'created_at',
     direction: props.filters?.direction ?? 'desc',
 });
@@ -92,6 +98,7 @@ const isLoading = ref(false);
 const compactObject = (payload) => Object.fromEntries(
     Object.entries(payload || {}).filter(([, value]) => value !== '' && value !== null && value !== undefined)
 );
+const segmentFilterValue = (value) => (value === null || value === undefined ? '' : String(value));
 const quoteFilterOptions = computed(() => ([
     { value: '', label: t('customers.filters.quotes') },
     { value: '1', label: t('customers.filters.with_quotes') },
@@ -106,6 +113,30 @@ const statusFilterOptions = computed(() => ([
     { value: '', label: t('customers.filters.status') },
     { value: 'active', label: t('customers.status.active') },
     { value: 'archived', label: t('customers.status.archived') },
+]));
+const packagePresenceOptions = computed(() => ([
+    { value: '', label: t('customers.filters.active_package') },
+    { value: '1', label: t('customers.filters.with_active_package') },
+    { value: '0', label: t('customers.filters.no_active_package') },
+]));
+const packageStatusOptions = computed(() => ([
+    { value: '', label: t('customers.filters.package_status') },
+    { value: 'active', label: t('customers.details.customer_packages.statuses.active') },
+    { value: 'consumed', label: t('customers.details.customer_packages.statuses.consumed') },
+    { value: 'expired', label: t('customers.details.customer_packages.statuses.expired') },
+    { value: 'cancelled', label: t('customers.details.customer_packages.statuses.cancelled') },
+]));
+const packageRecurringOptions = computed(() => ([
+    { value: '', label: t('customers.filters.package_recurrence') },
+    { value: '1', label: t('customers.filters.package_recurring') },
+    { value: '0', label: t('customers.filters.package_non_recurring') },
+]));
+const packageRecurrenceStatusOptions = computed(() => ([
+    { value: '', label: t('customers.filters.package_recurrence_status') },
+    { value: 'active', label: t('customers.details.customer_packages.recurrence_statuses.active') },
+    { value: 'payment_due', label: t('customers.details.customer_packages.recurrence_statuses.payment_due') },
+    { value: 'suspended', label: t('customers.details.customer_packages.recurrence_statuses.suspended') },
+    { value: 'cancelled', label: t('customers.details.customer_packages.recurrence_statuses.cancelled') },
 ]));
 const isViewSwitching = ref(false);
 const allowedViews = ['table', 'cards'];
@@ -122,6 +153,12 @@ const savedSegmentFilters = computed(() => compactObject({
     status: filterForm.status,
     created_from: filterForm.created_from,
     created_to: filterForm.created_to,
+    has_active_package: filterForm.has_active_package,
+    package_status: filterForm.package_status,
+    package_remaining_lte: filterForm.package_remaining_lte,
+    package_expires_within_days: filterForm.package_expires_within_days,
+    package_is_recurring: filterForm.package_is_recurring,
+    package_recurrence_status: filterForm.package_recurrence_status,
 }));
 const savedSegmentSort = computed(() => compactObject({
     sort: filterForm.sort,
@@ -164,6 +201,12 @@ const filterPayload = () => {
         status: filterForm.status,
         created_from: filterForm.created_from,
         created_to: filterForm.created_to,
+        has_active_package: filterForm.has_active_package,
+        package_status: filterForm.package_status,
+        package_remaining_lte: filterForm.package_remaining_lte,
+        package_expires_within_days: filterForm.package_expires_within_days,
+        package_is_recurring: filterForm.package_is_recurring,
+        package_recurrence_status: filterForm.package_recurrence_status,
         sort: filterForm.sort,
         direction: filterForm.direction,
         per_page: currentPerPage.value,
@@ -210,6 +253,12 @@ watch(() => [
     filterForm.status,
     filterForm.created_from,
     filterForm.created_to,
+    filterForm.has_active_package,
+    filterForm.package_status,
+    filterForm.package_remaining_lte,
+    filterForm.package_expires_within_days,
+    filterForm.package_is_recurring,
+    filterForm.package_recurrence_status,
     filterForm.sort,
     filterForm.direction,
 ], () => {
@@ -225,6 +274,12 @@ const clearFilters = () => {
     filterForm.status = '';
     filterForm.created_from = '';
     filterForm.created_to = '';
+    filterForm.has_active_package = '';
+    filterForm.package_status = '';
+    filterForm.package_remaining_lte = '';
+    filterForm.package_expires_within_days = '';
+    filterForm.package_is_recurring = '';
+    filterForm.package_recurrence_status = '';
     filterForm.sort = 'created_at';
     filterForm.direction = 'desc';
     autoFilter();
@@ -235,15 +290,21 @@ const applySavedSegment = (segment) => {
     const sort = segment?.sort && typeof segment.sort === 'object' ? segment.sort : {};
 
     filterForm.name = String(segment?.search_term || '');
-    filterForm.city = String(filters.city || '');
-    filterForm.country = String(filters.country || '');
-    filterForm.has_quotes = String(filters.has_quotes || '');
-    filterForm.has_works = String(filters.has_works || '');
-    filterForm.status = String(filters.status || '');
-    filterForm.created_from = String(filters.created_from || '');
-    filterForm.created_to = String(filters.created_to || '');
-    filterForm.sort = String(sort.sort || 'created_at');
-    filterForm.direction = String(sort.direction || 'desc');
+    filterForm.city = segmentFilterValue(filters.city);
+    filterForm.country = segmentFilterValue(filters.country);
+    filterForm.has_quotes = segmentFilterValue(filters.has_quotes);
+    filterForm.has_works = segmentFilterValue(filters.has_works);
+    filterForm.status = segmentFilterValue(filters.status);
+    filterForm.created_from = segmentFilterValue(filters.created_from);
+    filterForm.created_to = segmentFilterValue(filters.created_to);
+    filterForm.has_active_package = segmentFilterValue(filters.has_active_package);
+    filterForm.package_status = segmentFilterValue(filters.package_status);
+    filterForm.package_remaining_lte = segmentFilterValue(filters.package_remaining_lte);
+    filterForm.package_expires_within_days = segmentFilterValue(filters.package_expires_within_days);
+    filterForm.package_is_recurring = segmentFilterValue(filters.package_is_recurring);
+    filterForm.package_recurrence_status = segmentFilterValue(filters.package_recurrence_status);
+    filterForm.sort = segmentFilterValue(sort.sort) || 'created_at';
+    filterForm.direction = segmentFilterValue(sort.direction) || 'desc';
     autoFilter();
 };
 
@@ -544,6 +605,36 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                         v-model="filterForm.status"
                         :label="$t('customers.filters.status')"
                         :options="statusFilterOptions"
+                        dense
+                    />
+                    <FloatingSelect
+                        v-model="filterForm.has_active_package"
+                        :label="$t('customers.filters.active_package')"
+                        :options="packagePresenceOptions"
+                        dense
+                    />
+                    <FloatingSelect
+                        v-model="filterForm.package_status"
+                        :label="$t('customers.filters.package_status')"
+                        :options="packageStatusOptions"
+                        dense
+                    />
+                    <input type="number" min="0" step="1" v-model="filterForm.package_remaining_lte"
+                        class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                        :placeholder="$t('customers.filters.package_remaining_lte')">
+                    <input type="number" min="0" step="1" v-model="filterForm.package_expires_within_days"
+                        class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                        :placeholder="$t('customers.filters.package_expires_within_days')">
+                    <FloatingSelect
+                        v-model="filterForm.package_is_recurring"
+                        :label="$t('customers.filters.package_recurrence')"
+                        :options="packageRecurringOptions"
+                        dense
+                    />
+                    <FloatingSelect
+                        v-model="filterForm.package_recurrence_status"
+                        :label="$t('customers.filters.package_recurrence_status')"
+                        :options="packageRecurrenceStatusOptions"
                         dense
                     />
                     <DatePicker v-model="filterForm.created_from" :label="$t('customers.filters.created_from')" />

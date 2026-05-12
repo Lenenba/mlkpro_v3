@@ -3,7 +3,6 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import axios from 'axios';
-import { ReceiptText } from 'lucide-vue-next';
 import Header from './UI/Header.vue';
 import Card from '@/Components/UI/Card.vue';
 import DescriptionList from '@/Components/UI/DescriptionList.vue';
@@ -19,6 +18,7 @@ import { useI18n } from 'vue-i18n';
 import CustomerPreviewCard from './UI/CustomerPreviewCard.vue';
 import { useCurrencyFormatter } from '@/utils/currency';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
+import { ArrowUpDown, Ban, ReceiptText } from 'lucide-vue-next';
 import {
     assignGeoapifyAddress,
     buildAddressSearchLabel,
@@ -252,6 +252,19 @@ const packageOfferOptions = computed(() => ([
         name: `${offer.name} - ${formatCurrency(offer.price || 0)}`,
     })),
 ]));
+const recurringChangeTypeOptions = computed(() => ([
+    { id: 'upgrade', name: t('customers.details.customer_packages.change_types.upgrade') },
+    { id: 'downgrade', name: t('customers.details.customer_packages.change_types.downgrade') },
+]));
+const recurringPackageOfferOptions = (customerPackage) => ([
+    { id: '', name: t('customers.details.customer_packages.change_offer_placeholder') },
+    ...customerPackageOptions.value
+        .filter((offer) => offer.is_recurring && Number(offer.id) !== Number(customerPackage?.offer_package_id))
+        .map((offer) => ({
+            id: String(offer.id),
+            name: `${offer.name} - ${formatCurrency(offer.price || 0)}`,
+        })),
+]);
 
 const todayInputValue = () => new Date().toISOString().slice(0, 10);
 const addDaysInputValue = (dateValue, days) => {
@@ -369,6 +382,8 @@ const consumePackageForm = useForm({
 const startConsumePackage = (customerPackage) => {
     renewingPackageId.value = null;
     renewalInvoicePackageId.value = null;
+    changingPackageId.value = null;
+    cancellingPackageId.value = null;
     consumingPackageId.value = customerPackage.id;
     consumePackageForm.reset();
     consumePackageForm.clearErrors();
@@ -430,6 +445,8 @@ watch(() => renewPackageForm.starts_at, () => {
 const startRenewPackage = (customerPackage) => {
     consumingPackageId.value = null;
     renewalInvoicePackageId.value = null;
+    changingPackageId.value = null;
+    cancellingPackageId.value = null;
     renewingPackageId.value = customerPackage.id;
     renewPackageForm.reset();
     renewPackageForm.clearErrors();
@@ -486,6 +503,8 @@ const createRenewalInvoice = (customerPackage) => {
 
     consumingPackageId.value = null;
     renewingPackageId.value = null;
+    changingPackageId.value = null;
+    cancellingPackageId.value = null;
     renewalInvoicePackageId.value = customerPackage.id;
 
     router.post(
@@ -501,6 +520,130 @@ const createRenewalInvoice = (customerPackage) => {
             },
         }
     );
+};
+
+const changingPackageId = ref(null);
+const changePackageForm = useForm({
+    target_offer_package_id: '',
+    change_type: 'upgrade',
+    initial_quantity: '',
+    starts_at: todayInputValue(),
+    price_paid: '',
+    carry_over_unused_balance: false,
+    note: '',
+});
+const changingPackage = computed(() =>
+    assignedPackages.value.find((customerPackage) => Number(customerPackage.id) === Number(changingPackageId.value))
+);
+const selectedChangeOffer = computed(() =>
+    customerPackageOptions.value.find((offer) => String(offer.id) === String(changePackageForm.target_offer_package_id))
+);
+
+const hydrateChangePackageFromOffer = () => {
+    const offer = selectedChangeOffer.value;
+    if (!offer) {
+        return;
+    }
+
+    changePackageForm.initial_quantity = offer.included_quantity || 1;
+    changePackageForm.price_paid = offer.price ?? '';
+    changePackageForm.carry_over_unused_balance = Boolean(offer.carry_over_unused_balance);
+};
+
+watch(() => changePackageForm.target_offer_package_id, hydrateChangePackageFromOffer);
+
+const startChangePackage = (customerPackage) => {
+    consumingPackageId.value = null;
+    renewingPackageId.value = null;
+    renewalInvoicePackageId.value = null;
+    cancellingPackageId.value = null;
+    changingPackageId.value = customerPackage.id;
+    changePackageForm.reset();
+    changePackageForm.clearErrors();
+    changePackageForm.change_type = 'upgrade';
+    changePackageForm.starts_at = customerPackage.next_renewal_at
+        || (customerPackage.expires_at ? nextDayInputValue(customerPackage.expires_at) : todayInputValue());
+    const firstTarget = customerPackageOptions.value.find(
+        (offer) => offer.is_recurring && Number(offer.id) !== Number(customerPackage.offer_package_id)
+    );
+    changePackageForm.target_offer_package_id = firstTarget ? String(firstTarget.id) : '';
+    hydrateChangePackageFromOffer();
+};
+
+const cancelChangePackage = () => {
+    changingPackageId.value = null;
+    changePackageForm.clearErrors();
+};
+
+const submitChangePackage = () => {
+    if (!changingPackageId.value || changePackageForm.processing) {
+        return;
+    }
+
+    changePackageForm
+        .transform((data) => ({
+            ...data,
+            target_offer_package_id: data.target_offer_package_id ? Number(data.target_offer_package_id) : null,
+            initial_quantity: data.initial_quantity ? Number(data.initial_quantity) : null,
+            starts_at: data.starts_at || null,
+            price_paid: data.price_paid !== '' ? Number(data.price_paid) : null,
+            carry_over_unused_balance: Boolean(data.carry_over_unused_balance),
+            note: data.note || null,
+        }))
+        .post(
+            route('customer.packages.change-recurring-offer', {
+                customer: props.customer.id,
+                customerPackage: changingPackageId.value,
+            }),
+            {
+                preserveScroll: true,
+                onSuccess: () => cancelChangePackage(),
+            }
+        );
+};
+
+const cancellingPackageId = ref(null);
+const cancelPackageForm = useForm({
+    mode: 'end_of_period',
+    reason: '',
+});
+const startCancelPackage = (customerPackage) => {
+    consumingPackageId.value = null;
+    renewingPackageId.value = null;
+    renewalInvoicePackageId.value = null;
+    changingPackageId.value = null;
+    cancellingPackageId.value = customerPackage.id;
+    cancelPackageForm.reset();
+    cancelPackageForm.clearErrors();
+    cancelPackageForm.mode = 'end_of_period';
+    cancelPackageForm.reason = '';
+};
+
+const cancelCancelPackage = () => {
+    cancellingPackageId.value = null;
+    cancelPackageForm.clearErrors();
+};
+
+const submitCancelPackage = () => {
+    if (!cancellingPackageId.value || cancelPackageForm.processing) {
+        return;
+    }
+
+    cancelPackageForm
+        .transform((data) => ({
+            ...data,
+            reason: data.reason || null,
+        }))
+        .post(
+            route('customer.packages.cancel-recurring', {
+                customer: props.customer.id,
+                customerPackage: cancellingPackageId.value,
+            }),
+            {
+                preserveScroll: true,
+                onSuccess: () => cancelCancelPackage(),
+            }
+        );
 };
 
 const packageStatusLabel = (status) => {
@@ -529,6 +672,13 @@ const recurrenceLabel = (frequency) => {
     const translated = t(key);
 
     return translated && translated !== key ? translated : (frequency || 'monthly');
+};
+
+const recurrenceStatusLabel = (status) => {
+    const key = `customers.details.customer_packages.recurrence_statuses.${status || 'active'}`;
+    const translated = t(key);
+
+    return translated && translated !== key ? translated : formatStatus(status);
 };
 
 const packageProgress = (customerPackage) => {
@@ -1632,6 +1782,19 @@ const deleteProperty = (property) => {
                                         <span v-if="customerPackage.next_renewal_at">
                                             {{ $t('customers.details.customer_packages.next_renewal') }} {{ formatDate(customerPackage.next_renewal_at) }}
                                         </span>
+                                        <span
+                                            v-if="customerPackage.is_recurring && customerPackage.recurrence_status && customerPackage.recurrence_status !== 'active'"
+                                        >
+                                            {{ recurrenceStatusLabel(customerPackage.recurrence_status) }}
+                                        </span>
+                                        <span v-if="customerPackage.recurrence_cancel_at_period_end && customerPackage.recurrence_cancellation_effective_at">
+                                            {{ $t('customers.details.customer_packages.cancellation_scheduled') }}
+                                            {{ formatDate(customerPackage.recurrence_cancellation_effective_at) }}
+                                        </span>
+                                        <span v-if="customerPackage.recurrence_change_type && customerPackage.recurrence_change_effective_at">
+                                            {{ $t(`customers.details.customer_packages.change_scheduled.${customerPackage.recurrence_change_type}`) }}
+                                            {{ formatDate(customerPackage.recurrence_change_effective_at) }}
+                                        </span>
                                     </div>
                                 </div>
                                 <div class="text-left sm:text-right">
@@ -1832,6 +1995,141 @@ const deleteProperty = (property) => {
                                 </div>
                             </form>
 
+                            <form
+                                v-else-if="changingPackageId === customerPackage.id"
+                                class="mt-4 rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-950"
+                                @submit.prevent="submitChangePackage"
+                            >
+                                <div v-if="recurringPackageOfferOptions(customerPackage).length <= 1" class="text-sm text-stone-500 dark:text-neutral-400">
+                                    {{ $t('customers.details.customer_packages.no_recurring_change_options') }}
+                                </div>
+                                <template v-else>
+                                    <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                        <div class="md:col-span-2">
+                                            <FloatingSelect
+                                                v-model="changePackageForm.target_offer_package_id"
+                                                :label="$t('customers.details.customer_packages.fields.target_offer')"
+                                                :options="recurringPackageOfferOptions(customerPackage)"
+                                                filterable
+                                            />
+                                            <InputError class="mt-1" :message="changePackageForm.errors.target_offer_package_id" />
+                                        </div>
+                                        <div>
+                                            <FloatingSelect
+                                                v-model="changePackageForm.change_type"
+                                                :label="$t('customers.details.customer_packages.fields.change_type')"
+                                                :options="recurringChangeTypeOptions"
+                                            />
+                                            <InputError class="mt-1" :message="changePackageForm.errors.change_type" />
+                                        </div>
+                                        <div>
+                                            <FloatingInput
+                                                v-model="changePackageForm.starts_at"
+                                                type="date"
+                                                :label="$t('customers.details.customer_packages.fields.starts_at')"
+                                            />
+                                            <InputError class="mt-1" :message="changePackageForm.errors.starts_at" />
+                                        </div>
+                                        <div>
+                                            <FloatingInput
+                                                v-model="changePackageForm.initial_quantity"
+                                                type="number"
+                                                min="1"
+                                                :label="$t('customers.details.customer_packages.fields.initial_quantity')"
+                                            />
+                                            <InputError class="mt-1" :message="changePackageForm.errors.initial_quantity" />
+                                        </div>
+                                        <div>
+                                            <FloatingInput
+                                                v-model="changePackageForm.price_paid"
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                :label="$t('customers.details.customer_packages.fields.price_paid')"
+                                            />
+                                            <InputError class="mt-1" :message="changePackageForm.errors.price_paid" />
+                                        </div>
+                                        <div class="md:col-span-2">
+                                            <label class="inline-flex items-center gap-2 text-sm font-medium text-stone-700 dark:text-neutral-200">
+                                                <input
+                                                    v-model="changePackageForm.carry_over_unused_balance"
+                                                    type="checkbox"
+                                                    class="rounded border-stone-300 text-green-600 focus:ring-green-500 dark:border-neutral-700 dark:bg-neutral-900"
+                                                >
+                                                <span>{{ $t('customers.details.customer_packages.fields.carry_over_unused_balance') }}</span>
+                                            </label>
+                                            <InputError class="mt-1" :message="changePackageForm.errors.carry_over_unused_balance" />
+                                        </div>
+                                        <div class="md:col-span-2">
+                                            <FloatingTextarea
+                                                v-model="changePackageForm.note"
+                                                :label="$t('customers.details.customer_packages.fields.change_note')"
+                                            />
+                                            <InputError class="mt-1" :message="changePackageForm.errors.note" />
+                                        </div>
+                                    </div>
+                                    <div class="mt-3 flex items-center justify-end gap-2">
+                                        <button
+                                            type="button"
+                                            @click="cancelChangePackage"
+                                            class="inline-flex items-center gap-x-1.5 rounded-sm border border-stone-200 bg-white px-2.5 py-2 text-xs font-medium text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                                        >
+                                            {{ $t('customers.actions.cancel') }}
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            :disabled="changePackageForm.processing"
+                                            class="inline-flex items-center gap-x-1.5 rounded-sm border border-transparent bg-green-600 px-2.5 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                        >
+                                            {{ $t('customers.details.customer_packages.change_offer_submit') }}
+                                        </button>
+                                    </div>
+                                </template>
+                            </form>
+
+                            <form
+                                v-else-if="cancellingPackageId === customerPackage.id"
+                                class="mt-4 rounded-sm border border-red-100 bg-red-50/70 p-3 dark:border-red-500/20 dark:bg-red-500/10"
+                                @submit.prevent="submitCancelPackage"
+                            >
+                                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                    <div>
+                                        <FloatingSelect
+                                            v-model="cancelPackageForm.mode"
+                                            :label="$t('customers.details.customer_packages.fields.cancellation_mode')"
+                                            :options="[
+                                                { id: 'end_of_period', name: $t('customers.details.customer_packages.cancellation_modes.end_of_period') },
+                                                { id: 'immediate', name: $t('customers.details.customer_packages.cancellation_modes.immediate') },
+                                            ]"
+                                        />
+                                        <InputError class="mt-1" :message="cancelPackageForm.errors.mode" />
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <FloatingTextarea
+                                            v-model="cancelPackageForm.reason"
+                                            :label="$t('customers.details.customer_packages.fields.cancellation_reason')"
+                                        />
+                                        <InputError class="mt-1" :message="cancelPackageForm.errors.reason" />
+                                    </div>
+                                </div>
+                                <div class="mt-3 flex items-center justify-end gap-2">
+                                    <button
+                                        type="button"
+                                        @click="cancelCancelPackage"
+                                        class="inline-flex items-center gap-x-1.5 rounded-sm border border-stone-200 bg-white px-2.5 py-2 text-xs font-medium text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                                    >
+                                        {{ $t('customers.actions.cancel') }}
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        :disabled="cancelPackageForm.processing"
+                                        class="inline-flex items-center gap-x-1.5 rounded-sm border border-transparent bg-red-600 px-2.5 py-2 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-red-500"
+                                    >
+                                        {{ $t('customers.details.customer_packages.cancel_recurring_submit') }}
+                                    </button>
+                                </div>
+                            </form>
+
                             <div v-else-if="canEdit && customerPackage.status !== 'cancelled'" class="mt-4 flex flex-wrap justify-end gap-2">
                                 <button
                                     v-if="customerPackage.is_recurring && !customerPackage.renewal_invoice"
@@ -1854,6 +2152,24 @@ const deleteProperty = (property) => {
                                     class="inline-flex items-center gap-x-1.5 rounded-sm border border-green-200 bg-green-50 px-2.5 py-2 text-xs font-medium text-green-700 shadow-sm hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-500 dark:border-green-500/20 dark:bg-green-500/10 dark:text-green-300 dark:hover:bg-green-500/20"
                                 >
                                     {{ $t('customers.details.customer_packages.renew_action') }}
+                                </button>
+                                <button
+                                    v-if="customerPackage.is_recurring && customerPackage.recurrence_status !== 'cancelled'"
+                                    type="button"
+                                    @click="startChangePackage(customerPackage)"
+                                    class="inline-flex items-center gap-x-1.5 rounded-sm border border-stone-200 bg-white px-2.5 py-2 text-xs font-medium text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                                >
+                                    <ArrowUpDown class="size-3.5" aria-hidden="true" />
+                                    {{ $t('customers.details.customer_packages.change_offer_action') }}
+                                </button>
+                                <button
+                                    v-if="customerPackage.is_recurring && customerPackage.recurrence_status !== 'cancelled'"
+                                    type="button"
+                                    @click="startCancelPackage(customerPackage)"
+                                    class="inline-flex items-center gap-x-1.5 rounded-sm border border-red-200 bg-white px-2.5 py-2 text-xs font-medium text-red-700 shadow-sm hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 dark:border-red-500/20 dark:bg-neutral-800 dark:text-red-300 dark:hover:bg-red-500/10"
+                                >
+                                    <Ban class="size-3.5" aria-hidden="true" />
+                                    {{ $t('customers.details.customer_packages.cancel_recurring_action') }}
                                 </button>
                                 <button
                                     v-if="customerPackage.status === 'active'"

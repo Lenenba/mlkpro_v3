@@ -551,6 +551,12 @@ class BuildCustomerDetailViewData
                 'carry_over_unused_balance' => (bool) data_get($package->metadata, 'recurrence.carry_over_unused_balance', false),
                 'period_allocation_quantity' => (int) data_get($package->metadata, 'recurrence.period_allocation_quantity', $package->initial_quantity),
                 'carried_over_quantity' => (int) data_get($package->metadata, 'recurrence.carried_over_quantity', 0),
+                'recurrence_cancel_at_period_end' => (bool) data_get($package->metadata, 'recurrence.cancel_at_period_end', false),
+                'recurrence_cancellation_effective_at' => data_get($package->metadata, 'recurrence.cancellation_effective_at'),
+                'recurrence_cancellation_reason' => data_get($package->metadata, 'recurrence.cancellation_reason'),
+                'recurrence_change_type' => data_get($package->metadata, 'recurrence.change_type'),
+                'recurrence_change_effective_at' => data_get($package->metadata, 'recurrence.change_effective_at'),
+                'recurrence_changed_to_customer_package_id' => data_get($package->metadata, 'recurrence.changed_to_customer_package_id'),
                 'renewal_invoice' => $renewalInvoice ? [
                     'id' => $renewalInvoice->id,
                     'number' => $renewalInvoice->number,

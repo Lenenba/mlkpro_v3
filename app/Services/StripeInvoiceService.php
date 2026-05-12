@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Enums\CurrencyCode;
 use App\Models\ActivityLog;
+use App\Models\Customer;
+use App\Models\CustomerPackage;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\User;
@@ -15,6 +17,8 @@ use App\Support\LocalePreference;
 use App\Support\NotificationDispatcher;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
+use Stripe\Exception\ApiErrorException;
+use Stripe\Exception\CardException;
 use Stripe\StripeClient;
 
 class StripeInvoiceService
@@ -34,7 +38,7 @@ class StripeInvoiceService
         ?float $amount = null,
         array $tip = []
     ): array {
-        $invoice->loadMissing(['customer', 'user']);
+        $invoice->loadMissing(['customer', 'items', 'user']);
 
         $balanceDue = (float) $invoice->balance_due;
         $amount = $amount !== null ? (float) $amount : $balanceDue;
@@ -58,6 +62,7 @@ class StripeInvoiceService
             ?->stripeValue() ?? CurrencyCode::default()->stripeValue();
         $label = $invoice->number ? "Invoice {$invoice->number}" : "Invoice #{$invoice->id}";
         $companyName = $invoice->user?->company_name ?: config('app.name');
+        $shouldSavePaymentMethod = $this->invoiceRequestsFutureStripeUsage($invoice);
 
         $metadata = array_filter([
             'invoice_id' => (string) $invoice->id,
@@ -120,6 +125,10 @@ class StripeInvoiceService
             ],
         ];
 
+        if ($shouldSavePaymentMethod) {
+            $payload['payment_intent_data']['setup_future_usage'] = 'off_session';
+        }
+
         if ($connectAccountId && $feePercent > 0) {
             $applicationFee = $this->calculateApplicationFee($amountCents + $tipCents, $feePercent);
             if ($applicationFee > 0) {
@@ -127,8 +136,13 @@ class StripeInvoiceService
             }
         }
 
-        if ($invoice->customer?->email) {
+        if ($invoice->customer?->stripe_customer_id) {
+            $payload['customer'] = $invoice->customer->stripe_customer_id;
+        } elseif ($invoice->customer?->email) {
             $payload['customer_email'] = $invoice->customer->email;
+            if ($shouldSavePaymentMethod) {
+                $payload['customer_creation'] = 'always';
+            }
         }
 
         $options = $connectAccountId ? ['stripe_account' => $connectAccountId] : [];
@@ -138,6 +152,159 @@ class StripeInvoiceService
             'id' => $session->id ?? null,
             'url' => $session->url ?? null,
         ];
+    }
+
+    public function attemptAutomaticPayment(Invoice $invoice, CustomerPackage $package): array
+    {
+        $invoice->loadMissing(['customer', 'items', 'user']);
+        $package->loadMissing(['customer.portalUser']);
+
+        if (! $this->isConfigured()) {
+            return $this->automaticPaymentResult('skipped', [
+                'reason' => 'stripe_not_configured',
+                'message' => 'Stripe is not configured.',
+            ]);
+        }
+
+        if (in_array($invoice->status, ['draft', 'paid', 'void'], true) || (float) $invoice->balance_due <= 0) {
+            return $this->automaticPaymentResult('skipped', [
+                'reason' => 'invoice_not_payable',
+                'message' => 'Invoice cannot be charged automatically.',
+            ]);
+        }
+
+        $policyDecision = app(TenantPaymentMethodGuardService::class)->evaluate(
+            (int) $invoice->user_id,
+            'stripe',
+            'customer_package_renewal_auto'
+        );
+        if (! $policyDecision['allowed']) {
+            return $this->automaticPaymentResult('skipped', [
+                'reason' => TenantPaymentMethodGuardService::ERROR_CODE,
+                'message' => TenantPaymentMethodGuardService::ERROR_MESSAGE,
+            ]);
+        }
+
+        $context = $this->resolveAutomaticPaymentContext($invoice, $package);
+        $customerId = $context['stripe_customer_id'] ?? null;
+        if (! $customerId) {
+            return $this->automaticPaymentResult('skipped', [
+                'reason' => 'no_stripe_customer',
+                'message' => 'No Stripe customer is linked to this client.',
+            ]);
+        }
+
+        $connectAccountId = $this->resolveConnectedAccountId($invoice);
+        $options = $connectAccountId ? ['stripe_account' => $connectAccountId] : [];
+        $paymentMethodId = $context['stripe_payment_method_id'] ?? null;
+        if (! $paymentMethodId) {
+            $paymentMethodId = $this->resolveDefaultPaymentMethodId($customerId, $options);
+        }
+
+        if (! $paymentMethodId) {
+            return $this->automaticPaymentResult('skipped', [
+                'stripe_customer_id' => $customerId,
+                'reason' => 'no_auto_payment_method',
+                'message' => 'No reusable Stripe payment method is available for this client.',
+            ]);
+        }
+
+        $amount = (float) $invoice->balance_due;
+        $amountCents = (int) round($amount * 100);
+        if ($amountCents <= 0) {
+            return $this->automaticPaymentResult('skipped', [
+                'reason' => 'invalid_amount',
+                'message' => 'Invoice balance is not chargeable.',
+            ]);
+        }
+
+        $currency = CurrencyCode::tryFromMixed($invoice->currency_code)
+            ?->stripeValue() ?? CurrencyCode::default()->stripeValue();
+        $label = $invoice->number ? "Invoice {$invoice->number}" : "Invoice #{$invoice->id}";
+        $metadata = $this->invoicePaymentMetadata($invoice, $amount, [
+            'customer_package_id' => (string) $package->id,
+            'offer_package_id' => (string) ($package->offer_package_id ?? ''),
+            'automatic_renewal' => 'true',
+        ]);
+
+        if ($connectAccountId) {
+            $metadata['connect_account_id'] = $connectAccountId;
+        }
+
+        $payload = [
+            'amount' => $amountCents,
+            'currency' => $currency,
+            'customer' => $customerId,
+            'payment_method' => $paymentMethodId,
+            'off_session' => true,
+            'confirm' => true,
+            'description' => $label,
+            'metadata' => $metadata,
+        ];
+
+        $feePercent = (float) config('services.stripe.connect_fee_percent', 0);
+        if ($connectAccountId && $feePercent > 0) {
+            $applicationFee = $this->calculateApplicationFee($amountCents, $feePercent);
+            if ($applicationFee > 0) {
+                $payload['application_fee_amount'] = $applicationFee;
+                $metadata['connect_fee_percent'] = (string) $feePercent;
+                $payload['metadata'] = $metadata;
+            }
+        }
+
+        try {
+            $intent = $this->client()->paymentIntents->create($payload, $options);
+            $intentPayload = $this->stripeObjectToArray($intent);
+        } catch (CardException $exception) {
+            return $this->automaticPaymentExceptionResult($exception, $customerId, $paymentMethodId);
+        } catch (ApiErrorException $exception) {
+            return $this->automaticPaymentExceptionResult($exception, $customerId, $paymentMethodId);
+        } catch (\Throwable $exception) {
+            Log::warning('Unexpected Stripe automatic renewal payment failure.', [
+                'invoice_id' => $invoice->id,
+                'customer_package_id' => $package->id,
+                'exception' => $exception->getMessage(),
+            ]);
+
+            return $this->automaticPaymentResult('failed', [
+                'attempted' => true,
+                'stripe_customer_id' => $customerId,
+                'stripe_payment_method_id' => $paymentMethodId,
+                'reason' => 'stripe_unexpected_error',
+                'message' => $exception->getMessage(),
+            ]);
+        }
+
+        $paymentIntentId = $intentPayload['id'] ?? null;
+        $status = (string) ($intentPayload['status'] ?? 'unknown');
+
+        if ($status === 'succeeded' || (int) ($intentPayload['amount_received'] ?? 0) > 0) {
+            $payment = $this->recordPaymentFromPaymentIntent($intentPayload);
+            $this->storeInvoiceCustomerStripePaymentContext(
+                $invoice,
+                $intentPayload['customer'] ?? $customerId,
+                $intentPayload['payment_method'] ?? $paymentMethodId
+            );
+
+            return $this->automaticPaymentResult('succeeded', [
+                'attempted' => true,
+                'stripe_customer_id' => $customerId,
+                'stripe_payment_method_id' => $paymentMethodId,
+                'payment_intent_id' => $paymentIntentId,
+                'payment_id' => $payment?->id,
+                'message' => 'Automatic Stripe renewal payment succeeded.',
+            ]);
+        }
+
+        return $this->automaticPaymentResult('failed', [
+            'attempted' => true,
+            'stripe_customer_id' => $customerId,
+            'stripe_payment_method_id' => $paymentMethodId,
+            'payment_intent_id' => $paymentIntentId,
+            'reason' => 'payment_not_succeeded',
+            'message' => 'Stripe payment intent finished with status '.$status.'.',
+            'stripe_status' => $status,
+        ]);
     }
 
     public function recordPaymentFromCheckoutSession(array $session): ?Payment
@@ -170,6 +337,12 @@ class StripeInvoiceService
         if (! $invoice || in_array($invoice->status, ['void', 'draft'], true)) {
             return null;
         }
+
+        $this->storeInvoiceCustomerStripePaymentContext(
+            $invoice,
+            $session['customer'] ?? null,
+            $session['payment_method'] ?? null
+        );
 
         $policyDecision = app(TenantPaymentMethodGuardService::class)->evaluate(
             (int) $invoice->user_id,
@@ -251,6 +424,12 @@ class StripeInvoiceService
         if (! $invoice || in_array($invoice->status, ['void', 'draft'], true)) {
             return null;
         }
+
+        $this->storeInvoiceCustomerStripePaymentContext(
+            $invoice,
+            $intent['customer'] ?? null,
+            $intent['payment_method'] ?? null
+        );
 
         $policyDecision = app(TenantPaymentMethodGuardService::class)->evaluate(
             (int) $invoice->user_id,
@@ -477,6 +656,222 @@ class StripeInvoiceService
         }
 
         return $owner->stripe_connect_account_id ?: null;
+    }
+
+    private function invoiceRequestsFutureStripeUsage(Invoice $invoice): bool
+    {
+        $invoice->loadMissing('items');
+
+        return $invoice->items->contains(function ($item): bool {
+            if ((int) data_get($item->meta, 'renewal_for_customer_package_id', 0) > 0) {
+                return true;
+            }
+
+            $isRecurringOffer = (bool) data_get($item->meta, 'offer_package_snapshot.is_recurring', false)
+                || (bool) data_get($item->meta, 'source_details.offer_package.is_recurring', false);
+
+            return data_get($item->meta, 'offer_package_type') === 'forfait' && $isRecurringOffer;
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $extra
+     * @return array<string, string>
+     */
+    private function invoicePaymentMetadata(Invoice $invoice, float $amount, array $extra = []): array
+    {
+        return array_filter(array_merge([
+            'invoice_id' => (string) $invoice->id,
+            'user_id' => (string) ($invoice->user_id ?? ''),
+            'customer_id' => (string) ($invoice->customer_id ?? ''),
+            'payment_amount' => number_format($amount, 2, '.', ''),
+            'tip_amount' => '0.00',
+            'tip_type' => 'none',
+            'tip_base_amount' => number_format($amount, 2, '.', ''),
+            'charged_total' => number_format($amount, 2, '.', ''),
+        ], $extra), fn (mixed $value): bool => $value !== null && $value !== '');
+    }
+
+    /**
+     * @return array{stripe_customer_id?: string, stripe_payment_method_id?: string, source?: string}
+     */
+    private function resolveAutomaticPaymentContext(Invoice $invoice, CustomerPackage $package): array
+    {
+        $customer = $package->customer instanceof Customer
+            ? $package->customer
+            : ($invoice->customer instanceof Customer ? $invoice->customer : null);
+
+        $metadata = (array) ($package->metadata ?? []);
+        $sourceDetails = (array) ($package->source_details ?? []);
+
+        $customerId = $this->firstString(
+            data_get($metadata, 'recurrence.auto_payment.stripe_customer_id'),
+            data_get($metadata, 'recurrence.stripe_customer_id'),
+            data_get($metadata, 'stripe_customer_id'),
+            data_get($sourceDetails, 'recurrence.stripe_customer_id'),
+            $customer?->stripe_customer_id,
+            $customer?->portalUser?->stripe_customer_id
+        );
+
+        $paymentMethodId = $this->firstString(
+            data_get($metadata, 'recurrence.auto_payment.stripe_payment_method_id'),
+            data_get($metadata, 'recurrence.stripe_payment_method_id'),
+            data_get($metadata, 'stripe_payment_method_id'),
+            data_get($sourceDetails, 'recurrence.stripe_payment_method_id'),
+            $customer?->stripe_default_payment_method_id
+        );
+
+        return array_filter([
+            'stripe_customer_id' => $customerId,
+            'stripe_payment_method_id' => $paymentMethodId,
+            'source' => $paymentMethodId ? 'stored_payment_method' : ($customerId ? 'stripe_customer_default' : null),
+        ], fn (mixed $value): bool => $value !== null && $value !== '');
+    }
+
+    private function resolveDefaultPaymentMethodId(string $customerId, array $options = []): ?string
+    {
+        try {
+            $customer = $this->client()->customers->retrieve($customerId, [
+                'expand' => ['invoice_settings.default_payment_method'],
+            ], $options);
+            $customerPayload = $this->stripeObjectToArray($customer);
+            $default = data_get($customerPayload, 'invoice_settings.default_payment_method');
+            $defaultId = $this->stringValue($default);
+            if ($defaultId) {
+                return $defaultId;
+            }
+
+            $paymentMethods = $this->client()->paymentMethods->all([
+                'customer' => $customerId,
+                'type' => 'card',
+                'limit' => 1,
+            ], $options);
+            $paymentMethodsPayload = $this->stripeObjectToArray($paymentMethods);
+
+            return $this->stringValue(data_get($paymentMethodsPayload, 'data.0.id'));
+        } catch (\Throwable $exception) {
+            Log::warning('Unable to resolve Stripe default payment method for automatic renewal.', [
+                'stripe_customer_id' => $customerId,
+                'exception' => $exception->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    private function storeInvoiceCustomerStripePaymentContext(
+        Invoice $invoice,
+        mixed $stripeCustomerId,
+        mixed $stripePaymentMethodId
+    ): void {
+        $customerId = $this->stringValue($stripeCustomerId);
+        $paymentMethodId = $this->stringValue($stripePaymentMethodId);
+        if (! $customerId && ! $paymentMethodId) {
+            return;
+        }
+
+        $customer = $invoice->relationLoaded('customer')
+            ? $invoice->customer
+            : $invoice->customer()->first();
+        if (! $customer instanceof Customer) {
+            return;
+        }
+
+        $updates = [];
+        if ($customerId && $customer->stripe_customer_id !== $customerId) {
+            $updates['stripe_customer_id'] = $customerId;
+        }
+
+        if ($paymentMethodId && $customer->stripe_default_payment_method_id !== $paymentMethodId) {
+            $updates['stripe_default_payment_method_id'] = $paymentMethodId;
+        }
+
+        if ($updates !== []) {
+            $customer->forceFill($updates)->save();
+        }
+    }
+
+    private function automaticPaymentExceptionResult(
+        ApiErrorException $exception,
+        string $customerId,
+        string $paymentMethodId
+    ): array {
+        $stripeError = method_exists($exception, 'getError') ? $exception->getError() : null;
+        $paymentIntentId = $this->stringValue(data_get($stripeError, 'payment_intent.id'));
+
+        return $this->automaticPaymentResult('failed', [
+            'attempted' => true,
+            'stripe_customer_id' => $customerId,
+            'stripe_payment_method_id' => $paymentMethodId,
+            'payment_intent_id' => $paymentIntentId,
+            'reason' => $stripeError?->code ?: 'stripe_api_error',
+            'decline_code' => $stripeError?->decline_code ?? null,
+            'message' => $stripeError?->message ?: $exception->getMessage(),
+            'stripe_request_id' => method_exists($exception, 'getRequestId') ? $exception->getRequestId() : null,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function automaticPaymentResult(string $status, array $payload = []): array
+    {
+        return array_merge([
+            'status' => $status,
+            'attempted' => false,
+        ], array_filter($payload, fn (mixed $value): bool => $value !== null && $value !== ''));
+    }
+
+    private function stripeObjectToArray(mixed $value): array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+
+        if (is_object($value) && method_exists($value, 'toArray')) {
+            $array = $value->toArray();
+
+            return is_array($array) ? $array : [];
+        }
+
+        if (is_object($value)) {
+            $json = json_encode($value);
+            $array = $json ? json_decode($json, true) : null;
+
+            return is_array($array) ? $array : [];
+        }
+
+        return [];
+    }
+
+    private function firstString(mixed ...$values): ?string
+    {
+        foreach ($values as $value) {
+            $string = $this->stringValue($value);
+            if ($string) {
+                return $string;
+            }
+        }
+
+        return null;
+    }
+
+    private function stringValue(mixed $value): ?string
+    {
+        if (is_array($value)) {
+            $value = $value['id'] ?? null;
+        } elseif (is_object($value) && isset($value->id)) {
+            $value = $value->id;
+        }
+
+        if (! is_string($value) && ! is_numeric($value)) {
+            return null;
+        }
+
+        $string = trim((string) $value);
+
+        return $string !== '' ? $string : null;
     }
 
     private function buildPaymentDetails(Invoice $invoice, Payment $payment, ?string $locale = null): array

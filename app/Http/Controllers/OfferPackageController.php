@@ -6,11 +6,13 @@ use App\Enums\CurrencyCode;
 use App\Models\CustomerPackage;
 use App\Models\CustomerPackageUsage;
 use App\Models\Invoice;
+use App\Models\InvoiceItem;
 use App\Models\OfferPackage;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\OfferPackages\OfferPackageService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
@@ -58,6 +60,7 @@ class OfferPackageController extends Controller
                 'forfaits' => (clone $statsBase)->where('type', OfferPackage::TYPE_FORFAIT)->count(),
                 'public' => (clone $statsBase)->where('is_public', true)->count(),
             ],
+            'reporting' => $this->reporting($accountId),
             'catalogItems' => $this->catalogItems($accountId),
             'options' => [
                 'types' => OfferPackage::types(),
@@ -185,6 +188,9 @@ class OfferPackageController extends Controller
             'is_recurring' => ['sometimes', 'boolean'],
             'recurrence_frequency' => ['nullable', 'string', Rule::in(OfferPackage::recurrenceFrequencies())],
             'renewal_notice_days' => ['nullable', 'integer', 'min:1', 'max:365'],
+            'payment_grace_days' => ['nullable', 'integer', 'min:1', 'max:365'],
+            'payment_reminder_days' => ['nullable', 'array', 'max:12'],
+            'payment_reminder_days.*' => ['integer', 'min:0', 'max:365'],
             'carry_over_unused_balance' => ['sometimes', 'boolean'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'integer'],
@@ -235,6 +241,8 @@ class OfferPackageController extends Controller
             'is_recurring' => (bool) $offer->is_recurring,
             'recurrence_frequency' => $offer->recurrence_frequency,
             'renewal_notice_days' => $offer->renewal_notice_days,
+            'payment_grace_days' => (int) data_get($offer->metadata, 'recurrence.payment_grace_days', 7),
+            'payment_reminder_days' => array_values((array) data_get($offer->metadata, 'recurrence.payment_reminder_days', [0, 3, 6])),
             'carry_over_unused_balance' => (bool) data_get($offer->metadata, 'recurrence.carry_over_unused_balance', false),
             'items_count' => $offer->items->count(),
             'created_at' => $offer->created_at,
@@ -251,6 +259,192 @@ class OfferPackageController extends Controller
                 'sort_order' => $item->sort_order,
             ])->values()->all(),
         ];
+    }
+
+    private function reporting(int $accountId): array
+    {
+        $invoiceLines = InvoiceItem::query()
+            ->whereHas('invoice', fn ($query) => $query
+                ->where('user_id', $accountId)
+                ->where('status', '!=', 'void'))
+            ->get(['id', 'invoice_id', 'title', 'quantity', 'unit_price', 'total', 'currency_code', 'meta', 'created_at'])
+            ->filter(fn (InvoiceItem $item): bool => (int) data_get($item->meta, 'offer_package_id') > 0
+                && in_array(data_get($item->meta, 'offer_package_type'), OfferPackage::types(), true));
+
+        $packLines = $invoiceLines
+            ->filter(fn (InvoiceItem $item): bool => data_get($item->meta, 'offer_package_type') === OfferPackage::TYPE_PACK)
+            ->values();
+
+        $forfaitPackages = CustomerPackage::query()
+            ->forAccount($accountId)
+            ->with('offerPackage:id,name,type')
+            ->get([
+                'id',
+                'customer_id',
+                'offer_package_id',
+                'status',
+                'initial_quantity',
+                'consumed_quantity',
+                'remaining_quantity',
+                'price_paid',
+                'currency_code',
+                'is_recurring',
+                'recurrence_status',
+                'renewal_count',
+                'renewed_from_customer_package_id',
+                'source_details',
+                'metadata',
+                'created_at',
+            ]);
+
+        $recurringPackages = $forfaitPackages
+            ->filter(fn (CustomerPackage $package): bool => (bool) $package->is_recurring)
+            ->values();
+
+        return [
+            'sales' => [
+                'packs' => $this->invoiceLineReport($packLines),
+                'consumable_forfaits' => $this->forfaitSalesReport($forfaitPackages),
+            ],
+            'recurring' => $this->recurringReport($recurringPackages),
+            'carry_over' => $this->carryOverReport($forfaitPackages),
+            'top_offers' => $this->topOfferRows($packLines, $forfaitPackages),
+        ];
+    }
+
+    private function invoiceLineReport(Collection $lines): array
+    {
+        $soldCount = (float) $lines->sum(fn (InvoiceItem $line): float => (float) $line->quantity);
+        $revenue = round((float) $lines->sum(fn (InvoiceItem $line): float => (float) $line->total), 2);
+
+        return [
+            'sold_count' => $this->reportQuantity($soldCount),
+            'line_count' => $lines->count(),
+            'revenue' => $revenue,
+            'average_revenue' => $soldCount > 0 ? round($revenue / $soldCount, 2) : 0.0,
+        ];
+    }
+
+    private function forfaitSalesReport(Collection $packages): array
+    {
+        $soldCount = $packages->count();
+        $initialQuantity = (int) $packages->sum(fn (CustomerPackage $package): int => (int) $package->initial_quantity);
+        $consumedQuantity = (int) $packages->sum(fn (CustomerPackage $package): int => (int) $package->consumed_quantity);
+        $revenue = round((float) $packages->sum(fn (CustomerPackage $package): float => (float) $package->price_paid), 2);
+
+        return [
+            'sold_count' => $soldCount,
+            'assigned_customers' => $packages->pluck('customer_id')->filter()->unique()->count(),
+            'active_count' => $packages
+                ->filter(fn (CustomerPackage $package): bool => $package->status === CustomerPackage::STATUS_ACTIVE)
+                ->count(),
+            'consumed_count' => $packages
+                ->filter(fn (CustomerPackage $package): bool => $package->status === CustomerPackage::STATUS_CONSUMED)
+                ->count(),
+            'expired_count' => $packages
+                ->filter(fn (CustomerPackage $package): bool => $package->status === CustomerPackage::STATUS_EXPIRED)
+                ->count(),
+            'cancelled_count' => $packages
+                ->filter(fn (CustomerPackage $package): bool => $package->status === CustomerPackage::STATUS_CANCELLED)
+                ->count(),
+            'revenue' => $revenue,
+            'average_revenue' => $soldCount > 0 ? round($revenue / $soldCount, 2) : 0.0,
+            'initial_quantity' => $initialQuantity,
+            'consumed_quantity' => $consumedQuantity,
+            'remaining_quantity' => (int) $packages->sum(fn (CustomerPackage $package): int => (int) $package->remaining_quantity),
+            'usage_rate' => $initialQuantity > 0 ? round(($consumedQuantity / $initialQuantity) * 100, 1) : 0.0,
+        ];
+    }
+
+    private function recurringReport(Collection $packages): array
+    {
+        return [
+            'total' => $packages->count(),
+            'active' => $packages
+                ->filter(fn (CustomerPackage $package): bool => $package->status === CustomerPackage::STATUS_ACTIVE
+                    && in_array($package->recurrence_status, [null, CustomerPackage::RECURRENCE_ACTIVE], true))
+                ->count(),
+            'payment_due' => $packages
+                ->filter(fn (CustomerPackage $package): bool => $package->recurrence_status === CustomerPackage::RECURRENCE_PAYMENT_DUE)
+                ->count(),
+            'suspended' => $packages
+                ->filter(fn (CustomerPackage $package): bool => $package->recurrence_status === CustomerPackage::RECURRENCE_SUSPENDED)
+                ->count(),
+            'cancelled' => $packages
+                ->filter(fn (CustomerPackage $package): bool => $package->recurrence_status === CustomerPackage::RECURRENCE_CANCELLED
+                    || $package->status === CustomerPackage::STATUS_CANCELLED)
+                ->count(),
+            'expired' => $packages
+                ->filter(fn (CustomerPackage $package): bool => $package->status === CustomerPackage::STATUS_EXPIRED)
+                ->count(),
+            'renewed' => $packages
+                ->filter(fn (CustomerPackage $package): bool => (int) $package->renewed_from_customer_package_id > 0)
+                ->count(),
+        ];
+    }
+
+    private function carryOverReport(Collection $packages): array
+    {
+        $carriedPackages = $packages
+            ->map(fn (CustomerPackage $package): array => [
+                'quantity' => (int) data_get($package->metadata, 'recurrence.carried_over_quantity', 0),
+                'remaining_quantity' => (int) $package->remaining_quantity,
+            ])
+            ->filter(fn (array $package): bool => $package['quantity'] > 0)
+            ->values();
+
+        return [
+            'packages_count' => $carriedPackages->count(),
+            'quantity' => (int) $carriedPackages->sum('quantity'),
+            'remaining_quantity' => (int) $carriedPackages->sum('remaining_quantity'),
+        ];
+    }
+
+    private function topOfferRows(Collection $packLines, Collection $forfaitPackages): array
+    {
+        $rows = collect();
+
+        $packLines
+            ->groupBy(fn (InvoiceItem $line): int => (int) data_get($line->meta, 'offer_package_id'))
+            ->each(function (Collection $lines, int $offerId) use ($rows): void {
+                $soldCount = (float) $lines->sum(fn (InvoiceItem $line): float => (float) $line->quantity);
+                $revenue = round((float) $lines->sum(fn (InvoiceItem $line): float => (float) $line->total), 2);
+                $firstLine = $lines->first();
+
+                $rows->push([
+                    'id' => $offerId,
+                    'name' => (string) (data_get($firstLine?->meta, 'offer_package_snapshot.name') ?: $firstLine?->title ?: 'Pack #'.$offerId),
+                    'type' => OfferPackage::TYPE_PACK,
+                    'sold_count' => $this->reportQuantity($soldCount),
+                    'revenue' => $revenue,
+                ]);
+            });
+
+        $forfaitPackages
+            ->groupBy(fn (CustomerPackage $package): int => (int) $package->offer_package_id)
+            ->each(function (Collection $packages, int $offerId) use ($rows): void {
+                $firstPackage = $packages->first();
+                $rows->push([
+                    'id' => $offerId,
+                    'name' => (string) ($firstPackage?->offerPackage?->name ?: data_get($firstPackage?->source_details, 'offer_package.name') ?: 'Forfait #'.$offerId),
+                    'type' => OfferPackage::TYPE_FORFAIT,
+                    'sold_count' => $packages->count(),
+                    'revenue' => round((float) $packages->sum(fn (CustomerPackage $package): float => (float) $package->price_paid), 2),
+                ]);
+            });
+
+        return $rows
+            ->sortByDesc('revenue')
+            ->take(5)
+            ->values()
+            ->all();
+    }
+
+    private function reportQuantity(float $quantity): int|float
+    {
+        $rounded = round($quantity, 2);
+
+        return floor($rounded) === $rounded ? (int) $rounded : $rounded;
     }
 
     private function detailKpis(OfferPackage $offerPackage, int $accountId): array

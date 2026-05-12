@@ -1,0 +1,97 @@
+{
+  "client_packages": {
+    "title": "Mis paquetes",
+    "subtitle": "Consulta saldos, remanentes, consumos y facturas vinculadas.",
+    "stats": {
+      "total": "Total",
+      "active": "Activos",
+      "remaining": "Saldo total",
+      "recurring": "Recurrentes",
+      "payment_due": "Pago pendiente",
+      "carried_over": "Remanente"
+    },
+    "sections": {
+      "period": "Periodo y renovacion",
+      "actions": "Solicitudes del cliente",
+      "invoices": "Facturas vinculadas",
+      "usages": "Consumos recientes"
+    },
+    "labels": {
+      "starts": "Inicio",
+      "expires": "Vence",
+      "no_expiry": "Sin vencimiento",
+      "next_renewal": "Proxima renovacion",
+      "recurrence_status": "Estado recurrente",
+      "price_paid": "Precio pagado",
+      "remaining": "Restante",
+      "consumed": "Consumido",
+      "allocation": "Cupo mensual",
+      "carried_over": "Remanente agregado"
+    },
+    "actions": {
+      "request_renewal": "Solicitar renovacion",
+      "request_cancellation": "Solicitar cancelacion",
+      "submit_request": "Enviar solicitud",
+      "cancel": "Cancelar",
+      "view_invoice": "Ver / pagar"
+    },
+    "requests": {
+      "renewal_title": "Solicitud de renovacion",
+      "cancellation_title": "Solicitud de cancelacion",
+      "note_placeholder": "Agrega una nota para el equipo...",
+      "renewal_sent": "Renovacion solicitada el",
+      "cancellation_sent": "Cancelacion solicitada el"
+    },
+    "empty": {
+      "title": "No hay paquete disponible",
+      "body": "Los paquetes comprados o asignados por la empresa apareceran aqui.",
+      "no_invoices": "No hay factura vinculada a este paquete.",
+      "no_usages": "No hay consumo reciente."
+    },
+    "statuses": {
+      "active": "Activo",
+      "consumed": "Consumido",
+      "expired": "Vencido",
+      "cancelled": "Cancelado"
+    },
+    "recurrence": {
+      "monthly": "Mensual",
+      "quarterly": "Trimestral",
+      "yearly": "Anual"
+    },
+    "recurrence_statuses": {
+      "active": "Activo",
+      "payment_due": "Pago pendiente",
+      "suspended": "Suspendido",
+      "cancelled": "Cancelado"
+    },
+    "units": {
+      "session": "sesion",
+      "hour": "hora",
+      "visit": "visita",
+      "credit": "credito",
+      "month": "mes"
+    },
+    "invoice_types": {
+      "purchase": "Compra",
+      "renewal": "Renovacion"
+    },
+    "invoice_statuses": {
+      "draft": "Borrador",
+      "sent": "Enviada",
+      "awaiting_acceptance": "En espera",
+      "accepted": "Aceptada",
+      "rejected": "Rechazada",
+      "partial": "Parcial",
+      "paid": "Pagada",
+      "overdue": "Vencida",
+      "void": "Anulada"
+    },
+    "sources": {
+      "manual": "Manual",
+      "reservation": "Reserva",
+      "invoice": "Factura",
+      "work": "Trabajo"
+    }
+  }
+}

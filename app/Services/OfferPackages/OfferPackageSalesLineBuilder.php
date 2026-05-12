@@ -46,6 +46,8 @@ class OfferPackageSalesLineBuilder
             'is_recurring' => (bool) $offer->is_recurring,
             'recurrence_frequency' => $offer->recurrence_frequency,
             'renewal_notice_days' => $offer->renewal_notice_days,
+            'payment_grace_days' => (int) data_get($offer->metadata, 'recurrence.payment_grace_days', 7),
+            'payment_reminder_days' => array_values((array) data_get($offer->metadata, 'recurrence.payment_reminder_days', [0, 3, 6])),
             'description' => $offer->description,
             'items' => $this->snapshotItems($offer),
             'quote_line' => $this->quoteLinePayload($offer),
@@ -133,6 +135,8 @@ class OfferPackageSalesLineBuilder
             'is_recurring' => (bool) $offer->is_recurring,
             'recurrence_frequency' => $offer->recurrence_frequency,
             'renewal_notice_days' => $offer->renewal_notice_days,
+            'payment_grace_days' => (int) data_get($offer->metadata, 'recurrence.payment_grace_days', 7),
+            'payment_reminder_days' => array_values((array) data_get($offer->metadata, 'recurrence.payment_reminder_days', [0, 3, 6])),
             'items' => $this->snapshotItems($offer),
         ];
     }

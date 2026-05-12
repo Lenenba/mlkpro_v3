@@ -51,6 +51,12 @@ class CustomerController extends Controller
             'status',
             'created_from',
             'created_to',
+            'has_active_package',
+            'package_status',
+            'package_remaining_lte',
+            'package_expires_within_days',
+            'package_is_recurring',
+            'package_recurrence_status',
             'sort',
             'direction',
         ]);

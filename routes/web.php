@@ -42,6 +42,7 @@ use App\Http\Controllers\PlanningController;
 use App\Http\Controllers\PlanScanController;
 use App\Http\Controllers\PlaybookController;
 use App\Http\Controllers\PlaybookRunController;
+use App\Http\Controllers\Portal\PortalCustomerPackageController;
 use App\Http\Controllers\Portal\PortalInvoiceController;
 use App\Http\Controllers\Portal\PortalLoyaltyController;
 use App\Http\Controllers\Portal\PortalProductOrderController;
@@ -943,6 +944,10 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         ->name('customer.packages.renew');
     Route::post('/customer/{customer}/packages/{customerPackage}/renewal-invoice', [CustomerPackageController::class, 'renewalInvoice'])
         ->name('customer.packages.renewal-invoice');
+    Route::post('/customer/{customer}/packages/{customerPackage}/cancel-recurring', [CustomerPackageController::class, 'cancelRecurring'])
+        ->name('customer.packages.cancel-recurring');
+    Route::post('/customer/{customer}/packages/{customerPackage}/change-recurring-offer', [CustomerPackageController::class, 'changeRecurringOffer'])
+        ->name('customer.packages.change-recurring-offer');
     Route::post('/customer/bulk', [CustomerController::class, 'bulk'])
         ->name('customer.bulk');
     Route::post('/customer/bulk-contact/preview', [CustomerController::class, 'previewBulkContact'])
@@ -1047,6 +1052,11 @@ Route::middleware(['auth', EnsureClientUser::class])
         Route::post('/orders/{sale}/reviews', [PortalReviewController::class, 'storeOrder'])->name('orders.reviews.store');
         Route::post('/orders/{sale}/products/{product}/reviews', [PortalReviewController::class, 'storeProduct'])
             ->name('orders.products.reviews.store');
+        Route::get('/packages', [PortalCustomerPackageController::class, 'index'])->name('packages.index');
+        Route::post('/packages/{customerPackage}/renewal-request', [PortalCustomerPackageController::class, 'requestRenewal'])
+            ->name('packages.renewal-request');
+        Route::post('/packages/{customerPackage}/cancellation-request', [PortalCustomerPackageController::class, 'requestCancellation'])
+            ->name('packages.cancellation-request');
         Route::get('/loyalty', [PortalLoyaltyController::class, 'index'])
             ->middleware('company.feature:loyalty')
             ->name('loyalty.index');

@@ -130,6 +130,8 @@ class OfferPackageService
         $recurrenceFrequency = null;
         $renewalNoticeDays = null;
         $carryOverUnusedBalance = false;
+        $paymentGraceDays = null;
+        $paymentReminderDays = [];
 
         if ($unitType !== null && ! in_array($unitType, OfferPackage::unitTypes(), true)) {
             throw ValidationException::withMessages([
@@ -160,6 +162,16 @@ class OfferPackageService
                 $payload['carry_over_unused_balance']
                 ?? data_get($existing?->metadata, 'recurrence.carry_over_unused_balance', false)
             );
+
+            $paymentGraceDays = $this->nullablePositiveInt(
+                $payload,
+                'payment_grace_days',
+                data_get($existing?->metadata, 'recurrence.payment_grace_days', 7)
+            ) ?? 7;
+            $paymentReminderDays = $this->normalizePaymentReminderDays(
+                $payload['payment_reminder_days']
+                ?? data_get($existing?->metadata, 'recurrence.payment_reminder_days', [0, 3, 6])
+            );
         }
 
         $metadata = (array) ($existing?->metadata ?? []);
@@ -170,6 +182,8 @@ class OfferPackageService
         $metadata['recurrence_enabled'] = $isRecurring;
         $metadata['recurrence'] = array_merge((array) data_get($metadata, 'recurrence', []), [
             'carry_over_unused_balance' => $carryOverUnusedBalance,
+            'payment_grace_days' => $paymentGraceDays,
+            'payment_reminder_days' => $paymentReminderDays,
         ]);
 
         return [
@@ -265,5 +279,27 @@ class OfferPackageService
         $value = (int) $payload[$key];
 
         return $value > 0 ? $value : null;
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function normalizePaymentReminderDays(mixed $value): array
+    {
+        if (is_string($value)) {
+            $value = preg_split('/[,\s]+/', $value) ?: [];
+        }
+
+        if (! is_array($value)) {
+            $value = [$value];
+        }
+
+        $days = array_values(array_unique(array_filter(array_map(
+            fn (mixed $day): int => max(0, (int) $day),
+            $value
+        ), fn (int $day): bool => $day <= 365)));
+        sort($days);
+
+        return $days !== [] ? $days : [0, 3, 6];
     }
 }

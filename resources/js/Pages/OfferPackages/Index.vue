@@ -27,6 +27,10 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    reporting: {
+        type: Object,
+        default: () => ({}),
+    },
     catalogItems: {
         type: Array,
         default: () => [],
@@ -77,6 +81,8 @@ const form = useForm({
     is_recurring: false,
     recurrence_frequency: 'monthly',
     renewal_notice_days: 7,
+    payment_grace_days: 7,
+    payment_reminder_days: '0, 3, 6',
     carry_over_unused_balance: false,
     items: [defaultItem()],
 });
@@ -192,6 +198,60 @@ const money = (value, currency = props.tenantCurrencyCode) => {
     }).format(amount);
 };
 
+const numberValue = (value) => new Intl.NumberFormat(undefined, {
+    maximumFractionDigits: 2,
+}).format(Number(value || 0));
+
+const reporting = computed(() => props.reporting || {});
+const reportCards = computed(() => {
+    const packs = reporting.value.sales?.packs || {};
+    const forfaits = reporting.value.sales?.consumable_forfaits || {};
+    const recurring = reporting.value.recurring || {};
+    const carryOver = reporting.value.carry_over || {};
+
+    return [
+        {
+            label: 'Packs vendus',
+            value: numberValue(packs.sold_count),
+            helper: money(packs.revenue),
+            detail: `${numberValue(packs.line_count)} ligne${Number(packs.line_count || 0) > 1 ? 's' : ''} facture`,
+        },
+        {
+            label: 'Forfaits vendus',
+            value: numberValue(forfaits.sold_count),
+            helper: money(forfaits.revenue),
+            detail: `${numberValue(forfaits.remaining_quantity)} droits restants`,
+        },
+        {
+            label: 'Recurrents actifs',
+            value: numberValue(recurring.active),
+            helper: `${numberValue(recurring.total)} recurrent${Number(recurring.total || 0) > 1 ? 's' : ''}`,
+            detail: `${numberValue(recurring.renewed)} renouvele${Number(recurring.renewed || 0) > 1 ? 's' : ''}`,
+        },
+        {
+            label: 'Solde reporte',
+            value: numberValue(carryOver.quantity),
+            helper: `${numberValue(carryOver.packages_count)} forfait${Number(carryOver.packages_count || 0) > 1 ? 's' : ''}`,
+            detail: `${numberValue(carryOver.remaining_quantity)} droits restants`,
+        },
+    ];
+});
+
+const recurringRows = computed(() => {
+    const recurring = reporting.value.recurring || {};
+
+    return [
+        { key: 'active', label: 'Actifs', value: recurring.active || 0 },
+        { key: 'payment_due', label: 'Paiement du', value: recurring.payment_due || 0 },
+        { key: 'suspended', label: 'Suspendus', value: recurring.suspended || 0 },
+        { key: 'cancelled', label: 'Annules', value: recurring.cancelled || 0 },
+        { key: 'expired', label: 'Expires', value: recurring.expired || 0 },
+        { key: 'renewed', label: 'Renouveles', value: recurring.renewed || 0 },
+    ];
+});
+
+const topOfferRows = computed(() => reporting.value.top_offers || []);
+
 const formatDate = (value) => humanizeDate(value) || '-';
 
 const statusBadgeClass = (status) => {
@@ -267,6 +327,8 @@ const startEdit = (offer) => {
     form.is_recurring = Boolean(offer.is_recurring);
     form.recurrence_frequency = offer.recurrence_frequency || 'monthly';
     form.renewal_notice_days = offer.renewal_notice_days || 7;
+    form.payment_grace_days = offer.payment_grace_days || 7;
+    form.payment_reminder_days = (offer.payment_reminder_days || [0, 3, 6]).join(', ');
     form.carry_over_unused_balance = Boolean(offer.carry_over_unused_balance);
     form.items = (offer.items || []).length
         ? offer.items.map((item) => ({
@@ -302,15 +364,28 @@ const updateItemPrice = (item) => {
     }
 };
 
+const parseReminderDays = (value) => {
+    const raw = Array.isArray(value) ? value : String(value || '').split(/[,\s]+/);
+    const days = raw
+        .map((day) => Number.parseInt(day, 10))
+        .filter((day) => Number.isFinite(day) && day >= 0 && day <= 365);
+
+    return Array.from(new Set(days)).sort((left, right) => left - right);
+};
+
 const submit = () => {
     if (form.type !== 'forfait' || !form.is_recurring) {
         form.is_recurring = false;
         form.recurrence_frequency = '';
         form.renewal_notice_days = '';
+        form.payment_grace_days = '';
+        form.payment_reminder_days = '';
         form.carry_over_unused_balance = false;
     } else {
         form.recurrence_frequency = form.recurrence_frequency || 'monthly';
         form.renewal_notice_days = form.renewal_notice_days || 7;
+        form.payment_grace_days = form.payment_grace_days || 7;
+        form.payment_reminder_days = form.payment_reminder_days || '0, 3, 6';
     }
 
     const payload = {
@@ -321,13 +396,19 @@ const submit = () => {
         },
     };
 
+    const request = form.transform((data) => ({
+        ...data,
+        payment_grace_days: data.payment_grace_days ? Number(data.payment_grace_days) : null,
+        payment_reminder_days: parseReminderDays(data.payment_reminder_days),
+    }));
+
     if (isEditing.value) {
-        form.put(route('offer-packages.update', editingOfferId.value), payload);
+        request.put(route('offer-packages.update', editingOfferId.value), payload);
 
         return;
     }
 
-    form.post(route('offer-packages.store'), payload);
+    request.post(route('offer-packages.store'), payload);
 };
 
 const filterPayload = () => {
@@ -453,6 +534,136 @@ const restoreOffer = (offer) => {
                         </div>
                     </div>
                 </div>
+            </section>
+
+            <section class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+                <div class="space-y-4">
+                    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        <div
+                            v-for="card in reportCards"
+                            :key="card.label"
+                            class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                        >
+                            <div class="text-xs font-medium uppercase text-stone-500 dark:text-neutral-400">
+                                {{ card.label }}
+                            </div>
+                            <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-50">
+                                {{ card.value }}
+                            </div>
+                            <div class="mt-1 text-sm font-medium text-stone-700 dark:text-neutral-200">
+                                {{ card.helper }}
+                            </div>
+                            <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                {{ card.detail }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <h2 class="text-base font-semibold text-stone-900 dark:text-neutral-50">
+                                    Meilleures ventes
+                                </h2>
+                                <p class="mt-1 text-sm text-stone-500 dark:text-neutral-400">
+                                    Classement consolide par chiffre d affaires facture ou attribue.
+                                </p>
+                            </div>
+                            <div class="text-xs font-medium uppercase text-stone-500 dark:text-neutral-400">
+                                Top {{ topOfferRows.length }}
+                            </div>
+                        </div>
+
+                        <div class="mt-4 overflow-x-auto">
+                            <table class="min-w-full divide-y divide-stone-200 text-sm dark:divide-neutral-700">
+                                <thead>
+                                    <tr class="text-left text-xs font-medium uppercase text-stone-500 dark:text-neutral-400">
+                                        <th class="py-2 pr-4">Offre</th>
+                                        <th class="px-4 py-2">Type</th>
+                                        <th class="px-4 py-2 text-right">Vendus</th>
+                                        <th class="py-2 pl-4 text-right">CA</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-stone-100 dark:divide-neutral-800">
+                                    <tr v-for="row in topOfferRows" :key="`${row.type}-${row.id}`" class="text-stone-700 dark:text-neutral-200">
+                                        <td class="py-3 pr-4">
+                                            <Link
+                                                v-if="row.id"
+                                                :href="route('offer-packages.show', row.id)"
+                                                class="font-semibold text-stone-900 transition hover:text-green-700 dark:text-neutral-50 dark:hover:text-green-300"
+                                            >
+                                                {{ row.name }}
+                                            </Link>
+                                            <span v-else class="font-semibold text-stone-900 dark:text-neutral-50">
+                                                {{ row.name }}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <span class="inline-flex rounded-full bg-stone-100 px-2 py-0.5 text-xs font-semibold text-stone-700 dark:bg-neutral-700 dark:text-neutral-300">
+                                                {{ typeLabel(row.type) }}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 text-right font-medium text-stone-900 dark:text-neutral-50">
+                                            {{ numberValue(row.sold_count) }}
+                                        </td>
+                                        <td class="py-3 pl-4 text-right font-semibold text-stone-900 dark:text-neutral-50">
+                                            {{ money(row.revenue) }}
+                                        </td>
+                                    </tr>
+                                    <tr v-if="!topOfferRows.length">
+                                        <td colspan="4" class="py-8 text-center text-sm text-stone-500 dark:text-neutral-400">
+                                            Aucune vente pack ou forfait a consolider.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <aside class="space-y-4">
+                    <div class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <h2 class="text-base font-semibold text-stone-900 dark:text-neutral-50">
+                            Forfaits recurrents
+                        </h2>
+                        <div class="mt-4 space-y-2">
+                            <div
+                                v-for="row in recurringRows"
+                                :key="row.key"
+                                class="flex items-center justify-between rounded-sm bg-stone-50 px-3 py-2 text-sm dark:bg-neutral-800"
+                            >
+                                <span class="text-stone-600 dark:text-neutral-300">{{ row.label }}</span>
+                                <span class="font-semibold text-stone-900 dark:text-neutral-50">{{ numberValue(row.value) }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <h2 class="text-base font-semibold text-stone-900 dark:text-neutral-50">
+                            Solde reporte
+                        </h2>
+                        <dl class="mt-4 space-y-3 text-sm">
+                            <div class="flex justify-between gap-4">
+                                <dt class="text-stone-500 dark:text-neutral-400">Forfaits concernes</dt>
+                                <dd class="font-medium text-stone-900 dark:text-neutral-50">
+                                    {{ numberValue(reporting.carry_over?.packages_count) }}
+                                </dd>
+                            </div>
+                            <div class="flex justify-between gap-4">
+                                <dt class="text-stone-500 dark:text-neutral-400">Droits reportes</dt>
+                                <dd class="font-medium text-stone-900 dark:text-neutral-50">
+                                    {{ numberValue(reporting.carry_over?.quantity) }}
+                                </dd>
+                            </div>
+                            <div class="flex justify-between gap-4">
+                                <dt class="text-stone-500 dark:text-neutral-400">Droits restants</dt>
+                                <dd class="font-medium text-stone-900 dark:text-neutral-50">
+                                    {{ numberValue(reporting.carry_over?.remaining_quantity) }}
+                                </dd>
+                            </div>
+                        </dl>
+                    </div>
+                </aside>
             </section>
 
             <section class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
@@ -820,6 +1031,15 @@ const restoreOffer = (offer) => {
                                     <div>
                                         <FloatingInput v-model="form.renewal_notice_days" type="number" min="1" max="365" step="1" label="Rappel avant renouvellement" />
                                         <InputError class="mt-1" :message="form.errors.renewal_notice_days" />
+                                    </div>
+                                    <div>
+                                        <FloatingInput v-model="form.payment_grace_days" type="number" min="1" max="365" step="1" label="Delai avant suspension" />
+                                        <InputError class="mt-1" :message="form.errors.payment_grace_days" />
+                                    </div>
+                                    <div>
+                                        <FloatingInput v-model="form.payment_reminder_days" type="text" label="Relances facture impayee" />
+                                        <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">Jours apres echeance, separes par virgules.</p>
+                                        <InputError class="mt-1" :message="form.errors.payment_reminder_days || form.errors['payment_reminder_days.0']" />
                                     </div>
                                     <label class="inline-flex items-center gap-2 text-sm font-medium text-stone-700 dark:text-neutral-200 md:col-span-2">
                                         <input

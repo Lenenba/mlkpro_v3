@@ -430,6 +430,18 @@ const customerContact = (customer) => [customer?.email, customer?.phone].filter(
                                 </dd>
                             </div>
                             <div class="flex justify-between gap-4">
+                                <dt class="text-stone-500 dark:text-neutral-400">Delai suspension</dt>
+                                <dd class="font-medium text-stone-900 dark:text-neutral-50">
+                                    {{ offer.payment_grace_days ? `${offer.payment_grace_days} jours` : '-' }}
+                                </dd>
+                            </div>
+                            <div class="flex justify-between gap-4">
+                                <dt class="text-stone-500 dark:text-neutral-400">Relances impayees</dt>
+                                <dd class="font-medium text-stone-900 dark:text-neutral-50">
+                                    {{ (offer.payment_reminder_days || []).length ? `${offer.payment_reminder_days.join(', ')} jours` : '-' }}
+                                </dd>
+                            </div>
+                            <div class="flex justify-between gap-4">
                                 <dt class="text-stone-500 dark:text-neutral-400">Reliquat</dt>
                                 <dd class="font-medium text-stone-900 dark:text-neutral-50">
                                     {{ offer.carry_over_unused_balance ? 'Reporte' : 'Non reporte' }}

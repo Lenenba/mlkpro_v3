@@ -4,11 +4,14 @@ use App\Http\Middleware\EnsureTwoFactorVerified;
 use App\Models\Customer;
 use App\Models\CustomerPackage;
 use App\Models\CustomerPackageUsage;
+use App\Models\Invoice;
+use App\Models\InvoiceItem;
 use App\Models\OfferPackage;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\Work;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -94,6 +97,239 @@ it('renders the offer packages catalog with catalog items', function () {
         ->assertJsonPath('offers.data.0.name', 'Pack lancement')
         ->assertJsonPath('catalogItems.0.name', 'Consultation strategie')
         ->assertJsonPath('stats.total', 1);
+});
+
+it('returns consolidated reporting for sold packs forfaits recurrence and carry over', function () {
+    $owner = offerPackageOwner();
+    $product = offerPackageCatalogItem($owner);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+
+    $pack = OfferPackage::query()->create([
+        'user_id' => $owner->id,
+        'name' => 'Pack reporting',
+        'type' => OfferPackage::TYPE_PACK,
+        'status' => OfferPackage::STATUS_ACTIVE,
+        'price' => 200,
+        'currency_code' => 'CAD',
+    ]);
+    $forfait = OfferPackage::query()->create([
+        'user_id' => $owner->id,
+        'name' => 'Forfait reporting',
+        'type' => OfferPackage::TYPE_FORFAIT,
+        'status' => OfferPackage::STATUS_ACTIVE,
+        'price' => 300,
+        'currency_code' => 'CAD',
+        'included_quantity' => 5,
+        'unit_type' => OfferPackage::UNIT_SESSION,
+    ]);
+    $recurring = OfferPackage::query()->create([
+        'user_id' => $owner->id,
+        'name' => 'Forfait reporting recurrent',
+        'type' => OfferPackage::TYPE_FORFAIT,
+        'status' => OfferPackage::STATUS_ACTIVE,
+        'price' => 120,
+        'currency_code' => 'CAD',
+        'included_quantity' => 6,
+        'unit_type' => OfferPackage::UNIT_SESSION,
+        'is_recurring' => true,
+        'recurrence_frequency' => OfferPackage::RECURRENCE_MONTHLY,
+    ]);
+
+    foreach ([$pack, $forfait, $recurring] as $offer) {
+        $offer->items()->create([
+            'product_id' => $product->id,
+            'item_type_snapshot' => $product->item_type,
+            'name_snapshot' => $product->name,
+            'quantity' => 1,
+            'unit_price' => $offer->price,
+            'included' => true,
+            'is_optional' => false,
+        ]);
+    }
+
+    $work = Work::query()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'job_title' => 'Reporting job',
+        'instructions' => 'Reporting fixture',
+        'subtotal' => 0,
+        'total' => 0,
+    ]);
+
+    $invoice = Invoice::query()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'work_id' => $work->id,
+        'status' => 'sent',
+        'total' => 400,
+        'currency_code' => 'CAD',
+    ]);
+    InvoiceItem::query()->create([
+        'invoice_id' => $invoice->id,
+        'title' => $pack->name,
+        'quantity' => 2,
+        'unit_price' => 200,
+        'total' => 400,
+        'currency_code' => 'CAD',
+        'meta' => [
+            'source' => 'offer_package',
+            'offer_package_id' => $pack->id,
+            'offer_package_type' => OfferPackage::TYPE_PACK,
+            'offer_package_snapshot' => ['name' => $pack->name],
+        ],
+    ]);
+
+    $voidInvoice = Invoice::query()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'work_id' => $work->id,
+        'status' => 'void',
+        'total' => 999,
+        'currency_code' => 'CAD',
+    ]);
+    InvoiceItem::query()->create([
+        'invoice_id' => $voidInvoice->id,
+        'title' => 'Void pack',
+        'quantity' => 5,
+        'unit_price' => 200,
+        'total' => 1000,
+        'currency_code' => 'CAD',
+        'meta' => [
+            'source' => 'offer_package',
+            'offer_package_id' => $pack->id,
+            'offer_package_type' => OfferPackage::TYPE_PACK,
+            'offer_package_snapshot' => ['name' => 'Void pack'],
+        ],
+    ]);
+
+    CustomerPackage::query()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'offer_package_id' => $forfait->id,
+        'status' => CustomerPackage::STATUS_ACTIVE,
+        'starts_at' => '2026-05-01',
+        'initial_quantity' => 5,
+        'consumed_quantity' => 2,
+        'remaining_quantity' => 3,
+        'unit_type' => OfferPackage::UNIT_SESSION,
+        'price_paid' => 300,
+        'currency_code' => 'CAD',
+        'source_details' => ['offer_package' => ['name' => $forfait->name]],
+    ]);
+
+    CustomerPackage::query()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'offer_package_id' => $recurring->id,
+        'status' => CustomerPackage::STATUS_ACTIVE,
+        'starts_at' => '2026-05-01',
+        'initial_quantity' => 6,
+        'consumed_quantity' => 0,
+        'remaining_quantity' => 6,
+        'unit_type' => OfferPackage::UNIT_SESSION,
+        'price_paid' => 120,
+        'currency_code' => 'CAD',
+        'is_recurring' => true,
+        'recurrence_frequency' => OfferPackage::RECURRENCE_MONTHLY,
+        'recurrence_status' => CustomerPackage::RECURRENCE_ACTIVE,
+        'source_details' => ['offer_package' => ['name' => $recurring->name]],
+        'metadata' => ['recurrence' => ['carried_over_quantity' => 2]],
+    ]);
+
+    CustomerPackage::query()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'offer_package_id' => $recurring->id,
+        'status' => CustomerPackage::STATUS_ACTIVE,
+        'starts_at' => '2026-05-01',
+        'initial_quantity' => 6,
+        'consumed_quantity' => 1,
+        'remaining_quantity' => 5,
+        'unit_type' => OfferPackage::UNIT_SESSION,
+        'price_paid' => 120,
+        'currency_code' => 'CAD',
+        'is_recurring' => true,
+        'recurrence_frequency' => OfferPackage::RECURRENCE_MONTHLY,
+        'recurrence_status' => CustomerPackage::RECURRENCE_SUSPENDED,
+        'source_details' => ['offer_package' => ['name' => $recurring->name]],
+    ]);
+
+    CustomerPackage::query()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'offer_package_id' => $recurring->id,
+        'status' => CustomerPackage::STATUS_CANCELLED,
+        'starts_at' => '2026-05-01',
+        'initial_quantity' => 6,
+        'consumed_quantity' => 2,
+        'remaining_quantity' => 4,
+        'unit_type' => OfferPackage::UNIT_SESSION,
+        'price_paid' => 120,
+        'currency_code' => 'CAD',
+        'is_recurring' => true,
+        'recurrence_frequency' => OfferPackage::RECURRENCE_MONTHLY,
+        'recurrence_status' => CustomerPackage::RECURRENCE_CANCELLED,
+        'source_details' => ['offer_package' => ['name' => $recurring->name]],
+    ]);
+
+    $expiredRecurring = CustomerPackage::query()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'offer_package_id' => $recurring->id,
+        'status' => CustomerPackage::STATUS_EXPIRED,
+        'starts_at' => '2026-04-01',
+        'initial_quantity' => 6,
+        'consumed_quantity' => 6,
+        'remaining_quantity' => 0,
+        'unit_type' => OfferPackage::UNIT_SESSION,
+        'price_paid' => 120,
+        'currency_code' => 'CAD',
+        'is_recurring' => true,
+        'recurrence_frequency' => OfferPackage::RECURRENCE_MONTHLY,
+        'recurrence_status' => CustomerPackage::RECURRENCE_ACTIVE,
+        'source_details' => ['offer_package' => ['name' => $recurring->name]],
+    ]);
+
+    CustomerPackage::query()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'offer_package_id' => $recurring->id,
+        'status' => CustomerPackage::STATUS_ACTIVE,
+        'starts_at' => '2026-06-01',
+        'initial_quantity' => 7,
+        'consumed_quantity' => 0,
+        'remaining_quantity' => 7,
+        'unit_type' => OfferPackage::UNIT_SESSION,
+        'price_paid' => 140,
+        'currency_code' => 'CAD',
+        'is_recurring' => true,
+        'recurrence_frequency' => OfferPackage::RECURRENCE_MONTHLY,
+        'recurrence_status' => CustomerPackage::RECURRENCE_ACTIVE,
+        'renewal_count' => 1,
+        'renewed_from_customer_package_id' => $expiredRecurring->id,
+        'source_details' => ['offer_package' => ['name' => $recurring->name]],
+        'metadata' => ['recurrence' => ['carried_over_quantity' => 1]],
+    ]);
+
+    $this->actingAs($owner)
+        ->getJson(route('offer-packages.index'))
+        ->assertOk()
+        ->assertJsonPath('reporting.sales.packs.sold_count', 2)
+        ->assertJsonPath('reporting.sales.packs.line_count', 1)
+        ->assertJsonPath('reporting.sales.packs.revenue', 400)
+        ->assertJsonPath('reporting.sales.consumable_forfaits.sold_count', 6)
+        ->assertJsonPath('reporting.sales.consumable_forfaits.revenue', 920)
+        ->assertJsonPath('reporting.sales.consumable_forfaits.remaining_quantity', 25)
+        ->assertJsonPath('reporting.recurring.total', 5)
+        ->assertJsonPath('reporting.recurring.active', 2)
+        ->assertJsonPath('reporting.recurring.suspended', 1)
+        ->assertJsonPath('reporting.recurring.cancelled', 1)
+        ->assertJsonPath('reporting.recurring.expired', 1)
+        ->assertJsonPath('reporting.recurring.renewed', 1)
+        ->assertJsonPath('reporting.carry_over.packages_count', 2)
+        ->assertJsonPath('reporting.carry_over.quantity', 3)
+        ->assertJsonPath('reporting.carry_over.remaining_quantity', 13)
+        ->assertJsonPath('reporting.top_offers.0.name', 'Forfait reporting recurrent');
 });
 
 it('creates an active public pack with product snapshots', function () {
