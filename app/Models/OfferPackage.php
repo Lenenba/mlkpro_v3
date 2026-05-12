@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\CurrencyCode;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -63,6 +64,10 @@ class OfferPackage extends Model
         'metadata',
     ];
 
+    protected $appends = [
+        'carry_over_unused_balance',
+    ];
+
     protected function casts(): array
     {
         return [
@@ -74,6 +79,13 @@ class OfferPackage extends Model
             'renewal_notice_days' => 'integer',
             'metadata' => 'array',
         ];
+    }
+
+    protected function carryOverUnusedBalance(): Attribute
+    {
+        return Attribute::get(
+            fn (): bool => (bool) data_get($this->metadata, 'recurrence.carry_over_unused_balance', false)
+        );
     }
 
     protected static function booted(): void

@@ -108,12 +108,14 @@ Artisan::command('offer-packages:automation {--date=}', function (CustomerPackag
     $summary = $automation->process($reference);
 
     $this->info(sprintf(
-        'Offer package automation: expired %d, low balance alerts %d, marketing reminders %d, renewal reminders %d, renewal invoices %d.',
+        'Offer package automation: expired %d, low balance alerts %d, marketing reminders %d, renewal reminders %d, renewal invoices %d, paid renewals %d, suspended renewals %d.',
         (int) ($summary['expired'] ?? 0),
         (int) ($summary['low_balance_alerts'] ?? 0),
         (int) ($summary['marketing_reminders'] ?? 0),
         (int) ($summary['renewal_reminders'] ?? 0),
-        (int) ($summary['renewal_invoices'] ?? 0)
+        (int) ($summary['renewal_invoices'] ?? 0),
+        (int) ($summary['paid_renewals'] ?? 0),
+        (int) ($summary['suspended_renewals'] ?? 0)
     ));
 
     return 0;

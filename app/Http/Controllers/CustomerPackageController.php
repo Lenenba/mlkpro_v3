@@ -30,6 +30,7 @@ class CustomerPackageController extends Controller
             'starts_at' => ['nullable', 'date'],
             'expires_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
             'price_paid' => ['nullable', 'numeric', 'min:0', 'max:999999999.99'],
+            'carry_over_unused_balance' => ['sometimes', 'boolean'],
             'note' => ['nullable', 'string', 'max:500'],
         ]);
 
@@ -92,6 +93,7 @@ class CustomerPackageController extends Controller
             'starts_at' => ['nullable', 'date'],
             'expires_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
             'price_paid' => ['nullable', 'numeric', 'min:0', 'max:999999999.99'],
+            'carry_over_unused_balance' => ['sometimes', 'boolean'],
             'note' => ['nullable', 'string', 'max:500'],
         ]);
 

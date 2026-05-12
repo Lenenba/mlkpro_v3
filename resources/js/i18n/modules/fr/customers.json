@@ -518,6 +518,7 @@
         "expires": "Expire",
         "no_expiry": "Sans expiration",
         "recurrence_label": "Recurrence",
+        "carry_over_label": "Reliquat reporte",
         "next_renewal": "Prochain renouvellement",
         "recent_usages": "Consommations recentes",
         "summary": {
@@ -536,6 +537,7 @@
           "usage_quantity": "Quantite consommee",
           "used_at": "Date de consommation",
           "usage_note": "Note de consommation",
+          "carry_over_unused_balance": "Reporter le reliquat",
           "renewal_note": "Note de renouvellement"
         },
         "statuses": {

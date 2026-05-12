@@ -185,6 +185,9 @@ const customerContact = (customer) => [customer?.email, customer?.phone].filter(
                                 <span v-if="offer.is_recurring" class="inline-flex rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800 dark:bg-sky-500/10 dark:text-sky-300">
                                     {{ recurrenceLabel(offer.recurrence_frequency) }}
                                 </span>
+                                <span v-if="offer.carry_over_unused_balance" class="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800 dark:bg-green-500/10 dark:text-green-300">
+                                    Reliquat reporte
+                                </span>
                             </div>
                             <p class="mt-2 max-w-3xl text-sm text-stone-500 dark:text-neutral-400">
                                 {{ offer.description || 'Aucune description.' }}
@@ -424,6 +427,12 @@ const customerContact = (customer) => [customer?.email, customer?.phone].filter(
                                 <dt class="text-stone-500 dark:text-neutral-400">Rappel renouvellement</dt>
                                 <dd class="font-medium text-stone-900 dark:text-neutral-50">
                                     {{ offer.renewal_notice_days ? `${offer.renewal_notice_days} jours` : '-' }}
+                                </dd>
+                            </div>
+                            <div class="flex justify-between gap-4">
+                                <dt class="text-stone-500 dark:text-neutral-400">Reliquat</dt>
+                                <dd class="font-medium text-stone-900 dark:text-neutral-50">
+                                    {{ offer.carry_over_unused_balance ? 'Reporte' : 'Non reporte' }}
                                 </dd>
                             </div>
                         </dl>

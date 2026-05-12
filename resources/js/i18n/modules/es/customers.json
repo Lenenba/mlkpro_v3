@@ -518,6 +518,7 @@
         "expires": "Vence",
         "no_expiry": "Sin vencimiento",
         "recurrence_label": "Recurrencia",
+        "carry_over_label": "Saldo acumulado",
         "next_renewal": "Proxima renovacion",
         "recent_usages": "Consumos recientes",
         "summary": {
@@ -536,6 +537,7 @@
           "usage_quantity": "Cantidad consumida",
           "used_at": "Fecha de consumo",
           "usage_note": "Nota de consumo",
+          "carry_over_unused_balance": "Acumular saldo no usado",
           "renewal_note": "Nota de renovacion"
         },
         "statuses": {

@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\Work;
 use App\Notifications\ActionEmailNotification;
 use App\Notifications\InvoicePaymentNotification;
+use App\Services\OfferPackages\CustomerPackageService;
 use App\Support\LocalePreference;
 use App\Support\NotificationDispatcher;
 use Illuminate\Support\Facades\Log;
@@ -370,6 +371,10 @@ class StripeInvoiceService
         if ($invoice->status === 'paid' && $invoice->work) {
             $invoice->work->status = Work::STATUS_CLOSED;
             $invoice->work->save();
+        }
+
+        if ($invoice->status === 'paid') {
+            app(CustomerPackageService::class)->renewFromPaidInvoice($invoice);
         }
 
         return $payment;

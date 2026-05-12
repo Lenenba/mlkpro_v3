@@ -5,7 +5,9 @@ namespace App\Actions\Invoices;
 use App\Models\ActivityLog;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\User;
 use App\Models\Work;
+use App\Services\OfferPackages\CustomerPackageService;
 use App\Services\TipAllocationService;
 use App\Support\TipAssigneeResolver;
 use App\Support\TipCalculator;
@@ -79,6 +81,13 @@ class CreateInvoicePaymentAction
         if ($invoice->status === 'paid' && $invoice->work) {
             $invoice->work->status = Work::STATUS_CLOSED;
             $invoice->work->save();
+        }
+
+        if ($invoice->status === 'paid') {
+            app(CustomerPackageService::class)->renewFromPaidInvoice(
+                $invoice,
+                $activityActor instanceof User ? $activityActor : null
+            );
         }
 
         return [

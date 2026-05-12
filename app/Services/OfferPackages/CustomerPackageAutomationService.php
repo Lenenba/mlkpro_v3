@@ -5,6 +5,7 @@ namespace App\Services\OfferPackages;
 use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\CustomerPackage;
+use App\Models\Invoice;
 use App\Models\User;
 use App\Notifications\CampaignInAppNotification;
 use App\Support\NotificationDispatcher;
@@ -20,8 +21,10 @@ class CustomerPackageAutomationService
     {
         $today = ($reference ?: today())->copy()->startOfDay();
 
+        $paidRenewals = $this->reconcilePaidRenewalInvoices();
         $renewalReminders = $this->sendRenewalReminders($today);
         $renewalInvoices = $this->createDueRenewalInvoices($today);
+        $suspendedRenewals = $this->suspendOverdueRenewals($today);
         $expired = $this->expireOverduePackages($today);
         $lowBalanceAlerts = $this->sendLowBalanceAlerts($today);
         $expiringSoonReminders = $this->sendExpiringSoonReminders($today);
@@ -32,6 +35,8 @@ class CustomerPackageAutomationService
             'marketing_reminders' => $expiringSoonReminders,
             'renewal_reminders' => $renewalReminders,
             'renewal_invoices' => $renewalInvoices,
+            'paid_renewals' => $paidRenewals,
+            'suspended_renewals' => $suspendedRenewals,
         ];
     }
 
@@ -48,7 +53,10 @@ class CustomerPackageAutomationService
                     ->orWhereNull('is_recurring')
                     ->orWhere(function ($subQuery): void {
                         $subQuery->whereNull('recurrence_status')
-                            ->orWhere('recurrence_status', '<>', CustomerPackage::RECURRENCE_PAYMENT_DUE);
+                            ->orWhereNotIn('recurrence_status', [
+                                CustomerPackage::RECURRENCE_PAYMENT_DUE,
+                                CustomerPackage::RECURRENCE_SUSPENDED,
+                            ]);
                     });
             })
             ->with(['customer:id,user_id,first_name,last_name,company_name,email', 'user:id,name'])
@@ -64,6 +72,57 @@ class CustomerPackageAutomationService
                     $this->recordCustomerActivity($package, 'customer_package_expired', 'Customer forfait expired');
                     $this->notifyOwner($package, 'Forfait expired', $this->packageLabel($package).' has expired.');
                     $count++;
+                }
+            });
+
+        return $count;
+    }
+
+    private function reconcilePaidRenewalInvoices(): int
+    {
+        $count = 0;
+
+        CustomerPackage::query()
+            ->active()
+            ->recurring()
+            ->whereIn('recurrence_status', [
+                CustomerPackage::RECURRENCE_PAYMENT_DUE,
+                CustomerPackage::RECURRENCE_SUSPENDED,
+            ])
+            ->with([
+                'customer:id,user_id,first_name,last_name,company_name,email',
+                'user:id,name',
+                'offerPackage.items',
+            ])
+            ->chunkById(100, function ($packages) use (&$count): void {
+                foreach ($packages as $package) {
+                    if ((int) data_get($package->metadata, 'recurrence.paid_renewed_to_customer_package_id', 0) > 0) {
+                        continue;
+                    }
+
+                    $invoiceId = (int) data_get($package->metadata, 'recurrence.pending_invoice_id', 0);
+                    if ($invoiceId < 1) {
+                        continue;
+                    }
+
+                    $invoice = Invoice::query()
+                        ->whereKey($invoiceId)
+                        ->where('user_id', $package->user_id)
+                        ->where('status', 'paid')
+                        ->with('items')
+                        ->first();
+                    if (! $invoice) {
+                        continue;
+                    }
+
+                    $owner = $package->user instanceof User
+                        ? $package->user
+                        : User::query()->find($package->user_id);
+
+                    $renewed = $this->customerPackageService->renewFromPaidInvoice($invoice, $owner);
+                    if ($renewed) {
+                        $count++;
+                    }
                 }
             });
 
@@ -218,6 +277,52 @@ class CustomerPackageAutomationService
         return $count;
     }
 
+    private function suspendOverdueRenewals(Carbon $today): int
+    {
+        $count = 0;
+
+        CustomerPackage::query()
+            ->active()
+            ->recurring()
+            ->where('recurrence_status', CustomerPackage::RECURRENCE_PAYMENT_DUE)
+            ->whereNotNull('next_renewal_at')
+            ->whereDate('next_renewal_at', '<', $today->toDateString())
+            ->with(['customer:id,user_id,first_name,last_name,company_name,email', 'user:id,name'])
+            ->chunkById(100, function ($packages) use (&$count, $today): void {
+                foreach ($packages as $package) {
+                    $graceDays = $this->renewalPaymentGraceDays($package);
+                    if ($package->next_renewal_at?->copy()->addDays($graceDays)->gt($today)) {
+                        continue;
+                    }
+
+                    $metadata = (array) ($package->metadata ?? []);
+                    $metadata['recurrence'] = array_merge((array) ($metadata['recurrence'] ?? []), [
+                        'suspended_at' => now('UTC')->toIso8601String(),
+                        'suspension_reason' => 'renewal_payment_overdue',
+                        'payment_grace_days' => $graceDays,
+                    ]);
+
+                    $package->forceFill([
+                        'recurrence_status' => CustomerPackage::RECURRENCE_SUSPENDED,
+                        'metadata' => $this->mergeAutomationMeta($package, [
+                            'last_checked_at' => now('UTC')->toIso8601String(),
+                            'renewal_suspended_at' => now('UTC')->toIso8601String(),
+                        ], $metadata),
+                    ])->save();
+
+                    $this->recordCustomerActivity($package, 'customer_package_renewal_suspended', 'Recurring forfait suspended for overdue payment');
+                    $this->notifyOwner(
+                        $package,
+                        'Recurring forfait suspended',
+                        $this->packageLabel($package).' is suspended because the renewal payment is overdue.'
+                    );
+                    $count++;
+                }
+            });
+
+        return $count;
+    }
+
     private function isLowBalance(CustomerPackage $package): bool
     {
         return (int) $package->remaining_quantity <= $this->lowBalanceThreshold($package);
@@ -226,6 +331,11 @@ class CustomerPackageAutomationService
     private function lowBalanceThreshold(CustomerPackage $package): int
     {
         return max(1, (int) ceil(max(1, (int) $package->initial_quantity) * 0.2));
+    }
+
+    private function renewalPaymentGraceDays(CustomerPackage $package): int
+    {
+        return max(1, (int) data_get($package->metadata, 'recurrence.payment_grace_days', 7));
     }
 
     private function hasAutomationNotification(CustomerPackage $package, string $key): bool
@@ -256,9 +366,9 @@ class CustomerPackageAutomationService
      * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
      */
-    private function mergeAutomationMeta(CustomerPackage $package, array $payload): array
+    private function mergeAutomationMeta(CustomerPackage $package, array $payload, ?array $metadata = null): array
     {
-        $metadata = (array) ($package->metadata ?? []);
+        $metadata = $metadata ?? (array) ($package->metadata ?? []);
         $automation = (array) ($metadata['automation'] ?? []);
         $metadata['automation'] = array_merge($automation, $payload);
 

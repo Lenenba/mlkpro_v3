@@ -958,17 +958,22 @@ Sortie livree:
 - generation automatique des factures de renouvellement dues via `offer-packages:automation`
 - idempotence pour eviter plusieurs factures ouvertes sur la meme echeance
 - affichage de la facture de renouvellement liee dans la fiche client
+- renouvellement automatique de la nouvelle periode quand la facture de renouvellement est payee
+- report optionnel du reliquat non consomme vers la nouvelle periode recurrente
+- reprise idempotente des factures de renouvellement payees via paiement interne, portail/public ou Stripe
 - rappel interne automatique quand un renouvellement arrive sous 7 jours
 - statut recurrent `payment_due` quand une facture de renouvellement attend paiement
-- traces CRM/activite pour forfait renouvele, renouvellement a venir et facture creee
-- tests creation, attribution, renouvellement, rappel recurrent et facture de renouvellement
+- suspension automatique d un forfait recurrent en retard apres delai de grace
+- traces CRM/activite pour forfait renouvele, renouvellement a venir, facture creee, paiement recu et suspension
+- tests creation, attribution, renouvellement, rappel recurrent, facture de renouvellement, paiement et suspension
 
 Reste a livrer plus tard:
 
-- paiement automatique Stripe
+- tentative de paiement automatique Stripe sans action client
 - portail client complet pour suivre/renouveler
 - upgrade/downgrade recurrent
-- gestion paiement en retard/suspension
+- plafond et expiration separee du reliquat reporte si necessaire
+- regles avancees de relance paiement et reprise client
 
 Phases restantes pour terminer l epique:
 
@@ -998,13 +1003,19 @@ Phases restantes pour terminer l epique:
 
    - rendre les echecs de paiement lisibles et actionnables
 
+   Statut:
+
+   - partiellement livre pour la reprise apres facture payee et la suspension
+     automatique apres delai de grace
+
    Livrables:
 
    - statut `payment_due` confirme sur facture ouverte
-   - statut `suspended` apres echec ou retard selon une regle simple
-   - reprise du forfait apres paiement
-   - traces CRM/activite pour echec, suspension et reprise
-   - notifications internes et client selon preferences
+   - statut `suspended` apres retard selon une regle simple
+   - reprise du forfait apres paiement de la facture de renouvellement
+   - traces CRM/activite pour suspension et reprise
+   - notifications internes pour suspension
+   - notifications client selon preferences
 
    Sortie attendue:
 
@@ -1658,3 +1669,290 @@ Livrables:
 Sortie attendue:
 
 - tous les criteres DoD V3 sont couverts et testables
+
+## 20. Guide complet - prendre un pack ou un forfait
+
+Ce guide explique le parcours concret pour configurer, vendre, attribuer et
+utiliser un pack ou un forfait dans Malikia. Il separe volontairement le flux
+entreprise et le flux client, car un pack se vend comme une offre commerciale
+alors qu un forfait devient aussi un solde client a suivre.
+
+### 20.1 Avant de commencer
+
+Prerequis cote entreprise:
+
+- au moins un produit ou service actif dans le catalogue
+- un client cree dans Malikia si l offre est attribuee manuellement
+- une offre active dans `Packs et forfaits`
+- une facture ou un devis si le pack/forfait est vendu dans un flux commercial
+- les reservations activees si le forfait doit etre consomme via une reservation
+
+Regle simple:
+
+- utiliser un `pack` pour vendre un ensemble ponctuel
+- utiliser un `forfait` pour vendre des droits consommables: seances, heures,
+  visites, credits ou mois
+- mettre le statut a `Actif` pour rendre l offre vendable
+- garder le statut `Brouillon` tant que l offre n est pas prete
+- utiliser `Archive` pour retirer une offre de la vente sans casser l historique
+
+### 20.2 Creer l offre dans le catalogue
+
+Chemin:
+
+`Catalogue > Packs / Forfaits` ou `/offer-packages`
+
+Etapes:
+
+1. Ouvrir `Packs et forfaits`.
+2. Cliquer sur `Nouvelle offre`.
+3. Renseigner le nom, la description, le prix fixe et la devise.
+4. Choisir le type:
+   - `Pack` pour une vente ponctuelle composee
+   - `Forfait` pour une offre avec solde consommable
+5. Ajouter les elements inclus dans `Elements inclus`.
+6. Choisir les produits ou services existants.
+7. Verifier les quantites et les prix snapshots.
+8. Pour un forfait, renseigner:
+   - quantite incluse
+   - unite: seance, heure, visite, credit ou mois
+   - validite en jours si le forfait doit expirer
+9. Si le forfait se renouvelle, cocher `Forfait recurrent` et choisir la
+   frequence: mensuelle, trimestrielle ou annuelle.
+10. Mettre le statut a `Actif`.
+11. Enregistrer avec `Creer l offre`.
+
+Resultat attendu:
+
+- l offre apparait dans la liste des packs/forfaits
+- elle peut etre ajoutee a un devis ou a une facture
+- si c est un forfait actif, elle peut etre attribuee a un client
+
+### 20.3 Vendre un pack ou un forfait depuis un devis
+
+Chemin:
+
+`Devis > Nouveau devis`
+
+Etapes:
+
+1. Creer ou ouvrir un devis modifiable.
+2. Aller dans la zone des lignes produits/services.
+3. Utiliser le selecteur `Pack / forfait`.
+4. Choisir une offre active.
+5. Indiquer la quantite.
+6. Cliquer sur `Ajouter`.
+7. Verifier que la ligne ajoutee reprend le prix, le nom et le detail inclus.
+8. Envoyer ou valider le devis selon le flux habituel.
+
+Resultat attendu:
+
+- le devis garde une ligne principale pour le pack/forfait
+- le snapshot des elements inclus est conserve
+- si le catalogue change plus tard, l ancien devis reste lisible
+
+### 20.4 Vendre un pack ou un forfait depuis une facture
+
+Chemin:
+
+`Factures > detail facture`
+
+Etapes:
+
+1. Creer ou ouvrir une facture non payee et non annulee.
+2. Dans la facture, utiliser le bloc `Pack / forfait`.
+3. Choisir une offre active.
+4. Indiquer la quantite.
+5. Cliquer sur `Ajouter`.
+6. Verifier le total et les details inclus.
+7. Envoyer la facture au client ou l encaisser selon le mode de paiement choisi.
+
+Resultat attendu:
+
+- la facture contient une ligne pack/forfait
+- le prix et la devise sont repris
+- le detail inclus est conserve dans la facture
+- une facture payee peut servir de preuve de vente
+
+### 20.5 Attribuer un forfait directement a un client
+
+Chemin:
+
+`Clients > fiche client > Forfaits client`
+
+Ce flux sert quand l entreprise veut donner ou enregistrer un forfait sans
+passer tout de suite par un devis.
+
+Etapes:
+
+1. Ouvrir la fiche du client.
+2. Descendre a la section `Forfaits client`.
+3. Cliquer sur `Attribuer forfait`.
+4. Choisir un forfait actif.
+5. Verifier ou ajuster la quantite initiale.
+6. Indiquer le prix paye si necessaire.
+7. Choisir la date de debut.
+8. Choisir une date d expiration si le forfait n est pas illimite dans le temps.
+9. Ajouter une note interne si utile.
+10. Cliquer sur `Attribuer`.
+
+Resultat attendu:
+
+- le forfait apparait dans la fiche client
+- le client a un solde initial, un solde consomme et un solde restant
+- le statut commence a `Actif`
+- l historique garde l origine de l attribution
+
+### 20.6 Consommer un forfait manuellement
+
+Chemin:
+
+`Clients > fiche client > Forfaits client`
+
+Etapes:
+
+1. Ouvrir la fiche du client.
+2. Trouver le forfait actif.
+3. Cliquer sur `Consommer`.
+4. Saisir la quantite consommee.
+5. Indiquer la date de consommation.
+6. Ajouter une note si besoin.
+7. Cliquer sur `Enregistrer consommation`.
+
+Regles:
+
+- seuls les forfaits actifs peuvent etre consommes
+- la quantite doit rester dans le solde disponible, sauf exception admin
+- un forfait expire ne doit pas etre consomme
+- quand le solde atteint zero, le forfait passe a `Consomme`
+
+Resultat attendu:
+
+- une ligne de consommation est ajoutee
+- le solde restant baisse
+- l historique reste visible dans la fiche client
+
+### 20.7 Utiliser un forfait avec une reservation
+
+Chemin client:
+
+`Portail client > Reserver` ou `/client/reservations/book`
+
+Chemin equipe:
+
+`Reservations`
+
+Flux recommande:
+
+1. L entreprise attribue d abord un forfait actif au client.
+2. Le forfait doit contenir le service qui sera reserve, quand c est possible.
+3. Le client reserve un creneau depuis le portail client.
+4. L equipe confirme et realise la reservation.
+5. Quand la reservation est marquee comme terminee, Malikia cherche un forfait
+   client eligible.
+6. Le forfait le plus pertinent est consomme:
+   - priorite au forfait qui contient le service reserve
+   - puis au forfait qui expire le plus tot
+   - puis au forfait le plus ancien
+7. Si la reservation repasse a un autre statut, la consommation peut etre
+   restauree selon le flux prevu.
+
+Resultat attendu:
+
+- le client utilise son forfait sans double saisie
+- la reservation garde une trace du forfait consomme
+- le solde client reste coherent avec les services realises
+
+### 20.8 Renouveler un forfait recurrent
+
+Chemin:
+
+`Clients > fiche client > Forfaits client`
+
+Etapes manuelles:
+
+1. Ouvrir la fiche du client.
+2. Trouver le forfait recurrent.
+3. Si une facture est necessaire, cliquer sur `Facturer renouvellement`.
+4. Encaisser ou faire payer la facture.
+5. Si le renouvellement doit etre force manuellement, cliquer sur `Renouveler`.
+6. Verifier la nouvelle quantite, le prix, la date de debut et l expiration.
+7. Enregistrer.
+
+Automatisation prevue dans le service:
+
+- creation de facture quand la date de renouvellement est due
+- reconciliation quand la facture de renouvellement est payee
+- report du reliquat si l option est activee sur l offre recurrente
+- notification interne avant renouvellement
+- suspension si le paiement reste en retard apres le delai de grace
+
+Resultat attendu:
+
+- une nouvelle periode de forfait est creee
+- si le report est active, le solde restant de l ancienne periode est ajoute a
+  l allocation de la nouvelle periode
+- l ancien forfait reste dans l historique
+- la facture de renouvellement reste reliee au forfait
+
+### 20.9 Parcours client final
+
+Etat actuel du parcours:
+
+1. Le client recoit un devis, une facture ou une attribution faite par l equipe.
+2. Il paie la facture si le flux de vente passe par une facture.
+3. L equipe voit le forfait dans la fiche client.
+4. Le client peut reserver un service depuis le portail client si les
+   reservations sont activees.
+5. La consommation du forfait se fait via la reservation terminee ou par action
+   manuelle de l equipe.
+
+Parcours cible portail client:
+
+1. Le client voit ses forfaits actifs.
+2. Il voit le solde restant, l expiration et les consommations recentes.
+3. Il peut ouvrir les factures liees.
+4. Il peut demander un renouvellement ou une annulation si l entreprise l autorise.
+
+### 20.10 Checklist de QA pour confirmer que le flux marche
+
+Verifier un pack:
+
+- creation d une offre type `Pack`
+- ajout de plusieurs elements inclus
+- statut `Actif`
+- ajout dans un devis
+- ajout dans une facture
+- snapshot conserve apres modification du catalogue
+
+Verifier un forfait:
+
+- creation d une offre type `Forfait`
+- unite et quantite incluses renseignees
+- attribution a un client
+- solde initial correct
+- consommation manuelle
+- passage a `Consomme` quand le solde arrive a zero
+- expiration automatique si la date est depassee
+- reservation terminee qui consomme le forfait compatible
+
+Verifier un forfait recurrent:
+
+- frequence configuree
+- date de prochain renouvellement calculee
+- facture de renouvellement creee
+- paiement qui cree une nouvelle periode
+- suspension si la facture reste impayee trop longtemps
+
+### 20.11 Erreurs courantes a eviter
+
+- creer un forfait en type `Pack`: il ne pourra pas etre attribue comme solde
+  consommable au client
+- oublier le statut `Actif`: l offre ne sera pas vendable
+- oublier les produits/services inclus: le client ne comprendra pas ce qui est
+  vendu et la reservation aura moins de contexte pour choisir le bon forfait
+- confondre forfait client et plan SaaS Malikia: ce sont deux domaines separes
+- modifier le catalogue en pensant modifier les anciennes factures: les ventes
+  gardent leur snapshot historique
+- consommer manuellement un forfait avant que la reservation soit terminee si
+  l automatisation reservation est activee, pour eviter une double consommation

@@ -77,6 +77,7 @@ const form = useForm({
     is_recurring: false,
     recurrence_frequency: 'monthly',
     renewal_notice_days: 7,
+    carry_over_unused_balance: false,
     items: [defaultItem()],
 });
 
@@ -266,6 +267,7 @@ const startEdit = (offer) => {
     form.is_recurring = Boolean(offer.is_recurring);
     form.recurrence_frequency = offer.recurrence_frequency || 'monthly';
     form.renewal_notice_days = offer.renewal_notice_days || 7;
+    form.carry_over_unused_balance = Boolean(offer.carry_over_unused_balance);
     form.items = (offer.items || []).length
         ? offer.items.map((item) => ({
             product_id: item.product_id,
@@ -305,6 +307,7 @@ const submit = () => {
         form.is_recurring = false;
         form.recurrence_frequency = '';
         form.renewal_notice_days = '';
+        form.carry_over_unused_balance = false;
     } else {
         form.recurrence_frequency = form.recurrence_frequency || 'monthly';
         form.renewal_notice_days = form.renewal_notice_days || 7;
@@ -612,6 +615,9 @@ const restoreOffer = (offer) => {
                                         <span v-if="offer.is_recurring" class="inline-flex rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800 dark:bg-sky-500/10 dark:text-sky-300">
                                             {{ recurrenceLabel(offer.recurrence_frequency) }}
                                         </span>
+                                        <span v-if="offer.carry_over_unused_balance" class="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800 dark:bg-green-500/10 dark:text-green-300">
+                                            Reliquat reporte
+                                        </span>
                                     </div>
                                 </td>
                                 <td class="px-5 py-3 text-sm text-stone-600 dark:text-neutral-300">
@@ -815,6 +821,15 @@ const restoreOffer = (offer) => {
                                         <FloatingInput v-model="form.renewal_notice_days" type="number" min="1" max="365" step="1" label="Rappel avant renouvellement" />
                                         <InputError class="mt-1" :message="form.errors.renewal_notice_days" />
                                     </div>
+                                    <label class="inline-flex items-center gap-2 text-sm font-medium text-stone-700 dark:text-neutral-200 md:col-span-2">
+                                        <input
+                                            v-model="form.carry_over_unused_balance"
+                                            type="checkbox"
+                                            class="rounded border-stone-300 text-green-600 focus:ring-green-500 dark:border-neutral-700 dark:bg-neutral-900"
+                                        >
+                                        <span>Reporter le reliquat</span>
+                                    </label>
+                                    <InputError class="mt-1 md:col-span-2" :message="form.errors.carry_over_unused_balance" />
                                 </div>
                                 <InputError class="mt-1" :message="form.errors.is_recurring" />
                             </div>

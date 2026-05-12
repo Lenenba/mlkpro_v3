@@ -548,6 +548,9 @@ class BuildCustomerDetailViewData
                 'next_renewal_at' => $package->next_renewal_at,
                 'renewal_count' => (int) $package->renewal_count,
                 'renewed_from_customer_package_id' => $package->renewed_from_customer_package_id,
+                'carry_over_unused_balance' => (bool) data_get($package->metadata, 'recurrence.carry_over_unused_balance', false),
+                'period_allocation_quantity' => (int) data_get($package->metadata, 'recurrence.period_allocation_quantity', $package->initial_quantity),
+                'carried_over_quantity' => (int) data_get($package->metadata, 'recurrence.carried_over_quantity', 0),
                 'renewal_invoice' => $renewalInvoice ? [
                     'id' => $renewalInvoice->id,
                     'number' => $renewalInvoice->number,
@@ -607,6 +610,7 @@ class BuildCustomerDetailViewData
                 'is_recurring',
                 'recurrence_frequency',
                 'renewal_notice_days',
+                'metadata',
             ])
             ->map(fn (OfferPackage $offer): array => [
                 'id' => $offer->id,
@@ -620,6 +624,7 @@ class BuildCustomerDetailViewData
                 'is_recurring' => (bool) $offer->is_recurring,
                 'recurrence_frequency' => $offer->recurrence_frequency,
                 'renewal_notice_days' => $offer->renewal_notice_days,
+                'carry_over_unused_balance' => (bool) data_get($offer->metadata, 'recurrence.carry_over_unused_balance', false),
             ])
             ->values()
             ->all();

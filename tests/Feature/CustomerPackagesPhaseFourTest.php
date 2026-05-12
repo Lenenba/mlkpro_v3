@@ -218,7 +218,7 @@ it('expires forfaits and prepares balance and marketing reminders from automatio
     ]);
 
     $this->artisan('offer-packages:automation --date=2026-05-11')
-        ->expectsOutput('Offer package automation: expired 1, low balance alerts 1, marketing reminders 1, renewal reminders 0, renewal invoices 0.')
+        ->expectsOutput('Offer package automation: expired 1, low balance alerts 1, marketing reminders 1, renewal reminders 0, renewal invoices 0, paid renewals 0, suspended renewals 0.')
         ->assertExitCode(0);
 
     expect($expired->fresh()->status)->toBe(CustomerPackage::STATUS_EXPIRED)

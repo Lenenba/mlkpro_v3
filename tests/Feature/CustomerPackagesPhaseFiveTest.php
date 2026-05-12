@@ -6,6 +6,7 @@ use App\Models\CustomerPackage;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\OfferPackage;
+use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\User;
@@ -107,6 +108,7 @@ it('creates and assigns a recurring forfait with a first renewal cycle', functio
             'is_recurring' => true,
             'recurrence_frequency' => OfferPackage::RECURRENCE_MONTHLY,
             'renewal_notice_days' => 5,
+            'carry_over_unused_balance' => true,
             'items' => [[
                 'product_id' => $product->id,
                 'quantity' => 4,
@@ -116,7 +118,8 @@ it('creates and assigns a recurring forfait with a first renewal cycle', functio
         ])
         ->assertCreated()
         ->assertJsonPath('offer.is_recurring', true)
-        ->assertJsonPath('offer.recurrence_frequency', OfferPackage::RECURRENCE_MONTHLY);
+        ->assertJsonPath('offer.recurrence_frequency', OfferPackage::RECURRENCE_MONTHLY)
+        ->assertJsonPath('offer.carry_over_unused_balance', true);
 
     $offer = OfferPackage::query()->where('name', 'Monthly beauty plan')->firstOrFail();
 
@@ -188,6 +191,49 @@ it('renews a recurring customer forfait and closes the previous period', functio
     Carbon::setTestNow();
 });
 
+it('carries unused recurring balance into the renewed period when enabled', function () {
+    Carbon::setTestNow(Carbon::parse('2026-06-01 09:00:00', 'UTC'));
+
+    $owner = customerPackagesPhaseFiveOwner();
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $product = customerPackagesPhaseFiveProduct($owner);
+    $offer = customerPackagesPhaseFiveOffer($owner, $product, [
+        'metadata' => [
+            'recurrence' => [
+                'carry_over_unused_balance' => true,
+            ],
+        ],
+    ]);
+
+    $packageService = app(CustomerPackageService::class);
+    $package = $packageService->assign($owner, $customer, $offer, [
+        'starts_at' => '2026-05-01',
+    ]);
+
+    $packageService->consume($owner, $customer, $package, [
+        'quantity' => 2,
+        'used_at' => '2026-05-15',
+        'source' => 'test_usage',
+    ]);
+
+    $renewed = $packageService->renew($owner, $customer, $package, [
+        'starts_at' => '2026-06-01',
+    ]);
+
+    $package->refresh();
+
+    expect($package->remaining_quantity)->toBe(2)
+        ->and($package->status)->toBe(CustomerPackage::STATUS_EXPIRED)
+        ->and(data_get($package->metadata, 'recurrence.carried_over_quantity'))->toBe(2)
+        ->and($renewed->initial_quantity)->toBe(6)
+        ->and($renewed->remaining_quantity)->toBe(6)
+        ->and(data_get($renewed->metadata, 'recurrence.period_allocation_quantity'))->toBe(4)
+        ->and(data_get($renewed->metadata, 'recurrence.carried_over_quantity'))->toBe(2)
+        ->and(data_get($renewed->metadata, 'recurrence.carry_over_unused_balance'))->toBeTrue();
+
+    Carbon::setTestNow();
+});
+
 it('prepares recurring renewal reminders from automation', function () {
     Notification::fake();
     Carbon::setTestNow(Carbon::parse('2026-05-11 08:00:00', 'UTC'));
@@ -203,7 +249,7 @@ it('prepares recurring renewal reminders from automation', function () {
     ]);
 
     $this->artisan('offer-packages:automation --date=2026-05-11')
-        ->expectsOutput('Offer package automation: expired 0, low balance alerts 0, marketing reminders 0, renewal reminders 1, renewal invoices 0.')
+        ->expectsOutput('Offer package automation: expired 0, low balance alerts 0, marketing reminders 0, renewal reminders 1, renewal invoices 0, paid renewals 0, suspended renewals 0.')
         ->assertExitCode(0);
 
     expect(data_get($package->fresh()->metadata, 'automation.notifications.renewal_due_sent_at.sent_at'))->not->toBeNull()
@@ -277,11 +323,87 @@ it('creates due renewal invoices from automation', function () {
     ]);
 
     $this->artisan('offer-packages:automation --date=2026-06-01')
-        ->expectsOutput('Offer package automation: expired 0, low balance alerts 0, marketing reminders 0, renewal reminders 1, renewal invoices 1.')
+        ->expectsOutput('Offer package automation: expired 0, low balance alerts 0, marketing reminders 0, renewal reminders 1, renewal invoices 1, paid renewals 0, suspended renewals 0.')
         ->assertExitCode(0);
 
     expect(Invoice::query()->count())->toBe(1)
         ->and(data_get($package->fresh()->metadata, 'recurrence.pending_invoice_id'))->toBe(Invoice::query()->value('id'));
+
+    Carbon::setTestNow();
+});
+
+it('renews a payment due forfait when its renewal invoice is paid', function () {
+    Carbon::setTestNow(Carbon::parse('2026-06-01 08:00:00', 'UTC'));
+
+    $owner = customerPackagesPhaseFiveOwner([
+        'payment_methods' => ['card', 'cash'],
+        'default_payment_method' => 'card',
+    ]);
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $product = customerPackagesPhaseFiveProduct($owner);
+    $offer = customerPackagesPhaseFiveOffer($owner, $product);
+
+    $package = app(CustomerPackageService::class)->assign($owner, $customer, $offer, [
+        'starts_at' => '2026-05-01',
+    ]);
+    $invoice = app(CustomerPackageService::class)->createRenewalInvoice($owner, $customer, $package);
+
+    $this->actingAs($owner)
+        ->postJson(route('payment.store', $invoice), [
+            'amount' => 360,
+            'method' => 'card',
+        ])
+        ->assertCreated()
+        ->assertJsonPath('invoice.status', 'paid');
+
+    $renewed = CustomerPackage::query()
+        ->where('renewed_from_customer_package_id', $package->id)
+        ->where('invoice_id', $invoice->id)
+        ->firstOrFail();
+
+    expect(Payment::query()->where('invoice_id', $invoice->id)->exists())->toBeTrue()
+        ->and($package->fresh()->status)->toBe(CustomerPackage::STATUS_EXPIRED)
+        ->and($package->fresh()->recurrence_status)->toBe(CustomerPackage::RECURRENCE_ACTIVE)
+        ->and(data_get($package->fresh()->metadata, 'recurrence.paid_invoice_id'))->toBe($invoice->id)
+        ->and($renewed->starts_at->toDateString())->toBe('2026-06-01')
+        ->and($renewed->next_renewal_at->toDateString())->toBe('2026-07-01')
+        ->and($renewed->recurrence_status)->toBe(CustomerPackage::RECURRENCE_ACTIVE)
+        ->and(ActivityLog::query()->where('action', 'customer_package_renewal_payment_received')->exists())->toBeTrue();
+
+    app(CustomerPackageService::class)->renewFromPaidInvoice($invoice->fresh(), $owner);
+
+    expect(CustomerPackage::query()
+        ->where('renewed_from_customer_package_id', $package->id)
+        ->where('invoice_id', $invoice->id)
+        ->count())->toBe(1);
+
+    Carbon::setTestNow();
+});
+
+it('suspends payment due recurring forfaits after the grace period', function () {
+    Notification::fake();
+    Carbon::setTestNow(Carbon::parse('2026-06-09 08:00:00', 'UTC'));
+
+    $owner = customerPackagesPhaseFiveOwner();
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $product = customerPackagesPhaseFiveProduct($owner);
+    $offer = customerPackagesPhaseFiveOffer($owner, $product);
+
+    $package = app(CustomerPackageService::class)->assign($owner, $customer, $offer, [
+        'starts_at' => '2026-05-01',
+    ]);
+    app(CustomerPackageService::class)->createRenewalInvoice($owner, $customer, $package);
+
+    $this->artisan('offer-packages:automation --date=2026-06-09')
+        ->expectsOutput('Offer package automation: expired 0, low balance alerts 0, marketing reminders 0, renewal reminders 0, renewal invoices 0, paid renewals 0, suspended renewals 1.')
+        ->assertExitCode(0);
+
+    $package->refresh();
+
+    expect($package->status)->toBe(CustomerPackage::STATUS_ACTIVE)
+        ->and($package->recurrence_status)->toBe(CustomerPackage::RECURRENCE_SUSPENDED)
+        ->and(data_get($package->metadata, 'recurrence.suspension_reason'))->toBe('renewal_payment_overdue')
+        ->and(ActivityLog::query()->where('action', 'customer_package_renewal_suspended')->exists())->toBeTrue();
 
     Carbon::setTestNow();
 });

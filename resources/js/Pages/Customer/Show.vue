@@ -411,6 +411,7 @@ const renewPackageForm = useForm({
     starts_at: todayInputValue(),
     expires_at: '',
     price_paid: '',
+    carry_over_unused_balance: false,
     note: '',
 });
 const renewingPackage = computed(() =>
@@ -432,8 +433,11 @@ const startRenewPackage = (customerPackage) => {
     renewingPackageId.value = customerPackage.id;
     renewPackageForm.reset();
     renewPackageForm.clearErrors();
-    renewPackageForm.initial_quantity = customerPackage.initial_quantity || 1;
+    renewPackageForm.initial_quantity = customerPackage.period_allocation_quantity
+        || customerPackage.initial_quantity
+        || 1;
     renewPackageForm.price_paid = customerPackage.price_paid ?? '';
+    renewPackageForm.carry_over_unused_balance = Boolean(customerPackage.carry_over_unused_balance);
     renewPackageForm.starts_at = customerPackage.next_renewal_at
         || (customerPackage.expires_at ? nextDayInputValue(customerPackage.expires_at) : todayInputValue());
     renewPackageForm.expires_at = recurringPeriodEndInputValue(
@@ -459,6 +463,7 @@ const submitRenewPackage = () => {
             starts_at: data.starts_at || null,
             expires_at: data.expires_at || null,
             price_paid: data.price_paid !== '' ? Number(data.price_paid) : null,
+            carry_over_unused_balance: Boolean(data.carry_over_unused_balance),
             note: data.note || null,
         }))
         .post(
@@ -1618,6 +1623,12 @@ const deleteProperty = (property) => {
                                         <span v-if="customerPackage.is_recurring">
                                             {{ $t('customers.details.customer_packages.recurrence_label') }} {{ recurrenceLabel(customerPackage.recurrence_frequency) }}
                                         </span>
+                                        <span v-if="customerPackage.carry_over_unused_balance">
+                                            {{ $t('customers.details.customer_packages.carry_over_label') }}
+                                            <template v-if="customerPackage.carried_over_quantity">
+                                                +{{ formatNumber(customerPackage.carried_over_quantity || 0) }}
+                                            </template>
+                                        </span>
                                         <span v-if="customerPackage.next_renewal_at">
                                             {{ $t('customers.details.customer_packages.next_renewal') }} {{ formatDate(customerPackage.next_renewal_at) }}
                                         </span>
@@ -1734,6 +1745,17 @@ const deleteProperty = (property) => {
                                             :label="$t('customers.details.customer_packages.fields.expires_at')"
                                         />
                                         <InputError class="mt-1" :message="renewPackageForm.errors.expires_at" />
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label class="inline-flex items-center gap-2 text-sm font-medium text-stone-700 dark:text-neutral-200">
+                                            <input
+                                                v-model="renewPackageForm.carry_over_unused_balance"
+                                                type="checkbox"
+                                                class="rounded border-stone-300 text-green-600 focus:ring-green-500 dark:border-neutral-700 dark:bg-neutral-900"
+                                            >
+                                            <span>{{ $t('customers.details.customer_packages.fields.carry_over_unused_balance') }}</span>
+                                        </label>
+                                        <InputError class="mt-1" :message="renewPackageForm.errors.carry_over_unused_balance" />
                                     </div>
                                     <div class="md:col-span-2">
                                         <FloatingTextarea

@@ -129,6 +129,7 @@ class OfferPackageService
             && (bool) ($payload['is_recurring'] ?? $existing?->is_recurring ?? false);
         $recurrenceFrequency = null;
         $renewalNoticeDays = null;
+        $carryOverUnusedBalance = false;
 
         if ($unitType !== null && ! in_array($unitType, OfferPackage::unitTypes(), true)) {
             throw ValidationException::withMessages([
@@ -154,7 +155,22 @@ class OfferPackageService
                 'renewal_notice_days',
                 $existing?->renewal_notice_days ?? 7
             ) ?? 7;
+
+            $carryOverUnusedBalance = (bool) (
+                $payload['carry_over_unused_balance']
+                ?? data_get($existing?->metadata, 'recurrence.carry_over_unused_balance', false)
+            );
         }
+
+        $metadata = (array) ($existing?->metadata ?? []);
+        $metadata['phase'] = 'v1_catalog';
+        $metadata['non_refundable'] = true;
+        $metadata['nested_packages_allowed'] = false;
+        $metadata['optional_items_allowed'] = false;
+        $metadata['recurrence_enabled'] = $isRecurring;
+        $metadata['recurrence'] = array_merge((array) data_get($metadata, 'recurrence', []), [
+            'carry_over_unused_balance' => $carryOverUnusedBalance,
+        ]);
 
         return [
             'user_id' => $accountId,
@@ -173,14 +189,7 @@ class OfferPackageService
             'is_recurring' => $isRecurring,
             'recurrence_frequency' => $recurrenceFrequency,
             'renewal_notice_days' => $renewalNoticeDays,
-            'metadata' => [
-                ...((array) ($existing?->metadata ?? [])),
-                'phase' => 'v1_catalog',
-                'non_refundable' => true,
-                'nested_packages_allowed' => false,
-                'optional_items_allowed' => false,
-                'recurrence_enabled' => $isRecurring,
-            ],
+            'metadata' => $metadata,
         ];
     }
 

@@ -518,6 +518,7 @@
         "expires": "Expires",
         "no_expiry": "No expiry",
         "recurrence_label": "Recurrence",
+        "carry_over_label": "Carry-over balance",
         "next_renewal": "Next renewal",
         "recent_usages": "Recent usage",
         "summary": {
@@ -536,6 +537,7 @@
           "usage_quantity": "Consumed quantity",
           "used_at": "Usage date",
           "usage_note": "Usage note",
+          "carry_over_unused_balance": "Carry over unused balance",
           "renewal_note": "Renewal note"
         },
         "statuses": {
