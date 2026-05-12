@@ -526,55 +526,55 @@ class BuildCustomerDetailViewData
                 $renewalInvoice = $renewalInvoices->get((int) data_get($package->metadata, 'recurrence.pending_invoice_id', 0));
 
                 return [
-                'id' => $package->id,
-                'offer_package_id' => $package->offer_package_id,
-                'name' => data_get($package->source_details, 'offer_package.name')
-                    ?: $package->offerPackage?->name
-                    ?: 'Forfait',
-                'status' => $package->status,
-                'starts_at' => $package->starts_at,
-                'expires_at' => $package->expires_at,
-                'initial_quantity' => (int) $package->initial_quantity,
-                'consumed_quantity' => (int) $package->consumed_quantity,
-                'remaining_quantity' => (int) $package->remaining_quantity,
-                'unit_type' => $package->unit_type,
-                'price_paid' => (float) $package->price_paid,
-                'currency_code' => $package->currency_code,
-                'is_recurring' => (bool) $package->is_recurring,
-                'recurrence_frequency' => $package->recurrence_frequency,
-                'recurrence_status' => $package->recurrence_status,
-                'current_period_starts_at' => $package->current_period_starts_at,
-                'current_period_ends_at' => $package->current_period_ends_at,
-                'next_renewal_at' => $package->next_renewal_at,
-                'renewal_count' => (int) $package->renewal_count,
-                'renewed_from_customer_package_id' => $package->renewed_from_customer_package_id,
-                'carry_over_unused_balance' => (bool) data_get($package->metadata, 'recurrence.carry_over_unused_balance', false),
-                'period_allocation_quantity' => (int) data_get($package->metadata, 'recurrence.period_allocation_quantity', $package->initial_quantity),
-                'carried_over_quantity' => (int) data_get($package->metadata, 'recurrence.carried_over_quantity', 0),
-                'recurrence_cancel_at_period_end' => (bool) data_get($package->metadata, 'recurrence.cancel_at_period_end', false),
-                'recurrence_cancellation_effective_at' => data_get($package->metadata, 'recurrence.cancellation_effective_at'),
-                'recurrence_cancellation_reason' => data_get($package->metadata, 'recurrence.cancellation_reason'),
-                'recurrence_change_type' => data_get($package->metadata, 'recurrence.change_type'),
-                'recurrence_change_effective_at' => data_get($package->metadata, 'recurrence.change_effective_at'),
-                'recurrence_changed_to_customer_package_id' => data_get($package->metadata, 'recurrence.changed_to_customer_package_id'),
-                'renewal_invoice' => $renewalInvoice ? [
-                    'id' => $renewalInvoice->id,
-                    'number' => $renewalInvoice->number,
-                    'status' => $renewalInvoice->status,
-                    'total' => (float) $renewalInvoice->total,
-                    'currency_code' => $renewalInvoice->currency_code,
-                ] : null,
-                'assigned_at' => $package->created_at,
-                'usages' => $package->usages
-                    ->map(fn ($usage): array => [
-                        'id' => $usage->id,
-                        'quantity' => (int) $usage->quantity,
-                        'used_at' => $usage->used_at,
-                        'note' => $usage->note,
-                        'created_by' => $usage->creator?->name,
-                    ])
-                    ->values()
-                    ->all(),
+                    'id' => $package->id,
+                    'offer_package_id' => $package->offer_package_id,
+                    'name' => data_get($package->source_details, 'offer_package.name')
+                        ?: $package->offerPackage?->name
+                        ?: 'Forfait',
+                    'status' => $package->status,
+                    'starts_at' => $package->starts_at,
+                    'expires_at' => $package->expires_at,
+                    'initial_quantity' => (int) $package->initial_quantity,
+                    'consumed_quantity' => (int) $package->consumed_quantity,
+                    'remaining_quantity' => (int) $package->remaining_quantity,
+                    'unit_type' => $package->unit_type,
+                    'price_paid' => (float) $package->price_paid,
+                    'currency_code' => $package->currency_code,
+                    'is_recurring' => (bool) $package->is_recurring,
+                    'recurrence_frequency' => $package->recurrence_frequency,
+                    'recurrence_status' => $package->recurrence_status,
+                    'current_period_starts_at' => $package->current_period_starts_at,
+                    'current_period_ends_at' => $package->current_period_ends_at,
+                    'next_renewal_at' => $package->next_renewal_at,
+                    'renewal_count' => (int) $package->renewal_count,
+                    'renewed_from_customer_package_id' => $package->renewed_from_customer_package_id,
+                    'carry_over_unused_balance' => (bool) data_get($package->metadata, 'recurrence.carry_over_unused_balance', false),
+                    'period_allocation_quantity' => (int) data_get($package->metadata, 'recurrence.period_allocation_quantity', $package->initial_quantity),
+                    'carried_over_quantity' => (int) data_get($package->metadata, 'recurrence.carried_over_quantity', 0),
+                    'recurrence_cancel_at_period_end' => (bool) data_get($package->metadata, 'recurrence.cancel_at_period_end', false),
+                    'recurrence_cancellation_effective_at' => data_get($package->metadata, 'recurrence.cancellation_effective_at'),
+                    'recurrence_cancellation_reason' => data_get($package->metadata, 'recurrence.cancellation_reason'),
+                    'recurrence_change_type' => data_get($package->metadata, 'recurrence.change_type'),
+                    'recurrence_change_effective_at' => data_get($package->metadata, 'recurrence.change_effective_at'),
+                    'recurrence_changed_to_customer_package_id' => data_get($package->metadata, 'recurrence.changed_to_customer_package_id'),
+                    'renewal_invoice' => $renewalInvoice ? [
+                        'id' => $renewalInvoice->id,
+                        'number' => $renewalInvoice->number,
+                        'status' => $renewalInvoice->status,
+                        'total' => (float) $renewalInvoice->total,
+                        'currency_code' => $renewalInvoice->currency_code,
+                    ] : null,
+                    'assigned_at' => $package->created_at,
+                    'usages' => $package->usages
+                        ->map(fn ($usage): array => [
+                            'id' => $usage->id,
+                            'quantity' => (int) $usage->quantity,
+                            'used_at' => $usage->used_at,
+                            'note' => $usage->note,
+                            'created_by' => $usage->creator?->name,
+                        ])
+                        ->values()
+                        ->all(),
                 ];
             })
             ->values();
