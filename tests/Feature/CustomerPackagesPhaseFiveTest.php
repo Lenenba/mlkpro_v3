@@ -26,8 +26,8 @@ use App\Services\OfferPackages\CustomerPackageService;
 use App\Services\Segments\SegmentResolverRegistry;
 use App\Services\StripeInvoiceService;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Stripe\StripeClient;
 
