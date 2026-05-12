@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\ActivityLog;
 use App\Models\Invoice;
 use App\Models\Quote;
+use App\Models\QuoteProduct;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Work;
@@ -64,6 +65,36 @@ class WorkBillingService
             $quantity = (float) ($product->pivot?->quantity ?? 0);
             $unitPrice = (float) ($product->pivot?->price ?? $product->price ?? 0);
             $total = (float) ($product->pivot?->total ?? round($quantity * $unitPrice, 2));
+            $quoteId ??= $product->pivot?->quote_id ? (int) $product->pivot->quote_id : null;
+            $sourceDetails = $this->normalizeSourceDetails($product->pivot?->source_details ?? null);
+
+            if (! $sourceDetails && $quoteId) {
+                $sourceDetails = $this->normalizeSourceDetails(
+                    QuoteProduct::query()
+                        ->where('quote_id', $quoteId)
+                        ->where('product_id', $product->id)
+                        ->value('source_details')
+                );
+            }
+
+            $meta = [
+                'source' => $quoteId ? 'quote' : 'work',
+                'quote_id' => $quoteId,
+                'product_id' => $product->id,
+                'item_type' => $product->item_type,
+            ];
+
+            if ($sourceDetails) {
+                $meta['source_details'] = $sourceDetails;
+                if (($sourceDetails['source'] ?? null) === 'offer_package') {
+                    $meta['source'] = 'offer_package';
+                    $meta['quote_id'] = $quoteId;
+                    $meta['offer_package_id'] = $sourceDetails['offer_package_id'] ?? null;
+                    $meta['offer_package_type'] = $sourceDetails['offer_package_type'] ?? null;
+                    $meta['offer_package_snapshot'] = $sourceDetails['offer_package'] ?? null;
+                    $meta['offer_package_items'] = $sourceDetails['offer_package_items'] ?? [];
+                }
+            }
 
             return [
                 'work_id' => $work->id,
@@ -75,12 +106,7 @@ class WorkBillingService
                 'quantity' => $quantity,
                 'unit_price' => $unitPrice,
                 'total' => $total,
-                'meta' => [
-                    'source' => $quoteId ? 'quote' : 'work',
-                    'quote_id' => $quoteId,
-                    'product_id' => $product->id,
-                    'item_type' => $product->item_type,
-                ],
+                'meta' => $meta,
             ];
         };
 
@@ -338,5 +364,24 @@ class WorkBillingService
         $divider = $visits > 0 ? $visits : max(1, $taskCount);
 
         return round($total / $divider, 2);
+    }
+
+    private function normalizeSourceDetails(mixed $details): ?array
+    {
+        if (! $details) {
+            return null;
+        }
+
+        if (is_string($details)) {
+            $decoded = json_decode($details, true);
+
+            return is_array($decoded) ? $decoded : null;
+        }
+
+        if (is_object($details)) {
+            $details = json_decode(json_encode($details), true);
+        }
+
+        return is_array($details) ? $details : null;
     }
 }

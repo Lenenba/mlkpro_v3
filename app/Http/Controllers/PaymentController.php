@@ -11,6 +11,7 @@ use App\Models\Payment;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\Work;
+use App\Services\OfferPackages\CustomerPackageService;
 use App\Services\SalePaymentService;
 use App\Services\TenantPaymentMethodGuardService;
 use App\Services\TipAllocationService;
@@ -317,6 +318,10 @@ class PaymentController extends Controller
             if ($invoice->status === 'paid' && $invoice->work) {
                 $invoice->work->status = Work::STATUS_CLOSED;
                 $invoice->work->save();
+            }
+
+            if ($invoice->status === 'paid') {
+                app(CustomerPackageService::class)->renewFromPaidInvoice($invoice, $actor);
             }
         }
 

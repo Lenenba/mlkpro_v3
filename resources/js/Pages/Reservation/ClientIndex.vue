@@ -5,7 +5,6 @@ import { useI18n } from 'vue-i18n';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import ClientPortalTabs from '@/Components/Portal/ClientPortalTabs.vue';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import Modal from '@/Components/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
@@ -16,6 +15,7 @@ import ReservationCalendarBoard from '@/Components/Reservation/ReservationCalend
 import ReservationStats from '@/Components/Reservation/ReservationStats.vue';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { reservationStatusBadgeClass } from '@/Components/Reservation/status';
+import { crmButtonClass, crmSegmentedControlButtonClass, crmSegmentedControlClass } from '@/utils/crmButtonStyles';
 
 const { t } = useI18n();
 
@@ -159,7 +159,6 @@ const serviceTabs = computed(() => ([
         description: t('reservations.client.index.subtitle'),
         href: route('client.reservations.index'),
         badge: reservationCount.value,
-        tone: 'emerald',
         active: true,
     },
     {
@@ -167,7 +166,7 @@ const serviceTabs = computed(() => ([
         label: t('reservations.client.book.title'),
         description: t('reservations.client.book.subtitle'),
         href: route('client.reservations.book'),
-        tone: 'indigo',
+        active: false,
     },
 ]));
 const serviceOverviewCards = computed(() => ([
@@ -176,29 +175,23 @@ const serviceOverviewCards = computed(() => ([
         label: t('reservations.stats.upcoming'),
         value: Number(props.stats?.upcoming || reservationCount.value),
         meta: t('reservations.client.index.title'),
-        tone: 'emerald',
+        border: 'border-t-green-600',
     },
     {
         key: 'today',
         label: t('reservations.stats.today'),
         value: Number(props.stats?.today || 0),
         meta: viewMode.value === 'calendar' ? t('planning.calendar.month') : t('reservations.view.list'),
-        tone: 'indigo',
+        border: 'border-t-sky-600',
     },
     {
         key: 'queue',
         label: t('reservations.queue.title'),
         value: queueTickets.value.length,
         meta: queueModeEnabled.value ? t('reservations.queue.cards.waiting') : t('reservations.queue.client.none'),
-        tone: 'amber',
+        border: 'border-t-amber-500',
     },
 ]));
-
-const overviewTone = {
-    emerald: 'from-emerald-500/12 via-emerald-50 to-white text-emerald-700 dark:from-emerald-500/10 dark:via-emerald-500/5 dark:to-neutral-900 dark:text-emerald-200',
-    indigo: 'from-indigo-500/12 via-indigo-50 to-white text-indigo-700 dark:from-indigo-500/10 dark:via-indigo-500/5 dark:to-neutral-900 dark:text-indigo-200',
-    amber: 'from-amber-500/12 via-amber-50 to-white text-amber-700 dark:from-amber-500/10 dark:via-amber-500/5 dark:to-neutral-900 dark:text-amber-200',
-};
 
 const statusBadgeClass = (status) => reservationStatusBadgeClass(status);
 const formatDateTime = (value) => (value ? dayjs(value).format('MMM D, YYYY HH:mm') : '-');
@@ -584,80 +577,78 @@ onBeforeUnmount(() => {
     <Head :title="$t('reservations.client.index.title')" />
     <AuthenticatedLayout>
         <div class="space-y-4">
-            <section class="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-white shadow-[0_30px_80px_-50px_rgba(15,23,42,0.45)] dark:border-neutral-800 dark:bg-neutral-900">
-                <div class="grid gap-0 lg:grid-cols-[1.45fr_0.95fr]">
-                    <div class="relative overflow-hidden bg-gradient-to-br from-emerald-600 via-teal-500 to-emerald-400 px-6 py-7 text-white sm:px-8">
-                        <div class="absolute -right-8 top-8 h-40 w-40 rounded-full bg-white/10 blur-2xl"></div>
-                        <div class="absolute bottom-0 right-20 h-28 w-28 rounded-full border border-white/15"></div>
-
-                        <div class="relative flex h-full flex-col justify-between gap-6">
-                            <div class="space-y-4">
-                                <div class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]">
-                                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/16">
-                                        <svg class="size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M8 2v4" />
-                                            <path d="M16 2v4" />
-                                            <rect width="18" height="18" x="3" y="4" rx="2" />
-                                            <path d="M3 10h18" />
-                                        </svg>
-                                    </span>
-                                    {{ $t('reservations.client.index.title') }}
-                                </div>
-
-                                <div>
-                                    <h1 class="text-3xl font-semibold tracking-tight sm:text-[2.1rem]">
-                                        {{ $t('reservations.client.index.title') }}
-                                    </h1>
-                                    <p class="mt-2 max-w-xl text-sm leading-6 text-white/85 sm:text-base">
-                                        {{ $t('reservations.client.index.subtitle') }}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div class="flex flex-wrap items-center gap-3">
-                                <Link
-                                    :href="route('client.reservations.book')"
-                                    class="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:-translate-y-0.5 hover:shadow-md"
-                                >
-                                    {{ $t('reservations.client.index.book_button') }}
-                                </Link>
-                                <span class="rounded-full border border-white/20 bg-white/10 px-3 py-2 text-xs font-medium text-white/80">
-                                    {{ $t('reservations.stats.upcoming') }}: {{ reservationCount }}
-                                </span>
-                            </div>
+            <section class="rounded-sm border border-stone-200 border-t-4 border-t-green-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                    <div class="flex min-w-0 items-start gap-3">
+                        <span class="inline-flex size-9 shrink-0 items-center justify-center rounded-sm bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-300">
+                            <svg class="size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M8 2v4" />
+                                <path d="M16 2v4" />
+                                <rect width="18" height="18" x="3" y="4" rx="2" />
+                                <path d="M3 10h18" />
+                            </svg>
+                        </span>
+                        <div class="min-w-0">
+                            <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ $t('reservations.client.index.title') }}
+                            </h1>
+                            <p class="mt-1 text-sm text-stone-500 dark:text-neutral-400">
+                                {{ $t('reservations.client.index.subtitle') }}
+                            </p>
                         </div>
                     </div>
 
-                    <div class="flex flex-col justify-between gap-3 bg-stone-50/80 p-5 dark:bg-neutral-950/70">
-                        <article
-                            v-for="card in serviceOverviewCards"
-                            :key="card.key"
-                            class="rounded-[1.4rem] border border-stone-200/80 bg-gradient-to-br px-4 py-4 shadow-sm dark:border-neutral-800"
-                            :class="overviewTone[card.tone]"
+                    <div class="flex flex-wrap items-center gap-2">
+                        <nav :class="crmSegmentedControlClass()" aria-label="Service client sections">
+                            <Link
+                                v-for="tab in serviceTabs"
+                                :key="tab.id"
+                                :href="tab.href"
+                                :aria-current="tab.active ? 'page' : null"
+                                :class="crmSegmentedControlButtonClass(tab.active)"
+                            >
+                                <span>{{ tab.label }}</span>
+                                <span
+                                    v-if="tab.badge !== undefined && tab.badge !== null"
+                                    class="rounded-sm px-1.5 py-0.5 text-[10px] leading-none"
+                                    :class="tab.active ? 'bg-white/20 text-white' : 'bg-stone-100 text-stone-500 dark:bg-neutral-800 dark:text-neutral-400'"
+                                >
+                                    {{ tab.badge }}
+                                </span>
+                            </Link>
+                        </nav>
+                        <Link
+                            :href="route('client.reservations.book')"
+                            :class="crmButtonClass('primary', 'dialog')"
                         >
-                            <p class="text-xs font-semibold uppercase tracking-[0.18em]">
-                                {{ card.label }}
-                            </p>
-                            <p class="mt-2 text-2xl font-semibold text-stone-900 dark:text-white">
-                                {{ card.value }}
-                            </p>
-                            <p class="mt-1 text-xs text-stone-500 dark:text-neutral-300">
-                                {{ card.meta }}
-                            </p>
-                        </article>
+                            {{ $t('reservations.client.index.book_button') }}
+                        </Link>
+                    </div>
+                </div>
+
+                <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+                    <div
+                        v-for="card in serviceOverviewCards"
+                        :key="card.key"
+                        class="rounded-sm border border-stone-200 border-t-4 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800"
+                        :class="card.border"
+                    >
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ card.label }}
+                        </div>
+                        <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ card.value }}
+                        </div>
+                        <div class="mt-1 truncate text-xs text-stone-500 dark:text-neutral-400">
+                            {{ card.meta }}
+                        </div>
                     </div>
                 </div>
             </section>
 
-            <ClientPortalTabs
-                :tabs="serviceTabs"
-                aria-label="Service client sections"
-                :columns="2"
-            />
-
             <div
                 v-if="ownerOnlyMode"
-                class="rounded-[1.5rem] border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
+                class="rounded-sm border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
             >
                 {{ $t('reservations.owner_only.client_notice') }}
             </div>
@@ -766,17 +757,17 @@ onBeforeUnmount(() => {
                 </AdminDataTable>
             </section>
 
-            <section class="rounded-[1.75rem] border border-stone-200/80 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+            <section class="rounded-sm border border-stone-200 border-t-4 border-t-green-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="grid gap-3 md:grid-cols-3">
                     <FloatingSelect v-model="filterForm.status" :options="statusOptions" :label="$t('reservations.filters.status')" />
                     <FloatingInput v-model="filterForm.date_from" type="date" :label="$t('reservations.filters.date_from')" />
                     <FloatingInput v-model="filterForm.date_to" type="date" :label="$t('reservations.filters.date_to')" />
                 </div>
                 <div class="mt-3 flex items-center justify-between gap-2">
-                    <div class="inline-flex items-center rounded-full border border-stone-200 bg-stone-50 p-1 text-xs font-semibold text-stone-600 shadow-sm dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-300">
+                    <div class="inline-flex items-center rounded-sm border border-stone-200 bg-white p-0.5 text-xs font-semibold text-stone-600 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
                         <button
                             type="button"
-                            class="inline-flex items-center gap-1.5 rounded-full px-3.5 py-2"
+                            class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
                             :class="viewMode === 'calendar'
                                 ? 'bg-emerald-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
                                 : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
@@ -792,7 +783,7 @@ onBeforeUnmount(() => {
                         </button>
                         <button
                             type="button"
-                            class="inline-flex items-center gap-1.5 rounded-full px-3.5 py-2"
+                            class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
                             :class="viewMode === 'list'
                                 ? 'bg-emerald-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
                                 : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
@@ -811,7 +802,7 @@ onBeforeUnmount(() => {
                     </div>
                     <button
                         type="button"
-                        class="rounded-full border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                        class="rounded-sm border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
                         @click="clearFilters"
                     >
                         {{ $t('reservations.actions.clear_filters') }}

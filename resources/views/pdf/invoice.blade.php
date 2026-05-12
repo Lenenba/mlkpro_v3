@@ -463,7 +463,12 @@
           @if($isTaskBased)
             @forelse($taskItems as $item)
               <tr>
-                <td>{{ $item['title'] }}</td>
+                <td>
+                  <div>{{ $item['title'] }}</div>
+                  @if(! empty($item['description']))
+                    <div class="muted" style="margin-top: 4px; white-space: pre-line;">{{ $item['description'] }}</div>
+                  @endif
+                </td>
                 <td class="center">{{ $formatShortDate($item['scheduled_date']) }}</td>
                 <td class="center">{{ $formatTimeRange($item['start_time'], $item['end_time']) }}</td>
                 <td class="center">{{ $item['assignee_name'] ?: '-' }}</td>

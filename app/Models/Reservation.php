@@ -165,6 +165,11 @@ class Reservation extends Model
         return $this->hasMany(ReservationCheckIn::class);
     }
 
+    public function customerPackageUsages(): HasMany
+    {
+        return $this->hasMany(CustomerPackageUsage::class);
+    }
+
     public function scopeForAccount(Builder $query, int $accountId): Builder
     {
         return $query->where('account_id', $accountId);

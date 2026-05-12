@@ -462,7 +462,7 @@
                 <tr>
                   <td>
                     <div class="item-title">{{ $item['title'] }}</div>
-                    <div class="item-copy">{{ $jobTitle }}</div>
+                    <div class="item-copy" style="white-space: pre-line;">{{ $item['description'] ?: $jobTitle }}</div>
                   </td>
                   <td class="text-center">{{ $formatDate($item['scheduled_date']) }}</td>
                   <td class="text-center">{{ $formatTimeRange($item['start_time'], $item['end_time']) ?: '-' }}</td>

@@ -10,6 +10,7 @@ use App\Http\Controllers\CampaignProspectingController;
 use App\Http\Controllers\CampaignRunController;
 use App\Http\Controllers\CampaignTrackingController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\CustomerPackageController;
 use App\Http\Controllers\CustomerPropertyController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DemoController;
@@ -31,6 +32,7 @@ use App\Http\Controllers\MarketingTemplateController;
 use App\Http\Controllers\MarketingVipController;
 use App\Http\Controllers\MyNextActionsController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\OfferPackageController;
 use App\Http\Controllers\OfferSearchController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PaymentController;
@@ -40,6 +42,7 @@ use App\Http\Controllers\PlanningController;
 use App\Http\Controllers\PlanScanController;
 use App\Http\Controllers\PlaybookController;
 use App\Http\Controllers\PlaybookRunController;
+use App\Http\Controllers\Portal\PortalCustomerPackageController;
 use App\Http\Controllers\Portal\PortalInvoiceController;
 use App\Http\Controllers\Portal\PortalLoyaltyController;
 use App\Http\Controllers\Portal\PortalProductOrderController;
@@ -551,6 +554,13 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::get('/services/categories', [ServiceController::class, 'categories'])->name('service.categories');
     });
     Route::get('/catalog/search', ProductsSearchController::class)->name('catalog.search');
+    Route::get('/offer-packages', [OfferPackageController::class, 'index'])->name('offer-packages.index');
+    Route::get('/offer-packages/{offerPackage}', [OfferPackageController::class, 'show'])->name('offer-packages.show');
+    Route::post('/offer-packages', [OfferPackageController::class, 'store'])->name('offer-packages.store');
+    Route::put('/offer-packages/{offerPackage}', [OfferPackageController::class, 'update'])->name('offer-packages.update');
+    Route::delete('/offer-packages/{offerPackage}', [OfferPackageController::class, 'destroy'])->name('offer-packages.destroy');
+    Route::post('/offer-packages/{offerPackage}/duplicate', [OfferPackageController::class, 'duplicate'])->name('offer-packages.duplicate');
+    Route::post('/offer-packages/{offerPackage}/restore', [OfferPackageController::class, 'restore'])->name('offer-packages.restore');
     Route::get('/customers/options', [CustomerController::class, 'options'])->name('customer.options');
     Route::post('/customers/quick', [CustomerController::class, 'storeQuick'])->name('customer.quick.store');
 
@@ -926,6 +936,18 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         ->name('customer.tags.update');
     Route::patch('/customer/{customer}/auto-validation', [CustomerController::class, 'updateAutoValidation'])
         ->name('customer.auto-validation.update');
+    Route::post('/customer/{customer}/packages', [CustomerPackageController::class, 'store'])
+        ->name('customer.packages.store');
+    Route::post('/customer/{customer}/packages/{customerPackage}/usages', [CustomerPackageController::class, 'consume'])
+        ->name('customer.packages.usages.store');
+    Route::post('/customer/{customer}/packages/{customerPackage}/renew', [CustomerPackageController::class, 'renew'])
+        ->name('customer.packages.renew');
+    Route::post('/customer/{customer}/packages/{customerPackage}/renewal-invoice', [CustomerPackageController::class, 'renewalInvoice'])
+        ->name('customer.packages.renewal-invoice');
+    Route::post('/customer/{customer}/packages/{customerPackage}/cancel-recurring', [CustomerPackageController::class, 'cancelRecurring'])
+        ->name('customer.packages.cancel-recurring');
+    Route::post('/customer/{customer}/packages/{customerPackage}/change-recurring-offer', [CustomerPackageController::class, 'changeRecurringOffer'])
+        ->name('customer.packages.change-recurring-offer');
     Route::post('/customer/bulk', [CustomerController::class, 'bulk'])
         ->name('customer.bulk');
     Route::post('/customer/bulk-contact/preview', [CustomerController::class, 'previewBulkContact'])
@@ -984,6 +1006,7 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoice.index');
         Route::get('/invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoice.show');
         Route::get('/invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])->name('invoice.pdf');
+        Route::post('/invoices/{invoice}/offer-packages', [InvoiceController::class, 'addOfferPackage'])->name('invoice.offer-packages.store');
         Route::post('/invoices/{invoice}/send-email', [InvoiceController::class, 'sendEmail'])->name('invoice.send.email');
         Route::patch('/invoices/{invoice}/approve', [InvoiceController::class, 'approve'])->name('invoice.approve');
         Route::patch('/invoices/{invoice}/reject', [InvoiceController::class, 'reject'])->name('invoice.reject');
@@ -1029,6 +1052,11 @@ Route::middleware(['auth', EnsureClientUser::class])
         Route::post('/orders/{sale}/reviews', [PortalReviewController::class, 'storeOrder'])->name('orders.reviews.store');
         Route::post('/orders/{sale}/products/{product}/reviews', [PortalReviewController::class, 'storeProduct'])
             ->name('orders.products.reviews.store');
+        Route::get('/packages', [PortalCustomerPackageController::class, 'index'])->name('packages.index');
+        Route::post('/packages/{customerPackage}/renewal-request', [PortalCustomerPackageController::class, 'requestRenewal'])
+            ->name('packages.renewal-request');
+        Route::post('/packages/{customerPackage}/cancellation-request', [PortalCustomerPackageController::class, 'requestCancellation'])
+            ->name('packages.cancellation-request');
         Route::get('/loyalty', [PortalLoyaltyController::class, 'index'])
             ->middleware('company.feature:loyalty')
             ->name('loyalty.index');

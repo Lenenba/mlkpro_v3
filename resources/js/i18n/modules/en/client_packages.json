@@ -1,0 +1,97 @@
+{
+  "client_packages": {
+    "title": "My packages",
+    "subtitle": "Track balances, carry-over, usage, and linked invoices.",
+    "stats": {
+      "total": "Total",
+      "active": "Active",
+      "remaining": "Total balance",
+      "recurring": "Recurring",
+      "payment_due": "Payment due",
+      "carried_over": "Carry-over"
+    },
+    "sections": {
+      "period": "Period and renewal",
+      "actions": "Client requests",
+      "invoices": "Linked invoices",
+      "usages": "Recent usage"
+    },
+    "labels": {
+      "starts": "Starts",
+      "expires": "Expires",
+      "no_expiry": "No expiry",
+      "next_renewal": "Next renewal",
+      "recurrence_status": "Recurrence status",
+      "price_paid": "Price paid",
+      "remaining": "Remaining",
+      "consumed": "Consumed",
+      "allocation": "Monthly allowance",
+      "carried_over": "Carry-over added"
+    },
+    "actions": {
+      "request_renewal": "Request renewal",
+      "request_cancellation": "Request cancellation",
+      "submit_request": "Send request",
+      "cancel": "Cancel",
+      "view_invoice": "View / pay"
+    },
+    "requests": {
+      "renewal_title": "Renewal request",
+      "cancellation_title": "Cancellation request",
+      "note_placeholder": "Add a note for the team...",
+      "renewal_sent": "Renewal requested on",
+      "cancellation_sent": "Cancellation requested on"
+    },
+    "empty": {
+      "title": "No package available",
+      "body": "Packages bought or assigned by the company will appear here.",
+      "no_invoices": "No invoice linked to this package.",
+      "no_usages": "No recent usage."
+    },
+    "statuses": {
+      "active": "Active",
+      "consumed": "Consumed",
+      "expired": "Expired",
+      "cancelled": "Cancelled"
+    },
+    "recurrence": {
+      "monthly": "Monthly",
+      "quarterly": "Quarterly",
+      "yearly": "Yearly"
+    },
+    "recurrence_statuses": {
+      "active": "Active",
+      "payment_due": "Payment due",
+      "suspended": "Suspended",
+      "cancelled": "Cancelled"
+    },
+    "units": {
+      "session": "session",
+      "hour": "hour",
+      "visit": "visit",
+      "credit": "credit",
+      "month": "month"
+    },
+    "invoice_types": {
+      "purchase": "Purchase",
+      "renewal": "Renewal"
+    },
+    "invoice_statuses": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "awaiting_acceptance": "Awaiting",
+      "accepted": "Accepted",
+      "rejected": "Rejected",
+      "partial": "Partial",
+      "paid": "Paid",
+      "overdue": "Overdue",
+      "void": "Void"
+    },
+    "sources": {
+      "manual": "Manual",
+      "reservation": "Reservation",
+      "invoice": "Invoice",
+      "work": "Work"
+    }
+  }
+}

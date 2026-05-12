@@ -27,6 +27,7 @@ const moduleRoutePatterns = {
     categories: ['service.categories'],
     services: ['service.index', 'service.create', 'service.store', 'service.show', 'service.edit', 'service.update', 'service.destroy'],
     products: ['product.*'],
+    offer_packages: ['offer-packages.*'],
     plan_scans: ['plan-scans.*'],
     company_settings: ['settings.company.*'],
     billing: ['settings.billing.*'],

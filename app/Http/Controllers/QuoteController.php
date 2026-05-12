@@ -8,6 +8,7 @@ use App\Http\Requests\Quotes\StoreQuoteRequest;
 use App\Http\Requests\Quotes\UpdateQuoteRequest;
 use App\Models\ActivityLog;
 use App\Models\Customer;
+use App\Models\OfferPackage;
 use App\Models\Product;
 use App\Models\Quote;
 use App\Models\QuoteProduct;
@@ -19,6 +20,7 @@ use App\Models\User;
 use App\Models\Work;
 use App\Models\WorkChecklistItem;
 use App\Queries\Quotes\BuildQuoteRecoveryIndexData;
+use App\Services\OfferPackages\OfferPackageSalesLineBuilder;
 use App\Services\Prospects\ProspectConversionService;
 use App\Services\TemplateService;
 use App\Services\UsageLimitService;
@@ -117,6 +119,7 @@ class QuoteController extends Controller
             ),
             'customer' => $customer,
             'taxes' => Tax::all(),
+            'offerPackages' => $this->offerPackageOptions((int) $accountOwnerId),
             'selectedPropertyId' => $propertyId ? (int) $propertyId : null,
             'templateDefaults' => $templateDefaults,
             'templateExamples' => $templateExamples,
@@ -145,6 +148,7 @@ class QuoteController extends Controller
             'quote' => $quote,
             'customer' => $customer,
             'taxes' => Tax::all(),
+            'offerPackages' => $this->offerPackageOptions((int) $quote->user_id),
         ]);
     }
 
@@ -744,18 +748,56 @@ class QuoteController extends Controller
         $quote->loadMissing('products');
 
         $pivotData = $quote->products->mapWithKeys(function ($product) use ($quote) {
+            $sourceDetails = $this->normalizeSourceDetails($product->pivot?->source_details ?? null);
+
             return [
                 $product->id => [
                     'quote_id' => $quote->id,
                     'quantity' => (int) $product->pivot->quantity,
                     'price' => (float) $product->pivot->price,
                     'description' => $product->pivot->description,
+                    'source_details' => $sourceDetails ? json_encode($sourceDetails) : null,
                     'total' => (float) $product->pivot->total,
                 ],
             ];
         });
 
         $work->products()->sync($pivotData->toArray());
+    }
+
+    private function offerPackageOptions(int $accountId): array
+    {
+        $builder = app(OfferPackageSalesLineBuilder::class);
+
+        return OfferPackage::query()
+            ->forAccount($accountId)
+            ->active()
+            ->with('items')
+            ->orderBy('type')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (OfferPackage $offer): array => $builder->catalogPayload($offer))
+            ->values()
+            ->all();
+    }
+
+    private function normalizeSourceDetails(mixed $details): ?array
+    {
+        if (! $details) {
+            return null;
+        }
+
+        if (is_string($details)) {
+            $decoded = json_decode($details, true);
+
+            return is_array($decoded) ? $decoded : null;
+        }
+
+        if (is_object($details)) {
+            $details = json_decode(json_encode($details), true);
+        }
+
+        return is_array($details) ? $details : null;
     }
 
     private function autoAcceptQuote(Quote $quote): ?Work

@@ -33,7 +33,17 @@
       "with_quotes": "Avec devis",
       "no_quotes": "Sans devis",
       "with_jobs": "Avec chantiers",
-      "no_jobs": "Sans chantiers"
+      "no_jobs": "Sans chantiers",
+      "active_package": "Forfait actif",
+      "with_active_package": "Avec forfait actif",
+      "no_active_package": "Sans forfait actif",
+      "package_status": "Statut forfait",
+      "package_remaining_lte": "Solde forfait <= ",
+      "package_expires_within_days": "Expire dans N jours",
+      "package_recurrence": "Recurrence forfait",
+      "package_recurring": "Forfait recurrent",
+      "package_non_recurring": "Forfait non recurrent",
+      "package_recurrence_status": "Statut recurrence"
     },
     "saved_segments": {
       "title": "Segments sauvegardes",
@@ -497,6 +507,96 @@
           "floor": "Inferieur",
           "round": "Plus proche",
           "ceil": "Superieur"
+        }
+      },
+      "customer_packages": {
+        "title": "Forfaits client",
+        "assign_action": "Attribuer forfait",
+        "assign_submit": "Attribuer",
+        "consume_action": "Consommer",
+        "consume_submit": "Enregistrer consommation",
+        "renew_action": "Renouveler",
+        "renew_submit": "Renouveler forfait",
+        "change_offer_action": "Changer offre",
+        "change_offer_submit": "Programmer changement",
+        "change_offer_placeholder": "Choisir une offre recurrente",
+        "cancel_recurring_action": "Annuler recurrence",
+        "cancel_recurring_submit": "Confirmer annulation",
+        "create_invoice_action": "Facturer renouvellement",
+        "creating_invoice": "Creation facture...",
+        "renewal_invoice": "Facture de renouvellement",
+        "renewal_invoice_fallback": "Facture liee",
+        "select_placeholder": "Choisir un forfait actif",
+        "no_options": "Aucun forfait actif disponible dans le catalogue.",
+        "no_recurring_change_options": "Aucune autre offre recurrente active n'est disponible.",
+        "empty": "Aucun forfait attribue a ce client.",
+        "starts": "Debut",
+        "expires": "Expire",
+        "no_expiry": "Sans expiration",
+        "recurrence_label": "Recurrence",
+        "carry_over_label": "Reliquat reporte",
+        "next_renewal": "Prochain renouvellement",
+        "cancellation_scheduled": "Annulation fin de periode",
+        "change_scheduled": {
+          "upgrade": "Upgrade programme",
+          "downgrade": "Downgrade programme"
+        },
+        "recent_usages": "Consommations recentes",
+        "summary": {
+          "total": "Total",
+          "active": "Actifs",
+          "remaining": "Solde",
+          "expiring": "Expire bientot"
+        },
+        "fields": {
+          "offer": "Forfait",
+          "initial_quantity": "Quantite initiale",
+          "price_paid": "Prix paye",
+          "starts_at": "Date de debut",
+          "expires_at": "Date d'expiration",
+          "note": "Note interne",
+          "usage_quantity": "Quantite consommee",
+          "used_at": "Date de consommation",
+          "usage_note": "Note de consommation",
+          "carry_over_unused_balance": "Reporter le reliquat",
+          "renewal_note": "Note de renouvellement",
+          "target_offer": "Nouvelle offre",
+          "change_type": "Type de changement",
+          "change_note": "Note de changement",
+          "cancellation_mode": "Mode d'annulation",
+          "cancellation_reason": "Raison d'annulation"
+        },
+        "change_types": {
+          "upgrade": "Upgrade",
+          "downgrade": "Downgrade"
+        },
+        "cancellation_modes": {
+          "end_of_period": "Fin de periode",
+          "immediate": "Immediate"
+        },
+        "statuses": {
+          "active": "Actif",
+          "consumed": "Consomme",
+          "expired": "Expire",
+          "cancelled": "Annule"
+        },
+        "recurrence_statuses": {
+          "active": "Recurrence active",
+          "payment_due": "Paiement du",
+          "suspended": "Suspendu",
+          "cancelled": "Recurrence annulee"
+        },
+        "units": {
+          "session": "session(s)",
+          "hour": "heure(s)",
+          "visit": "visite(s)",
+          "credit": "credit(s)",
+          "month": "mois"
+        },
+        "recurrence": {
+          "monthly": "mensuelle",
+          "quarterly": "trimestrielle",
+          "yearly": "annuelle"
         }
       },
       "notes": {

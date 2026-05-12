@@ -30,6 +30,8 @@ class Customer extends Model implements HasLocalePreferenceContract
     protected $fillable = [
         'user_id',
         'portal_user_id',
+        'stripe_customer_id',
+        'stripe_default_payment_method_id',
         'portal_access',
         'number',
         'first_name',
@@ -72,6 +74,8 @@ class Customer extends Model implements HasLocalePreferenceContract
      */
     protected $hidden = [
         'user_id', // Optionnel si vous ne souhaitez pas exposer l'ID de l'utilisateur
+        'stripe_customer_id',
+        'stripe_default_payment_method_id',
     ];
 
     protected $casts = [
@@ -206,6 +210,13 @@ class Customer extends Model implements HasLocalePreferenceContract
     public function loyaltyPointLedgers(): HasMany
     {
         return $this->hasMany(LoyaltyPointLedger::class);
+    }
+
+    public function customerPackages(): HasMany
+    {
+        return $this->hasMany(CustomerPackage::class)
+            ->latest('starts_at')
+            ->latest('id');
     }
 
     public function campaignRecipients(): HasMany
@@ -401,6 +412,135 @@ class Customer extends Model implements HasLocalePreferenceContract
             ->when(
                 $filters['vip_tier_id'] ?? null,
                 fn (Builder $query, $vipTierId) => $query->where('vip_tier_id', (int) $vipTierId)
+            )
+            ->when(
+                array_key_exists('has_active_package', $filters)
+                    && $filters['has_active_package'] !== null
+                    && $filters['has_active_package'] !== '',
+                function (Builder $query) use ($filters): void {
+                    $hasActivePackage = $this->booleanFilterValue($filters['has_active_package']);
+                    if ($hasActivePackage === null) {
+                        return;
+                    }
+
+                    $this->whereCustomerPackage(
+                        $query,
+                        fn (Builder $packageQuery): Builder => $packageQuery->where('status', CustomerPackage::STATUS_ACTIVE),
+                        exclude: ! $hasActivePackage
+                    );
+                }
+            )
+            ->when(
+                $filters['package_status'] ?? null,
+                function (Builder $query, mixed $status): void {
+                    $statuses = $this->normalizedPackageValues($status, CustomerPackage::statuses());
+                    if ($statuses === []) {
+                        return;
+                    }
+
+                    $this->whereCustomerPackage(
+                        $query,
+                        fn (Builder $packageQuery): Builder => $packageQuery->whereIn('status', $statuses)
+                    );
+                }
+            )
+            ->when(
+                $filters['package_remaining_lte'] ?? null,
+                function (Builder $query, mixed $remaining): void {
+                    if (! is_numeric($remaining)) {
+                        return;
+                    }
+
+                    $this->whereCustomerPackage(
+                        $query,
+                        fn (Builder $packageQuery): Builder => $packageQuery
+                            ->where('status', CustomerPackage::STATUS_ACTIVE)
+                            ->where('remaining_quantity', '<=', max(0, (int) $remaining))
+                    );
+                }
+            )
+            ->when(
+                $filters['package_expires_within_days'] ?? null,
+                function (Builder $query, mixed $days): void {
+                    if (! is_numeric($days)) {
+                        return;
+                    }
+
+                    $today = today()->toDateString();
+                    $limit = today()->addDays(max(0, (int) $days))->toDateString();
+
+                    $this->whereCustomerPackage(
+                        $query,
+                        fn (Builder $packageQuery): Builder => $packageQuery
+                            ->where('status', CustomerPackage::STATUS_ACTIVE)
+                            ->whereNotNull('expires_at')
+                            ->whereDate('expires_at', '>=', $today)
+                            ->whereDate('expires_at', '<=', $limit)
+                    );
+                }
+            )
+            ->when(
+                array_key_exists('package_is_recurring', $filters)
+                    && $filters['package_is_recurring'] !== null
+                    && $filters['package_is_recurring'] !== '',
+                function (Builder $query) use ($filters): void {
+                    $isRecurring = $this->booleanFilterValue($filters['package_is_recurring']);
+                    if ($isRecurring === null) {
+                        return;
+                    }
+
+                    $this->whereCustomerPackage(
+                        $query,
+                        fn (Builder $packageQuery): Builder => $packageQuery->where('is_recurring', $isRecurring)
+                    );
+                }
+            )
+            ->when(
+                $filters['package_recurrence_status'] ?? null,
+                function (Builder $query, mixed $status): void {
+                    $statuses = $this->normalizedPackageValues($status, [
+                        CustomerPackage::RECURRENCE_ACTIVE,
+                        CustomerPackage::RECURRENCE_PAYMENT_DUE,
+                        CustomerPackage::RECURRENCE_SUSPENDED,
+                        CustomerPackage::RECURRENCE_CANCELLED,
+                    ]);
+                    if ($statuses === []) {
+                        return;
+                    }
+
+                    $this->whereCustomerPackage(
+                        $query,
+                        fn (Builder $packageQuery): Builder => $packageQuery->whereIn('recurrence_status', $statuses)
+                    );
+                }
             );
+    }
+
+    private function whereCustomerPackage(Builder $query, callable $callback, bool $exclude = false): void
+    {
+        $method = $exclude ? 'whereDoesntHave' : 'whereHas';
+
+        $query->{$method}('customerPackages', function (Builder $packageQuery) use ($callback): void {
+            $packageQuery->whereColumn('customer_packages.user_id', 'customers.user_id');
+            $callback($packageQuery);
+        });
+    }
+
+    private function booleanFilterValue(mixed $value): ?bool
+    {
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+    }
+
+    /**
+     * @param  array<int, string>  $allowed
+     * @return array<int, string>
+     */
+    private function normalizedPackageValues(mixed $value, array $allowed): array
+    {
+        return collect(is_array($value) ? $value : [$value])
+            ->map(fn (mixed $item): string => trim((string) $item))
+            ->filter(fn (string $item): bool => in_array($item, $allowed, true))
+            ->values()
+            ->all();
     }
 }

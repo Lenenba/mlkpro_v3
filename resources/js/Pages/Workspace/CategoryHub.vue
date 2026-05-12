@@ -76,6 +76,7 @@ const moduleIconToneClass = {
     services: 'text-emerald-600 dark:text-emerald-200',
     categories: 'text-sky-600 dark:text-sky-200',
     products: 'text-blue-600 dark:text-blue-200',
+    offer_packages: 'text-emerald-600 dark:text-emerald-200',
     plan_scans: 'text-slate-600 dark:text-slate-200',
     workspace: 'text-slate-600 dark:text-slate-200',
 };

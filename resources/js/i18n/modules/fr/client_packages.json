@@ -1,0 +1,97 @@
+{
+  "client_packages": {
+    "title": "Mes forfaits",
+    "subtitle": "Suivez vos soldes, reliquats, consommations et factures liees.",
+    "stats": {
+      "total": "Total",
+      "active": "Actifs",
+      "remaining": "Solde total",
+      "recurring": "Mensuels",
+      "payment_due": "Paiement du",
+      "carried_over": "Reliquat"
+    },
+    "sections": {
+      "period": "Periode et renouvellement",
+      "actions": "Demandes client",
+      "invoices": "Factures liees",
+      "usages": "Consommations recentes"
+    },
+    "labels": {
+      "starts": "Debut",
+      "expires": "Expiration",
+      "no_expiry": "Sans expiration",
+      "next_renewal": "Prochain renouvellement",
+      "recurrence_status": "Statut recurrence",
+      "price_paid": "Prix paye",
+      "remaining": "Restant",
+      "consumed": "Consomme",
+      "allocation": "Quota du mois",
+      "carried_over": "Reliquat ajoute"
+    },
+    "actions": {
+      "request_renewal": "Demander le renouvellement",
+      "request_cancellation": "Demander l'annulation",
+      "submit_request": "Envoyer la demande",
+      "cancel": "Annuler",
+      "view_invoice": "Voir / payer"
+    },
+    "requests": {
+      "renewal_title": "Demande de renouvellement",
+      "cancellation_title": "Demande d'annulation",
+      "note_placeholder": "Ajouter une note pour l'equipe...",
+      "renewal_sent": "Renouvellement demande le",
+      "cancellation_sent": "Annulation demandee le"
+    },
+    "empty": {
+      "title": "Aucun forfait disponible",
+      "body": "Les forfaits achetes ou attribues par l'entreprise apparaitront ici.",
+      "no_invoices": "Aucune facture liee a ce forfait.",
+      "no_usages": "Aucune consommation recente."
+    },
+    "statuses": {
+      "active": "Actif",
+      "consumed": "Consomme",
+      "expired": "Expire",
+      "cancelled": "Annule"
+    },
+    "recurrence": {
+      "monthly": "Mensuel",
+      "quarterly": "Trimestriel",
+      "yearly": "Annuel"
+    },
+    "recurrence_statuses": {
+      "active": "Active",
+      "payment_due": "Paiement du",
+      "suspended": "Suspendue",
+      "cancelled": "Annulee"
+    },
+    "units": {
+      "session": "seance",
+      "hour": "heure",
+      "visit": "visite",
+      "credit": "credit",
+      "month": "mois"
+    },
+    "invoice_types": {
+      "purchase": "Achat",
+      "renewal": "Renouvellement"
+    },
+    "invoice_statuses": {
+      "draft": "Brouillon",
+      "sent": "Envoyee",
+      "awaiting_acceptance": "En attente",
+      "accepted": "Acceptee",
+      "rejected": "Refusee",
+      "partial": "Partielle",
+      "paid": "Payee",
+      "overdue": "En retard",
+      "void": "Annulee"
+    },
+    "sources": {
+      "manual": "Manuel",
+      "reservation": "Reservation",
+      "invoice": "Facture",
+      "work": "Travail"
+    }
+  }
+}

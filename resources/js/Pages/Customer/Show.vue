@@ -18,6 +18,7 @@ import { useI18n } from 'vue-i18n';
 import CustomerPreviewCard from './UI/CustomerPreviewCard.vue';
 import { useCurrencyFormatter } from '@/utils/currency';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
+import { ArrowUpDown, Ban, ReceiptText } from 'lucide-vue-next';
 import {
     assignGeoapifyAddress,
     buildAddressSearchLabel,
@@ -75,6 +76,23 @@ const props = defineProps({
         default: null,
     },
     topProducts: {
+        type: Array,
+        default: () => [],
+    },
+    customerPackages: {
+        type: Array,
+        default: () => [],
+    },
+    customerPackageSummary: {
+        type: Object,
+        default: () => ({
+            total: 0,
+            active: 0,
+            remaining_quantity: 0,
+            expiring_soon: 0,
+        }),
+    },
+    customerPackageOptions: {
         type: Array,
         default: () => [],
     },
@@ -150,6 +168,10 @@ const formatStatus = (status, keyPrefix = '') => {
 };
 const hasValue = (value) => value !== null && value !== undefined;
 const topProducts = computed(() => props.topProducts || []);
+const assignedPackages = computed(() => props.customerPackages || []);
+const packageSummary = computed(() => props.customerPackageSummary || {});
+const customerPackageOptions = computed(() => props.customerPackageOptions || []);
+const showCustomerPackages = computed(() => props.canEdit || assignedPackages.value.length > 0);
 const loyaltyPointLabel = computed(() => loyalty.value?.label || t('customers.details.loyalty.points_unit'));
 const loyaltyRecent = computed(() => loyalty.value?.recent || []);
 const loyaltyRoundingLabel = computed(() => {
@@ -222,6 +244,451 @@ const purchaseCards = computed(() => {
         },
     ];
 });
+
+const packageOfferOptions = computed(() => ([
+    { id: '', name: t('customers.details.customer_packages.select_placeholder') },
+    ...customerPackageOptions.value.map((offer) => ({
+        id: String(offer.id),
+        name: `${offer.name} - ${formatCurrency(offer.price || 0)}`,
+    })),
+]));
+const recurringChangeTypeOptions = computed(() => ([
+    { id: 'upgrade', name: t('customers.details.customer_packages.change_types.upgrade') },
+    { id: 'downgrade', name: t('customers.details.customer_packages.change_types.downgrade') },
+]));
+const recurringPackageOfferOptions = (customerPackage) => ([
+    { id: '', name: t('customers.details.customer_packages.change_offer_placeholder') },
+    ...customerPackageOptions.value
+        .filter((offer) => offer.is_recurring && Number(offer.id) !== Number(customerPackage?.offer_package_id))
+        .map((offer) => ({
+            id: String(offer.id),
+            name: `${offer.name} - ${formatCurrency(offer.price || 0)}`,
+        })),
+]);
+
+const todayInputValue = () => new Date().toISOString().slice(0, 10);
+const addDaysInputValue = (dateValue, days) => {
+    if (!dateValue || !days) {
+        return '';
+    }
+
+    const date = new Date(`${dateValue}T00:00:00`);
+    if (Number.isNaN(date.getTime())) {
+        return '';
+    }
+
+    date.setDate(date.getDate() + Number(days));
+    return date.toISOString().slice(0, 10);
+};
+const nextDayInputValue = (dateValue) => addDaysInputValue(dateValue, 1);
+const recurringPeriodEndInputValue = (dateValue, frequency) => {
+    if (!dateValue) {
+        return '';
+    }
+
+    const date = new Date(`${dateValue}T00:00:00`);
+    if (Number.isNaN(date.getTime())) {
+        return '';
+    }
+
+    const normalized = String(frequency || 'monthly');
+    if (normalized === 'yearly') {
+        date.setFullYear(date.getFullYear() + 1);
+    } else {
+        date.setMonth(date.getMonth() + (normalized === 'quarterly' ? 3 : 1));
+    }
+    date.setDate(date.getDate() - 1);
+
+    return date.toISOString().slice(0, 10);
+};
+
+const showAssignPackage = ref(false);
+const assignPackageForm = useForm({
+    offer_package_id: '',
+    initial_quantity: '',
+    starts_at: todayInputValue(),
+    expires_at: '',
+    price_paid: '',
+    note: '',
+});
+
+const selectedPackageOffer = computed(() =>
+    customerPackageOptions.value.find((offer) => String(offer.id) === String(assignPackageForm.offer_package_id))
+);
+
+const hydrateAssignPackageFromOffer = () => {
+    const offer = selectedPackageOffer.value;
+    if (!offer) {
+        return;
+    }
+
+    assignPackageForm.initial_quantity = offer.included_quantity || 1;
+    assignPackageForm.price_paid = offer.price ?? '';
+    assignPackageForm.expires_at = addDaysInputValue(assignPackageForm.starts_at, offer.validity_days);
+};
+
+watch(() => assignPackageForm.offer_package_id, hydrateAssignPackageFromOffer);
+watch(() => assignPackageForm.starts_at, () => {
+    const offer = selectedPackageOffer.value;
+    if (offer?.validity_days) {
+        assignPackageForm.expires_at = addDaysInputValue(assignPackageForm.starts_at, offer.validity_days);
+    }
+});
+
+const startAssignPackage = () => {
+    assignPackageForm.reset();
+    assignPackageForm.clearErrors();
+    assignPackageForm.starts_at = todayInputValue();
+    assignPackageForm.offer_package_id = customerPackageOptions.value.length === 1
+        ? String(customerPackageOptions.value[0].id)
+        : '';
+    showAssignPackage.value = true;
+    hydrateAssignPackageFromOffer();
+};
+
+const cancelAssignPackage = () => {
+    assignPackageForm.clearErrors();
+    showAssignPackage.value = false;
+};
+
+const submitAssignPackage = () => {
+    if (assignPackageForm.processing) {
+        return;
+    }
+
+    assignPackageForm
+        .transform((data) => ({
+            ...data,
+            offer_package_id: data.offer_package_id ? Number(data.offer_package_id) : null,
+            initial_quantity: data.initial_quantity ? Number(data.initial_quantity) : null,
+            starts_at: data.starts_at || null,
+            expires_at: data.expires_at || null,
+            price_paid: data.price_paid !== '' ? Number(data.price_paid) : null,
+            note: data.note || null,
+        }))
+        .post(route('customer.packages.store', props.customer.id), {
+            preserveScroll: true,
+            onSuccess: () => cancelAssignPackage(),
+        });
+};
+
+const consumingPackageId = ref(null);
+const consumePackageForm = useForm({
+    quantity: 1,
+    used_at: todayInputValue(),
+    note: '',
+});
+
+const startConsumePackage = (customerPackage) => {
+    renewingPackageId.value = null;
+    renewalInvoicePackageId.value = null;
+    changingPackageId.value = null;
+    cancellingPackageId.value = null;
+    consumingPackageId.value = customerPackage.id;
+    consumePackageForm.reset();
+    consumePackageForm.clearErrors();
+    consumePackageForm.quantity = 1;
+    consumePackageForm.used_at = todayInputValue();
+};
+
+const cancelConsumePackage = () => {
+    consumingPackageId.value = null;
+    consumePackageForm.clearErrors();
+};
+
+const submitConsumePackage = () => {
+    if (!consumingPackageId.value || consumePackageForm.processing) {
+        return;
+    }
+
+    consumePackageForm
+        .transform((data) => ({
+            ...data,
+            quantity: Number(data.quantity || 1),
+            used_at: data.used_at || null,
+            note: data.note || null,
+        }))
+        .post(
+            route('customer.packages.usages.store', {
+                customer: props.customer.id,
+                customerPackage: consumingPackageId.value,
+            }),
+            {
+                preserveScroll: true,
+                onSuccess: () => cancelConsumePackage(),
+            }
+        );
+};
+
+const renewingPackageId = ref(null);
+const renewPackageForm = useForm({
+    initial_quantity: 1,
+    starts_at: todayInputValue(),
+    expires_at: '',
+    price_paid: '',
+    carry_over_unused_balance: false,
+    note: '',
+});
+const renewingPackage = computed(() =>
+    assignedPackages.value.find((customerPackage) => Number(customerPackage.id) === Number(renewingPackageId.value))
+);
+
+watch(() => renewPackageForm.starts_at, () => {
+    if (renewingPackage.value?.recurrence_frequency) {
+        renewPackageForm.expires_at = recurringPeriodEndInputValue(
+            renewPackageForm.starts_at,
+            renewingPackage.value.recurrence_frequency
+        );
+    }
+});
+
+const startRenewPackage = (customerPackage) => {
+    consumingPackageId.value = null;
+    renewalInvoicePackageId.value = null;
+    changingPackageId.value = null;
+    cancellingPackageId.value = null;
+    renewingPackageId.value = customerPackage.id;
+    renewPackageForm.reset();
+    renewPackageForm.clearErrors();
+    renewPackageForm.initial_quantity = customerPackage.period_allocation_quantity
+        || customerPackage.initial_quantity
+        || 1;
+    renewPackageForm.price_paid = customerPackage.price_paid ?? '';
+    renewPackageForm.carry_over_unused_balance = Boolean(customerPackage.carry_over_unused_balance);
+    renewPackageForm.starts_at = customerPackage.next_renewal_at
+        || (customerPackage.expires_at ? nextDayInputValue(customerPackage.expires_at) : todayInputValue());
+    renewPackageForm.expires_at = recurringPeriodEndInputValue(
+        renewPackageForm.starts_at,
+        customerPackage.recurrence_frequency
+    );
+};
+
+const cancelRenewPackage = () => {
+    renewingPackageId.value = null;
+    renewPackageForm.clearErrors();
+};
+
+const submitRenewPackage = () => {
+    if (!renewingPackageId.value || renewPackageForm.processing) {
+        return;
+    }
+
+    renewPackageForm
+        .transform((data) => ({
+            ...data,
+            initial_quantity: data.initial_quantity ? Number(data.initial_quantity) : null,
+            starts_at: data.starts_at || null,
+            expires_at: data.expires_at || null,
+            price_paid: data.price_paid !== '' ? Number(data.price_paid) : null,
+            carry_over_unused_balance: Boolean(data.carry_over_unused_balance),
+            note: data.note || null,
+        }))
+        .post(
+            route('customer.packages.renew', {
+                customer: props.customer.id,
+                customerPackage: renewingPackageId.value,
+            }),
+            {
+                preserveScroll: true,
+                onSuccess: () => cancelRenewPackage(),
+            }
+        );
+};
+
+const renewalInvoicePackageId = ref(null);
+const createRenewalInvoice = (customerPackage) => {
+    if (!customerPackage?.id || renewalInvoicePackageId.value) {
+        return;
+    }
+
+    consumingPackageId.value = null;
+    renewingPackageId.value = null;
+    changingPackageId.value = null;
+    cancellingPackageId.value = null;
+    renewalInvoicePackageId.value = customerPackage.id;
+
+    router.post(
+        route('customer.packages.renewal-invoice', {
+            customer: props.customer.id,
+            customerPackage: customerPackage.id,
+        }),
+        {},
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                renewalInvoicePackageId.value = null;
+            },
+        }
+    );
+};
+
+const changingPackageId = ref(null);
+const changePackageForm = useForm({
+    target_offer_package_id: '',
+    change_type: 'upgrade',
+    initial_quantity: '',
+    starts_at: todayInputValue(),
+    price_paid: '',
+    carry_over_unused_balance: false,
+    note: '',
+});
+const changingPackage = computed(() =>
+    assignedPackages.value.find((customerPackage) => Number(customerPackage.id) === Number(changingPackageId.value))
+);
+const selectedChangeOffer = computed(() =>
+    customerPackageOptions.value.find((offer) => String(offer.id) === String(changePackageForm.target_offer_package_id))
+);
+
+const hydrateChangePackageFromOffer = () => {
+    const offer = selectedChangeOffer.value;
+    if (!offer) {
+        return;
+    }
+
+    changePackageForm.initial_quantity = offer.included_quantity || 1;
+    changePackageForm.price_paid = offer.price ?? '';
+    changePackageForm.carry_over_unused_balance = Boolean(offer.carry_over_unused_balance);
+};
+
+watch(() => changePackageForm.target_offer_package_id, hydrateChangePackageFromOffer);
+
+const startChangePackage = (customerPackage) => {
+    consumingPackageId.value = null;
+    renewingPackageId.value = null;
+    renewalInvoicePackageId.value = null;
+    cancellingPackageId.value = null;
+    changingPackageId.value = customerPackage.id;
+    changePackageForm.reset();
+    changePackageForm.clearErrors();
+    changePackageForm.change_type = 'upgrade';
+    changePackageForm.starts_at = customerPackage.next_renewal_at
+        || (customerPackage.expires_at ? nextDayInputValue(customerPackage.expires_at) : todayInputValue());
+    const firstTarget = customerPackageOptions.value.find(
+        (offer) => offer.is_recurring && Number(offer.id) !== Number(customerPackage.offer_package_id)
+    );
+    changePackageForm.target_offer_package_id = firstTarget ? String(firstTarget.id) : '';
+    hydrateChangePackageFromOffer();
+};
+
+const cancelChangePackage = () => {
+    changingPackageId.value = null;
+    changePackageForm.clearErrors();
+};
+
+const submitChangePackage = () => {
+    if (!changingPackageId.value || changePackageForm.processing) {
+        return;
+    }
+
+    changePackageForm
+        .transform((data) => ({
+            ...data,
+            target_offer_package_id: data.target_offer_package_id ? Number(data.target_offer_package_id) : null,
+            initial_quantity: data.initial_quantity ? Number(data.initial_quantity) : null,
+            starts_at: data.starts_at || null,
+            price_paid: data.price_paid !== '' ? Number(data.price_paid) : null,
+            carry_over_unused_balance: Boolean(data.carry_over_unused_balance),
+            note: data.note || null,
+        }))
+        .post(
+            route('customer.packages.change-recurring-offer', {
+                customer: props.customer.id,
+                customerPackage: changingPackageId.value,
+            }),
+            {
+                preserveScroll: true,
+                onSuccess: () => cancelChangePackage(),
+            }
+        );
+};
+
+const cancellingPackageId = ref(null);
+const cancelPackageForm = useForm({
+    mode: 'end_of_period',
+    reason: '',
+});
+const startCancelPackage = (customerPackage) => {
+    consumingPackageId.value = null;
+    renewingPackageId.value = null;
+    renewalInvoicePackageId.value = null;
+    changingPackageId.value = null;
+    cancellingPackageId.value = customerPackage.id;
+    cancelPackageForm.reset();
+    cancelPackageForm.clearErrors();
+    cancelPackageForm.mode = 'end_of_period';
+    cancelPackageForm.reason = '';
+};
+
+const cancelCancelPackage = () => {
+    cancellingPackageId.value = null;
+    cancelPackageForm.clearErrors();
+};
+
+const submitCancelPackage = () => {
+    if (!cancellingPackageId.value || cancelPackageForm.processing) {
+        return;
+    }
+
+    cancelPackageForm
+        .transform((data) => ({
+            ...data,
+            reason: data.reason || null,
+        }))
+        .post(
+            route('customer.packages.cancel-recurring', {
+                customer: props.customer.id,
+                customerPackage: cancellingPackageId.value,
+            }),
+            {
+                preserveScroll: true,
+                onSuccess: () => cancelCancelPackage(),
+            }
+        );
+};
+
+const packageStatusLabel = (status) => {
+    const key = `customers.details.customer_packages.statuses.${status || 'active'}`;
+    const translated = t(key);
+
+    return translated && translated !== key ? translated : formatStatus(status);
+};
+
+const packageStatusClass = (status) => ({
+    'bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400': status === 'active',
+    'bg-stone-100 text-stone-700 dark:bg-neutral-800 dark:text-neutral-300': status === 'consumed',
+    'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300': status === 'expired',
+    'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400': status === 'cancelled',
+});
+
+const packageUnitLabel = (unitType) => {
+    const key = `customers.details.customer_packages.units.${unitType || 'credit'}`;
+    const translated = t(key);
+
+    return translated && translated !== key ? translated : (unitType || 'credit');
+};
+
+const recurrenceLabel = (frequency) => {
+    const key = `customers.details.customer_packages.recurrence.${frequency || 'monthly'}`;
+    const translated = t(key);
+
+    return translated && translated !== key ? translated : (frequency || 'monthly');
+};
+
+const recurrenceStatusLabel = (status) => {
+    const key = `customers.details.customer_packages.recurrence_statuses.${status || 'active'}`;
+    const translated = t(key);
+
+    return translated && translated !== key ? translated : formatStatus(status);
+};
+
+const packageProgress = (customerPackage) => {
+    const initial = Number(customerPackage?.initial_quantity || 0);
+    if (!initial) {
+        return 0;
+    }
+
+    return Math.min(100, Math.max(0, (Number(customerPackage?.consumed_quantity || 0) / initial) * 100));
+};
 
 const propertyTypes = computed(() => [
     { id: 'physical', name: t('customers.properties.types.physical') },
@@ -1160,6 +1627,561 @@ const deleteProperty = (property) => {
                             </div>
                         </li>
                     </ul>
+                </Card>
+
+                <Card v-if="showCustomerPackages" class="mt-5">
+                    <template #title>
+                        <div class="flex items-center justify-between gap-3">
+                            <span>{{ $t('customers.details.customer_packages.title') }}</span>
+                            <button
+                                v-if="canEdit"
+                                type="button"
+                                @click="showAssignPackage ? cancelAssignPackage() : startAssignPackage()"
+                                class="inline-flex items-center gap-x-1.5 rounded-sm border border-transparent bg-green-600 px-2.5 py-2 text-xs font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                            >
+                                {{ showAssignPackage ? $t('customers.actions.cancel') : $t('customers.details.customer_packages.assign_action') }}
+                            </button>
+                        </div>
+                    </template>
+
+                    <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm dark:border-neutral-700 dark:bg-neutral-900">
+                            <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.customer_packages.summary.total') }}</div>
+                            <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ packageSummary.total || 0 }}</div>
+                        </div>
+                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm dark:border-neutral-700 dark:bg-neutral-900">
+                            <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.customer_packages.summary.active') }}</div>
+                            <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ packageSummary.active || 0 }}</div>
+                        </div>
+                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm dark:border-neutral-700 dark:bg-neutral-900">
+                            <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.customer_packages.summary.remaining') }}</div>
+                            <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ formatNumber(packageSummary.remaining_quantity || 0) }}</div>
+                        </div>
+                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm dark:border-neutral-700 dark:bg-neutral-900">
+                            <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.customer_packages.summary.expiring') }}</div>
+                            <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ packageSummary.expiring_soon || 0 }}</div>
+                        </div>
+                    </div>
+
+                    <div
+                        v-if="showAssignPackage"
+                        class="mt-4 rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-900"
+                    >
+                        <div v-if="!customerPackageOptions.length" class="text-sm text-stone-500 dark:text-neutral-400">
+                            {{ $t('customers.details.customer_packages.no_options') }}
+                        </div>
+                        <form v-else class="space-y-3" @submit.prevent="submitAssignPackage">
+                            <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                <div class="md:col-span-2">
+                                    <FloatingSelect
+                                        v-model="assignPackageForm.offer_package_id"
+                                        :label="$t('customers.details.customer_packages.fields.offer')"
+                                        :options="packageOfferOptions"
+                                        filterable
+                                    />
+                                    <InputError class="mt-1" :message="assignPackageForm.errors.offer_package_id" />
+                                </div>
+                                <div>
+                                    <FloatingInput
+                                        v-model="assignPackageForm.initial_quantity"
+                                        type="number"
+                                        min="1"
+                                        :label="$t('customers.details.customer_packages.fields.initial_quantity')"
+                                    />
+                                    <InputError class="mt-1" :message="assignPackageForm.errors.initial_quantity" />
+                                </div>
+                                <div>
+                                    <FloatingInput
+                                        v-model="assignPackageForm.price_paid"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        :label="$t('customers.details.customer_packages.fields.price_paid')"
+                                    />
+                                    <InputError class="mt-1" :message="assignPackageForm.errors.price_paid" />
+                                </div>
+                                <div>
+                                    <FloatingInput
+                                        v-model="assignPackageForm.starts_at"
+                                        type="date"
+                                        :label="$t('customers.details.customer_packages.fields.starts_at')"
+                                    />
+                                    <InputError class="mt-1" :message="assignPackageForm.errors.starts_at" />
+                                </div>
+                                <div>
+                                    <FloatingInput
+                                        v-model="assignPackageForm.expires_at"
+                                        type="date"
+                                        :label="$t('customers.details.customer_packages.fields.expires_at')"
+                                    />
+                                    <InputError class="mt-1" :message="assignPackageForm.errors.expires_at" />
+                                </div>
+                                <div class="md:col-span-2">
+                                    <FloatingTextarea
+                                        v-model="assignPackageForm.note"
+                                        :label="$t('customers.details.customer_packages.fields.note')"
+                                    />
+                                    <InputError class="mt-1" :message="assignPackageForm.errors.note" />
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-end gap-2">
+                                <button
+                                    type="button"
+                                    @click="cancelAssignPackage"
+                                    class="inline-flex items-center gap-x-1.5 rounded-sm border border-stone-200 bg-white px-2.5 py-2 text-xs font-medium text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                                >
+                                    {{ $t('customers.actions.cancel') }}
+                                </button>
+                                <button
+                                    type="submit"
+                                    :disabled="assignPackageForm.processing"
+                                    class="inline-flex items-center gap-x-1.5 rounded-sm border border-transparent bg-green-600 px-2.5 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                >
+                                    {{ $t('customers.details.customer_packages.assign_submit') }}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div v-if="!assignedPackages.length" class="mt-4 text-sm text-stone-500 dark:text-neutral-400">
+                        {{ $t('customers.details.customer_packages.empty') }}
+                    </div>
+                    <div v-else class="mt-4 space-y-3">
+                        <div
+                            v-for="customerPackage in assignedPackages"
+                            :key="customerPackage.id"
+                            class="rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900"
+                        >
+                            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div>
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                            {{ customerPackage.name }}
+                                        </h3>
+                                        <span
+                                            class="inline-flex rounded-sm px-2 py-0.5 text-xs font-semibold"
+                                            :class="packageStatusClass(customerPackage.status)"
+                                        >
+                                            {{ packageStatusLabel(customerPackage.status) }}
+                                        </span>
+                                    </div>
+                                    <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-stone-500 dark:text-neutral-400">
+                                        <span>{{ $t('customers.details.customer_packages.starts') }} {{ formatDate(customerPackage.starts_at) }}</span>
+                                        <span v-if="customerPackage.expires_at">{{ $t('customers.details.customer_packages.expires') }} {{ formatDate(customerPackage.expires_at) }}</span>
+                                        <span v-else>{{ $t('customers.details.customer_packages.no_expiry') }}</span>
+                                        <span v-if="customerPackage.is_recurring">
+                                            {{ $t('customers.details.customer_packages.recurrence_label') }} {{ recurrenceLabel(customerPackage.recurrence_frequency) }}
+                                        </span>
+                                        <span v-if="customerPackage.carry_over_unused_balance">
+                                            {{ $t('customers.details.customer_packages.carry_over_label') }}
+                                            <template v-if="customerPackage.carried_over_quantity">
+                                                +{{ formatNumber(customerPackage.carried_over_quantity || 0) }}
+                                            </template>
+                                        </span>
+                                        <span v-if="customerPackage.next_renewal_at">
+                                            {{ $t('customers.details.customer_packages.next_renewal') }} {{ formatDate(customerPackage.next_renewal_at) }}
+                                        </span>
+                                        <span
+                                            v-if="customerPackage.is_recurring && customerPackage.recurrence_status && customerPackage.recurrence_status !== 'active'"
+                                        >
+                                            {{ recurrenceStatusLabel(customerPackage.recurrence_status) }}
+                                        </span>
+                                        <span v-if="customerPackage.recurrence_cancel_at_period_end && customerPackage.recurrence_cancellation_effective_at">
+                                            {{ $t('customers.details.customer_packages.cancellation_scheduled') }}
+                                            {{ formatDate(customerPackage.recurrence_cancellation_effective_at) }}
+                                        </span>
+                                        <span v-if="customerPackage.recurrence_change_type && customerPackage.recurrence_change_effective_at">
+                                            {{ $t(`customers.details.customer_packages.change_scheduled.${customerPackage.recurrence_change_type}`) }}
+                                            {{ formatDate(customerPackage.recurrence_change_effective_at) }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="text-left sm:text-right">
+                                    <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                        {{ formatNumber(customerPackage.remaining_quantity || 0) }} /
+                                        {{ formatNumber(customerPackage.initial_quantity || 0) }}
+                                        {{ packageUnitLabel(customerPackage.unit_type) }}
+                                    </div>
+                                    <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                        {{ formatCurrency(customerPackage.price_paid || 0) }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mt-3 h-2 overflow-hidden rounded-full bg-stone-100 dark:bg-neutral-800">
+                                <div
+                                    class="h-full rounded-full bg-green-600"
+                                    :style="{ width: `${packageProgress(customerPackage)}%` }"
+                                ></div>
+                            </div>
+
+                            <div
+                                v-if="customerPackage.renewal_invoice"
+                                class="mt-3 flex flex-col gap-2 rounded-sm border border-green-100 bg-green-50/70 px-3 py-2 text-sm dark:border-green-500/20 dark:bg-green-500/10 sm:flex-row sm:items-center sm:justify-between"
+                            >
+                                <div class="flex min-w-0 items-center gap-2">
+                                    <ReceiptText class="size-4 shrink-0 text-green-700 dark:text-green-300" aria-hidden="true" />
+                                    <div class="min-w-0">
+                                        <div class="text-xs font-semibold uppercase text-green-700 dark:text-green-300">
+                                            {{ $t('customers.details.customer_packages.renewal_invoice') }}
+                                        </div>
+                                        <Link
+                                            :href="route('invoice.show', customerPackage.renewal_invoice.id)"
+                                            class="truncate text-sm font-medium text-stone-800 hover:underline dark:text-neutral-100"
+                                        >
+                                            {{ customerPackage.renewal_invoice.number || $t('customers.details.customer_packages.renewal_invoice_fallback') }}
+                                        </Link>
+                                    </div>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
+                                    <span class="font-semibold text-stone-800 dark:text-neutral-100">
+                                        {{ formatCurrency(customerPackage.renewal_invoice.total || 0) }}
+                                    </span>
+                                    <span class="rounded-sm bg-white px-2 py-0.5 font-medium text-stone-600 dark:bg-neutral-900 dark:text-neutral-300">
+                                        {{ formatStatus(customerPackage.renewal_invoice.status) }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div v-if="customerPackage.usages?.length" class="mt-4 space-y-2">
+                                <div class="text-xs font-semibold uppercase text-stone-400">
+                                    {{ $t('customers.details.customer_packages.recent_usages') }}
+                                </div>
+                                <div
+                                    v-for="usage in customerPackage.usages"
+                                    :key="usage.id"
+                                    class="flex items-start justify-between gap-3 rounded-sm border border-stone-100 px-3 py-2 text-sm dark:border-neutral-800"
+                                >
+                                    <div>
+                                        <div class="font-medium text-stone-800 dark:text-neutral-200">
+                                            {{ formatNumber(usage.quantity || 0) }} {{ packageUnitLabel(customerPackage.unit_type) }}
+                                        </div>
+                                        <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                            {{ formatDate(usage.used_at) }}
+                                            <span v-if="usage.created_by"> - {{ usage.created_by }}</span>
+                                        </div>
+                                        <div v-if="usage.note" class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                            {{ usage.note }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <form
+                                v-if="renewingPackageId === customerPackage.id"
+                                class="mt-4 rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-950"
+                                @submit.prevent="submitRenewPackage"
+                            >
+                                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                    <div>
+                                        <FloatingInput
+                                            v-model="renewPackageForm.initial_quantity"
+                                            type="number"
+                                            min="1"
+                                            :label="$t('customers.details.customer_packages.fields.initial_quantity')"
+                                        />
+                                        <InputError class="mt-1" :message="renewPackageForm.errors.initial_quantity" />
+                                    </div>
+                                    <div>
+                                        <FloatingInput
+                                            v-model="renewPackageForm.price_paid"
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            :label="$t('customers.details.customer_packages.fields.price_paid')"
+                                        />
+                                        <InputError class="mt-1" :message="renewPackageForm.errors.price_paid" />
+                                    </div>
+                                    <div>
+                                        <FloatingInput
+                                            v-model="renewPackageForm.starts_at"
+                                            type="date"
+                                            :label="$t('customers.details.customer_packages.fields.starts_at')"
+                                        />
+                                        <InputError class="mt-1" :message="renewPackageForm.errors.starts_at" />
+                                    </div>
+                                    <div>
+                                        <FloatingInput
+                                            v-model="renewPackageForm.expires_at"
+                                            type="date"
+                                            :label="$t('customers.details.customer_packages.fields.expires_at')"
+                                        />
+                                        <InputError class="mt-1" :message="renewPackageForm.errors.expires_at" />
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label class="inline-flex items-center gap-2 text-sm font-medium text-stone-700 dark:text-neutral-200">
+                                            <input
+                                                v-model="renewPackageForm.carry_over_unused_balance"
+                                                type="checkbox"
+                                                class="rounded border-stone-300 text-green-600 focus:ring-green-500 dark:border-neutral-700 dark:bg-neutral-900"
+                                            >
+                                            <span>{{ $t('customers.details.customer_packages.fields.carry_over_unused_balance') }}</span>
+                                        </label>
+                                        <InputError class="mt-1" :message="renewPackageForm.errors.carry_over_unused_balance" />
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <FloatingTextarea
+                                            v-model="renewPackageForm.note"
+                                            :label="$t('customers.details.customer_packages.fields.renewal_note')"
+                                        />
+                                        <InputError class="mt-1" :message="renewPackageForm.errors.note" />
+                                    </div>
+                                </div>
+                                <div class="mt-3 flex items-center justify-end gap-2">
+                                    <button
+                                        type="button"
+                                        @click="cancelRenewPackage"
+                                        class="inline-flex items-center gap-x-1.5 rounded-sm border border-stone-200 bg-white px-2.5 py-2 text-xs font-medium text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                                    >
+                                        {{ $t('customers.actions.cancel') }}
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        :disabled="renewPackageForm.processing"
+                                        class="inline-flex items-center gap-x-1.5 rounded-sm border border-transparent bg-green-600 px-2.5 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    >
+                                        {{ $t('customers.details.customer_packages.renew_submit') }}
+                                    </button>
+                                </div>
+                            </form>
+
+                            <form
+                                v-else-if="consumingPackageId === customerPackage.id"
+                                class="mt-4 rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-950"
+                                @submit.prevent="submitConsumePackage"
+                            >
+                                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                    <div>
+                                        <FloatingInput
+                                            v-model="consumePackageForm.quantity"
+                                            type="number"
+                                            min="1"
+                                            :label="$t('customers.details.customer_packages.fields.usage_quantity')"
+                                        />
+                                        <InputError class="mt-1" :message="consumePackageForm.errors.quantity" />
+                                    </div>
+                                    <div>
+                                        <FloatingInput
+                                            v-model="consumePackageForm.used_at"
+                                            type="date"
+                                            :label="$t('customers.details.customer_packages.fields.used_at')"
+                                        />
+                                        <InputError class="mt-1" :message="consumePackageForm.errors.used_at" />
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <FloatingTextarea
+                                            v-model="consumePackageForm.note"
+                                            :label="$t('customers.details.customer_packages.fields.usage_note')"
+                                        />
+                                        <InputError class="mt-1" :message="consumePackageForm.errors.note" />
+                                    </div>
+                                </div>
+                                <div class="mt-3 flex items-center justify-end gap-2">
+                                    <button
+                                        type="button"
+                                        @click="cancelConsumePackage"
+                                        class="inline-flex items-center gap-x-1.5 rounded-sm border border-stone-200 bg-white px-2.5 py-2 text-xs font-medium text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                                    >
+                                        {{ $t('customers.actions.cancel') }}
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        :disabled="consumePackageForm.processing"
+                                        class="inline-flex items-center gap-x-1.5 rounded-sm border border-transparent bg-stone-900 px-2.5 py-2 text-xs font-medium text-white hover:bg-stone-800 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-stone-500 dark:bg-white dark:text-stone-900"
+                                    >
+                                        {{ $t('customers.details.customer_packages.consume_submit') }}
+                                    </button>
+                                </div>
+                            </form>
+
+                            <form
+                                v-else-if="changingPackageId === customerPackage.id"
+                                class="mt-4 rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-950"
+                                @submit.prevent="submitChangePackage"
+                            >
+                                <div v-if="recurringPackageOfferOptions(customerPackage).length <= 1" class="text-sm text-stone-500 dark:text-neutral-400">
+                                    {{ $t('customers.details.customer_packages.no_recurring_change_options') }}
+                                </div>
+                                <template v-else>
+                                    <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                        <div class="md:col-span-2">
+                                            <FloatingSelect
+                                                v-model="changePackageForm.target_offer_package_id"
+                                                :label="$t('customers.details.customer_packages.fields.target_offer')"
+                                                :options="recurringPackageOfferOptions(customerPackage)"
+                                                filterable
+                                            />
+                                            <InputError class="mt-1" :message="changePackageForm.errors.target_offer_package_id" />
+                                        </div>
+                                        <div>
+                                            <FloatingSelect
+                                                v-model="changePackageForm.change_type"
+                                                :label="$t('customers.details.customer_packages.fields.change_type')"
+                                                :options="recurringChangeTypeOptions"
+                                            />
+                                            <InputError class="mt-1" :message="changePackageForm.errors.change_type" />
+                                        </div>
+                                        <div>
+                                            <FloatingInput
+                                                v-model="changePackageForm.starts_at"
+                                                type="date"
+                                                :label="$t('customers.details.customer_packages.fields.starts_at')"
+                                            />
+                                            <InputError class="mt-1" :message="changePackageForm.errors.starts_at" />
+                                        </div>
+                                        <div>
+                                            <FloatingInput
+                                                v-model="changePackageForm.initial_quantity"
+                                                type="number"
+                                                min="1"
+                                                :label="$t('customers.details.customer_packages.fields.initial_quantity')"
+                                            />
+                                            <InputError class="mt-1" :message="changePackageForm.errors.initial_quantity" />
+                                        </div>
+                                        <div>
+                                            <FloatingInput
+                                                v-model="changePackageForm.price_paid"
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                :label="$t('customers.details.customer_packages.fields.price_paid')"
+                                            />
+                                            <InputError class="mt-1" :message="changePackageForm.errors.price_paid" />
+                                        </div>
+                                        <div class="md:col-span-2">
+                                            <label class="inline-flex items-center gap-2 text-sm font-medium text-stone-700 dark:text-neutral-200">
+                                                <input
+                                                    v-model="changePackageForm.carry_over_unused_balance"
+                                                    type="checkbox"
+                                                    class="rounded border-stone-300 text-green-600 focus:ring-green-500 dark:border-neutral-700 dark:bg-neutral-900"
+                                                >
+                                                <span>{{ $t('customers.details.customer_packages.fields.carry_over_unused_balance') }}</span>
+                                            </label>
+                                            <InputError class="mt-1" :message="changePackageForm.errors.carry_over_unused_balance" />
+                                        </div>
+                                        <div class="md:col-span-2">
+                                            <FloatingTextarea
+                                                v-model="changePackageForm.note"
+                                                :label="$t('customers.details.customer_packages.fields.change_note')"
+                                            />
+                                            <InputError class="mt-1" :message="changePackageForm.errors.note" />
+                                        </div>
+                                    </div>
+                                    <div class="mt-3 flex items-center justify-end gap-2">
+                                        <button
+                                            type="button"
+                                            @click="cancelChangePackage"
+                                            class="inline-flex items-center gap-x-1.5 rounded-sm border border-stone-200 bg-white px-2.5 py-2 text-xs font-medium text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                                        >
+                                            {{ $t('customers.actions.cancel') }}
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            :disabled="changePackageForm.processing"
+                                            class="inline-flex items-center gap-x-1.5 rounded-sm border border-transparent bg-green-600 px-2.5 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                        >
+                                            {{ $t('customers.details.customer_packages.change_offer_submit') }}
+                                        </button>
+                                    </div>
+                                </template>
+                            </form>
+
+                            <form
+                                v-else-if="cancellingPackageId === customerPackage.id"
+                                class="mt-4 rounded-sm border border-red-100 bg-red-50/70 p-3 dark:border-red-500/20 dark:bg-red-500/10"
+                                @submit.prevent="submitCancelPackage"
+                            >
+                                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                    <div>
+                                        <FloatingSelect
+                                            v-model="cancelPackageForm.mode"
+                                            :label="$t('customers.details.customer_packages.fields.cancellation_mode')"
+                                            :options="[
+                                                { id: 'end_of_period', name: $t('customers.details.customer_packages.cancellation_modes.end_of_period') },
+                                                { id: 'immediate', name: $t('customers.details.customer_packages.cancellation_modes.immediate') },
+                                            ]"
+                                        />
+                                        <InputError class="mt-1" :message="cancelPackageForm.errors.mode" />
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <FloatingTextarea
+                                            v-model="cancelPackageForm.reason"
+                                            :label="$t('customers.details.customer_packages.fields.cancellation_reason')"
+                                        />
+                                        <InputError class="mt-1" :message="cancelPackageForm.errors.reason" />
+                                    </div>
+                                </div>
+                                <div class="mt-3 flex items-center justify-end gap-2">
+                                    <button
+                                        type="button"
+                                        @click="cancelCancelPackage"
+                                        class="inline-flex items-center gap-x-1.5 rounded-sm border border-stone-200 bg-white px-2.5 py-2 text-xs font-medium text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                                    >
+                                        {{ $t('customers.actions.cancel') }}
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        :disabled="cancelPackageForm.processing"
+                                        class="inline-flex items-center gap-x-1.5 rounded-sm border border-transparent bg-red-600 px-2.5 py-2 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-red-500"
+                                    >
+                                        {{ $t('customers.details.customer_packages.cancel_recurring_submit') }}
+                                    </button>
+                                </div>
+                            </form>
+
+                            <div v-else-if="canEdit && customerPackage.status !== 'cancelled'" class="mt-4 flex flex-wrap justify-end gap-2">
+                                <button
+                                    v-if="customerPackage.is_recurring && !customerPackage.renewal_invoice"
+                                    type="button"
+                                    :disabled="renewalInvoicePackageId === customerPackage.id"
+                                    @click="createRenewalInvoice(customerPackage)"
+                                    class="inline-flex items-center gap-x-1.5 rounded-sm border border-green-200 bg-white px-2.5 py-2 text-xs font-medium text-green-700 shadow-sm hover:bg-green-50 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:border-green-500/20 dark:bg-neutral-800 dark:text-green-300 dark:hover:bg-green-500/10"
+                                >
+                                    <ReceiptText class="size-3.5" aria-hidden="true" />
+                                    {{
+                                        renewalInvoicePackageId === customerPackage.id
+                                            ? $t('customers.details.customer_packages.creating_invoice')
+                                            : $t('customers.details.customer_packages.create_invoice_action')
+                                    }}
+                                </button>
+                                <button
+                                    v-if="customerPackage.is_recurring"
+                                    type="button"
+                                    @click="startRenewPackage(customerPackage)"
+                                    class="inline-flex items-center gap-x-1.5 rounded-sm border border-green-200 bg-green-50 px-2.5 py-2 text-xs font-medium text-green-700 shadow-sm hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-500 dark:border-green-500/20 dark:bg-green-500/10 dark:text-green-300 dark:hover:bg-green-500/20"
+                                >
+                                    {{ $t('customers.details.customer_packages.renew_action') }}
+                                </button>
+                                <button
+                                    v-if="customerPackage.is_recurring && customerPackage.recurrence_status !== 'cancelled'"
+                                    type="button"
+                                    @click="startChangePackage(customerPackage)"
+                                    class="inline-flex items-center gap-x-1.5 rounded-sm border border-stone-200 bg-white px-2.5 py-2 text-xs font-medium text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                                >
+                                    <ArrowUpDown class="size-3.5" aria-hidden="true" />
+                                    {{ $t('customers.details.customer_packages.change_offer_action') }}
+                                </button>
+                                <button
+                                    v-if="customerPackage.is_recurring && customerPackage.recurrence_status !== 'cancelled'"
+                                    type="button"
+                                    @click="startCancelPackage(customerPackage)"
+                                    class="inline-flex items-center gap-x-1.5 rounded-sm border border-red-200 bg-white px-2.5 py-2 text-xs font-medium text-red-700 shadow-sm hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 dark:border-red-500/20 dark:bg-neutral-800 dark:text-red-300 dark:hover:bg-red-500/10"
+                                >
+                                    <Ban class="size-3.5" aria-hidden="true" />
+                                    {{ $t('customers.details.customer_packages.cancel_recurring_action') }}
+                                </button>
+                                <button
+                                    v-if="customerPackage.status === 'active'"
+                                    type="button"
+                                    @click="startConsumePackage(customerPackage)"
+                                    class="inline-flex items-center gap-x-1.5 rounded-sm border border-stone-200 bg-white px-2.5 py-2 text-xs font-medium text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                                >
+                                    {{ $t('customers.details.customer_packages.consume_action') }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </Card>
 
                 <CardNav v-if="showServiceOps" class="mt-5" :customer="customer" />

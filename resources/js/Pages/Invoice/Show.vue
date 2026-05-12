@@ -18,6 +18,10 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    offerPackages: {
+        type: Array,
+        default: () => [],
+    },
 });
 
 const page = usePage();
@@ -48,6 +52,10 @@ const form = useForm({
     reference: '',
     paid_at: '',
     notes: '',
+});
+const addOfferPackageForm = useForm({
+    offer_package_id: '',
+    quantity: 1,
 });
 const approvalForm = useForm({
     comment: '',
@@ -96,8 +104,16 @@ const submitPayment = () => {
 const customer = computed(() => props.invoice.customer || null);
 const work = computed(() => props.invoice.work || null);
 const invoiceItems = computed(() => props.invoice.items || []);
-const isTaskBased = computed(() => invoiceItems.value.length > 0);
-const lineItems = computed(() => (isTaskBased.value ? invoiceItems.value : work.value?.products || []));
+const usesInvoiceItems = computed(() => invoiceItems.value.length > 0);
+const isTaskBased = computed(() => invoiceItems.value.some((item) =>
+    item.task_id || item.scheduled_date || item.start_time || item.end_time || item.assignee_name
+));
+const lineItems = computed(() => (usesInvoiceItems.value ? invoiceItems.value : work.value?.products || []));
+const canAddOfferPackage = computed(() => !['paid', 'void'].includes(String(props.invoice?.status || '')));
+const offerPackageOptions = computed(() => (props.offerPackages || []).map((offer) => ({
+    id: offer.id,
+    name: `${offer.type === 'forfait' ? 'Forfait' : 'Pack'} - ${offer.name} - $${Number(offer.price || 0).toFixed(2)}`,
+})));
 
 const customerName = computed(() => {
     const data = customer.value;
@@ -187,7 +203,7 @@ const formatTimeRange = (start, end) => {
 };
 
 const invoiceSubtotal = computed(() => {
-    if (isTaskBased.value) {
+    if (usesInvoiceItems.value) {
         return invoiceItems.value.reduce((sum, item) => sum + Number(item.total || 0), 0);
     }
 
@@ -199,6 +215,17 @@ const invoiceSubtotal = computed(() => {
 });
 
 const lineItemColspan = computed(() => (isTaskBased.value ? 5 : 4));
+const lineTitle = (item) => item?.title || item?.name || 'Line item';
+const lineDescription = (item) => {
+    if (usesInvoiceItems.value) {
+        return item?.description || '';
+    }
+
+    return item?.pivot?.description || item?.description || '';
+};
+const lineQuantity = (item) => usesInvoiceItems.value ? item?.quantity : item?.pivot?.quantity;
+const lineUnitPrice = (item) => usesInvoiceItems.value ? item?.unit_price : item?.pivot?.price;
+const lineTotal = (item) => usesInvoiceItems.value ? item?.total : item?.pivot?.total;
 
 const statusLabel = computed(() => {
     const status = props.invoice?.status || 'draft';
@@ -289,6 +316,20 @@ const sendInvoice = () => {
 
     sendInvoiceForm.post(route('invoice.send.email', props.invoice.id), {
         preserveScroll: true,
+    });
+};
+
+const addOfferPackageToInvoice = () => {
+    if (!canAddOfferPackage.value || addOfferPackageForm.processing || !addOfferPackageForm.offer_package_id) {
+        return;
+    }
+
+    addOfferPackageForm.post(route('invoice.offer-packages.store', props.invoice.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            addOfferPackageForm.reset('offer_package_id', 'quantity');
+            addOfferPackageForm.quantity = 1;
+        },
     });
 };
 
@@ -601,6 +642,39 @@ watch(
             </div>
 
             <div class="p-5 space-y-3 flex flex-col bg-white border border-stone-100 rounded-sm shadow-sm dark:bg-neutral-900 dark:border-neutral-800">
+                <form
+                    v-if="offerPackageOptions.length && canAddOfferPackage"
+                    class="flex flex-col gap-3 rounded-sm border border-stone-200 bg-stone-50 p-3 md:flex-row md:items-end dark:border-neutral-700 dark:bg-neutral-800/50"
+                    @submit.prevent="addOfferPackageToInvoice"
+                >
+                    <div class="min-w-0 flex-1">
+                        <FloatingSelect
+                            v-model="addOfferPackageForm.offer_package_id"
+                            label="Pack / forfait"
+                            :options="offerPackageOptions"
+                            placeholder="Choisir une offre active"
+                            dense
+                        />
+                        <div v-if="addOfferPackageForm.errors.offer_package_id" class="mt-1 text-xs text-red-600">
+                            {{ addOfferPackageForm.errors.offer_package_id }}
+                        </div>
+                    </div>
+                    <div class="w-full md:w-32">
+                        <FloatingInput
+                            v-model="addOfferPackageForm.quantity"
+                            type="number"
+                            min="1"
+                            label="Quantite"
+                        />
+                    </div>
+                    <button
+                        type="submit"
+                        class="inline-flex min-h-[38px] items-center justify-center rounded-sm border border-transparent bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                        :disabled="addOfferPackageForm.processing || !addOfferPackageForm.offer_package_id"
+                    >
+                        {{ addOfferPackageForm.processing ? 'Ajout...' : 'Ajouter' }}
+                    </button>
+                </form>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
                         <thead>
@@ -620,17 +694,27 @@ watch(
                         <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
                             <tr v-for="item in lineItems" :key="item.id">
                                 <template v-if="isTaskBased">
-                                    <td class="px-4 py-3 text-sm text-stone-700 dark:text-neutral-200">{{ item.title }}</td>
+                                    <td class="px-4 py-3 text-sm text-stone-700 dark:text-neutral-200">
+                                        <div class="font-medium">{{ lineTitle(item) }}</div>
+                                        <div v-if="lineDescription(item)" class="mt-1 whitespace-pre-line text-xs text-stone-500 dark:text-neutral-400">
+                                            {{ lineDescription(item) }}
+                                        </div>
+                                    </td>
                                     <td class="px-4 py-3 text-sm text-stone-700 dark:text-neutral-200">{{ formatShortDate(item.scheduled_date) }}</td>
                                     <td class="px-4 py-3 text-sm text-stone-700 dark:text-neutral-200">{{ formatTimeRange(item.start_time, item.end_time) }}</td>
                                     <td class="px-4 py-3 text-sm text-stone-700 dark:text-neutral-200">{{ item.assignee_name || '-' }}</td>
-                                    <td class="px-4 py-3 text-sm text-stone-700 dark:text-neutral-200">{{ formatCurrency(item.total) }}</td>
+                                    <td class="px-4 py-3 text-sm text-stone-700 dark:text-neutral-200">{{ formatCurrency(lineTotal(item)) }}</td>
                                 </template>
                                 <template v-else>
-                                    <td class="px-4 py-3 text-sm text-stone-700 dark:text-neutral-200">{{ item.name }}</td>
-                                    <td class="px-4 py-3 text-sm text-stone-700 dark:text-neutral-200">{{ item.pivot?.quantity ?? '-' }}</td>
-                                    <td class="px-4 py-3 text-sm text-stone-700 dark:text-neutral-200">{{ formatCurrency(item.pivot?.price) }}</td>
-                                    <td class="px-4 py-3 text-sm text-stone-700 dark:text-neutral-200">{{ formatCurrency(item.pivot?.total) }}</td>
+                                    <td class="px-4 py-3 text-sm text-stone-700 dark:text-neutral-200">
+                                        <div class="font-medium">{{ lineTitle(item) }}</div>
+                                        <div v-if="lineDescription(item)" class="mt-1 whitespace-pre-line text-xs text-stone-500 dark:text-neutral-400">
+                                            {{ lineDescription(item) }}
+                                        </div>
+                                    </td>
+                                    <td class="px-4 py-3 text-sm text-stone-700 dark:text-neutral-200">{{ lineQuantity(item) ?? '-' }}</td>
+                                    <td class="px-4 py-3 text-sm text-stone-700 dark:text-neutral-200">{{ formatCurrency(lineUnitPrice(item)) }}</td>
+                                    <td class="px-4 py-3 text-sm text-stone-700 dark:text-neutral-200">{{ formatCurrency(lineTotal(item)) }}</td>
                                 </template>
                             </tr>
                             <tr v-if="!lineItems.length">

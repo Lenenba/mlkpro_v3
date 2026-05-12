@@ -97,6 +97,25 @@ class InvoicePolicy
             );
     }
 
+    public function update(User $user, Invoice $invoice): bool
+    {
+        if (! $this->view($user, $invoice)) {
+            return false;
+        }
+
+        if ($this->isOwnerActor($user)) {
+            return true;
+        }
+
+        $membership = $this->membership($user);
+
+        return (bool) $membership
+            && (
+                $membership->hasPermission('invoices.edit')
+                || $membership->hasPermission('invoices.create')
+            );
+    }
+
     private function hasInvoiceModule(User $user): bool
     {
         return ! $user->isClient() && $user->hasCompanyFeature('invoices');

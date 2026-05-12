@@ -68,6 +68,12 @@ class CustomerSegmentResolver implements SegmentModuleResolver
             'created_to' => $filters['created_to'] ?? null,
             'is_vip' => $filters['is_vip'] ?? null,
             'vip_tier_id' => $filters['vip_tier_id'] ?? null,
+            'has_active_package' => $filters['has_active_package'] ?? null,
+            'package_status' => $filters['package_status'] ?? null,
+            'package_remaining_lte' => $filters['package_remaining_lte'] ?? null,
+            'package_expires_within_days' => $filters['package_expires_within_days'] ?? null,
+            'package_is_recurring' => $filters['package_is_recurring'] ?? null,
+            'package_recurrence_status' => $filters['package_recurrence_status'] ?? null,
         ];
     }
 

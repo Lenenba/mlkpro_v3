@@ -94,7 +94,10 @@ class InvoiceDocumentService
      */
     private function buildViewData(Invoice $invoice, ?User $company = null, ?string $templateKey = null): array
     {
-        $isTaskBased = $invoice->items->isNotEmpty();
+        $hasInvoiceItems = $invoice->items->isNotEmpty();
+        $isTaskBased = $hasInvoiceItems && $invoice->items->contains(function ($item): bool {
+            return (bool) ($item->task_id || $item->scheduled_date || $item->start_time || $item->end_time || $item->assignee_name);
+        });
         $taskItems = collect();
         $productItems = collect();
 
@@ -102,10 +105,21 @@ class InvoiceDocumentService
             $taskItems = $invoice->items->map(function ($item) {
                 return [
                     'title' => $item->title ?: 'Line item',
+                    'description' => $item->description,
                     'scheduled_date' => $item->scheduled_date,
                     'start_time' => $item->start_time,
                     'end_time' => $item->end_time,
                     'assignee_name' => $item->assignee_name,
+                    'total' => (float) ($item->total ?? 0),
+                ];
+            });
+        } elseif ($hasInvoiceItems) {
+            $productItems = $invoice->items->map(function ($item) {
+                return [
+                    'title' => $item->title ?: 'Line item',
+                    'description' => $item->description,
+                    'quantity' => (float) ($item->quantity ?? 0),
+                    'unit_price' => (float) ($item->unit_price ?? 0),
                     'total' => (float) ($item->total ?? 0),
                 ];
             });

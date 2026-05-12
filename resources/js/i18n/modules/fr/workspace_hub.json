@@ -79,6 +79,7 @@
             "services": "Catalogue de prestations pret pour devis et reservation.",
             "categories": "Categories de prestations et structure commerciale.",
             "products": "Produits, prix, stock et catalogue vendable.",
+            "offer_packages": "Packs et forfaits composes a partir des produits et prestations.",
             "plan_scans": "Scans techniques et support d estimation.",
             "company_settings_label": "Parametres entreprise",
             "company_settings": "Marque, finance, entreprise et reglages du workspace.",

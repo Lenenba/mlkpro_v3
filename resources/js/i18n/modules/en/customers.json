@@ -33,7 +33,17 @@
       "with_quotes": "With quotes",
       "no_quotes": "No quotes",
       "with_jobs": "With jobs",
-      "no_jobs": "No jobs"
+      "no_jobs": "No jobs",
+      "active_package": "Active package",
+      "with_active_package": "With active package",
+      "no_active_package": "No active package",
+      "package_status": "Package status",
+      "package_remaining_lte": "Package balance <= ",
+      "package_expires_within_days": "Expires within N days",
+      "package_recurrence": "Package recurrence",
+      "package_recurring": "Recurring package",
+      "package_non_recurring": "Non-recurring package",
+      "package_recurrence_status": "Recurrence status"
     },
     "saved_segments": {
       "title": "Saved segments",
@@ -497,6 +507,96 @@
           "floor": "Floor",
           "round": "Nearest",
           "ceil": "Ceil"
+        }
+      },
+      "customer_packages": {
+        "title": "Customer forfaits",
+        "assign_action": "Assign forfait",
+        "assign_submit": "Assign",
+        "consume_action": "Consume",
+        "consume_submit": "Record usage",
+        "renew_action": "Renew",
+        "renew_submit": "Renew forfait",
+        "change_offer_action": "Change offer",
+        "change_offer_submit": "Schedule change",
+        "change_offer_placeholder": "Choose a recurring offer",
+        "cancel_recurring_action": "Cancel recurrence",
+        "cancel_recurring_submit": "Confirm cancellation",
+        "create_invoice_action": "Invoice renewal",
+        "creating_invoice": "Creating invoice...",
+        "renewal_invoice": "Renewal invoice",
+        "renewal_invoice_fallback": "Linked invoice",
+        "select_placeholder": "Choose an active forfait",
+        "no_options": "No active forfait is available in the catalog.",
+        "no_recurring_change_options": "No other active recurring offer is available.",
+        "empty": "No forfait has been assigned to this customer yet.",
+        "starts": "Starts",
+        "expires": "Expires",
+        "no_expiry": "No expiry",
+        "recurrence_label": "Recurrence",
+        "carry_over_label": "Carry-over balance",
+        "next_renewal": "Next renewal",
+        "cancellation_scheduled": "Cancellation at period end",
+        "change_scheduled": {
+          "upgrade": "Upgrade scheduled",
+          "downgrade": "Downgrade scheduled"
+        },
+        "recent_usages": "Recent usage",
+        "summary": {
+          "total": "Total",
+          "active": "Active",
+          "remaining": "Balance",
+          "expiring": "Expiring soon"
+        },
+        "fields": {
+          "offer": "Forfait",
+          "initial_quantity": "Initial quantity",
+          "price_paid": "Price paid",
+          "starts_at": "Start date",
+          "expires_at": "Expiry date",
+          "note": "Internal note",
+          "usage_quantity": "Consumed quantity",
+          "used_at": "Usage date",
+          "usage_note": "Usage note",
+          "carry_over_unused_balance": "Carry over unused balance",
+          "renewal_note": "Renewal note",
+          "target_offer": "New offer",
+          "change_type": "Change type",
+          "change_note": "Change note",
+          "cancellation_mode": "Cancellation mode",
+          "cancellation_reason": "Cancellation reason"
+        },
+        "change_types": {
+          "upgrade": "Upgrade",
+          "downgrade": "Downgrade"
+        },
+        "cancellation_modes": {
+          "end_of_period": "End of period",
+          "immediate": "Immediate"
+        },
+        "statuses": {
+          "active": "Active",
+          "consumed": "Consumed",
+          "expired": "Expired",
+          "cancelled": "Cancelled"
+        },
+        "recurrence_statuses": {
+          "active": "Recurrence active",
+          "payment_due": "Payment due",
+          "suspended": "Suspended",
+          "cancelled": "Recurrence cancelled"
+        },
+        "units": {
+          "session": "session(s)",
+          "hour": "hour(s)",
+          "visit": "visit(s)",
+          "credit": "credit(s)",
+          "month": "month(s)"
+        },
+        "recurrence": {
+          "monthly": "monthly",
+          "quarterly": "quarterly",
+          "yearly": "yearly"
         }
       },
       "notes": {
