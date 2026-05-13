@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
-import { Head, useForm } from '@inertiajs/vue3';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import { Head, Link, useForm } from '@inertiajs/vue3';
+import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
@@ -35,12 +35,11 @@ const languageLabels = {
 };
 
 const actionToggles = [
-    { key: 'allow_create_prospect', label: 'Creation prospect' },
-    { key: 'allow_create_client', label: 'Creation client' },
-    { key: 'allow_create_reservation', label: 'Creation reservation' },
-    { key: 'allow_reschedule_reservation', label: 'Replanification' },
-    { key: 'allow_create_task', label: 'Creation tache' },
-    { key: 'require_human_validation', label: 'Validation humaine obligatoire' },
+    { key: 'allow_create_prospect', label: 'Creer un prospect' },
+    { key: 'allow_create_client', label: 'Creer un client' },
+    { key: 'allow_create_reservation', label: 'Preparer une reservation' },
+    { key: 'allow_reschedule_reservation', label: 'Preparer une replanification' },
+    { key: 'allow_create_task', label: 'Creer une tache' },
 ];
 
 const form = useForm({
@@ -75,6 +74,15 @@ const languageOptions = computed(() => (props.options.languages || []).map((lang
 })));
 
 const enabledLabel = computed(() => (form.enabled ? 'Actif' : 'Inactif'));
+const validationModeLabel = computed(() => (
+    form.require_human_validation ? 'Validation humaine' : 'Execution automatique'
+));
+const enabledActionsCount = computed(() => actionToggles
+    .filter((toggle) => Boolean(form[toggle.key]))
+    .length);
+const languageSummary = computed(() => form.supported_languages
+    .map((language) => languageLabels[language] || language)
+    .join(', '));
 
 const isLanguageSelected = (language) => form.supported_languages.includes(language);
 
@@ -117,33 +125,64 @@ const submit = () => {
 <template>
     <Head title="Assistant IA" />
 
-    <AuthenticatedLayout>
-        <div class="mx-auto flex w-[1200px] max-w-full flex-col gap-4">
-            <header class="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+    <SettingsLayout active="assistant" content-class="w-[1400px] max-w-full">
+        <div class="space-y-4">
+            <div class="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
-                        Malikia AI Assistant
-                    </p>
-                    <h1 class="mt-1 text-xl font-semibold text-stone-900 dark:text-neutral-50">
-                        Assistant IA
+                    <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
+                        Reglages Assistant IA
                     </h1>
-                    <p class="mt-1 text-sm text-stone-500 dark:text-neutral-400">
-                        Statut: {{ enabledLabel }}
+                    <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
+                        Configurez le comportement de l assistant et le niveau de validation.
                     </p>
                 </div>
-                <button
-                    type="button"
-                    class="rounded-sm bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
-                    :disabled="form.processing"
-                    @click="submit"
-                >
-                    {{ form.processing ? 'Enregistrement...' : 'Enregistrer' }}
-                </button>
-            </header>
+                <div class="flex flex-wrap gap-2">
+                    <Link
+                        :href="route('admin.ai-assistant.conversations.index', { queue: 'review' })"
+                        class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                    >
+                        Inbox IA
+                    </Link>
+                    <Link
+                        :href="route('admin.ai-assistant.knowledge.index')"
+                        class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                    >
+                        Base de connaissance
+                    </Link>
+                    <button
+                        type="button"
+                        class="rounded-sm bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                        :disabled="form.processing"
+                        @click="submit"
+                    >
+                        {{ form.processing ? 'Enregistrement...' : 'Enregistrer' }}
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3 lg:gap-5">
+                <div class="rounded-sm border border-stone-200 border-t-4 border-t-emerald-500 bg-white p-4 shadow-sm dark:border-neutral-700 dark:border-t-emerald-500 dark:bg-neutral-900">
+                    <div class="text-xs text-stone-500 dark:text-neutral-400">Statut</div>
+                    <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ enabledLabel }}</div>
+                </div>
+                <div class="rounded-sm border border-stone-200 border-t-4 border-t-sky-500 bg-white p-4 shadow-sm dark:border-neutral-700 dark:border-t-sky-500 dark:bg-neutral-900">
+                    <div class="text-xs text-stone-500 dark:text-neutral-400">Mode</div>
+                    <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ validationModeLabel }}</div>
+                </div>
+                <div class="rounded-sm border border-stone-200 border-t-4 border-t-violet-500 bg-white p-4 shadow-sm dark:border-neutral-700 dark:border-t-violet-500 dark:bg-neutral-900">
+                    <div class="text-xs text-stone-500 dark:text-neutral-400">Langues</div>
+                    <div class="mt-1 truncate text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ languageSummary }}</div>
+                </div>
+                <div class="rounded-sm border border-stone-200 border-t-4 border-t-amber-500 bg-white p-4 shadow-sm dark:border-neutral-700 dark:border-t-amber-500 dark:bg-neutral-900">
+                    <div class="text-xs text-stone-500 dark:text-neutral-400">Actions</div>
+                    <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ enabledActionsCount }} actives</div>
+                </div>
+            </div>
 
             <form class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]" @submit.prevent="submit">
                 <div class="space-y-4">
                     <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <h2 class="mb-3 text-sm font-semibold text-stone-800 dark:text-neutral-100">Identite</h2>
                         <div class="grid gap-4 md:grid-cols-2">
                             <FloatingInput v-model="form.assistant_name" label="Nom assistant" required />
                             <FloatingSelect v-model="form.tone" :options="toneOptions" label="Ton" required />
@@ -175,6 +214,24 @@ const submit = () => {
                 </div>
 
                 <aside class="space-y-4">
+                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Validation</h2>
+                        <label class="mt-3 flex items-start gap-3 rounded-sm border border-stone-200 px-3 py-3 text-sm text-stone-700 dark:border-neutral-700 dark:text-neutral-200">
+                            <input
+                                v-model="form.require_human_validation"
+                                type="checkbox"
+                                class="mt-0.5 rounded border-stone-300 text-emerald-600 focus:ring-emerald-600"
+                            />
+                            <span>
+                                <span class="block font-semibold">Valider avant execution</span>
+                                <span class="mt-1 block text-xs text-stone-500 dark:text-neutral-400">
+                                    Les reservations preparees restent dans l inbox jusqu a approbation.
+                                </span>
+                            </span>
+                        </label>
+                        <InputError class="mt-2" :message="form.errors.require_human_validation" />
+                    </section>
+
                     <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                         <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Langues</h2>
                         <div class="mt-3 grid gap-2">
@@ -223,5 +280,5 @@ const submit = () => {
                 </aside>
             </form>
         </div>
-    </AuthenticatedLayout>
+    </SettingsLayout>
 </template>

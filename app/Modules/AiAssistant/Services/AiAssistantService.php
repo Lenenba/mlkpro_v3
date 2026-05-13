@@ -33,14 +33,30 @@ class AiAssistantService
         $language = in_array($detected->language, $settings->supported_languages ?? [], true)
             ? $detected->language
             : (string) $settings->default_language;
+        $recoveredReservationContext = $this->recentReservationContext($conversation, $message, $language, $detected->intent);
+        $activeReservationFlow = $this->isActiveReservationFlow($conversation, $detected->intent) || $recoveredReservationContext !== null;
+        $intent = $activeReservationFlow ? AiConversation::INTENT_RESERVATION : $detected->intent;
+        $confidence = $activeReservationFlow
+            ? max((float) $detected->confidence, (float) ($conversation->confidence_score ?? 0), 0.65)
+            : (float) $detected->confidence;
 
-        $conversation->update([
+        $conversationUpdate = [
             'detected_language' => $language,
-            'intent' => $detected->intent,
-            'confidence_score' => $detected->confidence,
-        ]);
+            'intent' => $intent,
+            'confidence_score' => $confidence,
+        ];
 
-        if ($detected->confidence < 0.5 || $detected->intent === AiConversation::INTENT_HUMAN_REVIEW) {
+        if (
+            $activeReservationFlow
+            && $conversation->status === AiConversation::STATUS_WAITING_HUMAN
+            && ! $conversation->pendingActions()->exists()
+        ) {
+            $conversationUpdate['status'] = AiConversation::STATUS_OPEN;
+        }
+
+        $conversation->update($conversationUpdate);
+
+        if (! $activeReservationFlow && ($detected->confidence < 0.5 || $detected->intent === AiConversation::INTENT_HUMAN_REVIEW)) {
             $action = $this->actionExecutor->createAction($conversation, AiAction::TYPE_REQUEST_HUMAN_REVIEW, [
                 'reason' => 'low_confidence',
                 'message' => $message,
@@ -57,8 +73,8 @@ class AiAssistantService
             );
         }
 
-        $reply = match ($detected->intent) {
-            AiConversation::INTENT_RESERVATION => $this->reservationOrchestrator->handle($conversation->fresh() ?? $conversation, $settings, $message, $language),
+        $reply = match ($intent) {
+            AiConversation::INTENT_RESERVATION => $this->reservationOrchestrator->handle($conversation->fresh() ?? $conversation, $settings, $recoveredReservationContext ?: $message, $language),
             AiConversation::INTENT_RESCHEDULE => $this->rescheduleReply($settings, $conversation, $language),
             default => $this->generalReply($settings, $language),
         };
@@ -115,5 +131,61 @@ class AiAssistantService
         return $language === 'fr'
             ? "Je vais transmettre votre demande a l'equipe pour verification."
             : 'I will send your request to the team for review.';
+    }
+
+    private function isActiveReservationFlow(AiConversation $conversation, string $detectedIntent): bool
+    {
+        if ($detectedIntent === AiConversation::INTENT_HUMAN_REVIEW) {
+            return false;
+        }
+
+        if ($detectedIntent === AiConversation::INTENT_RESERVATION) {
+            return true;
+        }
+
+        $draft = data_get($conversation->metadata, 'reservation_draft', []);
+
+        return $conversation->intent === AiConversation::INTENT_RESERVATION
+            || (is_array($draft) && $draft !== []);
+    }
+
+    private function recentReservationContext(AiConversation $conversation, string $message, string $language, string $detectedIntent): ?string
+    {
+        if (in_array($detectedIntent, [AiConversation::INTENT_RESERVATION, AiConversation::INTENT_HUMAN_REVIEW], true)) {
+            return null;
+        }
+
+        $draft = data_get($conversation->metadata, 'reservation_draft', []);
+        if (is_array($draft) && $draft !== []) {
+            return null;
+        }
+
+        $recentMessages = $conversation->messages()
+            ->where('sender_type', AiMessage::SENDER_USER)
+            ->latest('id')
+            ->limit(4)
+            ->pluck('content')
+            ->reverse()
+            ->map(fn ($content): string => trim((string) $content))
+            ->filter()
+            ->values();
+
+        $currentMessage = trim($message);
+        if ($currentMessage !== '' && ! $recentMessages->contains($currentMessage)) {
+            $recentMessages->push($currentMessage);
+        }
+
+        if ($recentMessages->count() < 2) {
+            return null;
+        }
+
+        $context = trim($recentMessages->implode(' '));
+        if ($context === '' || $context === $currentMessage) {
+            return null;
+        }
+
+        $contextIntent = $this->intentDetector->detect($context, $language);
+
+        return $contextIntent->intent === AiConversation::INTENT_RESERVATION ? $context : null;
     }
 }

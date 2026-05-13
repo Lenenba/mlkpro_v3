@@ -10,7 +10,7 @@ class AiIntentDetector
 {
     public function detect(string $message, ?string $fallbackLanguage = null): AiDetectedIntent
     {
-        $normalized = Str::lower($message);
+        $normalized = $this->normalize($message);
         $language = $this->detectLanguage($normalized, $fallbackLanguage);
 
         if ($this->containsAny($normalized, [
@@ -25,20 +25,7 @@ class AiIntentDetector
             return new AiDetectedIntent(AiConversation::INTENT_RESCHEDULE, 0.82, $language);
         }
 
-        if ($this->containsAny($normalized, [
-            'book',
-            'booking',
-            'appointment',
-            'reserve',
-            'reservation',
-            'rendez-vous',
-            'rdv',
-            'creneau',
-            'disponible',
-            'availability',
-            'available',
-            'slot',
-        ])) {
+        if ($this->isLikelyReservationRequest($normalized)) {
             return new AiDetectedIntent(AiConversation::INTENT_RESERVATION, 0.86, $language);
         }
 
@@ -63,12 +50,17 @@ class AiIntentDetector
             'bonjour',
             'salut',
             'reservation',
-            'rendez-vous',
+            'reserver',
+            'rendez vous',
             'rdv',
             'demain',
             'merci',
             'disponible',
             'creneau',
+            'je veux',
+            'je veu',
+            'j veux',
+            'mappel',
         ])) {
             return 'fr';
         }
@@ -87,6 +79,77 @@ class AiIntentDetector
         }
 
         return $fallbackLanguage ?: 'fr';
+    }
+
+    private function normalize(string $message): string
+    {
+        $normalized = Str::ascii(Str::lower($message));
+        $normalized = str_replace(["'", '’', '-'], ' ', $normalized);
+        $normalized = preg_replace('/[^\pL\pN]+/u', ' ', $normalized) ?? $normalized;
+
+        return trim(preg_replace('/\s+/', ' ', $normalized) ?? $normalized);
+    }
+
+    private function isLikelyReservationRequest(string $message): bool
+    {
+        if ($this->containsAny($message, [
+            'book',
+            'booking',
+            'appointment',
+            'reserve',
+            'reserver',
+            'reservation',
+            'rendez vous',
+            'rendezvous',
+            'rdv',
+            'creneau',
+            'disponible',
+            'availability',
+            'available',
+            'slot',
+            'prendre rendez',
+            'faire une reservation',
+            'faire un rdv',
+        ])) {
+            return true;
+        }
+
+        if (preg_match('/\b(?:veux|veu|veut|souhaite|besoin|faire|prendre)\b.{0,40}\b(?:rdv|rendez|creneau|dispo)\b/u', $message) === 1) {
+            return true;
+        }
+
+        return $this->containsFuzzyToken($message, [
+            'reservation' => 3,
+            'reserver' => 2,
+            'booking' => 2,
+            'appointment' => 3,
+        ]);
+    }
+
+    /**
+     * @param  array<string, int>  $targets
+     */
+    private function containsFuzzyToken(string $message, array $targets): bool
+    {
+        $tokens = preg_split('/\s+/', $message) ?: [];
+        foreach ($tokens as $token) {
+            $token = trim($token);
+            if (Str::length($token) < 6) {
+                continue;
+            }
+
+            foreach ($targets as $target => $maxDistance) {
+                if (abs(Str::length($token) - Str::length($target)) > $maxDistance) {
+                    continue;
+                }
+
+                if (levenshtein($token, $target) <= $maxDistance) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**

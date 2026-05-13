@@ -92,6 +92,7 @@ class AiReservationOrchestrator
     {
         $draft = (array) data_get($conversation->metadata, 'reservation_draft', []);
         $text = trim($message);
+        $expectedField = $this->firstMissingField($draft);
 
         if ($email = $this->extractEmail($text)) {
             $draft['contact_email'] = $email;
@@ -102,6 +103,8 @@ class AiReservationOrchestrator
         }
 
         if ($name = $this->extractName($text)) {
+            $draft['contact_name'] = $name;
+        } elseif (! isset($draft['contact_name']) && $expectedField === 'contact_name' && ($name = $this->plainTextName($text))) {
             $draft['contact_name'] = $name;
         }
 
@@ -124,7 +127,7 @@ class AiReservationOrchestrator
             $draft['service_name'] = (string) $service->name;
         }
 
-        if (! isset($draft['notes']) && Str::length($text) > 10) {
+        if (! isset($draft['notes']) && $expectedField === null && Str::length($text) > 10) {
             $draft['notes'] = $text;
         }
 
@@ -365,10 +368,11 @@ class AiReservationOrchestrator
 
     private function extractName(string $message): ?string
     {
+        $stopBeforeIntent = '(?=(?:\s+(?:et\b|and\b|je\s+ve(?:u|ux|ut)\b|j\s*veux\b|i\s+want\b|pour\b|for\b|reservation\b|réservation\b|rdv\b|rendez\b)|[,.;]|$))';
         $patterns = [
-            '/(?:mon nom est|je m appelle|je suis)\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s\'-]{2,80})/iu',
-            '/(?:my name is|i am|i\'m)\s+([A-Za-z][A-Za-z\s\'-]{2,80})/iu',
-            '/(?:nom|name)\s*:\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s\'-]{2,80})/iu',
+            '/(?:mon\s+nom\s+est|je\s+m[\'’\s]?appell?e?|je\s+m[\'’\s]?apell?e?|j[\'’\s]?m[\'’\s]?appell?e?|moi\s+c[\'’\s]?est|je\s+suis)\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s\'’-]{1,80}?)'.$stopBeforeIntent.'/iu',
+            '/(?:my\s+name\s+is|i\s+am|i\'m)\s+([A-Za-z][A-Za-z\s\'-]{1,80}?)(?=(?:\s+(?:and\b|i\s+want\b|for\b|booking\b|appointment\b)|[,.;]|$))/iu',
+            '/(?:nom|name)\s*:\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s\'-]{1,80})/iu',
         ];
 
         foreach ($patterns as $pattern) {
@@ -378,6 +382,28 @@ class AiReservationOrchestrator
         }
 
         return null;
+    }
+
+    private function plainTextName(string $message): ?string
+    {
+        $text = trim($message);
+        if ($text === '' || Str::length($text) > 80) {
+            return null;
+        }
+
+        if (preg_match('/[\d@]|https?:\/\//iu', $text) === 1) {
+            return null;
+        }
+
+        if (Str::contains(Str::ascii(Str::lower($text)), ['reservation', 'reserver', 'rendez', 'rdv', 'creneau', 'demain', 'today', 'tomorrow'])) {
+            return null;
+        }
+
+        if (preg_match('/^[\pL][\pL\s\'-]{1,79}$/u', $text) !== 1) {
+            return null;
+        }
+
+        return $text;
     }
 
     private function extractDate(string $message, User $tenant): ?string
