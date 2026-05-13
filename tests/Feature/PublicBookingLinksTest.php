@@ -10,12 +10,14 @@ use App\Models\Role;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\WeeklyAvailability;
+use App\Modules\AiAssistant\Models\AiAssistantSetting;
 use App\Notifications\ActionEmailNotification;
 use App\Notifications\ReservationDatabaseNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
+use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
 
@@ -118,6 +120,31 @@ function publicBookingLinkFor(User $owner, Product $service): PublicBookingLink
 
     return $link;
 }
+
+it('exposes the ai assistant widget on public booking links when enabled', function () {
+    $owner = publicBookingOwner();
+    $service = publicBookingService($owner);
+    $link = publicBookingLinkFor($owner, $service);
+
+    AiAssistantSetting::factory()->create([
+        'tenant_id' => $owner->id,
+        'enabled' => true,
+        'assistant_name' => 'Reception Booking',
+    ]);
+
+    $this->get(route('public.booking.show', [
+        'company' => $owner->company_slug,
+        'slug' => $link->slug,
+    ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Public/PublicBooking')
+            ->where('ai_assistant.enabled', true)
+            ->where('ai_assistant.name', 'Reception Booking')
+            ->where('ai_assistant.company_slug', $owner->company_slug)
+            ->where('ai_assistant.endpoints.create', route('public.ai-assistant.conversations.store'))
+        );
+});
 
 it('creates a prospect and reservation from a public booking link without creating a customer', function () {
     $owner = publicBookingOwner();

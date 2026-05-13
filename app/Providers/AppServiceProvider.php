@@ -10,6 +10,10 @@ use App\Models\Billing\PaddleSubscriptionItem;
 use App\Models\Billing\PaddleTransaction as PaddleTransactionModel;
 use App\Models\Payment;
 use App\Models\User;
+use App\Modules\AiAssistant\Models\AiAssistantSetting;
+use App\Modules\AiAssistant\Models\AiConversation;
+use App\Modules\AiAssistant\Policies\AiAssistantSettingPolicy;
+use App\Modules\AiAssistant\Policies\AiConversationPolicy;
 use App\Observers\PaymentObserver;
 use App\Services\Campaigns\MarketingSettingsService;
 use App\Services\Campaigns\TemplateSeederService;
@@ -26,6 +30,7 @@ use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
@@ -54,6 +59,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Gate::policy(AiAssistantSetting::class, AiAssistantSettingPolicy::class);
+        Gate::policy(AiConversation::class, AiConversationPolicy::class);
+
         Payment::observe(PaymentObserver::class);
 
         ResetPassword::toMailUsing(function ($notifiable, string $token): MailMessage {
@@ -125,6 +133,15 @@ class AppServiceProvider extends ServiceProvider
             $email = strtolower(trim((string) $request->input('email')));
             $fingerprint = $email !== '' ? sha1($email) : $request->ip();
             $key = 'public-booking:'.$company.':'.$slug.':'.$fingerprint;
+
+            return Limit::perMinute(max(1, $limit))->by($key);
+        });
+
+        RateLimiter::for('public-ai-assistant', function (Request $request) {
+            $limit = (int) config('services.rate_limits.public_ai_assistant_per_minute', 30);
+            $company = (string) ($request->route('company') ?? $request->input('company') ?? 'unknown');
+            $conversation = (string) ($request->route('conversation') ?? 'new');
+            $key = 'public-ai-assistant:'.$company.':'.$conversation.':'.$request->ip();
 
             return Limit::perMinute(max(1, $limit))->by($key);
         });

@@ -128,6 +128,11 @@ use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\WelcomeController;
 use App\Http\Controllers\WorkChecklistController;
 use App\Http\Controllers\WorkController;
+use App\Modules\AiAssistant\Http\Controllers\AiActionController;
+use App\Modules\AiAssistant\Http\Controllers\AiAssistantSettingsController;
+use App\Modules\AiAssistant\Http\Controllers\AiConversationController;
+use App\Modules\AiAssistant\Http\Controllers\AiKnowledgeItemController;
+use App\Modules\AiAssistant\Http\Controllers\AiPublicChatController;
 use App\Http\Controllers\WorkMediaController;
 use App\Http\Controllers\WorkProofController;
 use App\Http\Controllers\WorkspaceCategoryController;
@@ -183,6 +188,17 @@ Route::prefix('/store/{slug}')->group(function () {
     Route::delete('/cart', [PublicStoreController::class, 'clearCart'])->name('public.store.cart.clear');
     Route::post('/checkout', [PublicStoreController::class, 'checkout'])->name('public.store.checkout');
 });
+
+Route::get('/public/ai-assistant/{company}', [AiPublicChatController::class, 'page'])
+    ->middleware('throttle:public-ai-assistant')
+    ->name('public.ai-assistant.page');
+Route::prefix('/public/ai-assistant')
+    ->name('public.ai-assistant.')
+    ->middleware('throttle:public-ai-assistant')
+    ->group(function () {
+        Route::post('/conversations', [AiPublicChatController::class, 'store'])->name('conversations.store');
+        Route::post('/conversations/{conversation}/messages', [AiPublicChatController::class, 'message'])->name('conversations.messages.store');
+    });
 
 Route::middleware('guest')->group(function () {
     Route::get('/demo', [DemoController::class, 'index'])->name('demo.index');
@@ -288,6 +304,22 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
     Route::post('/assistant/message', [AssistantController::class, 'message'])
         ->middleware('company.feature:assistant')
         ->name('assistant.message');
+    Route::prefix('/admin/ai-assistant')
+        ->name('admin.ai-assistant.')
+        ->middleware('company.feature:assistant')
+        ->group(function () {
+            Route::get('/settings', [AiAssistantSettingsController::class, 'edit'])->name('settings.edit');
+            Route::put('/settings', [AiAssistantSettingsController::class, 'update'])->name('settings.update');
+            Route::get('/conversations', [AiConversationController::class, 'index'])->name('conversations.index');
+            Route::get('/conversations/{conversation}', [AiConversationController::class, 'show'])->name('conversations.show');
+            Route::post('/conversations/{conversation}/reply', [AiConversationController::class, 'reply'])->name('conversations.reply');
+            Route::post('/actions/{action}/approve', [AiActionController::class, 'approve'])->name('actions.approve');
+            Route::post('/actions/{action}/reject', [AiActionController::class, 'reject'])->name('actions.reject');
+            Route::get('/knowledge', [AiKnowledgeItemController::class, 'index'])->name('knowledge.index');
+            Route::post('/knowledge', [AiKnowledgeItemController::class, 'store'])->name('knowledge.store');
+            Route::put('/knowledge/{item}', [AiKnowledgeItemController::class, 'update'])->name('knowledge.update');
+            Route::delete('/knowledge/{item}', [AiKnowledgeItemController::class, 'destroy'])->name('knowledge.destroy');
+        });
     Route::post('/ai/images', [AiImageController::class, 'generate'])
         ->middleware('throttle:ai-images')
         ->name('ai.images.generate');

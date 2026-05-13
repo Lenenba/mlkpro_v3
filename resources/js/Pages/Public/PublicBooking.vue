@@ -18,6 +18,7 @@ import {
     UserRound,
 } from 'lucide-vue-next';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
+import PublicChatWidget from '@/Components/AiAssistant/PublicChatWidget.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
@@ -42,6 +43,13 @@ const props = defineProps({
     endpoints: {
         type: Object,
         required: true,
+    },
+    ai_assistant: {
+        type: Object,
+        default: () => ({
+            enabled: false,
+            endpoints: {},
+        }),
     },
 });
 
@@ -142,6 +150,28 @@ const confirmationTimeLabel = computed(() => {
 
     return startsAt ? formatDateTimeFromIso(startsAt).time : (selectedSlot.value?.time || '-');
 });
+const aiAssistant = computed(() => props.ai_assistant || {});
+const aiAssistantEnabled = computed(() => Boolean(
+    aiAssistant.value.enabled
+    && aiAssistant.value.company_slug
+    && aiAssistant.value.endpoints?.create
+    && aiAssistant.value.endpoints?.message
+));
+const aiVisitorName = computed(() => [form.first_name, form.last_name]
+    .map((part) => String(part || '').trim())
+    .filter(Boolean)
+    .join(' '));
+const aiReservationContext = computed(() => ({
+    source: 'public_booking_link',
+    booking_link_id: props.link.id,
+    booking_link_slug: props.link.slug,
+    booking_link_name: props.link.name,
+    selected_service_id: selectedService.value?.id || null,
+    selected_service_name: selectedService.value?.name || null,
+    selected_date: selectedDate.value || null,
+    selected_time: selectedSlot.value?.starts_at || selectedTime.value || null,
+    selected_team_member_id: selectedTeamMemberId.value,
+}));
 
 const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 const today = dayjs().format('YYYY-MM-DD');
@@ -1048,6 +1078,21 @@ watch(
                     </aside>
                 </div>
             </div>
+
+            <PublicChatWidget
+                v-if="aiAssistantEnabled"
+                :company-name="company.name"
+                :company-slug="aiAssistant.company_slug"
+                :company-logo-url="company.logo_url || ''"
+                :assistant-name="aiAssistant.name || 'Malikia AI Assistant'"
+                :endpoints="aiAssistant.endpoints"
+                :initial-metadata="aiReservationContext"
+                :visitor-name="aiVisitorName"
+                :visitor-email="form.email"
+                :visitor-phone="form.phone"
+                channel="public_reservation"
+                mode="floating"
+            />
         </div>
     </GuestLayout>
 </template>
