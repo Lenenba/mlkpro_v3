@@ -440,6 +440,7 @@
         "title": "Panel del cliente",
         "tabs": {
           "profile": "Perfil",
+          "packages": "Forfaits",
           "marketing": "Marketing",
           "automation": "Automatización",
           "finance": "Finanzas"

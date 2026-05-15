@@ -73,6 +73,10 @@ const canReservations = computed(() =>
     || teamPermissions.value.includes('reservations.queue')
     || teamPermissions.value.includes('reservations.manage')
 );
+const canAiAssistant = computed(() =>
+    isOwner.value
+    || teamPermissions.value.includes('reservations.manage')
+);
 const hasServiceOps = computed(() =>
     showServices.value && (hasFeature('jobs') || hasFeature('tasks'))
 );
@@ -836,6 +840,29 @@ const isCustomerActive = computed(() => {
                                             <path d="M9 2v2H8a2 2 0 0 0-2 2v1.5" />
                                             <circle cx="16" cy="16" r="5" />
                                             <path d="M16 14v2l1 1" />
+                                        </svg>
+                                    </template>
+                                </LinkAncor>
+                                <!-- End Item -->
+                                <!-- Item -->
+                                <LinkAncor
+                                    v-if="showServices && hasFeature('assistant') && canAiAssistant && !isClient && !isSeller"
+                                    :label="$t('nav.ai_assistant')"
+                                    :href="'admin.ai-assistant.conversations.index'"
+                                    tone="planning"
+                                    :active="route().current('admin.ai-assistant.*') || page.url.startsWith('/admin/ai-assistant')"
+                                >
+                                    <template #icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-bot-message-square">
+                                            <path d="M12 6V2H8" />
+                                            <path d="m8 18-4 4V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2Z" />
+                                            <path d="M2 12h2" />
+                                            <path d="M9 11v2" />
+                                            <path d="M15 11v2" />
+                                            <path d="M20 12h2" />
                                         </svg>
                                     </template>
                                 </LinkAncor>

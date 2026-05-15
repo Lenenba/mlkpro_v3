@@ -440,6 +440,7 @@
         "title": "Customer panel",
         "tabs": {
           "profile": "Profile",
+          "packages": "Forfaits",
           "marketing": "Marketing",
           "automation": "Automation",
           "finance": "Finance"

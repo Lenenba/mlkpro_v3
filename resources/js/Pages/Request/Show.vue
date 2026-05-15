@@ -8,6 +8,7 @@ import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
 import Modal from '@/Components/UI/Modal.vue';
+import CardTileTabs from '@/Components/UI/CardTileTabs.vue';
 import SalesActivityPanel from '@/Components/CRM/SalesActivityPanel.vue';
 import ProspectInteractionTimeline from '@/Components/Prospects/ProspectInteractionTimeline.vue';
 import ProspectCustomerConversionModal from '@/Pages/Request/UI/ProspectCustomerConversionModal.vue';
@@ -157,14 +158,14 @@ const lostReasonMap = computed(() => new Map(
     (props.lostReasonOptions || []).map((reason) => [String(reason.id), reason.label_key])
 ));
 const leftColumnTabOptions = computed(() => ([
-    { id: 'overview', label: t('requests.show.tabs.left.overview') },
-    { id: 'collaboration', label: t('requests.show.tabs.left.collaboration') },
-    { id: 'sales', label: t('requests.show.tabs.left.sales') },
+    { id: 'overview', label: t('requests.show.tabs.left.overview'), initials: 'AP', tone: 'emerald' },
+    { id: 'collaboration', label: t('requests.show.tabs.left.collaboration'), initials: 'CO', tone: 'violet' },
+    { id: 'sales', label: t('requests.show.tabs.left.sales'), initials: 'VE', tone: 'sky' },
 ]));
 const rightColumnTabOptions = computed(() => ([
-    { id: 'summary', label: t('requests.show.tabs.right.summary') },
-    { id: 'qualification', label: t('requests.show.tabs.right.qualification') },
-    { id: 'history', label: t('requests.show.tabs.right.history') },
+    { id: 'summary', label: t('requests.show.tabs.right.summary'), initials: 'SU', tone: 'emerald' },
+    { id: 'qualification', label: t('requests.show.tabs.right.qualification'), initials: 'QL', tone: 'amber' },
+    { id: 'history', label: t('requests.show.tabs.right.history'), initials: 'HS', tone: 'cyan' },
 ]));
 
 const hasMedia = computed(() => Array.isArray(props.lead?.media) && props.lead.media.length > 0);
@@ -192,12 +193,6 @@ const closeOverlay = (selector) => {
     }
     window.HSOverlay.close(selector);
 };
-
-const detailTabClass = (isActive) => (
-    isActive
-        ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm dark:border-emerald-400 dark:bg-emerald-500/10 dark:text-emerald-300'
-        : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800'
-);
 
 const addressLabel = computed(() => {
     if (isAnonymized.value) {
@@ -1019,20 +1014,13 @@ const openCustomerConversion = () => {
 
             <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr),320px]">
                 <div class="space-y-4">
-                    <section class="rounded-sm border border-stone-200 bg-white p-2 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <div class="flex flex-wrap gap-2">
-                            <button
-                                v-for="option in leftColumnTabOptions"
-                                :key="`prospect-left-tab-${option.id}`"
-                                type="button"
-                                class="inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold transition"
-                                :class="detailTabClass(leftColumnTab === option.id)"
-                                :aria-pressed="leftColumnTab === option.id"
-                                @click="leftColumnTab = option.id"
-                            >
-                                {{ option.label }}
-                            </button>
-                        </div>
+                    <section class="overflow-hidden rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <CardTileTabs
+                            v-model="leftColumnTab"
+                            :tabs="leftColumnTabOptions"
+                            :aria-label="$t('requests.show.details')"
+                            grid-class="grid-cols-1 sm:grid-cols-3"
+                        />
                     </section>
 
                     <template v-if="leftColumnTab === 'overview'">
@@ -1417,20 +1405,13 @@ const openCustomerConversion = () => {
                 </div>
 
                 <div class="space-y-4">
-                    <section class="rounded-sm border border-stone-200 bg-white p-2 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <div class="flex flex-wrap gap-2">
-                            <button
-                                v-for="option in rightColumnTabOptions"
-                                :key="`prospect-right-tab-${option.id}`"
-                                type="button"
-                                class="inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold transition"
-                                :class="detailTabClass(rightColumnTab === option.id)"
-                                :aria-pressed="rightColumnTab === option.id"
-                                @click="rightColumnTab = option.id"
-                            >
-                                {{ option.label }}
-                            </button>
-                        </div>
+                    <section class="overflow-hidden rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <CardTileTabs
+                            v-model="rightColumnTab"
+                            :tabs="rightColumnTabOptions"
+                            :aria-label="$t('requests.show.summary')"
+                            grid-class="grid-cols-1 sm:grid-cols-3 xl:grid-cols-1"
+                        />
                     </section>
 
                     <template v-if="rightColumnTab === 'summary'">

@@ -26,6 +26,10 @@
         "label": "Reservations",
         "description": "Regles de reservation et disponibilites"
       },
+      "assistant": {
+        "label": "Assistant IA",
+        "description": "Reglages IA et validation"
+      },
       "billing": {
         "label": "Facturation",
         "description": "Plan, paiements et historique"

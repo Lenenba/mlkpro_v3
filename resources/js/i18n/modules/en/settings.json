@@ -26,6 +26,10 @@
         "label": "Reservations",
         "description": "Booking rules and availability"
       },
+      "assistant": {
+        "label": "AI assistant",
+        "description": "AI settings and validation"
+      },
       "billing": {
         "label": "Billing",
         "description": "Plan and payments"

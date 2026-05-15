@@ -42,8 +42,15 @@ const tabOrder = computed(() => {
     return tabs;
 });
 
-const isDefault = (key) => tabOrder.value[0] === key;
+const activeOverviewTab = ref('');
+const isActive = (key) => activeOverviewTab.value === key;
 const hasTabs = computed(() => tabOrder.value.length > 0);
+
+watch(tabOrder, (tabs) => {
+    if (!tabs.includes(activeOverviewTab.value)) {
+        activeOverviewTab.value = tabs[0] || '';
+    }
+}, { immediate: true });
 
 const activeWorkStatuses = ['to_schedule', 'scheduled', 'en_route', 'in_progress', 'dispute'];
 
@@ -194,7 +201,7 @@ const defaultPropertyId = computed(() => {
         <!-- Audience -->
         <div class="flex flex-col bg-white rounded-sm overflow-hidden dark:bg-neutral-900 dark:border-neutral-700">
             <!-- Tab Nav -->
-            <CardNavLink v-if="hasTabs" :counts="tabCounts" />
+            <CardNavLink v-if="hasTabs" v-model="activeOverviewTab" :counts="tabCounts" />
             <!-- End Tab Nav -->
 
             <!-- Tab Content -->
@@ -206,7 +213,7 @@ const defaultPropertyId = computed(() => {
                 <template v-else>
                     <!-- Tab Content Item -->
                     <div v-if="canJobs" id="bar-with-underline-1" role="tabpanel" aria-labelledby="bar-with-underline-item-1"
-                        :class="{ hidden: !isDefault('active_works') }">
+                        :class="{ hidden: !isActive('active_works') }">
                         <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
                                 {{ t('customers.tabs.active_works') }}
@@ -236,7 +243,7 @@ const defaultPropertyId = computed(() => {
 
                     <!-- Tab Content Item -->
                     <div v-if="canRequests" id="bar-with-underline-2" role="tabpanel"
-                        aria-labelledby="bar-with-underline-item-2" :class="{ hidden: !isDefault('requests') }">
+                        aria-labelledby="bar-with-underline-item-2" :class="{ hidden: !isActive('requests') }">
                         <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
                                 {{ t('customers.tabs.requests.label') }}
@@ -270,7 +277,7 @@ const defaultPropertyId = computed(() => {
 
                     <!-- Tab Content Item -->
                     <div v-if="canQuotes" id="bar-with-underline-3" role="tabpanel"
-                        aria-labelledby="bar-with-underline-item-3" :class="{ hidden: !isDefault('quotes') }">
+                        aria-labelledby="bar-with-underline-item-3" :class="{ hidden: !isActive('quotes') }">
                         <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
                                 {{ t('customers.tabs.quotes') }}
@@ -299,7 +306,7 @@ const defaultPropertyId = computed(() => {
 
                     <!-- Tab Content Item -->
                     <div v-if="canJobs" id="bar-with-underline-4" role="tabpanel"
-                        aria-labelledby="bar-with-underline-item-4" :class="{ hidden: !isDefault('jobs') }">
+                        aria-labelledby="bar-with-underline-item-4" :class="{ hidden: !isActive('jobs') }">
                         <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
                                 {{ t('customers.tabs.jobs') }}
@@ -328,7 +335,7 @@ const defaultPropertyId = computed(() => {
 
                     <!-- Tab Content Item -->
                     <div v-if="canInvoices" id="bar-with-underline-5" role="tabpanel"
-                        aria-labelledby="bar-with-underline-item-5" :class="{ hidden: !isDefault('invoices') }">
+                        aria-labelledby="bar-with-underline-item-5" :class="{ hidden: !isActive('invoices') }">
                         <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
                                 {{ t('customers.tabs.invoices') }}
