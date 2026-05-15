@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Reservation;
 use App\Http\Controllers\Controller;
 use App\Models\PublicBookingLink;
 use App\Models\User;
+use App\Modules\AiAssistant\Models\AiAssistantSetting;
+use App\Services\CompanyPublicSlugService;
 use App\Services\ReservationAvailabilityService;
 use App\Services\Reservations\PublicBookingService;
 use Illuminate\Http\Request;
@@ -17,7 +19,8 @@ class PublicBookingController extends Controller
 {
     public function __construct(
         private readonly PublicBookingService $publicBookingService,
-        private readonly ReservationAvailabilityService $availabilityService
+        private readonly ReservationAvailabilityService $availabilityService,
+        private readonly CompanyPublicSlugService $companySlugs
     ) {}
 
     public function show(Request $request, string $company, string $slug)
@@ -25,15 +28,29 @@ class PublicBookingController extends Controller
         $account = $this->resolveAccount($company);
         $link = $this->resolveLink($account, $slug);
         $this->publicBookingService->assertAvailable($account, $link);
+        $canonicalCompany = $this->companySlugs->ensureFor($account);
+        if ($company !== $canonicalCompany) {
+            return redirect()->route('public.booking.show', [
+                'company' => $canonicalCompany,
+                'slug' => $slug,
+            ]);
+        }
+
         $link->load(['services' => fn ($query) => $query
             ->where('products.is_active', true)
             ->orderBy('products.name')]);
+        $assistantSetting = AiAssistantSetting::query()
+            ->forTenant((int) $account->id)
+            ->first();
+        $assistantCompany = (string) ($account->company_slug ?: '');
+        $assistantEnabled = (bool) ($assistantSetting?->enabled) && $assistantCompany !== '';
 
         return Inertia::render('Public/PublicBooking', [
             'company' => [
                 'id' => (int) $account->id,
                 'name' => $account->company_name ?: $account->name,
-                'logo_url' => $account->company_logo_url,
+                'slug' => $account->company_slug,
+                'logo_url' => $account->company_logo ? $account->company_logo_url : null,
                 'phone' => $account->phone_number,
             ],
             'link' => [
@@ -68,6 +85,18 @@ class PublicBookingController extends Controller
             'endpoints' => [
                 'slots' => route('public.booking.slots', ['company' => $company, 'slug' => $slug]),
                 'store' => route('public.booking.store', ['company' => $company, 'slug' => $slug]),
+            ],
+            'ai_assistant' => [
+                'enabled' => $assistantEnabled,
+                'name' => (string) ($assistantSetting?->assistant_name ?: 'Malikia AI Assistant'),
+                'company_slug' => $assistantCompany,
+                'page_url' => $assistantEnabled
+                    ? route('public.ai-assistant.page', ['company' => $assistantCompany])
+                    : null,
+                'endpoints' => [
+                    'create' => route('public.ai-assistant.conversations.store'),
+                    'message' => route('public.ai-assistant.conversations.messages.store', ['conversation' => '__conversation__']),
+                ],
             ],
         ]);
     }

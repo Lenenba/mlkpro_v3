@@ -44,6 +44,10 @@ const canManageReservations = computed(() =>
     isOwner.value
     || teamPermissions.value.includes('reservations.manage')
 );
+const canManageAiAssistant = computed(() =>
+    isOwner.value
+    || teamPermissions.value.includes('reservations.manage')
+);
 
 const navTabs = computed(() => {
     locale.value;
@@ -93,6 +97,14 @@ const navTabs = computed(() => {
                     route: 'settings.reservations.edit',
                     icon: 'calendar',
                     hidden: !hasFeature('reservations') || !canManageReservations.value,
+                },
+                {
+                    id: 'assistant',
+                    label: t('settings.items.assistant.label'),
+                    description: t('settings.items.assistant.description'),
+                    route: 'admin.ai-assistant.settings.edit',
+                    icon: 'bot',
+                    hidden: !hasFeature('assistant') || !canManageAiAssistant.value,
                 },
                 {
                     id: 'billing',
