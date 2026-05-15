@@ -62,7 +62,7 @@
             "@php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
             "@php artisan migrate --graceful --ansi"
         ],
-        "dev": "npx concurrently -c \"#93c5fd,#c4b5fd,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"npm run dev\" --names='server,queue,vite'",
+        "dev": "npx concurrently -c \"#93c5fd,#c4b5fd,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --queue=default,demo-provisioning,notifications,leads,works,campaigns-dispatch,campaigns-send,campaigns-maintenance,social-automation --tries=1\" \"npm run dev\" --names='server,queue,vite'",
         "test:safe": "powershell -ExecutionPolicy Bypass -File scripts/run-tests-safe.ps1",
         "qa:test": "@php -d memory_limit=512M vendor/bin/pest",
         "qa:test:mysql": "powershell -ExecutionPolicy Bypass -File scripts/run-tests-mysql.ps1",

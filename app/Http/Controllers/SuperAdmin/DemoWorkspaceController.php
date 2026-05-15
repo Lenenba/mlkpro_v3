@@ -179,6 +179,33 @@ class DemoWorkspaceController extends BaseSuperAdminController
         ]);
     }
 
+    public function provisioning(Request $request, DemoWorkspace $demoWorkspace): Response
+    {
+        $this->authorizePermission($request, PlatformPermissions::DEMOS_MANAGE);
+
+        $demoWorkspace->load([
+            'owner:id,name,email,company_name,trial_ends_at',
+            'creator:id,name',
+            'sentBy:id,name',
+            'lastResetBy:id,name',
+            'template:id,name',
+            'clonedFrom:id,company_name',
+        ]);
+
+        $timeline = $this->timelineByWorkspace(collect([$demoWorkspace->id]));
+
+        return Inertia::render('SuperAdmin/DemoWorkspaces/Provisioning', [
+            'workspace' => $this->workspacePayload($demoWorkspace, $timeline[$demoWorkspace->id] ?? []),
+            'filters' => [
+                'status' => (string) $request->string('status', 'all'),
+                'sales_status' => (string) $request->string('sales_status', 'all'),
+                'page' => $request->integer('page') > 1 ? $request->integer('page') : null,
+                'per_page' => $this->resolveDataTablePerPage($request),
+            ],
+            'poll_interval_ms' => 1500,
+        ]);
+    }
+
     public function store(
         Request $request,
         DemoWorkspaceProvisioner $provisioner,
@@ -191,10 +218,6 @@ class DemoWorkspaceController extends BaseSuperAdminController
         $workspace = $saveAsDraft
             ? $provisioner->saveDraft($payload, $request->user())
             : $provisioner->queueCreate($payload, $request->user());
-
-        if ($saveAsDraft === false) {
-            $this->dispatchProvisioningJob($workspace, (int) $request->user()->id);
-        }
 
         $timeline->record($workspace, $saveAsDraft ? 'demo_workspace.draft_saved' : 'demo_workspace.queued', $request->user(), [
             'template_id' => $workspace->demo_workspace_template_id,
@@ -210,6 +233,10 @@ class DemoWorkspaceController extends BaseSuperAdminController
                 'prefill_source' => $workspace->prefill_source,
                 'prefill_payload_keys' => array_keys($workspace->prefill_payload ?? []),
             ]);
+        }
+
+        if ($saveAsDraft === false) {
+            $this->dispatchProvisioningJob($workspace, (int) $request->user()->id);
         }
 
         $this->logAudit($request, $saveAsDraft ? 'demo_workspace.draft_saved' : 'demo_workspace.created', $workspace, [
@@ -228,7 +255,7 @@ class DemoWorkspaceController extends BaseSuperAdminController
         }
 
         return redirect()
-            ->route('superadmin.demo-workspaces.index')
+            ->route('superadmin.demo-workspaces.provisioning', ['demoWorkspace' => $workspace])
             ->with('success', 'Demo workspace queued for provisioning.');
     }
 
@@ -246,35 +273,48 @@ class DemoWorkspaceController extends BaseSuperAdminController
             ]);
         }
 
-        if ((string) ($demoWorkspace->provisioning_status ?? '') !== DemoWorkspaceProvisioner::STATUS_DRAFT) {
+        $currentProvisioningStatus = (string) ($demoWorkspace->provisioning_status ?? '');
+
+        if (! in_array($currentProvisioningStatus, [
+            DemoWorkspaceProvisioner::STATUS_DRAFT,
+            DemoWorkspaceProvisioner::STATUS_QUEUED,
+        ], true)) {
             throw ValidationException::withMessages([
-                'workspace' => ['Only draft demos can be queued from this action.'],
+                'workspace' => ['Only draft or queued demos can be dispatched from this action.'],
             ]);
         }
 
-        $queuedWorkspace = $provisioner->queueDraft($demoWorkspace, $request->user());
-        $this->dispatchProvisioningJob($queuedWorkspace, (int) $request->user()->id);
+        $queuedWorkspace = $currentProvisioningStatus === DemoWorkspaceProvisioner::STATUS_DRAFT
+            ? $provisioner->queueDraft($demoWorkspace, $request->user())
+            : $demoWorkspace->fresh(['owner', 'creator', 'template', 'sentBy', 'clonedFrom', 'lastResetBy']);
 
         $timeline->record($queuedWorkspace, 'demo_workspace.queued', $request->user(), [
-            'from_status' => DemoWorkspaceProvisioner::STATUS_DRAFT,
+            'from_status' => $currentProvisioningStatus,
             'template_id' => $queuedWorkspace->demo_workspace_template_id,
             'modules' => $queuedWorkspace->selected_modules,
             'scenario_packs' => $queuedWorkspace->scenario_packs,
             'prefill_source' => $queuedWorkspace->prefill_source,
-        ], 'Draft demo queued for provisioning.');
+        ], $currentProvisioningStatus === DemoWorkspaceProvisioner::STATUS_DRAFT
+            ? 'Draft demo queued for provisioning.'
+            : 'Queued demo provisioning dispatched again.');
 
-        $this->logAudit($request, 'demo_workspace.queued_from_draft', $queuedWorkspace, [
-            'company_name' => $queuedWorkspace->company_name,
-            'modules' => $queuedWorkspace->selected_modules,
-            'template_id' => $queuedWorkspace->demo_workspace_template_id,
-            'expires_at' => $queuedWorkspace->expires_at?->toIso8601String(),
-        ]);
+        $this->logAudit($request, $currentProvisioningStatus === DemoWorkspaceProvisioner::STATUS_DRAFT
+            ? 'demo_workspace.queued_from_draft'
+            : 'demo_workspace.queued_dispatched', $queuedWorkspace, [
+                'company_name' => $queuedWorkspace->company_name,
+                'modules' => $queuedWorkspace->selected_modules,
+                'template_id' => $queuedWorkspace->demo_workspace_template_id,
+                'expires_at' => $queuedWorkspace->expires_at?->toIso8601String(),
+                'from_status' => $currentProvisioningStatus,
+            ]);
+
+        $this->dispatchProvisioningJob($queuedWorkspace, (int) $request->user()->id);
 
         return redirect()
-            ->route(
-                ...$this->redirectAfterWorkspaceAction($request, $queuedWorkspace)
-            )
-            ->with('success', 'Draft demo queued for provisioning.');
+            ->route('superadmin.demo-workspaces.provisioning', $this->provisioningRouteParameters($request, $queuedWorkspace))
+            ->with('success', $currentProvisioningStatus === DemoWorkspaceProvisioner::STATUS_DRAFT
+                ? 'Draft demo queued for provisioning.'
+                : 'Queued demo provisioning dispatched again.');
     }
 
     public function updateExpiration(
@@ -543,7 +583,6 @@ class DemoWorkspaceController extends BaseSuperAdminController
         $validated['clone_data_mode'] = (string) ($validated['clone_data_mode'] ?? 'keep_current_profile');
 
         $clone = $provisioner->queueClone($demoWorkspace, $validated, $request->user());
-        $this->dispatchProvisioningJob($clone, (int) $request->user()->id);
         $cloneModeLabel = $this->cloneDataModeLabel((string) $validated['clone_data_mode']);
         $cloneModeDescription = $this->cloneDataModeDescription((string) $validated['clone_data_mode']);
 
@@ -566,10 +605,10 @@ class DemoWorkspaceController extends BaseSuperAdminController
             'target_seed_profile' => $clone->seed_profile,
         ]);
 
+        $this->dispatchProvisioningJob($clone, (int) $request->user()->id);
+
         return redirect()
-            ->route(
-                ...$this->redirectAfterWorkspaceAction($request, $clone)
-            )
+            ->route('superadmin.demo-workspaces.provisioning', $this->provisioningRouteParameters($request, $clone))
             ->with('success', 'Cloned demo queued using '.$cloneModeLabel.'.');
     }
 
@@ -610,7 +649,6 @@ class DemoWorkspaceController extends BaseSuperAdminController
         $this->ensureWorkspaceHasProvisionedTenant($demoWorkspace, 'Draft demos must be queued first before they can be reset from baseline.');
 
         $resetWorkspace = $provisioner->queueResetToBaseline($demoWorkspace, $request->user());
-        $this->dispatchProvisioningJob($resetWorkspace, (int) $request->user()->id, true);
 
         $this->logAudit($request, 'demo_workspace.reset_to_baseline', $resetWorkspace, [
             'queued_for_reset_at' => $resetWorkspace->queued_at?->toIso8601String(),
@@ -619,10 +657,10 @@ class DemoWorkspaceController extends BaseSuperAdminController
             'queued_at' => $resetWorkspace->queued_at?->toIso8601String(),
         ]);
 
+        $this->dispatchProvisioningJob($resetWorkspace, (int) $request->user()->id, true);
+
         return redirect()
-            ->route(
-                ...$this->redirectAfterWorkspaceAction($request, $resetWorkspace)
-            )
+            ->route('superadmin.demo-workspaces.provisioning', $this->provisioningRouteParameters($request, $resetWorkspace))
             ->with('success', 'Baseline reset queued for this demo workspace.');
     }
 
@@ -1534,6 +1572,17 @@ class DemoWorkspaceController extends BaseSuperAdminController
         }
 
         return ['superadmin.demo-workspaces.index', $query];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function provisioningRouteParameters(Request $request, DemoWorkspace $workspace): array
+    {
+        return [
+            'demoWorkspace' => $workspace,
+            ...$this->returnQuery($request),
+        ];
     }
 
     private function dispatchProvisioningJob(DemoWorkspace $workspace, int $actorUserId, bool $isReset = false): void

@@ -1153,6 +1153,7 @@ Route::prefix('super-admin')
 
         Route::get('/demo-workspaces', [SuperAdminDemoWorkspaceController::class, 'index'])->name('demo-workspaces.index');
         Route::get('/demo-workspaces/create', [SuperAdminDemoWorkspaceController::class, 'create'])->name('demo-workspaces.create');
+        Route::get('/demo-workspaces/{demoWorkspace}/provisioning', [SuperAdminDemoWorkspaceController::class, 'provisioning'])->name('demo-workspaces.provisioning');
         Route::get('/demo-workspaces/{demoWorkspace}', [SuperAdminDemoWorkspaceController::class, 'show'])->name('demo-workspaces.show');
         Route::post('/demo-workspaces', [SuperAdminDemoWorkspaceController::class, 'store'])->name('demo-workspaces.store');
         Route::post('/demo-workspaces/{demoWorkspace}/queue', [SuperAdminDemoWorkspaceController::class, 'queueProvisioning'])

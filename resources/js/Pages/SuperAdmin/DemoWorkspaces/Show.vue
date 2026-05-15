@@ -200,8 +200,10 @@ const cloneSeedProfileLabel = computed(() =>
         || 'Current profile',
 );
 const isDraftWorkspace = computed(() => props.workspace.status === 'draft');
+const isQueuedWorkspace = computed(() => props.workspace.status === 'queued');
 const isPurgedWorkspace = computed(() => props.workspace.status === 'purged');
-const canQueueProvisioning = computed(() => isDraftWorkspace.value && !isPurgedWorkspace.value);
+const canQueueProvisioning = computed(() => (isDraftWorkspace.value || isQueuedWorkspace.value) && !isPurgedWorkspace.value);
+const queueProvisioningLabel = computed(() => isQueuedWorkspace.value ? 'Run provisioning now' : 'Queue provisioning');
 const canManageProvisionedWorkspace = computed(() => Boolean(props.workspace.owner_user_id) && !isPurgedWorkspace.value);
 const canSendAccessEmail = computed(() => (
     Boolean(props.workspace.owner_user_id)
@@ -465,7 +467,7 @@ const copyAccessKit = async () => {
                             class="rounded-sm bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
                             @click="queueProvisioning"
                         >
-                            Queue provisioning
+                            {{ queueProvisioningLabel }}
                         </button>
                         <Link
                             v-if="can_view_tenant && workspace.owner_user_id"
@@ -553,14 +555,14 @@ const copyAccessKit = async () => {
                                 </p>
                             </div>
                             <div class="flex flex-wrap gap-2">
-                                <button v-if="!isDraftWorkspace && !isPurgedWorkspace" type="button" class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200" @click="copyAccessKit">
+                                <button v-if="canManageProvisionedWorkspace" type="button" class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200" @click="copyAccessKit">
                                     Copy access kit
                                 </button>
                                 <button v-if="canSendAccessEmail" type="button" class="rounded-sm bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700" @click="sendAccessEmail">
                                     {{ workspace.sent_at ? 'Resend access email' : 'Send access email' }}
                                 </button>
                                 <button v-if="canQueueProvisioning" type="button" class="rounded-sm bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700" @click="queueProvisioning">
-                                    Queue provisioning
+                                    {{ queueProvisioningLabel }}
                                 </button>
                                 <button v-else-if="!workspace.sent_at && canManageProvisionedWorkspace && !canSendAccessEmail" type="button" class="rounded-sm bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700" @click="updateDeliveryStatus(true)">
                                     Mark as sent
