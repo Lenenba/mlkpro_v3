@@ -1028,7 +1028,9 @@ const planningTabs = computed(() => {
         tabs.push({
             id: 'upcoming_jobs',
             label: t('customers.details.schedule.upcoming_jobs'),
-            count: (props.schedule?.upcomingJobs || []).length,
+            initials: 'TR',
+            meta: t('customers.tabs.items', { count: (props.schedule?.upcomingJobs || []).length }),
+            tone: 'emerald',
         });
     }
 
@@ -1036,7 +1038,9 @@ const planningTabs = computed(() => {
         tabs.push({
             id: 'tasks',
             label: t('customers.details.schedule.tasks'),
-            count: (props.schedule?.tasks || []).length,
+            initials: 'TA',
+            meta: t('customers.tabs.items', { count: (props.schedule?.tasks || []).length }),
+            tone: 'sky',
         });
     }
 
@@ -1691,28 +1695,14 @@ const deleteProperty = (property) => {
                     />
 
                     <template v-if="activeActivityWorkspaceTab === 'planning'">
-                        <div v-if="planningTabs.length > 1" class="mb-4 flex gap-2 overflow-x-auto pb-1">
-                            <button
-                                v-for="tab in planningTabs"
-                                :key="tab.id"
-                                type="button"
-                                @click="activePlanningTab = tab.id"
-                                class="inline-flex items-center gap-2 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-green-500"
-                                :class="activePlanningTab === tab.id
-                                    ? 'border-stone-900 bg-stone-900 text-white shadow-sm dark:border-white dark:bg-white dark:text-stone-900'
-                                    : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800'"
-                            >
-                                <span>{{ tab.label }}</span>
-                                <span
-                                    class="inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[11px]"
-                                    :class="activePlanningTab === tab.id
-                                        ? 'bg-white/20 text-white dark:bg-stone-900/10 dark:text-stone-900'
-                                        : 'bg-stone-100 text-stone-600 dark:bg-neutral-800 dark:text-neutral-300'"
-                                >
-                                    {{ tab.count }}
-                                </span>
-                            </button>
-                        </div>
+                        <CardTileTabs
+                            v-if="planningTabs.length > 1"
+                            v-model="activePlanningTab"
+                            :tabs="planningTabs"
+                            :aria-label="$t('customers.details.schedule.title')"
+                            grid-class="grid-cols-1 sm:grid-cols-2"
+                            class="mb-4"
+                        />
 
                         <div
                             v-if="activePlanningTab === 'upcoming_jobs'"

@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import CardTileTabs from '@/Components/UI/CardTileTabs.vue';
 import { humanizeDate } from '@/utils/date';
 import {
     serviceRequestAddressLabel,
@@ -32,15 +33,15 @@ const leftTab = ref('overview');
 const rightTab = ref('relations');
 
 const leftTabs = computed(() => ([
-    { id: 'overview', label: t('service_requests.show.tabs.left.overview') },
-    { id: 'description', label: t('service_requests.show.tabs.left.description') },
-    { id: 'address', label: t('service_requests.show.tabs.left.address') },
+    { id: 'overview', label: t('service_requests.show.tabs.left.overview'), initials: 'AP', tone: 'emerald' },
+    { id: 'description', label: t('service_requests.show.tabs.left.description'), initials: 'DS', tone: 'sky' },
+    { id: 'address', label: t('service_requests.show.tabs.left.address'), initials: 'AD', tone: 'amber' },
 ]));
 
 const rightTabs = computed(() => ([
-    { id: 'relations', label: t('service_requests.show.tabs.right.relations') },
-    { id: 'source', label: t('service_requests.show.tabs.right.source') },
-    { id: 'activity', label: t('service_requests.show.tabs.right.activity') },
+    { id: 'relations', label: t('service_requests.show.tabs.right.relations'), initials: 'RL', tone: 'emerald' },
+    { id: 'source', label: t('service_requests.show.tabs.right.source'), initials: 'SR', tone: 'sky' },
+    { id: 'activity', label: t('service_requests.show.tabs.right.activity'), initials: 'AC', tone: 'cyan' },
 ]));
 
 const formatDate = (value) => humanizeDate(value);
@@ -85,11 +86,6 @@ const timelineRows = computed(() => ([
     { key: 'cancelled', label: t('service_requests.show.timeline.cancelled'), value: props.serviceRequest?.cancelled_at || null },
 ]).filter((item) => item.value));
 
-const tabClass = (isActive) => (
-    isActive
-        ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm dark:border-emerald-400 dark:bg-emerald-500/10 dark:text-emerald-300'
-        : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800'
-);
 </script>
 
 <template>
@@ -178,19 +174,13 @@ const tabClass = (isActive) => (
 
             <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr),320px]">
                 <div class="space-y-4">
-                    <section class="rounded-sm border border-stone-200 bg-white p-2 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <div class="flex flex-wrap gap-2">
-                            <button
-                                v-for="tab in leftTabs"
-                                :key="tab.id"
-                                type="button"
-                                class="inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold transition"
-                                :class="tabClass(leftTab === tab.id)"
-                                @click="leftTab = tab.id"
-                            >
-                                {{ tab.label }}
-                            </button>
-                        </div>
+                    <section class="overflow-hidden rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <CardTileTabs
+                            v-model="leftTab"
+                            :tabs="leftTabs"
+                            :aria-label="$t('service_requests.show.overview_title')"
+                            grid-class="grid-cols-1 sm:grid-cols-3"
+                        />
                     </section>
 
                     <section
@@ -259,19 +249,13 @@ const tabClass = (isActive) => (
                 </div>
 
                 <div class="space-y-4">
-                    <section class="rounded-sm border border-stone-200 bg-white p-2 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <div class="flex flex-wrap gap-2">
-                            <button
-                                v-for="tab in rightTabs"
-                                :key="tab.id"
-                                type="button"
-                                class="inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold transition"
-                                :class="tabClass(rightTab === tab.id)"
-                                @click="rightTab = tab.id"
-                            >
-                                {{ tab.label }}
-                            </button>
-                        </div>
+                    <section class="overflow-hidden rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <CardTileTabs
+                            v-model="rightTab"
+                            :tabs="rightTabs"
+                            :aria-label="$t('service_requests.show.relations_title')"
+                            grid-class="grid-cols-1 sm:grid-cols-3 xl:grid-cols-1"
+                        />
                     </section>
 
                     <section
