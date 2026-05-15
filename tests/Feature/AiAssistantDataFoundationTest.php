@@ -1,7 +1,7 @@
 <?php
 
-use App\Models\User;
 use App\Models\TeamMember;
+use App\Models\User;
 use App\Modules\AiAssistant\Models\AiAction;
 use App\Modules\AiAssistant\Models\AiAssistantSetting;
 use App\Modules\AiAssistant\Models\AiConversation;

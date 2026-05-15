@@ -128,17 +128,17 @@ use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\WelcomeController;
 use App\Http\Controllers\WorkChecklistController;
 use App\Http\Controllers\WorkController;
-use App\Modules\AiAssistant\Http\Controllers\AiActionController;
-use App\Modules\AiAssistant\Http\Controllers\AiAssistantSettingsController;
-use App\Modules\AiAssistant\Http\Controllers\AiConversationController;
-use App\Modules\AiAssistant\Http\Controllers\AiKnowledgeItemController;
-use App\Modules\AiAssistant\Http\Controllers\AiPublicChatController;
 use App\Http\Controllers\WorkMediaController;
 use App\Http\Controllers\WorkProofController;
 use App\Http\Controllers\WorkspaceCategoryController;
 use App\Http\Middleware\EnsureClientUser;
 use App\Http\Middleware\EnsureInternalUser;
 use App\Http\Middleware\EnsurePlatformAdmin;
+use App\Modules\AiAssistant\Http\Controllers\AiActionController;
+use App\Modules\AiAssistant\Http\Controllers\AiAssistantSettingsController;
+use App\Modules\AiAssistant\Http\Controllers\AiConversationController;
+use App\Modules\AiAssistant\Http\Controllers\AiKnowledgeItemController;
+use App\Modules\AiAssistant\Http\Controllers\AiPublicChatController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/favicon.ico', function () {
