@@ -79,6 +79,7 @@ class CreateReservationFromAiAction
                     'contact_name' => $prospect?->contact_name,
                     'contact_email' => $prospect?->contact_email,
                     'contact_phone' => $prospect?->contact_phone,
+                    'service_address' => Arr::get($payload, 'service_address'),
                     'team_member_name' => $slot['team_member_name'] ?? null,
                 ],
             ],

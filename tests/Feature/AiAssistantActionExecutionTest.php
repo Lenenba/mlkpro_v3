@@ -146,8 +146,21 @@ test('ai reservation orchestration keeps critical actions pending when human val
 
     $conversation->refresh();
 
-    expect($reply)->toContain('validation')
+    expect($reply)->toContain('Voici le résumé de votre demande')
+        ->and($reply)->toContain('Voulez-vous que j’envoie cette demande à l’équipe?')
+        ->and($conversation->status)->toBe(AiConversation::STATUS_OPEN)
+        ->and(data_get($conversation->metadata, 'booking_confirmation.summary_shown'))->toBeTrue()
+        ->and(data_get($conversation->metadata, 'booking_confirmation.awaiting_user_confirmation'))->toBeTrue()
+        ->and(AiAction::query()->where('conversation_id', $conversation->id)->count())->toBe(0)
+        ->and(Reservation::query()->count())->toBe(0);
+
+    $confirmationReply = app(AiReservationOrchestrator::class)->handle($conversation->fresh() ?? $conversation, $settings, 'oui', 'fr');
+    $conversation->refresh();
+
+    expect($confirmationReply)->toContain('Votre demande de réservation')
+        ->and($confirmationReply)->toContain('a été envoyée à l’équipe')
         ->and($conversation->status)->toBe(AiConversation::STATUS_WAITING_HUMAN)
+        ->and(data_get($conversation->metadata, 'booking_confirmation.confirmed_by_user'))->toBeTrue()
         ->and(AiAction::query()->where('conversation_id', $conversation->id)->where('status', AiAction::STATUS_PENDING)->count())->toBe(2)
         ->and(Reservation::query()->count())->toBe(0);
 

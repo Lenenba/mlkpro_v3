@@ -4,10 +4,12 @@ namespace App\Modules\AiAssistant\Services;
 
 use App\Models\User;
 use App\Modules\AiAssistant\DTO\AiAssistantResponse;
+use App\Modules\AiAssistant\DTO\AiConversationContext;
 use App\Modules\AiAssistant\Models\AiAction;
 use App\Modules\AiAssistant\Models\AiAssistantSetting;
 use App\Modules\AiAssistant\Models\AiConversation;
 use App\Modules\AiAssistant\Models\AiMessage;
+use Illuminate\Support\Collection;
 
 class AiAssistantService
 {
@@ -15,7 +17,9 @@ class AiAssistantService
         private readonly AiIntentDetector $intentDetector,
         private readonly AiPromptBuilder $promptBuilder,
         private readonly AiReservationOrchestrator $reservationOrchestrator,
-        private readonly AiActionExecutor $actionExecutor
+        private readonly AiActionExecutor $actionExecutor,
+        private readonly ContextualRecommendationEngine $recommendationEngine,
+        private readonly ProactiveSuggestionEngine $suggestionEngine
     ) {}
 
     public function greetingFor(User $tenant): string
@@ -55,6 +59,10 @@ class AiAssistantService
         }
 
         $conversation->update($conversationUpdate);
+
+        if (! $activeReservationFlow && ($smartReply = $this->smartGeneralReply($context, $conversation, $message, $language))) {
+            return $smartReply;
+        }
 
         if (! $activeReservationFlow && ($detected->confidence < 0.5 || $detected->intent === AiConversation::INTENT_HUMAN_REVIEW)) {
             $action = $this->actionExecutor->createAction($conversation, AiAction::TYPE_REQUEST_HUMAN_REVIEW, [
@@ -104,6 +112,109 @@ class AiAssistantService
         return $language === 'fr'
             ? "Je peux vous aider avec une reservation ou transmettre votre demande a l'equipe. Que souhaitez-vous faire?"
             : 'I can help with a booking or send your request to the team. What would you like to do?';
+    }
+
+    private function smartGeneralReply(AiConversationContext $context, AiConversation $conversation, string $message, string $language): ?AiAssistantResponse
+    {
+        $settings = $context->settings;
+        $recommendations = $this->recommendationEngine->analyze(
+            $conversation,
+            $settings,
+            $context->tenant,
+            $context->services,
+            [],
+            $message,
+            $language
+        );
+
+        if ($recommendations['refund_or_payment_conflict'] ?? false) {
+            $action = $this->actionExecutor->createAction($conversation, AiAction::TYPE_REQUEST_HUMAN_REVIEW, [
+                'reason' => 'payment_or_refund_conflict',
+                'message' => $message,
+            ], false);
+            $conversation->update(['status' => AiConversation::STATUS_WAITING_HUMAN]);
+
+            return new AiAssistantResponse(
+                message: $this->suggestionEngine->humanReviewSuggestion($language)->message,
+                status: AiConversation::STATUS_WAITING_HUMAN,
+                actions: [$action]
+            );
+        }
+
+        if ($recommendations['last_service'] ?? null) {
+            $suggestions = $this->suggestionEngine->suggestions(
+                $conversation,
+                $settings,
+                $context->tenant,
+                $context->services,
+                [],
+                $recommendations,
+                $language
+            );
+
+            return new AiAssistantResponse(
+                message: (string) $suggestions->pluck('message')->filter()->first(),
+                status: AiConversation::STATUS_OPEN
+            );
+        }
+
+        if ($recommendations['is_price_question'] ?? false) {
+            return new AiAssistantResponse(
+                message: $this->priceReply($context->services, $language),
+                status: AiConversation::STATUS_OPEN
+            );
+        }
+
+        $serviceSuggestions = $recommendations['service_recommendations'] ?? collect();
+        if ((bool) $settings->enable_proactive_suggestions && $serviceSuggestions->isNotEmpty()) {
+            $names = $serviceSuggestions->pluck('name')->map(fn ($name): string => (string) $name)->implode(' ou ');
+
+            return new AiAssistantResponse(
+                message: $language === 'fr'
+                    ? "Je peux vous orienter vers {$names}. Voulez-vous que je regarde les disponibilites pour l un de ces services?"
+                    : "I can point you toward {$names}. Would you like me to check availability for one of these services?",
+                status: AiConversation::STATUS_OPEN
+            );
+        }
+
+        if ($recommendations['is_service_exploration'] ?? false) {
+            $services = $context->services
+                ->take(3)
+                ->values()
+                ->map(fn ($service, int $index): string => ($index + 1).'. '.(string) $service->name)
+                ->implode('; ');
+
+            return new AiAssistantResponse(
+                message: $language === 'fr'
+                    ? 'Pas de souci, je peux vous guider. '.($services !== '' ? "Voici quelques options: {$services}. " : '').'Est-ce plutot pour reserver, comparer les prix, ou poser une question a l equipe?'
+                    : 'No problem, I can guide you. '.($services !== '' ? "Here are a few options: {$services}. " : '').'Is this for booking, comparing prices, or asking the team a question?',
+                status: AiConversation::STATUS_OPEN
+            );
+        }
+
+        return null;
+    }
+
+    private function priceReply(Collection $services, string $language): string
+    {
+        $priced = $services
+            ->filter(fn ($service): bool => (float) ($service->price ?? 0) > 0)
+            ->take(3)
+            ->values();
+
+        if ($priced->isEmpty()) {
+            return $language === 'fr'
+                ? 'Je peux vous orienter selon le type de service, mais je prefere faire confirmer les prix exacts par l equipe.'
+                : 'I can guide you by service type, but I prefer to have the team confirm exact prices.';
+        }
+
+        $lines = $priced
+            ->map(fn ($service): string => (string) $service->name.' - '.number_format((float) $service->price, 2).' '.(string) ($service->currency_code ?: ''))
+            ->implode('; ');
+
+        return $language === 'fr'
+            ? "Voici les prix que je vois: {$lines}. Voulez-vous que je verifie les disponibilites pour l un de ces services?"
+            : "Here are the prices I see: {$lines}. Would you like me to check availability for one of these services?";
     }
 
     private function rescheduleReply(AiAssistantSetting $settings, AiConversation $conversation, string $language): string

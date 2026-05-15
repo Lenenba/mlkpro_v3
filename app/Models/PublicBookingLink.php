@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\CompanyPublicSlugService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -74,7 +75,9 @@ class PublicBookingLink extends Model
     public function publicUrl(?User $account = null): string
     {
         $account ??= $this->relationLoaded('account') ? $this->account : null;
-        $company = $account?->company_slug ?: (string) $this->account_id;
+        $company = $account
+            ? app(CompanyPublicSlugService::class)->ensureFor($account)
+            : (string) $this->account_id;
 
         return route('public.booking.show', [
             'company' => $company,

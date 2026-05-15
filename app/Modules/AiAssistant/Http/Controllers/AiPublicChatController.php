@@ -3,6 +3,7 @@
 namespace App\Modules\AiAssistant\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\Product;
 use App\Models\User;
 use App\Modules\AiAssistant\Models\AiAssistantSetting;
 use App\Modules\AiAssistant\Models\AiConversation;
@@ -10,6 +11,7 @@ use App\Modules\AiAssistant\Models\AiMessage;
 use App\Modules\AiAssistant\Requests\SendAiMessageRequest;
 use App\Modules\AiAssistant\Services\AiAssistantService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
@@ -30,7 +32,7 @@ class AiPublicChatController extends Controller
             'company' => [
                 'name' => $tenant->company_name ?: $tenant->name,
                 'slug' => $tenant->company_slug,
-                'logo_url' => $tenant->company_logo_url,
+                'logo_url' => $this->publicLogoUrl($tenant),
             ],
             'assistant' => [
                 'name' => (string) $setting->assistant_name,
@@ -63,17 +65,28 @@ class AiPublicChatController extends Controller
             abort(404);
         }
 
-        $conversation = AiConversation::query()->create([
+        $channel = $validated['channel'] ?? AiConversation::CHANNEL_WEB_CHAT;
+        $publicContext = $validated['metadata'] ?? [];
+        $metadata = [
+            'public_context' => $publicContext,
+        ];
+        $conversationPayload = [
             'tenant_id' => (int) $tenant->id,
-            'channel' => $validated['channel'] ?? AiConversation::CHANNEL_WEB_CHAT,
+            'channel' => $channel,
             'visitor_name' => $validated['visitor_name'] ?? null,
             'visitor_email' => $validated['visitor_email'] ?? null,
             'visitor_phone' => $validated['visitor_phone'] ?? null,
             'detected_language' => $setting->default_language,
-            'metadata' => [
-                'public_context' => $validated['metadata'] ?? [],
-            ],
-        ]);
+        ];
+
+        if ($channel === AiConversation::CHANNEL_PUBLIC_RESERVATION) {
+            $metadata['reservation_draft'] = $this->reservationDraftFromPublicContext($publicContext, $validated, $tenant);
+            $conversationPayload['intent'] = AiConversation::INTENT_RESERVATION;
+            $conversationPayload['confidence_score'] = 0.65;
+        }
+
+        $conversationPayload['metadata'] = $metadata;
+        $conversation = AiConversation::query()->create($conversationPayload);
 
         $message = AiMessage::query()->create([
             'conversation_id' => (int) $conversation->id,
@@ -144,6 +157,109 @@ class AiPublicChatController extends Controller
         }
 
         return $tenant;
+    }
+
+    /**
+     * @param  array<string, mixed>  $publicContext
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    private function reservationDraftFromPublicContext(array $publicContext, array $validated, User $tenant): array
+    {
+        $draft = [];
+
+        $serviceId = (int) ($publicContext['selected_service_id'] ?? 0);
+        if ($serviceId > 0) {
+            $service = Product::query()
+                ->services()
+                ->where('user_id', (int) $tenant->id)
+                ->where('is_active', true)
+                ->whereKey($serviceId)
+                ->first(['id', 'name']);
+
+            if ($service) {
+                $draft['service_id'] = (int) $service->id;
+                $draft['service_name'] = (string) $service->name;
+            }
+        }
+
+        foreach ([
+            'visitor_name' => 'contact_name',
+            'visitor_email' => 'contact_email',
+            'visitor_phone' => 'contact_phone',
+        ] as $inputKey => $draftKey) {
+            $value = trim((string) ($validated[$inputKey] ?? ''));
+            if ($value !== '') {
+                $draft[$draftKey] = $value;
+            }
+        }
+
+        $selectedDate = $this->dateString($publicContext['selected_date'] ?? null);
+        if ($selectedDate) {
+            $draft['preferred_date'] = $selectedDate;
+        }
+
+        $selectedTime = $publicContext['selected_time'] ?? null;
+        $time = $this->timeString($selectedTime);
+        if ($time) {
+            $draft['preferred_time'] = $time;
+        }
+
+        if (! isset($draft['preferred_date'])) {
+            $dateFromTime = $this->dateString($selectedTime);
+            if ($dateFromTime) {
+                $draft['preferred_date'] = $dateFromTime;
+            }
+        }
+
+        foreach (['booking_link_id', 'booking_link_slug', 'booking_link_name'] as $key) {
+            if (array_key_exists($key, $publicContext)) {
+                $draft[$key] = $publicContext[$key];
+            }
+        }
+
+        return $draft;
+    }
+
+    private function dateString(mixed $value): ?string
+    {
+        $value = trim((string) ($value ?? ''));
+        if ($value === '') {
+            return null;
+        }
+
+        if (preg_match('/\d{4}-\d{1,2}-\d{1,2}/', $value) !== 1) {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value)->toDateString();
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function timeString(mixed $value): ?string
+    {
+        $value = trim((string) ($value ?? ''));
+        if ($value === '') {
+            return null;
+        }
+
+        if (preg_match('/\b([01]?\d|2[0-3])[:h]([0-5]\d)\b/u', $value, $matches) === 1) {
+            return str_pad($matches[1], 2, '0', STR_PAD_LEFT).':'.$matches[2];
+        }
+
+        try {
+            return Carbon::parse($value)->format('H:i');
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function publicLogoUrl(User $tenant): ?string
+    {
+        return $tenant->company_logo ? $tenant->company_logo_url : null;
     }
 
     /**

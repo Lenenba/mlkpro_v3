@@ -18,6 +18,9 @@ class CreateProspectFromAiAction
         $payload = $action->input_payload ?? [];
         $contactName = trim((string) Arr::get($payload, 'contact_name', $conversation->visitor_name ?? ''));
         $serviceName = trim((string) Arr::get($payload, 'service_name', ''));
+        $serviceAddress = trim((string) Arr::get($payload, 'service_address', ''));
+        $notes = trim((string) Arr::get($payload, 'notes', ''));
+        $description = trim(collect([$notes, $serviceAddress !== '' ? 'Adresse: '.$serviceAddress : null])->filter()->implode("\n"));
 
         $prospect = LeadRequest::query()->create([
             'user_id' => (int) $action->tenant_id,
@@ -27,7 +30,7 @@ class CreateProspectFromAiAction
             'last_activity_at' => now(),
             'service_type' => $serviceName ?: null,
             'title' => $serviceName !== '' ? 'AI request - '.$serviceName : 'AI assistant request',
-            'description' => Arr::get($payload, 'notes'),
+            'description' => $description !== '' ? $description : null,
             'contact_name' => $contactName !== '' ? $contactName : null,
             'contact_email' => strtolower(trim((string) Arr::get($payload, 'contact_email', $conversation->visitor_email ?? ''))) ?: null,
             'contact_phone' => trim((string) Arr::get($payload, 'contact_phone', $conversation->visitor_phone ?? '')) ?: null,
@@ -37,6 +40,7 @@ class CreateProspectFromAiAction
                     'source_channel' => (string) $conversation->channel,
                     'intent' => (string) $conversation->intent,
                     'created_from_action_id' => (int) $action->id,
+                    'service_address' => $serviceAddress !== '' ? $serviceAddress : null,
                 ],
             ],
         ]);

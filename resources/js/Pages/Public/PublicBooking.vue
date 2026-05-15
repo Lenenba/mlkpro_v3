@@ -66,6 +66,7 @@ const steps = [
 const currentStep = ref(0);
 const maxVisitedStep = ref(0);
 const selectedServiceId = ref(props.services?.[0]?.id ? String(props.services[0].id) : '');
+const serviceWasChosen = ref(false);
 const calendarMonth = ref(dayjs().startOf('month'));
 const selectedDate = ref('');
 const selectedTime = ref('');
@@ -161,13 +162,14 @@ const aiVisitorName = computed(() => [form.first_name, form.last_name]
     .map((part) => String(part || '').trim())
     .filter(Boolean)
     .join(' '));
+const aiSelectedService = computed(() => (serviceWasChosen.value || maxVisitedStep.value > 0) ? selectedService.value : null);
 const aiReservationContext = computed(() => ({
     source: 'public_booking_link',
     booking_link_id: props.link.id,
     booking_link_slug: props.link.slug,
     booking_link_name: props.link.name,
-    selected_service_id: selectedService.value?.id || null,
-    selected_service_name: selectedService.value?.name || null,
+    selected_service_id: aiSelectedService.value?.id || null,
+    selected_service_name: aiSelectedService.value?.name || null,
     selected_date: selectedDate.value || null,
     selected_time: selectedSlot.value?.starts_at || selectedTime.value || null,
     selected_team_member_id: selectedTeamMemberId.value,
@@ -350,6 +352,7 @@ const setCurrentStep = (index) => {
 
 const selectService = (service) => {
     selectedServiceId.value = String(service.id);
+    serviceWasChosen.value = true;
     selectedDate.value = '';
     selectedTime.value = '';
     selectedTeamMemberId.value = 'auto';
@@ -494,6 +497,7 @@ const continueStep = async () => {
             stepError.value = 'Selectionnez un service pour continuer.';
             return;
         }
+        serviceWasChosen.value = true;
         setCurrentStep(1);
         return;
     }
@@ -615,6 +619,7 @@ const resetBooking = () => {
     form.clearErrors();
     currentStep.value = 0;
     maxVisitedStep.value = 0;
+    serviceWasChosen.value = false;
     loadMonthAvailability();
 };
 

@@ -42,6 +42,44 @@ const actionToggles = [
     { key: 'allow_create_task', label: 'Creer une tache' },
 ];
 
+const proactiveToggles = [
+    {
+        key: 'enable_proactive_suggestions',
+        label: 'Suggestions proactives',
+        help: 'L assistant propose le prochain pas utile selon le contexte.',
+    },
+    {
+        key: 'allow_ai_to_choose_earliest_slot',
+        label: 'Choisir le premier creneau',
+        help: 'Utilise le premier creneau disponible quand le client est flexible.',
+    },
+    {
+        key: 'allow_ai_to_recommend_services',
+        label: 'Recommander des services',
+        help: 'Guide le client quand il decrit un besoin sans connaitre le service.',
+    },
+    {
+        key: 'allow_ai_to_recommend_staff',
+        label: 'Recommander un membre',
+        help: 'Suggere un membre seulement quand plusieurs options existent.',
+    },
+    {
+        key: 'enable_client_history_recommendations',
+        label: 'Utiliser l historique client',
+        help: 'Peut proposer le meme service que le dernier rendez-vous.',
+    },
+    {
+        key: 'require_confirmation_before_ai_action',
+        label: 'Confirmer avant action IA',
+        help: 'Demande une confirmation avant les actions sensibles.',
+    },
+    {
+        key: 'enable_upsell_suggestions',
+        label: 'Suggestions complementaires',
+        help: 'Optionnel et desactive par defaut pour eviter un ton trop commercial.',
+    },
+];
+
 const form = useForm({
     assistant_name: props.setting.assistant_name || 'Malikia AI Assistant',
     enabled: Boolean(props.setting.enabled),
@@ -58,6 +96,14 @@ const form = useForm({
     allow_reschedule_reservation: Boolean(props.setting.allow_reschedule_reservation),
     allow_create_task: Boolean(props.setting.allow_create_task),
     require_human_validation: Boolean(props.setting.require_human_validation),
+    enable_proactive_suggestions: Boolean(props.setting.enable_proactive_suggestions ?? true),
+    enable_upsell_suggestions: Boolean(props.setting.enable_upsell_suggestions ?? false),
+    enable_client_history_recommendations: Boolean(props.setting.enable_client_history_recommendations ?? false),
+    max_suggestions_per_response: Number(props.setting.max_suggestions_per_response ?? 3),
+    require_confirmation_before_ai_action: Boolean(props.setting.require_confirmation_before_ai_action ?? true),
+    allow_ai_to_choose_earliest_slot: Boolean(props.setting.allow_ai_to_choose_earliest_slot ?? true),
+    allow_ai_to_recommend_staff: Boolean(props.setting.allow_ai_to_recommend_staff ?? true),
+    allow_ai_to_recommend_services: Boolean(props.setting.allow_ai_to_recommend_services ?? true),
     business_context: props.setting.business_context || '',
     service_area_rules: props.setting.service_area_rules || null,
     working_hours_rules: props.setting.working_hours_rules || null,
@@ -115,6 +161,7 @@ const submit = () => {
             business_context: nullableText(data.business_context),
             service_area_rules: data.service_area_rules || null,
             working_hours_rules: data.working_hours_rules || null,
+            max_suggestions_per_response: Number(data.max_suggestions_per_response || 3),
         }))
         .put(route('admin.ai-assistant.settings.update'), {
             preserveScroll: true,
@@ -230,6 +277,47 @@ const submit = () => {
                             </span>
                         </label>
                         <InputError class="mt-2" :message="form.errors.require_human_validation" />
+                    </section>
+
+                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Intelligence proactive</h2>
+                        <div class="mt-3 grid gap-2">
+                            <label
+                                v-for="toggle in proactiveToggles"
+                                :key="toggle.key"
+                                class="flex items-start gap-3 rounded-sm border border-stone-200 px-3 py-2 text-sm text-stone-700 dark:border-neutral-700 dark:text-neutral-200"
+                            >
+                                <input
+                                    v-model="form[toggle.key]"
+                                    type="checkbox"
+                                    class="mt-0.5 rounded border-stone-300 text-emerald-600 focus:ring-emerald-600"
+                                />
+                                <span>
+                                    <span class="block font-semibold">{{ toggle.label }}</span>
+                                    <span class="mt-1 block text-xs text-stone-500 dark:text-neutral-400">{{ toggle.help }}</span>
+                                </span>
+                            </label>
+                        </div>
+                        <div class="mt-3">
+                            <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                Suggestions max / reponse
+                            </label>
+                            <input
+                                v-model.number="form.max_suggestions_per_response"
+                                type="number"
+                                min="1"
+                                max="5"
+                                class="mt-1 w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+                            />
+                        </div>
+                        <div class="mt-2 grid gap-1">
+                            <InputError
+                                v-for="toggle in proactiveToggles"
+                                :key="`${toggle.key}-error`"
+                                :message="form.errors[toggle.key]"
+                            />
+                            <InputError :message="form.errors.max_suggestions_per_response" />
+                        </div>
                     </section>
 
                     <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">

@@ -139,11 +139,61 @@ it('exposes the ai assistant widget on public booking links when enabled', funct
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Public/PublicBooking')
+            ->where('company.logo_url', null)
             ->where('ai_assistant.enabled', true)
             ->where('ai_assistant.name', 'Reception Booking')
             ->where('ai_assistant.company_slug', $owner->company_slug)
             ->where('ai_assistant.endpoints.create', route('public.ai-assistant.conversations.store'))
         );
+});
+
+it('generates slug based public booking links when the account has no public slug', function () {
+    $owner = publicBookingOwner([
+        'email' => 'public.booking.no-slug@example.com',
+        'company_name' => 'Service Demo Co',
+        'company_slug' => null,
+    ]);
+    $service = publicBookingService($owner);
+
+    $response = $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->postJson(route('settings.reservations.public-links.store'), [
+            'name' => 'Test bookings',
+            'slug' => 'test',
+            'description' => 'Book a test service',
+            'is_active' => true,
+            'requires_manual_confirmation' => true,
+            'service_ids' => [$service->id],
+        ])
+        ->assertCreated();
+
+    $owner->refresh();
+
+    expect($owner->company_slug)->toBe('service-demo-co');
+    $response->assertJsonPath('link.public_url', route('public.booking.show', [
+        'company' => 'service-demo-co',
+        'slug' => 'test',
+    ]));
+});
+
+it('redirects legacy numeric public booking links to the canonical company slug url', function () {
+    $owner = publicBookingOwner([
+        'email' => 'public.booking.legacy-numeric@example.com',
+        'company_name' => 'Legacy Numeric Co',
+        'company_slug' => null,
+    ]);
+    $service = publicBookingService($owner);
+    $link = publicBookingLinkFor($owner, $service);
+
+    $this->get(route('public.booking.show', [
+        'company' => $owner->id,
+        'slug' => $link->slug,
+    ]))->assertRedirect(route('public.booking.show', [
+        'company' => 'legacy-numeric-co',
+        'slug' => $link->slug,
+    ]));
+
+    expect($owner->fresh()->company_slug)->toBe('legacy-numeric-co');
 });
 
 it('creates a prospect and reservation from a public booking link without creating a customer', function () {

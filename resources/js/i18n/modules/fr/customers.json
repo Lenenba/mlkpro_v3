@@ -440,6 +440,7 @@
         "title": "Panneau client",
         "tabs": {
           "profile": "Profil",
+          "packages": "Forfaits",
           "marketing": "Marketing",
           "automation": "Automatisation",
           "finance": "Finance"

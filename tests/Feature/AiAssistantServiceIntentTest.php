@@ -125,10 +125,10 @@ test('ai assistant keeps an active reservation flow when the next answer is a pl
     ]);
     $assistant = app(AiAssistantService::class);
 
-    $firstResponse = $assistant->handleUserMessage($conversation, 'je veux une reservation');
+    $firstResponse = $assistant->handleUserMessage($conversation, 'je veux une reservation Reservation QA');
     $conversation->refresh();
 
-    expect($firstResponse->message)->toContain('Quel est votre nom complet?')
+    expect($firstResponse->message)->toContain('Pour préparer la demande, j’ai besoin de votre nom complet et d’un numéro de téléphone.')
         ->and($conversation->intent)->toBe(AiConversation::INTENT_RESERVATION);
 
     $conversation->update(['status' => AiConversation::STATUS_WAITING_HUMAN]);
@@ -139,7 +139,7 @@ test('ai assistant keeps an active reservation flow when the next answer is a pl
     expect($conversation->intent)->toBe(AiConversation::INTENT_RESERVATION)
         ->and($conversation->status)->toBe(AiConversation::STATUS_OPEN)
         ->and(data_get($conversation->metadata, 'reservation_draft.contact_name'))->toBe('jules roger')
-        ->and($secondResponse->message)->toContain('Quel numero de telephone pouvons-nous utiliser?')
+        ->and($secondResponse->message)->toContain('Il me manque seulement un numéro de téléphone')
         ->and(AiAction::query()->where('conversation_id', $conversation->id)->count())->toBe(0);
 });
 
@@ -170,7 +170,7 @@ test('ai assistant extracts a name from a typo-heavy french reservation request'
     expect($conversation->intent)->toBe(AiConversation::INTENT_RESERVATION)
         ->and($conversation->detected_language)->toBe(AiAssistantSetting::LANGUAGE_FR)
         ->and(data_get($conversation->metadata, 'reservation_draft.contact_name'))->toBe('justin')
-        ->and($response->message)->toContain('Quel numero de telephone pouvons-nous utiliser?')
+        ->and($response->message)->toContain('Quel service souhaitez-vous réserver?')
         ->and(AiAction::query()->where('conversation_id', $conversation->id)->count())->toBe(0);
 });
 
@@ -207,6 +207,6 @@ test('ai assistant recovers a missed reservation intent from recent conversation
     expect($conversation->intent)->toBe(AiConversation::INTENT_RESERVATION)
         ->and($conversation->status)->toBe(AiConversation::STATUS_OPEN)
         ->and(data_get($conversation->metadata, 'reservation_draft.contact_name'))->toBe('justin')
-        ->and($response->message)->toContain('Quel numero de telephone pouvons-nous utiliser?')
+        ->and($response->message)->toContain('Quel service souhaitez-vous réserver?')
         ->and(AiAction::query()->where('conversation_id', $conversation->id)->count())->toBe(0);
 });

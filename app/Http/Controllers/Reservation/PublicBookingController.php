@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PublicBookingLink;
 use App\Models\User;
 use App\Modules\AiAssistant\Models\AiAssistantSetting;
+use App\Services\CompanyPublicSlugService;
 use App\Services\ReservationAvailabilityService;
 use App\Services\Reservations\PublicBookingService;
 use Illuminate\Http\Request;
@@ -18,7 +19,8 @@ class PublicBookingController extends Controller
 {
     public function __construct(
         private readonly PublicBookingService $publicBookingService,
-        private readonly ReservationAvailabilityService $availabilityService
+        private readonly ReservationAvailabilityService $availabilityService,
+        private readonly CompanyPublicSlugService $companySlugs
     ) {}
 
     public function show(Request $request, string $company, string $slug)
@@ -26,6 +28,14 @@ class PublicBookingController extends Controller
         $account = $this->resolveAccount($company);
         $link = $this->resolveLink($account, $slug);
         $this->publicBookingService->assertAvailable($account, $link);
+        $canonicalCompany = $this->companySlugs->ensureFor($account);
+        if ($company !== $canonicalCompany) {
+            return redirect()->route('public.booking.show', [
+                'company' => $canonicalCompany,
+                'slug' => $slug,
+            ]);
+        }
+
         $link->load(['services' => fn ($query) => $query
             ->where('products.is_active', true)
             ->orderBy('products.name')]);
@@ -40,7 +50,7 @@ class PublicBookingController extends Controller
                 'id' => (int) $account->id,
                 'name' => $account->company_name ?: $account->name,
                 'slug' => $account->company_slug,
-                'logo_url' => $account->company_logo_url,
+                'logo_url' => $account->company_logo ? $account->company_logo_url : null,
                 'phone' => $account->phone_number,
             ],
             'link' => [
