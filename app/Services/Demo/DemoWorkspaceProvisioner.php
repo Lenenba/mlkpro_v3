@@ -274,8 +274,8 @@ class DemoWorkspaceProvisioner
 
             $credentials = $this->resolveCredentials($preferredCredentials, (string) $payload['company_name']);
             $owner = $this->createOwner($payload, $credentials, $expiresAt);
-            $workingWorkspace = $this->persistWorkspaceRecord(
-                $workingWorkspace,
+            $workspace = $this->persistWorkspaceRecord(
+                $workspace,
                 $payload,
                 $admin,
                 $owner,

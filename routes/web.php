@@ -631,6 +631,8 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::get('/presence', [PresenceController::class, 'index'])->name('presence.index');
         Route::post('/presence/clock-in', [PresenceController::class, 'clockIn'])->name('presence.clock-in');
         Route::post('/presence/clock-out', [PresenceController::class, 'clockOut'])->name('presence.clock-out');
+        Route::post('/presence/break', [PresenceController::class, 'setBreak'])->name('presence.break');
+        Route::post('/presence/available', [PresenceController::class, 'setAvailable'])->name('presence.available');
     });
 
     // Planning

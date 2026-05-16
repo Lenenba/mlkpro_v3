@@ -18,6 +18,7 @@ use App\Support\ReservationPresetResolver;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class ReservationAvailabilityService
@@ -110,11 +111,26 @@ class ReservationAvailabilityService
             'queue_grace_minutes' => max(1, min(60, (int) ($accountLevel?->queue_grace_minutes ?? $defaults['queue_grace_minutes'] ?? 5))),
             'queue_pre_call_threshold' => max(1, min(20, (int) ($accountLevel?->queue_pre_call_threshold ?? $defaults['queue_pre_call_threshold'] ?? 2))),
             'queue_no_show_on_grace_expiry' => (bool) ($accountLevel?->queue_no_show_on_grace_expiry ?? $defaults['queue_no_show_on_grace_expiry'] ?? false),
+            'kiosk_image_url' => $this->publicKioskImageUrl($accountLevel),
             'deposit_required' => (bool) ($accountLevel?->deposit_required ?? $defaults['deposit_required'] ?? false),
             'deposit_amount' => max(0, round((float) ($accountLevel?->deposit_amount ?? $defaults['deposit_amount'] ?? 0), 2)),
             'no_show_fee_enabled' => (bool) ($accountLevel?->no_show_fee_enabled ?? $defaults['no_show_fee_enabled'] ?? false),
             'no_show_fee_amount' => max(0, round((float) ($accountLevel?->no_show_fee_amount ?? $defaults['no_show_fee_amount'] ?? 0), 2)),
         ];
+    }
+
+    private function publicKioskImageUrl(?ReservationSetting $setting): ?string
+    {
+        $path = trim((string) ($setting?->kiosk_image_path ?? ''));
+        if ($path === '') {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        return Storage::disk('public')->url($path);
     }
 
     public function resolveDurationMinutes(int $accountId, ?int $serviceId, ?int $durationMinutes): int

@@ -223,6 +223,11 @@
           "available_ready": "Disponible - suivant pret",
           "called": "Appele",
           "in_service": "En service",
+          "busy": "Occupe",
+          "break": "En pause",
+          "offline": "Hors ligne",
+          "inactive": "Inactive",
+          "unassigned": "Non assignee",
           "check_in_needed": "Check-in requis",
           "blocked": "Bloque"
         },

@@ -19,6 +19,7 @@
       "method": "Mode",
       "jobs_today": "Interventions du jour",
       "tasks_today": "Taches du jour",
+      "availability": "Disponibilite",
       "none": "--",
       "role_fallback": "Employe"
     },
@@ -27,18 +28,31 @@
       "clocked_out": "Hors service",
       "no_activity": "Aucune activite"
     },
+    "current_status": {
+      "available": "Disponible",
+      "busy": "Occupe",
+      "offline": "Hors ligne",
+      "break": "En pause"
+    },
     "actions": {
       "clock_in": "Pointer",
       "clock_out": "Sortir",
       "clocking_in": "Pointage...",
-      "clocking_out": "Sortie..."
+      "clocking_out": "Sortie...",
+      "set_break": "Pause",
+      "back_available": "Disponible",
+      "updating": "Mise a jour..."
     },
     "help": {
-      "manual_disabled": "Le pointage manuel est désactivé par le propriétaire."
+      "manual_disabled": "Le pointage manuel est désactivé par le propriétaire.",
+      "assigned_chair": "Vous etes pointe sur {chair}.",
+      "no_chair": "Aucune chaise assignee. Contactez l'administrateur.",
+      "no_chair_short": "Aucune chaise"
     },
     "errors": {
       "clock_in": "Impossible de pointer.",
-      "clock_out": "Impossible de sortir."
+      "clock_out": "Impossible de sortir.",
+      "availability": "Impossible de mettre a jour la disponibilite."
     },
     "empty": "Aucun membre à afficher."
   }

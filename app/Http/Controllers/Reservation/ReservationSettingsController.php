@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Reservation\ReservationSettingsRequest;
 use App\Models\AvailabilityException;
 use App\Models\Reservation;
+use App\Models\ReservationQueueItem;
 use App\Models\ReservationResource;
 use App\Models\ReservationSetting;
 use App\Models\TeamMember;
+use App\Models\TeamMemberAttendance;
 use App\Models\User;
 use App\Models\WeeklyAvailability;
 use App\Services\BillingPlanService;
@@ -18,7 +20,9 @@ use App\Services\ReservationNotificationPreferenceService;
 use App\Services\Reservations\PublicBookingLinkPresenter;
 use App\Support\ReservationPresetResolver;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class ReservationSettingsController extends Controller
@@ -118,7 +122,7 @@ class ReservationSettingsController extends Controller
                 ->forAccount($account->id)
                 ->whereNotNull('team_member_id')
                 ->get();
-        $resources = ReservationResource::query()
+        $resourceModels = ReservationResource::query()
             ->forAccount($account->id)
             ->orderBy('type')
             ->orderBy('name')
@@ -130,7 +134,18 @@ class ReservationSettingsController extends Controller
                 'capacity',
                 'is_active',
                 'metadata',
-            ])
+            ]);
+        $resourceTeamMemberIds = $resourceModels
+            ->pluck('team_member_id')
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+        $resourcePresence = $this->teamMemberPresenceStatuses($account->id, $resourceTeamMemberIds);
+        $busyTeamMemberIds = $this->busyQueueTeamMemberIds($account->id, $resourceTeamMemberIds);
+
+        $resources = $resourceModels
             ->map(fn (ReservationResource $resource) => [
                 'id' => $resource->id,
                 'team_member_id' => $ownerOnlyMode ? null : $resource->team_member_id,
@@ -138,6 +153,9 @@ class ReservationSettingsController extends Controller
                 'type' => $resource->type,
                 'capacity' => (int) $resource->capacity,
                 'is_active' => (bool) $resource->is_active,
+                'operational_status' => $this->resourceOperationalStatus($resource, $resourcePresence, $busyTeamMemberIds),
+                'assigned_member_present' => (bool) ($resourcePresence[(int) ($resource->team_member_id ?? 0)]['checked_in'] ?? false),
+                'assigned_member_status' => (string) ($resourcePresence[(int) ($resource->team_member_id ?? 0)]['current_status'] ?? TeamMemberAttendance::STATUS_OFFLINE),
                 'metadata' => $resource->metadata,
             ])
             ->values();
@@ -200,9 +218,13 @@ class ReservationSettingsController extends Controller
             }
         }
 
-        DB::transaction(function () use ($validated, $account) {
+        if (array_key_exists('resources', $validated)) {
+            $this->assertUniqueActiveChairAssignments($validated['resources'] ?? []);
+        }
+
+        DB::transaction(function () use ($validated, $account, $request) {
             if (array_key_exists('account_settings', $validated)) {
-                $this->upsertSettings($account->id, null, $validated['account_settings'] ?? []);
+                $this->upsertSettings($account->id, null, $validated['account_settings'] ?? [], $request);
             }
 
             if (array_key_exists('team_settings', $validated)) {
@@ -379,8 +401,12 @@ class ReservationSettingsController extends Controller
         return $account;
     }
 
-    private function upsertSettings(int $accountId, ?int $teamMemberId, array $data): void
-    {
+    private function upsertSettings(
+        int $accountId,
+        ?int $teamMemberId,
+        array $data,
+        ?ReservationSettingsRequest $request = null
+    ): void {
         $attributes = [
             'account_id' => $accountId,
             'team_member_id' => $teamMemberId,
@@ -433,6 +459,26 @@ class ReservationSettingsController extends Controller
             $payload['queue_no_show_on_grace_expiry'] = array_key_exists('queue_no_show_on_grace_expiry', $data)
                 ? (bool) $data['queue_no_show_on_grace_expiry']
                 : (bool) ($presetDefaults['queue_no_show_on_grace_expiry'] ?? false);
+
+            $existing = ReservationSetting::query()
+                ->forAccount($accountId)
+                ->whereNull('team_member_id')
+                ->first();
+            if ((bool) ($data['clear_kiosk_image'] ?? false)) {
+                $this->deleteKioskImage($existing?->kiosk_image_path);
+                $payload['kiosk_image_path'] = null;
+            }
+            if ($request?->hasFile('account_settings.kiosk_image')) {
+                $file = $request->file('account_settings.kiosk_image');
+                $path = $file instanceof UploadedFile
+                    ? $file->store("reservations/kiosk/{$accountId}", 'public')
+                    : null;
+                if ($path) {
+                    $this->deleteKioskImage($existing?->kiosk_image_path);
+                    $payload['kiosk_image_path'] = $path;
+                }
+            }
+
             $payload['deposit_required'] = array_key_exists('deposit_required', $data)
                 ? (bool) $data['deposit_required']
                 : (bool) ($presetDefaults['deposit_required'] ?? false);
@@ -515,6 +561,7 @@ class ReservationSettingsController extends Controller
             'queue_grace_minutes' => (int) ($setting?->queue_grace_minutes ?? $resolvedDefaults['queue_grace_minutes'] ?? 5),
             'queue_pre_call_threshold' => (int) ($setting?->queue_pre_call_threshold ?? $resolvedDefaults['queue_pre_call_threshold'] ?? 2),
             'queue_no_show_on_grace_expiry' => (bool) ($setting?->queue_no_show_on_grace_expiry ?? $resolvedDefaults['queue_no_show_on_grace_expiry'] ?? false),
+            'kiosk_image_url' => $this->publicKioskImageUrl($setting),
             'deposit_required' => (bool) ($setting?->deposit_required ?? $resolvedDefaults['deposit_required'] ?? false),
             'deposit_amount' => (float) ($setting?->deposit_amount ?? $resolvedDefaults['deposit_amount'] ?? 0),
             'no_show_fee_enabled' => (bool) ($setting?->no_show_fee_enabled ?? $resolvedDefaults['no_show_fee_enabled'] ?? false),
@@ -522,5 +569,144 @@ class ReservationSettingsController extends Controller
             'owner_only_mode' => (bool) ($resolvedDefaults['owner_only_mode'] ?? false),
             'slot_booking_enabled' => (bool) ($resolvedDefaults['slot_booking_enabled'] ?? true),
         ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $resources
+     */
+    private function assertUniqueActiveChairAssignments(array $resources): void
+    {
+        $assigned = [];
+        foreach ($resources as $index => $resource) {
+            $type = strtolower(trim((string) ($resource['type'] ?? 'general')));
+            $teamMemberId = (int) ($resource['team_member_id'] ?? 0);
+            $isActive = (bool) ($resource['is_active'] ?? true);
+
+            if ($type !== ReservationResource::TYPE_CHAIR || ! $isActive || $teamMemberId <= 0) {
+                continue;
+            }
+
+            if (isset($assigned[$teamMemberId])) {
+                throw ValidationException::withMessages([
+                    "resources.{$index}.team_member_id" => ['This team member already has an active chair assigned.'],
+                ]);
+            }
+
+            $assigned[$teamMemberId] = true;
+        }
+    }
+
+    /**
+     * @param  array<int, int>  $teamMemberIds
+     * @return array<int, array{checked_in: bool, current_status: string}>
+     */
+    private function teamMemberPresenceStatuses(int $accountId, array $teamMemberIds): array
+    {
+        if (empty($teamMemberIds)) {
+            return [];
+        }
+
+        return TeamMemberAttendance::query()
+            ->where('account_id', $accountId)
+            ->whereIn('team_member_id', $teamMemberIds)
+            ->whereNull('clock_out_at')
+            ->orderByDesc('clock_in_at')
+            ->get()
+            ->unique('team_member_id')
+            ->mapWithKeys(fn (TeamMemberAttendance $attendance) => [
+                (int) $attendance->team_member_id => [
+                    'checked_in' => true,
+                    'current_status' => (string) ($attendance->current_status ?? TeamMemberAttendance::STATUS_AVAILABLE),
+                ],
+            ])
+            ->all();
+    }
+
+    /**
+     * @param  array<int, int>  $teamMemberIds
+     * @return array<int, bool>
+     */
+    private function busyQueueTeamMemberIds(int $accountId, array $teamMemberIds): array
+    {
+        if (empty($teamMemberIds)) {
+            return [];
+        }
+
+        return ReservationQueueItem::query()
+            ->forAccount($accountId)
+            ->whereIn('team_member_id', $teamMemberIds)
+            ->whereIn('status', [
+                ReservationQueueItem::STATUS_CALLED,
+                ReservationQueueItem::STATUS_PRE_CALLED,
+                ReservationQueueItem::STATUS_IN_SERVICE,
+            ])
+            ->pluck('team_member_id')
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $id) => $id > 0)
+            ->unique()
+            ->mapWithKeys(fn (int $id) => [$id => true])
+            ->all();
+    }
+
+    /**
+     * @param  array<int, array{checked_in: bool, current_status: string}>  $presence
+     * @param  array<int, bool>  $busyTeamMemberIds
+     */
+    private function resourceOperationalStatus(
+        ReservationResource $resource,
+        array $presence,
+        array $busyTeamMemberIds
+    ): string {
+        if (! $resource->is_active) {
+            return 'inactive';
+        }
+
+        if ((string) $resource->type !== ReservationResource::TYPE_CHAIR) {
+            return 'active';
+        }
+
+        $teamMemberId = (int) ($resource->team_member_id ?? 0);
+        if ($teamMemberId <= 0) {
+            return 'unassigned';
+        }
+
+        $memberPresence = $presence[$teamMemberId] ?? null;
+        if (! $memberPresence || ! ($memberPresence['checked_in'] ?? false)) {
+            return 'offline';
+        }
+
+        if (($memberPresence['current_status'] ?? '') === TeamMemberAttendance::STATUS_BREAK) {
+            return 'break';
+        }
+
+        if (($memberPresence['current_status'] ?? '') === TeamMemberAttendance::STATUS_BUSY || ($busyTeamMemberIds[$teamMemberId] ?? false)) {
+            return 'busy';
+        }
+
+        return 'available';
+    }
+
+    private function publicKioskImageUrl(?ReservationSetting $setting): ?string
+    {
+        $path = trim((string) ($setting?->kiosk_image_path ?? ''));
+        if ($path === '') {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        return Storage::disk('public')->url($path);
+    }
+
+    private function deleteKioskImage(?string $path): void
+    {
+        $path = trim((string) $path);
+        if ($path === '' || str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return;
+        }
+
+        Storage::disk('public')->delete($path);
     }
 }

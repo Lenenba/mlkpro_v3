@@ -223,6 +223,11 @@
           "available_ready": "Disponible - próximo listo",
           "called": "llamado",
           "in_service": "en servicio",
+          "busy": "Ocupado",
+          "break": "En pausa",
+          "offline": "Fuera de línea",
+          "inactive": "Inactiva",
+          "unassigned": "Sin asignar",
           "check_in_needed": "Es necesario registrarse",
           "blocked": "Bloqueado"
         },

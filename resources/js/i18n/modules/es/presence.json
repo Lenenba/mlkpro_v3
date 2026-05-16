@@ -19,6 +19,7 @@
       "method": "Método",
       "jobs_today": "Empleos hoy",
       "tasks_today": "Tareas hoy",
+      "availability": "Disponibilidad",
       "none": "--",
       "role_fallback": "Miembro del equipo"
     },
@@ -27,18 +28,31 @@
       "clocked_out": "marcado fuera",
       "no_activity": "Sin actividad"
     },
+    "current_status": {
+      "available": "Disponible",
+      "busy": "Ocupado",
+      "offline": "Fuera de línea",
+      "break": "En pausa"
+    },
     "actions": {
       "clock_in": "Regístrese",
       "clock_out": "Reloj de salida",
       "clocking_in": "Fichando...",
-      "clocking_out": "Fichando la salida..."
+      "clocking_out": "Fichando la salida...",
+      "set_break": "Pausa",
+      "back_available": "Disponible",
+      "updating": "Actualizando..."
     },
     "help": {
-      "manual_disabled": "El propietario desactiva el marcado manual."
+      "manual_disabled": "El propietario desactiva el marcado manual.",
+      "assigned_chair": "Estás registrado en {chair}.",
+      "no_chair": "No hay silla asignada. Contacta con el administrador.",
+      "no_chair_short": "Sin silla"
     },
     "errors": {
       "clock_in": "No se puede registrar la entrada.",
-      "clock_out": "No se puede marcar la salida."
+      "clock_out": "No se puede marcar la salida.",
+      "availability": "No se puede actualizar la disponibilidad."
     },
     "empty": "No hay miembros del equipo para mostrar."
   }

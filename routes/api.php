@@ -229,6 +229,8 @@ Route::name('api.')->group(function () {
                 Route::get('presence', [PresenceController::class, 'index']);
                 Route::post('presence/clock-in', [PresenceController::class, 'clockIn']);
                 Route::post('presence/clock-out', [PresenceController::class, 'clockOut']);
+                Route::post('presence/break', [PresenceController::class, 'setBreak']);
+                Route::post('presence/available', [PresenceController::class, 'setAvailable']);
             });
 
             Route::middleware('company.feature:performance')->group(function () {

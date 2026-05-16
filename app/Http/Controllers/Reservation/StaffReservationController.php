@@ -14,6 +14,7 @@ use App\Models\ReservationResource;
 use App\Models\ReservationResourceAllocation;
 use App\Models\ReservationWaitlist;
 use App\Models\TeamMember;
+use App\Models\TeamMemberAttendance;
 use App\Models\User;
 use App\Models\WeeklyAvailability;
 use App\Queries\Reservations\BuildStaffReservationIndexData;
@@ -79,7 +80,8 @@ class StaffReservationController extends Controller
             ? (string) $request->input('mode', 'board')
             : 'board';
         $teamMembers = $this->screenTeamMembers($account->id, $access, $settings);
-        $payload = $this->buildQueueScreenPayload($account->id, $access, $settings, $anonymize, $teamMembers);
+        $chairResources = $this->screenChairResources($account->id, $access);
+        $payload = $this->buildQueueScreenPayload($account->id, $access, $settings, $anonymize, $chairResources);
 
         return $this->inertiaOrJson('Reservation/Screen', [
             'queue' => $payload,
@@ -118,9 +120,10 @@ class StaffReservationController extends Controller
 
         $anonymize = $request->boolean('anonymize', true);
         $teamMembers = $this->screenTeamMembers($account->id, $access, $settings);
+        $chairResources = $this->screenChairResources($account->id, $access);
 
         return response()->json([
-            'queue' => $this->buildQueueScreenPayload($account->id, $access, $settings, $anonymize, $teamMembers),
+            'queue' => $this->buildQueueScreenPayload($account->id, $access, $settings, $anonymize, $chairResources),
             'fetched_at' => now('UTC')->toIso8601String(),
         ]);
     }
@@ -1227,7 +1230,7 @@ class StaffReservationController extends Controller
         array $access,
         array $settings,
         bool $anonymizeClients,
-        array $teamMembers = []
+        array $chairResources = []
     ): array {
         $board = $this->queueService->boardForStaff($accountId, $access, $settings);
         $assignmentMode = strtolower(trim((string) ($settings['queue_assignment_mode'] ?? 'per_staff')));
@@ -1320,7 +1323,7 @@ class StaffReservationController extends Controller
             'stats' => $board['stats'] ?? ['waiting' => 0, 'called' => 0, 'in_service' => 0],
             'assignment_mode' => $assignmentMode,
             'items' => $items->all(),
-            'chairs' => $this->buildChairCards($items, $teamMembers, $assignmentMode),
+            'chairs' => $this->buildChairCards($items, $chairResources, $assignmentMode),
             'now_serving' => $nowServing,
             'up_next' => $upNext,
             'waiting' => $waiting,
@@ -1331,12 +1334,12 @@ class StaffReservationController extends Controller
 
     /**
      * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $items
-     * @param  array<int, array<string, mixed>>  $teamMembers
+     * @param  array<int, array<string, mixed>>  $chairResources
      * @return array<int, array<string, mixed>>
      */
-    private function buildChairCards(\Illuminate\Support\Collection $items, array $teamMembers, string $assignmentMode): array
+    private function buildChairCards(\Illuminate\Support\Collection $items, array $chairResources, string $assignmentMode): array
     {
-        if (empty($teamMembers)) {
+        if (empty($chairResources)) {
             return [];
         }
 
@@ -1358,11 +1361,12 @@ class StaffReservationController extends Controller
             })
             ->values();
 
-        return collect($teamMembers)
+        return collect($chairResources)
             ->values()
-            ->map(function (array $member, int $index) use ($items, $globalWaitingPool, $waitingStatuses, $assignmentMode) {
-                $memberId = (int) ($member['id'] ?? 0);
-                $isPresent = (bool) ($member['is_present'] ?? true);
+            ->map(function (array $chair, int $index) use ($items, $globalWaitingPool, $waitingStatuses, $assignmentMode) {
+                $memberId = (int) ($chair['team_member_id'] ?? 0);
+                $presenceStatus = (string) ($chair['team_member_status'] ?? TeamMemberAttendance::STATUS_OFFLINE);
+                $isPresent = (bool) ($chair['is_present'] ?? false);
                 $memberItems = $items
                     ->filter(fn (array $item) => (int) ($item['team_member_id'] ?? 0) === $memberId)
                     ->values();
@@ -1394,14 +1398,16 @@ class StaffReservationController extends Controller
 
                 $state = 'available';
                 if ($current && (string) ($current['status'] ?? '') === ReservationQueueItem::STATUS_IN_SERVICE) {
-                    $state = 'in_service';
+                    $state = 'busy';
                 } elseif ($current && in_array((string) ($current['status'] ?? ''), [
                     ReservationQueueItem::STATUS_CALLED,
                     ReservationQueueItem::STATUS_PRE_CALLED,
                 ], true)) {
                     $state = 'called';
+                } elseif ($presenceStatus === TeamMemberAttendance::STATUS_BREAK) {
+                    $state = 'break';
                 } elseif (! $isPresent) {
-                    $state = 'blocked';
+                    $state = 'offline';
                 } elseif ($next && (string) ($next['status'] ?? '') === ReservationQueueItem::STATUS_NOT_ARRIVED) {
                     $state = 'check_in_needed';
                 } elseif ($next) {
@@ -1409,15 +1415,79 @@ class StaffReservationController extends Controller
                 }
 
                 return [
-                    'id' => $memberId,
+                    'id' => (int) ($chair['id'] ?? $memberId),
+                    'chair_id' => (int) ($chair['id'] ?? 0),
                     'chair_number' => $index + 1,
-                    'chair_label' => 'Chair '.($index + 1),
-                    'team_member_name' => (string) ($member['name'] ?? 'Member'),
-                    'team_member_title' => $member['title'] ?? null,
+                    'chair_label' => (string) ($chair['name'] ?? ('Chair '.($index + 1))),
+                    'team_member_id' => $memberId,
+                    'team_member_name' => (string) ($chair['team_member_name'] ?? 'Member'),
+                    'team_member_title' => $chair['team_member_title'] ?? null,
+                    'team_member_status' => $presenceStatus,
                     'is_present' => $isPresent,
                     'state' => $state,
                     'current' => $current,
                     'next' => $next,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function screenChairResources(int $accountId, array $access): array
+    {
+        $query = ReservationResource::query()
+            ->forAccount($accountId)
+            ->chairs()
+            ->active()
+            ->whereNotNull('team_member_id')
+            ->with('teamMember.user:id,name')
+            ->orderBy('id');
+
+        if (! ($access['can_view_all'] ?? false) && ! empty($access['own_team_member_id'])) {
+            $query->where('team_member_id', (int) $access['own_team_member_id']);
+        }
+
+        $chairs = $query->get();
+        if ($chairs->isEmpty()) {
+            return [];
+        }
+
+        $memberIds = $chairs
+            ->pluck('team_member_id')
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        $attendanceByMember = TeamMemberAttendance::query()
+            ->where('account_id', $accountId)
+            ->whereIn('team_member_id', $memberIds)
+            ->whereNull('clock_out_at')
+            ->orderByDesc('clock_in_at')
+            ->get()
+            ->unique('team_member_id')
+            ->keyBy(fn (TeamMemberAttendance $attendance) => (int) $attendance->team_member_id);
+
+        return $chairs
+            ->map(function (ReservationResource $chair) use ($attendanceByMember) {
+                $memberId = (int) ($chair->team_member_id ?? 0);
+                $attendance = $attendanceByMember->get($memberId);
+                $status = $attendance
+                    ? (string) ($attendance->current_status ?? TeamMemberAttendance::STATUS_AVAILABLE)
+                    : TeamMemberAttendance::STATUS_OFFLINE;
+
+                return [
+                    'id' => (int) $chair->id,
+                    'name' => (string) $chair->name,
+                    'team_member_id' => $memberId,
+                    'team_member_name' => $chair->teamMember?->user?->name ?? 'Member',
+                    'team_member_title' => $chair->teamMember?->title,
+                    'team_member_status' => $status,
+                    'is_present' => $attendance !== null && $status !== TeamMemberAttendance::STATUS_OFFLINE,
                 ];
             })
             ->values()
