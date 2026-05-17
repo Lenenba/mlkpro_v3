@@ -238,6 +238,31 @@
       "title": "Salon kiosk",
       "subtitle": "Take a walk-in ticket, check in as an existing client, or track your ticket.",
       "open": "Open kiosk",
+      "category": "Hair / beauty salon",
+      "hero": {
+        "welcome": "Welcome to",
+        "line_one": "Take your place, signal your arrival",
+        "line_two": "or track your ticket in seconds."
+      },
+      "wait": {
+        "title": "Estimated wait time"
+      },
+      "actions": {
+        "title": "What would you like to do?",
+        "walk_in_subtitle": "I do not have an appointment",
+        "check_in_title": "Signal my arrival",
+        "check_in_subtitle": "I already have a reservation",
+        "track_subtitle": "See my position in the queue",
+        "searching": "Searching...",
+        "creating": "Creating...",
+        "clear": "Clear"
+      },
+      "preview": {
+        "label": "PREVIEW",
+        "walk_in_description": "Fill in a few details to get your ticket.",
+        "check_in_description": "Find your reservation and confirm your presence.",
+        "track_description": "Enter your phone and ticket to track your place."
+      },
       "tabs": {
         "walk_in": "Walk-in",
         "known_client": "Already a client",
@@ -246,14 +271,23 @@
       "fields": {
         "phone": "Phone number",
         "guest_name": "First name (optional)",
+        "service": "Desired service",
+        "party_size": "Number of people",
         "code": "Verification code",
         "queue_number": "Ticket number (optional)",
         "any_service": "Any service",
+        "team_member": "Team member",
         "any_team_member": "Any team member"
+      },
+      "placeholders": {
+        "guest_name": "Your first name",
+        "search_service": "Search a service"
       },
       "labels": {
         "ticket": "Ticket"
       },
+      "security_notice": "Your information is secure and used only to manage your wait.",
+      "footer_note": "Thank you for your trust. We are doing our best to give you the best experience.",
       "walk_in": {
         "title": "Take a walk-in ticket",
         "subtitle": "Enter your phone, choose service/member if needed, and receive your position/ETA.",
@@ -284,7 +318,9 @@
         "client_found": "Client profile found.",
         "code_sent": "Verification code sent.",
         "phone_verified": "Phone verified.",
-        "active_ticket_exists": "You already have an active ticket for this phone number."
+        "active_ticket_exists": "You already have an active ticket for this phone number.",
+        "no_services": "No active service is configured for this kiosk.",
+        "no_service_match": "No service matches this search."
       },
       "errors": {
         "lookup": "Unable to search this client.",

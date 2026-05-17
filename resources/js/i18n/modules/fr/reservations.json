@@ -238,6 +238,31 @@
       "title": "Kiosque salon",
       "subtitle": "Prenez un ticket walk-in, enregistrez-vous en tant que client existant, ou suivez votre ticket.",
       "open": "Ouvrir le kiosque",
+      "category": "Salon de coiffure / beaute",
+      "hero": {
+        "welcome": "Bienvenue chez",
+        "line_one": "Prenez votre place, signalez votre arrivee",
+        "line_two": "ou suivez votre ticket en quelques secondes."
+      },
+      "wait": {
+        "title": "Temps d'attente estime"
+      },
+      "actions": {
+        "title": "Que souhaitez-vous faire ?",
+        "walk_in_subtitle": "Je n'ai pas de rendez-vous",
+        "check_in_title": "Signaler mon arrivee",
+        "check_in_subtitle": "J'ai deja une reservation",
+        "track_subtitle": "Voir ma position dans la file",
+        "searching": "Recherche...",
+        "creating": "Creation...",
+        "clear": "Effacer"
+      },
+      "preview": {
+        "label": "APERCU",
+        "walk_in_description": "Remplissez quelques informations pour obtenir votre ticket.",
+        "check_in_description": "Retrouvez votre reservation et confirmez votre presence.",
+        "track_description": "Entrez votre telephone et votre ticket pour suivre votre place."
+      },
       "tabs": {
         "walk_in": "Walk-in",
         "known_client": "Deja client",
@@ -246,14 +271,23 @@
       "fields": {
         "phone": "Numero de telephone",
         "guest_name": "Prenom (optionnel)",
+        "service": "Service souhaite",
+        "party_size": "Nombre de personnes",
         "code": "Code de verification",
         "queue_number": "Numero de ticket (optionnel)",
         "any_service": "N importe quel service",
+        "team_member": "Employe",
         "any_team_member": "N importe quel employe"
+      },
+      "placeholders": {
+        "guest_name": "Votre prenom",
+        "search_service": "Rechercher un service"
       },
       "labels": {
         "ticket": "Ticket"
       },
+      "security_notice": "Vos informations sont securisees et utilisees uniquement pour la gestion de votre attente.",
+      "footer_note": "Merci de votre confiance. Nous faisons de notre mieux pour vous offrir la meilleure experience.",
       "walk_in": {
         "title": "Prendre un ticket walk-in",
         "subtitle": "Entrez votre telephone, choisissez service/employe si besoin, puis recevez position/ETA.",
@@ -284,7 +318,9 @@
         "client_found": "Profil client trouve.",
         "code_sent": "Code de verification envoye.",
         "phone_verified": "Telephone verifie.",
-        "active_ticket_exists": "Vous avez deja un ticket actif pour ce numero."
+        "active_ticket_exists": "Vous avez deja un ticket actif pour ce numero.",
+        "no_services": "Aucun service actif n'est configure pour ce kiosque.",
+        "no_service_match": "Aucun service ne correspond a cette recherche."
       },
       "errors": {
         "lookup": "Impossible de rechercher ce client.",

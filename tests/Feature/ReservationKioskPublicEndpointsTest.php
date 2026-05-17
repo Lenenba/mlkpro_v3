@@ -1,11 +1,15 @@
 <?php
 
 use App\Models\Customer;
+use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Models\Reservation;
 use App\Models\ReservationQueueItem;
+use App\Models\ReservationResource;
 use App\Models\ReservationSetting;
 use App\Models\Role;
 use App\Models\TeamMember;
+use App\Models\TeamMemberAttendance;
 use App\Models\User;
 use App\Services\SmsNotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -65,6 +69,28 @@ function createKioskTeamMember(User $owner): TeamMember
     ]);
 }
 
+function checkInKioskTeamMember(User $owner, TeamMember $member): void
+{
+    ReservationResource::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $member->id,
+        'name' => 'Chair 1',
+        'type' => ReservationResource::TYPE_CHAIR,
+        'capacity' => 1,
+        'is_active' => true,
+    ]);
+
+    TeamMemberAttendance::query()->create([
+        'account_id' => $owner->id,
+        'user_id' => $member->user_id,
+        'team_member_id' => $member->id,
+        'clock_in_at' => now('UTC')->subMinute(),
+        'clock_out_at' => null,
+        'method' => 'manual',
+        'current_status' => TeamMemberAttendance::STATUS_AVAILABLE,
+    ]);
+}
+
 function createKioskClient(User $owner, string $name, string $email, string $phone): array
 {
     $clientRoleId = ensureKioskRole('client', 'Client role');
@@ -121,10 +147,44 @@ function kioskSignedRoute(string $name, User $owner, array $params = []): string
     return URL::signedRoute($name, array_merge(['account' => $owner->id], $params));
 }
 
+it('renders kiosk with active services and company branding', function () {
+    $owner = createKioskOwner();
+    $owner->update([
+        'company_name' => 'Studio Lumiere',
+        'company_logo' => 'company/logos/studio-lumiere.png',
+    ]);
+    enableKioskQueue($owner);
+
+    $category = ProductCategory::query()->create([
+        'name' => 'Services',
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+    ]);
+
+    Product::query()->create([
+        'user_id' => $owner->id,
+        'category_id' => $category->id,
+        'name' => 'Coupe signature',
+        'price' => 45,
+        'stock' => 0,
+        'minimum_stock' => 0,
+        'is_active' => true,
+        'item_type' => Product::ITEM_TYPE_SERVICE,
+        'tracking_type' => 'none',
+    ]);
+
+    $this->get(kioskSignedRoute('public.kiosk.reservations.show', $owner))
+        ->assertOk()
+        ->assertSee('Studio Lumiere')
+        ->assertSee('Coupe signature')
+        ->assertSee('studio-lumiere.png');
+});
+
 it('allows creating a public kiosk walk-in guest ticket', function () {
     $owner = createKioskOwner();
     $teamMember = createKioskTeamMember($owner);
     enableKioskQueue($owner);
+    checkInKioskTeamMember($owner, $teamMember);
 
     $phone = '+1 555-000-1111';
     $response = $this->postJson(
@@ -344,7 +404,7 @@ it('records kiosk activity logs for ticket creation and check-in', function () {
 
     $this->assertDatabaseHas('activity_logs', [
         'action' => 'kiosk_ticket_created',
-        'subject_type' => (new ReservationQueueItem())->getMorphClass(),
+        'subject_type' => (new ReservationQueueItem)->getMorphClass(),
         'subject_id' => $walkInQueueItemId,
         'user_id' => $owner->id,
     ]);
@@ -362,7 +422,7 @@ it('records kiosk activity logs for ticket creation and check-in', function () {
 
     $this->assertDatabaseHas('activity_logs', [
         'action' => 'kiosk_queue_transition',
-        'subject_type' => (new ReservationQueueItem())->getMorphClass(),
+        'subject_type' => (new ReservationQueueItem)->getMorphClass(),
         'subject_id' => $checkInQueueItemId,
         'user_id' => $owner->id,
     ]);

@@ -9,6 +9,7 @@ import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import DropzoneInput from '@/Components/DropzoneInput.vue';
 import InputError from '@/Components/InputError.vue';
+import CardTileTabs from '@/Components/UI/CardTileTabs.vue';
 
 const { t } = useI18n();
 
@@ -340,6 +341,70 @@ const summaryCards = computed(() => ([
         border: 'border-t-cyan-600',
     },
 ]));
+
+const activeReservationSettingsTab = ref('general');
+const businessPresetLabel = computed(() => businessPresetOptions.value.find((option) => option.value === form.account_settings.business_preset)?.label || form.account_settings.business_preset);
+const reservationSettingsTabs = computed(() => ([
+    {
+        id: 'general',
+        label: t('settings.reservations.company_rules.title'),
+        meta: businessPresetLabel.value,
+        initials: 'RG',
+        tone: 'emerald',
+        panelId: 'reservation-settings-general-panel',
+    },
+    {
+        id: 'team',
+        label: t('settings.reservations.team_settings.title'),
+        meta: `${Number(form.team_settings?.length || 0).toLocaleString()} regles`,
+        initials: 'EQ',
+        tone: 'sky',
+        panelId: 'reservation-settings-team-panel',
+        visible: showTeamSections.value,
+    },
+    {
+        id: 'schedule',
+        label: t('settings.reservations.weekly.title'),
+        meta: `${Number(form.weekly_availabilities?.length || 0).toLocaleString()} horaires · ${Number(form.exceptions?.length || 0).toLocaleString()} exceptions`,
+        initials: 'HO',
+        tone: 'amber',
+        panelId: 'reservation-settings-schedule-panel',
+    },
+    {
+        id: 'resources',
+        label: t('settings.reservations.resources.title'),
+        meta: `${Number(form.resources?.length || 0).toLocaleString()} postes`,
+        initials: 'PT',
+        tone: 'cyan',
+        panelId: 'reservation-settings-resources-panel',
+    },
+    {
+        id: 'links',
+        label: 'Liens publics',
+        meta: `${Number(publicLinks.value?.length || 0).toLocaleString()} liens`,
+        initials: 'LP',
+        tone: 'violet',
+        panelId: 'reservation-settings-links-panel',
+    },
+    {
+        id: 'notifications',
+        label: t('settings.reservations.notifications.title'),
+        meta: form.notification_settings.enabled ? 'Actives' : 'Inactives',
+        initials: 'NO',
+        tone: 'rose',
+        panelId: 'reservation-settings-notifications-panel',
+    },
+]).filter((tab) => tab.visible !== false));
+
+watch(
+    reservationSettingsTabs,
+    (tabs) => {
+        if (!tabs.some((tab) => tab.id === activeReservationSettingsTab.value)) {
+            activeReservationSettingsTab.value = tabs[0]?.id || 'general';
+        }
+    },
+    { immediate: true }
+);
 
 const addTeamSetting = () => {
     const teamMemberId = String(teamSettingDraft.value.team_member_id || '');
@@ -750,7 +815,21 @@ const submit = () => {
             </div>
 
             <form class="space-y-4" @submit.prevent="submit">
-                <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <CardTileTabs
+                    v-model="activeReservationSettingsTab"
+                    :tabs="reservationSettingsTabs"
+                    aria-label="Sections des reglages de reservation"
+                    grid-class="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6"
+                    class="rounded-sm border border-stone-200 shadow-sm dark:border-neutral-700"
+                />
+
+                <div
+                    id="reservation-settings-general-panel"
+                    v-show="activeReservationSettingsTab === 'general'"
+                    class="space-y-4"
+                    role="tabpanel"
+                >
+                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('settings.reservations.company_rules.title') }}</h2>
                     <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('settings.reservations.company_rules.description') }}</p>
 
@@ -828,9 +907,9 @@ const submit = () => {
                             {{ $t('settings.reservations.fields.no_show_fee_enabled') }}
                         </label>
                     </div>
-                </section>
+                    </section>
 
-                <section v-if="isSalonPreset" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <section v-if="isSalonPreset" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <div>
                             <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Image du kiosque public</h2>
@@ -870,9 +949,16 @@ const submit = () => {
                             </p>
                         </div>
                     </div>
-                </section>
+                    </section>
+                </div>
 
-                <section v-if="showTeamSections" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div
+                    id="reservation-settings-team-panel"
+                    v-show="activeReservationSettingsTab === 'team'"
+                    class="space-y-4"
+                    role="tabpanel"
+                >
+                    <section v-if="showTeamSections" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <div class="flex flex-wrap items-center justify-between gap-2">
                         <div>
                             <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('settings.reservations.team_settings.title') }}</h2>
@@ -934,9 +1020,16 @@ const submit = () => {
                             {{ $t('settings.reservations.team_settings.empty') }}
                         </div>
                     </div>
-                </section>
+                    </section>
+                </div>
 
-                <section v-if="showTeamSections" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div
+                    id="reservation-settings-schedule-panel"
+                    v-show="activeReservationSettingsTab === 'schedule'"
+                    class="space-y-4"
+                    role="tabpanel"
+                >
+                    <section v-if="showTeamSections" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('settings.reservations.weekly.title') }}</h2>
                     <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('settings.reservations.weekly.description') }}</p>
                     <div class="mt-3 grid gap-3 md:grid-cols-5">
@@ -962,9 +1055,9 @@ const submit = () => {
                             <button type="button" class="text-rose-600" @click="removeAvailability(index)">{{ $t('settings.reservations.remove') }}</button>
                         </div>
                     </div>
-                </section>
+                    </section>
 
-                <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('settings.reservations.exceptions.title') }}</h2>
                     <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('settings.reservations.exceptions.description') }}</p>
                     <div class="mt-3 grid gap-3 md:grid-cols-7">
@@ -1003,9 +1096,16 @@ const submit = () => {
                             <button type="button" class="text-rose-600" @click="removeException(index)">{{ $t('settings.reservations.remove') }}</button>
                         </div>
                     </div>
-                </section>
+                    </section>
+                </div>
 
-                <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div
+                    id="reservation-settings-resources-panel"
+                    v-show="activeReservationSettingsTab === 'resources'"
+                    class="space-y-4"
+                    role="tabpanel"
+                >
+                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('settings.reservations.resources.title') }}</h2>
                     <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('settings.reservations.resources.description') }}</p>
 
@@ -1079,9 +1179,16 @@ const submit = () => {
                             {{ $t('settings.reservations.resources.empty') }}
                         </div>
                     </div>
-                </section>
+                    </section>
+                </div>
 
-                <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div
+                    id="reservation-settings-links-panel"
+                    v-show="activeReservationSettingsTab === 'links'"
+                    class="space-y-4"
+                    role="tabpanel"
+                >
+                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <div>
                             <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Public Booking Links</h2>
@@ -1202,9 +1309,16 @@ const submit = () => {
                             </div>
                         </div>
                     </div>
-                </section>
+                    </section>
+                </div>
 
-                <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div
+                    id="reservation-settings-notifications-panel"
+                    v-show="activeReservationSettingsTab === 'notifications'"
+                    class="space-y-4"
+                    role="tabpanel"
+                >
+                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('settings.reservations.notifications.title') }}</h2>
                     <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('settings.reservations.notifications.description') }}</p>
 
@@ -1298,7 +1412,8 @@ const submit = () => {
                             </button>
                         </div>
                     </div>
-                </section>
+                    </section>
+                </div>
 
                 <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <InputError :message="form.errors.weekly_availabilities || form.errors.exceptions || form.errors.resources || form.errors.team_settings || form.errors.notification_settings" />

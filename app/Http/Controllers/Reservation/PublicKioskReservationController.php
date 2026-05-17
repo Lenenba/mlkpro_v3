@@ -54,14 +54,19 @@ class PublicKioskReservationController extends Controller
         $settings = $this->resolveKioskSettings($account);
 
         $services = Product::query()
-            ->services()
             ->where('user_id', $account->id)
             ->where('is_active', true)
+            ->where(function (Builder $query) {
+                $query
+                    ->where('item_type', Product::ITEM_TYPE_SERVICE)
+                    ->orWhere('unit', 'service');
+            })
             ->orderBy('name')
-            ->get(['id', 'name'])
+            ->get(['id', 'name', 'price'])
             ->map(fn (Product $service) => [
                 'id' => (int) $service->id,
                 'name' => (string) $service->name,
+                'price' => $service->price !== null ? (float) $service->price : null,
             ])
             ->values()
             ->all();
@@ -85,7 +90,7 @@ class PublicKioskReservationController extends Controller
             'company' => [
                 'id' => (int) $account->id,
                 'name' => $account->company_name ?: $account->name,
-                'logo_url' => $account->company_logo_url,
+                'logo_url' => $account->company_logo ? $account->company_logo_url : null,
                 'phone' => $account->phone_number,
                 'country' => $account->company_country,
                 'province' => $account->company_province,
