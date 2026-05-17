@@ -223,6 +223,11 @@
           "available_ready": "Disponible - próximo listo",
           "called": "llamado",
           "in_service": "en servicio",
+          "busy": "Ocupado",
+          "break": "En pausa",
+          "offline": "Fuera de línea",
+          "inactive": "Inactiva",
+          "unassigned": "Sin asignar",
           "check_in_needed": "Es necesario registrarse",
           "blocked": "Bloqueado"
         },
@@ -233,6 +238,31 @@
       "title": "Quiosco de salón",
       "subtitle": "Tome un boleto sin cita previa, regístrese como cliente existente o realice un seguimiento de su boleto.",
       "open": "quiosco abierto",
+      "category": "Salon de peluqueria / belleza",
+      "hero": {
+        "welcome": "Bienvenido a",
+        "line_one": "Tome su lugar, senale su llegada",
+        "line_two": "o siga su boleto en segundos."
+      },
+      "wait": {
+        "title": "Tiempo de espera estimado"
+      },
+      "actions": {
+        "title": "Que desea hacer?",
+        "walk_in_subtitle": "No tengo cita",
+        "check_in_title": "Senalar mi llegada",
+        "check_in_subtitle": "Ya tengo una reserva",
+        "track_subtitle": "Ver mi posicion en la fila",
+        "searching": "Buscando...",
+        "creating": "Creando...",
+        "clear": "Borrar"
+      },
+      "preview": {
+        "label": "VISTA PREVIA",
+        "walk_in_description": "Complete algunos datos para obtener su boleto.",
+        "check_in_description": "Encuentre su reserva y confirme su presencia.",
+        "track_description": "Ingrese su telefono y boleto para seguir su lugar."
+      },
       "tabs": {
         "walk_in": "Sin cita previa",
         "known_client": "Ya eres cliente",
@@ -241,14 +271,23 @@
       "fields": {
         "phone": "Número de teléfono",
         "guest_name": "Nombre (opcional)",
+        "service": "Servicio deseado",
+        "party_size": "Numero de personas",
         "code": "Código de verificación",
         "queue_number": "Número de billete (opcional)",
         "any_service": "cualquier servicio",
+        "team_member": "Miembro del equipo",
         "any_team_member": "Cualquier miembro del equipo"
+      },
+      "placeholders": {
+        "guest_name": "Su nombre",
+        "search_service": "Buscar un servicio"
       },
       "labels": {
         "ticket": "Boleto"
       },
+      "security_notice": "Su informacion esta segura y se usa solo para gestionar su espera.",
+      "footer_note": "Gracias por su confianza. Hacemos todo lo posible para ofrecerle la mejor experiencia.",
       "walk_in": {
         "title": "Tome un boleto sin cita previa",
         "subtitle": "Ingrese su teléfono, elija servicio/miembro si es necesario y reciba su posición/ETA.",
@@ -279,7 +318,9 @@
         "client_found": "Perfil del cliente encontrado.",
         "code_sent": "Código de verificación enviado.",
         "phone_verified": "Teléfono verificado.",
-        "active_ticket_exists": "Ya tienes un ticket activo para este número de teléfono."
+        "active_ticket_exists": "Ya tienes un ticket activo para este número de teléfono.",
+        "no_services": "No hay ningun servicio activo configurado para este quiosco.",
+        "no_service_match": "Ningun servicio coincide con esta busqueda."
       },
       "errors": {
         "lookup": "No se puede buscar este cliente.",

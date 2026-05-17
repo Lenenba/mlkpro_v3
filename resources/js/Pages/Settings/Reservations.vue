@@ -7,7 +7,9 @@ import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
+import DropzoneInput from '@/Components/DropzoneInput.vue';
 import InputError from '@/Components/InputError.vue';
+import CardTileTabs from '@/Components/UI/CardTileTabs.vue';
 
 const { t } = useI18n();
 
@@ -98,7 +100,7 @@ const teamSettingMemberOptions = computed(() => [
 ]);
 
 const resourceMemberOptions = computed(() => [
-    { value: '', label: t('settings.reservations.exceptions.all_members') },
+    { value: '', label: 'Non assignee' },
     ...memberOptions.value,
 ]);
 
@@ -139,6 +141,8 @@ const form = useForm({
         queue_grace_minutes: props.accountSettings?.queue_grace_minutes ?? 5,
         queue_pre_call_threshold: props.accountSettings?.queue_pre_call_threshold ?? 2,
         queue_no_show_on_grace_expiry: Boolean(props.accountSettings?.queue_no_show_on_grace_expiry ?? false),
+        kiosk_image: props.accountSettings?.kiosk_image_url || null,
+        clear_kiosk_image: false,
         deposit_required: Boolean(props.accountSettings?.deposit_required ?? false),
         deposit_amount: props.accountSettings?.deposit_amount ?? 0,
         no_show_fee_enabled: Boolean(props.accountSettings?.no_show_fee_enabled ?? false),
@@ -205,6 +209,18 @@ const form = useForm({
 const isSalonPreset = computed(() => String(form.account_settings?.business_preset || '') === 'salon');
 const queueConfigurationAvailable = computed(() => isSalonPreset.value && !ownerOnlyMode.value);
 const showTeamSections = computed(() => !ownerOnlyMode.value);
+const kioskDefaultImageUrl = '/images/landing/stock/salon-front-desk.jpg';
+const kioskPreviewImageUrl = computed(() => {
+    if (form.account_settings.clear_kiosk_image) {
+        return kioskDefaultImageUrl;
+    }
+
+    if (typeof form.account_settings.kiosk_image === 'string' && form.account_settings.kiosk_image.trim() !== '') {
+        return form.account_settings.kiosk_image;
+    }
+
+    return kioskDefaultImageUrl;
+});
 
 watch(
     () => form.account_settings.business_preset,
@@ -224,6 +240,26 @@ watch(
     },
     { immediate: true }
 );
+
+watch(
+    () => form.account_settings.kiosk_image,
+    (value, previousValue) => {
+        if (value instanceof File) {
+            form.account_settings.clear_kiosk_image = false;
+
+            return;
+        }
+
+        if (value === null && typeof previousValue === 'string' && previousValue.trim() !== '') {
+            form.account_settings.clear_kiosk_image = true;
+        }
+    }
+);
+
+const restoreDefaultKioskImage = () => {
+    form.account_settings.kiosk_image = null;
+    form.account_settings.clear_kiosk_image = true;
+};
 
 const teamSettingDraft = ref({
     team_member_id: '',
@@ -305,6 +341,70 @@ const summaryCards = computed(() => ([
         border: 'border-t-cyan-600',
     },
 ]));
+
+const activeReservationSettingsTab = ref('general');
+const businessPresetLabel = computed(() => businessPresetOptions.value.find((option) => option.value === form.account_settings.business_preset)?.label || form.account_settings.business_preset);
+const reservationSettingsTabs = computed(() => ([
+    {
+        id: 'general',
+        label: t('settings.reservations.company_rules.title'),
+        meta: businessPresetLabel.value,
+        initials: 'RG',
+        tone: 'emerald',
+        panelId: 'reservation-settings-general-panel',
+    },
+    {
+        id: 'team',
+        label: t('settings.reservations.team_settings.title'),
+        meta: `${Number(form.team_settings?.length || 0).toLocaleString()} regles`,
+        initials: 'EQ',
+        tone: 'sky',
+        panelId: 'reservation-settings-team-panel',
+        visible: showTeamSections.value,
+    },
+    {
+        id: 'schedule',
+        label: t('settings.reservations.weekly.title'),
+        meta: `${Number(form.weekly_availabilities?.length || 0).toLocaleString()} horaires · ${Number(form.exceptions?.length || 0).toLocaleString()} exceptions`,
+        initials: 'HO',
+        tone: 'amber',
+        panelId: 'reservation-settings-schedule-panel',
+    },
+    {
+        id: 'resources',
+        label: t('settings.reservations.resources.title'),
+        meta: `${Number(form.resources?.length || 0).toLocaleString()} postes`,
+        initials: 'PT',
+        tone: 'cyan',
+        panelId: 'reservation-settings-resources-panel',
+    },
+    {
+        id: 'links',
+        label: 'Liens publics',
+        meta: `${Number(publicLinks.value?.length || 0).toLocaleString()} liens`,
+        initials: 'LP',
+        tone: 'violet',
+        panelId: 'reservation-settings-links-panel',
+    },
+    {
+        id: 'notifications',
+        label: t('settings.reservations.notifications.title'),
+        meta: form.notification_settings.enabled ? 'Actives' : 'Inactives',
+        initials: 'NO',
+        tone: 'rose',
+        panelId: 'reservation-settings-notifications-panel',
+    },
+]).filter((tab) => tab.visible !== false));
+
+watch(
+    reservationSettingsTabs,
+    (tabs) => {
+        if (!tabs.some((tab) => tab.id === activeReservationSettingsTab.value)) {
+            activeReservationSettingsTab.value = tabs[0]?.id || 'general';
+        }
+    },
+    { immediate: true }
+);
 
 const addTeamSetting = () => {
     const teamMemberId = String(teamSettingDraft.value.team_member_id || '');
@@ -563,13 +663,41 @@ const hasReminderHour = (hour) => (form.notification_settings.reminder_hours || 
 
 const dayLabel = (day) => dayOptions.value.find((item) => Number(item.value) === Number(day))?.label || day;
 const memberLabel = (teamMemberId) => memberOptions.value.find((item) => item.value === String(teamMemberId))?.label || t('settings.reservations.member_unknown');
+const resourceStatusLabel = (status) => ({
+    active: 'Active',
+    inactive: 'Inactive',
+    unassigned: 'Non assignee',
+    offline: 'Membre hors ligne',
+    available: 'Disponible',
+    busy: 'Occupee',
+    break: 'En pause',
+}[status] || status || '-');
+const resourceStatusFor = (item) => {
+    if (!item?.is_active) {
+        return 'inactive';
+    }
+
+    if (String(item?.type || '') === 'chair' && !item?.team_member_id) {
+        return 'unassigned';
+    }
+
+    return item?.operational_status || 'active';
+};
+const resourceStatusBadgeClass = (status) => ({
+    active: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200',
+    inactive: 'bg-stone-100 text-stone-500 dark:bg-neutral-800 dark:text-neutral-400',
+    unassigned: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200',
+    offline: 'bg-stone-100 text-stone-600 dark:bg-neutral-800 dark:text-neutral-300',
+    available: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200',
+    busy: 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-200',
+    break: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200',
+}[status] || 'bg-stone-100 text-stone-600 dark:bg-neutral-800 dark:text-neutral-300');
 
 const submit = () => {
     const queueFeatureEnabled = isSalonPreset.value;
 
-    form.transform((data) => ({
-        ...data,
-        account_settings: {
+    form.transform((data) => {
+        const accountSettings = {
             ...data.account_settings,
             buffer_minutes: Number(data.account_settings?.buffer_minutes || 0),
             slot_interval_minutes: Number(data.account_settings?.slot_interval_minutes || 30),
@@ -595,54 +723,67 @@ const submit = () => {
             deposit_amount: Math.max(0, Number(data.account_settings?.deposit_amount || 0)),
             no_show_fee_enabled: Boolean(data.account_settings?.no_show_fee_enabled),
             no_show_fee_amount: Math.max(0, Number(data.account_settings?.no_show_fee_amount || 0)),
-        },
-        team_settings: (data.team_settings || []).map((item) => ({
-            ...item,
-            team_member_id: Number(item.team_member_id),
-        })),
-        weekly_availabilities: (data.weekly_availabilities || []).map((item) => ({
-            ...item,
-            team_member_id: Number(item.team_member_id),
-            day_of_week: Number(item.day_of_week),
-        })),
-        exceptions: (data.exceptions || []).map((item) => ({
-            ...item,
-            team_member_id: item.team_member_id ? Number(item.team_member_id) : null,
-        })),
-        resources: (data.resources || []).map((item) => ({
-            ...item,
-            team_member_id: item.team_member_id ? Number(item.team_member_id) : null,
-            capacity: Math.max(1, Number(item.capacity || 1)),
-            is_active: Boolean(item.is_active),
-        })),
-        notification_settings: {
-            ...data.notification_settings,
-            notify_on_queue_pre_call: queueFeatureEnabled
-                ? Boolean(data.notification_settings?.notify_on_queue_pre_call)
-                : false,
-            notify_on_queue_called: queueFeatureEnabled
-                ? Boolean(data.notification_settings?.notify_on_queue_called)
-                : false,
-            notify_on_queue_grace_expired: queueFeatureEnabled
-                ? Boolean(data.notification_settings?.notify_on_queue_grace_expired)
-                : false,
-            notify_on_queue_ticket_created: queueFeatureEnabled
-                ? Boolean(data.notification_settings?.notify_on_queue_ticket_created)
-                : false,
-            notify_on_queue_eta_10m: queueFeatureEnabled
-                ? Boolean(data.notification_settings?.notify_on_queue_eta_10m)
-                : false,
-            notify_on_queue_status_changed: queueFeatureEnabled
-                ? Boolean(data.notification_settings?.notify_on_queue_status_changed)
-                : false,
-            reminder_hours: (data.notification_settings?.reminder_hours || [])
-                .map((value) => Number(value))
-                .filter((value) => Number.isInteger(value) && value >= 1 && value <= 168),
-        },
-    }));
+        };
+
+        const kioskImage = data.account_settings?.kiosk_image;
+        if (kioskImage instanceof File) {
+            accountSettings.kiosk_image = kioskImage;
+        } else {
+            delete accountSettings.kiosk_image;
+        }
+
+        return {
+            ...data,
+            account_settings: accountSettings,
+            team_settings: (data.team_settings || []).map((item) => ({
+                ...item,
+                team_member_id: Number(item.team_member_id),
+            })),
+            weekly_availabilities: (data.weekly_availabilities || []).map((item) => ({
+                ...item,
+                team_member_id: Number(item.team_member_id),
+                day_of_week: Number(item.day_of_week),
+            })),
+            exceptions: (data.exceptions || []).map((item) => ({
+                ...item,
+                team_member_id: item.team_member_id ? Number(item.team_member_id) : null,
+            })),
+            resources: (data.resources || []).map((item) => ({
+                ...item,
+                team_member_id: item.team_member_id ? Number(item.team_member_id) : null,
+                capacity: Math.max(1, Number(item.capacity || 1)),
+                is_active: Boolean(item.is_active),
+            })),
+            notification_settings: {
+                ...data.notification_settings,
+                notify_on_queue_pre_call: queueFeatureEnabled
+                    ? Boolean(data.notification_settings?.notify_on_queue_pre_call)
+                    : false,
+                notify_on_queue_called: queueFeatureEnabled
+                    ? Boolean(data.notification_settings?.notify_on_queue_called)
+                    : false,
+                notify_on_queue_grace_expired: queueFeatureEnabled
+                    ? Boolean(data.notification_settings?.notify_on_queue_grace_expired)
+                    : false,
+                notify_on_queue_ticket_created: queueFeatureEnabled
+                    ? Boolean(data.notification_settings?.notify_on_queue_ticket_created)
+                    : false,
+                notify_on_queue_eta_10m: queueFeatureEnabled
+                    ? Boolean(data.notification_settings?.notify_on_queue_eta_10m)
+                    : false,
+                notify_on_queue_status_changed: queueFeatureEnabled
+                    ? Boolean(data.notification_settings?.notify_on_queue_status_changed)
+                    : false,
+                reminder_hours: (data.notification_settings?.reminder_hours || [])
+                    .map((value) => Number(value))
+                    .filter((value) => Number.isInteger(value) && value >= 1 && value <= 168),
+            },
+        };
+    });
 
     form.put(route('settings.reservations.update'), {
         preserveScroll: true,
+        forceFormData: true,
     });
 };
 </script>
@@ -674,7 +815,21 @@ const submit = () => {
             </div>
 
             <form class="space-y-4" @submit.prevent="submit">
-                <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <CardTileTabs
+                    v-model="activeReservationSettingsTab"
+                    :tabs="reservationSettingsTabs"
+                    aria-label="Sections des reglages de reservation"
+                    grid-class="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6"
+                    class="rounded-sm border border-stone-200 shadow-sm dark:border-neutral-700"
+                />
+
+                <div
+                    id="reservation-settings-general-panel"
+                    v-show="activeReservationSettingsTab === 'general'"
+                    class="space-y-4"
+                    role="tabpanel"
+                >
+                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('settings.reservations.company_rules.title') }}</h2>
                     <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('settings.reservations.company_rules.description') }}</p>
 
@@ -752,9 +907,58 @@ const submit = () => {
                             {{ $t('settings.reservations.fields.no_show_fee_enabled') }}
                         </label>
                     </div>
-                </section>
+                    </section>
 
-                <section v-if="showTeamSections" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <section v-if="isSalonPreset" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Image du kiosque public</h2>
+                            <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                Cette image est affichee sur la page de prise de ticket et peut etre personnalisee par l'entreprise.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            class="rounded-sm border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                            @click="restoreDefaultKioskImage"
+                        >
+                            Image par defaut
+                        </button>
+                    </div>
+
+                    <div class="mt-4 grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+                        <div class="overflow-hidden rounded-sm border border-stone-200 bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800">
+                            <img
+                                :src="kioskPreviewImageUrl"
+                                alt="Apercu de l'image du kiosque"
+                                class="h-56 w-full object-cover"
+                            >
+                        </div>
+                        <div class="space-y-2">
+                            <DropzoneInput v-model="form.account_settings.kiosk_image" label="Image du kiosque" />
+                            <InputError :message="form.errors['account_settings.kiosk_image']" />
+                            <InputError :message="form.errors['account_settings.clear_kiosk_image']" />
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                Format conseille: photo horizontale ou portrait large, au moins 1200 px de large. Les images lourdes sont optimisees automatiquement.
+                            </p>
+                            <p
+                                v-if="form.account_settings.clear_kiosk_image"
+                                class="rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200"
+                            >
+                                L'image par defaut sera utilisee apres l'enregistrement.
+                            </p>
+                        </div>
+                    </div>
+                    </section>
+                </div>
+
+                <div
+                    id="reservation-settings-team-panel"
+                    v-show="activeReservationSettingsTab === 'team'"
+                    class="space-y-4"
+                    role="tabpanel"
+                >
+                    <section v-if="showTeamSections" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <div class="flex flex-wrap items-center justify-between gap-2">
                         <div>
                             <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('settings.reservations.team_settings.title') }}</h2>
@@ -816,9 +1020,16 @@ const submit = () => {
                             {{ $t('settings.reservations.team_settings.empty') }}
                         </div>
                     </div>
-                </section>
+                    </section>
+                </div>
 
-                <section v-if="showTeamSections" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div
+                    id="reservation-settings-schedule-panel"
+                    v-show="activeReservationSettingsTab === 'schedule'"
+                    class="space-y-4"
+                    role="tabpanel"
+                >
+                    <section v-if="showTeamSections" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('settings.reservations.weekly.title') }}</h2>
                     <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('settings.reservations.weekly.description') }}</p>
                     <div class="mt-3 grid gap-3 md:grid-cols-5">
@@ -844,9 +1055,9 @@ const submit = () => {
                             <button type="button" class="text-rose-600" @click="removeAvailability(index)">{{ $t('settings.reservations.remove') }}</button>
                         </div>
                     </div>
-                </section>
+                    </section>
 
-                <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('settings.reservations.exceptions.title') }}</h2>
                     <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('settings.reservations.exceptions.description') }}</p>
                     <div class="mt-3 grid gap-3 md:grid-cols-7">
@@ -885,9 +1096,16 @@ const submit = () => {
                             <button type="button" class="text-rose-600" @click="removeException(index)">{{ $t('settings.reservations.remove') }}</button>
                         </div>
                     </div>
-                </section>
+                    </section>
+                </div>
 
-                <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div
+                    id="reservation-settings-resources-panel"
+                    v-show="activeReservationSettingsTab === 'resources'"
+                    class="space-y-4"
+                    role="tabpanel"
+                >
+                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('settings.reservations.resources.title') }}</h2>
                     <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('settings.reservations.resources.description') }}</p>
 
@@ -918,25 +1136,59 @@ const submit = () => {
                         <div
                             v-for="(item, index) in form.resources"
                             :key="`resource-${item.id || index}`"
-                            class="flex items-center justify-between gap-3 rounded-sm border border-stone-200 px-3 py-2 text-sm dark:border-neutral-700"
+                            class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm dark:border-neutral-700 dark:bg-neutral-800"
                         >
-                            <span>
-                                {{ item.name }}
-                                · {{ $t(`settings.reservations.resources.types.${item.type}`) || item.type }}
-                                · {{ $t('settings.reservations.resources.fields.capacity') }}: {{ item.capacity }}
-                                · {{ item.team_member_id ? memberLabel(item.team_member_id) : $t('settings.reservations.exceptions.all_members') }}
-                                · {{ item.is_active ? $t('settings.reservations.resources.status.active') : $t('settings.reservations.resources.status.inactive') }}
-                            </span>
-                            <button type="button" class="text-rose-600" @click="removeResource(index)">{{ $t('settings.reservations.remove') }}</button>
+                            <div class="flex flex-wrap items-start justify-between gap-2">
+                                <div>
+                                    <div class="font-semibold text-stone-800 dark:text-neutral-100">{{ item.name || $t('settings.reservations.resources.fields.name') }}</div>
+                                    <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                        {{ item.team_member_id ? memberLabel(item.team_member_id) : 'Non assignee' }}
+                                    </div>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span
+                                        class="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                                        :class="resourceStatusBadgeClass(resourceStatusFor(item))"
+                                    >
+                                        {{ resourceStatusLabel(resourceStatusFor(item)) }}
+                                    </span>
+                                    <button type="button" class="text-xs font-semibold text-rose-600 hover:text-rose-700" @click="removeResource(index)">{{ $t('settings.reservations.remove') }}</button>
+                                </div>
+                            </div>
+                            <div class="mt-3 grid gap-3 md:grid-cols-5">
+                                <FloatingInput v-model="item.name" :label="$t('settings.reservations.resources.fields.name')" />
+                                <FloatingSelect v-model="item.type" :options="resourceTypeOptions" :label="$t('settings.reservations.resources.fields.type')" />
+                                <FloatingSelect
+                                    v-if="showTeamSections"
+                                    v-model="item.team_member_id"
+                                    :options="resourceMemberOptions"
+                                    :label="$t('settings.reservations.fields.team_member')"
+                                />
+                                <FloatingInput v-model="item.capacity" type="number" min="1" :label="$t('settings.reservations.resources.fields.capacity')" />
+                                <label class="inline-flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
+                                    <input v-model="item.is_active" type="checkbox" class="rounded border-stone-300">
+                                    {{ $t('settings.reservations.resources.fields.is_active') }}
+                                </label>
+                            </div>
+                            <p v-if="item.type === 'chair'" class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                                Une chaise active devient operationnelle seulement si elle est assignee a un membre pointe et disponible.
+                            </p>
                         </div>
 
                         <div v-if="!form.resources.length" class="rounded-sm border border-dashed border-stone-300 bg-stone-50 px-3 py-3 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
                             {{ $t('settings.reservations.resources.empty') }}
                         </div>
                     </div>
-                </section>
+                    </section>
+                </div>
 
-                <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div
+                    id="reservation-settings-links-panel"
+                    v-show="activeReservationSettingsTab === 'links'"
+                    class="space-y-4"
+                    role="tabpanel"
+                >
+                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <div>
                             <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Public Booking Links</h2>
@@ -1057,9 +1309,16 @@ const submit = () => {
                             </div>
                         </div>
                     </div>
-                </section>
+                    </section>
+                </div>
 
-                <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div
+                    id="reservation-settings-notifications-panel"
+                    v-show="activeReservationSettingsTab === 'notifications'"
+                    class="space-y-4"
+                    role="tabpanel"
+                >
+                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('settings.reservations.notifications.title') }}</h2>
                     <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('settings.reservations.notifications.description') }}</p>
 
@@ -1153,7 +1412,8 @@ const submit = () => {
                             </button>
                         </div>
                     </div>
-                </section>
+                    </section>
+                </div>
 
                 <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <InputError :message="form.errors.weekly_availabilities || form.errors.exceptions || form.errors.resources || form.errors.team_settings || form.errors.notification_settings" />

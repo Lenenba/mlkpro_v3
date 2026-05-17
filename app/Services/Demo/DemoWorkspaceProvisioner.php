@@ -303,31 +303,33 @@ class DemoWorkspaceProvisioner
         $payload = $this->normalizePayload($this->workspaceSnapshotPayload($workspace));
         $expiresAt = Carbon::parse((string) $payload['expires_at'])->endOfDay();
 
-        return DB::transaction(function () use ($workspace, $payload, $admin, $expiresAt, $isReset) {
-            $this->updateProvisioningState(
-                $workspace,
-                self::STATUS_PROVISIONING,
-                15,
-                $isReset ? 'Resetting tenant access' : 'Creating tenant access',
-                null,
-                [
-                    'provisioning_started_at' => now(),
-                    'provisioning_failed_at' => null,
-                ]
-            );
+        $workspace = $this->updateProvisioningState(
+            $workspace,
+            self::STATUS_PROVISIONING,
+            15,
+            $isReset ? 'Resetting tenant access' : 'Creating tenant access',
+            null,
+            [
+                'provisioning_started_at' => now(),
+                'provisioning_failed_at' => null,
+            ]
+        );
 
-            $preferredCredentials = $isReset
-                ? [
-                    'email' => (string) ($workspace->access_email ?? ''),
-                    'password' => (string) ($workspace->access_password ?? ''),
-                ]
-                : null;
+        $preferredCredentials = $isReset
+            ? [
+                'email' => (string) ($workspace->access_email ?? ''),
+                'password' => (string) ($workspace->access_password ?? ''),
+            ]
+            : null;
+
+        [$workspace, $owner] = DB::transaction(function () use ($workspace, $payload, $admin, $expiresAt, $isReset, $preferredCredentials) {
+            $workingWorkspace = $workspace;
 
             if ($isReset) {
-                $previousOwner = $workspace->owner()->first();
+                $previousOwner = $workingWorkspace->owner()->first();
 
                 if ($previousOwner) {
-                    $workspace->forceFill([
+                    $workingWorkspace->forceFill([
                         'owner_user_id' => null,
                     ])->save();
 
@@ -347,25 +349,38 @@ class DemoWorkspaceProvisioner
                 ! $isReset
             );
 
-            $this->updateProvisioningState(
-                $workspace,
-                self::STATUS_PROVISIONING,
-                60,
-                'Generating realistic sample data'
-            );
+            return [$workingWorkspace, $owner];
+        });
 
+        $workspace = $this->updateProvisioningState(
+            $workspace,
+            self::STATUS_PROVISIONING,
+            60,
+            'Generating realistic sample data'
+        );
+
+        [$summary, $extraAccessCredentials] = DB::transaction(function () use ($owner, $workspace) {
             $summary = $this->seedEnvironment($owner, $workspace);
             $extraAccessCredentials = $this->buildExtraAccessCredentials(
                 $owner,
                 $workspace->extra_access_roles ?? []
             );
 
-            return $this->finalizeProvisionedWorkspace($workspace, $summary, [
-                'extra_access_credentials' => $extraAccessCredentials,
-                'last_reset_at' => $isReset ? now() : $workspace->last_reset_at,
-                'last_reset_by_user_id' => $isReset ? $admin->id : $workspace->last_reset_by_user_id,
-            ]);
+            return [$summary, $extraAccessCredentials];
         });
+
+        $workspace = $this->updateProvisioningState(
+            $workspace,
+            self::STATUS_PROVISIONING,
+            85,
+            'Finalizing access kit'
+        );
+
+        return $this->finalizeProvisionedWorkspace($workspace, $summary, [
+            'extra_access_credentials' => $extraAccessCredentials,
+            'last_reset_at' => $isReset ? now() : $workspace->last_reset_at,
+            'last_reset_by_user_id' => $isReset ? $admin->id : $workspace->last_reset_by_user_id,
+        ]);
     }
 
     public function markProvisioningFailed(DemoWorkspace $workspace, \Throwable|string $error): DemoWorkspace

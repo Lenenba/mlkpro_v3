@@ -36,6 +36,8 @@ class ReservationSettingsRequest extends FormRequest
             'account_settings.queue_grace_minutes' => ['nullable', 'integer', 'min:1', 'max:60'],
             'account_settings.queue_pre_call_threshold' => ['nullable', 'integer', 'min:1', 'max:20'],
             'account_settings.queue_no_show_on_grace_expiry' => ['nullable', 'boolean'],
+            'account_settings.kiosk_image' => ['nullable', 'image', 'max:5120'],
+            'account_settings.clear_kiosk_image' => ['nullable', 'boolean'],
             'account_settings.deposit_required' => ['nullable', 'boolean'],
             'account_settings.deposit_amount' => ['nullable', 'numeric', 'min:0', 'max:10000'],
             'account_settings.no_show_fee_enabled' => ['nullable', 'boolean'],

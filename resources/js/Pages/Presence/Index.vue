@@ -42,6 +42,7 @@ const isServiceCompany = computed(() => props.company?.type && props.company.typ
 const selfPerson = computed(() => people.value.find((person) => person.id === props.self_id) || null);
 
 const isClockedIn = (person) => person?.status === 'clocked_in';
+const isOnBreak = (person) => person?.current_status === 'break';
 
 const formatDateTime = (value) => {
     if (!value) {
@@ -71,6 +72,14 @@ const statusLabel = (person) => {
     return t(`presence.status.${person.status}`);
 };
 
+const currentStatusLabel = (person) => {
+    if (!person || !person.current_status) {
+        return t('presence.current_status.offline');
+    }
+
+    return t(`presence.current_status.${person.current_status}`);
+};
+
 const statusBadgeClass = (person) => {
     if (person?.status === 'clocked_in') {
         return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200';
@@ -79,6 +88,19 @@ const statusBadgeClass = (person) => {
         return 'bg-stone-100 text-stone-600 dark:bg-neutral-800 dark:text-neutral-300';
     }
     return 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200';
+};
+
+const currentStatusBadgeClass = (person) => {
+    if (person?.current_status === 'available') {
+        return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200';
+    }
+    if (person?.current_status === 'busy') {
+        return 'bg-violet-100 text-violet-700 dark:bg-violet-500/10 dark:text-violet-200';
+    }
+    if (person?.current_status === 'break') {
+        return 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200';
+    }
+    return 'bg-stone-100 text-stone-600 dark:bg-neutral-800 dark:text-neutral-300';
 };
 
 const formatRole = (role) => {
@@ -122,6 +144,12 @@ const clockInLabel = computed(() =>
 const clockOutLabel = computed(() =>
     processingAction.value === 'out' ? t('presence.actions.clocking_out') : t('presence.actions.clock_out'),
 );
+const breakDisabled = computed(() =>
+    !manualAllowed.value || !selfPerson.value || !isClockedIn(selfPerson.value) || isOnBreak(selfPerson.value) || processing.value,
+);
+const availableDisabled = computed(() =>
+    !manualAllowed.value || !selfPerson.value || !isClockedIn(selfPerson.value) || !isOnBreak(selfPerson.value) || processing.value,
+);
 
 const clockIn = async () => {
     if (clockInDisabled.value) {
@@ -160,6 +188,26 @@ const clockOut = async () => {
         processingAction.value = null;
     }
 };
+
+const updateAvailability = async (action) => {
+    if (processing.value) {
+        return;
+    }
+
+    processing.value = true;
+    processingAction.value = action;
+    error.value = '';
+
+    try {
+        const response = await axios.post(route(action === 'break' ? 'presence.break' : 'presence.available'));
+        updatePerson(response?.data?.person);
+    } catch (err) {
+        error.value = err?.response?.data?.message || t('presence.errors.availability');
+    } finally {
+        processing.value = false;
+        processingAction.value = null;
+    }
+};
 </script>
 
 <template>
@@ -192,6 +240,22 @@ const clockOut = async () => {
                         @click="clockOut"
                     >
                         {{ clockOutLabel }}
+                    </button>
+                    <button
+                        type="button"
+                        class="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 shadow-sm transition hover:bg-amber-100 disabled:opacity-50 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+                        :disabled="breakDisabled"
+                        @click="updateAvailability('break')"
+                    >
+                        {{ processingAction === 'break' ? t('presence.actions.updating') : t('presence.actions.set_break') }}
+                    </button>
+                    <button
+                        type="button"
+                        class="rounded-sm border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-50 disabled:opacity-50 dark:border-emerald-500/30 dark:bg-neutral-900 dark:text-emerald-200"
+                        :disabled="availableDisabled"
+                        @click="updateAvailability('available')"
+                    >
+                        {{ processingAction === 'available' ? t('presence.actions.updating') : t('presence.actions.back_available') }}
                     </button>
                 </div>
             </div>
@@ -247,6 +311,20 @@ const clockOut = async () => {
                             <span>{{ t('presence.labels.status') }}</span>
                             <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="statusBadgeClass(selfPerson)">
                                 {{ statusLabel(selfPerson) }}
+                            </span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span>{{ t('presence.labels.availability') }}</span>
+                            <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="currentStatusBadgeClass(selfPerson)">
+                                {{ currentStatusLabel(selfPerson) }}
+                            </span>
+                        </div>
+                        <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                            <span v-if="selfPerson.assigned_chair">
+                                {{ t('presence.help.assigned_chair', { chair: selfPerson.assigned_chair.name }) }}
+                            </span>
+                            <span v-else>
+                                {{ t('presence.help.no_chair') }}
                             </span>
                         </div>
                         <div class="flex items-center justify-between">
@@ -329,9 +407,13 @@ const clockOut = async () => {
                         <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="statusBadgeClass(person)">
                             {{ statusLabel(person) }}
                         </span>
+                        <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="currentStatusBadgeClass(person)">
+                            {{ currentStatusLabel(person) }}
+                        </span>
                         <div class="text-xs text-stone-500 dark:text-neutral-400">
                             <div>{{ t('presence.labels.last_in') }}: {{ formatDateTime(person.clock_in_at) }}</div>
                             <div>{{ t('presence.labels.last_out') }}: {{ formatDateTime(resolveOutTime(person)) }}</div>
+                            <div>{{ person.assigned_chair?.name || t('presence.help.no_chair_short') }}</div>
                         </div>
                     </div>
                 </div>

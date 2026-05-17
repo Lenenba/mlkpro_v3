@@ -30,6 +30,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use Throwable;
 
 class PublicKioskReservationController extends Controller
 {
@@ -53,14 +54,19 @@ class PublicKioskReservationController extends Controller
         $settings = $this->resolveKioskSettings($account);
 
         $services = Product::query()
-            ->services()
             ->where('user_id', $account->id)
             ->where('is_active', true)
+            ->where(function (Builder $query) {
+                $query
+                    ->where('item_type', Product::ITEM_TYPE_SERVICE)
+                    ->orWhere('unit', 'service');
+            })
             ->orderBy('name')
-            ->get(['id', 'name'])
+            ->get(['id', 'name', 'price'])
             ->map(fn (Product $service) => [
                 'id' => (int) $service->id,
                 'name' => (string) $service->name,
+                'price' => $service->price !== null ? (float) $service->price : null,
             ])
             ->values()
             ->all();
@@ -78,19 +84,27 @@ class PublicKioskReservationController extends Controller
             ])
             ->values()
             ->all();
+        $estimatedWait = $this->estimateKioskWait($account, $settings);
 
         return Inertia::render('Public/ReservationKiosk', [
             'company' => [
                 'id' => (int) $account->id,
                 'name' => $account->company_name ?: $account->name,
-                'logo_url' => $account->company_logo_url,
+                'logo_url' => $account->company_logo ? $account->company_logo_url : null,
                 'phone' => $account->phone_number,
+                'country' => $account->company_country,
+                'province' => $account->company_province,
+                'city' => $account->company_city,
+                'timezone' => $account->company_timezone,
+                'currency_code' => $account->businessCurrencyCode(),
             ],
             'settings' => [
                 'business_preset' => (string) ($settings['business_preset'] ?? 'service_general'),
                 'queue_mode_enabled' => (bool) ($settings['queue_mode_enabled'] ?? false),
                 'kiosk_require_sms_verification' => $this->requiresSmsVerification($account, $settings),
                 'queue_grace_minutes' => (int) ($settings['queue_grace_minutes'] ?? 5),
+                'kiosk_image_url' => $settings['kiosk_image_url'] ?? null,
+                'estimated_wait' => $estimatedWait,
             ],
             'services' => $services,
             'team_members' => $teamMembers,
@@ -526,6 +540,132 @@ class PublicKioskReservationController extends Controller
             'reservations.kiosk_require_sms_verification',
             $settings['kiosk_require_sms_verification'] ?? false
         );
+    }
+
+    private function estimateKioskWait(User $account, array $settings): array
+    {
+        if (! ($settings['queue_mode_enabled'] ?? false)) {
+            return $this->buildEstimatedWaitPayload(
+                0,
+                0,
+                0,
+                'La file d’attente est inactive pour le moment.'
+            );
+        }
+
+        try {
+            $this->queueService->refreshMetrics((int) $account->id, $settings);
+        } catch (Throwable $exception) {
+            Log::warning('Unable to refresh public kiosk wait estimate.', [
+                'account_id' => (int) $account->id,
+                'exception' => get_class($exception),
+                'message' => $exception->getMessage(),
+            ]);
+        }
+
+        $items = ReservationQueueItem::query()
+            ->forAccount((int) $account->id)
+            ->active()
+            ->get([
+                'id',
+                'status',
+                'estimated_duration_minutes',
+                'eta_minutes',
+                'started_at',
+            ]);
+
+        $waitingStatuses = [
+            ReservationQueueItem::STATUS_CHECKED_IN,
+            ReservationQueueItem::STATUS_PRE_CALLED,
+            ReservationQueueItem::STATUS_CALLED,
+            ReservationQueueItem::STATUS_SKIPPED,
+        ];
+
+        $waitingItems = $items
+            ->filter(fn (ReservationQueueItem $item) => in_array((string) $item->status, $waitingStatuses, true))
+            ->values();
+        $inServiceItems = $items
+            ->filter(fn (ReservationQueueItem $item) => (string) $item->status === ReservationQueueItem::STATUS_IN_SERVICE)
+            ->values();
+
+        $waitingCount = $waitingItems->count();
+        $inServiceCount = $inServiceItems->count();
+        if ($waitingCount === 0 && $inServiceCount === 0) {
+            return $this->buildEstimatedWaitPayload(
+                0,
+                $waitingCount,
+                $inServiceCount,
+                'Aucune personne en attente pour le moment.'
+            );
+        }
+
+        $durations = $waitingItems
+            ->concat($inServiceItems)
+            ->map(fn (ReservationQueueItem $item) => max(5, min(240, (int) ($item->estimated_duration_minutes ?: 60))))
+            ->values();
+        $averageDuration = $durations->isNotEmpty()
+            ? (int) round($durations->avg())
+            : 15;
+
+        if ($waitingCount > 0) {
+            $maxEta = $waitingItems
+                ->map(fn (ReservationQueueItem $item) => is_numeric($item->eta_minutes) ? (int) $item->eta_minutes : 0)
+                ->max() ?? 0;
+            $estimate = max(0, (int) $maxEta) + $averageDuration;
+            $helper = $waitingCount === 1
+                ? '1 personne en attente dans la file.'
+                : "{$waitingCount} personnes en attente dans la file.";
+
+            return $this->buildEstimatedWaitPayload($estimate, $waitingCount, $inServiceCount, $helper);
+        }
+
+        $remainingDurations = $inServiceItems
+            ->map(function (ReservationQueueItem $item) {
+                $duration = max(5, min(240, (int) ($item->estimated_duration_minutes ?: 60)));
+                $elapsed = $item->started_at
+                    ? max(0, $item->started_at->diffInMinutes(now('UTC')))
+                    : 0;
+
+                return max(0, $duration - $elapsed);
+            })
+            ->filter(fn (int $minutes) => $minutes > 0)
+            ->values();
+        $estimate = $remainingDurations->isNotEmpty()
+            ? (int) $remainingDurations->min()
+            : 5;
+
+        return $this->buildEstimatedWaitPayload(
+            $estimate,
+            $waitingCount,
+            $inServiceCount,
+            'Un service est en cours, la prochaine place arrive bientôt.'
+        );
+    }
+
+    private function buildEstimatedWaitPayload(
+        int $estimateMinutes,
+        int $waitingCount,
+        int $inServiceCount,
+        string $helper
+    ): array {
+        $estimateMinutes = max(0, $estimateMinutes);
+        $upper = $estimateMinutes <= 5
+            ? 5
+            : (int) (ceil($estimateMinutes / 5) * 5);
+        $lower = $upper <= 5
+            ? 0
+            : max(0, $upper - 10);
+
+        return [
+            'label' => "{$lower} à {$upper} min",
+            'estimate_minutes' => $estimateMinutes,
+            'range_min' => $lower,
+            'range_max' => $upper,
+            'waiting_count' => $waitingCount,
+            'in_service_count' => $inServiceCount,
+            'helper' => $helper,
+            'updated_at' => now('UTC')->toIso8601String(),
+        ];
     }
 
     private function ensurePhoneVerified(

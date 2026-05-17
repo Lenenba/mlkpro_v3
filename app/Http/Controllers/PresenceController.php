@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ReservationResource;
+use App\Models\Task;
 use App\Models\TeamMember;
 use App\Models\TeamMemberAttendance;
-use App\Models\Task;
 use App\Models\User;
 use App\Models\Work;
 use App\Services\AttendanceService;
@@ -54,7 +55,7 @@ class PresenceController extends Controller
     {
         [$user, $accountOwner, $settings, $membership] = $this->resolveContext($request);
 
-        if (!$settings['manual_clock']) {
+        if (! $settings['manual_clock']) {
             return response()->json([
                 'message' => 'Manual clocking is disabled.',
             ], 403);
@@ -74,7 +75,7 @@ class PresenceController extends Controller
     {
         [$user, $accountOwner, $settings, $membership] = $this->resolveContext($request);
 
-        if (!$settings['manual_clock']) {
+        if (! $settings['manual_clock']) {
             return response()->json([
                 'message' => 'Manual clocking is disabled.',
             ], 403);
@@ -90,26 +91,60 @@ class PresenceController extends Controller
         ]);
     }
 
+    public function setBreak(Request $request)
+    {
+        [$user, $accountOwner, $settings, $membership] = $this->resolveContext($request);
+
+        if (! $settings['manual_clock']) {
+            return response()->json([
+                'message' => 'Manual clocking is disabled.',
+            ], 403);
+        }
+
+        app(AttendanceService::class)->setCurrentStatus($user, $membership, TeamMemberAttendance::STATUS_BREAK);
+
+        return response()->json([
+            'person' => $this->buildPersonPayload($user, $membership, $accountOwner->id),
+        ]);
+    }
+
+    public function setAvailable(Request $request)
+    {
+        [$user, $accountOwner, $settings, $membership] = $this->resolveContext($request);
+
+        if (! $settings['manual_clock']) {
+            return response()->json([
+                'message' => 'Manual clocking is disabled.',
+            ], 403);
+        }
+
+        app(AttendanceService::class)->setCurrentStatus($user, $membership, TeamMemberAttendance::STATUS_AVAILABLE);
+
+        return response()->json([
+            'person' => $this->buildPersonPayload($user, $membership, $accountOwner->id),
+        ]);
+    }
+
     private function resolveContext(Request $request): array
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
         $attendanceService = app(AttendanceService::class);
         $accountOwner = $attendanceService->resolveAccountOwner($user);
-        if (!$accountOwner) {
+        if (! $accountOwner) {
             abort(403);
         }
 
         $settings = $attendanceService->resolveSettings($accountOwner);
-        if (!$settings['enabled']) {
+        if (! $settings['enabled']) {
             abort(403);
         }
 
         $membership = $attendanceService->resolveTeamMembership($user, $accountOwner);
-        if ($user->id !== $accountOwner->id && !$membership) {
+        if ($user->id !== $accountOwner->id && ! $membership) {
             abort(403);
         }
 
@@ -122,8 +157,7 @@ class PresenceController extends Controller
         bool $canManage,
         User $viewer,
         array $serviceWorkload = ['jobs' => [], 'tasks' => []]
-    ): Collection
-    {
+    ): Collection {
         $membersByUser = $teamMembers
             ->filter(fn (TeamMember $member) => $member->user)
             ->keyBy('user_id');
@@ -133,11 +167,11 @@ class PresenceController extends Controller
             ->filter()
             ->values();
 
-        if (!$membersByUser->has($owner->id)) {
+        if (! $membersByUser->has($owner->id)) {
             $people = $people->prepend($owner);
         }
 
-        if (!$canManage) {
+        if (! $canManage) {
             $people = $people->filter(fn (User $person) => $person->id === $viewer->id)->values();
         }
 
@@ -186,7 +220,7 @@ class PresenceController extends Controller
         $status = $current ? ($current->clock_out_at ? 'clocked_out' : 'clocked_in') : 'no_activity';
 
         $role = $member?->role;
-        if (!$role && $user->id === $accountId) {
+        if (! $role && $user->id === $accountId) {
             $role = 'owner';
         }
 
@@ -200,18 +234,46 @@ class PresenceController extends Controller
             'title' => $member?->title,
             'is_active' => $member?->is_active ?? true,
             'status' => $status,
+            'current_status' => $current && ! $current->clock_out_at
+                ? (string) ($current->current_status ?? TeamMemberAttendance::STATUS_AVAILABLE)
+                : TeamMemberAttendance::STATUS_OFFLINE,
             'clock_in_at' => $current?->clock_in_at?->toIso8601String(),
             'clock_out_at' => $current?->clock_out_at?->toIso8601String(),
             'last_clock_out_at' => $lastClockOut?->clock_out_at?->toIso8601String(),
             'method' => $current?->method,
             'clock_out_method' => $current?->clock_out_method,
+            'assigned_chair' => $this->assignedChairPayload($member, $accountId),
+        ];
+    }
+
+    private function assignedChairPayload(?TeamMember $member, int $accountId): ?array
+    {
+        if (! $member) {
+            return null;
+        }
+
+        $chair = ReservationResource::query()
+            ->forAccount($accountId)
+            ->chairs()
+            ->active()
+            ->where('team_member_id', $member->id)
+            ->orderBy('id')
+            ->first(['id', 'name']);
+
+        if (! $chair) {
+            return null;
+        }
+
+        return [
+            'id' => (int) $chair->id,
+            'name' => (string) $chair->name,
         ];
     }
 
     private function buildServiceWorkload(int $accountId, Collection $teamMembers): array
     {
         $memberIds = $teamMembers->pluck('id')->filter()->values()->all();
-        if (!$memberIds) {
+        if (! $memberIds) {
             return ['jobs' => [], 'tasks' => []];
         }
 

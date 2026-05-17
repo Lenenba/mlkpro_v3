@@ -19,6 +19,7 @@
       "method": "Method",
       "jobs_today": "Jobs today",
       "tasks_today": "Tasks today",
+      "availability": "Availability",
       "none": "--",
       "role_fallback": "Team member"
     },
@@ -27,18 +28,31 @@
       "clocked_out": "Clocked out",
       "no_activity": "No activity"
     },
+    "current_status": {
+      "available": "Available",
+      "busy": "Busy",
+      "offline": "Offline",
+      "break": "On break"
+    },
     "actions": {
       "clock_in": "Clock in",
       "clock_out": "Clock out",
       "clocking_in": "Clocking in...",
-      "clocking_out": "Clocking out..."
+      "clocking_out": "Clocking out...",
+      "set_break": "Set break",
+      "back_available": "Back available",
+      "updating": "Updating..."
     },
     "help": {
-      "manual_disabled": "Manual clocking is disabled by the owner."
+      "manual_disabled": "Manual clocking is disabled by the owner.",
+      "assigned_chair": "You are checked in on {chair}.",
+      "no_chair": "No chair assigned. Please contact the administrator.",
+      "no_chair_short": "No chair"
     },
     "errors": {
       "clock_in": "Unable to clock in.",
-      "clock_out": "Unable to clock out."
+      "clock_out": "Unable to clock out.",
+      "availability": "Unable to update availability."
     },
     "empty": "No team members to show."
   }

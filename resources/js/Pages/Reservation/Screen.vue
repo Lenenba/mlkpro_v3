@@ -76,7 +76,7 @@ const kioskPublicUrl = computed(() => props.kiosk?.public_url || null);
 
 const waitingStatuses = ['checked_in', 'pre_called', 'called', 'skipped', 'not_arrived'];
 const openChairStates = ['available', 'available_ready', 'check_in_needed'];
-const occupiedChairStates = ['called', 'in_service'];
+const occupiedChairStates = ['called', 'busy'];
 const queueItems = computed(() => (Array.isArray(queueData.value?.items) ? queueData.value.items : []));
 const waitingRows = computed(() => (Array.isArray(queueData.value?.waiting) ? queueData.value.waiting : []));
 const statusBadgeClass = (status) => reservationStatusBadgeClass(status);
@@ -120,20 +120,35 @@ const chairStateStyles = computed(() => ({
         band: 'bg-sky-500',
         badge: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-200',
     },
-    in_service: {
-        label: t('reservations.queue.screen.states.in_service'),
+    busy: {
+        label: t('reservations.queue.screen.states.busy'),
         band: 'bg-violet-500',
         badge: 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-200',
+    },
+    break: {
+        label: t('reservations.queue.screen.states.break'),
+        band: 'bg-amber-500',
+        badge: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200',
+    },
+    offline: {
+        label: t('reservations.queue.screen.states.offline'),
+        band: 'bg-stone-400',
+        badge: 'bg-stone-100 text-stone-600 dark:bg-neutral-800 dark:text-neutral-300',
     },
     check_in_needed: {
         label: t('reservations.queue.screen.states.check_in_needed'),
         band: 'bg-amber-500',
         badge: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200',
     },
-    blocked: {
-        label: t('reservations.queue.screen.states.blocked'),
+    inactive: {
+        label: t('reservations.queue.screen.states.inactive'),
         band: 'bg-rose-500',
         badge: 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200',
+    },
+    unassigned: {
+        label: t('reservations.queue.screen.states.unassigned'),
+        band: 'bg-stone-500',
+        badge: 'bg-stone-100 text-stone-600 dark:bg-neutral-800 dark:text-neutral-300',
     },
 }));
 
@@ -142,9 +157,12 @@ const chairAccentTextClass = (state) => ({
     available: 'text-emerald-700 dark:text-emerald-200',
     available_ready: 'text-green-700 dark:text-green-200',
     called: 'text-sky-700 dark:text-sky-200',
-    in_service: 'text-violet-700 dark:text-violet-200',
+    busy: 'text-violet-700 dark:text-violet-200',
+    break: 'text-amber-700 dark:text-amber-200',
+    offline: 'text-stone-600 dark:text-neutral-300',
     check_in_needed: 'text-amber-700 dark:text-amber-200',
-    blocked: 'text-rose-700 dark:text-rose-200',
+    inactive: 'text-rose-700 dark:text-rose-200',
+    unassigned: 'text-stone-600 dark:text-neutral-300',
 }[state] || 'text-emerald-700 dark:text-emerald-200');
 
 const IDLE_CHAIR_VIDEO_INTERVAL_SECONDS = 15 * 60;
@@ -257,64 +275,12 @@ const estimatedRemainingMinutes = (item) => {
     return Math.max(0, Math.round(duration - elapsedMinutes));
 };
 
-const deriveChairsFromItems = () => {
-    const members = Array.isArray(props.teamMembers) ? props.teamMembers : [];
-    if (!members.length) {
-        return [];
-    }
-
-    const globalPool = queueItems.value
-        .filter((item) => waitingStatuses.includes(String(item.status || '')))
-        .sort((left, right) => Number(left.position || 99999) - Number(right.position || 99999));
-
-    return members.map((member, index) => {
-        const memberId = Number(member.id || 0);
-        const isPresent = member.is_present !== false;
-        const memberItems = queueItems.value.filter((item) => Number(item.team_member_id || 0) === memberId);
-        const current = memberItems.find((item) => ['in_service', 'called', 'pre_called'].includes(String(item.status || ''))) || null;
-
-        let next = memberItems
-            .filter((item) => waitingStatuses.includes(String(item.status || '')))
-            .filter((item) => !current || Number(item.id) !== Number(current.id))
-            .sort((left, right) => Number(left.position || 99999) - Number(right.position || 99999))[0] || null;
-
-        if (!next && queueAssignmentMode.value === 'global_pull') {
-            next = globalPool.find((item) => Number(item.team_member_id || 0) === 0) || null;
-        }
-
-        let state = 'available';
-        if (current?.status === 'in_service') {
-            state = 'in_service';
-        } else if (['called', 'pre_called'].includes(String(current?.status || ''))) {
-            state = 'called';
-        } else if (!isPresent) {
-            state = 'blocked';
-        } else if (next?.status === 'not_arrived') {
-            state = 'check_in_needed';
-        } else if (next) {
-            state = 'available_ready';
-        }
-
-        return {
-            id: memberId,
-            chair_number: index + 1,
-            chair_label: `Chair ${index + 1}`,
-            team_member_name: member.name || 'Member',
-            team_member_title: member.title || null,
-            is_present: isPresent,
-            state,
-            current,
-            next,
-        };
-    });
-};
-
 const chairs = computed(() => {
     if (Array.isArray(queueData.value?.chairs) && queueData.value.chairs.length) {
         return queueData.value.chairs;
     }
 
-    return deriveChairsFromItems();
+    return [];
 });
 
 watch(

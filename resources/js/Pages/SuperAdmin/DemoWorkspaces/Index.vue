@@ -695,13 +695,13 @@ onBeforeUnmount(() => {
                             {{ activeMenuWorkspace.sent_at ? 'Resend access email' : 'Send access email' }}
                         </button>
                         <button
-                            v-if="activeMenuWorkspace.status === 'draft'"
+                            v-if="['draft', 'queued'].includes(activeMenuWorkspace.status)"
                             type="button"
                             class="flex w-full items-center rounded-sm px-3 py-2 text-left text-[13px] text-green-700 hover:bg-green-50 dark:text-green-300 dark:hover:bg-green-950/30"
                             role="menuitem"
                             @click="queueProvisioning(activeMenuWorkspace)"
                         >
-                            Queue provisioning
+                            {{ activeMenuWorkspace.status === 'queued' ? 'Run provisioning now' : 'Queue provisioning' }}
                         </button>
                         <button
                             v-if="activeMenuWorkspace.sent_at && !['draft', 'purged'].includes(activeMenuWorkspace.status) && activeMenuWorkspace.owner_user_id"

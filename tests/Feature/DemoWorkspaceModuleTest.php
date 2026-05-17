@@ -141,6 +141,11 @@ function provisionDemoWorkspaceIfNeeded(DemoWorkspace $workspace, User $admin, b
     return $workspace->fresh(['owner']) ?? $workspace;
 }
 
+function demoWorkspaceProvisioningRoute(DemoWorkspace $workspace): string
+{
+    return route('superadmin.demo-workspaces.provisioning', $workspace);
+}
+
 it('forbids platform admins without demo permissions from accessing the module', function () {
     $admin = demoWorkspacePlatformAdmin([PlatformPermissions::TENANTS_VIEW]);
 
@@ -201,11 +206,10 @@ it('includes expenses in default demo module packs for service and commerce demo
 it('allows platform admins with demo permissions to access a demo workspace details page', function () {
     $admin = demoWorkspacePlatformAdmin([PlatformPermissions::DEMOS_MANAGE]);
 
-    $this->actingAs($admin)
-        ->post(route('superadmin.demo-workspaces.store'), demoWorkspacePayload())
-        ->assertRedirect(route('superadmin.demo-workspaces.index'));
-
+    $response = $this->actingAs($admin)
+        ->post(route('superadmin.demo-workspaces.store'), demoWorkspacePayload());
     $workspace = DemoWorkspace::query()->firstOrFail();
+    $response->assertRedirect(demoWorkspaceProvisioningRoute($workspace));
 
     $this->actingAs($admin)
         ->get(route('superadmin.demo-workspaces.show', $workspace))
@@ -217,6 +221,16 @@ it('allows platform admins with demo permissions to access a demo workspace deta
             ->has('workspace.timeline')
             ->has('options.seed_profiles')
             ->has('options.sales_statuses')
+        );
+
+    $this->actingAs($admin)
+        ->get(route('superadmin.demo-workspaces.provisioning', $workspace))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('SuperAdmin/DemoWorkspaces/Provisioning')
+            ->where('workspace.id', $workspace->id)
+            ->has('workspace.provisioning_progress')
+            ->has('poll_interval_ms')
         );
 });
 
@@ -259,6 +273,7 @@ it('can create, duplicate and archive demo templates', function () {
 });
 
 it('provisions a realistic service demo workspace from the admin module', function () {
+    config()->set('async.workloads.demos.run_inline', true);
     Storage::fake('public');
 
     $admin = demoWorkspacePlatformAdmin([PlatformPermissions::DEMOS_MANAGE]);
@@ -272,15 +287,13 @@ it('provisions a realistic service demo workspace from the admin module', functi
         'extra_access_roles' => ['manager', 'front_desk', 'staff'],
     ]);
 
-    $this->actingAs($admin)
+    $response = $this->actingAs($admin)
         ->post(route('superadmin.demo-workspaces.store'), $payload)
-        ->assertRedirect(route('superadmin.demo-workspaces.index'))
         ->assertSessionHas('success');
-
     $workspace = DemoWorkspace::query()
         ->with('owner')
         ->firstOrFail();
-    $workspace = provisionDemoWorkspaceIfNeeded($workspace, $admin);
+    $response->assertRedirect(demoWorkspaceProvisioningRoute($workspace));
 
     expect($workspace->company_name)->toBe('Northwind Demo Studio');
     expect($workspace->company_type)->toBe('services');
@@ -327,6 +340,29 @@ it('provisions a realistic service demo workspace from the admin module', functi
         ->toContain('demo_workspace.queued', 'demo_workspace.prefill_applied', 'demo_workspace.provisioning_started', 'demo_workspace.ready');
 });
 
+it('can dispatch an already queued demo workspace again', function () {
+    config()->set('async.workloads.demos.run_inline', true);
+    Storage::fake('public');
+
+    $admin = demoWorkspacePlatformAdmin([PlatformPermissions::DEMOS_MANAGE]);
+    $workspace = app(\App\Services\Demo\DemoWorkspaceProvisioner::class)
+        ->queueCreate(demoWorkspacePayload(), $admin);
+
+    expect($workspace->provisioning_status)->toBe('queued');
+    expect($workspace->provisioning_progress)->toBe(5);
+
+    $this->actingAs($admin)
+        ->post(route('superadmin.demo-workspaces.queue', $workspace))
+        ->assertRedirect(demoWorkspaceProvisioningRoute($workspace))
+        ->assertSessionHas('success');
+
+    $workspace = $workspace->fresh(['owner']);
+
+    expect($workspace->provisioning_status)->toBe('ready');
+    expect($workspace->provisioning_progress)->toBe(100);
+    expect($workspace->owner)->not->toBeNull();
+});
+
 it('can create a workspace from a template, mark it sent and extend expiration', function () {
     $admin = demoWorkspacePlatformAdmin([PlatformPermissions::DEMOS_MANAGE]);
 
@@ -344,11 +380,10 @@ it('can create a workspace from a template, mark it sent and extend expiration',
         'branding_profile' => $template->branding_profile,
     ]);
 
-    $this->actingAs($admin)
-        ->post(route('superadmin.demo-workspaces.store'), $payload)
-        ->assertRedirect(route('superadmin.demo-workspaces.index'));
-
+    $response = $this->actingAs($admin)
+        ->post(route('superadmin.demo-workspaces.store'), $payload);
     $workspace = DemoWorkspace::query()->latest('id')->firstOrFail();
+    $response->assertRedirect(demoWorkspaceProvisioningRoute($workspace));
     $workspace = provisionDemoWorkspaceIfNeeded($workspace, $admin);
     $initialExpiration = $workspace->expires_at?->copy();
 
@@ -403,11 +438,10 @@ it('can provision and fully purge a commerce demo workspace', function () {
         ),
     ]);
 
-    $this->actingAs($admin)
-        ->post(route('superadmin.demo-workspaces.store'), $payload)
-        ->assertRedirect(route('superadmin.demo-workspaces.index'));
-
+    $response = $this->actingAs($admin)
+        ->post(route('superadmin.demo-workspaces.store'), $payload);
     $workspace = DemoWorkspace::query()->latest('id')->firstOrFail();
+    $response->assertRedirect(demoWorkspaceProvisioningRoute($workspace));
     $workspace = provisionDemoWorkspaceIfNeeded($workspace, $admin);
     $ownerId = $workspace->owner_user_id;
     $expenseAttachmentPaths = ExpenseAttachment::query()
@@ -442,11 +476,10 @@ it('can provision and fully purge a commerce demo workspace', function () {
 it('exposes a finance snapshot on the superadmin demo detail page when expenses are seeded', function () {
     $admin = demoWorkspacePlatformAdmin([PlatformPermissions::DEMOS_MANAGE]);
 
-    $this->actingAs($admin)
-        ->post(route('superadmin.demo-workspaces.store'), demoWorkspacePayload())
-        ->assertRedirect(route('superadmin.demo-workspaces.index'));
-
+    $response = $this->actingAs($admin)
+        ->post(route('superadmin.demo-workspaces.store'), demoWorkspacePayload());
     $workspace = DemoWorkspace::query()->latest('id')->firstOrFail();
+    $response->assertRedirect(demoWorkspaceProvisioningRoute($workspace));
     $workspace = provisionDemoWorkspaceIfNeeded($workspace, $admin);
 
     $this->actingAs($admin)
@@ -469,14 +502,13 @@ it('seeds accounting snapshot data for finance-focused demo workspaces', functio
         'accounting',
     ]));
 
-    $this->actingAs($admin)
+    $response = $this->actingAs($admin)
         ->post(route('superadmin.demo-workspaces.store'), demoWorkspacePayload([
             'selected_modules' => $modules,
             'scenario_packs' => app(DemoWorkspaceCatalog::class)->defaultScenarioPacks('services', 'salon', $modules),
-        ]))
-        ->assertRedirect(route('superadmin.demo-workspaces.index'));
-
+        ]));
     $workspace = DemoWorkspace::query()->latest('id')->firstOrFail();
+    $response->assertRedirect(demoWorkspaceProvisioningRoute($workspace));
     $workspace = provisionDemoWorkspaceIfNeeded($workspace, $admin);
     $ownerId = $workspace->owner_user_id;
 
@@ -503,7 +535,7 @@ it('seeds accounting snapshot data for finance-focused demo workspaces', functio
 it('can clone a demo workspace with fresh credentials and inherited phase two configuration', function () {
     $admin = demoWorkspacePlatformAdmin([PlatformPermissions::DEMOS_MANAGE]);
 
-    $this->actingAs($admin)
+    $response = $this->actingAs($admin)
         ->post(route('superadmin.demo-workspaces.store'), demoWorkspacePayload([
             'company_name' => 'Northwind Original Demo',
             'branding_profile' => array_replace(
@@ -513,16 +545,15 @@ it('can clone a demo workspace with fresh credentials and inherited phase two co
                     'tagline' => 'Clone-ready premium salon story.',
                 ],
             ),
-        ]))
-        ->assertRedirect(route('superadmin.demo-workspaces.index'));
-
+        ]));
     $workspace = DemoWorkspace::query()->with('owner')->firstOrFail();
+    $response->assertRedirect(demoWorkspaceProvisioningRoute($workspace));
     $workspace = provisionDemoWorkspaceIfNeeded($workspace, $admin);
     $originalEmail = $workspace->access_email;
     $originalPassword = $workspace->access_password;
     $originalOwnerId = $workspace->owner_user_id;
 
-    $this->actingAs($admin)
+    $cloneResponse = $this->actingAs($admin)
         ->post(route('superadmin.demo-workspaces.clone', $workspace), [
             'company_name' => 'Northwind Clone Demo',
             'prospect_name' => 'Jamie Clone',
@@ -532,7 +563,6 @@ it('can clone a demo workspace with fresh credentials and inherited phase two co
             'seed_profile' => 'light',
             'expires_at' => now()->addDays(14)->toDateString(),
         ])
-        ->assertRedirect(route('superadmin.demo-workspaces.index'))
         ->assertSessionHas('success');
 
     $clone = DemoWorkspace::query()
@@ -540,6 +570,7 @@ it('can clone a demo workspace with fresh credentials and inherited phase two co
         ->whereKeyNot($workspace->id)
         ->latest('id')
         ->firstOrFail();
+    $cloneResponse->assertRedirect(demoWorkspaceProvisioningRoute($clone));
     $clone = provisionDemoWorkspaceIfNeeded($clone, $admin);
 
     expect($clone->cloned_from_demo_workspace_id)->toBe($workspace->id);
@@ -568,11 +599,10 @@ it('can save a baseline and reset a demo workspace back to that reference datase
         ),
     ]);
 
-    $this->actingAs($admin)
-        ->post(route('superadmin.demo-workspaces.store'), $baselinePayload)
-        ->assertRedirect(route('superadmin.demo-workspaces.index'));
-
+    $response = $this->actingAs($admin)
+        ->post(route('superadmin.demo-workspaces.store'), $baselinePayload);
     $workspace = DemoWorkspace::query()->with('owner')->firstOrFail();
+    $response->assertRedirect(demoWorkspaceProvisioningRoute($workspace));
     $workspace = provisionDemoWorkspaceIfNeeded($workspace, $admin);
     $baselineOwnerId = $workspace->owner_user_id;
     $baselineEmail = $workspace->access_email;
@@ -610,11 +640,11 @@ it('can save a baseline and reset a demo workspace back to that reference datase
         ]
     );
 
-    $this->actingAs($admin)
+    $resetResponse = $this->actingAs($admin)
         ->post(route('superadmin.demo-workspaces.baseline.reset', $workspace))
-        ->assertRedirect(route('superadmin.demo-workspaces.index'))
         ->assertSessionHas('success');
 
+    $resetResponse->assertRedirect(demoWorkspaceProvisioningRoute($workspace));
     $workspace = provisionDemoWorkspaceIfNeeded($workspace, $admin, true);
 
     expect($workspace->company_name)->toBe($baselineCompanyName);
@@ -634,11 +664,10 @@ it('can save a baseline and reset a demo workspace back to that reference datase
 it('can update the sales status of a demo workspace and record it in the timeline', function () {
     $admin = demoWorkspacePlatformAdmin([PlatformPermissions::DEMOS_MANAGE]);
 
-    $this->actingAs($admin)
-        ->post(route('superadmin.demo-workspaces.store'), demoWorkspacePayload())
-        ->assertRedirect(route('superadmin.demo-workspaces.index'));
-
+    $response = $this->actingAs($admin)
+        ->post(route('superadmin.demo-workspaces.store'), demoWorkspacePayload());
     $workspace = DemoWorkspace::query()->firstOrFail();
+    $response->assertRedirect(demoWorkspaceProvisioningRoute($workspace));
 
     $this->actingAs($admin)
         ->patch(route('superadmin.demo-workspaces.sales-status.update', $workspace), [
@@ -658,13 +687,13 @@ it('can update the sales status of a demo workspace and record it in the timelin
 it('records login detection events for demo owners and extra role users', function () {
     $admin = demoWorkspacePlatformAdmin([PlatformPermissions::DEMOS_MANAGE]);
 
-    $this->actingAs($admin)
+    $response = $this->actingAs($admin)
         ->post(route('superadmin.demo-workspaces.store'), demoWorkspacePayload([
             'extra_access_roles' => ['manager', 'front_desk'],
-        ]))
-        ->assertRedirect(route('superadmin.demo-workspaces.index'));
+        ]));
 
     $workspace = DemoWorkspace::query()->firstOrFail()->load('owner');
+    $response->assertRedirect(demoWorkspaceProvisioningRoute($workspace));
     $workspace = provisionDemoWorkspaceIfNeeded($workspace, $admin);
     $extraCredential = collect($workspace->extra_access_credentials)->first();
 

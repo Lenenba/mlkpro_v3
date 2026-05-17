@@ -114,6 +114,34 @@ function addWeeklyAvailability(User $owner, TeamMember $member, Carbon $referenc
     ]);
 }
 
+function createActiveChairForMember(User $owner, TeamMember $member, array $overrides = []): ReservationResource
+{
+    return ReservationResource::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $overrides['team_member_id'] ?? $member->id,
+        'name' => $overrides['name'] ?? 'Chair 1',
+        'type' => $overrides['type'] ?? ReservationResource::TYPE_CHAIR,
+        'capacity' => $overrides['capacity'] ?? 1,
+        'is_active' => $overrides['is_active'] ?? true,
+        'metadata' => $overrides['metadata'] ?? null,
+    ]);
+}
+
+function checkInTeamMember(User $owner, TeamMember $member, string $status = TeamMemberAttendance::STATUS_AVAILABLE): TeamMemberAttendance
+{
+    $memberUser = $member->user()->firstOrFail();
+
+    return TeamMemberAttendance::query()->create([
+        'account_id' => $owner->id,
+        'user_id' => $memberUser->id,
+        'team_member_id' => $member->id,
+        'clock_in_at' => now('UTC')->subMinute(),
+        'clock_out_at' => null,
+        'method' => 'manual',
+        'current_status' => $status,
+    ]);
+}
+
 it('allows a client to book a reservation from available slots', function () {
     $owner = createOwnerWithReservationsEnabled();
     $teamMember = createTeamMemberForAccount($owner);
@@ -1016,6 +1044,10 @@ it('computes queue position and eta per team member lane', function () {
         'user_name' => 'Lane B Member',
         'user_email' => 'lane.b.member@example.com',
     ]);
+    createActiveChairForMember($owner, $memberA, ['name' => 'Chair A']);
+    createActiveChairForMember($owner, $memberB, ['name' => 'Chair B']);
+    checkInTeamMember($owner, $memberA);
+    checkInTeamMember($owner, $memberB);
 
     ReservationQueueItem::query()->create([
         'account_id' => $owner->id,
@@ -1136,6 +1168,9 @@ it('allows a client to create and manage a queue ticket when queue mode is enabl
         ]
     );
 
+    createActiveChairForMember($owner, $teamMember);
+    checkInTeamMember($owner, $teamMember);
+
     $createResponse = $this->actingAs($clientUser)
         ->withSession(['two_factor_passed' => true])
         ->postJson(route('client.reservations.tickets.store'), [
@@ -1193,6 +1228,9 @@ it('blocks creating a second active queue ticket for the same client', function 
             'queue_no_show_on_grace_expiry' => true,
         ]
     );
+
+    createActiveChairForMember($owner, $teamMember);
+    checkInTeamMember($owner, $teamMember);
 
     $payload = [
         'team_member_id' => $teamMember->id,
@@ -1376,6 +1414,7 @@ it('allows reservation creation for non-salon presets even with legacy active qu
 
 it('allows staff to progress queue items through operational states', function () {
     $owner = createOwnerWithReservationsEnabled();
+    $member = createTeamMemberForAccount($owner);
     [$clientUser, $customer] = createClientForAccount($owner, 'Queue Ops Client', 'queue.ops.client@example.com');
 
     ReservationSetting::query()->updateOrCreate(
@@ -1402,10 +1441,14 @@ it('allows staff to progress queue items through operational states', function (
         ]
     );
 
+    createActiveChairForMember($owner, $member);
+    checkInTeamMember($owner, $member);
+
     $ticket = ReservationQueueItem::query()->create([
         'account_id' => $owner->id,
         'client_id' => $customer->id,
         'client_user_id' => $clientUser->id,
+        'team_member_id' => $member->id,
         'item_type' => ReservationQueueItem::TYPE_TICKET,
         'source' => 'client',
         'queue_number' => 'T-TEST-001',
@@ -1473,6 +1516,11 @@ it('calls next queue item in the staff lane when assignment mode is per_staff', 
         ]
     );
 
+    createActiveChairForMember($owner, $memberA, ['name' => 'Chair A']);
+    createActiveChairForMember($owner, $memberB, ['name' => 'Chair B']);
+    checkInTeamMember($owner, $memberA);
+    checkInTeamMember($owner, $memberB);
+
     $ticketA = ReservationQueueItem::query()->create([
         'account_id' => $owner->id,
         'team_member_id' => $memberA->id,
@@ -1538,6 +1586,8 @@ it('syncs queue staff availability with presence clock-in and clock-out', functi
         ]
     );
 
+    createActiveChairForMember($owner, $member);
+
     $ticket = ReservationQueueItem::query()->create([
         'account_id' => $owner->id,
         'team_member_id' => $member->id,
@@ -1559,6 +1609,7 @@ it('syncs queue staff availability with presence clock-in and clock-out', functi
         'clock_out_at' => now('UTC')->subMinutes(5),
         'method' => 'manual',
         'clock_out_method' => 'manual',
+        'current_status' => TeamMemberAttendance::STATUS_OFFLINE,
     ]);
 
     $this->actingAs($memberUser)
@@ -1571,7 +1622,7 @@ it('syncs queue staff availability with presence clock-in and clock-out', functi
         ->getJson(route('reservation.screen.data', ['anonymize' => 1]))
         ->assertOk();
 
-    expect((string) ($blockedScreen->json('queue.chairs.0.state') ?? ''))->toBe('blocked');
+    expect((string) ($blockedScreen->json('queue.chairs.0.state') ?? ''))->toBe('offline');
 
     TeamMemberAttendance::query()->create([
         'account_id' => $owner->id,
@@ -1580,6 +1631,7 @@ it('syncs queue staff availability with presence clock-in and clock-out', functi
         'clock_in_at' => now('UTC')->subMinute(),
         'clock_out_at' => null,
         'method' => 'manual',
+        'current_status' => TeamMemberAttendance::STATUS_AVAILABLE,
     ]);
 
     $readyScreen = $this->actingAs($owner)
@@ -1599,6 +1651,123 @@ it('syncs queue staff availability with presence clock-in and clock-out', functi
         'status' => ReservationQueueItem::STATUS_CALLED,
         'team_member_id' => $member->id,
     ]);
+});
+
+it('exposes only operational chairs and blocks queue assignment when the assigned member is unavailable', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $member = createTeamMemberForAccount($owner, [
+        'role' => 'employee',
+        'permissions' => [],
+    ]);
+
+    ReservationSetting::query()->updateOrCreate(
+        [
+            'account_id' => $owner->id,
+            'team_member_id' => null,
+        ],
+        [
+            'business_preset' => 'salon',
+            'waitlist_enabled' => true,
+            'queue_mode_enabled' => true,
+            'queue_assignment_mode' => 'global_pull',
+            'queue_dispatch_mode' => 'fifo_with_appointment_priority',
+            'queue_grace_minutes' => 5,
+            'queue_pre_call_threshold' => 2,
+            'queue_no_show_on_grace_expiry' => false,
+        ]
+    );
+
+    createActiveChairForMember($owner, $member, ['name' => 'Chair 1', 'is_active' => false]);
+    ReservationResource::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => null,
+        'name' => 'Chair 2',
+        'type' => ReservationResource::TYPE_CHAIR,
+        'capacity' => 1,
+        'is_active' => true,
+    ]);
+    createActiveChairForMember($owner, $member, ['name' => 'Chair 3']);
+
+    $ticket = ReservationQueueItem::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => null,
+        'item_type' => ReservationQueueItem::TYPE_TICKET,
+        'source' => 'staff',
+        'queue_number' => 'CHAIR-001',
+        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+        'estimated_duration_minutes' => 20,
+        'checked_in_at' => now('UTC')->subMinute(),
+    ]);
+
+    $memberUser = $member->user()->firstOrFail();
+
+    $offlineScreen = $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.screen.data', ['anonymize' => 1]))
+        ->assertOk();
+
+    expect($offlineScreen->json('queue.chairs'))->toHaveCount(1);
+    expect($offlineScreen->json('queue.chairs.0.chair_label'))->toBe('Chair 3');
+    expect($offlineScreen->json('queue.chairs.0.state'))->toBe('offline');
+
+    $this->actingAs($memberUser)
+        ->withSession(['two_factor_passed' => true])
+        ->postJson(route('reservation.queue.call-next'))
+        ->assertStatus(422);
+
+    $attendance = checkInTeamMember($owner, $member);
+
+    $readyScreen = $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.screen.data', ['anonymize' => 1]))
+        ->assertOk();
+
+    expect($readyScreen->json('queue.chairs.0.state'))->toBe('available_ready');
+
+    $this->actingAs($memberUser)
+        ->withSession(['two_factor_passed' => true])
+        ->postJson(route('reservation.queue.call-next'))
+        ->assertOk();
+
+    expect(TeamMemberAttendance::query()->find($attendance->id)?->current_status)->toBe(TeamMemberAttendance::STATUS_BUSY);
+
+    $calledScreen = $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.screen.data', ['anonymize' => 1]))
+        ->assertOk();
+
+    expect($calledScreen->json('queue.chairs.0.state'))->toBe('called');
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->patchJson(route('reservation.queue.start', $ticket))
+        ->assertOk();
+
+    $busyScreen = $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.screen.data', ['anonymize' => 1]))
+        ->assertOk();
+
+    expect($busyScreen->json('queue.chairs.0.state'))->toBe('busy');
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->patchJson(route('reservation.queue.done', $ticket))
+        ->assertOk();
+
+    expect(TeamMemberAttendance::query()->find($attendance->id)?->current_status)->toBe(TeamMemberAttendance::STATUS_AVAILABLE);
+
+    TeamMemberAttendance::query()->find($attendance->id)?->update([
+        'clock_out_at' => now('UTC'),
+        'current_status' => TeamMemberAttendance::STATUS_OFFLINE,
+    ]);
+
+    $checkedOutScreen = $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.screen.data', ['anonymize' => 1]))
+        ->assertOk();
+
+    expect($checkedOutScreen->json('queue.chairs.0.state'))->toBe('offline');
 });
 
 it('lets a team member pull next from global queue mode and assigns the ticket', function () {
@@ -1624,6 +1793,9 @@ it('lets a team member pull next from global queue mode and assigns the ticket',
             'queue_no_show_on_grace_expiry' => false,
         ]
     );
+
+    createActiveChairForMember($owner, $member);
+    checkInTeamMember($owner, $member);
 
     $ticket = ReservationQueueItem::query()->create([
         'account_id' => $owner->id,
@@ -1788,6 +1960,9 @@ it('sends queue notifications for pre-call, call, and grace expiry', function ()
         ]
     );
 
+    createActiveChairForMember($owner, $teamMember);
+    checkInTeamMember($owner, $teamMember);
+
     $ticket = ReservationQueueItem::query()->create([
         'account_id' => $owner->id,
         'client_id' => $customer->id,
@@ -1880,6 +2055,9 @@ it('sends queue sms notifications when sms channel is enabled', function () {
             'queue_no_show_on_grace_expiry' => false,
         ]
     );
+
+    createActiveChairForMember($owner, $teamMember);
+    checkInTeamMember($owner, $teamMember);
 
     $ticket = ReservationQueueItem::query()->create([
         'account_id' => $owner->id,
