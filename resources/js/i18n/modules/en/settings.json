@@ -98,7 +98,10 @@
       },
       "resources": {
         "title": "Resources and capacity",
+        "salon_title": "Chairs / stations",
         "description": "Define optional resources used to enforce slot capacity.",
+        "salon_description": "Create salon chairs or stations, then assign them to team members.",
+        "salon_summary": "Chairs / stations",
         "empty": "No resources configured.",
         "fields": {
           "name": "Resource name",

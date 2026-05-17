@@ -209,6 +209,28 @@ const form = useForm({
 const isSalonPreset = computed(() => String(form.account_settings?.business_preset || '') === 'salon');
 const queueConfigurationAvailable = computed(() => isSalonPreset.value && !ownerOnlyMode.value);
 const showTeamSections = computed(() => !ownerOnlyMode.value);
+const resourceSectionTitle = computed(() => (
+    isSalonPreset.value
+        ? t('settings.reservations.resources.salon_title')
+        : t('settings.reservations.resources.title')
+));
+const resourceSectionDescription = computed(() => (
+    isSalonPreset.value
+        ? t('settings.reservations.resources.salon_description')
+        : t('settings.reservations.resources.description')
+));
+const resourceSummaryLabel = computed(() => (
+    isSalonPreset.value
+        ? t('settings.reservations.resources.salon_summary')
+        : t('settings.reservations.summary.resources')
+));
+const resourceTabMeta = computed(() => {
+    const count = Number(form.resources?.length || 0).toLocaleString();
+
+    return isSalonPreset.value
+        ? `${count} chaises/postes`
+        : `${count} ressources`;
+});
 const kioskDefaultImageUrl = '/images/landing/stock/salon-front-desk.jpg';
 const kioskPreviewImageUrl = computed(() => {
     if (form.account_settings.clear_kiosk_image) {
@@ -336,7 +358,7 @@ const summaryCards = computed(() => ([
     },
     {
         key: 'resources',
-        label: t('settings.reservations.summary.resources'),
+        label: resourceSummaryLabel.value,
         value: Number(form.resources?.length || 0).toLocaleString(),
         border: 'border-t-cyan-600',
     },
@@ -372,9 +394,9 @@ const reservationSettingsTabs = computed(() => ([
     },
     {
         id: 'resources',
-        label: t('settings.reservations.resources.title'),
-        meta: `${Number(form.resources?.length || 0).toLocaleString()} postes`,
-        initials: 'PT',
+        label: resourceSectionTitle.value,
+        meta: resourceTabMeta.value,
+        initials: isSalonPreset.value ? 'CH' : 'RC',
         tone: 'cyan',
         panelId: 'reservation-settings-resources-panel',
     },
@@ -1106,8 +1128,8 @@ const submit = () => {
                     role="tabpanel"
                 >
                     <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('settings.reservations.resources.title') }}</h2>
-                    <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('settings.reservations.resources.description') }}</p>
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ resourceSectionTitle }}</h2>
+                    <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ resourceSectionDescription }}</p>
 
                     <div class="mt-3 grid gap-3 md:grid-cols-6">
                         <FloatingSelect
