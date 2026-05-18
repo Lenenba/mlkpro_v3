@@ -31,7 +31,7 @@
             },
             "operations": {
                 "title": "Operations and delivery",
-                "description": "Jobs, tasks, bookings, planning, and team coordination for daily execution."
+                "description": "Jobs, tasks, bookings, presence, planning, and team coordination for daily execution."
             },
             "finance": {
                 "title": "Finance and approvals",

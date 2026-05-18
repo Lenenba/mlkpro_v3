@@ -113,6 +113,47 @@ it('protects the roles and permissions settings page with manage roles permissio
         ]);
 });
 
+it('keeps scoped permissions from satisfying manager-level aliases', function () {
+    $member = new TeamMember([
+        'permissions' => [
+            'update_reservations',
+            'sales.pos',
+            'update_tasks',
+        ],
+    ]);
+
+    expect($member->hasPermission('reservations.manage'))->toBeFalse()
+        ->and($member->hasPermission('view_all_reservations'))->toBeFalse()
+        ->and($member->hasPermission('sales.manage'))->toBeFalse()
+        ->and($member->hasPermission('tasks.edit'))->toBeTrue();
+});
+
+it('does not grant team module access to the default coiffeur role', function () {
+    $this->seed(RbacSeeder::class);
+
+    $owner = rbacPhaseThreeOwner();
+    $employee = User::factory()
+        ->withRole(rbacPhaseThreeEmployeeRoleId())
+        ->create();
+    $coiffeurRole = CompanyRole::query()->where('slug', 'coiffeur')->firstOrFail();
+    $membership = TeamMember::factory()->create([
+        'account_id' => $owner->id,
+        'user_id' => $employee->id,
+        'role' => 'member',
+        'company_role_id' => $coiffeurRole->id,
+        'permissions' => [],
+    ]);
+
+    $membership->load('companyRole.permissions');
+
+    expect($coiffeurRole->permissions->pluck('slug')->all())->not->toContain('view_team_members')
+        ->and($membership->hasPermission('team.view'))->toBeFalse();
+
+    $this->actingAs($employee)
+        ->getJson(route('team.index'))
+        ->assertForbidden();
+});
+
 it('creates updates duplicates and deletes custom company roles', function () {
     $this->seed(RbacSeeder::class);
 

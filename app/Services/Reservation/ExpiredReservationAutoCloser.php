@@ -16,6 +16,8 @@ class ExpiredReservationAutoCloser
 
     public const QUEUE_GRACE_REASON = 'Automatically marked no-show because the queue call grace period expired.';
 
+    public const WALK_IN_EXPIRED_REASON = 'Automatically closed because the walk-in ticket remained unserved after the business day ended.';
+
     public function __construct(
         private readonly ReservationAvailabilityService $availabilityService
     ) {}
@@ -34,6 +36,11 @@ class ExpiredReservationAutoCloser
             'skipped_today_or_future' => 0,
             'skipped_checked_in' => 0,
             'skipped_arrived_queue' => 0,
+            'walk_in_checked' => 0,
+            'walk_in_eligible' => 0,
+            'walk_in_closed' => 0,
+            'walk_in_skipped_today_or_future' => 0,
+            'walk_in_skipped_in_service' => 0,
             'dry_run' => $dryRun,
         ];
 
@@ -76,6 +83,8 @@ class ExpiredReservationAutoCloser
                     }
                 }
             });
+
+        $this->closeExpiredWalkIns($summary, $accountId, $dryRun, $nowUtc);
 
         return $summary;
     }
@@ -152,6 +161,103 @@ class ExpiredReservationAutoCloser
     }
 
     /**
+     * @param  array<string, int|bool>  $summary
+     */
+    private function closeExpiredWalkIns(array &$summary, ?int $accountId, bool $dryRun, CarbonInterface $nowUtc): void
+    {
+        ReservationQueueItem::query()
+            ->with(['account:id,company_timezone'])
+            ->where('item_type', ReservationQueueItem::TYPE_TICKET)
+            ->whereIn('status', [
+                ReservationQueueItem::STATUS_CHECKED_IN,
+                ReservationQueueItem::STATUS_PRE_CALLED,
+                ReservationQueueItem::STATUS_CALLED,
+                ReservationQueueItem::STATUS_SKIPPED,
+                ReservationQueueItem::STATUS_IN_SERVICE,
+            ])
+            ->where('created_at', '<', $nowUtc)
+            ->when($accountId, fn ($query) => $query->where('account_id', $accountId))
+            ->orderBy('id')
+            ->chunkById(100, function ($tickets) use (&$summary, $dryRun, $nowUtc): void {
+                foreach ($tickets as $ticket) {
+                    $summary['walk_in_checked']++;
+
+                    $eligibility = $this->eligibilityForExpiredWalkIn($ticket, $nowUtc);
+                    if (! $eligibility['eligible']) {
+                        $summary[$eligibility['reason']]++;
+
+                        continue;
+                    }
+
+                    $summary['walk_in_eligible']++;
+                    if ($dryRun) {
+                        continue;
+                    }
+
+                    if ($this->closeWalkInAsNoShow($ticket, $nowUtc)) {
+                        $summary['walk_in_closed']++;
+                    }
+                }
+            });
+    }
+
+    private function closeWalkInAsNoShow(ReservationQueueItem $ticket, CarbonInterface $nowUtc): bool
+    {
+        return DB::transaction(function () use ($ticket, $nowUtc): bool {
+            $locked = ReservationQueueItem::query()
+                ->whereKey($ticket->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (
+                ! $locked
+                || $locked->item_type !== ReservationQueueItem::TYPE_TICKET
+                || ! in_array($locked->status, [
+                    ReservationQueueItem::STATUS_CHECKED_IN,
+                    ReservationQueueItem::STATUS_PRE_CALLED,
+                    ReservationQueueItem::STATUS_CALLED,
+                    ReservationQueueItem::STATUS_SKIPPED,
+                ], true)
+            ) {
+                return false;
+            }
+
+            $metadata = is_array($locked->metadata) ? $locked->metadata : [];
+            $metadata['auto_close'] = [
+                'closed_at' => $nowUtc->toIso8601String(),
+                'reason' => self::WALK_IN_EXPIRED_REASON,
+                'trigger' => 'reservations:auto-close-expired',
+                'previous_status' => (string) $locked->status,
+            ];
+
+            $locked->forceFill([
+                'status' => ReservationQueueItem::STATUS_NO_SHOW,
+                'finished_at' => $nowUtc,
+                'call_expires_at' => null,
+                'metadata' => $metadata,
+            ])->save();
+
+            return true;
+        });
+    }
+
+    /**
+     * @return array{eligible: bool, reason: string}
+     */
+    private function eligibilityForExpiredWalkIn(ReservationQueueItem $ticket, CarbonInterface $nowUtc): array
+    {
+        if (! $this->isPastLocalQueueTicketDay($ticket, $nowUtc)) {
+            return ['eligible' => false, 'reason' => 'walk_in_skipped_today_or_future'];
+        }
+
+        if ($ticket->status === ReservationQueueItem::STATUS_IN_SERVICE) {
+            return ['eligible' => false, 'reason' => 'walk_in_skipped_in_service'];
+        }
+
+        return ['eligible' => true, 'reason' => 'eligible'];
+    }
+
+    /**
      * @return array{eligible: bool, reason: string}
      */
     private function eligibilityForExpiredAutoClose(Reservation $reservation, CarbonInterface $nowUtc): array
@@ -188,10 +294,30 @@ class ExpiredReservationAutoCloser
         return $reservationDate < $today;
     }
 
+    private function isPastLocalQueueTicketDay(ReservationQueueItem $ticket, CarbonInterface $nowUtc): bool
+    {
+        $timezone = $this->timezoneForQueueTicket($ticket);
+        $ticketDate = $ticket->created_at->copy()->setTimezone($timezone)->toDateString();
+        $today = Carbon::instance($nowUtc->toDateTime())->setTimezone($timezone)->toDateString();
+
+        return $ticketDate < $today;
+    }
+
     private function timezoneForReservation(Reservation $reservation): string
     {
         $timezone = trim((string) ($reservation->timezone ?: $reservation->account?->company_timezone ?: config('app.timezone', 'UTC')));
 
+        return $this->normalizeTimezone($timezone);
+    }
+
+    private function timezoneForQueueTicket(ReservationQueueItem $ticket): string
+    {
+        return $this->normalizeTimezone((string) ($ticket->account?->company_timezone ?: config('app.timezone', 'UTC')));
+    }
+
+    private function normalizeTimezone(string $timezone): string
+    {
+        $timezone = trim($timezone);
         if ($timezone === '') {
             return config('app.timezone', 'UTC');
         }

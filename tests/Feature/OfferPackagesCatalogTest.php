@@ -4,13 +4,17 @@ use App\Http\Middleware\EnsureTwoFactorVerified;
 use App\Models\Customer;
 use App\Models\CustomerPackage;
 use App\Models\CustomerPackageUsage;
+use App\Models\CompanyRole;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\OfferPackage;
+use App\Models\Permission;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\Role;
+use App\Models\TeamMember;
 use App\Models\User;
+use Database\Seeders\RbacSeeder;
 use App\Models\Work;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -62,6 +66,52 @@ function offerPackageCatalogItem(User $owner, array $overrides = []): Product
     ], $overrides));
 }
 
+function offerPackageTeamMember(User $owner, array $permissionSlugs = [], ?string $systemRoleSlug = null): User
+{
+    $employee = User::factory()
+        ->withRole(offerPackageRoleId('employee'))
+        ->create();
+
+    $companyRoleId = null;
+
+    if ($systemRoleSlug) {
+        $companyRoleId = CompanyRole::query()
+            ->whereNull('company_id')
+            ->where('slug', $systemRoleSlug)
+            ->value('id');
+    }
+
+    if (! $companyRoleId && $permissionSlugs !== []) {
+        $role = CompanyRole::query()->create([
+            'company_id' => $owner->id,
+            'name' => 'Offer package manager '.Str::random(6),
+            'slug' => 'offer_package_manager_'.Str::random(8),
+            'description' => 'Custom role for offer package tests.',
+            'is_system' => false,
+            'is_default' => false,
+            'is_editable' => true,
+            'is_deletable' => true,
+            'is_active' => true,
+        ]);
+
+        $role->permissions()->sync(
+            Permission::query()->whereIn('slug', $permissionSlugs)->pluck('id')->all()
+        );
+
+        $companyRoleId = $role->id;
+    }
+
+    TeamMember::factory()->create([
+        'account_id' => $owner->id,
+        'user_id' => $employee->id,
+        'role' => 'member',
+        'company_role_id' => $companyRoleId,
+        'permissions' => [],
+    ]);
+
+    return $employee;
+}
+
 beforeEach(function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
     $this->withoutMiddleware(EnsureTwoFactorVerified::class);
@@ -97,6 +147,42 @@ it('renders the offer packages catalog with catalog items', function () {
         ->assertJsonPath('offers.data.0.name', 'Pack lancement')
         ->assertJsonPath('catalogItems.0.name', 'Consultation strategie')
         ->assertJsonPath('stats.total', 1);
+});
+
+it('blocks coiffeur members from offer packages while keeping the catalog route protected', function () {
+    $this->seed(RbacSeeder::class);
+
+    $owner = offerPackageOwner();
+    $product = offerPackageCatalogItem($owner);
+
+    $offer = OfferPackage::query()->create([
+        'user_id' => $owner->id,
+        'name' => 'Forfait salon',
+        'type' => OfferPackage::TYPE_FORFAIT,
+        'status' => OfferPackage::STATUS_ACTIVE,
+        'price' => 120,
+        'currency_code' => 'CAD',
+    ]);
+
+    $offer->items()->create([
+        'product_id' => $product->id,
+        'item_type_snapshot' => $product->item_type,
+        'name_snapshot' => $product->name,
+        'quantity' => 1,
+        'unit_price' => 120,
+        'included' => true,
+        'is_optional' => false,
+    ]);
+
+    $employee = offerPackageTeamMember($owner, systemRoleSlug: 'coiffeur');
+
+    $this->actingAs($employee)
+        ->getJson(route('offer-packages.index'))
+        ->assertForbidden();
+
+    $this->actingAs($employee)
+        ->getJson(route('offer-packages.show', $offer))
+        ->assertForbidden();
 });
 
 it('returns consolidated reporting for sold packs forfaits recurrence and carry over', function () {

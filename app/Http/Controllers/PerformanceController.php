@@ -24,7 +24,11 @@ class PerformanceController extends Controller
             abort(401);
         }
 
-        [$accountOwner, $isServiceCompany] = $this->resolvePerformanceContext($user);
+        [$accountOwner, $isServiceCompany, , $canViewTeamPerformance] = $this->resolvePerformanceContext($user);
+        if (! $canViewTeamPerformance) {
+            abort(403);
+        }
+
         $now = now();
 
         if ($isServiceCompany) {
@@ -49,7 +53,7 @@ class PerformanceController extends Controller
             abort(401);
         }
 
-        [$accountOwner, $isServiceCompany] = $this->resolvePerformanceContext($user);
+        [$accountOwner, $isServiceCompany, , $canViewTeamPerformance] = $this->resolvePerformanceContext($user);
         $accountId = $accountOwner->id;
 
         $membership = null;
@@ -62,6 +66,10 @@ class PerformanceController extends Controller
             if (!$membership) {
                 abort(404);
             }
+        }
+
+        if ($employee->id !== $user->id && ! $canViewTeamPerformance) {
+            abort(403);
         }
 
         $employeePayload = [
@@ -125,28 +133,57 @@ class PerformanceController extends Controller
             abort(403);
         }
 
+        $membership = null;
+        $canViewTeamPerformance = $user->id === $owner->id;
+
         if ($user->id !== $owner->id) {
             $membership = $user->relationLoaded('teamMembership')
                 ? $user->teamMembership
                 : $user->teamMembership()->first();
 
-            if ($isServiceCompany) {
-                $canManage = ($membership?->hasPermission('jobs.edit') ?? false)
-                    || ($membership?->hasPermission('tasks.edit') ?? false);
-                $canView = $canManage
-                    || ($membership?->hasPermission('jobs.view') ?? false)
-                    || ($membership?->hasPermission('tasks.view') ?? false);
-            } else {
-                $canManage = $membership?->hasPermission('sales.manage') ?? false;
-                $canView = $canManage || ($membership?->hasPermission('sales.pos') ?? false);
+            if (!$membership || (int) $membership->account_id !== (int) $owner->id || !$membership->is_active) {
+                abort(403);
             }
 
-            if (!$canView) {
+            $canViewTeamPerformance = $this->canViewTeamPerformance($membership, $isServiceCompany);
+            $canViewOwnPerformance = $canViewTeamPerformance || $this->canViewOwnPerformance($membership, $isServiceCompany);
+
+            if (!$canViewOwnPerformance) {
                 abort(403);
             }
         }
 
-        return [$owner, $isServiceCompany];
+        return [$owner, $isServiceCompany, $membership, $canViewTeamPerformance];
+    }
+
+    private function canViewTeamPerformance(TeamMember $membership, bool $isServiceCompany): bool
+    {
+        if ($membership->role === 'admin') {
+            return true;
+        }
+
+        if ($membership->hasPermission('reports.team')
+            || $membership->hasPermission('view_team_reports')
+            || $membership->hasPermission('view_reports')) {
+            return true;
+        }
+
+        return ! $isServiceCompany
+            && ($membership->hasPermission('sales.manage') || $membership->hasPermission('view_sales_reports'));
+    }
+
+    private function canViewOwnPerformance(TeamMember $membership, bool $isServiceCompany): bool
+    {
+        if ($isServiceCompany) {
+            return $membership->hasPermission('jobs.view')
+                || $membership->hasPermission('jobs.edit')
+                || $membership->hasPermission('tasks.view')
+                || $membership->hasPermission('tasks.edit');
+        }
+
+        return $membership->hasPermission('sales.pos')
+            || $membership->hasPermission('sales.manage')
+            || $membership->hasPermission('view_sales_reports');
     }
 
     private function buildSellerPerformance(int $accountId, Carbon $now, int $sellerLimit = 12, int $productLimit = 6): array

@@ -2168,14 +2168,18 @@ Artisan::command('reservations:auto-close-expired {--account_id=} {--dry-run}', 
     $count = $summary['dry_run'] ? $summary['eligible'] : $summary['closed'];
     $prefix = $summary['dry_run'] ? 'Dry run: would auto-close' : 'Auto-closed';
     $this->info("{$prefix} {$count} expired reservation(s).");
+    $walkInCount = $summary['dry_run'] ? $summary['walk_in_eligible'] : $summary['walk_in_closed'];
+    $this->info("{$prefix} {$walkInCount} expired walk-in ticket(s).");
     $this->line(
         "checked={$summary['checked']}, eligible={$summary['eligible']}, queue_items_closed={$summary['queue_items_closed']}, "
         ."skipped_today_or_future={$summary['skipped_today_or_future']}, skipped_checked_in={$summary['skipped_checked_in']}, "
-        ."skipped_arrived_queue={$summary['skipped_arrived_queue']}"
+        ."skipped_arrived_queue={$summary['skipped_arrived_queue']}, walk_in_checked={$summary['walk_in_checked']}, "
+        ."walk_in_eligible={$summary['walk_in_eligible']}, walk_in_skipped_today_or_future={$summary['walk_in_skipped_today_or_future']}, "
+        ."walk_in_skipped_in_service={$summary['walk_in_skipped_in_service']}"
     );
 
     return 0;
-})->purpose('Automatically close past reservations that were not completed or checked in');
+})->purpose('Automatically close past reservations and walk-in tickets that were not completed or handled');
 
 Artisan::command('notifications:retry-failed
     {--notification=App\\Notifications\\InviteUserNotification : Fully-qualified notification class filter}

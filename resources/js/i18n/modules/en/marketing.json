@@ -20,6 +20,50 @@
       "header_description": "Configure channels, consent, templates, tracking, and offer strategy for campaigns.",
       "open_form": "Open form",
       "open_manager": "Open manager",
+      "tabs": {
+        "channels": {
+          "label": "Channels",
+          "description": "Consent included"
+        },
+        "tracking": {
+          "label": "Tracking",
+          "description": "Offers and conversions"
+        },
+        "templates": {
+          "label": "Templates",
+          "description": "Brand profile"
+        },
+        "audience": {
+          "label": "Audience",
+          "description": "Segments and lists"
+        },
+        "vip": {
+          "label": "VIP",
+          "description": "Automation and tiers"
+        }
+      },
+      "panels": {
+        "channels": {
+          "title": "Channels and consent",
+          "description": "Centralize available channels, quiet hours, anti-fatigue rules, and consent defaults."
+        },
+        "tracking": {
+          "title": "Tracking and offers",
+          "description": "Manage conversion events, click tracking, and offer selection strategy."
+        },
+        "templates": {
+          "title": "Templates and email identity",
+          "description": "Manage reusable templates and the brand identity applied to marketing emails."
+        },
+        "audience": {
+          "title": "Audience and prospecting",
+          "description": "Organize segments, mailing lists, and prospect provider connections."
+        },
+        "vip": {
+          "title": "VIP program",
+          "description": "Configure VIP automation and tiers used to qualify customers."
+        }
+      },
       "cards": {
         "channels": {
           "title": "Channels settings",
@@ -36,6 +80,10 @@
         "offers": {
           "title": "Offer settings",
           "description": "Configure offer modes, selection strategy, and template overrides."
+        },
+        "brand_profile": {
+          "title": "Email brand profile",
+          "description": "Configure colors, contact details, footer note, and social links used by marketing email templates."
         },
         "vip_automation": {
           "title": "VIP automation",

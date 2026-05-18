@@ -45,6 +45,11 @@ const hasServiceOps = computed(() =>
     showServices.value && (hasFeature('jobs') || hasFeature('tasks'))
 );
 const canQuotes = computed(() => hasAnyPermission(['quotes.view', 'quotes.edit']));
+const canManageCatalogOffers = computed(() =>
+    isOwner.value
+    || canSalesManage.value
+    || hasAnyPermission(['quotes.edit', 'services.edit', 'products.edit'])
+);
 const canPromotionsManage = computed(() => hasAnyPermission([
     'sales.manage',
     'quotes.edit',
@@ -55,7 +60,7 @@ const canPromotionsManage = computed(() => hasAnyPermission([
 const canOfferPackages = computed(() =>
     !isClient.value
     && !isSeller.value
-    && (isOwner.value || canSalesManage.value || canServiceManage.value)
+    && canManageCatalogOffers.value
     && (hasFeature('products') || hasFeature('services') || hasFeature('sales'))
 );
 const canExpensesNav = computed(() => hasAnyPermission([
@@ -74,8 +79,14 @@ const canInvoicesNav = computed(() => hasAnyPermission([
     'invoices.approve',
     'invoices.approve_high',
 ]));
+const canTeamReports = computed(() => hasAnyPermission(['reports.team', 'view_team_reports', 'view_reports']));
+const canViewTeamPerformance = computed(() =>
+    isOwner.value
+    || teamRole.value === 'admin'
+    || canTeamReports.value
+    || (companyType.value === 'products' && canSalesManage.value)
+);
 const canViewTeam = computed(() => hasPermission('team.view'));
-const canPresence = computed(() => hasPermission('view_presence'));
 const isSeller = computed(() => teamRole.value === 'seller');
 const planningPendingCount = computed(() => page.props.planning?.pending_count || 0);
 const workspaceHubCategories = computed(() => buildWorkspaceHubCategories({
@@ -636,7 +647,7 @@ const isCustomerActive = computed(() => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor v-if="(companyType === 'products' && hasFeature('sales') && hasFeature('performance') && canSalesManage) || (hasServiceOps && hasFeature('performance') && canServiceManage)" :label="$t('nav.performance')" :href="'performance.index'" tone="performance"
+                                <LinkAncor v-if="((companyType === 'products' && hasFeature('sales')) || hasServiceOps) && hasFeature('performance') && canViewTeamPerformance" :label="$t('nav.performance')" :href="'performance.index'" tone="performance"
                                     :active="route().current('performance.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
@@ -646,21 +657,6 @@ const isCustomerActive = computed(() => {
                                             <path d="M18 17V9" />
                                             <path d="M13 17V5" />
                                             <path d="M8 17v-3" />
-                                        </svg>
-                                    </template>
-                                </LinkAncor>
-                                <!-- End Item -->
-
-                                <!-- Item -->
-                                <LinkAncor v-if="hasFeature('presence') && canPresence && ((companyType === 'products' && hasFeature('sales')) || hasServiceOps) && !isClient && !isSeller" :label="$t('nav.presence')" :href="'presence.index'" tone="presence"
-                                    :active="route().current('presence.*')">
-                                    <template #icon>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round"
-                                            class="lucide lucide-clock">
-                                            <circle cx="12" cy="12" r="10" />
-                                            <polyline points="12 6 12 12 16 14" />
                                         </svg>
                                     </template>
                                 </LinkAncor>

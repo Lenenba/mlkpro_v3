@@ -26,6 +26,11 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
     const canReservations = hasAnyAccountPermission(account, ['reservations.view', 'reservations.queue', 'reservations.manage']);
     const hasServiceOps = showServices && (hasFeature('jobs') || hasFeature('tasks'));
     const canQuotes = hasAnyAccountPermission(account, ['quotes.view', 'quotes.edit']);
+    const canManageCatalogOffers = isOwner || canSalesManage || hasAnyAccountPermission(account, [
+        'quotes.edit',
+        'services.edit',
+        'products.edit',
+    ]);
     const canPromotionsManage = hasAnyAccountPermission(account, [
         'sales.manage',
         'quotes.edit',
@@ -35,7 +40,7 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
     ]);
     const canOfferPackages = !isClient
         && !isSeller
-        && (isOwner || canSalesManage || canServiceManage)
+        && canManageCatalogOffers
         && (hasFeature('products') || hasFeature('services') || hasFeature('sales'));
     const canSocial = hasAnyAccountPermission(account, [
         'social.view',
@@ -68,6 +73,11 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
     const canPresence = hasAccountPermission(account, 'view_presence');
     const canViewTeam = hasAccountPermission(account, 'team.view');
     const canManageRoles = hasAccountPermission(account, 'manage_roles_permissions');
+    const canTeamReports = hasAnyAccountPermission(account, ['reports.team', 'view_team_reports', 'view_reports']);
+    const canViewTeamPerformance = isOwner
+        || teamRole === 'admin'
+        || canTeamReports
+        || (companyType === 'products' && canSalesManage);
     const hasFinanceApprovalSources = hasFeature('expenses') || hasFeature('invoices');
 
     const unavailableCategory = (category) => ({
@@ -246,8 +256,9 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             descriptionKey: 'workspace_hub.modules.performance',
             routeName: 'performance.index',
             tone: 'performance',
-            visible: ((companyType === 'products' && hasFeature('sales') && hasFeature('performance') && canSalesManage)
-                || (hasServiceOps && hasFeature('performance') && canServiceManage)),
+            visible: (((companyType === 'products' && hasFeature('sales')) || hasServiceOps)
+                && hasFeature('performance')
+                && canViewTeamPerformance),
         },
         jobs: {
             key: 'jobs',
@@ -293,8 +304,7 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             routeName: 'presence.index',
             tone: 'presence',
             visible: hasFeature('presence')
-                && canPresence
-                && ((companyType === 'products' && hasFeature('sales')) || hasServiceOps),
+                && canPresence,
         },
         team: {
             key: 'team',
@@ -455,7 +465,7 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             icon: 'operations',
             tone: 'operations',
             match: ['jobs.*', 'work.*', 'task.*', 'reservation.*', 'planning.*', 'presence.*', 'team.*'],
-            moduleKeys: ['jobs', 'tasks', 'reservations', 'planning', 'presence', 'team'],
+            moduleKeys: ['presence', 'jobs', 'tasks', 'reservations', 'planning', 'team'],
         },
         {
             key: 'finance',

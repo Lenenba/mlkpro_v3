@@ -31,7 +31,7 @@
             },
             "operations": {
                 "title": "Operaciones y ejecucion",
-                "description": "Trabajos, tareas, reservas, planificacion y coordinacion del equipo."
+                "description": "Trabajos, tareas, reservas, presencia, planificacion y coordinacion del equipo."
             },
             "finance": {
                 "title": "Finanzas y aprobaciones",

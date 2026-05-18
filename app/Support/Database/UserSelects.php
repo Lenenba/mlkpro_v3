@@ -14,6 +14,9 @@ final class UserSelects
             'company_features',
             'company_logo',
             'onboarding_completed_at',
+            'selected_plan_key',
+            'selected_billing_period',
+            'trial_ends_at',
         ];
     }
 

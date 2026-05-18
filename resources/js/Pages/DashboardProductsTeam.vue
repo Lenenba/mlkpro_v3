@@ -144,7 +144,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
     <AuthenticatedLayout>
         <Head :title="$t('dashboard_products.team.page_title')" />
 
-        <div class="mx-auto w-full max-w-6xl space-y-5">
+        <div class="space-y-6">
             <section class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div class="space-y-1">

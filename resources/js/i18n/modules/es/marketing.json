@@ -451,6 +451,50 @@
       "header_description": "Configura canales, consentimiento, plantillas, seguimiento y estrategia de ofertas para las campanas.",
       "open_form": "Abrir formulario",
       "open_manager": "Abrir gestor",
+      "tabs": {
+        "channels": {
+          "label": "Canales",
+          "description": "Consentimiento incluido"
+        },
+        "tracking": {
+          "label": "Seguimiento",
+          "description": "Ofertas y conversiones"
+        },
+        "templates": {
+          "label": "Plantillas",
+          "description": "Perfil de marca"
+        },
+        "audience": {
+          "label": "Audiencia",
+          "description": "Segmentos y listas"
+        },
+        "vip": {
+          "label": "VIP",
+          "description": "Automatizacion y niveles"
+        }
+      },
+      "panels": {
+        "channels": {
+          "title": "Canales y consentimiento",
+          "description": "Centraliza canales disponibles, horas tranquilas, reglas antifatiga y valores de consentimiento."
+        },
+        "tracking": {
+          "title": "Seguimiento y ofertas",
+          "description": "Gestiona eventos de conversion, seguimiento de clics y estrategia de seleccion de ofertas."
+        },
+        "templates": {
+          "title": "Plantillas e identidad de email",
+          "description": "Gestiona plantillas reutilizables y la identidad de marca aplicada a los emails de marketing."
+        },
+        "audience": {
+          "title": "Audiencia y prospeccion",
+          "description": "Organiza segmentos, listas de correo y conexiones de proveedores de prospectos."
+        },
+        "vip": {
+          "title": "Programa VIP",
+          "description": "Configura automatizacion VIP y niveles usados para calificar clientes."
+        }
+      },
       "cards": {
         "channels": {
           "title": "Configuracion de canales",
@@ -467,6 +511,10 @@
         "offers": {
           "title": "Configuracion de ofertas",
           "description": "Configura modos de oferta, estrategia de seleccion y sobrescrituras de plantillas."
+        },
+        "brand_profile": {
+          "title": "Perfil de marca email",
+          "description": "Configura colores, datos de contacto, nota de pie de pagina y enlaces sociales usados por las plantillas email de marketing."
         },
         "vip_automation": {
           "title": "Automatizacion VIP",

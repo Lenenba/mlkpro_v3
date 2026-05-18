@@ -185,6 +185,7 @@ const marketingSettingsTabs = computed(() => ([
         meta: t('marketing.settings.tabs.channels.description'),
         initials: 'CH',
         tone: 'emerald',
+        buttonId: 'marketing-settings-tab-channels',
         panelId: 'marketing-settings-channels-panel',
     },
     {
@@ -193,6 +194,7 @@ const marketingSettingsTabs = computed(() => ([
         meta: t('marketing.settings.tabs.tracking.description'),
         initials: 'TR',
         tone: 'sky',
+        buttonId: 'marketing-settings-tab-tracking',
         panelId: 'marketing-settings-tracking-panel',
     },
     {
@@ -201,6 +203,7 @@ const marketingSettingsTabs = computed(() => ([
         meta: t('marketing.settings.tabs.templates.description'),
         initials: 'TP',
         tone: 'amber',
+        buttonId: 'marketing-settings-tab-templates',
         panelId: 'marketing-settings-templates-panel',
     },
     {
@@ -209,6 +212,7 @@ const marketingSettingsTabs = computed(() => ([
         meta: t('marketing.settings.tabs.audience.description'),
         initials: 'AU',
         tone: 'cyan',
+        buttonId: 'marketing-settings-tab-audience',
         panelId: 'marketing-settings-audience-panel',
     },
     {
@@ -217,6 +221,7 @@ const marketingSettingsTabs = computed(() => ([
         meta: t('marketing.settings.tabs.vip.description'),
         initials: 'VI',
         tone: 'violet',
+        buttonId: 'marketing-settings-tab-vip',
         panelId: 'marketing-settings-vip-panel',
     },
 ]));
@@ -421,144 +426,60 @@ const toggleAllowedMode = (mode) => {
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.channels.title') }}</h2>
-                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ t('marketing.settings.cards.channels.description') }}
-                    </p>
-                    <div class="mt-3">
-                        <PrimaryButton type="button" @click="openDialog('channels-config')">
-                            {{ t('marketing.settings.open_form') }}
-                        </PrimaryButton>
-                    </div>
-                </div>
+            <div class="rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <CardTileTabs
+                    v-model="activeMarketingSettingsTab"
+                    :tabs="marketingSettingsTabs"
+                    :aria-label="t('marketing.settings.header_title')"
+                    grid-class="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5"
+                />
 
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.consent.title') }}</h2>
-                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ t('marketing.settings.cards.consent.description') }}
-                    </p>
-                    <div class="mt-3">
-                        <PrimaryButton type="button" @click="openDialog('consent-config')">
-                            {{ t('marketing.settings.open_form') }}
-                        </PrimaryButton>
+                <section
+                    :id="activeMarketingSettingsPanel.panelId"
+                    class="p-4"
+                    role="tabpanel"
+                    :aria-labelledby="`marketing-settings-tab-${activeMarketingSettingsPanel.id}`"
+                >
+                    <div class="flex flex-wrap items-start justify-between gap-3 border-b border-stone-200 pb-3 dark:border-neutral-700">
+                        <div>
+                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ activeMarketingSettingsPanel.title }}
+                            </h2>
+                            <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                {{ activeMarketingSettingsPanel.description }}
+                            </p>
+                        </div>
                     </div>
-                </div>
 
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.tracking.title') }}</h2>
-                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ t('marketing.settings.cards.tracking.description') }}
-                    </p>
-                    <div class="mt-3">
-                        <PrimaryButton type="button" @click="openDialog('tracking-config')">
-                            {{ t('marketing.settings.open_form') }}
-                        </PrimaryButton>
+                    <div class="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+                        <article
+                            v-for="card in activeMarketingSettingsPanel.cards"
+                            :key="`${activeMarketingSettingsPanel.id}-${card.title}`"
+                            class="flex min-h-32 flex-col justify-between rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                        >
+                            <div>
+                                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ card.title }}</h3>
+                                <p class="mt-2 text-xs leading-5 text-stone-500 dark:text-neutral-400">
+                                    {{ card.description }}
+                                </p>
+                            </div>
+                            <div class="mt-4">
+                                <PrimaryButton
+                                    v-if="card.dialogId"
+                                    type="button"
+                                    @click="openDialog(card.dialogId)"
+                                >
+                                    {{ card.actionLabel }}
+                                </PrimaryButton>
+                                <Link v-else-if="card.routeName" :href="route(card.routeName)">
+                                    <PrimaryButton type="button">
+                                        {{ card.actionLabel }}
+                                    </PrimaryButton>
+                                </Link>
+                            </div>
+                        </article>
                     </div>
-                </div>
-
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.offers.title') }}</h2>
-                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ t('marketing.settings.cards.offers.description') }}
-                    </p>
-                    <div class="mt-3">
-                        <PrimaryButton type="button" @click="openDialog('offers-config')">
-                            {{ t('marketing.settings.open_form') }}
-                        </PrimaryButton>
-                    </div>
-                </div>
-
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Email brand profile</h2>
-                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                        Configure colors, contact details, footer note, and social links used by marketing email templates.
-                    </p>
-                    <div class="mt-3">
-                        <PrimaryButton type="button" @click="openDialog('brand-profile-config')">
-                            {{ t('marketing.settings.open_form') }}
-                        </PrimaryButton>
-                    </div>
-                </div>
-
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.vip_automation.title') }}</h2>
-                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ t('marketing.settings.cards.vip_automation.description') }}
-                    </p>
-                    <div class="mt-3">
-                        <PrimaryButton type="button" @click="openDialog('vip-automation-config')">
-                            {{ t('marketing.settings.open_form') }}
-                        </PrimaryButton>
-                    </div>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.template_manager.title') }}</h2>
-                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ t('marketing.settings.cards.template_manager.description') }}
-                    </p>
-                    <div class="mt-3">
-                        <Link :href="route('campaigns.templates.manage')">
-                            <PrimaryButton type="button">
-                                {{ t('marketing.settings.open_manager') }}
-                            </PrimaryButton>
-                        </Link>
-                    </div>
-                </div>
-
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.segment_manager.title') }}</h2>
-                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ t('marketing.settings.cards.segment_manager.description') }}
-                    </p>
-                    <div class="mt-3">
-                        <PrimaryButton type="button" @click="openDialog('segments')">
-                            {{ t('marketing.settings.open_manager') }}
-                        </PrimaryButton>
-                    </div>
-                </div>
-
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.mailing_list_manager.title') }}</h2>
-                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ t('marketing.settings.cards.mailing_list_manager.description') }}
-                    </p>
-                    <div class="mt-3">
-                        <PrimaryButton type="button" @click="openDialog('mailing-lists')">
-                            {{ t('marketing.settings.open_manager') }}
-                        </PrimaryButton>
-                    </div>
-                </div>
-
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.vip_tiers_manager.title') }}</h2>
-                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ t('marketing.settings.cards.vip_tiers_manager.description') }}
-                    </p>
-                    <div class="mt-3">
-                        <PrimaryButton type="button" @click="openDialog('vip-tiers')">
-                            {{ t('marketing.settings.open_manager') }}
-                        </PrimaryButton>
-                    </div>
-                </div>
-
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.prospect_provider_manager.title') }}</h2>
-                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ t('marketing.settings.cards.prospect_provider_manager.description') }}
-                    </p>
-                    <div class="mt-3">
-                        <Link :href="route('campaigns.prospect-providers.manage')">
-                            <PrimaryButton type="button">
-                                {{ t('marketing.settings.open_manager') }}
-                            </PrimaryButton>
-                        </Link>
-                    </div>
-                </div>
+                </section>
             </div>
 
             <Modal :show="activeDialog === 'channels-config'" max-width="4xl" @close="closeDialog">

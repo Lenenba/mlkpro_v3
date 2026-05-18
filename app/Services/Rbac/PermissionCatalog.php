@@ -204,7 +204,6 @@ class PermissionCatalog
                 'view_own_reservations',
                 'update_reservations',
                 'view_services',
-                'view_team_members',
                 'view_presence',
                 'manage_own_presence',
                 'view_chairs',
@@ -307,13 +306,17 @@ class PermissionCatalog
             'customers.export' => ['export_clients'],
             'export_clients' => ['customers.export'],
 
-            'reservations.view' => ['view_reservations', 'view_all_reservations', 'view_own_reservations'],
+            'reservations.view' => ['view_reservations', 'view_own_reservations'],
             'view_reservations' => ['reservations.view'],
-            'view_all_reservations' => ['reservations.view'],
+            'view_all_reservations' => ['reservations.view', 'view_reservations', 'view_own_reservations'],
             'view_own_reservations' => ['reservations.view'],
             'reservations.queue' => ['manage_reservation_queue'],
             'manage_reservation_queue' => ['reservations.queue'],
             'reservations.manage' => [
+                'reservations.view',
+                'reservations.queue',
+                'view_reservations',
+                'view_own_reservations',
                 'create_reservations',
                 'update_reservations',
                 'cancel_reservations',
@@ -355,9 +358,8 @@ class PermissionCatalog
                 'manage_cash_register',
             ],
             'sales.pos' => ['view_sales', 'create_sales', 'manage_cash_register'],
-            'create_sales' => ['sales.pos'],
+            'view_sales_reports' => ['sales.manage', 'reports.sales'],
             'manage_cash_register' => ['sales.pos'],
-            'view_sales_reports' => ['sales.manage'],
 
             'team.view' => ['view_team_members'],
             'view_team_members' => ['team.view'],
@@ -449,11 +451,11 @@ class PermissionCatalog
             'jobs.view' => ['view_jobs'],
             'view_jobs' => ['jobs.view'],
             'jobs.create' => ['create_jobs'],
-            'create_jobs' => ['jobs.edit'],
-            'jobs.edit' => ['create_jobs', 'update_jobs', 'delete_jobs'],
+            'create_jobs' => ['jobs.create'],
+            'jobs.edit' => ['update_jobs'],
             'update_jobs' => ['jobs.edit'],
             'jobs.delete' => ['delete_jobs'],
-            'delete_jobs' => ['jobs.delete', 'jobs.edit'],
+            'delete_jobs' => ['jobs.delete'],
 
             'tasks.view' => ['view_tasks'],
             'view_tasks' => ['tasks.view'],
@@ -513,26 +515,27 @@ class PermissionCatalog
     public function candidates(string $permission): array
     {
         $aliases = $this->aliases();
-        $seen = [];
-        $queue = [$permission];
+        $candidates = [];
+        $universe = [$permission, ...$this->permissionSlugs(), ...array_keys($aliases)];
 
-        while ($queue !== []) {
-            $candidate = array_shift($queue);
-
-            if (! is_string($candidate) || $candidate === '' || isset($seen[$candidate])) {
-                continue;
-            }
-
-            $seen[$candidate] = true;
-
-            foreach ($aliases[$candidate] ?? [] as $alias) {
-                if (! isset($seen[$alias])) {
-                    $queue[] = $alias;
-                }
+        foreach ($aliases as $source => $targets) {
+            $universe[] = $source;
+            foreach ($targets as $target) {
+                $universe[] = $target;
             }
         }
 
-        return array_keys($seen);
+        foreach (array_values(array_unique(array_filter($universe, 'is_string'))) as $candidate) {
+            if ($candidate === '') {
+                continue;
+            }
+
+            if (in_array($permission, $this->expand([$candidate]), true)) {
+                $candidates[] = $candidate;
+            }
+        }
+
+        return array_values(array_unique($candidates));
     }
 
     /**
@@ -541,17 +544,34 @@ class PermissionCatalog
      */
     public function expand(array $permissions): array
     {
+        $aliases = $this->aliases();
         $expanded = [];
+        $seen = [];
+        $queue = [];
 
         foreach ($permissions as $permission) {
             if (! is_string($permission) || $permission === '') {
                 continue;
             }
 
-            $expanded = [
-                ...$expanded,
-                ...$this->candidates($permission),
-            ];
+            $queue[] = $permission;
+        }
+
+        while ($queue !== []) {
+            $permission = array_shift($queue);
+
+            if (! is_string($permission) || $permission === '' || isset($seen[$permission])) {
+                continue;
+            }
+
+            $seen[$permission] = true;
+            $expanded[] = $permission;
+
+            foreach ($aliases[$permission] ?? [] as $alias) {
+                if (! isset($seen[$alias])) {
+                    $queue[] = $alias;
+                }
+            }
         }
 
         return array_values(array_unique($expanded));

@@ -1,8 +1,11 @@
 <?php
 
 use App\Http\Middleware\EnsureTwoFactorVerified;
+use App\Models\CompanyRole;
 use App\Models\Role;
+use App\Models\TeamMember;
 use App\Models\User;
+use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -52,6 +55,47 @@ test('owner can open a workspace category hub page', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('Workspace/CategoryHub')
             ->where('category', 'finance')
+        );
+});
+
+test('team member hub props include plan default features from the account owner context', function () {
+    $this->seed(RbacSeeder::class);
+
+    $owner = workspaceHubOwner([
+        'company_features' => [
+            'reservations' => true,
+        ],
+        'selected_plan_key' => null,
+        'trial_ends_at' => now()->addWeeks(2),
+    ]);
+
+    $employee = User::factory()->create([
+        'role_id' => workspaceHubRoleId('employee', 'Employee role'),
+        'onboarding_completed_at' => now(),
+    ]);
+
+    $coiffeurRole = CompanyRole::query()
+        ->whereNull('company_id')
+        ->where('slug', 'coiffeur')
+        ->firstOrFail();
+
+    TeamMember::factory()->create([
+        'account_id' => $owner->id,
+        'user_id' => $employee->id,
+        'role' => 'member',
+        'company_role_id' => $coiffeurRole->id,
+        'permissions' => [],
+    ]);
+
+    $this->actingAs($employee)
+        ->get(route('workspace.hubs.show', ['category' => 'operations']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Workspace/CategoryHub')
+            ->where('category', 'operations')
+            ->where('auth.account.features.presence', true)
+            ->where('auth.account.features.team_members', true)
+            ->where('auth.account.permissions', fn ($permissions): bool => collect($permissions)->contains('view_presence'))
         );
 });
 
