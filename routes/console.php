@@ -47,6 +47,7 @@ use App\Services\Prospects\ProspectCustomerMigrationVerificationService;
 use App\Services\ProspectStaleReminderService;
 use App\Services\PublicCopySyncService;
 use App\Services\QueueHealthService;
+use App\Services\Reservation\ExpiredReservationAutoCloser;
 use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationNotificationService;
 use App\Services\ReservationQueueService;
@@ -2156,6 +2157,26 @@ Artisan::command('reservations:queue-alerts', function (
     return 0;
 })->purpose('Refresh queue metrics and dispatch queue ETA alerts');
 
+Artisan::command('reservations:auto-close-expired {--account_id=} {--dry-run}', function (
+    ExpiredReservationAutoCloser $autoCloser
+): int {
+    $accountId = $this->option('account_id');
+    $accountId = is_numeric($accountId) ? (int) $accountId : null;
+
+    $summary = $autoCloser->closeExpired($accountId, (bool) $this->option('dry-run'));
+
+    $count = $summary['dry_run'] ? $summary['eligible'] : $summary['closed'];
+    $prefix = $summary['dry_run'] ? 'Dry run: would auto-close' : 'Auto-closed';
+    $this->info("{$prefix} {$count} expired reservation(s).");
+    $this->line(
+        "checked={$summary['checked']}, eligible={$summary['eligible']}, queue_items_closed={$summary['queue_items_closed']}, "
+        ."skipped_today_or_future={$summary['skipped_today_or_future']}, skipped_checked_in={$summary['skipped_checked_in']}, "
+        ."skipped_arrived_queue={$summary['skipped_arrived_queue']}"
+    );
+
+    return 0;
+})->purpose('Automatically close past reservations that were not completed or checked in');
+
 Artisan::command('notifications:retry-failed
     {--notification=App\\Notifications\\InviteUserNotification : Fully-qualified notification class filter}
     {--max=25 : Maximum failed jobs to retry in one run}
@@ -2678,6 +2699,7 @@ Schedule::command('prospects:stale-reminders')->hourlyAt(20)->withoutOverlapping
 Schedule::command('support:sla-reminders')->hourly();
 Schedule::command('reservations:notifications')->everyFifteenMinutes();
 Schedule::command('reservations:queue-alerts')->everyFiveMinutes()->withoutOverlapping();
+Schedule::command('reservations:auto-close-expired')->dailyAt('02:20')->withoutOverlapping();
 Schedule::command('offer-packages:automation')->hourlyAt(5)->withoutOverlapping();
 Schedule::command('campaigns:automations')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('social:run-automations')->everyFifteenMinutes()->withoutOverlapping();

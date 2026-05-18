@@ -159,7 +159,7 @@ const roleTone = (role) => {
 </script>
 
 <template>
-    <Head title="Rôles et permissions" />
+    <Head title="Rôles d'accès" />
 
     <SettingsLayout active="roles">
         <div class="space-y-4">
@@ -170,10 +170,10 @@ const roleTone = (role) => {
                             Équipe et accès
                         </p>
                         <h1 class="mt-1 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
-                            Rôles et permissions
+                            Rôles d'accès
                         </h1>
                         <p class="mt-2 max-w-3xl text-sm leading-6 text-stone-600 dark:text-neutral-400">
-                            Configurez les rôles métiers de l’entreprise. Les permissions pilotent les pages visibles, les actions possibles et les accès backend.
+                            Configurez les rôles d'accès de l’entreprise. Les permissions pilotent les pages visibles, les actions possibles et les accès backend.
                         </p>
                     </div>
                     <button
@@ -188,7 +188,7 @@ const roleTone = (role) => {
 
             <section class="grid gap-3 md:grid-cols-4">
                 <div class="border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <p class="text-xs uppercase text-stone-500 dark:text-neutral-400">Rôles actifs</p>
+                    <p class="text-xs uppercase text-stone-500 dark:text-neutral-400">Rôles d'accès actifs</p>
                     <p class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">{{ activeRoles.length }}</p>
                 </div>
                 <div class="border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
@@ -209,8 +209,8 @@ const roleTone = (role) => {
                 <aside class="space-y-3">
                     <div class="border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                         <div class="border-b border-stone-200 px-4 py-3 dark:border-neutral-800">
-                            <h2 class="text-sm font-semibold text-stone-900 dark:text-neutral-100">Rôles disponibles</h2>
-                            <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">Sélectionnez un rôle pour consulter sa configuration.</p>
+                            <h2 class="text-sm font-semibold text-stone-900 dark:text-neutral-100">Rôles d'accès disponibles</h2>
+                            <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">Sélectionnez un rôle d'accès pour consulter sa configuration.</p>
                         </div>
                         <div class="divide-y divide-stone-200 dark:divide-neutral-800">
                             <button
@@ -239,7 +239,7 @@ const roleTone = (role) => {
                     </div>
 
                     <div class="border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <h2 class="text-sm font-semibold text-stone-900 dark:text-neutral-100">Membres du rôle</h2>
+                        <h2 class="text-sm font-semibold text-stone-900 dark:text-neutral-100">Membres avec ce rôle d'accès</h2>
                         <div v-if="assignedMembers.length" class="mt-3 space-y-2">
                             <div
                                 v-for="member in assignedMembers"
@@ -251,7 +251,7 @@ const roleTone = (role) => {
                             </div>
                         </div>
                         <p v-else class="mt-3 text-sm text-stone-500 dark:text-neutral-400">
-                            Aucun membre assigné au rôle sélectionné.
+                            Aucun membre assigné au rôle d'accès sélectionné.
                         </p>
                     </div>
                 </aside>
@@ -263,10 +263,10 @@ const roleTone = (role) => {
                                 {{ mode === 'create' ? 'Création' : 'Configuration' }}
                             </p>
                             <h2 class="mt-1 text-lg font-semibold text-stone-900 dark:text-neutral-100">
-                                {{ mode === 'create' ? 'Nouveau rôle personnalisé' : (selectedRole?.name || 'Sélectionnez un rôle') }}
+                                {{ mode === 'create' ? "Nouveau rôle d'accès personnalisé" : (selectedRole?.name || "Sélectionnez un rôle d'accès") }}
                             </h2>
                             <p v-if="selectedRole?.is_system" class="mt-2 max-w-2xl text-sm text-stone-600 dark:text-neutral-400">
-                                Ce rôle système sert de modèle. Dupliquez-le pour créer une version personnalisée propre à cette entreprise.
+                                Ce rôle d'accès système sert de modèle. Dupliquez-le pour créer une version personnalisée propre à cette entreprise.
                             </p>
                         </div>
                         <div v-if="selectedRole && mode === 'edit'" class="flex flex-wrap gap-2">
@@ -299,12 +299,12 @@ const roleTone = (role) => {
 
                     <div class="mt-5 grid gap-4 lg:grid-cols-2">
                         <div>
-                            <FloatingInput v-model="form.name" label="Nom du rôle" :disabled="mode === 'edit' && !selectedRole?.is_editable" />
+                            <FloatingInput v-model="form.name" label="Nom du rôle d'accès" :disabled="mode === 'edit' && !selectedRole?.is_editable" />
                             <InputError class="mt-1" :message="form.errors.name" />
                         </div>
                         <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
                             <Checkbox v-model:checked="form.is_active" :disabled="mode === 'edit' && !selectedRole?.is_editable" />
-                            <span>Rôle actif</span>
+                            <span>Rôle d'accès actif</span>
                         </label>
                         <div class="lg:col-span-2">
                             <FloatingTextarea v-model="form.description" label="Description" :disabled="mode === 'edit' && !selectedRole?.is_editable" />
@@ -379,7 +379,7 @@ const roleTone = (role) => {
                             class="rounded-sm border border-transparent bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
                             :disabled="form.processing || (mode === 'edit' && !selectedRole?.is_editable)"
                         >
-                            {{ form.processing ? 'Enregistrement...' : (mode === 'create' ? 'Créer le rôle' : 'Enregistrer') }}
+                            {{ form.processing ? 'Enregistrement...' : (mode === 'create' ? "Créer le rôle d'accès" : 'Enregistrer') }}
                         </button>
                     </div>
                 </form>

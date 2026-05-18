@@ -329,9 +329,11 @@ class TeamMemberController extends Controller
             abort(404);
         }
         $companyRoleId = null;
+        $companyRoleChanged = false;
         if (array_key_exists('company_role_id', $validated)) {
             $companyRoleId = $this->resolvedAssignableCompanyRoleId($validated['company_role_id'], $accountId);
-            if ((int) ($teamMember->company_role_id ?? 0) !== (int) ($companyRoleId ?? 0)) {
+            $companyRoleChanged = (int) ($teamMember->company_role_id ?? 0) !== (int) ($companyRoleId ?? 0);
+            if ($companyRoleChanged) {
                 $this->authorizeCompanyPermission($user, 'assign_roles');
             }
         }
@@ -380,7 +382,7 @@ class TeamMemberController extends Controller
         }
         if (array_key_exists('company_role_id', $validated)) {
             $teamMemberUpdates['company_role_id'] = $companyRoleId;
-            if (! array_key_exists('permissions', $validated)) {
+            if ($companyRoleChanged && ! array_key_exists('permissions', $validated)) {
                 $teamMemberUpdates['permissions'] = [];
             }
         }

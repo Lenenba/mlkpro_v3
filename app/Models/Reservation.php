@@ -70,6 +70,8 @@ class Reservation extends Model
         'client_notes',
         'cancelled_at',
         'cancel_reason',
+        'auto_closed_at',
+        'auto_closed_reason',
         'created_by_user_id',
         'cancelled_by_user_id',
         'rescheduled_from_id',
@@ -82,6 +84,7 @@ class Reservation extends Model
         'duration_minutes' => 'integer',
         'buffer_minutes' => 'integer',
         'cancelled_at' => 'datetime',
+        'auto_closed_at' => 'datetime',
         'metadata' => 'array',
     ];
 

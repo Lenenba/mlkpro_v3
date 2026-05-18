@@ -8,6 +8,7 @@ import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
+import CardTileTabs from '@/Components/UI/CardTileTabs.vue';
 import SegmentManager from '@/Pages/Campaigns/Components/SegmentManager.vue';
 import MailingListManager from '@/Pages/Campaigns/Components/MailingListManager.vue';
 import VipManager from '@/Pages/Campaigns/Components/VipManager.vue';
@@ -161,6 +162,122 @@ const selectionStrategyOptions = computed(() => ([
 ]));
 
 const activeDialog = ref(null);
+const activeMarketingSettingsTab = ref('channels');
+
+const dialogCard = (dialogId, title, description, actionLabel = t('marketing.settings.open_form')) => ({
+    dialogId,
+    title,
+    description,
+    actionLabel,
+});
+
+const routeCard = (routeName, title, description, actionLabel = t('marketing.settings.open_manager')) => ({
+    routeName,
+    title,
+    description,
+    actionLabel,
+});
+
+const marketingSettingsTabs = computed(() => ([
+    {
+        id: 'channels',
+        label: t('marketing.settings.tabs.channels.label'),
+        meta: t('marketing.settings.tabs.channels.description'),
+        initials: 'CH',
+        tone: 'emerald',
+        panelId: 'marketing-settings-channels-panel',
+    },
+    {
+        id: 'tracking',
+        label: t('marketing.settings.tabs.tracking.label'),
+        meta: t('marketing.settings.tabs.tracking.description'),
+        initials: 'TR',
+        tone: 'sky',
+        panelId: 'marketing-settings-tracking-panel',
+    },
+    {
+        id: 'templates',
+        label: t('marketing.settings.tabs.templates.label'),
+        meta: t('marketing.settings.tabs.templates.description'),
+        initials: 'TP',
+        tone: 'amber',
+        panelId: 'marketing-settings-templates-panel',
+    },
+    {
+        id: 'audience',
+        label: t('marketing.settings.tabs.audience.label'),
+        meta: t('marketing.settings.tabs.audience.description'),
+        initials: 'AU',
+        tone: 'cyan',
+        panelId: 'marketing-settings-audience-panel',
+    },
+    {
+        id: 'vip',
+        label: t('marketing.settings.tabs.vip.label'),
+        meta: t('marketing.settings.tabs.vip.description'),
+        initials: 'VI',
+        tone: 'violet',
+        panelId: 'marketing-settings-vip-panel',
+    },
+]));
+
+const marketingSettingsPanels = computed(() => ({
+    channels: {
+        id: 'channels',
+        panelId: 'marketing-settings-channels-panel',
+        title: t('marketing.settings.panels.channels.title'),
+        description: t('marketing.settings.panels.channels.description'),
+        cards: [
+            dialogCard('channels-config', t('marketing.settings.cards.channels.title'), t('marketing.settings.cards.channels.description')),
+            dialogCard('consent-config', t('marketing.settings.cards.consent.title'), t('marketing.settings.cards.consent.description')),
+        ],
+    },
+    tracking: {
+        id: 'tracking',
+        panelId: 'marketing-settings-tracking-panel',
+        title: t('marketing.settings.panels.tracking.title'),
+        description: t('marketing.settings.panels.tracking.description'),
+        cards: [
+            dialogCard('tracking-config', t('marketing.settings.cards.tracking.title'), t('marketing.settings.cards.tracking.description')),
+            dialogCard('offers-config', t('marketing.settings.cards.offers.title'), t('marketing.settings.cards.offers.description')),
+        ],
+    },
+    templates: {
+        id: 'templates',
+        panelId: 'marketing-settings-templates-panel',
+        title: t('marketing.settings.panels.templates.title'),
+        description: t('marketing.settings.panels.templates.description'),
+        cards: [
+            dialogCard('brand-profile-config', t('marketing.settings.cards.brand_profile.title'), t('marketing.settings.cards.brand_profile.description')),
+            routeCard('campaigns.templates.manage', t('marketing.settings.cards.template_manager.title'), t('marketing.settings.cards.template_manager.description')),
+        ],
+    },
+    audience: {
+        id: 'audience',
+        panelId: 'marketing-settings-audience-panel',
+        title: t('marketing.settings.panels.audience.title'),
+        description: t('marketing.settings.panels.audience.description'),
+        cards: [
+            dialogCard('segments', t('marketing.settings.cards.segment_manager.title'), t('marketing.settings.cards.segment_manager.description'), t('marketing.settings.open_manager')),
+            dialogCard('mailing-lists', t('marketing.settings.cards.mailing_list_manager.title'), t('marketing.settings.cards.mailing_list_manager.description'), t('marketing.settings.open_manager')),
+            routeCard('campaigns.prospect-providers.manage', t('marketing.settings.cards.prospect_provider_manager.title'), t('marketing.settings.cards.prospect_provider_manager.description')),
+        ],
+    },
+    vip: {
+        id: 'vip',
+        panelId: 'marketing-settings-vip-panel',
+        title: t('marketing.settings.panels.vip.title'),
+        description: t('marketing.settings.panels.vip.description'),
+        cards: [
+            dialogCard('vip-automation-config', t('marketing.settings.cards.vip_automation.title'), t('marketing.settings.cards.vip_automation.description')),
+            dialogCard('vip-tiers', t('marketing.settings.cards.vip_tiers_manager.title'), t('marketing.settings.cards.vip_tiers_manager.description'), t('marketing.settings.open_manager')),
+        ],
+    },
+}));
+
+const activeMarketingSettingsPanel = computed(() => {
+    return marketingSettingsPanels.value[activeMarketingSettingsTab.value] || marketingSettingsPanels.value.channels;
+});
 
 const openDialog = (dialogId) => {
     activeDialog.value = dialogId;
