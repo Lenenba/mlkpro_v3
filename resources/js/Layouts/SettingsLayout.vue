@@ -7,6 +7,7 @@ import SettingsTabs from '@/Components/SettingsTabs.vue';
 import { useI18n } from 'vue-i18n';
 import { defaultAvatarIcon } from '@/utils/iconPresets';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
+import { usePermissions } from '@/Composables/usePermissions';
 
 const props = defineProps({
     active: {
@@ -38,16 +39,11 @@ const avatarInitial = computed(() => {
 });
 
 const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
-const teamPermissions = computed(() => page.props.auth?.account?.team?.permissions || []);
 const { hasFeature } = useAccountFeatures();
-const canManageReservations = computed(() =>
-    isOwner.value
-    || teamPermissions.value.includes('reservations.manage')
-);
-const canManageAiAssistant = computed(() =>
-    isOwner.value
-    || teamPermissions.value.includes('reservations.manage')
-);
+const { hasPermission } = usePermissions();
+const canManageReservations = computed(() => hasPermission('reservations.manage'));
+const canManageAiAssistant = computed(() => hasPermission('reservations.manage'));
+const canManageRoles = computed(() => hasPermission('manage_roles_permissions'));
 
 const navTabs = computed(() => {
     locale.value;
@@ -89,6 +85,14 @@ const navTabs = computed(() => {
                     route: 'settings.hr.edit',
                     icon: 'users',
                     ownerOnly: true,
+                },
+                {
+                    id: 'roles',
+                    label: t('settings.items.roles.label'),
+                    description: t('settings.items.roles.description'),
+                    route: 'settings.roles-permissions.edit',
+                    icon: 'shield',
+                    hidden: !canManageRoles.value,
                 },
                 {
                     id: 'reservations',

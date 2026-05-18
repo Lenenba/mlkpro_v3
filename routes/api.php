@@ -226,11 +226,16 @@ Route::name('api.')->group(function () {
             });
 
             Route::middleware('company.feature:presence')->group(function () {
-                Route::get('presence', [PresenceController::class, 'index']);
-                Route::post('presence/clock-in', [PresenceController::class, 'clockIn']);
-                Route::post('presence/clock-out', [PresenceController::class, 'clockOut']);
-                Route::post('presence/break', [PresenceController::class, 'setBreak']);
-                Route::post('presence/available', [PresenceController::class, 'setAvailable']);
+                Route::get('presence', [PresenceController::class, 'index'])
+                    ->middleware('permission:view_presence');
+                Route::post('presence/clock-in', [PresenceController::class, 'clockIn'])
+                    ->middleware('permission:manage_own_presence');
+                Route::post('presence/clock-out', [PresenceController::class, 'clockOut'])
+                    ->middleware('permission:manage_own_presence');
+                Route::post('presence/break', [PresenceController::class, 'setBreak'])
+                    ->middleware('permission:manage_own_presence');
+                Route::post('presence/available', [PresenceController::class, 'setAvailable'])
+                    ->middleware('permission:manage_own_presence');
             });
 
             Route::middleware('company.feature:performance')->group(function () {

@@ -9,6 +9,7 @@ use App\Models\Task;
 use App\Models\TeamMember;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
 class GlobalSearchController extends Controller
@@ -33,46 +34,47 @@ class GlobalSearchController extends Controller
         $like = '%'.str_replace('%', '\\%', $query).'%';
         $groups = [];
         $limit = 6;
+        $can = fn (string $permission): bool => Gate::forUser($user)
+            ->allows('company-permission', [$permission, $accountId]);
 
-        $customers = Customer::query()
-            ->byUser($accountId)
-            ->where(function ($customerQuery) use ($like) {
-                $customerQuery->where('company_name', 'like', $like)
-                    ->orWhere('first_name', 'like', $like)
-                    ->orWhere('last_name', 'like', $like)
-                    ->orWhere('email', 'like', $like)
-                    ->orWhere('phone', 'like', $like);
-            })
-            ->orderBy('company_name')
-            ->limit($limit)
-            ->get(['id', 'first_name', 'last_name', 'company_name', 'email', 'phone']);
+        if ($can('customers.view')) {
+            $customers = Customer::query()
+                ->byUser($accountId)
+                ->where(function ($customerQuery) use ($like) {
+                    $customerQuery->where('company_name', 'like', $like)
+                        ->orWhere('first_name', 'like', $like)
+                        ->orWhere('last_name', 'like', $like)
+                        ->orWhere('email', 'like', $like)
+                        ->orWhere('phone', 'like', $like);
+                })
+                ->orderBy('company_name')
+                ->limit($limit)
+                ->get(['id', 'first_name', 'last_name', 'company_name', 'email', 'phone']);
 
-        if ($customers->isNotEmpty()) {
-            $groups[] = [
-                'type' => 'customers',
-                'items' => $customers->map(function (Customer $customer) {
-                    $name = $customer->company_name
-                        ?: trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''))
-                        ?: $customer->email
-                        ?: 'Customer';
-                    $subtitle = $customer->email ?: $customer->phone;
+            if ($customers->isNotEmpty()) {
+                $groups[] = [
+                    'type' => 'customers',
+                    'items' => $customers->map(function (Customer $customer) {
+                        $name = $customer->company_name
+                            ?: trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''))
+                            ?: $customer->email
+                            ?: 'Customer';
+                        $subtitle = $customer->email ?: $customer->phone;
 
-                    return [
-                        'id' => $customer->id,
-                        'title' => $name,
-                        'subtitle' => $subtitle,
-                        'url' => route('customer.show', $customer->id),
-                    ];
-                })->values(),
-            ];
+                        return [
+                            'id' => $customer->id,
+                            'title' => $name,
+                            'subtitle' => $subtitle,
+                            'url' => route('customer.show', $customer->id),
+                        ];
+                    })->values(),
+                ];
+            }
         }
 
-        $membership = $user->relationLoaded('teamMembership')
-            ? $user->teamMembership
-            : $user->teamMembership()->first();
-        $teamPermissions = $membership?->permissions ?? [];
-        $canManageRequests = $user->id === $accountId
-            || in_array('sales.manage', $teamPermissions, true);
+        $canManageRequests = $can('requests.view')
+            || $can('requests.edit')
+            || $can('sales.manage');
         $requestsEnabled = $ownerAccount?->hasCompanyFeature('requests') ?? false;
 
         if ($canManageRequests && $requestsEnabled) {
@@ -121,9 +123,7 @@ class GlobalSearchController extends Controller
             }
         }
 
-        $canTasks = $user->id === $accountId
-            || in_array('tasks.view', $teamPermissions, true)
-            || in_array('tasks.edit', $teamPermissions, true);
+        $canTasks = $can('tasks.view') || $can('tasks.edit');
         $tasksEnabled = $ownerAccount?->hasCompanyFeature('tasks') ?? false;
 
         if ($canTasks && $tasksEnabled) {
@@ -157,10 +157,7 @@ class GlobalSearchController extends Controller
             }
         }
 
-        $canQuotes = $user->id === $accountId
-            || in_array('quotes.view', $teamPermissions, true)
-            || in_array('quotes.edit', $teamPermissions, true)
-            || in_array('quotes.send', $teamPermissions, true);
+        $canQuotes = $can('quotes.view') || $can('quotes.edit') || $can('quotes.send');
         $quotesEnabled = $ownerAccount?->hasCompanyFeature('quotes') ?? false;
 
         if ($canQuotes && $quotesEnabled) {
@@ -198,7 +195,7 @@ class GlobalSearchController extends Controller
         $canEmployeeProfile = $ownerAccount?->hasCompanyFeature('performance') ?? false;
         $canTeamDirectory = $ownerAccount?->hasCompanyFeature('team_members') ?? false;
 
-        if ($user->id === $accountId && ($canEmployeeProfile || $canTeamDirectory)) {
+        if ($can('team.view') && ($canEmployeeProfile || $canTeamDirectory)) {
             $employees = collect();
 
             $owner = User::query()

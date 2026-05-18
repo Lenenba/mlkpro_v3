@@ -42,6 +42,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    permissions: {
+        type: Object,
+        default: () => ({}),
+    },
     notificationSettings: {
         type: Object,
         default: () => ({}),
@@ -56,6 +60,8 @@ const props = defineProps({
     },
 });
 const ownerOnlyMode = computed(() => Boolean(props.accountSettings?.owner_only_mode));
+const canViewChairs = computed(() => Boolean(props.permissions?.can_view_chairs));
+const canManageChairs = computed(() => Boolean(props.permissions?.can_manage_chairs));
 
 const dayOptions = computed(() => ([
     { value: 0, label: t('planning.weekdays.su') },
@@ -361,8 +367,9 @@ const summaryCards = computed(() => ([
         label: resourceSummaryLabel.value,
         value: Number(form.resources?.length || 0).toLocaleString(),
         border: 'border-t-cyan-600',
+        visible: canViewChairs.value,
     },
-]));
+]).filter((card) => card.visible !== false));
 
 const activeReservationSettingsTab = ref('general');
 const businessPresetLabel = computed(() => businessPresetOptions.value.find((option) => option.value === form.account_settings.business_preset)?.label || form.account_settings.business_preset);
@@ -399,6 +406,7 @@ const reservationSettingsTabs = computed(() => ([
         initials: isSalonPreset.value ? 'CH' : 'RC',
         tone: 'cyan',
         panelId: 'reservation-settings-resources-panel',
+        visible: canViewChairs.value,
     },
     {
         id: 'links',
@@ -505,6 +513,10 @@ const removeException = (index) => {
 };
 
 const addResource = () => {
+    if (!canManageChairs.value) {
+        return;
+    }
+
     const name = String(resourceDraft.value.name || '').trim();
     if (!name) {
         return;
@@ -529,6 +541,10 @@ const addResource = () => {
 };
 
 const removeResource = (index) => {
+    if (!canManageChairs.value) {
+        return;
+    }
+
     form.resources.splice(index, 1);
 };
 
@@ -754,7 +770,7 @@ const submit = () => {
             delete accountSettings.kiosk_image;
         }
 
-        return {
+        const payload = {
             ...data,
             account_settings: accountSettings,
             team_settings: (data.team_settings || []).map((item) => ({
@@ -801,6 +817,12 @@ const submit = () => {
                     .filter((value) => Number.isInteger(value) && value >= 1 && value <= 168),
             },
         };
+
+        if (!canManageChairs.value) {
+            delete payload.resources;
+        }
+
+        return payload;
     });
 
     form.put(route('settings.reservations.update'), {
@@ -1131,7 +1153,7 @@ const submit = () => {
                     <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ resourceSectionTitle }}</h2>
                     <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ resourceSectionDescription }}</p>
 
-                    <div class="mt-3 grid gap-3 md:grid-cols-6">
+                    <div v-if="canManageChairs" class="mt-3 grid gap-3 md:grid-cols-6">
                         <FloatingSelect
                             v-if="showTeamSections"
                             v-model="resourceDraft.team_member_id"
@@ -1174,21 +1196,22 @@ const submit = () => {
                                     >
                                         {{ resourceStatusLabel(resourceStatusFor(item)) }}
                                     </span>
-                                    <button type="button" class="text-xs font-semibold text-rose-600 hover:text-rose-700" @click="removeResource(index)">{{ $t('settings.reservations.remove') }}</button>
+                                    <button v-if="canManageChairs" type="button" class="text-xs font-semibold text-rose-600 hover:text-rose-700" @click="removeResource(index)">{{ $t('settings.reservations.remove') }}</button>
                                 </div>
                             </div>
                             <div class="mt-3 grid gap-3 md:grid-cols-5">
-                                <FloatingInput v-model="item.name" :label="$t('settings.reservations.resources.fields.name')" />
-                                <FloatingSelect v-model="item.type" :options="resourceTypeOptions" :label="$t('settings.reservations.resources.fields.type')" />
+                                <FloatingInput v-model="item.name" :disabled="!canManageChairs" :label="$t('settings.reservations.resources.fields.name')" />
+                                <FloatingSelect v-model="item.type" :disabled="!canManageChairs" :options="resourceTypeOptions" :label="$t('settings.reservations.resources.fields.type')" />
                                 <FloatingSelect
                                     v-if="showTeamSections"
                                     v-model="item.team_member_id"
+                                    :disabled="!canManageChairs"
                                     :options="resourceMemberOptions"
                                     :label="$t('settings.reservations.fields.team_member')"
                                 />
-                                <FloatingInput v-model="item.capacity" type="number" min="1" :label="$t('settings.reservations.resources.fields.capacity')" />
+                                <FloatingInput v-model="item.capacity" :disabled="!canManageChairs" type="number" min="1" :label="$t('settings.reservations.resources.fields.capacity')" />
                                 <label class="inline-flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
-                                    <input v-model="item.is_active" type="checkbox" class="rounded border-stone-300">
+                                    <input v-model="item.is_active" :disabled="!canManageChairs" type="checkbox" class="rounded border-stone-300">
                                     {{ $t('settings.reservations.resources.fields.is_active') }}
                                 </label>
                             </div>

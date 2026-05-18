@@ -11,6 +11,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
 import { useCurrencyFormatter } from '@/utils/currency';
+import { usePermissions } from '@/Composables/usePermissions';
 
 const props = defineProps({
     invoice: Object,
@@ -26,11 +27,11 @@ const props = defineProps({
 
 const page = usePage();
 const { t } = useI18n();
+const { hasAnyPermission } = usePermissions();
 const companyName = computed(() => page.props.auth?.account?.company?.name || t('invoices.company_fallback'));
 const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
 const canOpenFinanceApprovals = computed(() => {
     const account = page.props.auth?.account;
-    const permissions = account?.team?.permissions || [];
 
     if (account?.is_client) {
         return false;
@@ -40,10 +41,12 @@ const canOpenFinanceApprovals = computed(() => {
         return Boolean(account?.features?.expenses || account?.features?.invoices);
     }
 
-    return permissions.includes('expenses.approve')
-        || permissions.includes('expenses.approve_high')
-        || permissions.includes('invoices.approve')
-        || permissions.includes('invoices.approve_high');
+    return hasAnyPermission([
+        'expenses.approve',
+        'expenses.approve_high',
+        'invoices.approve',
+        'invoices.approve_high',
+    ]);
 });
 
 const form = useForm({

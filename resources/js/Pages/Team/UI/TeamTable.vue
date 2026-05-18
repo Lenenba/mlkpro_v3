@@ -28,6 +28,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    companyRoles: {
+        type: Array,
+        default: () => [],
+    },
 });
 
 const { t } = useI18n();
@@ -48,6 +52,13 @@ const roleOptions = computed(() => ([
     { id: 'seller', name: t('team.roles.seller') },
     { id: 'sales_manager', name: t('team.roles.sales_manager') },
 ]));
+const companyRoleOptions = computed(() => [
+    { id: '', name: 'Aucun rôle RBAC' },
+    ...(props.companyRoles || []).map((role) => ({
+        id: String(role.id),
+        name: `${role.name}${role.is_system ? ' · système' : ''}`,
+    })),
+]);
 const teamRows = computed(() => (Array.isArray(props.teamMembers?.data) ? props.teamMembers.data : []));
 const teamLinks = computed(() => (Array.isArray(props.teamMembers?.links) ? props.teamMembers.links : []));
 const currentPerPage = computed(() => resolveDataTablePerPage(props.teamMembers?.per_page, props.filters?.per_page));
@@ -158,6 +169,7 @@ const createForm = useForm({
     name: '',
     email: '',
     role: 'member',
+    company_role_id: '',
     title: '',
     phone: '',
     permissions: [],
@@ -203,6 +215,7 @@ const submitCreate = () => {
             onSuccess: () => {
                 createForm.reset('name', 'email', 'title', 'phone');
                 createForm.role = 'member';
+                createForm.company_role_id = '';
                 createForm.permissions = [];
                 createForm.profile_picture = null;
                 createForm.avatar_icon = defaultAvatarIcon;
@@ -223,6 +236,7 @@ const editForm = useForm({
     email: '',
     password: '',
     role: 'member',
+    company_role_id: '',
     title: '',
     phone: '',
     permissions: [],
@@ -245,6 +259,7 @@ const openEditMember = (member) => {
     editForm.email = member.user?.email || '';
     editForm.password = '';
     editForm.role = member.role || 'member';
+    editForm.company_role_id = member.company_role_id ? String(member.company_role_id) : '';
     editForm.title = member.title || '';
     editForm.phone = member.phone || '';
     editForm.permissions = Array.isArray(member.permissions)
@@ -347,6 +362,7 @@ const roleLabel = (role) => {
     }
     return translateOrFallback(`team.roles.${role}`, String(role || '').replace(/_/g, ' '));
 };
+const companyRoleLabel = (member) => member?.company_role?.name || 'Aucun rôle RBAC';
 
 const formatDate = (value) => humanizeDate(value) || String(value || '');
 
@@ -566,10 +582,15 @@ watch(() => editForm.profile_picture, (value) => {
                             </div>
                         </td>
                         <td class="size-px whitespace-nowrap px-4 py-2">
-                            <span class="py-1.5 px-2 inline-flex items-center text-xs font-medium rounded-full"
-                                :class="roleBadge(member)">
-                                {{ roleLabel(member.role) }}
-                            </span>
+                            <div class="flex flex-col gap-1">
+                                <span class="py-1.5 px-2 inline-flex w-fit items-center text-xs font-medium rounded-full"
+                                    :class="roleBadge(member)">
+                                    {{ roleLabel(member.role) }}
+                                </span>
+                                <span class="text-[11px] text-stone-500 dark:text-neutral-400">
+                                    {{ companyRoleLabel(member) }}
+                                </span>
+                            </div>
                         </td>
                         <td class="size-px whitespace-nowrap px-4 py-2">
                             <span class="text-sm text-stone-600 dark:text-neutral-300">
@@ -674,6 +695,9 @@ watch(() => editForm.profile_picture, (value) => {
                         <span class="py-1 px-2 inline-flex items-center text-xs font-medium rounded-full"
                             :class="roleBadge(detailMember)">
                             {{ roleLabel(detailMember.role) }}
+                        </span>
+                        <span class="py-1 px-2 inline-flex items-center text-xs font-medium rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200">
+                            {{ companyRoleLabel(detailMember) }}
                         </span>
                     </div>
                 </div>
@@ -820,6 +844,10 @@ watch(() => editForm.profile_picture, (value) => {
                     <InputError class="mt-1" :message="createForm.errors.role" />
                 </div>
                 <div>
+                    <FloatingSelect v-model="createForm.company_role_id" label="Rôle RBAC principal" :options="companyRoleOptions" />
+                    <InputError class="mt-1" :message="createForm.errors.company_role_id" />
+                </div>
+                <div>
                     <FloatingInput v-model="createForm.title" :label="t('team.forms.title_optional')" />
                     <InputError class="mt-1" :message="createForm.errors.title" />
                 </div>
@@ -930,6 +958,10 @@ watch(() => editForm.profile_picture, (value) => {
                 <div>
                     <FloatingSelect v-model="editForm.role" :label="t('team.forms.role')" :options="roleOptions" />
                     <InputError class="mt-1" :message="editForm.errors.role" />
+                </div>
+                <div>
+                    <FloatingSelect v-model="editForm.company_role_id" label="Rôle RBAC principal" :options="companyRoleOptions" />
+                    <InputError class="mt-1" :message="editForm.errors.company_role_id" />
                 </div>
                 <div>
                     <FloatingInput v-model="editForm.title" :label="t('team.forms.title_optional')" />

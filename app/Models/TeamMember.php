@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Rbac\PermissionCatalog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -19,6 +20,7 @@ class TeamMember extends Model
         'account_id',
         'user_id',
         'role',
+        'company_role_id',
         'title',
         'phone',
         'permissions',
@@ -40,6 +42,11 @@ class TeamMember extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function companyRole(): BelongsTo
+    {
+        return $this->belongsTo(CompanyRole::class);
     }
 
     public function works(): BelongsToMany
@@ -91,23 +98,47 @@ class TeamMember extends Model
 
     public function hasPermission(string $permission): bool
     {
-        $permissions = $this->permissions ?? [];
-        if (! is_array($permissions)) {
-            return false;
-        }
+        $permissions = $this->resolvedPermissions();
 
-        if (in_array($permission, $permissions, true)) {
-            return true;
-        }
-
-        $aliases = Prospect::permissionAliases()[$permission] ?? [];
-
-        foreach ($aliases as $alias) {
-            if (in_array($alias, $permissions, true)) {
+        foreach (app(PermissionCatalog::class)->candidates($permission) as $candidate) {
+            if (in_array($candidate, $permissions, true)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function resolvedPermissions(): array
+    {
+        $permissions = $this->permissions ?? [];
+
+        if (! is_array($permissions)) {
+            $permissions = [];
+        }
+
+        $role = $this->relationLoaded('companyRole')
+            ? $this->companyRole
+            : null;
+
+        if (! $role && $this->company_role_id) {
+            $role = $this->companyRole()->with('permissions')->first();
+        }
+
+        if ($role && $role->is_active) {
+            $role->loadMissing('permissions');
+            $permissions = [
+                ...$permissions,
+                ...$role->permissions->pluck('slug')->all(),
+            ];
+        }
+
+        return array_values(array_unique(array_filter(
+            $permissions,
+            fn (mixed $permission): bool => is_string($permission) && $permission !== ''
+        )));
     }
 }

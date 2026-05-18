@@ -22,6 +22,10 @@
         "label": "HR",
         "description": "Shift templates"
       },
+      "roles": {
+        "label": "Roles and access",
+        "description": "Team roles and permissions"
+      },
       "reservations": {
         "label": "Reservations",
         "description": "Booking rules and availability"

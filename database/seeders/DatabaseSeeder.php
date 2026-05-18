@@ -92,6 +92,7 @@ class DatabaseSeeder extends Seeder
         // User::factory()->count(2)->create();
 
         $this->call([
+            RbacSeeder::class,
             PlanCatalogSeeder::class,
             ProductModuleSeeder::class,
             CustomerModuleSeeder::class,

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Prospect;
+use App\Models\CompanyRole;
 use App\Models\Role;
 use App\Models\TeamMember;
 use App\Models\User;
@@ -13,6 +14,7 @@ use App\Support\NotificationDispatcher;
 use App\Utils\FileHandler;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
@@ -114,9 +116,9 @@ class TeamMemberController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        if (! $user || ! $user->isAccountOwner()) {
-            abort(403);
-        }
+        $this->authorizeCompanyPermission($user, 'view_team_members');
+        $accountId = (int) $user->accountOwnerId();
+        $accountOwner = User::query()->findOrFail($accountId);
 
         $filters = $request->only([
             'search',
@@ -126,7 +128,7 @@ class TeamMemberController extends Controller
         $search = trim((string) ($filters['search'] ?? ''));
 
         $baseQuery = TeamMember::query()
-            ->forAccount($user->id)
+            ->forAccount($accountId)
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($memberQuery) use ($search) {
                     $memberQuery
@@ -142,7 +144,7 @@ class TeamMemberController extends Controller
             });
 
         $teamMembers = (clone $baseQuery)
-            ->with('user')
+            ->with(['user', 'companyRole.permissions'])
             ->orderBy('created_at')
             ->paginate((int) $filters['per_page'])
             ->withQueryString();
@@ -153,12 +155,13 @@ class TeamMemberController extends Controller
             'is_active',
         ]);
 
-        $availablePermissions = $this->availablePermissionsForAccount($user);
+        $availablePermissions = $this->availablePermissionsForAccount($accountOwner);
 
         return $this->inertiaOrJson('Team/Index', [
             'teamMembers' => $teamMembers,
             'filters' => $filters,
             'availablePermissions' => $availablePermissions,
+            'companyRoles' => $this->companyRolesForAccount($accountId),
             'stats' => [
                 'total' => $statsMembers->count(),
                 'active' => $statsMembers->where('is_active', true)->count(),
@@ -171,13 +174,13 @@ class TeamMemberController extends Controller
     public function store(Request $request)
     {
         $user = Auth::user();
-        if (! $user || ! $user->isAccountOwner()) {
-            abort(403);
-        }
+        $this->authorizeCompanyPermission($user, 'create_team_members');
+        $accountId = (int) $user->accountOwnerId();
+        $accountOwner = User::query()->findOrFail($accountId);
 
-        app(UsageLimitService::class)->enforceLimit($user, 'team_members');
+        app(UsageLimitService::class)->enforceLimit($accountOwner, 'team_members');
 
-        $allowedPermissions = $this->allowedPermissionIdsForAccount($user);
+        $allowedPermissions = $this->allowedPermissionIdsForAccount($accountOwner);
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -185,6 +188,7 @@ class TeamMemberController extends Controller
             'role' => 'required|string|in:admin,member,seller,sales_manager',
             'title' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:255',
+            'company_role_id' => ['nullable', 'integer'],
             'permissions' => 'nullable|array',
             'permissions.*' => ['string', Rule::in($allowedPermissions)],
             'planning_rules' => 'nullable|array',
@@ -200,6 +204,10 @@ class TeamMemberController extends Controller
                 Rule::in(config('icon_presets.avatar_icons', [])),
             ],
         ]);
+        $companyRoleId = $this->resolvedAssignableCompanyRoleId($validated['company_role_id'] ?? null, $accountId);
+        if ($companyRoleId) {
+            $this->authorizeCompanyPermission($user, 'assign_roles');
+        }
 
         $roleId = Role::where('name', 'employee')->value('id');
         if (! $roleId) {
@@ -235,9 +243,10 @@ class TeamMemberController extends Controller
         $planningRules = $this->normalizePlanningRules($validated['planning_rules'] ?? null);
 
         $teamMember = TeamMember::create([
-            'account_id' => $user->id,
+            'account_id' => $accountId,
             'user_id' => $memberUser->id,
             'role' => $validated['role'],
+            'company_role_id' => $companyRoleId,
             'title' => $validated['title'] ?? null,
             'phone' => $validated['phone'] ?? null,
             'permissions' => $permissions,
@@ -248,8 +257,8 @@ class TeamMemberController extends Controller
         $token = Password::broker()->createToken($memberUser);
         $inviteQueued = NotificationDispatcher::send($memberUser, new InviteUserNotification(
             $token,
-            $user->company_name ?: config('app.name'),
-            $user->company_logo_url,
+            $accountOwner->company_name ?: config('app.name'),
+            $accountOwner->company_logo_url,
             'team'
         ), [
             'team_member_id' => $teamMember->id,
@@ -260,13 +269,13 @@ class TeamMemberController extends Controller
                 return response()->json([
                     'message' => 'Team member created, but the invite email could not be sent.',
                     'warning' => true,
-                    'team_member' => $teamMember->load('user'),
+                    'team_member' => $teamMember->load(['user', 'companyRole.permissions']),
                 ], 201);
             }
 
             return response()->json([
                 'message' => 'Team member created. Invite sent by email.',
-                'team_member' => $teamMember->load('user'),
+                'team_member' => $teamMember->load(['user', 'companyRole.permissions']),
             ], 201);
         }
 
@@ -280,15 +289,15 @@ class TeamMemberController extends Controller
     public function update(Request $request, TeamMember $teamMember)
     {
         $user = Auth::user();
-        if (! $user || ! $user->isAccountOwner()) {
-            abort(403);
-        }
+        $this->authorizeCompanyPermission($user, 'update_team_members');
+        $accountId = (int) $user->accountOwnerId();
+        $accountOwner = User::query()->findOrFail($accountId);
 
-        if ($teamMember->account_id !== $user->id) {
+        if ((int) $teamMember->account_id !== $accountId) {
             abort(404);
         }
 
-        $allowedPermissions = $this->allowedPermissionIdsForAccount($user);
+        $allowedPermissions = $this->allowedPermissionIdsForAccount($accountOwner);
 
         $validated = $request->validate([
             'name' => 'nullable|string|max:255',
@@ -297,6 +306,7 @@ class TeamMemberController extends Controller
             'role' => 'nullable|string|in:admin,member,seller,sales_manager',
             'title' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:255',
+            'company_role_id' => ['nullable', 'integer'],
             'permissions' => 'nullable|array',
             'permissions.*' => ['string', Rule::in($allowedPermissions)],
             'planning_rules' => 'nullable|array',
@@ -317,6 +327,11 @@ class TeamMemberController extends Controller
         $memberUser = $teamMember->user;
         if (! $memberUser) {
             abort(404);
+        }
+        $companyRoleId = null;
+        if (array_key_exists('company_role_id', $validated)) {
+            $this->authorizeCompanyPermission($user, 'assign_roles');
+            $companyRoleId = $this->resolvedAssignableCompanyRoleId($validated['company_role_id'], $accountId);
         }
 
         $userUpdates = [];
@@ -361,6 +376,9 @@ class TeamMemberController extends Controller
                 $teamMemberUpdates[$field] = $validated[$field];
             }
         }
+        if (array_key_exists('company_role_id', $validated)) {
+            $teamMemberUpdates['company_role_id'] = $companyRoleId;
+        }
         if (array_key_exists('planning_rules', $validated)) {
             $teamMemberUpdates['planning_rules'] = $this->normalizePlanningRules($validated['planning_rules']);
         }
@@ -371,7 +389,7 @@ class TeamMemberController extends Controller
         if ($this->shouldReturnJson($request)) {
             return response()->json([
                 'message' => 'Team member updated.',
-                'team_member' => $teamMember->fresh(),
+                'team_member' => $teamMember->fresh(['user', 'companyRole.permissions']),
             ]);
         }
 
@@ -381,11 +399,10 @@ class TeamMemberController extends Controller
     public function destroy(TeamMember $teamMember)
     {
         $user = Auth::user();
-        if (! $user || ! $user->isAccountOwner()) {
-            abort(403);
-        }
+        $this->authorizeCompanyPermission($user, 'deactivate_team_members');
+        $accountId = (int) $user->accountOwnerId();
 
-        if ($teamMember->account_id !== $user->id) {
+        if ((int) $teamMember->account_id !== $accountId) {
             abort(404);
         }
 
@@ -422,6 +439,70 @@ class TeamMemberController extends Controller
                 return $featureService->hasFeature($accountOwner, $feature);
             }
         ));
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function companyRolesForAccount(int $accountId): array
+    {
+        return CompanyRole::query()
+            ->with('permissions:id,slug')
+            ->where('is_active', true)
+            ->where(function ($query) use ($accountId) {
+                $query->whereNull('company_id')
+                    ->orWhere('company_id', $accountId);
+            })
+            ->orderByDesc('is_system')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (CompanyRole $role): array => [
+                'id' => $role->id,
+                'name' => $role->name,
+                'slug' => $role->slug,
+                'description' => $role->description,
+                'is_system' => $role->is_system,
+                'permissions' => $role->permissions->pluck('slug')->values()->all(),
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function resolvedAssignableCompanyRoleId(mixed $companyRoleId, int $accountId): ?int
+    {
+        if ($companyRoleId === null || $companyRoleId === '') {
+            return null;
+        }
+
+        $role = CompanyRole::query()
+            ->whereKey((int) $companyRoleId)
+            ->where('is_active', true)
+            ->where(function ($query) use ($accountId) {
+                $query->whereNull('company_id')
+                    ->orWhere('company_id', $accountId);
+            })
+            ->first();
+
+        if (! $role) {
+            throw ValidationException::withMessages([
+                'company_role_id' => ['Role invalide pour cette entreprise.'],
+            ]);
+        }
+
+        return (int) $role->id;
+    }
+
+    private function authorizeCompanyPermission(?User $user, string $permission): void
+    {
+        if (! $user) {
+            abort(403);
+        }
+
+        if (Gate::forUser($user)->allows('company-permission', [$permission, $user->accountOwnerId()])) {
+            return;
+        }
+
+        abort(403);
     }
 
     private function allowedPermissionIdsForAccount(User $accountOwner): array

@@ -1,10 +1,8 @@
 import { isFeatureEnabled } from '@/utils/features';
-
-const hasAnyPermission = (permissions, expected = []) => expected.some((permission) => permissions.includes(permission));
+import { hasAccountPermission, hasAnyAccountPermission } from '@/utils/permissions';
 
 export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 } = {}) {
     const features = account?.features || {};
-    const teamPermissions = account?.team?.permissions || [];
     const teamRole = account?.team?.role || null;
     const companyType = account?.company?.type ?? null;
 
@@ -17,18 +15,18 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
     const showProducts = true;
     const hasFeature = (key) => isFeatureEnabled(features, key);
 
-    const canSales = isOwner || hasAnyPermission(teamPermissions, ['sales.manage', 'sales.pos']);
-    const canSalesManage = isOwner || teamPermissions.includes('sales.manage');
-    const canJobs = isOwner || hasAnyPermission(teamPermissions, ['jobs.view', 'jobs.edit']);
-    const canTasks = isOwner || hasAnyPermission(teamPermissions, ['tasks.view', 'tasks.create', 'tasks.edit', 'tasks.delete']);
-    const canService = isOwner || hasAnyPermission(teamPermissions, ['jobs.view', 'tasks.view', 'jobs.edit', 'tasks.edit']);
-    const canServiceManage = isOwner || hasAnyPermission(teamPermissions, ['jobs.edit', 'tasks.edit']);
+    const canSales = hasAnyAccountPermission(account, ['sales.manage', 'sales.pos']);
+    const canSalesManage = hasAccountPermission(account, 'sales.manage');
+    const canJobs = hasAnyAccountPermission(account, ['jobs.view', 'jobs.edit']);
+    const canTasks = hasAnyAccountPermission(account, ['tasks.view', 'tasks.create', 'tasks.edit', 'tasks.delete']);
+    const canService = hasAnyAccountPermission(account, ['jobs.view', 'tasks.view', 'jobs.edit', 'tasks.edit']);
+    const canServiceManage = hasAnyAccountPermission(account, ['jobs.edit', 'tasks.edit']);
     const canLoyaltyManage = isOwner || canSalesManage || canServiceManage;
-    const canCampaigns = isOwner || hasAnyPermission(teamPermissions, ['campaigns.view', 'campaigns.manage', 'campaigns.send']);
-    const canReservations = isOwner || hasAnyPermission(teamPermissions, ['reservations.view', 'reservations.queue', 'reservations.manage']);
+    const canCampaigns = hasAnyAccountPermission(account, ['campaigns.view', 'campaigns.manage', 'campaigns.send']);
+    const canReservations = hasAnyAccountPermission(account, ['reservations.view', 'reservations.queue', 'reservations.manage']);
     const hasServiceOps = showServices && (hasFeature('jobs') || hasFeature('tasks'));
-    const canQuotes = isOwner || hasAnyPermission(teamPermissions, ['quotes.view', 'quotes.edit']);
-    const canPromotionsManage = isOwner || hasAnyPermission(teamPermissions, [
+    const canQuotes = hasAnyAccountPermission(account, ['quotes.view', 'quotes.edit']);
+    const canPromotionsManage = hasAnyAccountPermission(account, [
         'sales.manage',
         'quotes.edit',
         'jobs.edit',
@@ -39,13 +37,13 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
         && !isSeller
         && (isOwner || canSalesManage || canServiceManage)
         && (hasFeature('products') || hasFeature('services') || hasFeature('sales'));
-    const canSocial = isOwner || hasAnyPermission(teamPermissions, [
+    const canSocial = hasAnyAccountPermission(account, [
         'social.view',
         'social.manage',
         'social.publish',
         'social.approve',
     ]);
-    const canExpensesNav = isOwner || hasAnyPermission(teamPermissions, [
+    const canExpensesNav = hasAnyAccountPermission(account, [
         'expenses.view',
         'expenses.create',
         'expenses.edit',
@@ -53,20 +51,22 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
         'expenses.approve_high',
         'expenses.pay',
     ]);
-    const canAccountingNav = isOwner || teamPermissions.includes('accounting.view');
-    const canInvoicesNav = isOwner || hasAnyPermission(teamPermissions, [
+    const canAccountingNav = hasAccountPermission(account, 'accounting.view');
+    const canInvoicesNav = hasAnyAccountPermission(account, [
         'invoices.view',
         'invoices.create',
         'invoices.edit',
         'invoices.approve',
         'invoices.approve_high',
     ]);
-    const canFinanceApprovals = isOwner || hasAnyPermission(teamPermissions, [
+    const canFinanceApprovals = hasAnyAccountPermission(account, [
         'expenses.approve',
         'expenses.approve_high',
         'invoices.approve',
         'invoices.approve_high',
     ]);
+    const canPresence = hasAccountPermission(account, 'view_presence');
+    const canViewTeam = hasAccountPermission(account, 'team.view');
     const hasFinanceApprovalSources = hasFeature('expenses') || hasFeature('invoices');
 
     const unavailableCategory = (category) => ({
@@ -291,8 +291,9 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             descriptionKey: 'workspace_hub.modules.presence',
             routeName: 'presence.index',
             tone: 'presence',
-            visible: ((companyType === 'products' && hasFeature('sales') && hasFeature('presence') && canSales)
-                || (hasServiceOps && hasFeature('presence') && canService)),
+            visible: hasFeature('presence')
+                && canPresence
+                && ((companyType === 'products' && hasFeature('sales')) || hasServiceOps),
         },
         team: {
             key: 'team',
@@ -300,7 +301,7 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             descriptionKey: 'workspace_hub.modules.team',
             routeName: 'team.index',
             tone: 'team',
-            visible: hasFeature('team_members') && isOwner && !isSeller,
+            visible: hasFeature('team_members') && canViewTeam && !isSeller,
         },
         invoices: {
             key: 'invoices',

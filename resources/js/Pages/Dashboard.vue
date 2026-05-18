@@ -9,6 +9,7 @@ import { humanizeDate } from '@/utils/date';
 import { buildSparklinePoints, buildTrend } from '@/utils/kpi';
 import { useCurrencyFormatter } from '@/utils/currency';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
+import { usePermissions } from '@/Composables/usePermissions';
 
 const props = defineProps({
     stats: {
@@ -92,21 +93,19 @@ const greeting = computed(() =>
 );
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
 const showServices = computed(() => companyType.value !== 'products');
-const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
-const teamPermissions = computed(() => page.props.auth?.account?.team?.permissions || []);
-const hasAnyPermission = (permissions = []) => permissions.some((permission) => teamPermissions.value.includes(permission));
-const canQuotes = computed(() => isOwner.value || hasAnyPermission(['quotes.view', 'quotes.edit', 'quotes.send']));
-const canSalesManage = computed(() => isOwner.value || hasAnyPermission(['sales.manage']));
-const canJobs = computed(() => isOwner.value || hasAnyPermission(['jobs.view', 'jobs.edit']));
-const canTasks = computed(() => isOwner.value || hasAnyPermission(['tasks.view', 'tasks.create', 'tasks.edit', 'tasks.delete']));
-const canInvoices = computed(() => isOwner.value || hasAnyPermission([
+const { hasAnyPermission } = usePermissions();
+const canQuotes = computed(() => hasAnyPermission(['quotes.view', 'quotes.edit', 'quotes.send']));
+const canSalesManage = computed(() => hasAnyPermission(['sales.manage']));
+const canJobs = computed(() => hasAnyPermission(['jobs.view', 'jobs.edit']));
+const canTasks = computed(() => hasAnyPermission(['tasks.view', 'tasks.create', 'tasks.edit', 'tasks.delete']));
+const canInvoices = computed(() => hasAnyPermission([
     'invoices.view',
     'invoices.create',
     'invoices.edit',
     'invoices.approve',
     'invoices.approve_high',
 ]));
-const canExpenses = computed(() => isOwner.value || hasAnyPermission([
+const canExpenses = computed(() => hasAnyPermission([
     'expenses.view',
     'expenses.create',
     'expenses.edit',
@@ -114,7 +113,7 @@ const canExpenses = computed(() => isOwner.value || hasAnyPermission([
     'expenses.approve_high',
     'expenses.pay',
 ]));
-const canCampaigns = computed(() => isOwner.value || hasAnyPermission([
+const canCampaigns = computed(() => hasAnyPermission([
     'campaigns.view',
     'campaigns.manage',
     'campaigns.send',

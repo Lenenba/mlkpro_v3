@@ -22,6 +22,10 @@
         "label": "RH",
         "description": "Modeles de shifts"
       },
+      "roles": {
+        "label": "Rôles et accès",
+        "description": "Rôles équipe et permissions"
+      },
       "reservations": {
         "label": "Reservations",
         "description": "Regles de reservation et disponibilites"

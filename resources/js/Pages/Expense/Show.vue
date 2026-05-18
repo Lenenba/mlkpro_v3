@@ -7,6 +7,7 @@ import ExpenseForm from '@/Pages/Expense/UI/ExpenseForm.vue';
 import ExpenseWorkflowModal from '@/Pages/Expense/UI/ExpenseWorkflowModal.vue';
 import { useCurrencyFormatter } from '@/utils/currency';
 import { useI18n } from 'vue-i18n';
+import { usePermissions } from '@/Composables/usePermissions';
 
 const props = defineProps({
     expense: {
@@ -55,6 +56,7 @@ const props = defineProps({
 
 const { t } = useI18n();
 const page = usePage();
+const { hasAnyPermission } = usePermissions();
 const editingExpense = ref(null);
 const workflowExpense = ref(null);
 const pendingWorkflowAction = ref('');
@@ -254,7 +256,6 @@ const aiFieldStateClass = (state) => {
 const duplicateReasonLabel = (reason) => t(`expenses.ai_scan.duplicate_reasons.${reason}`);
 const canOpenFinanceApprovals = computed(() => {
     const account = page.props.auth?.account;
-    const permissions = account?.team?.permissions || [];
 
     if (account?.is_client) {
         return false;
@@ -264,10 +265,12 @@ const canOpenFinanceApprovals = computed(() => {
         return Boolean(account?.features?.expenses || account?.features?.invoices);
     }
 
-    return permissions.includes('expenses.approve')
-        || permissions.includes('expenses.approve_high')
-        || permissions.includes('invoices.approve')
-        || permissions.includes('invoices.approve_high');
+    return hasAnyPermission([
+        'expenses.approve',
+        'expenses.approve_high',
+        'invoices.approve',
+        'invoices.approve_high',
+    ]);
 });
 
 const clearWorkflowSelection = () => {
