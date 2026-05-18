@@ -361,7 +361,7 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::delete('/settings/hr/shift-templates/{template}', [HrSettingsController::class, 'destroy'])
             ->name('settings.hr.shift-templates.destroy');
         Route::prefix('/settings/roles-permissions')
-            ->name('settings.roles-permissions.')
+            ->name('settings.roles_permissions.')
             ->middleware('permission:manage_roles_permissions')
             ->group(function () {
                 Route::get('/', [RolePermissionController::class, 'edit'])->name('edit');

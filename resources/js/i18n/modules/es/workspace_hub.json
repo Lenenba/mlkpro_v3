@@ -85,6 +85,8 @@
             "company_settings": "Marca, finanzas, empresa y ajustes del espacio.",
             "billing_label": "Facturacion",
             "billing": "Plan, suscripcion, metodos de pago y complementos.",
+            "roles_permissions_label": "Roles y accesos",
+            "roles_permissions": "Roles de negocio, permisos y control de acceso del equipo.",
             "profile_label": "Perfil",
             "profile": "Perfil personal, contrasena y preferencias de cuenta."
         }

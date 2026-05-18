@@ -86,6 +86,7 @@ const page = usePage();
 const { t, locale } = useI18n();
 const { hasFeature } = useAccountFeatures();
 const userName = computed(() => page.props.auth?.user?.name || '');
+const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
 const greeting = computed(() =>
     userName.value
         ? t('dashboard.welcome_named', { name: userName.value })

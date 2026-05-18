@@ -14,6 +14,7 @@ import DropzoneInput from '@/Components/DropzoneInput.vue';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { humanizeDate } from '@/utils/date';
 import { avatarIconPresets, defaultAvatarIcon } from '@/utils/iconPresets';
+import { usePermissions } from '@/Composables/usePermissions';
 
 const props = defineProps({
     teamMembers: {
@@ -36,6 +37,8 @@ const props = defineProps({
 
 const { t } = useI18n();
 const page = usePage();
+const { hasPermission } = usePermissions();
+const canAssignRoles = computed(() => hasPermission('assign_roles'));
 const translateOrFallback = (key, fallback, params = {}) => {
     const translated = t(key, params);
 
@@ -52,11 +55,20 @@ const roleOptions = computed(() => ([
     { id: 'seller', name: t('team.roles.seller') },
     { id: 'sales_manager', name: t('team.roles.sales_manager') },
 ]));
+const defaultAccessRoleId = computed(() => {
+    const roles = props.companyRoles || [];
+    const defaultRole = roles.find((role) => role.slug === 'employe_standard')
+        || roles.find((role) => role.slug === 'coiffeur')
+        || roles.find((role) => role.slug !== 'owner')
+        || roles[0];
+
+    return canAssignRoles.value && defaultRole?.id ? String(defaultRole.id) : '';
+});
 const companyRoleOptions = computed(() => [
-    { id: '', name: 'Aucun rôle RBAC' },
+    { id: '', name: t('team.forms.no_access_role') },
     ...(props.companyRoles || []).map((role) => ({
         id: String(role.id),
-        name: `${role.name}${role.is_system ? ' · système' : ''}`,
+        name: `${role.name}${role.is_system ? ` · ${t('team.forms.system_role_suffix')}` : ''}`,
     })),
 ]);
 const teamRows = computed(() => (Array.isArray(props.teamMembers?.data) ? props.teamMembers.data : []));
@@ -169,10 +181,9 @@ const createForm = useForm({
     name: '',
     email: '',
     role: 'member',
-    company_role_id: '',
+    company_role_id: defaultAccessRoleId.value,
     title: '',
     phone: '',
-    permissions: [],
     planning_rules: {
         break_minutes: '',
         min_hours_day: '',
@@ -215,8 +226,7 @@ const submitCreate = () => {
             onSuccess: () => {
                 createForm.reset('name', 'email', 'title', 'phone');
                 createForm.role = 'member';
-                createForm.company_role_id = '';
-                createForm.permissions = [];
+                createForm.company_role_id = defaultAccessRoleId.value;
                 createForm.profile_picture = null;
                 createForm.avatar_icon = defaultAvatarIcon;
                 createForm.planning_rules = {
@@ -239,7 +249,6 @@ const editForm = useForm({
     company_role_id: '',
     title: '',
     phone: '',
-    permissions: [],
     planning_rules: {
         break_minutes: '',
         min_hours_day: '',
@@ -262,9 +271,6 @@ const openEditMember = (member) => {
     editForm.company_role_id = member.company_role_id ? String(member.company_role_id) : '';
     editForm.title = member.title || '';
     editForm.phone = member.phone || '';
-    editForm.permissions = Array.isArray(member.permissions)
-        ? member.permissions.filter((permission) => availablePermissionIds.value.has(permission))
-        : [];
     editForm.planning_rules = {
         break_minutes: member.planning_rules?.break_minutes ?? '',
         min_hours_day: member.planning_rules?.min_hours_day ?? '',
@@ -362,7 +368,7 @@ const roleLabel = (role) => {
     }
     return translateOrFallback(`team.roles.${role}`, String(role || '').replace(/_/g, ' '));
 };
-const companyRoleLabel = (member) => member?.company_role?.name || 'Aucun rôle RBAC';
+const companyRoleLabel = (member) => member?.company_role?.name || t('team.forms.no_access_role');
 
 const formatDate = (value) => humanizeDate(value) || String(value || '');
 
@@ -441,10 +447,18 @@ const availablePermissionIds = computed(() => new Set(
 ));
 
 const permissionLabels = (member) => {
-    const permissions = Array.isArray(member?.permissions)
+    const directPermissions = Array.isArray(member?.permissions)
         ? member.permissions.filter((permission) => availablePermissionIds.value.has(permission))
         : [];
-    return permissions.map((permission) => permissionMap.value.get(permission) || permission);
+    const rolePermissions = Array.isArray(member?.company_role?.permissions)
+        ? member.company_role.permissions
+        : [];
+    const labels = [
+        ...rolePermissions.map((permission) => permission?.name || permission?.slug || ''),
+        ...directPermissions.map((permission) => permissionMap.value.get(permission) || permission),
+    ].filter(Boolean);
+
+    return [...new Set(labels)];
 };
 
 watch(() => filterForm.search, () => {
@@ -843,10 +857,13 @@ watch(() => editForm.profile_picture, (value) => {
                     <FloatingSelect v-model="createForm.role" :label="t('team.forms.role')" :options="roleOptions" />
                     <InputError class="mt-1" :message="createForm.errors.role" />
                 </div>
-                <div>
-                    <FloatingSelect v-model="createForm.company_role_id" label="Rôle RBAC principal" :options="companyRoleOptions" />
+                <div v-if="canAssignRoles">
+                    <FloatingSelect v-model="createForm.company_role_id" :label="t('team.forms.access_role')" :options="companyRoleOptions" />
                     <InputError class="mt-1" :message="createForm.errors.company_role_id" />
                 </div>
+                <p v-if="canAssignRoles" class="md:col-span-2 text-xs text-stone-500 dark:text-neutral-400">
+                    {{ t('team.forms.access_role_help') }}
+                </p>
                 <div>
                     <FloatingInput v-model="createForm.title" :label="t('team.forms.title_optional')" />
                     <InputError class="mt-1" :message="createForm.errors.title" />
@@ -882,17 +899,6 @@ watch(() => editForm.profile_picture, (value) => {
             <p class="text-xs text-stone-500 dark:text-neutral-400">
                 {{ t('team.messages.invite_email') }}
             </p>
-
-            <div>
-                <p class="text-xs text-stone-500 dark:text-neutral-400">{{ t('team.forms.permissions') }}</p>
-                <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <label v-for="permission in availablePermissions" :key="permission.id"
-                        class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
-                        <Checkbox v-model:checked="createForm.permissions" :value="permission.id" />
-                        <span>{{ localizedPermissionName(permission) }}</span>
-                    </label>
-                </div>
-            </div>
 
             <div class="flex justify-end gap-2">
                 <button type="button" data-hs-overlay="#hs-team-create"
@@ -959,10 +965,13 @@ watch(() => editForm.profile_picture, (value) => {
                     <FloatingSelect v-model="editForm.role" :label="t('team.forms.role')" :options="roleOptions" />
                     <InputError class="mt-1" :message="editForm.errors.role" />
                 </div>
-                <div>
-                    <FloatingSelect v-model="editForm.company_role_id" label="Rôle RBAC principal" :options="companyRoleOptions" />
+                <div v-if="canAssignRoles">
+                    <FloatingSelect v-model="editForm.company_role_id" :label="t('team.forms.access_role')" :options="companyRoleOptions" />
                     <InputError class="mt-1" :message="editForm.errors.company_role_id" />
                 </div>
+                <p v-if="canAssignRoles" class="md:col-span-2 text-xs text-stone-500 dark:text-neutral-400">
+                    {{ t('team.forms.access_role_help') }}
+                </p>
                 <div>
                     <FloatingInput v-model="editForm.title" :label="t('team.forms.title_optional')" />
                     <InputError class="mt-1" :message="editForm.errors.title" />
@@ -1000,17 +1009,6 @@ watch(() => editForm.profile_picture, (value) => {
                         <span>{{ t('team.forms.active') }}</span>
                     </label>
                     <InputError class="mt-1" :message="editForm.errors.is_active" />
-                </div>
-            </div>
-
-            <div>
-                <p class="text-xs text-stone-500 dark:text-neutral-400">{{ t('team.forms.permissions') }}</p>
-                <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <label v-for="permission in availablePermissions" :key="permission.id"
-                        class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
-                        <Checkbox v-model:checked="editForm.permissions" :value="permission.id" />
-                        <span>{{ localizedPermissionName(permission) }}</span>
-                    </label>
                 </div>
             </div>
 

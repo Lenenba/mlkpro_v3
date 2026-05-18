@@ -90,7 +90,7 @@ const navTabs = computed(() => {
                     id: 'roles',
                     label: t('settings.items.roles.label'),
                     description: t('settings.items.roles.description'),
-                    route: 'settings.roles-permissions.edit',
+                    route: 'settings.roles_permissions.edit',
                     icon: 'shield',
                     hidden: !canManageRoles.value,
                 },

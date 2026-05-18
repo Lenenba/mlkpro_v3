@@ -106,7 +106,7 @@ const submitRole = () => {
     }
 
     if (mode.value === 'create') {
-        form.post(route('settings.roles-permissions.roles.store'), {
+        form.post(route('settings.roles_permissions.roles.store'), {
             preserveScroll: true,
         });
         return;
@@ -116,13 +116,13 @@ const submitRole = () => {
         return;
     }
 
-    form.put(route('settings.roles-permissions.roles.update', selectedRole.value.id), {
+    form.put(route('settings.roles_permissions.roles.update', selectedRole.value.id), {
         preserveScroll: true,
     });
 };
 
 const duplicateRole = (role) => {
-    router.post(route('settings.roles-permissions.roles.duplicate', role.id), {
+    router.post(route('settings.roles_permissions.roles.duplicate', role.id), {
         name: `${role.name} personnalisé`,
     }, {
         preserveScroll: true,
@@ -130,7 +130,7 @@ const duplicateRole = (role) => {
 };
 
 const toggleRole = (role) => {
-    router.patch(route('settings.roles-permissions.roles.toggle', role.id), {
+    router.patch(route('settings.roles_permissions.roles.toggle', role.id), {
         is_active: !role.is_active,
     }, {
         preserveScroll: true,
@@ -142,7 +142,7 @@ const deleteRole = (role) => {
         return;
     }
 
-    router.delete(route('settings.roles-permissions.roles.destroy', role.id), {
+    router.delete(route('settings.roles_permissions.roles.destroy', role.id), {
         preserveScroll: true,
     });
 };

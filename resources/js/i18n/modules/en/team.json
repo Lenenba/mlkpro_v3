@@ -36,7 +36,7 @@
       "member_avatar_alt": "Member avatar",
       "headings": {
         "member": "Member",
-        "role": "Role",
+        "role": "Profile / access",
         "title": "Title",
         "phone": "Phone",
         "status": "Status",
@@ -53,14 +53,18 @@
       "phone": "Phone",
       "joined": "Joined",
       "member_id": "Member ID",
-      "permissions": "Permissions",
-      "no_permissions": "No specific permissions.",
+      "permissions": "Effective permissions",
+      "no_permissions": "No effective permissions.",
       "none_selected": "No team member selected."
     },
     "forms": {
       "name": "Name",
       "email": "Email",
-      "role": "Role",
+      "role": "Operational profile",
+      "access_role": "Access role",
+      "access_role_help": "Permissions are managed in Settings > Team and access > Roles and permissions.",
+      "no_access_role": "No access role",
+      "system_role_suffix": "system",
       "title_optional": "Title (optional)",
       "phone_optional": "Phone (optional)",
       "photo_or_icon": "Photo or icon",
@@ -116,7 +120,20 @@
         "social_view": "View Malikia Pulse",
         "social_manage": "Create and edit social posts",
         "social_publish": "Publish and schedule social posts",
-        "social_approve": "Approve social posts"
+        "social_approve": "Approve social posts",
+        "expenses_view": "View expenses",
+        "expenses_create": "Create expenses",
+        "expenses_edit": "Edit expenses",
+        "expenses_approve": "Approve expenses",
+        "expenses_approve_high": "Approve high-value expenses",
+        "expenses_pay": "Mark expenses as due, paid, or reimbursed",
+        "accounting_view": "View accounting",
+        "accounting_manage": "Manage accounting",
+        "invoices_view": "View invoices",
+        "invoices_create": "Create invoices",
+        "invoices_edit": "Edit invoices",
+        "invoices_approve": "Approve invoices",
+        "invoices_approve_high": "Approve high-value invoices"
       }
     }
   }

@@ -36,7 +36,7 @@
       "member_avatar_alt": "Avatar du membre",
       "headings": {
         "member": "Membre",
-        "role": "Role",
+        "role": "Profil / acces",
         "title": "Titre",
         "phone": "Telephone",
         "status": "Statut",
@@ -53,14 +53,18 @@
       "phone": "Telephone",
       "joined": "Ajoute le",
       "member_id": "ID membre",
-      "permissions": "Permissions",
-      "no_permissions": "Aucune permission specifique.",
+      "permissions": "Permissions effectives",
+      "no_permissions": "Aucune permission effective.",
       "none_selected": "Aucun membre d'equipe selectionne."
     },
     "forms": {
       "name": "Nom",
       "email": "Email",
-      "role": "Role",
+      "role": "Profil operationnel",
+      "access_role": "Role d'acces",
+      "access_role_help": "Les permissions se gerent dans Parametres > Equipe et acces > Roles et permissions.",
+      "no_access_role": "Aucun role d'acces",
+      "system_role_suffix": "systeme",
       "title_optional": "Titre (optionnel)",
       "phone_optional": "Telephone (optionnel)",
       "photo_or_icon": "Photo ou icone",
@@ -116,7 +120,20 @@
         "social_view": "Voir Malikia Pulse",
         "social_manage": "Creer et modifier les posts sociaux",
         "social_publish": "Publier et planifier les posts sociaux",
-        "social_approve": "Approuver les posts sociaux"
+        "social_approve": "Approuver les posts sociaux",
+        "expenses_view": "Voir les depenses",
+        "expenses_create": "Creer des depenses",
+        "expenses_edit": "Modifier les depenses",
+        "expenses_approve": "Approuver les depenses",
+        "expenses_approve_high": "Approuver les depenses elevees",
+        "expenses_pay": "Marquer les depenses comme dues, payees ou remboursees",
+        "accounting_view": "Voir la comptabilite",
+        "accounting_manage": "Gerer la comptabilite",
+        "invoices_view": "Voir les factures",
+        "invoices_create": "Creer des factures",
+        "invoices_edit": "Modifier les factures",
+        "invoices_approve": "Approuver les factures",
+        "invoices_approve_high": "Approuver les factures elevees"
       }
     }
   }

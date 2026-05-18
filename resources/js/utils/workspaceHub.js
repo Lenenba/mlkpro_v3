@@ -67,6 +67,7 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
     ]);
     const canPresence = hasAccountPermission(account, 'view_presence');
     const canViewTeam = hasAccountPermission(account, 'team.view');
+    const canManageRoles = hasAccountPermission(account, 'manage_roles_permissions');
     const hasFinanceApprovalSources = hasFeature('expenses') || hasFeature('invoices');
 
     const unavailableCategory = (category) => ({
@@ -407,6 +408,14 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             tone: 'workspace',
             visible: isOwner,
         },
+        roles_permissions: {
+            key: 'roles_permissions',
+            labelKey: 'workspace_hub.modules.roles_permissions_label',
+            descriptionKey: 'workspace_hub.modules.roles_permissions',
+            routeName: 'settings.roles_permissions.edit',
+            tone: 'workspace',
+            visible: canManageRoles,
+        },
         profile: {
             key: 'profile',
             labelKey: 'workspace_hub.modules.profile_label',
@@ -475,8 +484,8 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             titleKey: 'workspace_hub.categories.workspace.title',
             icon: 'workspace',
             tone: 'workspace',
-            match: ['settings.company.*', 'settings.billing.*', 'profile.edit'],
-            moduleKeys: ['company_settings', 'billing', 'profile'],
+            match: ['settings.company.*', 'settings.billing.*', 'settings.roles_permissions.*', 'profile.edit'],
+            moduleKeys: ['company_settings', 'billing', 'roles_permissions', 'profile'],
         },
     ];
 

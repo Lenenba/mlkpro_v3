@@ -85,6 +85,8 @@
             "company_settings": "Brand, finance, company, and workspace-level settings.",
             "billing_label": "Billing",
             "billing": "Plan, subscription, payment methods, and add-ons.",
+            "roles_permissions_label": "Roles and access",
+            "roles_permissions": "Business roles, permissions, and team access control.",
             "profile_label": "Profile",
             "profile": "Personal profile, password, and account preferences."
         }

@@ -85,6 +85,8 @@
             "company_settings": "Marque, finance, entreprise et reglages du workspace.",
             "billing_label": "Facturation",
             "billing": "Forfait, abonnement, moyens de paiement et add-ons.",
+            "roles_permissions_label": "Rôles et accès",
+            "roles_permissions": "Rôles métiers, permissions et contrôle des accès équipe.",
             "profile_label": "Profil",
             "profile": "Profil personnel, mot de passe et preferences de compte."
         }

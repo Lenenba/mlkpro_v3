@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Prospect;
 use App\Models\CompanyRole;
+use App\Models\Prospect;
 use App\Models\Role;
 use App\Models\TeamMember;
 use App\Models\User;
@@ -236,7 +236,7 @@ class TeamMemberController extends Controller
         ]);
 
         $permissions = array_values($validated['permissions'] ?? []);
-        if (! $permissions) {
+        if (! $permissions && ! $companyRoleId) {
             $permissions = $this->defaultPermissionsForRole($validated['role'], $allowedPermissions);
         }
 
@@ -330,8 +330,10 @@ class TeamMemberController extends Controller
         }
         $companyRoleId = null;
         if (array_key_exists('company_role_id', $validated)) {
-            $this->authorizeCompanyPermission($user, 'assign_roles');
             $companyRoleId = $this->resolvedAssignableCompanyRoleId($validated['company_role_id'], $accountId);
+            if ((int) ($teamMember->company_role_id ?? 0) !== (int) ($companyRoleId ?? 0)) {
+                $this->authorizeCompanyPermission($user, 'assign_roles');
+            }
         }
 
         $userUpdates = [];
@@ -378,6 +380,9 @@ class TeamMemberController extends Controller
         }
         if (array_key_exists('company_role_id', $validated)) {
             $teamMemberUpdates['company_role_id'] = $companyRoleId;
+            if (! array_key_exists('permissions', $validated)) {
+                $teamMemberUpdates['permissions'] = [];
+            }
         }
         if (array_key_exists('planning_rules', $validated)) {
             $teamMemberUpdates['planning_rules'] = $this->normalizePlanningRules($validated['planning_rules']);
