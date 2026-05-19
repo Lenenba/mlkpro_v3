@@ -156,7 +156,7 @@ test('global search api keeps permission-gated groups hidden for limited team me
         'user_id' => $employeeUser->id,
         'role' => 'member',
         'title' => 'Coordinator',
-        'permissions' => ['tasks.view'],
+        'permissions' => ['customers.view', 'tasks.view'],
         'is_active' => true,
     ]);
 
