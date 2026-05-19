@@ -20,7 +20,7 @@ class PerformanceController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -49,7 +49,7 @@ class PerformanceController extends Controller
     public function employee(Request $request, User $employee)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -63,7 +63,7 @@ class PerformanceController extends Controller
                 ->where('user_id', $employee->id)
                 ->first();
 
-            if (!$membership) {
+            if (! $membership) {
                 abort(404);
             }
         }
@@ -120,16 +120,16 @@ class PerformanceController extends Controller
             ? $user
             : User::query()->find($ownerId);
 
-        if (!$owner) {
+        if (! $owner) {
             abort(403);
         }
 
         $isServiceCompany = $owner->company_type !== 'products';
         if ($isServiceCompany) {
-            if (!$owner->hasCompanyFeature('jobs') && !$owner->hasCompanyFeature('tasks')) {
+            if (! $owner->hasCompanyFeature('jobs') && ! $owner->hasCompanyFeature('tasks')) {
                 abort(403);
             }
-        } elseif (!$owner->hasCompanyFeature('sales')) {
+        } elseif (! $owner->hasCompanyFeature('sales')) {
             abort(403);
         }
 
@@ -141,14 +141,14 @@ class PerformanceController extends Controller
                 ? $user->teamMembership
                 : $user->teamMembership()->first();
 
-            if (!$membership || (int) $membership->account_id !== (int) $owner->id || !$membership->is_active) {
+            if (! $membership || (int) $membership->account_id !== (int) $owner->id || ! $membership->is_active) {
                 abort(403);
             }
 
             $canViewTeamPerformance = $this->canViewTeamPerformance($membership, $isServiceCompany);
             $canViewOwnPerformance = $canViewTeamPerformance || $this->canViewOwnPerformance($membership, $isServiceCompany);
 
-            if (!$canViewOwnPerformance) {
+            if (! $canViewOwnPerformance) {
                 abort(403);
             }
         }
@@ -206,7 +206,7 @@ class PerformanceController extends Controller
         foreach ($periodData as $key => $period) {
             $topSellers = $period['top_sellers'] ?? [];
             $sellerOfPeriods[$key] = collect($topSellers)
-                ->first(fn($seller) => ($seller['type'] ?? null) === 'user')
+                ->first(fn ($seller) => ($seller['type'] ?? null) === 'user')
                 ?? ($topSellers[0] ?? null);
         }
 
@@ -268,8 +268,8 @@ class PerformanceController extends Controller
         $sellerRows = $sellerRowsQuery->get();
 
         $sellerIds = $sellerRows->pluck('seller_id')
-            ->map(fn($id) => (int) $id)
-            ->filter(fn($id) => $id > 0)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
             ->unique()
             ->values();
         $sellerMap = $sellerIds->isNotEmpty()
@@ -766,6 +766,7 @@ class PerformanceController extends Controller
             if ($a['items'] !== $b['items']) {
                 return $a['items'] < $b['items'] ? 1 : -1;
             }
+
             return 0;
         })->values();
 
@@ -782,6 +783,7 @@ class PerformanceController extends Controller
         }
         $topJobs = $topJobsQuery->get()->map(function ($row) {
             $title = $row->job_title ?: 'Job';
+
             return [
                 'id' => md5((string) $title),
                 'name' => $title,
@@ -926,7 +928,7 @@ class PerformanceController extends Controller
         int $jobLimit = 6,
         int $customerLimit = 6
     ): array {
-        if (!$teamMemberId) {
+        if (! $teamMemberId) {
             return ['periods' => []];
         }
 
@@ -995,6 +997,7 @@ class PerformanceController extends Controller
         }
         $topJobs = $topJobsQuery->get()->map(function ($row) {
             $title = $row->job_title ?: 'Job';
+
             return [
                 'id' => md5((string) $title),
                 'name' => $title,
@@ -1071,7 +1074,7 @@ class PerformanceController extends Controller
         $summary = [];
 
         foreach ($periods as $key => [$start, $end]) {
-            if (!$teamMemberId) {
+            if (! $teamMemberId) {
                 $summary[$key] = [
                     'absence_days' => 0,
                     'leave_days' => 0,
@@ -1083,6 +1086,7 @@ class PerformanceController extends Controller
                         'end' => $end->toDateString(),
                     ],
                 ];
+
                 continue;
             }
 
@@ -1160,6 +1164,7 @@ class PerformanceController extends Controller
                 } else {
                     $absenceDays++;
                 }
+
                 continue;
             }
 
@@ -1199,18 +1204,19 @@ class PerformanceController extends Controller
     {
         $start = $this->parseTime($startTime);
         $end = $this->parseTime($endTime);
-        if (!$start || !$end) {
+        if (! $start || ! $end) {
             return 0;
         }
         if ($end->lt($start)) {
             return 0;
         }
+
         return $start->diffInMinutes($end) / 60;
     }
 
     private function parseTime(?string $value): ?Carbon
     {
-        if (!$value) {
+        if (! $value) {
             return null;
         }
 
@@ -1232,7 +1238,7 @@ class PerformanceController extends Controller
 
     private function resolveCustomerName(?Customer $customer): string
     {
-        if (!$customer) {
+        if (! $customer) {
             return 'Customer';
         }
 
@@ -1240,7 +1246,8 @@ class PerformanceController extends Controller
             return $customer->company_name;
         }
 
-        $name = trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
+        $name = trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
+
         return $name !== '' ? $name : 'Customer';
     }
 }

@@ -1,10 +1,10 @@
 <?php
 
 use App\Http\Middleware\EnsureTwoFactorVerified;
+use App\Models\CompanyRole;
 use App\Models\Customer;
 use App\Models\CustomerPackage;
 use App\Models\CustomerPackageUsage;
-use App\Models\CompanyRole;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\OfferPackage;
@@ -14,8 +14,8 @@ use App\Models\ProductCategory;
 use App\Models\Role;
 use App\Models\TeamMember;
 use App\Models\User;
-use Database\Seeders\RbacSeeder;
 use App\Models\Work;
+use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
