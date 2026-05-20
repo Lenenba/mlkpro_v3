@@ -8,6 +8,7 @@ import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
+import CardTileTabs from '@/Components/UI/CardTileTabs.vue';
 import SegmentManager from '@/Pages/Campaigns/Components/SegmentManager.vue';
 import MailingListManager from '@/Pages/Campaigns/Components/MailingListManager.vue';
 import VipManager from '@/Pages/Campaigns/Components/VipManager.vue';
@@ -161,6 +162,127 @@ const selectionStrategyOptions = computed(() => ([
 ]));
 
 const activeDialog = ref(null);
+const activeMarketingSettingsTab = ref('channels');
+
+const dialogCard = (dialogId, title, description, actionLabel = t('marketing.settings.open_form')) => ({
+    dialogId,
+    title,
+    description,
+    actionLabel,
+});
+
+const routeCard = (routeName, title, description, actionLabel = t('marketing.settings.open_manager')) => ({
+    routeName,
+    title,
+    description,
+    actionLabel,
+});
+
+const marketingSettingsTabs = computed(() => ([
+    {
+        id: 'channels',
+        label: t('marketing.settings.tabs.channels.label'),
+        meta: t('marketing.settings.tabs.channels.description'),
+        initials: 'CH',
+        tone: 'emerald',
+        buttonId: 'marketing-settings-tab-channels',
+        panelId: 'marketing-settings-channels-panel',
+    },
+    {
+        id: 'tracking',
+        label: t('marketing.settings.tabs.tracking.label'),
+        meta: t('marketing.settings.tabs.tracking.description'),
+        initials: 'TR',
+        tone: 'sky',
+        buttonId: 'marketing-settings-tab-tracking',
+        panelId: 'marketing-settings-tracking-panel',
+    },
+    {
+        id: 'templates',
+        label: t('marketing.settings.tabs.templates.label'),
+        meta: t('marketing.settings.tabs.templates.description'),
+        initials: 'TP',
+        tone: 'amber',
+        buttonId: 'marketing-settings-tab-templates',
+        panelId: 'marketing-settings-templates-panel',
+    },
+    {
+        id: 'audience',
+        label: t('marketing.settings.tabs.audience.label'),
+        meta: t('marketing.settings.tabs.audience.description'),
+        initials: 'AU',
+        tone: 'cyan',
+        buttonId: 'marketing-settings-tab-audience',
+        panelId: 'marketing-settings-audience-panel',
+    },
+    {
+        id: 'vip',
+        label: t('marketing.settings.tabs.vip.label'),
+        meta: t('marketing.settings.tabs.vip.description'),
+        initials: 'VI',
+        tone: 'violet',
+        buttonId: 'marketing-settings-tab-vip',
+        panelId: 'marketing-settings-vip-panel',
+    },
+]));
+
+const marketingSettingsPanels = computed(() => ({
+    channels: {
+        id: 'channels',
+        panelId: 'marketing-settings-channels-panel',
+        title: t('marketing.settings.panels.channels.title'),
+        description: t('marketing.settings.panels.channels.description'),
+        cards: [
+            dialogCard('channels-config', t('marketing.settings.cards.channels.title'), t('marketing.settings.cards.channels.description')),
+            dialogCard('consent-config', t('marketing.settings.cards.consent.title'), t('marketing.settings.cards.consent.description')),
+        ],
+    },
+    tracking: {
+        id: 'tracking',
+        panelId: 'marketing-settings-tracking-panel',
+        title: t('marketing.settings.panels.tracking.title'),
+        description: t('marketing.settings.panels.tracking.description'),
+        cards: [
+            dialogCard('tracking-config', t('marketing.settings.cards.tracking.title'), t('marketing.settings.cards.tracking.description')),
+            dialogCard('offers-config', t('marketing.settings.cards.offers.title'), t('marketing.settings.cards.offers.description')),
+        ],
+    },
+    templates: {
+        id: 'templates',
+        panelId: 'marketing-settings-templates-panel',
+        title: t('marketing.settings.panels.templates.title'),
+        description: t('marketing.settings.panels.templates.description'),
+        cards: [
+            dialogCard('brand-profile-config', t('marketing.settings.cards.brand_profile.title'), t('marketing.settings.cards.brand_profile.description')),
+            routeCard('campaigns.templates.manage', t('marketing.settings.cards.template_manager.title'), t('marketing.settings.cards.template_manager.description')),
+        ],
+    },
+    audience: {
+        id: 'audience',
+        panelId: 'marketing-settings-audience-panel',
+        title: t('marketing.settings.panels.audience.title'),
+        description: t('marketing.settings.panels.audience.description'),
+        cards: [
+            dialogCard('segments', t('marketing.settings.cards.segment_manager.title'), t('marketing.settings.cards.segment_manager.description'), t('marketing.settings.open_manager')),
+            dialogCard('mailing-lists', t('marketing.settings.cards.mailing_list_manager.title'), t('marketing.settings.cards.mailing_list_manager.description'), t('marketing.settings.open_manager')),
+            routeCard('campaigns.prospect-providers.manage', t('marketing.settings.cards.prospect_provider_manager.title'), t('marketing.settings.cards.prospect_provider_manager.description')),
+        ],
+    },
+    vip: {
+        id: 'vip',
+        panelId: 'marketing-settings-vip-panel',
+        title: t('marketing.settings.panels.vip.title'),
+        description: t('marketing.settings.panels.vip.description'),
+        cards: [
+            dialogCard('vip-automation-config', t('marketing.settings.cards.vip_automation.title'), t('marketing.settings.cards.vip_automation.description')),
+            dialogCard('vip-tiers', t('marketing.settings.cards.vip_tiers_manager.title'), t('marketing.settings.cards.vip_tiers_manager.description'), t('marketing.settings.open_manager')),
+        ],
+    },
+}));
+
+const activeMarketingSettingsPanel = computed(() => {
+    return marketingSettingsPanels.value[activeMarketingSettingsTab.value] || marketingSettingsPanels.value.channels;
+});
 
 const openDialog = (dialogId) => {
     activeDialog.value = dialogId;
@@ -304,144 +426,60 @@ const toggleAllowedMode = (mode) => {
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.channels.title') }}</h2>
-                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ t('marketing.settings.cards.channels.description') }}
-                    </p>
-                    <div class="mt-3">
-                        <PrimaryButton type="button" @click="openDialog('channels-config')">
-                            {{ t('marketing.settings.open_form') }}
-                        </PrimaryButton>
-                    </div>
-                </div>
+            <div class="rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <CardTileTabs
+                    v-model="activeMarketingSettingsTab"
+                    :tabs="marketingSettingsTabs"
+                    :aria-label="t('marketing.settings.header_title')"
+                    grid-class="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5"
+                />
 
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.consent.title') }}</h2>
-                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ t('marketing.settings.cards.consent.description') }}
-                    </p>
-                    <div class="mt-3">
-                        <PrimaryButton type="button" @click="openDialog('consent-config')">
-                            {{ t('marketing.settings.open_form') }}
-                        </PrimaryButton>
+                <section
+                    :id="activeMarketingSettingsPanel.panelId"
+                    class="p-4"
+                    role="tabpanel"
+                    :aria-labelledby="`marketing-settings-tab-${activeMarketingSettingsPanel.id}`"
+                >
+                    <div class="flex flex-wrap items-start justify-between gap-3 border-b border-stone-200 pb-3 dark:border-neutral-700">
+                        <div>
+                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ activeMarketingSettingsPanel.title }}
+                            </h2>
+                            <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                {{ activeMarketingSettingsPanel.description }}
+                            </p>
+                        </div>
                     </div>
-                </div>
 
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.tracking.title') }}</h2>
-                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ t('marketing.settings.cards.tracking.description') }}
-                    </p>
-                    <div class="mt-3">
-                        <PrimaryButton type="button" @click="openDialog('tracking-config')">
-                            {{ t('marketing.settings.open_form') }}
-                        </PrimaryButton>
+                    <div class="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+                        <article
+                            v-for="card in activeMarketingSettingsPanel.cards"
+                            :key="`${activeMarketingSettingsPanel.id}-${card.title}`"
+                            class="flex min-h-32 flex-col justify-between rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                        >
+                            <div>
+                                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ card.title }}</h3>
+                                <p class="mt-2 text-xs leading-5 text-stone-500 dark:text-neutral-400">
+                                    {{ card.description }}
+                                </p>
+                            </div>
+                            <div class="mt-4">
+                                <PrimaryButton
+                                    v-if="card.dialogId"
+                                    type="button"
+                                    @click="openDialog(card.dialogId)"
+                                >
+                                    {{ card.actionLabel }}
+                                </PrimaryButton>
+                                <Link v-else-if="card.routeName" :href="route(card.routeName)">
+                                    <PrimaryButton type="button">
+                                        {{ card.actionLabel }}
+                                    </PrimaryButton>
+                                </Link>
+                            </div>
+                        </article>
                     </div>
-                </div>
-
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.offers.title') }}</h2>
-                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ t('marketing.settings.cards.offers.description') }}
-                    </p>
-                    <div class="mt-3">
-                        <PrimaryButton type="button" @click="openDialog('offers-config')">
-                            {{ t('marketing.settings.open_form') }}
-                        </PrimaryButton>
-                    </div>
-                </div>
-
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Email brand profile</h2>
-                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                        Configure colors, contact details, footer note, and social links used by marketing email templates.
-                    </p>
-                    <div class="mt-3">
-                        <PrimaryButton type="button" @click="openDialog('brand-profile-config')">
-                            {{ t('marketing.settings.open_form') }}
-                        </PrimaryButton>
-                    </div>
-                </div>
-
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.vip_automation.title') }}</h2>
-                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ t('marketing.settings.cards.vip_automation.description') }}
-                    </p>
-                    <div class="mt-3">
-                        <PrimaryButton type="button" @click="openDialog('vip-automation-config')">
-                            {{ t('marketing.settings.open_form') }}
-                        </PrimaryButton>
-                    </div>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.template_manager.title') }}</h2>
-                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ t('marketing.settings.cards.template_manager.description') }}
-                    </p>
-                    <div class="mt-3">
-                        <Link :href="route('campaigns.templates.manage')">
-                            <PrimaryButton type="button">
-                                {{ t('marketing.settings.open_manager') }}
-                            </PrimaryButton>
-                        </Link>
-                    </div>
-                </div>
-
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.segment_manager.title') }}</h2>
-                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ t('marketing.settings.cards.segment_manager.description') }}
-                    </p>
-                    <div class="mt-3">
-                        <PrimaryButton type="button" @click="openDialog('segments')">
-                            {{ t('marketing.settings.open_manager') }}
-                        </PrimaryButton>
-                    </div>
-                </div>
-
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.mailing_list_manager.title') }}</h2>
-                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ t('marketing.settings.cards.mailing_list_manager.description') }}
-                    </p>
-                    <div class="mt-3">
-                        <PrimaryButton type="button" @click="openDialog('mailing-lists')">
-                            {{ t('marketing.settings.open_manager') }}
-                        </PrimaryButton>
-                    </div>
-                </div>
-
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.vip_tiers_manager.title') }}</h2>
-                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ t('marketing.settings.cards.vip_tiers_manager.description') }}
-                    </p>
-                    <div class="mt-3">
-                        <PrimaryButton type="button" @click="openDialog('vip-tiers')">
-                            {{ t('marketing.settings.open_manager') }}
-                        </PrimaryButton>
-                    </div>
-                </div>
-
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.prospect_provider_manager.title') }}</h2>
-                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ t('marketing.settings.cards.prospect_provider_manager.description') }}
-                    </p>
-                    <div class="mt-3">
-                        <Link :href="route('campaigns.prospect-providers.manage')">
-                            <PrimaryButton type="button">
-                                {{ t('marketing.settings.open_manager') }}
-                            </PrimaryButton>
-                        </Link>
-                    </div>
-                </div>
+                </section>
             </div>
 
             <Modal :show="activeDialog === 'channels-config'" max-width="4xl" @close="closeDialog">

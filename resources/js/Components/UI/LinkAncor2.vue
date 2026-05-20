@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
+import { usePermissions } from '@/Composables/usePermissions';
 
 const isOpen = ref(false);
 const { t, locale } = useI18n();
@@ -17,14 +18,10 @@ const companyType = computed(() => page.props.auth?.account?.company?.type ?? nu
 const showServices = computed(() => companyType.value !== 'products');
 const showProducts = computed(() => true);
 const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
-const teamPermissions = computed(() => page.props.auth?.account?.team?.permissions || []);
+const { hasPermission, hasAnyPermission } = usePermissions();
 const teamRole = computed(() => page.props.auth?.account?.team?.role || null);
-const canSales = computed(() =>
-    isOwner.value || teamPermissions.value.includes('sales.manage') || teamPermissions.value.includes('sales.pos')
-);
-const canSalesManage = computed(() =>
-    isOwner.value || teamPermissions.value.includes('sales.manage')
-);
+const canSales = computed(() => hasAnyPermission(['sales.manage', 'sales.pos']));
+const canSalesManage = computed(() => hasPermission('sales.manage'));
 const isSeller = computed(() => teamRole.value === 'seller');
 
 const quickPalette = {

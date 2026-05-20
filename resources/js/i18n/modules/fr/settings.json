@@ -22,6 +22,10 @@
         "label": "RH",
         "description": "Modeles de shifts"
       },
+      "roles": {
+        "label": "Rôles et accès",
+        "description": "Rôles équipe et permissions"
+      },
       "reservations": {
         "label": "Reservations",
         "description": "Regles de reservation et disponibilites"
@@ -98,7 +102,10 @@
       },
       "resources": {
         "title": "Ressources et capacite",
+        "salon_title": "Chaises / postes",
         "description": "Definissez des ressources optionnelles pour controler la capacite des creneaux.",
+        "salon_description": "Creez les chaises ou postes du salon, puis assignez-les aux membres d equipe.",
+        "salon_summary": "Chaises / postes",
         "empty": "Aucune ressource configuree.",
         "fields": {
           "name": "Nom de la ressource",

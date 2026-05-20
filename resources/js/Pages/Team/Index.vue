@@ -12,6 +12,10 @@ const props = defineProps({
         default: () => ({}),
     },
     availablePermissions: Array,
+    companyRoles: {
+        type: Array,
+        default: () => [],
+    },
     stats: Object,
 });
 
@@ -27,6 +31,7 @@ const { t } = useI18n();
                 :teamMembers="teamMembers"
                 :filters="filters"
                 :availablePermissions="availablePermissions"
+                :companyRoles="companyRoles"
             />
         </div>
     </AuthenticatedLayout>

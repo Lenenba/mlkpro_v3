@@ -10,6 +10,7 @@ use App\Models\ReservationResource;
 use App\Models\TeamMember;
 use App\Models\TeamMemberAttendance;
 use App\Models\User;
+use App\Services\Reservation\ExpiredReservationAutoCloser;
 use App\Support\ReservationPresetResolver;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -32,7 +33,8 @@ class ReservationQueueService
     public function __construct(
         private readonly ReservationAvailabilityService $availabilityService,
         private readonly ReservationNotificationService $notificationService,
-        private readonly ReservationIntentGuardService $intentGuard
+        private readonly ReservationIntentGuardService $intentGuard,
+        private readonly ExpiredReservationAutoCloser $expiredReservationAutoCloser
     ) {}
 
     public function syncAppointmentsForWindow(
@@ -1117,11 +1119,16 @@ class ReservationQueueService
         foreach ($expired as $item) {
             $previousStatus = (string) $item->status;
             if (($settings['queue_no_show_on_grace_expiry'] ?? false) && $item->item_type === ReservationQueueItem::TYPE_APPOINTMENT) {
+                $expiredAt = now('UTC');
                 $item->update([
                     'status' => ReservationQueueItem::STATUS_NO_SHOW,
-                    'finished_at' => now('UTC'),
+                    'finished_at' => $expiredAt,
                     'call_expires_at' => null,
                 ]);
+
+                if ($item->reservation_id) {
+                    $this->expiredReservationAutoCloser->markReservationNoShowFromQueueGrace((int) $item->reservation_id, $expiredAt);
+                }
             } else {
                 $item->update([
                     'status' => ReservationQueueItem::STATUS_SKIPPED,

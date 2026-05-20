@@ -20,6 +20,50 @@
       "header_description": "Configurez les canaux, le consentement, les templates, le tracking et la stratégie d’offres pour les campagnes.",
       "open_form": "Ouvrir le formulaire",
       "open_manager": "Ouvrir le gestionnaire",
+      "tabs": {
+        "channels": {
+          "label": "Canaux",
+          "description": "Consentement inclus"
+        },
+        "tracking": {
+          "label": "Tracking",
+          "description": "Offres et conversions"
+        },
+        "templates": {
+          "label": "Templates",
+          "description": "Brand profile"
+        },
+        "audience": {
+          "label": "Audience",
+          "description": "Segments et listes"
+        },
+        "vip": {
+          "label": "VIP",
+          "description": "Automation et tiers"
+        }
+      },
+      "panels": {
+        "channels": {
+          "title": "Canaux et consentement",
+          "description": "Centralisez les canaux disponibles, les quiet hours, l’anti-fatigue et les règles de consentement."
+        },
+        "tracking": {
+          "title": "Tracking et offres",
+          "description": "Pilotez les événements de conversion, le suivi des clics et la stratégie de sélection des offres."
+        },
+        "templates": {
+          "title": "Templates et identité email",
+          "description": "Gérez les modèles réutilisables et l’identité de marque appliquée aux emails marketing."
+        },
+        "audience": {
+          "title": "Audience et prospection",
+          "description": "Organisez les segments, les mailing lists et les connexions de fournisseurs de prospects."
+        },
+        "vip": {
+          "title": "Programme VIP",
+          "description": "Configurez l’automatisation VIP et les tiers utilisés pour qualifier les clients."
+        }
+      },
       "cards": {
         "channels": {
           "title": "Paramètres des canaux",
@@ -36,6 +80,10 @@
         "offers": {
           "title": "Paramètres d’offres",
           "description": "Configurez les modes d’offres, la stratégie de sélection et les overrides de template."
+        },
+        "brand_profile": {
+          "title": "Profil de marque email",
+          "description": "Configurez les couleurs, les coordonnées, la note de pied de page et les liens sociaux utilisés par les templates email marketing."
         },
         "vip_automation": {
           "title": "Automatisation VIP",

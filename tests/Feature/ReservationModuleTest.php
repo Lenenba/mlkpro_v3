@@ -643,6 +643,58 @@ it('does not grant reservation management from jobs/tasks permissions alone', fu
         ->assertForbidden();
 });
 
+it('keeps waitlist entries scoped to the assigned member for reservation staff', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $assignedMember = createTeamMemberForAccount($owner, [
+        'role' => 'member',
+        'permissions' => ['reservations.view', 'update_reservations'],
+    ]);
+    $otherMember = createTeamMemberForAccount($owner, [
+        'role' => 'member',
+        'permissions' => ['reservations.view', 'update_reservations'],
+    ]);
+
+    $requestedAt = Carbon::now('UTC')->addDay()->setTime(14, 0);
+    $ownWaitlist = ReservationWaitlist::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $assignedMember->id,
+        'status' => ReservationWaitlist::STATUS_PENDING,
+        'requested_start_at' => $requestedAt,
+        'requested_end_at' => $requestedAt->copy()->addHour(),
+        'duration_minutes' => 60,
+    ]);
+    $otherWaitlist = ReservationWaitlist::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $otherMember->id,
+        'status' => ReservationWaitlist::STATUS_PENDING,
+        'requested_start_at' => $requestedAt->copy()->addHours(2),
+        'requested_end_at' => $requestedAt->copy()->addHours(3),
+        'duration_minutes' => 60,
+    ]);
+
+    $memberUser = $assignedMember->user()->firstOrFail();
+
+    $this->actingAs($memberUser)
+        ->withSession(['two_factor_passed' => true])
+        ->get(route('reservation.index', ['scope' => 'all']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Reservation/Index')
+            ->where('access.can_view_all', false)
+            ->where('access.can_manage', false)
+            ->where('filters.scope', 'mine')
+            ->has('waitlists', 1)
+            ->where('waitlists.0.id', $ownWaitlist->id)
+        );
+
+    $this->actingAs($memberUser)
+        ->withSession(['two_factor_passed' => true])
+        ->patchJson(route('reservation.waitlist.status', $otherWaitlist), [
+            'status' => ReservationWaitlist::STATUS_RELEASED,
+        ])
+        ->assertForbidden();
+});
+
 it('stores business preset fields on reservation settings update', function () {
     $owner = createOwnerWithReservationsEnabled();
 

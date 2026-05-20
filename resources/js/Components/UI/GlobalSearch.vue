@@ -4,6 +4,7 @@ import { Link, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
+import { usePermissions } from '@/Composables/usePermissions';
 
 const page = usePage();
 const { t } = useI18n();
@@ -22,7 +23,7 @@ const showServices = computed(() => companyType.value !== 'products');
 const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
 const isClient = computed(() => Boolean(page.props.auth?.account?.is_client));
 const canSearch = computed(() => !isClient.value);
-const teamPermissions = computed(() => page.props.auth?.account?.team?.permissions || []);
+const { hasPermission, hasAnyPermission } = usePermissions();
 const teamRole = computed(() => page.props.auth?.account?.team?.role || null);
 const isSeller = computed(() => teamRole.value === 'seller');
 const searchPlaceholder = computed(() => (
@@ -30,12 +31,8 @@ const searchPlaceholder = computed(() => (
         ? t('global_search.placeholder')
         : t('global_search.placeholder_solo')
 ));
-const canSales = computed(() =>
-    isOwner.value || teamPermissions.value.includes('sales.manage') || teamPermissions.value.includes('sales.pos')
-);
-const canSalesManage = computed(() =>
-    isOwner.value || teamPermissions.value.includes('sales.manage')
-);
+const canSales = computed(() => hasAnyPermission(['sales.manage', 'sales.pos']));
+const canSalesManage = computed(() => hasPermission('sales.manage'));
 
 const quickActions = computed(() => {
     if (isClient.value || isSeller.value) {

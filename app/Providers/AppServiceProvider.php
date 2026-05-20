@@ -19,6 +19,7 @@ use App\Services\Campaigns\MarketingSettingsService;
 use App\Services\Campaigns\TemplateSeederService;
 use App\Services\Observability\SlowQueryService;
 use App\Services\PlatformAdminNotifier;
+use App\Services\Rbac\AccessControl;
 use App\Support\LocalePreference;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Notifications\ResetPassword;
@@ -61,6 +62,8 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::policy(AiAssistantSetting::class, AiAssistantSettingPolicy::class);
         Gate::policy(AiConversation::class, AiConversationPolicy::class);
+        Gate::define('company-permission', fn (User $user, string $permission, ?int $accountId = null): bool => app(AccessControl::class)
+            ->userHasPermission($user, $permission, $accountId));
 
         Payment::observe(PaymentObserver::class);
 

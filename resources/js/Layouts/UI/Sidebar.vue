@@ -9,6 +9,7 @@ import QuickCreateModals from "@/Components/QuickCreate/QuickCreateModals.vue";
 import CategoryIcon from '@/Components/Workspace/CategoryIcon.vue';
 import { buildWorkspaceHubCategories } from '@/utils/workspaceHub';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
+import { usePermissions } from '@/Composables/usePermissions';
 
 const page = usePage()
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
@@ -19,105 +20,73 @@ const isClient = computed(() => Boolean(page.props.auth?.account?.is_client));
 const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superadmin));
 const isPlatformAdmin = computed(() => Boolean(page.props.auth?.account?.is_platform_admin));
 const platformPermissions = computed(() => page.props.auth?.account?.platform?.permissions || []);
-const teamPermissions = computed(() => page.props.auth?.account?.team?.permissions || []);
+const { hasPermission, hasAnyPermission } = usePermissions();
 const teamRole = computed(() => page.props.auth?.account?.team?.role || null);
 const isTeamMember = computed(() => Boolean(teamRole.value));
 const { hasFeature } = useAccountFeatures();
 const showPlatformNav = computed(() => isSuperadmin.value || isPlatformAdmin.value);
 const canPlatform = (permission) => isSuperadmin.value || platformPermissions.value.includes(permission);
 const homeRoute = computed(() => (showPlatformNav.value ? 'superadmin.dashboard' : 'dashboard'));
-const canSales = computed(() =>
-    isOwner.value || teamPermissions.value.includes('sales.manage') || teamPermissions.value.includes('sales.pos')
-);
-const canSalesManage = computed(() =>
-    isOwner.value || teamPermissions.value.includes('sales.manage')
-);
-const canJobs = computed(() =>
-    isOwner.value
-    || teamPermissions.value.includes('jobs.view')
-    || teamPermissions.value.includes('jobs.edit')
-);
-const canTasks = computed(() =>
-    isOwner.value
-    || teamPermissions.value.includes('tasks.view')
-    || teamPermissions.value.includes('tasks.create')
-    || teamPermissions.value.includes('tasks.edit')
-    || teamPermissions.value.includes('tasks.delete')
-);
-const canService = computed(() =>
-    isOwner.value
-    || teamPermissions.value.includes('jobs.view')
-    || teamPermissions.value.includes('tasks.view')
-    || teamPermissions.value.includes('jobs.edit')
-    || teamPermissions.value.includes('tasks.edit')
-);
-const canServiceManage = computed(() =>
-    isOwner.value
-    || teamPermissions.value.includes('jobs.edit')
-    || teamPermissions.value.includes('tasks.edit')
-);
+const canSales = computed(() => hasAnyPermission(['sales.manage', 'sales.pos']));
+const canSalesManage = computed(() => hasPermission('sales.manage'));
+const canJobs = computed(() => hasAnyPermission(['jobs.view', 'jobs.edit']));
+const canTasks = computed(() => hasAnyPermission(['tasks.view', 'tasks.create', 'tasks.edit', 'tasks.delete']));
+const canService = computed(() => hasAnyPermission(['jobs.view', 'tasks.view', 'jobs.edit', 'tasks.edit']));
+const canServiceManage = computed(() => hasAnyPermission(['jobs.edit', 'tasks.edit']));
 const canLoyaltyManage = computed(() =>
     isOwner.value
     || canSalesManage.value
     || canServiceManage.value
 );
-const canCampaigns = computed(() =>
-    isOwner.value
-    || teamPermissions.value.includes('campaigns.view')
-    || teamPermissions.value.includes('campaigns.manage')
-    || teamPermissions.value.includes('campaigns.send')
-);
-const canReservations = computed(() =>
-    isOwner.value
-    || teamPermissions.value.includes('reservations.view')
-    || teamPermissions.value.includes('reservations.queue')
-    || teamPermissions.value.includes('reservations.manage')
-);
-const canAiAssistant = computed(() =>
-    isOwner.value
-    || teamPermissions.value.includes('reservations.manage')
-);
+const canCampaigns = computed(() => hasAnyPermission(['campaigns.view', 'campaigns.manage', 'campaigns.send']));
+const canReservations = computed(() => hasAnyPermission(['reservations.view', 'reservations.queue', 'reservations.manage']));
+const canAiAssistant = computed(() => hasPermission('reservations.manage'));
 const hasServiceOps = computed(() =>
     showServices.value && (hasFeature('jobs') || hasFeature('tasks'))
 );
-const canQuotes = computed(() =>
-    isOwner.value || teamPermissions.value.includes('quotes.view') || teamPermissions.value.includes('quotes.edit')
-);
-const canPromotionsManage = computed(() =>
+const canQuotes = computed(() => hasAnyPermission(['quotes.view', 'quotes.edit']));
+const canManageCatalogOffers = computed(() =>
     isOwner.value
-    || teamPermissions.value.includes('sales.manage')
-    || teamPermissions.value.includes('quotes.edit')
-    || teamPermissions.value.includes('jobs.edit')
-    || teamPermissions.value.includes('tasks.edit')
-    || teamPermissions.value.includes('campaigns.manage')
+    || canSalesManage.value
+    || hasAnyPermission(['quotes.edit', 'services.edit', 'products.edit'])
 );
+const canPromotionsManage = computed(() => hasAnyPermission([
+    'sales.manage',
+    'quotes.edit',
+    'jobs.edit',
+    'tasks.edit',
+    'campaigns.manage',
+]));
 const canOfferPackages = computed(() =>
     !isClient.value
     && !isSeller.value
-    && (isOwner.value || canSalesManage.value || canServiceManage.value)
+    && canManageCatalogOffers.value
     && (hasFeature('products') || hasFeature('services') || hasFeature('sales'))
 );
-const canExpensesNav = computed(() =>
+const canExpensesNav = computed(() => hasAnyPermission([
+    'expenses.view',
+    'expenses.create',
+    'expenses.edit',
+    'expenses.approve',
+    'expenses.approve_high',
+    'expenses.pay',
+]));
+const canAccountingNav = computed(() => hasPermission('accounting.view'));
+const canInvoicesNav = computed(() => hasAnyPermission([
+    'invoices.view',
+    'invoices.create',
+    'invoices.edit',
+    'invoices.approve',
+    'invoices.approve_high',
+]));
+const canTeamReports = computed(() => hasAnyPermission(['reports.team', 'view_team_reports', 'view_reports']));
+const canViewTeamPerformance = computed(() =>
     isOwner.value
-    || teamPermissions.value.includes('expenses.view')
-    || teamPermissions.value.includes('expenses.create')
-    || teamPermissions.value.includes('expenses.edit')
-    || teamPermissions.value.includes('expenses.approve')
-    || teamPermissions.value.includes('expenses.approve_high')
-    || teamPermissions.value.includes('expenses.pay')
+    || teamRole.value === 'admin'
+    || canTeamReports.value
+    || (companyType.value === 'products' && canSalesManage.value)
 );
-const canAccountingNav = computed(() =>
-    isOwner.value
-    || teamPermissions.value.includes('accounting.view')
-);
-const canInvoicesNav = computed(() =>
-    isOwner.value
-    || teamPermissions.value.includes('invoices.view')
-    || teamPermissions.value.includes('invoices.create')
-    || teamPermissions.value.includes('invoices.edit')
-    || teamPermissions.value.includes('invoices.approve')
-    || teamPermissions.value.includes('invoices.approve_high')
-);
+const canViewTeam = computed(() => hasPermission('team.view'));
 const isSeller = computed(() => teamRole.value === 'seller');
 const planningPendingCount = computed(() => page.props.planning?.pending_count || 0);
 const workspaceHubCategories = computed(() => buildWorkspaceHubCategories({
@@ -678,7 +647,7 @@ const isCustomerActive = computed(() => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor v-if="(companyType === 'products' && hasFeature('sales') && hasFeature('performance') && canSalesManage) || (hasServiceOps && hasFeature('performance') && canServiceManage)" :label="$t('nav.performance')" :href="'performance.index'" tone="performance"
+                                <LinkAncor v-if="((companyType === 'products' && hasFeature('sales')) || hasServiceOps) && hasFeature('performance') && canViewTeamPerformance" :label="$t('nav.performance')" :href="'performance.index'" tone="performance"
                                     :active="route().current('performance.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
@@ -688,21 +657,6 @@ const isCustomerActive = computed(() => {
                                             <path d="M18 17V9" />
                                             <path d="M13 17V5" />
                                             <path d="M8 17v-3" />
-                                        </svg>
-                                    </template>
-                                </LinkAncor>
-                                <!-- End Item -->
-
-                                <!-- Item -->
-                                <LinkAncor v-if="(companyType === 'products' && hasFeature('sales') && hasFeature('presence') && canSales) || (hasServiceOps && hasFeature('presence') && canService)" :label="$t('nav.presence')" :href="'presence.index'" tone="presence"
-                                    :active="route().current('presence.*')">
-                                    <template #icon>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round"
-                                            class="lucide lucide-clock">
-                                            <circle cx="12" cy="12" r="10" />
-                                            <polyline points="12 6 12 12 16 14" />
                                         </svg>
                                     </template>
                                 </LinkAncor>
@@ -899,7 +853,7 @@ const isCustomerActive = computed(() => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor v-if="hasFeature('team_members') && page.props.auth.account?.is_owner && !isSeller" :label="$t('nav.team')" :href="'team.index'" tone="team"
+                                <LinkAncor v-if="hasFeature('team_members') && canViewTeam && !isSeller" :label="$t('nav.team')" :href="'team.index'" tone="team"
                                     :active="route().current('team.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"

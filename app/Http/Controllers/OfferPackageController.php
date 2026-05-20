@@ -22,10 +22,7 @@ class OfferPackageController extends Controller
 
     public function index(Request $request)
     {
-        $user = $request->user();
-        if (! $user) {
-            abort(403);
-        }
+        $user = $this->authorizeOfferPackageAccess($request);
 
         $accountId = $user->accountOwnerId();
         $filters = $request->only(['search', 'type', 'status', 'is_public', 'sort', 'direction']);
@@ -75,7 +72,9 @@ class OfferPackageController extends Controller
 
     public function store(Request $request)
     {
-        $offer = $this->offers->create($request->user(), $this->validatedPayload($request));
+        $user = $this->authorizeOfferPackageAccess($request);
+
+        $offer = $this->offers->create($user, $this->validatedPayload($request));
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -89,10 +88,7 @@ class OfferPackageController extends Controller
 
     public function show(Request $request, OfferPackage $offerPackage)
     {
-        $user = $request->user();
-        if (! $user) {
-            abort(403);
-        }
+        $user = $this->authorizeOfferPackageAccess($request);
 
         $accountId = (int) $user->accountOwnerId();
         if ((int) $offerPackage->user_id !== $accountId) {
@@ -113,7 +109,9 @@ class OfferPackageController extends Controller
 
     public function update(Request $request, OfferPackage $offerPackage)
     {
-        $offer = $this->offers->update($request->user(), $offerPackage, $this->validatedPayload($request));
+        $user = $this->authorizeOfferPackageAccess($request);
+
+        $offer = $this->offers->update($user, $offerPackage, $this->validatedPayload($request));
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -127,7 +125,9 @@ class OfferPackageController extends Controller
 
     public function duplicate(Request $request, OfferPackage $offerPackage)
     {
-        $offer = $this->offers->duplicate($request->user(), $offerPackage);
+        $user = $this->authorizeOfferPackageAccess($request);
+
+        $offer = $this->offers->duplicate($user, $offerPackage);
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -143,7 +143,9 @@ class OfferPackageController extends Controller
 
     public function destroy(Request $request, OfferPackage $offerPackage)
     {
-        $offer = $this->offers->archive($request->user(), $offerPackage);
+        $user = $this->authorizeOfferPackageAccess($request);
+
+        $offer = $this->offers->archive($user, $offerPackage);
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -157,7 +159,9 @@ class OfferPackageController extends Controller
 
     public function restore(Request $request, OfferPackage $offerPackage)
     {
-        $offer = $this->offers->reactivate($request->user(), $offerPackage);
+        $user = $this->authorizeOfferPackageAccess($request);
+
+        $offer = $this->offers->reactivate($user, $offerPackage);
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -169,6 +173,42 @@ class OfferPackageController extends Controller
         return redirect()
             ->route('offer-packages.index')
             ->with('success', 'Offer package reactivated.');
+    }
+
+    private function authorizeOfferPackageAccess(Request $request): User
+    {
+        $user = $request->user();
+        if (! $user || ! $this->canManageOfferPackages($user)) {
+            abort(403);
+        }
+
+        return $user;
+    }
+
+    private function canManageOfferPackages(User $user): bool
+    {
+        if ($user->isClient()) {
+            return false;
+        }
+
+        if ($user->isAccountOwner()) {
+            return true;
+        }
+
+        $membership = $user->relationLoaded('teamMembership')
+            ? $user->teamMembership
+            : $user->teamMembership()->with('companyRole.permissions')->first();
+
+        if (! $membership) {
+            return false;
+        }
+
+        $membership->loadMissing('companyRole.permissions');
+
+        return $membership->hasPermission('sales.manage')
+            || $membership->hasPermission('quotes.edit')
+            || $membership->hasPermission('services.edit')
+            || $membership->hasPermission('products.edit');
     }
 
     private function validatedPayload(Request $request): array

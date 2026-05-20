@@ -31,7 +31,7 @@
             },
             "operations": {
                 "title": "Operations and delivery",
-                "description": "Jobs, tasks, bookings, planning, and team coordination for daily execution."
+                "description": "Jobs, tasks, bookings, presence, planning, and team coordination for daily execution."
             },
             "finance": {
                 "title": "Finance and approvals",
@@ -85,6 +85,8 @@
             "company_settings": "Brand, finance, company, and workspace-level settings.",
             "billing_label": "Billing",
             "billing": "Plan, subscription, payment methods, and add-ons.",
+            "roles_permissions_label": "Roles and access",
+            "roles_permissions": "Business roles, permissions, and team access control.",
             "profile_label": "Profile",
             "profile": "Personal profile, password, and account preferences."
         }

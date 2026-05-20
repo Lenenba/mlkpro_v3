@@ -252,7 +252,7 @@ const hasAgendaAlerts = computed(() => agendaAlertItems.value.length > 0);
     <Head :title="$t('dashboard.title')" />
 
     <AuthenticatedLayout>
-        <div class="mx-auto w-full max-w-6xl space-y-5">
+        <div class="space-y-6">
             <div class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
                 <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ $t('dashboard.title') }}</h1>
                 <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">

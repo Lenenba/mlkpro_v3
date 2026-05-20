@@ -22,6 +22,7 @@ use App\Support\ReservationPresetResolver;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
@@ -43,6 +44,9 @@ class ReservationSettingsController extends Controller
         $this->authorize('manageSettings', Reservation::class);
         $account = $this->resolveAccount($user);
         $ownerOnlyMode = $this->ownerOnlyMode($account);
+        $canViewChairs = Gate::forUser($user)->allows('company-permission', ['view_chairs', $account->id])
+            || Gate::forUser($user)->allows('company-permission', ['manage_chairs', $account->id]);
+        $canManageChairs = Gate::forUser($user)->allows('company-permission', ['manage_chairs', $account->id]);
 
         $teamMembers = $ownerOnlyMode
             ? collect()
@@ -122,19 +126,21 @@ class ReservationSettingsController extends Controller
                 ->forAccount($account->id)
                 ->whereNotNull('team_member_id')
                 ->get();
-        $resourceModels = ReservationResource::query()
-            ->forAccount($account->id)
-            ->orderBy('type')
-            ->orderBy('name')
-            ->get([
-                'id',
-                'team_member_id',
-                'name',
-                'type',
-                'capacity',
-                'is_active',
-                'metadata',
-            ]);
+        $resourceModels = $canViewChairs
+            ? ReservationResource::query()
+                ->forAccount($account->id)
+                ->orderBy('type')
+                ->orderBy('name')
+                ->get([
+                    'id',
+                    'team_member_id',
+                    'name',
+                    'type',
+                    'capacity',
+                    'is_active',
+                    'metadata',
+                ])
+            : collect();
         $resourceTeamMemberIds = $resourceModels
             ->pluck('team_member_id')
             ->map(fn ($id) => (int) $id)
@@ -176,6 +182,10 @@ class ReservationSettingsController extends Controller
                 ])
                 ->values(),
             'resources' => $resources,
+            'permissions' => [
+                'can_view_chairs' => $canViewChairs,
+                'can_manage_chairs' => $canManageChairs,
+            ],
         ]);
     }
 
@@ -190,6 +200,13 @@ class ReservationSettingsController extends Controller
         $account = $this->resolveAccount($user);
         $validated = $request->validated();
         $ownerOnlyMode = $this->ownerOnlyMode($account);
+
+        if (
+            array_key_exists('resources', $validated)
+            && ! Gate::forUser($user)->allows('company-permission', ['manage_chairs', $account->id])
+        ) {
+            abort(403);
+        }
 
         if ($ownerOnlyMode) {
             if (array_key_exists('account_settings', $validated) && is_array($validated['account_settings'])) {

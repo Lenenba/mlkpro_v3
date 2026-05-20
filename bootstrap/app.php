@@ -39,6 +39,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'company.feature' => \App\Http\Middleware\EnsureCompanyFeature::class,
+            'permission' => \App\Http\Middleware\EnsureCompanyPermission::class,
             'impersonating' => \App\Http\Middleware\EnsureImpersonating::class,
             'demo.safe' => \App\Http\Middleware\EnsureDemoSafeMode::class,
             'not.superadmin' => \App\Http\Middleware\EnsureNotSuperadmin::class,

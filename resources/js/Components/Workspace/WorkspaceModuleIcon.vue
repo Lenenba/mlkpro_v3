@@ -305,8 +305,9 @@ const props = defineProps({
         stroke-linejoin="round"
         :class="props.iconClass"
     >
-        <circle cx="12" cy="12" r="10" />
-        <polyline points="12 6 12 12 16 14" />
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="m16 11 2 2 4-4" />
     </svg>
 
     <svg

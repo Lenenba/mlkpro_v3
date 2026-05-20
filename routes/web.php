@@ -96,6 +96,7 @@ use App\Http\Controllers\Settings\LoyaltySettingsController;
 use App\Http\Controllers\Settings\MarketingSettingsController;
 use App\Http\Controllers\Settings\NotificationSettingsController;
 use App\Http\Controllers\Settings\ProductCategoryController;
+use App\Http\Controllers\Settings\RolePermissionController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
 use App\Http\Controllers\Settings\SubscriptionController;
 use App\Http\Controllers\SocialAccountConnectionController;
@@ -359,6 +360,17 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('settings.hr.shift-templates.update');
         Route::delete('/settings/hr/shift-templates/{template}', [HrSettingsController::class, 'destroy'])
             ->name('settings.hr.shift-templates.destroy');
+        Route::prefix('/settings/roles-permissions')
+            ->name('settings.roles_permissions.')
+            ->middleware('permission:manage_roles_permissions')
+            ->group(function () {
+                Route::get('/', [RolePermissionController::class, 'edit'])->name('edit');
+                Route::post('/roles', [RolePermissionController::class, 'store'])->name('roles.store');
+                Route::put('/roles/{companyRole}', [RolePermissionController::class, 'update'])->name('roles.update');
+                Route::post('/roles/{companyRole}/duplicate', [RolePermissionController::class, 'duplicate'])->name('roles.duplicate');
+                Route::patch('/roles/{companyRole}/toggle', [RolePermissionController::class, 'toggle'])->name('roles.toggle');
+                Route::delete('/roles/{companyRole}', [RolePermissionController::class, 'destroy'])->name('roles.destroy');
+            });
         Route::post('/settings/api-tokens', [ApiTokenController::class, 'store'])->name('settings.api-tokens.store');
         Route::delete('/settings/api-tokens/{token}', [ApiTokenController::class, 'destroy'])->name('settings.api-tokens.destroy');
         Route::post('/settings/warehouses', [WarehouseController::class, 'store'])->name('settings.warehouses.store');
@@ -628,11 +640,21 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
 
     // Presence
     Route::middleware('company.feature:presence')->group(function () {
-        Route::get('/presence', [PresenceController::class, 'index'])->name('presence.index');
-        Route::post('/presence/clock-in', [PresenceController::class, 'clockIn'])->name('presence.clock-in');
-        Route::post('/presence/clock-out', [PresenceController::class, 'clockOut'])->name('presence.clock-out');
-        Route::post('/presence/break', [PresenceController::class, 'setBreak'])->name('presence.break');
-        Route::post('/presence/available', [PresenceController::class, 'setAvailable'])->name('presence.available');
+        Route::get('/presence', [PresenceController::class, 'index'])
+            ->middleware('permission:view_presence')
+            ->name('presence.index');
+        Route::post('/presence/clock-in', [PresenceController::class, 'clockIn'])
+            ->middleware('permission:manage_own_presence')
+            ->name('presence.clock-in');
+        Route::post('/presence/clock-out', [PresenceController::class, 'clockOut'])
+            ->middleware('permission:manage_own_presence')
+            ->name('presence.clock-out');
+        Route::post('/presence/break', [PresenceController::class, 'setBreak'])
+            ->middleware('permission:manage_own_presence')
+            ->name('presence.break');
+        Route::post('/presence/available', [PresenceController::class, 'setAvailable'])
+            ->middleware('permission:manage_own_presence')
+            ->name('presence.available');
     });
 
     // Planning

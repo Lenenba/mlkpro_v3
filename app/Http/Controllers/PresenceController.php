@@ -12,6 +12,7 @@ use App\Services\AttendanceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class PresenceController extends Controller
 {
@@ -20,9 +21,8 @@ class PresenceController extends Controller
         [$user, $accountOwner, $settings, $membership] = $this->resolveContext($request);
 
         $isServiceCompany = $accountOwner->company_type !== 'products';
-        $canManage = $user->id === $accountOwner->id
-            || ($membership?->hasPermission($isServiceCompany ? 'jobs.edit' : 'sales.manage') ?? false)
-            || ($membership?->hasPermission($isServiceCompany ? 'tasks.edit' : '') ?? false);
+        $canManage = Gate::forUser($user)->allows('company-permission', ['manage_team_presence', $accountOwner->id]);
+        $canClock = Gate::forUser($user)->allows('company-permission', ['manage_own_presence', $accountOwner->id]);
 
         $teamMembers = TeamMember::query()
             ->where('account_id', $accountOwner->id)
@@ -41,7 +41,7 @@ class PresenceController extends Controller
             'settings' => $settings,
             'permissions' => [
                 'can_manage' => $canManage,
-                'can_clock' => $settings['manual_clock'],
+                'can_clock' => $settings['manual_clock'] && $canClock,
             ],
             'self_id' => $user->id,
             'company' => [

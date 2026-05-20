@@ -5,7 +5,7 @@ import { createInertiaApp, router } from '@inertiajs/vue3';
 import { Fragment, createApp, defineComponent, h } from 'vue';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import AppSeo from './Components/Seo/AppSeo.vue';
-import { createI18nInstance } from './i18n';
+import { createI18nInstance, ensureI18nLocale } from './i18n';
 import { applyAccessibilityPreferences, readAccessibilityPreferences } from './utils/accessibility';
 
 let i18nInstance = null;
@@ -287,9 +287,9 @@ const resolveInertiaPage = (name) => {
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
     resolve: (name) => resolveInertiaPage(name),
-    setup({ el, App, props, plugin }) {
+    async setup({ el, App, props, plugin }) {
         const initialLocale = props.initialPage?.props?.locale || 'fr';
-        i18nInstance = createI18nInstance(initialLocale);
+        i18nInstance = await createI18nInstance(initialLocale);
         setDocumentLang(initialLocale);
 
         // Création de l'application Vue
@@ -317,11 +317,11 @@ router.on('navigate', () => {
     initializePreline();
 });
 
-router.on('success', (event) => {
+router.on('success', async (event) => {
     const locale = event?.detail?.page?.props?.locale;
     if (i18nInstance && locale && i18nInstance.global.locale.value !== locale) {
-        i18nInstance.global.locale.value = locale;
-        setDocumentLang(locale);
+        const resolvedLocale = await ensureI18nLocale(i18nInstance, locale);
+        setDocumentLang(resolvedLocale);
     }
 });
 

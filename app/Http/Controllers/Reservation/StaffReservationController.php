@@ -689,13 +689,31 @@ class StaffReservationController extends Controller
             ->first();
 
         $canManage = $this->canManageReservations($user, $ownTeamMember);
+        $canViewAll = $canManage || $this->canViewAllReservations($user, $ownTeamMember);
 
         return [
             'own_team_member_id' => $ownTeamMember?->id,
-            'can_view_all' => $canManage,
+            'can_view_all' => $canViewAll,
             'can_manage' => $canManage,
             'can_update_status' => $canManage || (bool) $ownTeamMember,
         ];
+    }
+
+    private function canViewAllReservations(User $user, ?TeamMember $teamMember): bool
+    {
+        if ($user->id === $user->accountOwnerId()) {
+            return true;
+        }
+
+        if (! $teamMember) {
+            return false;
+        }
+
+        if ($teamMember->role === 'admin') {
+            return true;
+        }
+
+        return $teamMember->hasPermission('view_all_reservations');
     }
 
     private function canManageReservations(User $user, ?TeamMember $teamMember): bool

@@ -36,7 +36,7 @@
       "member_avatar_alt": "Avatar del miembro",
       "headings": {
         "member": "Miembro",
-        "role": "Rol",
+        "role": "Perfil / acceso",
         "title": "Titulo",
         "phone": "Telefono",
         "status": "Estado",
@@ -53,14 +53,18 @@
       "phone": "Telefono",
       "joined": "Agregado",
       "member_id": "ID del miembro",
-      "permissions": "Permisos",
-      "no_permissions": "Sin permisos especificos.",
+      "permissions": "Permisos efectivos",
+      "no_permissions": "Sin permisos efectivos.",
       "none_selected": "No hay ningun miembro seleccionado."
     },
     "forms": {
       "name": "Nombre",
       "email": "Email",
-      "role": "Rol",
+      "role": "Perfil operativo",
+      "access_role": "Rol de acceso",
+      "access_role_help": "Los permisos se gestionan en Configuracion > Equipo y acceso > Roles y permisos.",
+      "no_access_role": "Sin rol de acceso",
+      "system_role_suffix": "sistema",
       "title_optional": "Titulo (opcional)",
       "phone_optional": "Telefono (opcional)",
       "photo_or_icon": "Foto o icono",
@@ -116,7 +120,20 @@
         "social_view": "Ver Malikia Pulse",
         "social_manage": "Crear y editar publicaciones sociales",
         "social_publish": "Publicar y programar publicaciones sociales",
-        "social_approve": "Aprobar publicaciones sociales"
+        "social_approve": "Aprobar publicaciones sociales",
+        "expenses_view": "Ver gastos",
+        "expenses_create": "Crear gastos",
+        "expenses_edit": "Editar gastos",
+        "expenses_approve": "Aprobar gastos",
+        "expenses_approve_high": "Aprobar gastos de alto valor",
+        "expenses_pay": "Marcar gastos como vencidos, pagados o reembolsados",
+        "accounting_view": "Ver contabilidad",
+        "accounting_manage": "Gestionar contabilidad",
+        "invoices_view": "Ver facturas",
+        "invoices_create": "Crear facturas",
+        "invoices_edit": "Editar facturas",
+        "invoices_approve": "Aprobar facturas",
+        "invoices_approve_high": "Aprobar facturas de alto valor"
       }
     }
   }

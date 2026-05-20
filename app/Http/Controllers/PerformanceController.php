@@ -20,11 +20,15 @@ class PerformanceController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
-        [$accountOwner, $isServiceCompany] = $this->resolvePerformanceContext($user);
+        [$accountOwner, $isServiceCompany, , $canViewTeamPerformance] = $this->resolvePerformanceContext($user);
+        if (! $canViewTeamPerformance) {
+            abort(403);
+        }
+
         $now = now();
 
         if ($isServiceCompany) {
@@ -45,11 +49,11 @@ class PerformanceController extends Controller
     public function employee(Request $request, User $employee)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
-        [$accountOwner, $isServiceCompany] = $this->resolvePerformanceContext($user);
+        [$accountOwner, $isServiceCompany, , $canViewTeamPerformance] = $this->resolvePerformanceContext($user);
         $accountId = $accountOwner->id;
 
         $membership = null;
@@ -59,9 +63,13 @@ class PerformanceController extends Controller
                 ->where('user_id', $employee->id)
                 ->first();
 
-            if (!$membership) {
+            if (! $membership) {
                 abort(404);
             }
+        }
+
+        if ($employee->id !== $user->id && ! $canViewTeamPerformance) {
+            abort(403);
         }
 
         $employeePayload = [
@@ -112,41 +120,70 @@ class PerformanceController extends Controller
             ? $user
             : User::query()->find($ownerId);
 
-        if (!$owner) {
+        if (! $owner) {
             abort(403);
         }
 
         $isServiceCompany = $owner->company_type !== 'products';
         if ($isServiceCompany) {
-            if (!$owner->hasCompanyFeature('jobs') && !$owner->hasCompanyFeature('tasks')) {
+            if (! $owner->hasCompanyFeature('jobs') && ! $owner->hasCompanyFeature('tasks')) {
                 abort(403);
             }
-        } elseif (!$owner->hasCompanyFeature('sales')) {
+        } elseif (! $owner->hasCompanyFeature('sales')) {
             abort(403);
         }
+
+        $membership = null;
+        $canViewTeamPerformance = $user->id === $owner->id;
 
         if ($user->id !== $owner->id) {
             $membership = $user->relationLoaded('teamMembership')
                 ? $user->teamMembership
                 : $user->teamMembership()->first();
 
-            if ($isServiceCompany) {
-                $canManage = ($membership?->hasPermission('jobs.edit') ?? false)
-                    || ($membership?->hasPermission('tasks.edit') ?? false);
-                $canView = $canManage
-                    || ($membership?->hasPermission('jobs.view') ?? false)
-                    || ($membership?->hasPermission('tasks.view') ?? false);
-            } else {
-                $canManage = $membership?->hasPermission('sales.manage') ?? false;
-                $canView = $canManage || ($membership?->hasPermission('sales.pos') ?? false);
+            if (! $membership || (int) $membership->account_id !== (int) $owner->id || ! $membership->is_active) {
+                abort(403);
             }
 
-            if (!$canView) {
+            $canViewTeamPerformance = $this->canViewTeamPerformance($membership, $isServiceCompany);
+            $canViewOwnPerformance = $canViewTeamPerformance || $this->canViewOwnPerformance($membership, $isServiceCompany);
+
+            if (! $canViewOwnPerformance) {
                 abort(403);
             }
         }
 
-        return [$owner, $isServiceCompany];
+        return [$owner, $isServiceCompany, $membership, $canViewTeamPerformance];
+    }
+
+    private function canViewTeamPerformance(TeamMember $membership, bool $isServiceCompany): bool
+    {
+        if ($membership->role === 'admin') {
+            return true;
+        }
+
+        if ($membership->hasPermission('reports.team')
+            || $membership->hasPermission('view_team_reports')
+            || $membership->hasPermission('view_reports')) {
+            return true;
+        }
+
+        return ! $isServiceCompany
+            && ($membership->hasPermission('sales.manage') || $membership->hasPermission('view_sales_reports'));
+    }
+
+    private function canViewOwnPerformance(TeamMember $membership, bool $isServiceCompany): bool
+    {
+        if ($isServiceCompany) {
+            return $membership->hasPermission('jobs.view')
+                || $membership->hasPermission('jobs.edit')
+                || $membership->hasPermission('tasks.view')
+                || $membership->hasPermission('tasks.edit');
+        }
+
+        return $membership->hasPermission('sales.pos')
+            || $membership->hasPermission('sales.manage')
+            || $membership->hasPermission('view_sales_reports');
     }
 
     private function buildSellerPerformance(int $accountId, Carbon $now, int $sellerLimit = 12, int $productLimit = 6): array
@@ -169,7 +206,7 @@ class PerformanceController extends Controller
         foreach ($periodData as $key => $period) {
             $topSellers = $period['top_sellers'] ?? [];
             $sellerOfPeriods[$key] = collect($topSellers)
-                ->first(fn($seller) => ($seller['type'] ?? null) === 'user')
+                ->first(fn ($seller) => ($seller['type'] ?? null) === 'user')
                 ?? ($topSellers[0] ?? null);
         }
 
@@ -231,8 +268,8 @@ class PerformanceController extends Controller
         $sellerRows = $sellerRowsQuery->get();
 
         $sellerIds = $sellerRows->pluck('seller_id')
-            ->map(fn($id) => (int) $id)
-            ->filter(fn($id) => $id > 0)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
             ->unique()
             ->values();
         $sellerMap = $sellerIds->isNotEmpty()
@@ -729,6 +766,7 @@ class PerformanceController extends Controller
             if ($a['items'] !== $b['items']) {
                 return $a['items'] < $b['items'] ? 1 : -1;
             }
+
             return 0;
         })->values();
 
@@ -745,6 +783,7 @@ class PerformanceController extends Controller
         }
         $topJobs = $topJobsQuery->get()->map(function ($row) {
             $title = $row->job_title ?: 'Job';
+
             return [
                 'id' => md5((string) $title),
                 'name' => $title,
@@ -889,7 +928,7 @@ class PerformanceController extends Controller
         int $jobLimit = 6,
         int $customerLimit = 6
     ): array {
-        if (!$teamMemberId) {
+        if (! $teamMemberId) {
             return ['periods' => []];
         }
 
@@ -958,6 +997,7 @@ class PerformanceController extends Controller
         }
         $topJobs = $topJobsQuery->get()->map(function ($row) {
             $title = $row->job_title ?: 'Job';
+
             return [
                 'id' => md5((string) $title),
                 'name' => $title,
@@ -1034,7 +1074,7 @@ class PerformanceController extends Controller
         $summary = [];
 
         foreach ($periods as $key => [$start, $end]) {
-            if (!$teamMemberId) {
+            if (! $teamMemberId) {
                 $summary[$key] = [
                     'absence_days' => 0,
                     'leave_days' => 0,
@@ -1046,6 +1086,7 @@ class PerformanceController extends Controller
                         'end' => $end->toDateString(),
                     ],
                 ];
+
                 continue;
             }
 
@@ -1123,6 +1164,7 @@ class PerformanceController extends Controller
                 } else {
                     $absenceDays++;
                 }
+
                 continue;
             }
 
@@ -1162,18 +1204,19 @@ class PerformanceController extends Controller
     {
         $start = $this->parseTime($startTime);
         $end = $this->parseTime($endTime);
-        if (!$start || !$end) {
+        if (! $start || ! $end) {
             return 0;
         }
         if ($end->lt($start)) {
             return 0;
         }
+
         return $start->diffInMinutes($end) / 60;
     }
 
     private function parseTime(?string $value): ?Carbon
     {
-        if (!$value) {
+        if (! $value) {
             return null;
         }
 
@@ -1195,7 +1238,7 @@ class PerformanceController extends Controller
 
     private function resolveCustomerName(?Customer $customer): string
     {
-        if (!$customer) {
+        if (! $customer) {
             return 'Customer';
         }
 
@@ -1203,7 +1246,8 @@ class PerformanceController extends Controller
             return $customer->company_name;
         }
 
-        $name = trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
+        $name = trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
+
         return $name !== '' ? $name : 'Customer';
     }
 }

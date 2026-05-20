@@ -8,6 +8,7 @@ use App\Models\TeamMemberShift;
 use App\Models\User;
 use App\Services\Auth\SocialAuthProviderRegistry;
 use App\Services\CompanyFeatureService;
+use App\Services\Rbac\PermissionCatalog;
 use App\Support\Database\UserSelects;
 use App\Support\LocalePreference;
 use App\Support\Notifications\UserNotificationCenter;
@@ -43,6 +44,7 @@ class HandleInertiaRequests extends Middleware
         $siteUrl = rtrim((string) (config('app.url') ?: $request->getSchemeAndHttpHost()), '/');
         $featureService = app(CompanyFeatureService::class);
         $socialAuthProviders = app(SocialAuthProviderRegistry::class);
+        $permissionCatalog = app(PermissionCatalog::class);
 
         $accountOwner = null;
         $accountFeatures = null;
@@ -78,6 +80,15 @@ class HandleInertiaRequests extends Middleware
             $teamMembership = $user->relationLoaded('teamMembership')
                 ? $user->teamMembership
                 : $user->teamMembership()->first();
+
+            $teamMembership?->loadMissing('companyRole.permissions');
+        }
+
+        $companyPermissions = [];
+        if ($user && $accountOwner && ! $user->isClient()) {
+            $companyPermissions = $user->isSuperadmin() || ($user->isOwner() && (int) $user->id === (int) $accountOwner->id)
+                ? $permissionCatalog->permissionSlugs()
+                : $permissionCatalog->expand($teamMembership?->resolvedPermissions() ?? []);
         }
 
         $platformAdmin = null;
@@ -171,6 +182,7 @@ class HandleInertiaRequests extends Middleware
                         'logo_url' => $accountOwner->company_logo_url,
                     ] : null,
                     'features' => $accountFeatures,
+                    'permissions' => $companyPermissions,
                     'platform' => $platformAdmin ? [
                         'role' => $platformAdmin->role,
                         'permissions' => $platformAdmin->permissions ?? [],
@@ -178,7 +190,12 @@ class HandleInertiaRequests extends Middleware
                     ] : null,
                     'team' => $teamMembership ? [
                         'role' => $teamMembership->role,
-                        'permissions' => $teamMembership->permissions ?? [],
+                        'company_role' => $teamMembership->companyRole ? [
+                            'id' => $teamMembership->companyRole->id,
+                            'name' => $teamMembership->companyRole->name,
+                            'slug' => $teamMembership->companyRole->slug,
+                        ] : null,
+                        'permissions' => $companyPermissions,
                     ] : null,
                 ] : null,
                 'impersonator' => $impersonator,

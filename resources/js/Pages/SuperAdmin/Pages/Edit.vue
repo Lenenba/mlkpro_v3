@@ -126,6 +126,7 @@ const templateOptions = computed(() => [
 ]);
 
 const selectedTemplate = ref('');
+const applyingTemplate = ref(false);
 const selectedTemplateMeta = computed(() =>
     templates.value.find((template) => template.id === selectedTemplate.value) || null
 );
@@ -1100,18 +1101,25 @@ const submit = () => {
     form.transform(() => payload).put(route('superadmin.pages.update', props.page.id), { preserveScroll: true });
 };
 
-const applyTemplate = () => {
+const applyTemplate = async () => {
     const template = templates.value.find((item) => item.id === selectedTemplate.value);
     if (!template) return;
 
-    const nextDrafts = {};
+    applyingTemplate.value = true;
 
-    localeList.value.forEach((locale) => {
-        nextDrafts[locale] = ensureStructure(buildPageTemplateContent(template.id, locale) || {});
-    });
+    try {
+        const templateEntries = await Promise.all(
+            localeList.value.map(async (locale) => [
+                locale,
+                ensureStructure((await buildPageTemplateContent(template.id, locale)) || {}),
+            ]),
+        );
 
-    contentByLocale.value = nextDrafts;
-    syncFormFromProps(currentLocale.value);
+        contentByLocale.value = Object.fromEntries(templateEntries);
+        syncFormFromProps(currentLocale.value);
+    } finally {
+        applyingTemplate.value = false;
+    }
 };
 
 contentByLocale.value = buildLocaleContentDrafts(props.content);
@@ -1173,7 +1181,7 @@ syncFormFromProps(currentLocale.value);
                     </div>
                 </div>
                 <div class="mt-3">
-                    <button type="button" @click="applyTemplate" :disabled="!selectedTemplate"
+                    <button type="button" @click="applyTemplate" :disabled="!selectedTemplate || applyingTemplate"
                         class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800">
                         {{ $t('super_admin.pages.templates.apply') }}
                     </button>
