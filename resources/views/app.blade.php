@@ -16,6 +16,17 @@
         <link rel="shortcut icon" href="{{ asset('favicon.ico') }}">
 
         <title inertia>{{ config('app.name', 'Malikia pro') }}</title>
+        @php
+            $indexableComponents = ['Welcome', 'Pricing', 'Terms', 'Privacy', 'Refund', 'Public/Page', 'Public/Showcase', 'Public/Store'];
+            $pageComponent = $page['component'] ?? '';
+            $siteUrl = rtrim((string) (config('app.url') ?: request()->getSchemeAndHttpHost()), '/');
+            $pagePath = parse_url((string) ($page['url'] ?? request()->getRequestUri()), PHP_URL_PATH) ?: '/';
+            $pagePath = $pagePath === '/' ? '/' : rtrim('/'.ltrim($pagePath, '/'), '/');
+            $canonicalUrl = $siteUrl.($pagePath === '/' ? '/' : $pagePath);
+        @endphp
+        @if (in_array($pageComponent, $indexableComponents, true))
+            <link rel="canonical" href="{{ $canonicalUrl }}">
+        @endif
 
         <script @if(!empty($cspNonce)) nonce="{{ $cspNonce }}" @endif>
             (function () {

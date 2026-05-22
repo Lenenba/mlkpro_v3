@@ -57,6 +57,30 @@ const absoluteUrl = (value, baseUrl) => {
     }
 };
 
+const normalizeUrlPath = (value) => {
+    const path = trimValue(value) || '/';
+    const normalized = path.startsWith('/') ? path : `/${path}`;
+
+    return normalized === '/' ? '/' : normalized.replace(/\/+$/, '');
+};
+
+const canonicalizeUrl = (value, baseUrl) => {
+    const fallbackBase = baseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
+    const input = trimValue(value) || '/';
+
+    try {
+        const url = new URL(input, fallbackBase || undefined);
+        url.hash = '';
+        url.search = '';
+        url.pathname = normalizeUrlPath(url.pathname);
+
+        return url.toString();
+    } catch (error) {
+        const [path] = input.split(/[?#]/);
+        return absoluteUrl(normalizeUrlPath(path || '/'), fallbackBase);
+    }
+};
+
 const resolveFirstArrayImage = (items) => {
     if (!Array.isArray(items)) {
         return '';
@@ -122,11 +146,9 @@ const siteUrl = computed(() => {
 });
 
 const currentUrl = computed(() => {
-    if (typeof window !== 'undefined' && window.location?.href) {
-        return window.location.href.split('#')[0];
-    }
+    const source = page.url || (typeof window !== 'undefined' ? window.location?.href : '/');
 
-    return absoluteUrl(page.url || '/', siteUrl.value);
+    return canonicalizeUrl(source, siteUrl.value);
 });
 
 const defaultDescription = computed(() => clampText(firstNonEmpty(

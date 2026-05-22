@@ -135,6 +135,7 @@ use App\Http\Controllers\WorkspaceCategoryController;
 use App\Http\Middleware\EnsureClientUser;
 use App\Http\Middleware\EnsureInternalUser;
 use App\Http\Middleware\EnsurePlatformAdmin;
+use App\Models\PlatformPage;
 use App\Modules\AiAssistant\Http\Controllers\AiActionController;
 use App\Modules\AiAssistant\Http\Controllers\AiAssistantSettingsController;
 use App\Modules\AiAssistant\Http\Controllers\AiConversationController;
@@ -145,6 +146,53 @@ use Illuminate\Support\Facades\Route;
 Route::get('/favicon.ico', function () {
     return response()->file(public_path('favicon.ico'));
 })->name('favicon');
+
+Route::get('/sitemap.xml', function () {
+    $siteUrl = rtrim((string) config('app.url'), '/');
+    $siteUrl = $siteUrl !== '' ? $siteUrl : rtrim(url('/'), '/');
+    $escape = static fn (string $value): string => htmlspecialchars($value, ENT_XML1 | ENT_COMPAT, 'UTF-8');
+    $formatLoc = static fn (string $path): string => $siteUrl.($path === '/' ? '/' : '/'.ltrim($path, '/'));
+
+    $urls = collect([
+        ['loc' => $formatLoc('/'), 'priority' => '1.0'],
+        ['loc' => $formatLoc('/pricing'), 'priority' => '0.8'],
+        ['loc' => $formatLoc('/terms'), 'priority' => '0.3'],
+        ['loc' => $formatLoc('/privacy'), 'priority' => '0.3'],
+        ['loc' => $formatLoc('/refund'), 'priority' => '0.3'],
+    ])->merge(
+        PlatformPage::query()
+            ->where('is_active', true)
+            ->whereNotIn('slug', ['welcome'])
+            ->orderBy('slug')
+            ->get(['slug', 'updated_at'])
+            ->map(fn (PlatformPage $page): array => [
+                'loc' => $formatLoc('/pages/'.$page->slug),
+                'lastmod' => $page->updated_at?->toDateString(),
+                'priority' => '0.7',
+            ])
+    )->unique('loc')->values();
+
+    $lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ];
+
+    foreach ($urls as $url) {
+        $lines[] = '  <url>';
+        $lines[] = '    <loc>'.$escape($url['loc']).'</loc>';
+        if (! empty($url['lastmod'])) {
+            $lines[] = '    <lastmod>'.$escape($url['lastmod']).'</lastmod>';
+        }
+        $lines[] = '    <priority>'.$escape($url['priority']).'</priority>';
+        $lines[] = '  </url>';
+    }
+
+    $lines[] = '</urlset>';
+
+    return response(implode("\n", $lines)."\n", 200, [
+        'Content-Type' => 'application/xml; charset=UTF-8',
+    ]);
+})->name('sitemap');
 
 Route::get('/integrations/prospect-providers/{provider}/callback', [MarketingProspectProviderConnectionController::class, 'oauthCallback'])
     ->whereIn('provider', ['apollo'])
