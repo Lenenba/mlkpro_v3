@@ -41,6 +41,12 @@ const form = useForm({
 const submit = () => {
     form.put(route('superadmin.notifications.update'), { preserveScroll: true });
 };
+
+const recapForm = useForm({});
+
+const sendRecap = () => {
+    recapForm.post(route('superadmin.notifications.send-recap'), { preserveScroll: true });
+};
 </script>
 
 <template>
@@ -129,7 +135,11 @@ const submit = () => {
                         </div>
                     </div>
 
-                    <div class="flex justify-end">
+                    <div class="flex items-center justify-end gap-2">
+                        <button type="button" @click="sendRecap" :disabled="recapForm.processing"
+                            class="py-2 px-3 text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800">
+                            {{ $t('super_admin.notifications.send_recap') }}
+                        </button>
                         <button type="submit" :disabled="form.processing"
                             class="py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none">
                             {{ $t('super_admin.notifications.save') }}

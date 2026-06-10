@@ -6,7 +6,8 @@
       "Bash(Select-Object Name)",
       "Bash(xargs grep -l \"social\")",
       "Bash(xargs grep -l \"social_\")",
-      "Bash(xargs grep -l \"class.*PostStatus\\\\|enum.*PostStatus\")"
+      "Bash(xargs grep -l \"class.*PostStatus\\\\|enum.*PostStatus\")",
+      "PowerShell(. $PROFILE; art --version)"
     ]
   }
 }

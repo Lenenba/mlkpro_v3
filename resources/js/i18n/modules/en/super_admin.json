@@ -571,7 +571,8 @@
         "payment_failed": "Payment failed",
         "churn_risk": "Churn risk"
       },
-      "save": "Save preferences"
+      "save": "Save preferences",
+      "send_recap": "Send recap"
     },
     "settings": {
       "page_title": "Platform Settings",

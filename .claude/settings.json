@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php -r 'json_decode\\(file_get_contents\\('\\\\''resources/js/i18n/modules/__TRACKED_VAR__/super_admin.json'\\\\''\\)\\); echo '\\\\''__TRACKED_VAR__: '\\\\''.\\(json_last_error\\(\\)===JSON_ERROR_NONE?'\\\\''OK'\\\\'':json_last_error_msg\\(\\)\\).PHP_EOL;')",
+      "Bash(vendor/bin/pint app/Http/Controllers/SuperAdmin/NotificationController.php)",
+      "Bash(php vendor/bin/pint app/Http/Controllers/SuperAdmin/NotificationController.php)"
+    ]
+  }
+}
