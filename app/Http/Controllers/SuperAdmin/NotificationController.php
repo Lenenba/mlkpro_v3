@@ -91,9 +91,9 @@ class NotificationController extends BaseSuperAdminController
 
         $validated = $request->validate([
             'channels' => 'nullable|array',
-            'channels.*' => 'string|in:' . implode(',', self::CHANNELS),
+            'channels.*' => 'string|in:'.implode(',', self::CHANNELS),
             'categories' => 'nullable|array',
-            'categories.*' => 'string|in:' . implode(',', self::CATEGORIES),
+            'categories.*' => 'string|in:'.implode(',', self::CATEGORIES),
             'digest_frequency' => 'required|string|in:immediate,daily,weekly',
             'quiet_hours_start' => 'nullable|string|max:10',
             'quiet_hours_end' => 'nullable|string|max:10',
