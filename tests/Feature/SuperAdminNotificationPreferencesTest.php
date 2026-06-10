@@ -106,6 +106,46 @@ it('persists when all boxes in a group are unchecked', function () {
     expect($settings->channels)->toBe([]);
 });
 
+it('accepts categories seeded by the platform notifier (operational_health)', function () {
+    // Reproduces the pre-prod bug: the settings row was created by PlatformAdminNotifier,
+    // whose defaults include "operational_health". That value sits hidden in the form and
+    // was rejected by the controller validation, making every save fail silently (422).
+    $user = makeNotificationSuperadmin();
+
+    PlatformNotificationSetting::query()->create([
+        'user_id' => $user->id,
+        'channels' => ['email'],
+        'categories' => ['new_account', 'operational_health', 'churn_risk'],
+        'rules' => [],
+        'digest_frequency' => 'daily',
+    ]);
+
+    // The browser resubmits the hidden "operational_health" and unchecks churn_risk.
+    $this->actingAs($user)
+        ->put(route('superadmin.notifications.update'), [
+            'channels' => ['email'],
+            'categories' => ['new_account', 'operational_health'],
+            'digest_frequency' => 'daily',
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    $settings = PlatformNotificationSetting::query()->where('user_id', $user->id)->first();
+
+    expect($settings->categories)->toBe(['new_account', 'operational_health']);
+});
+
+it('exposes operational_health as an available category', function () {
+    $user = makeNotificationSuperadmin();
+
+    $this->actingAs($user)
+        ->get(route('superadmin.notifications.edit'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('available_categories', fn ($categories) => collect($categories)->contains('operational_health'))
+        );
+});
+
 it('sends an on-demand recap email without marking notifications as sent', function () {
     Notification::fake();
 
