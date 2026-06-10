@@ -2,15 +2,21 @@
 
 namespace App\Http\Controllers\SuperAdmin;
 
+use App\Models\PlatformNotification;
 use App\Models\PlatformNotificationSetting;
+use App\Notifications\PlatformAdminDigestNotification;
 use App\Support\PlatformPermissions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class NotificationController extends BaseSuperAdminController
 {
+    private const RECAP_DAYS = 7;
+
     private const CHANNELS = [
         'email',
         'slack',
@@ -112,5 +118,51 @@ class NotificationController extends BaseSuperAdminController
         $this->logAudit($request, 'notifications.updated');
 
         return redirect()->back()->with('success', 'Notification preferences saved.');
+    }
+
+    /**
+     * Send an on-demand recap email of the recent platform notifications to the
+     * current super admin. Useful when the scheduled daily digest was not received.
+     * Sent inline (synchronously) so a delivery failure surfaces immediately, and
+     * notifications are left untouched (sent_at is not modified).
+     */
+    public function sendRecap(Request $request): RedirectResponse
+    {
+        $this->authorizePermission($request, PlatformPermissions::NOTIFICATIONS_MANAGE);
+
+        $user = $request->user();
+
+        $items = PlatformNotification::query()
+            ->where('user_id', $user->id)
+            ->where('created_at', '>=', now()->subDays(self::RECAP_DAYS))
+            ->orderBy('created_at')
+            ->get()
+            ->map(fn (PlatformNotification $item) => [
+                'title' => $item->title,
+                'category' => $item->category,
+                'intro' => $item->intro,
+                'created_at' => $item->created_at,
+            ])
+            ->all();
+
+        if ($items === []) {
+            return redirect()->back()->with('warning', 'No notifications to recap from the last '.self::RECAP_DAYS.' days.');
+        }
+
+        try {
+            // sendNow bypasses the queue even though the notification is ShouldQueue.
+            Notification::sendNow($user, new PlatformAdminDigestNotification('daily', $items));
+        } catch (\Throwable $e) {
+            Log::warning('Notification recap email failed.', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return redirect()->back()->with('error', 'Could not send the recap email. Please try again later.');
+        }
+
+        $this->logAudit($request, 'notifications.recap_sent');
+
+        return redirect()->back()->with('success', 'Recap email sent to '.$user->email.'.');
     }
 }

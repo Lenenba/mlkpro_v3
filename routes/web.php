@@ -1267,6 +1267,7 @@ Route::prefix('super-admin')
 
         Route::get('/notifications', [SuperAdminNotificationController::class, 'edit'])->name('notifications.edit');
         Route::put('/notifications', [SuperAdminNotificationController::class, 'update'])->name('notifications.update');
+        Route::post('/notifications/send-recap', [SuperAdminNotificationController::class, 'sendRecap'])->name('notifications.send-recap');
 
         Route::get('/announcements', [SuperAdminAnnouncementController::class, 'index'])->name('announcements.index');
         Route::get('/announcements/preview', [SuperAdminAnnouncementController::class, 'preview'])->name('announcements.preview');

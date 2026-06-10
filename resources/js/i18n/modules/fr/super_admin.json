@@ -571,7 +571,8 @@
         "payment_failed": "Paiements echoues",
         "churn_risk": "Risque de churn"
       },
-      "save": "Enregistrer les preferences"
+      "save": "Enregistrer les preferences",
+      "send_recap": "Envoyer un recap"
     },
     "settings": {
       "page_title": "Parametres plateforme",

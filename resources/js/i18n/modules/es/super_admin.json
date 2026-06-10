@@ -571,7 +571,8 @@
         "payment_failed": "Pago fallido",
         "churn_risk": "Riesgo de abandono"
       },
-      "save": "Guardar preferencias"
+      "save": "Guardar preferencias",
+      "send_recap": "Enviar resumen"
     },
     "settings": {
       "page_title": "Configuración de la plataforma",
