@@ -35,6 +35,7 @@ class NotificationController extends BaseSuperAdminController
         'payment_succeeded',
         'payment_failed',
         'churn_risk',
+        'operational_health',
         'error_spike',
         'abuse_security',
     ];
