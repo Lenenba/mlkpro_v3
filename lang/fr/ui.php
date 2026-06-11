@@ -18,6 +18,7 @@ return [
             'email_not_verified' => ':provider n a pas renvoye une adresse email verifiee exploitable.',
             'provider_already_linked' => 'Un autre compte :provider est deja lie a cet utilisateur.',
             'account_not_available' => 'Le compte local lie a :provider est introuvable.',
+            'create_candidate_expired' => 'Cette demande de creation de compte n est plus valide. Recommencez.',
         ],
         'two_factor' => [
             'challenge_delivery_failed' => 'Impossible d envoyer un code de verification. Veuillez reessayer.',

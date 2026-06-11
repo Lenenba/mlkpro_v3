@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Enums\BillingPeriod;
+use App\Exceptions\Auth\SocialAccountConfirmationRequiredException;
 use App\Http\Controllers\Controller;
 use App\Services\Auth\FacebookSocialAuthService;
 use App\Services\Auth\GoogleSocialAuthService;
@@ -13,7 +14,9 @@ use App\Services\Auth\SocialAuthProviderRegistry;
 use App\Services\Auth\WebLoginResponseService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class SocialAuthController extends Controller
@@ -128,8 +131,11 @@ class SocialAuthController extends Controller
                 $resolvedProvider['key'],
                 $result['profile'],
                 $result['tokens'],
-                $request
+                $request,
+                createIfMissing: $source !== 'login'
             );
+        } catch (SocialAccountConfirmationRequiredException $exception) {
+            return $this->promptAccountCreation($request, $resolvedProvider, $exception, $source, $plan, $billingPeriod);
         } catch (ValidationException $exception) {
             $request->session()->forget('social_auth.pending');
 
@@ -164,6 +170,186 @@ class SocialAuthController extends Controller
             'plan' => $plan,
             'billing_period' => $billingPeriod,
         ]);
+    }
+
+    /**
+     * Create the account from a confirmation candidate stashed during the login
+     * flow, after the user explicitly confirmed they want a new account.
+     */
+    public function confirmCreate(
+        Request $request,
+        string $provider,
+        SocialAuthProviderRegistry $registry
+    ): RedirectResponse {
+        $resolvedProvider = $registry->provider($provider);
+        abort_if(! $resolvedProvider || ! ($resolvedProvider['enabled'] ?? false), 404);
+
+        $candidate = $request->session()->get('social_auth.create_candidate');
+        $token = trim((string) $request->input('token'));
+
+        if (! $this->isValidCandidate($candidate, $resolvedProvider['key'], $token)) {
+            $request->session()->forget('social_auth.create_candidate');
+
+            return redirect()->route('login')->with('error', __('ui.auth.social.create_candidate_expired'));
+        }
+
+        $source = (string) ($candidate['source'] ?? 'login');
+        $plan = $this->normalizeOptionalString($candidate['plan'] ?? null);
+        $billingPeriod = BillingPeriod::tryFromMixed($candidate['billing_period'] ?? null)?->value;
+
+        try {
+            $resolved = app(SocialAuthAccountService::class)->resolve(
+                $resolvedProvider['key'],
+                (array) ($candidate['profile'] ?? []),
+                (array) ($candidate['tokens'] ?? []),
+                $request,
+                createIfMissing: true
+            );
+        } catch (\Throwable $exception) {
+            report($exception);
+            $request->session()->forget('social_auth.create_candidate');
+
+            return $this->redirectToSource(
+                $source,
+                $plan,
+                $billingPeriod,
+                'error',
+                __('ui.auth.social.callback_failed', ['provider' => $resolvedProvider['label']])
+            );
+        }
+
+        $request->session()->forget('social_auth.create_candidate');
+        $request->session()->forget('social_auth.pending');
+        Auth::login($resolved['user']);
+        $request->session()->regenerate();
+
+        return app(WebLoginResponseService::class)->respond($request, $resolved['user'], [
+            'auth_method' => 'social',
+            'provider' => $resolvedProvider['key'],
+            'source' => $source,
+            'plan' => $plan,
+            'billing_period' => $billingPeriod,
+        ]);
+    }
+
+    /**
+     * Local-only simulator of a social provider callback. Lets developers exercise
+     * the full flow (including the "no account, confirm creation" dialog) without a
+     * real OAuth provider. Never available outside local/testing environments.
+     *
+     * Example: GET /auth/social/google/dev-callback?email=new@example.com&source=login
+     */
+    public function devSimulate(
+        Request $request,
+        string $provider,
+        SocialAuthProviderRegistry $registry
+    ): RedirectResponse {
+        abort_unless(app()->environment('local', 'testing'), 404);
+
+        $resolvedProvider = $registry->provider($provider);
+        abort_if(! $resolvedProvider, 404);
+
+        $email = strtolower(trim((string) $request->query('email', '')));
+        abort_if($email === '', 422);
+
+        $source = trim((string) $request->query('source', 'login'));
+        if (! in_array($source, ['login', 'register', 'onboarding'], true)) {
+            $source = 'login';
+        }
+
+        $plan = $source === 'onboarding' ? $this->normalizeOptionalString($request->query('plan')) : null;
+        $billingPeriod = $source === 'onboarding'
+            ? BillingPeriod::tryFromMixed($request->query('billing_period'))?->value
+            : null;
+
+        $name = trim((string) $request->query('name', ''));
+        $profile = [
+            'provider_user_id' => 'dev-'.substr(sha1($resolvedProvider['key'].'|'.$email), 0, 24),
+            'provider_email' => $email,
+            'provider_email_verified' => true,
+            'provider_name' => $name !== '' ? $name : null,
+            'provider_avatar_url' => null,
+        ];
+        $tokens = [
+            'access_token' => 'dev-access-token',
+            'token_type' => 'Bearer',
+        ];
+
+        try {
+            $resolved = app(SocialAuthAccountService::class)->resolve(
+                $resolvedProvider['key'],
+                $profile,
+                $tokens,
+                $request,
+                createIfMissing: $source !== 'login'
+            );
+        } catch (SocialAccountConfirmationRequiredException $exception) {
+            return $this->promptAccountCreation($request, $resolvedProvider, $exception, $source, $plan, $billingPeriod);
+        }
+
+        $request->session()->forget('social_auth.pending');
+        Auth::login($resolved['user']);
+        $request->session()->regenerate();
+
+        return app(WebLoginResponseService::class)->respond($request, $resolved['user'], [
+            'auth_method' => 'social',
+            'provider' => $resolvedProvider['key'],
+            'source' => $source,
+            'plan' => $plan,
+            'billing_period' => $billingPeriod,
+        ]);
+    }
+
+    /**
+     * Stash a verified-but-unmatched social profile and send the user back to the
+     * login page, where a dialog asks whether they want to create an account.
+     *
+     * @param  array<string, mixed>  $provider
+     */
+    private function promptAccountCreation(
+        Request $request,
+        array $provider,
+        SocialAccountConfirmationRequiredException $exception,
+        string $source,
+        ?string $plan,
+        ?string $billingPeriod
+    ): RedirectResponse {
+        $request->session()->forget('social_auth.pending');
+
+        $request->session()->put('social_auth.create_candidate', [
+            'token' => Str::random(64),
+            'provider' => $provider['key'],
+            'profile' => $exception->profile,
+            'tokens' => $exception->tokens,
+            'source' => $source,
+            'plan' => $plan,
+            'billing_period' => $billingPeriod,
+            'expires_at' => now()->addMinutes(10)->toIso8601String(),
+        ]);
+
+        return redirect()->route('login');
+    }
+
+    private function isValidCandidate(mixed $candidate, string $providerKey, string $token): bool
+    {
+        if (! is_array($candidate) || $token === '') {
+            return false;
+        }
+
+        if ((string) ($candidate['provider'] ?? '') !== $providerKey) {
+            return false;
+        }
+
+        if (! hash_equals((string) ($candidate['token'] ?? ''), $token)) {
+            return false;
+        }
+
+        $expiresAt = $candidate['expires_at'] ?? null;
+        if (! is_string($expiresAt) || $expiresAt === '') {
+            return false;
+        }
+
+        return Carbon::parse($expiresAt)->isFuture();
     }
 
     /**
