@@ -20,7 +20,13 @@
     "social": {
       "title": "Continuer avec",
       "continue_with": "Continuer avec {provider}",
-      "separator": "ou"
+      "separator": "ou",
+      "confirm_create": {
+        "title": "Aucun compte trouve",
+        "description": "Aucun compte n'est associe a {email} via {provider}. Voulez-vous creer un nouveau compte ?",
+        "create": "Creer mon compte",
+        "cancel": "Annuler"
+      }
     },
     "forgot_password": {
       "title": "Mot de passe oublié",

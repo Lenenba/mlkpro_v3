@@ -2,6 +2,7 @@
 
 namespace App\Services\Auth;
 
+use App\Exceptions\Auth\SocialAccountConfirmationRequiredException;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\UserSocialAccount;
@@ -24,7 +25,8 @@ class SocialAuthAccountService
         string $provider,
         array $profile,
         array $tokens,
-        Request $request
+        Request $request,
+        bool $createIfMissing = true
     ): array {
         $providerLabel = ucfirst($provider);
         $providerUserId = trim((string) ($profile['provider_user_id'] ?? ''));
@@ -80,6 +82,13 @@ class SocialAuthAccountService
                 $socialAccount = new UserSocialAccount;
                 $wasLinked = true;
             } else {
+                if (! $createIfMissing) {
+                    // No account matches this verified profile. From contexts that
+                    // require explicit opt-in (login), do not create silently —
+                    // signal the caller to confirm with the user first.
+                    throw new SocialAccountConfirmationRequiredException($provider, $profile, $tokens);
+                }
+
                 $user = $this->createOwnerFromSocialProfile($providerEmail, $profile, $request);
                 $socialAccount = new UserSocialAccount;
                 $wasCreated = true;

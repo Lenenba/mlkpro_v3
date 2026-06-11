@@ -20,7 +20,13 @@
     "social": {
       "title": "Continuar con",
       "continue_with": "Continuar con {provider}",
-      "separator": "o"
+      "separator": "o",
+      "confirm_create": {
+        "title": "No se encontro ninguna cuenta",
+        "description": "No hay ninguna cuenta asociada a {email} mediante {provider}. ¿Quieres crear una cuenta nueva?",
+        "create": "Crear mi cuenta",
+        "cancel": "Cancelar"
+      }
     },
     "forgot_password": {
       "title": "Olvidaste tu contrasena",

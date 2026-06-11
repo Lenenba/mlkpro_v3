@@ -18,6 +18,7 @@ return [
             'email_not_verified' => ':provider did not return a usable verified email address.',
             'provider_already_linked' => 'Another :provider account is already linked to this user.',
             'account_not_available' => 'The local account linked to :provider could not be found.',
+            'create_candidate_expired' => 'This account creation request is no longer valid. Please try again.',
         ],
         'two_factor' => [
             'challenge_delivery_failed' => 'Unable to deliver a verification code. Please try again.',
