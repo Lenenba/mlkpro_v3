@@ -49,6 +49,18 @@ Route::middleware('guest')->group(function () {
         ->whereIn('provider', ['google', 'microsoft', 'facebook', 'linkedin'])
         ->name('auth.social.callback');
 
+    Route::post('auth/social/{provider}/confirm', [SocialAuthController::class, 'confirmCreate'])
+        ->whereIn('provider', ['google', 'microsoft', 'facebook', 'linkedin'])
+        ->name('auth.social.confirm');
+
+    // Local-only simulator to test the social login flow without a real OAuth
+    // provider. Strictly disabled outside local/testing (also guarded in the controller).
+    if (app()->environment('local', 'testing')) {
+        Route::get('auth/social/{provider}/dev-callback', [SocialAuthController::class, 'devSimulate'])
+            ->whereIn('provider', ['google', 'microsoft', 'facebook', 'linkedin'])
+            ->name('auth.social.dev-callback');
+    }
+
     // Legacy aliases kept for older OAuth provider configs that still use /auth/{provider}/...
     Route::get('auth/{provider}/redirect', [SocialAuthController::class, 'redirect'])
         ->whereIn('provider', ['google', 'microsoft', 'facebook', 'linkedin']);

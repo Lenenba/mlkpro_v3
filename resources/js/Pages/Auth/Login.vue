@@ -3,10 +3,12 @@ import Checkbox from '@/Components/Checkbox.vue';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
+import Modal from '@/Components/Modal.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SocialAuthButtons from '@/Components/Auth/SocialAuthButtons.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
+import { nextTick, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -23,6 +25,10 @@ const props = defineProps({
             plan: null,
             billing_period: null,
         }),
+    },
+    socialCreatePrompt: {
+        type: Object,
+        default: null,
     },
 });
 
@@ -41,6 +47,35 @@ const submit = () => {
     form.post(route('login'), {
         onFinish: () => form.reset('password'),
     });
+};
+
+// Social login: when no account matches the verified provider profile, the
+// backend stashes a candidate and sends this prompt so the user can confirm.
+// The Modal opens on a false -> true transition, so we flip it after mount
+// (it can't be initialised to true, the dialog would never call showModal()).
+const showSocialPrompt = ref(false);
+
+onMounted(async () => {
+    if (props.socialCreatePrompt) {
+        await nextTick();
+        showSocialPrompt.value = true;
+    }
+});
+
+const confirmForm = useForm({
+    token: props.socialCreatePrompt?.token || '',
+});
+
+const confirmSocialCreate = () => {
+    if (!props.socialCreatePrompt) {
+        return;
+    }
+
+    confirmForm.post(props.socialCreatePrompt.confirm_url);
+};
+
+const cancelSocialCreate = () => {
+    showSocialPrompt.value = false;
 };
 </script>
 
@@ -113,5 +148,43 @@ const submit = () => {
                 </PrimaryButton>
             </div>
         </form>
+
+        <Modal
+            v-if="props.socialCreatePrompt"
+            :show="showSocialPrompt"
+            max-width="md"
+            position="center"
+            @close="cancelSocialCreate"
+        >
+            <div class="p-6">
+                <h2 class="text-lg font-semibold text-stone-900 dark:text-neutral-100">
+                    {{ t('auth_pages.social.confirm_create.title') }}
+                </h2>
+                <p class="mt-2 text-sm text-stone-600 dark:text-neutral-400">
+                    {{ t('auth_pages.social.confirm_create.description', {
+                        email: props.socialCreatePrompt.email,
+                        provider: props.socialCreatePrompt.provider_label,
+                    }) }}
+                </p>
+
+                <div class="mt-6 flex items-center justify-end gap-3">
+                    <button
+                        type="button"
+                        class="rounded-sm px-3 py-2 text-sm font-medium text-stone-600 hover:text-stone-900 dark:text-neutral-400 dark:hover:text-neutral-200"
+                        :disabled="confirmForm.processing"
+                        @click="cancelSocialCreate"
+                    >
+                        {{ t('auth_pages.social.confirm_create.cancel') }}
+                    </button>
+                    <PrimaryButton
+                        :class="{ 'opacity-25': confirmForm.processing }"
+                        :disabled="confirmForm.processing"
+                        @click="confirmSocialCreate"
+                    >
+                        {{ t('auth_pages.social.confirm_create.create') }}
+                    </PrimaryButton>
+                </div>
+            </div>
+        </Modal>
     </GuestLayout>
 </template>

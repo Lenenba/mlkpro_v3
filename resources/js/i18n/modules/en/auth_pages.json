@@ -20,7 +20,13 @@
     "social": {
       "title": "Continue with",
       "continue_with": "Continue with {provider}",
-      "separator": "or"
+      "separator": "or",
+      "confirm_create": {
+        "title": "No account found",
+        "description": "No account is associated with {email} via {provider}. Would you like to create a new account?",
+        "create": "Create my account",
+        "cancel": "Cancel"
+      }
     },
     "forgot_password": {
       "title": "Forgot password",

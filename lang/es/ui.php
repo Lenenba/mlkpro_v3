@@ -18,6 +18,7 @@ return [
             'email_not_verified' => ':provider no devolvio un email verificado utilizable.',
             'provider_already_linked' => 'Otro acceso de :provider ya esta vinculado a este usuario.',
             'account_not_available' => 'No se encontro la cuenta local vinculada a :provider.',
+            'create_candidate_expired' => 'Esta solicitud de creacion de cuenta ya no es valida. Intentalo de nuevo.',
         ],
         'two_factor' => [
             'challenge_delivery_failed' => 'No se pudo enviar un codigo de verificacion. Intentalo de nuevo.',
