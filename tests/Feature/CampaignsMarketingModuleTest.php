@@ -2904,6 +2904,88 @@ test('campaign update accepts service offers when legacy product ids payload is 
         ->and((string) $campaign->offers->first()->offer_type)->toBe('service');
 });
 
+test('campaign sms test send targets only the actor without creating an audience run', function () {
+    Queue::fake();
+    Http::preventStrayRequests();
+
+    config()->set([
+        'services.twilio.sid' => 'AC_TEST_CAMPAIGN_SID',
+        'services.twilio.token' => 'test-campaign-token',
+        'services.twilio.from' => '+15145550101',
+    ]);
+
+    Http::fake([
+        'https://api.twilio.com/*' => Http::response([
+            'sid' => 'SM_CAMPAIGN_TEST',
+        ], 201),
+    ]);
+
+    $audienceResolver = \Mockery::mock(AudienceResolver::class);
+    $audienceResolver->shouldNotReceive('resolveForCampaign');
+    $this->app->instance(AudienceResolver::class, $audienceResolver);
+
+    $owner = marketingOwner([
+        'phone_number' => '+15145550103',
+    ]);
+    $actor = marketingTeamMember(
+        $owner,
+        ['campaigns.send'],
+        ['phone_number' => '+15145550102']
+    );
+    $customer = marketingCustomer($owner, [
+        'phone' => '+15145550199',
+    ]);
+
+    $campaign = Campaign::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'name' => 'SMS test campaign',
+        'type' => Campaign::TYPE_PROMOTION,
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'status' => Campaign::STATUS_DRAFT,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'is_marketing' => true,
+    ]);
+
+    $campaign->channels()->create([
+        'channel' => Campaign::CHANNEL_SMS,
+        'is_enabled' => true,
+        'body_template' => 'Canari campagne SMS',
+    ]);
+
+    $response = $this->actingAs($actor)->postJson(
+        route('campaigns.test-send', $campaign),
+        ['channels' => [Campaign::CHANNEL_SMS]]
+    );
+
+    $response->assertOk()
+        ->assertJsonCount(1, 'results')
+        ->assertJsonPath('results.0.channel', Campaign::CHANNEL_SMS)
+        ->assertJsonPath('results.0.ok', true)
+        ->assertJsonPath('results.0.provider_message_id', 'SM_CAMPAIGN_TEST');
+
+    Http::assertSent(function (HttpClientRequest $request) use ($owner, $actor, $customer): bool {
+        $data = $request->data();
+
+        return $request->method() === 'POST'
+            && $request->url() === 'https://api.twilio.com/2010-04-01/Accounts/AC_TEST_CAMPAIGN_SID/Messages.json'
+            && ($data['To'] ?? null) === $actor->phone_number
+            && ($data['To'] ?? null) !== $owner->phone_number
+            && ($data['To'] ?? null) !== $customer->phone
+            && ($data['From'] ?? null) === '+15145550101'
+            && ($data['Body'] ?? null) === 'Canari campagne SMS';
+    });
+    Http::assertSentCount(1);
+
+    Queue::assertNothingPushed();
+
+    expect(CampaignRun::query()->exists())->toBeFalse()
+        ->and(CampaignRecipient::query()->exists())->toBeFalse()
+        ->and($campaign->audience()->exists())->toBeFalse();
+});
+
 test('sending workflow queues dispatch and recipient jobs', function () {
     Queue::fake();
 
