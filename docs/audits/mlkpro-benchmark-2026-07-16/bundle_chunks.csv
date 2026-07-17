@@ -1,0 +1,8 @@
+asset,gzip_kb,raw_kb,scope
+"app JavaScript",188.6,644.1,"socle commun"
+"langue française",116.1,393.19,"locale"
+"langue anglaise",106.6,363.39,"locale de repli"
+"langue espagnole",102.6,346.33,"locale"
+"schedule",68.7,231.29,"écran métier"
+"vuedraggable",61.8,177.25,"dépendance"
+"AuthenticatedLayout",48.8,210.95,"layout authentifié"

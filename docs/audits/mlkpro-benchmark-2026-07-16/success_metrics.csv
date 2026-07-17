@@ -1,0 +1,7 @@
+domain,indicator,baseline,target,cadence
+"Adoption","Temps médian jusqu’à la première valeur","À instrumenter par segment","Réduction de 30 % après simplification de l’onboarding","Hebdomadaire"
+"Fiabilité","Âge du plus vieux job et échecs par file","Queue principale saine; couverture des files incomplète","Toutes les files surveillées; alerte avant impact client","Temps réel"
+"Frontend","LCP, INP, CLS par surface et appareil","Pas de trace production exploitable dans l’audit","Seuils définis après 7 jours de données; amélioration continue au p75","Quotidienne"
+"Métier","Temps et erreurs sur devis, facture, paiement, rapprochement et tâche mobile","À mesurer avec télémétrie de parcours","20 à 40 % plus rapide sur les cinq parcours prioritaires","Par livraison"
+"Serveur","p95/p99, requêtes SQL et mémoire par route","Local seulement; observabilité insuffisante","Budget par scénario aligné sur les objectifs de capacité existants","Par déploiement"
+"Vitesse produit","Taille initiale gzip et coût JavaScript par parcours","App core 188,6 kB gzip; locales supérieures à 100 kB gzip","Budget CI défini par parcours et aucune régression non approuvée","Chaque PR"
