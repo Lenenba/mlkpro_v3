@@ -86,6 +86,27 @@ Dernière mise à jour : 2026-07-17
 - Promotion : non exécutée ; l’ancien jeton principal reste valide.
 - Verdict : **canari SMS réussi** ; rotation globale encore ouverte.
 
+## VALID-P0-001-HARNESS-2026-07-17 — Harnais des canaris Twilio restants
+
+- Ticket : `MLK-IMP-P0-001`.
+- Date : 2026-07-17.
+- Base livrée : `main` au commit `7b76232`, incluant la PR `#129` fusionnée.
+- Commit du lot : `b7efe04` sur `agent/twilio-canary-harness`.
+- Environnement : Windows local, PHP 8.4.23 et build Vite de production.
+- Changement contrôlé : ajout de `whatsapp:test`, diagnostic structuré du service WhatsApp, test du transport 2FA SMS avec repli email et test de campagne SMS limité à l’acteur connecté.
+- Protection des communications : toutes les requêtes Twilio des tests utilisent `Http::fake()` avec `Http::preventStrayRequests()` ; les notifications email utilisent `Notification::fake()` ; aucun SMS, WhatsApp ou email réel n’a été envoyé par ce lot.
+- Test rouge initial : les cinq scénarios WhatsApp échouaient comme prévu parce que `whatsapp:test` n’existait pas.
+- Tests ciblés du harnais : 16 réussis, 87 assertions.
+- Non-régression fonctionnelle Twilio, 2FA, réglages et campagnes : 99 réussis, 693 assertions.
+- Non-régression complète : 1 140 tests réussis, 12 071 assertions, durée 345,92 s.
+- Qualité : Pint réussi sur six fichiers ; PHPStan complet réussi sans erreur ; `git diff --check` réussi.
+- Frontend : build Vite réussi, 2 603 modules, durée 2 min 8 s.
+- Contrôle fournisseur en lecture seule : l’API officielle des senders WhatsApp a répondu HTTP 200, sans sender enregistré sur le compte ; la valeur locale configurée ne correspond donc pas à un sender WhatsApp actif. Aucun numéro ni identifiant de sender n’a été consigné.
+- Rollback : revert du commit `b7efe04` ; le contrat booléen historique de `WhatsappNotificationService::send()` reste compatible.
+- Canaris réels restants : activer un Sandbox ou enregistrer un sender WhatsApp, faire rejoindre le destinataire contrôlé, puis exécuter WhatsApp, 2FA SMS et campagne SMS avant promotion.
+- Promotion : non exécutée ; l’ancien jeton principal reste valide.
+- Verdict : **harnais local validé** ; envoi WhatsApp bloqué proprement par l’absence de sender, autres canaris et rotation globale toujours ouverts.
+
 ## Gate d’entrée Phase 0 — À compléter
 
 - ID : `GATE-P0-ENTRY`
@@ -107,7 +128,7 @@ Dernière mise à jour : 2026-07-17
 
 | Ticket | Statut | Responsable | Validateur | Commit/déploiement | Preuve | Verdict |
 |---|---|---|---|---|---|---|
-| MLK-IMP-P0-001 | En validation — secondaire local et SMS validés | Demandeur / Codex pour les contrôles | Demandeur | Local, base `d89ad55` | `CANARY-P0-001-SMS-2026-07-17` | WhatsApp, 2FA, campagne, promotion et rejet de l’ancien jeton requis |
+| MLK-IMP-P0-001 | En validation — secondaire, SMS et harnais validés | Demandeur / Codex pour les contrôles | Demandeur | Local, `b7efe04` | `VALID-P0-001-HARNESS-2026-07-17` | Sender WhatsApp, canaris réels, promotion et rejet de l’ancien jeton requis |
 | MLK-IMP-P0-002 | Pré-baseline enregistrée | Codex | Demandeur | Local, `d89ad55` | `PRECHECK-P0-2026-07-16` | Attente fermeture P0-001 |
 | MLK-IMP-P0-003 | À valider |  |  |  |  |  |
 | MLK-IMP-P0-004 | À valider |  |  |  |  |  |
