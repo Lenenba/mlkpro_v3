@@ -829,6 +829,10 @@ Artisan::command('sms:test {to} {--message=}', function (SmsNotificationService 
         return 1;
     }
 
+    if (preg_match('/^\d{10}$/', $to)) {
+        $to = '+1'.$to;
+    }
+
     if (! preg_match('/^\+[1-9]\d{7,14}$/', $to)) {
         $this->error('Numero invalide. Utilisez le format E.164, ex: +15145551234');
 
