@@ -1,0 +1,961 @@
+{
+  "surface": "report",
+  "manifest": {
+    "version": 1,
+    "surface": "report",
+    "title": "MLK Pro — audit de performance, expérience et positionnement 2026",
+    "description": "Diagnostic exécutif et feuille de route pour accélérer, embellir et différencier MLK Pro sans casser ses workflows.",
+    "generatedAt": "2026-07-16T00:00:00Z",
+    "filters": [],
+    "cards": [
+      {
+        "id": "routes_card",
+        "description": "Empreinte fonctionnelle exposée par le routeur Laravel au moment de l’audit.",
+        "dataset": "overview_metrics",
+        "sourceId": "overview_evidence",
+        "metrics": [
+          {
+            "label": "Routes applicatives",
+            "field": "routes",
+            "format": "compact"
+          }
+        ]
+      },
+      {
+        "id": "tests_card",
+        "description": "Tests Pest recensés et réussis en deux segments pendant l’audit.",
+        "dataset": "overview_metrics",
+        "sourceId": "overview_evidence",
+        "metrics": [
+          {
+            "label": "Tests réussis",
+            "field": "tests_passed",
+            "format": "compact"
+          }
+        ]
+      },
+      {
+        "id": "bundle_card",
+        "description": "Taille gzip du morceau JavaScript app produit par Vite; ce n’est pas une trace réseau complète.",
+        "dataset": "overview_metrics",
+        "sourceId": "overview_evidence",
+        "metrics": [
+          {
+            "label": "App core gzip (kB)",
+            "field": "app_core_gzip_kb",
+            "format": "number"
+          }
+        ]
+      },
+      {
+        "id": "p0_card",
+        "description": "Actions P0 indépendantes retenues pour réduire immédiatement le risque et la latence.",
+        "dataset": "overview_metrics",
+        "sourceId": "overview_evidence",
+        "metrics": [
+          {
+            "label": "Actions P0",
+            "field": "p0_actions",
+            "format": "number"
+          }
+        ]
+      }
+    ],
+    "charts": [
+      {
+        "id": "bundle_chart",
+        "title": "Poids gzip des principaux actifs Vite",
+        "subtitle": "Le socle app et les langues sont les plus gros actifs communs mesurés; cette vue n’est pas une cascade réseau de production.",
+        "type": "horizontalBar",
+        "dataset": "bundle_chunks",
+        "sourceId": "build_evidence",
+        "encodings": {
+          "x": {
+            "field": "asset",
+            "type": "nominal",
+            "label": "Actif"
+          },
+          "y": {
+            "field": "gzip_kb",
+            "type": "quantitative",
+            "label": "Taille gzip",
+            "format": "number",
+            "unit": "kB"
+          },
+          "tooltip": [
+            {
+              "field": "raw_kb",
+              "type": "quantitative",
+              "label": "Taille brute",
+              "format": "number",
+              "unit": "kB"
+            },
+            {
+              "field": "scope",
+              "type": "text",
+              "label": "Portée"
+            }
+          ]
+        },
+        "valueFormat": "number",
+        "unit": "kB",
+        "maxRows": 7
+      }
+    ],
+    "tables": [
+      {
+        "id": "competitor_table",
+        "title": "Repères concurrentiels officiels",
+        "subtitle": "Comparaison qualitative des forces visibles et de la leçon utile pour MLK Pro; elle ne constitue pas un classement chiffré.",
+        "dataset": "competitors",
+        "sourceId": "competitor_benchmark",
+        "density": "comfortable",
+        "defaultSort": {
+          "field": "competitor",
+          "direction": "asc"
+        },
+        "columns": [
+          {
+            "field": "competitor",
+            "label": "Produit",
+            "type": "text"
+          },
+          {
+            "field": "signature",
+            "label": "Force signature",
+            "type": "text"
+          },
+          {
+            "field": "ai",
+            "label": "Approche IA",
+            "type": "text"
+          },
+          {
+            "field": "ecosystem",
+            "label": "Écosystème / portée",
+            "type": "text"
+          },
+          {
+            "field": "lesson",
+            "label": "Leçon pour MLK Pro",
+            "type": "text"
+          }
+        ]
+      },
+      {
+        "id": "priority_table",
+        "title": "Backlog priorisé par risque et effet utilisateur",
+        "subtitle": "Les contrats externes restent stables; les optimisations sont internes et livrables par drapeaux de fonctionnalité.",
+        "dataset": "priorities",
+        "sourceId": "priority_evidence",
+        "density": "comfortable",
+        "defaultSort": {
+          "field": "rank",
+          "direction": "asc"
+        },
+        "columns": [
+          {
+            "field": "rank",
+            "label": "#",
+            "type": "number",
+            "format": "number",
+            "align": "right"
+          },
+          {
+            "field": "priority",
+            "label": "Priorité",
+            "type": "text"
+          },
+          {
+            "field": "action",
+            "label": "Action",
+            "type": "text"
+          },
+          {
+            "field": "evidence",
+            "label": "Preuve observée",
+            "type": "text"
+          },
+          {
+            "field": "impact",
+            "label": "Effet attendu",
+            "type": "text"
+          },
+          {
+            "field": "effort",
+            "label": "Effort indicatif",
+            "type": "text"
+          },
+          {
+            "field": "guardrail",
+            "label": "Garde-fou",
+            "type": "text"
+          }
+        ]
+      },
+      {
+        "id": "roadmap_table",
+        "title": "Feuille de route de transformation",
+        "subtitle": "Chaque phase produit une amélioration mesurable et peut être arrêtée ou annulée indépendamment.",
+        "dataset": "roadmap",
+        "sourceId": "roadmap_evidence",
+        "density": "comfortable",
+        "defaultSort": {
+          "field": "phase",
+          "direction": "asc"
+        },
+        "columns": [
+          {
+            "field": "phase",
+            "label": "Phase",
+            "type": "text"
+          },
+          {
+            "field": "horizon",
+            "label": "Horizon",
+            "type": "text"
+          },
+          {
+            "field": "objective",
+            "label": "Objectif",
+            "type": "text"
+          },
+          {
+            "field": "deliverables",
+            "label": "Livrables clés",
+            "type": "text"
+          },
+          {
+            "field": "exit_criteria",
+            "label": "Critère de sortie",
+            "type": "text"
+          }
+        ]
+      },
+      {
+        "id": "success_table",
+        "title": "Tableau de mesure proposé",
+        "subtitle": "Les cibles sont des objectifs de pilotage à valider après une semaine de télémétrie de production, pas des promesses déjà atteintes.",
+        "dataset": "success_metrics",
+        "sourceId": "success_evidence",
+        "density": "comfortable",
+        "defaultSort": {
+          "field": "domain",
+          "direction": "asc"
+        },
+        "columns": [
+          {
+            "field": "domain",
+            "label": "Domaine",
+            "type": "text"
+          },
+          {
+            "field": "indicator",
+            "label": "Indicateur",
+            "type": "text"
+          },
+          {
+            "field": "baseline",
+            "label": "Base actuelle",
+            "type": "text"
+          },
+          {
+            "field": "target",
+            "label": "Cible proposée",
+            "type": "text"
+          },
+          {
+            "field": "cadence",
+            "label": "Cadence",
+            "type": "text"
+          }
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "id": "overview_evidence",
+        "label": "Indicateurs d’empreinte revus",
+        "path": "docs/audits/mlkpro-benchmark-2026-07-16/overview_metrics.csv"
+      },
+      {
+        "id": "audit_evidence",
+        "label": "Audit local du dépôt MLK Pro",
+        "path": "docs/audits/mlkpro-benchmark-2026-07-16/evidence.md"
+      },
+      {
+        "id": "build_evidence",
+        "label": "Actifs Vite revus",
+        "path": "docs/audits/mlkpro-benchmark-2026-07-16/bundle_chunks.csv"
+      },
+      {
+        "id": "test_evidence",
+        "label": "Résultats de tests et contrôles qualité consignés",
+        "path": "docs/audits/mlkpro-benchmark-2026-07-16/evidence.md"
+      },
+      {
+        "id": "dependency_evidence",
+        "label": "Audits Composer et npm consignés",
+        "path": "docs/audits/mlkpro-benchmark-2026-07-16/evidence.md"
+      },
+      {
+        "id": "visual_evidence",
+        "label": "Inspection des captures locales consignée",
+        "path": "docs/audits/mlkpro-benchmark-2026-07-16/evidence.md"
+      },
+      {
+        "id": "competitor_benchmark",
+        "label": "Benchmark des sources officielles concurrentes",
+        "path": "docs/audits/mlkpro-benchmark-2026-07-16/competitors.csv"
+      },
+      {
+        "id": "priority_evidence",
+        "label": "Backlog d’audit priorisé",
+        "path": "docs/audits/mlkpro-benchmark-2026-07-16/priorities.csv"
+      },
+      {
+        "id": "roadmap_evidence",
+        "label": "Feuille de route proposée",
+        "path": "docs/audits/mlkpro-benchmark-2026-07-16/roadmap.csv"
+      },
+      {
+        "id": "success_evidence",
+        "label": "Tableau de mesure proposé",
+        "path": "docs/audits/mlkpro-benchmark-2026-07-16/success_metrics.csv"
+      },
+      {
+        "id": "quickbooks_official",
+        "label": "QuickBooks Canada — fonctionnalités et Intuit Intelligence",
+        "href": "https://quickbooks.intuit.com/ca/intuit-intelligence/"
+      },
+      {
+        "id": "xero_official",
+        "label": "Xero Canada — fonctionnalités et IA",
+        "href": "https://www.xero.com/ca/ai-in-accounting/"
+      },
+      {
+        "id": "freshbooks_official",
+        "label": "FreshBooks Canada — facturation et application",
+        "href": "https://www.freshbooks.com/en-ca/invoicing-software"
+      },
+      {
+        "id": "zoho_official",
+        "label": "Zoho Books Canada — fonctionnalités",
+        "href": "https://www.zoho.com/ca/books/accounting-software-features/"
+      },
+      {
+        "id": "sage_official",
+        "label": "Sage Canada — comptabilité",
+        "href": "https://www.sage.com/en-ca/sage-business-cloud/accounting/"
+      },
+      {
+        "id": "wave_official",
+        "label": "Wave — tarification et comptabilité",
+        "href": "https://www.waveapps.com/pricing"
+      },
+      {
+        "id": "odoo_official",
+        "label": "Odoo — fonctionnalités comptables",
+        "href": "https://www.odoo.com/app/accounting-features"
+      },
+      {
+        "id": "pennylane_official",
+        "label": "Pennylane — fonctionnalités",
+        "href": "https://www.pennylane.com/fr/toutes-nos-fonctionnalites"
+      }
+    ],
+    "blocks": [
+      {
+        "id": "report_title",
+        "type": "markdown",
+        "body": "# MLK Pro — audit de performance, expérience et positionnement 2026"
+      },
+      {
+        "id": "executive_summary",
+        "type": "markdown",
+        "sourceId": "audit_evidence",
+        "body": "## Executive Summary\n\nMLK Pro n’a pas besoin d’une réécriture pour devenir plus rapide et plus premium. Il possède déjà une couverture rare — CRM, devis, travaux, tâches, facturation, paiements, comptabilité, réservations, inventaire, campagnes, portail, IA et multi-entreprise — soutenue par **1 119 tests réussis**. Le meilleur positionnement n’est donc pas « un autre QuickBooks », mais **l’OS opérationnel et financier des PME canadiennes de services**, où chaque action terrain alimente automatiquement la vérité financière.\n\nLa priorité immédiate est de sécuriser les identifiants exposés et les dépendances, puis de supprimer les coûts globaux invisibles: files non consommées, réinitialisations Preline, pagination en mémoire, table Ziggy massive, props partagées et interrogations répétées. Ces travaux peuvent conserver les routes, les props Inertia, les DTO et les workflows visibles.\n\nLe design dispose déjà d’une bonne base de marque. Le saut qualitatif viendra surtout de **preuves produit réelles**, d’un centre d’actions quotidien, d’une densité progressive et d’une IA explicable avec prévisualisation, approbation, annulation et piste d’audit."
+      },
+      {
+        "id": "headline_metrics",
+        "type": "metric-strip",
+        "cardIds": [
+          "routes_card",
+          "tests_card",
+          "bundle_card",
+          "p0_card"
+        ]
+      },
+      {
+        "id": "strategic_decision",
+        "type": "markdown",
+        "body": "## La décision stratégique\n\n**Positionnement recommandé:** « De la demande client à l’encaissement et à la comptabilité, un seul système bilingue conçu pour les PME canadiennes de services. »\n\nQuickBooks, Xero et Sage restent les références de confiance comptable; FreshBooks fixe la barre de simplicité pour les services; Odoo montre la puissance d’opérations intégrées; Pennylane montre la collaboration financière moderne. MLK Pro peut combiner ces qualités autour d’un avantage plus défendable: **les opérations créent automatiquement la donnée financière**, sans doubles saisies ni rupture entre bureau, terrain, client et comptable.\n\nCe cap permet de préserver le cœur existant et de prioriser une expérience cohérente plutôt qu’une accumulation de modules visibles au même niveau."
+      },
+      {
+        "id": "competitive_position",
+        "type": "markdown",
+        "sourceId": "competitor_benchmark",
+        "body": "## Positionnement face aux leaders\n\nLes leaders gagnent par une combinaison de confiance, vitesse perçue, collaboration et preuve visuelle. [QuickBooks](https://quickbooks.intuit.com/ca/how-it-works/) met en avant la généralité et les agents Intuit; [Xero](https://www.xero.com/ca/ai-in-accounting/jax/) insiste sur une IA expliquée et révisable; [FreshBooks](https://www.freshbooks.com/en-ca/invoicing-software) rend le flux de service évident; [Zoho Books](https://www.zoho.com/us/books/help/ai-features/ai-features.html) associe automatisation et personnalisation; [Sage](https://www.sage.com/en-ca/sage-business-cloud/accounting/) rassure sur le contexte canadien; [Odoo](https://www.odoo.com/app/accounting-features) relie opérations et comptabilité; [Pennylane](https://www.pennylane.com/fr/toutes-nos-fonctionnalites) modernise la collaboration finance/comptable.\n\nLa réponse MLK Pro doit être une promesse plus nette et une démonstration plus concrète, pas une copie écran par écran."
+      },
+      {
+        "id": "competitive_table_block",
+        "type": "table",
+        "tableId": "competitor_table"
+      },
+      {
+        "id": "credible_advantage",
+        "type": "markdown",
+        "sourceId": "audit_evidence",
+        "body": "## Pourquoi l’avantage est crédible\n\nLa base applicative couvre déjà la chaîne **prospect → devis → travail/tâche → facture → paiement → comptabilité**, avec portail client, inventaire, réservations, campagnes et assistant IA. Les tests comptables incluent comptes, écritures, taxes, rapprochement, clôtures et piste d’audit.\n\nL’écart principal n’est donc pas l’absence d’un produit: c’est la nécessité de rendre cette puissance **plus rapide, plus lisible et plus démontrable**. Une page d’accueil personnalisée par rôle, un centre d’actions et une navigation globale peuvent révéler la profondeur existante sans modifier les workflows métier."
+      },
+      {
+        "id": "performance_thesis",
+        "type": "markdown",
+        "sourceId": "build_evidence",
+        "body": "## Performance: enlever le coût global avant de réécrire\n\nLa construction de production réussit, le découpage dynamique des pages existe déjà et aucun morceau n’impose à lui seul une refonte. Le rendement le plus rapide vient des coûts payés partout: le morceau `app` à **188,6 kB gzip**, les gros blocs de langue, l’initialisation globale répétée de Preline et environ **101,7 k caractères** de routes Ziggy injectés dans chaque page HTML.\n\nLa règle d’or est simple: optimiser le socle partagé, puis les écrans à forte fréquence, tout en conservant les contrats d’entrée/sortie."
+      },
+      {
+        "id": "bundle_chart_block",
+        "type": "chart",
+        "chartId": "bundle_chart"
+      },
+      {
+        "id": "bundle_interpretation",
+        "type": "markdown",
+        "sourceId": "build_evidence",
+        "body": "## Ce que montre le poids des actifs\n\nLe cœur JavaScript domine à **188,6 kB gzip**. Les langues française et anglaise ajoutent chacune plus de **100 kB gzip**, tandis que `schedule`, `vuedraggable` et le layout authentifié représentent des morceaux significatifs. L’ordre recommandé est donc: importer Preline à la demande, ne l’initialiser qu’une fois par navigation, grouper les routes Ziggy, charger les traductions par domaine et vérifier le vrai chemin critique avec une trace de production.\n\nLe graphique ne doit pas être additionné comme une charge initiale certaine: Vite charge les morceaux selon les imports et la navigation."
+      },
+      {
+        "id": "priority_intro",
+        "type": "markdown",
+        "body": "## Les priorités qui réduisent le risque dès maintenant\n\nLes cinq P0 sont volontairement étroits. Ils protègent la sécurité, la fiabilité asynchrone et les parcours à fort volume avant d’engager des améliorations plus visibles. Les estimations servent à ordonner; elles doivent être affinées par module après une courte mesure de production."
+      },
+      {
+        "id": "priority_table_block",
+        "type": "table",
+        "tableId": "priority_table"
+      },
+      {
+        "id": "visual_direction",
+        "type": "markdown",
+        "sourceId": "visual_evidence",
+        "body": "## Un produit plus beau sans refaire les workflows\n\nLa direction visuelle actuelle — vert sombre, typographie éditoriale, grands espaces — est une base distinctive. Les captures locales montrent cependant des pages longues, des zones de média faibles ou vides, quelques incohérences de langue et trop peu de preuves d’usage réel.\n\nLe chantier recommandé est une **couche d’expérience**, pas une reconstruction métier:\n\n- remplacer les espaces génériques par des écrans réels annotés, courtes démonstrations et résultats clients;\n- créer un centre d’actions « Aujourd’hui » par rôle: à facturer, à relancer, à approuver, à planifier et anomalies à vérifier;\n- appliquer la densité progressive: résumé clair, détails repliables, historique accessible sans envahir l’écran;\n- uniformiser tableaux, filtres, états vides, chargements, erreurs, commandes et raccourcis dans un système de composants;\n- rendre le mobile orienté tâche — photo de reçu, temps, signature, paiement, statut — plutôt que miroir complet du bureau;\n- montrer la confiance: sécurité, sauvegardes, résidence des données, statut, permissions et journal d’audit."
+      },
+      {
+        "id": "roadmap_intro",
+        "type": "markdown",
+        "body": "## Feuille de route recommandée\n\nLa transformation se déroule en quatre vagues. La première sécurise et mesure; la deuxième retire la latence sans toucher aux contrats; la troisième rend le produit premium; la quatrième construit les avantages difficiles à copier."
+      },
+      {
+        "id": "roadmap_table_block",
+        "type": "table",
+        "tableId": "roadmap_table"
+      },
+      {
+        "id": "guardrails",
+        "type": "markdown",
+        "body": "## Garde-fous pour ne rien casser\n\n1. **Geler les contrats visibles:** routes, noms, props Inertia, DTO, événements, permissions et schémas API restent inchangés pendant les optimisations.\n2. **Comparer avant de basculer:** exécuter l’ancienne et la nouvelle requête en mode ombre, puis comparer lignes, totaux, tris et droits sur des jeux réels anonymisés.\n3. **Drapeaux et canari:** activer par entreprise pilote, mesurer, puis élargir; chaque lot possède un retour arrière documenté.\n4. **Tests de contrat:** ajouter des budgets de requêtes, un inventaire automatique des files consommées, des tests MySQL/Redis et les parcours Playwright critiques.\n5. **Migrations réversibles:** déplacer cache et queue vers Redis avant les sessions, avec test de reprise et supervision.\n6. **IA sous contrôle:** toute action financière ou opérationnelle doit être prévisualisée, approuvable, annulable et inscrite au journal d’audit."
+      },
+      {
+        "id": "success_measurement",
+        "type": "markdown",
+        "body": "## Mesurer le succès plutôt que la quantité de code\n\nAvant chaque phase, capturer une base de référence de production par route et par rôle. Les seuils ci-dessous deviennent des objectifs seulement après validation de la télémétrie et des volumes réels. Les métriques doivent relier vitesse technique et résultat utilisateur: temps pour créer un devis, facturer un travail, rapprocher un paiement et terminer une action mobile."
+      },
+      {
+        "id": "success_table_block",
+        "type": "table",
+        "tableId": "success_table"
+      },
+      {
+        "id": "further_questions",
+        "type": "markdown",
+        "body": "## Questions à trancher ensuite\n\n- Quel segment doit devenir le marché d’entrée: services terrain, construction légère, services professionnels ou commerce hybride?\n- Quels sont les cinq parcours quotidiens les plus fréquents par rôle et leur temps actuel de réalisation?\n- QuickBooks/Xero/Sage doivent-ils être remplacés, ou synchronisés pendant une période de transition?\n- Quelles intégrations bancaires et fiscales canadiennes sont prioritaires par province?\n- Quelle promesse de résidence des données, sauvegarde, reprise et certification doit être visible commercialement?\n- Quelles actions l’assistant IA peut-il proposer seul, et lesquelles exigent une approbation humaine explicite?\n- Quel niveau d’accès et de collaboration faut-il offrir aux comptables externes?"
+      },
+      {
+        "id": "caveats",
+        "type": "markdown",
+        "sourceId": "audit_evidence",
+        "body": "## Caveats and limitations\n\nLes latences ont été mesurées localement avec débogage actif et ne représentent pas la production. Le rapport d’observabilité ne contenait qu’un échantillon et le rapport de capacité n’avait pas encore de données suffisantes. L’analyse PHPStan a été interrompue par le délai Composer à environ 90 %, sans erreur signalée jusque-là.\n\nLe navigateur interactif de la session n’était pas disponible: l’audit visuel repose sur des captures présentes dans le dépôt et sur les pages officielles des concurrents, non sur un test complet des interactions MLK Pro. Les affirmations chiffrées des concurrents restent des déclarations de leurs éditeurs lorsqu’aucune mesure indépendante n’est citée.\n\nEnfin, l’exposition d’identifiants Twilio dans le contexte doit être considérée comme un incident: rotation immédiate et vérification sont requises même si `.env` n’est pas suivi par Git."
+      },
+      {
+        "id": "official_sources",
+        "type": "markdown",
+        "sourceId": "competitor_benchmark",
+        "body": "## Sources et démonstrations officielles\n\n- **QuickBooks:** [fonctionnement](https://quickbooks.intuit.com/ca/how-it-works/), [Intuit Intelligence](https://quickbooks.intuit.com/ca/intuit-intelligence/), [démo](https://quickbooks.intuit.com/learn-support/en-ca/help-article/small-business-processes/test-drive-quickbooks-online/L9C12ODlA_CA_en_CA), [sécurité](https://quickbooks.intuit.com/ca/security/).\n- **Xero:** [fonctionnalités](https://www.xero.com/ca/accounting-software/all-features/), [JAX](https://www.xero.com/ca/ai-in-accounting/jax/), [démo](https://central.xero.com/s/article/Use-the-demo-company), [sécurité](https://www.xero.com/us/security/).\n- **FreshBooks:** [facturation](https://www.freshbooks.com/en-ca/invoicing-software), [application](https://www.freshbooks.com/en-ca/accounting-app), [tableau de bord](https://support.freshbooks.com/hc/en-us/articles/115015407988-How-do-I-use-my-dashboard), [sécurité](https://www.freshbooks.com/policies/security-safeguards).\n- **Zoho Books:** [fonctionnalités](https://www.zoho.com/ca/books/accounting-software-features/), [Zia](https://www.zoho.com/us/books/help/ai-features/ai-features.html), [navigation](https://www.zoho.com/ca/books/videos/general/zb-navigation.html), [confiance](https://www.zoho.com/trust.html).\n- **Sage:** [Canada](https://www.sage.com/en-ca/sage-business-cloud/accounting/), [facturation](https://www.sage.com/en-ca/sage-business-cloud/accounting/features/invoicing/), [sécurité](https://www.sage.com/en-ca/trust-security/security/technical/standards-compliance/).\n- **Wave:** [tarification](https://www.waveapps.com/pricing), [comptabilité](https://www.waveapps.com/accounting), [reçus](https://www.waveapps.com/receipts/), [sécurité](https://support.waveapps.com/hc/en-us/articles/115004085146-How-Wave-keeps-your-data-secure).\n- **Odoo:** [fonctionnalités](https://www.odoo.com/app/accounting-features), [rapprochement](https://www.odoo.com/documentation/19.0/applications/finance/accounting/bank/reconciliation.html), [mobile](https://www.odoo.com/documentation/19.0/administration/mobile.html), [démo](https://demo.odoo.com), [sécurité](https://www.odoo.com/security).\n- **Pennylane:** [fonctionnalités](https://www.pennylane.com/fr/toutes-nos-fonctionnalites), [IA](https://help.pennylane.com/fr/articles/523947-utiliser-l-ia-dans-pennylane), [mobile](https://www.pennylane.com/fr/application-mobile), [sécurité](https://www.pennylane.com/fr/securite), [collaboration documentaire](https://www.pennylane.com/fr/expert-comptable/ged-collaboration)."
+      }
+    ]
+  },
+  "snapshot": {
+    "version": 1,
+    "generatedAt": "2026-07-16T00:00:00Z",
+    "status": "ready",
+    "datasets": {
+      "overview_metrics": [
+        {
+          "routes": 1083,
+          "tests_passed": 1119,
+          "app_core_gzip_kb": 188.6,
+          "p0_actions": 5
+        }
+      ],
+      "bundle_chunks": [
+        {
+          "asset": "app JavaScript",
+          "gzip_kb": 188.6,
+          "raw_kb": 644.1,
+          "scope": "socle commun"
+        },
+        {
+          "asset": "langue française",
+          "gzip_kb": 116.1,
+          "raw_kb": 393.19,
+          "scope": "locale"
+        },
+        {
+          "asset": "langue anglaise",
+          "gzip_kb": 106.6,
+          "raw_kb": 363.39,
+          "scope": "locale de repli"
+        },
+        {
+          "asset": "langue espagnole",
+          "gzip_kb": 102.6,
+          "raw_kb": 346.33,
+          "scope": "locale"
+        },
+        {
+          "asset": "schedule",
+          "gzip_kb": 68.7,
+          "raw_kb": 231.29,
+          "scope": "écran métier"
+        },
+        {
+          "asset": "vuedraggable",
+          "gzip_kb": 61.8,
+          "raw_kb": 177.25,
+          "scope": "dépendance"
+        },
+        {
+          "asset": "AuthenticatedLayout",
+          "gzip_kb": 48.8,
+          "raw_kb": 210.95,
+          "scope": "layout authentifié"
+        }
+      ],
+      "competitors": [
+        {
+          "competitor": "FreshBooks",
+          "signature": "Flux services très lisible, du devis au paiement",
+          "ai": "Automatisation et assistance plus discrètes",
+          "ecosystem": "Mobile simple; plus de 100 intégrations annoncées",
+          "lesson": "Réduire le nombre de décisions par écran"
+        },
+        {
+          "competitor": "Odoo",
+          "signature": "ERP intégré où les opérations alimentent la comptabilité",
+          "ai": "Capture et automatisation fortement mises en avant",
+          "ecosystem": "Suite large, PWA et modules intégrés",
+          "lesson": "Faire des opérations la source de vérité financière"
+        },
+        {
+          "competitor": "Pennylane",
+          "signature": "Collaboration entreprise–comptable et achats maîtrisés",
+          "ai": "Résumé, anomalies et assistant financier",
+          "ecosystem": "Mobile et gestion documentaire; orientation France",
+          "lesson": "Créer un espace comptable et une IA traçable"
+        },
+        {
+          "competitor": "QuickBooks",
+          "signature": "Référence généraliste PME et confiance de marque",
+          "ai": "Intuit Intelligence et agents spécialisés",
+          "ecosystem": "Plus de 450 applications annoncées; plans et utilisateurs limités",
+          "lesson": "Prouver la fiabilité et les résultats, pas seulement les fonctions"
+        },
+        {
+          "competitor": "Sage",
+          "signature": "Crédibilité canadienne, bilingue et fiscale",
+          "ai": "Création assistée de factures fournisseurs",
+          "ecosystem": "Comptabilité, trésorerie et paie",
+          "lesson": "Rendre la conformité canadienne visible"
+        },
+        {
+          "competitor": "Wave",
+          "signature": "Entrée gratuite et simplicité pour microentreprises",
+          "ai": "OCR et automatisations ciblées",
+          "ecosystem": "Canada/États-Unis; rôles plus limités",
+          "lesson": "Proposer une première valeur très rapide"
+        },
+        {
+          "competitor": "Xero",
+          "signature": "Collaboration comptable et écosystème",
+          "ai": "JAX expliqué, journalisé et révisable",
+          "ecosystem": "Plus de 1 000 applications et 21 000 institutions annoncées",
+          "lesson": "Prévisualiser, expliquer et auditer les actions IA"
+        },
+        {
+          "competitor": "Zoho Books",
+          "signature": "Configuration dense, approbations et portails",
+          "ai": "Zia crée, recherche, prévoit et détecte des anomalies",
+          "ecosystem": "Suite Zoho, fonctions personnalisées et MCP officiel",
+          "lesson": "Conserver la profondeur mais révéler par progression"
+        }
+      ],
+      "priorities": [
+        {
+          "rank": 1,
+          "priority": "P0",
+          "action": "Révoquer et remplacer les identifiants Twilio exposés",
+          "evidence": "Secret visible dans le contexte IDE/conversation",
+          "impact": "Réduit immédiatement le risque de fraude et d’usurpation",
+          "effort": "Moins d’un jour",
+          "guardrail": "Tester SMS/WhatsApp puis surveiller l’ancien identifiant"
+        },
+        {
+          "rank": 2,
+          "priority": "P0",
+          "action": "Corriger les dépendances signalées et contraindre Twilio SDK",
+          "evidence": "Avis élevés Composer; lodash élevé; PostCSS modéré; contrainte Twilio `*`",
+          "impact": "Sécurité et reproductibilité des livraisons",
+          "effort": "2 à 5 jours",
+          "guardrail": "Branche dédiée, tests complets, canari et verrou mis à jour"
+        },
+        {
+          "rank": 3,
+          "priority": "P0",
+          "action": "Unifier l’inventaire des files et relancer les erreurs de plan scan",
+          "evidence": "`social_publish` absent de la configuration et fallback non consommé; `plan_scans` sensible aux surcharges d’environnement; erreur absorbée",
+          "impact": "Évite des traitements silencieusement bloqués ou faussement réussis",
+          "effort": "2 à 3 jours",
+          "guardrail": "Test automatique workloads/files ↔ configuration worker"
+        },
+        {
+          "rank": 4,
+          "priority": "P0",
+          "action": "Déplacer filtres, tris, agrégations et pagination dans SQL",
+          "evidence": "Demandes, pipeline CRM, relance devis et prospects chargent de larges collections",
+          "impact": "Latence et mémoire stables quand le volume croît",
+          "effort": "1 à 3 semaines",
+          "guardrail": "Conserver DTO/props; double exécution et comparaison"
+        },
+        {
+          "rank": 5,
+          "priority": "P0",
+          "action": "Initialiser Preline une seule fois par navigation et de façon ciblée",
+          "evidence": "Auto-initialisation globale après chaque montage et navigation",
+          "impact": "Moins de scans DOM, meilleur INP et navigation plus fluide",
+          "effort": "1 à 3 jours",
+          "guardrail": "Smoke Playwright sur menus, modales, listes et mobile"
+        },
+        {
+          "rank": 6,
+          "priority": "P1",
+          "action": "Limiter Ziggy par groupes de routes",
+          "evidence": "Environ 101,7 k caractères de routes dans chaque réponse HTML",
+          "impact": "HTML plus petit et analyse initiale réduite",
+          "effort": "1 à 3 jours",
+          "guardrail": "Tests de présence des routes nécessaires par surface"
+        },
+        {
+          "rank": 7,
+          "priority": "P1",
+          "action": "Charger traductions et composants globaux par domaine",
+          "evidence": "Locales de 102,6 à 116,1 kB gzip et gros composants communs",
+          "impact": "Premier affichage plus rapide sans changer les clés i18n",
+          "effort": "3 à 7 jours",
+          "guardrail": "Fallback anglais et captures multilingues automatisées"
+        },
+        {
+          "rank": 8,
+          "priority": "P1",
+          "action": "Réduire requêtes du dashboard et props partagées; migrer cache/queue vers Redis",
+          "evidence": "Nombreux count/sum, props coûteuses et polling par onglet",
+          "impact": "TTFB et charge base plus prévisibles",
+          "effort": "1 à 3 semaines",
+          "guardrail": "Vérifier production, budgets de requêtes et reprise Redis"
+        },
+        {
+          "rank": 9,
+          "priority": "P1",
+          "action": "Optimiser images, polices et preuves produit du site public",
+          "evidence": "Médias volumineux, JPG de 500–925 kB et captures peu démonstratives",
+          "impact": "LCP, crédibilité et conversion améliorés",
+          "effort": "1 à 2 semaines",
+          "guardrail": "AVIF/WebP/srcset, priorité du héros et comparaison visuelle"
+        },
+        {
+          "rank": 10,
+          "priority": "P2",
+          "action": "Découper les très grands fichiers et hausser PHPStan progressivement",
+          "evidence": "Composants jusqu’à 5 041 lignes, services jusqu’à 3 192 lignes, PHPStan niveau 0",
+          "impact": "Évolutivité et vitesse de livraison à long terme",
+          "effort": "Continu",
+          "guardrail": "Extractions sans changement de contrat, baseline par module"
+        }
+      ],
+      "roadmap": [
+        {
+          "phase": "0 — Sécuriser et mesurer",
+          "horizon": "0 à 2 semaines",
+          "objective": "Réduire le risque et créer une base de référence fiable",
+          "deliverables": "Rotation secrets, mises à jour sécurité, inventaire files/workers, APM/Web Vitals, budgets bundle/requêtes",
+          "exit_criteria": "Aucun secret actif exposé; workers alignés; tableau p50/p95/p99 par route et rôle"
+        },
+        {
+          "phase": "1 — Accélérer sans changer",
+          "horizon": "2 à 6 semaines",
+          "objective": "Retirer les coûts globaux et stabiliser les écrans à volume",
+          "deliverables": "Preline ciblé, groupes Ziggy, i18n par domaine, pagination SQL, caches précoces, Redis cache/queue",
+          "exit_criteria": "Amélioration mesurée sur parcours pilotes; résultats fonctionnels identiques; retour arrière testé"
+        },
+        {
+          "phase": "2 — Rendre premium",
+          "horizon": "6 à 12 semaines",
+          "objective": "Faire sentir la puissance sans complexité",
+          "deliverables": "Accueil par rôle, centre d’actions, composants unifiés, états cohérents, preuves produit, mobile orienté tâche",
+          "exit_criteria": "Temps de tâche et erreurs utilisateurs réduits sur les cinq parcours clés"
+        },
+        {
+          "phase": "3 — Différencier durablement",
+          "horizon": "3 à 6 mois",
+          "objective": "Transformer l’intégration opérations-finance en avantage difficile à copier",
+          "deliverables": "Flux bancaires, rapprochement, espace comptable, documents/OCR, automatisations, IA explicable, API/webhooks",
+          "exit_criteria": "Chaîne opération→écriture auditée; pilotes clients actifs; taux d’automatisation et confiance mesurés"
+        }
+      ],
+      "success_metrics": [
+        {
+          "domain": "Adoption",
+          "indicator": "Temps médian jusqu’à la première valeur",
+          "baseline": "À instrumenter par segment",
+          "target": "Réduction de 30 % après simplification de l’onboarding",
+          "cadence": "Hebdomadaire"
+        },
+        {
+          "domain": "Fiabilité",
+          "indicator": "Âge du plus vieux job et échecs par file",
+          "baseline": "Queue principale saine; couverture des files incomplète",
+          "target": "Toutes les files surveillées; alerte avant impact client",
+          "cadence": "Temps réel"
+        },
+        {
+          "domain": "Frontend",
+          "indicator": "LCP, INP, CLS par surface et appareil",
+          "baseline": "Pas de trace production exploitable dans l’audit",
+          "target": "Seuils définis après 7 jours de données; amélioration continue au p75",
+          "cadence": "Quotidienne"
+        },
+        {
+          "domain": "Métier",
+          "indicator": "Temps et erreurs sur devis, facture, paiement, rapprochement et tâche mobile",
+          "baseline": "À mesurer avec télémétrie de parcours",
+          "target": "20 à 40 % plus rapide sur les cinq parcours prioritaires",
+          "cadence": "Par livraison"
+        },
+        {
+          "domain": "Serveur",
+          "indicator": "p95/p99, requêtes SQL et mémoire par route",
+          "baseline": "Local seulement; observabilité insuffisante",
+          "target": "Budget par scénario aligné sur les objectifs de capacité existants",
+          "cadence": "Par déploiement"
+        },
+        {
+          "domain": "Vitesse produit",
+          "indicator": "Taille initiale gzip et coût JavaScript par parcours",
+          "baseline": "App core 188,6 kB gzip; locales supérieures à 100 kB gzip",
+          "target": "Budget CI défini par parcours et aucune régression non approuvée",
+          "cadence": "Chaque PR"
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "id": "overview_evidence",
+      "label": "Indicateurs d’empreinte revus",
+      "path": "docs/audits/mlkpro-benchmark-2026-07-16/overview_metrics.csv",
+      "query": {
+        "engine": "duckdb",
+        "sql": "SELECT routes, tests_passed, app_core_gzip_kb, p0_actions FROM read_csv_auto('docs/audits/mlkpro-benchmark-2026-07-16/overview_metrics.csv', header = true);",
+        "description": "Charge les quatre indicateurs d’empreinte revus utilisés par les cartes de synthèse.",
+        "language": "sql",
+        "executed_at": "2026-07-16T00:00:00Z",
+        "tables_used": [
+          "docs/audits/mlkpro-benchmark-2026-07-16/overview_metrics.csv"
+        ],
+        "filters": [
+          "Instantané de l’audit local du 16 juillet 2026; aucune ligne utilisateur"
+        ],
+        "metric_definitions": [
+          "Routes applicatives: nombre de routes Laravel recensées.",
+          "Tests réussis: nombre de tests Pest recensés et réussis en deux segments.",
+          "App core gzip: taille gzip en kB du morceau JavaScript app issu du build Vite.",
+          "Actions P0: nombre d’actions indépendantes classées P0 dans le backlog d’audit."
+        ]
+      }
+    },
+    {
+      "id": "audit_evidence",
+      "label": "Audit local du dépôt MLK Pro",
+      "path": "docs/audits/mlkpro-benchmark-2026-07-16/evidence.md"
+    },
+    {
+      "id": "build_evidence",
+      "label": "Actifs Vite revus",
+      "path": "docs/audits/mlkpro-benchmark-2026-07-16/bundle_chunks.csv",
+      "query": {
+        "engine": "duckdb",
+        "sql": "SELECT asset, gzip_kb, raw_kb, scope FROM read_csv_auto('docs/audits/mlkpro-benchmark-2026-07-16/bundle_chunks.csv', header = true) ORDER BY gzip_kb DESC;",
+        "description": "Charge les tailles brutes et gzip des principaux actifs produits par le build Vite.",
+        "language": "sql",
+        "executed_at": "2026-07-16T00:00:00Z",
+        "tables_used": [
+          "docs/audits/mlkpro-benchmark-2026-07-16/bundle_chunks.csv"
+        ],
+        "filters": [
+          "Sept actifs revus avec taille gzip rapportée par Vite; le CSS sans taille gzip est exclu"
+        ],
+        "metric_definitions": [
+          "gzip_kb: taille gzip rapportée par la construction Vite, en kilooctets.",
+          "raw_kb: taille non compressée rapportée par la construction Vite, en kilooctets."
+        ]
+      }
+    },
+    {
+      "id": "test_evidence",
+      "label": "Résultats de tests et contrôles qualité consignés",
+      "path": "docs/audits/mlkpro-benchmark-2026-07-16/evidence.md"
+    },
+    {
+      "id": "dependency_evidence",
+      "label": "Audits Composer et npm consignés",
+      "path": "docs/audits/mlkpro-benchmark-2026-07-16/evidence.md"
+    },
+    {
+      "id": "visual_evidence",
+      "label": "Inspection des captures locales consignée",
+      "path": "docs/audits/mlkpro-benchmark-2026-07-16/evidence.md"
+    },
+    {
+      "id": "competitor_benchmark",
+      "label": "Benchmark des sources officielles concurrentes",
+      "path": "docs/audits/mlkpro-benchmark-2026-07-16/competitors.csv",
+      "query": {
+        "engine": "duckdb",
+        "sql": "SELECT competitor, signature, ai, ecosystem, lesson FROM read_csv_auto('docs/audits/mlkpro-benchmark-2026-07-16/competitors.csv', header = true) ORDER BY competitor ASC;",
+        "description": "Charge la synthèse qualitative revue à partir des pages officielles des concurrents.",
+        "language": "sql",
+        "executed_at": "2026-07-16T00:00:00Z",
+        "tables_used": [
+          "docs/audits/mlkpro-benchmark-2026-07-16/competitors.csv"
+        ],
+        "filters": [
+          "Produits comparables vérifiés sur leurs sources officielles le 16 juillet 2026",
+          "Aucun score quantitatif ni classement global"
+        ],
+        "metric_definitions": []
+      }
+    },
+    {
+      "id": "priority_evidence",
+      "label": "Backlog d’audit priorisé",
+      "path": "docs/audits/mlkpro-benchmark-2026-07-16/priorities.csv",
+      "query": {
+        "engine": "duckdb",
+        "sql": "SELECT rank, priority, action, evidence, impact, effort, guardrail FROM read_csv_auto('docs/audits/mlkpro-benchmark-2026-07-16/priorities.csv', header = true) ORDER BY rank ASC;",
+        "description": "Charge le backlog priorisé issu de l’audit local et de la synthèse de risque.",
+        "language": "sql",
+        "executed_at": "2026-07-16T00:00:00Z",
+        "tables_used": [
+          "docs/audits/mlkpro-benchmark-2026-07-16/priorities.csv"
+        ],
+        "filters": [
+          "Dix actions retenues pour leur effet sur sécurité, fiabilité, performance ou maintenabilité"
+        ],
+        "metric_definitions": [
+          "Priorité P0: action à engager immédiatement avant les chantiers d’expérience.",
+          "Effort: ordre de grandeur indicatif à affiner après mesure de production."
+        ]
+      }
+    },
+    {
+      "id": "roadmap_evidence",
+      "label": "Feuille de route proposée",
+      "path": "docs/audits/mlkpro-benchmark-2026-07-16/roadmap.csv",
+      "query": {
+        "engine": "duckdb",
+        "sql": "SELECT phase, horizon, objective, deliverables, exit_criteria FROM read_csv_auto('docs/audits/mlkpro-benchmark-2026-07-16/roadmap.csv', header = true) ORDER BY phase ASC;",
+        "description": "Charge les quatre phases proposées et leurs critères de sortie.",
+        "language": "sql",
+        "executed_at": "2026-07-16T00:00:00Z",
+        "tables_used": [
+          "docs/audits/mlkpro-benchmark-2026-07-16/roadmap.csv"
+        ],
+        "filters": [
+          "Plan recommandé; horizons indicatifs soumis à validation d’équipe"
+        ],
+        "metric_definitions": []
+      }
+    },
+    {
+      "id": "success_evidence",
+      "label": "Tableau de mesure proposé",
+      "path": "docs/audits/mlkpro-benchmark-2026-07-16/success_metrics.csv",
+      "query": {
+        "engine": "duckdb",
+        "sql": "SELECT domain, indicator, baseline, target, cadence FROM read_csv_auto('docs/audits/mlkpro-benchmark-2026-07-16/success_metrics.csv', header = true) ORDER BY domain ASC;",
+        "description": "Charge les indicateurs et cibles de pilotage proposés.",
+        "language": "sql",
+        "executed_at": "2026-07-16T00:00:00Z",
+        "tables_used": [
+          "docs/audits/mlkpro-benchmark-2026-07-16/success_metrics.csv"
+        ],
+        "filters": [
+          "Cibles proposées à confirmer après une semaine de télémétrie de production"
+        ],
+        "metric_definitions": [
+          "Les cibles de réduction expriment une évolution relative par rapport à une base de production à instrumenter."
+        ]
+      }
+    },
+    {
+      "id": "quickbooks_official",
+      "label": "QuickBooks Canada — fonctionnalités et Intuit Intelligence",
+      "href": "https://quickbooks.intuit.com/ca/intuit-intelligence/"
+    },
+    {
+      "id": "xero_official",
+      "label": "Xero Canada — fonctionnalités et IA",
+      "href": "https://www.xero.com/ca/ai-in-accounting/"
+    },
+    {
+      "id": "freshbooks_official",
+      "label": "FreshBooks Canada — facturation et application",
+      "href": "https://www.freshbooks.com/en-ca/invoicing-software"
+    },
+    {
+      "id": "zoho_official",
+      "label": "Zoho Books Canada — fonctionnalités",
+      "href": "https://www.zoho.com/ca/books/accounting-software-features/"
+    },
+    {
+      "id": "sage_official",
+      "label": "Sage Canada — comptabilité",
+      "href": "https://www.sage.com/en-ca/sage-business-cloud/accounting/"
+    },
+    {
+      "id": "wave_official",
+      "label": "Wave — tarification et comptabilité",
+      "href": "https://www.waveapps.com/pricing"
+    },
+    {
+      "id": "odoo_official",
+      "label": "Odoo — fonctionnalités comptables",
+      "href": "https://www.odoo.com/app/accounting-features"
+    },
+    {
+      "id": "pennylane_official",
+      "label": "Pennylane — fonctionnalités",
+      "href": "https://www.pennylane.com/fr/toutes-nos-fonctionnalites"
+    }
+  ]
+}
