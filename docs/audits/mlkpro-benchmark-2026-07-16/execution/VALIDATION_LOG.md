@@ -140,6 +140,23 @@ Dernière mise à jour : 2026-07-17
 - Promotion : non exécutée ; l’ancien jeton principal reste valide jusqu’au dernier canari et à la revue fournisseur.
 - Verdict : **canari 2FA SMS réussi** ; rotation globale encore ouverte.
 
+## CANARY-P0-001-CAMPAIGN-SMS-2026-07-17 — Test de campagne SMS isolé confirmé
+
+- Ticket : `MLK-IMP-P0-001`.
+- Date : 2026-07-17.
+- Base applicative : branche dédiée issue de `develop`, avec le harnais au commit `d7440ac`.
+- Environnement : local, même propriétaire QA contrôlé que le canari 2FA ; aucune identité, aucun numéro ni contenu client n’est conservé.
+- Précontrôle bloquant : exactement un propriétaire QA correspondait au canari 2FA récent ; Twilio était configuré ; la branche active n’était pas `main` et descendait de `develop`.
+- Scénario : création transactionnelle d’une campagne brouillon temporaire avec le seul canal SMS et un texte statique sans jeton, puis invocation contrôlée de l’action `CampaignRunController::testSend` pour l’acteur QA.
+- Résultat applicatif : HTTP `200`, canal `SMS` et résultat `ok=true` avec identifiant fournisseur présent mais jamais affiché.
+- Contrôle fournisseur en lecture seule : HTTP `200`, statut final `delivered` et aucun code d’erreur ; le corps et les adresses n’ont pas été affichés.
+- Isolation vérifiée : aucune audience, aucune exécution de campagne et aucun destinataire de campagne créés.
+- Rollback : transaction annulée, campagne temporaire absente après contrôle et script opérateur temporaire supprimé du dépôt.
+- Couverture automatisée associée : le test de frontière campagne confirme que seul l’acteur reçoit le SMS et qu’aucune audience, exécution, file ou recipient n’est créé.
+- Canaris requis avant promotion : **tous réussis** — SMS direct, WhatsApp, 2FA SMS et campagne SMS.
+- Promotion : non exécutée ; l’ancien jeton principal reste valide jusqu’à la promotion contrôlée et à la preuve de rejet.
+- Verdict : **canari campagne SMS réussi** ; P0-001 est prêt pour la promotion du jeton secondaire.
+
 ## Gate d’entrée Phase 0 — À compléter
 
 - ID : `GATE-P0-ENTRY`
@@ -161,7 +178,7 @@ Dernière mise à jour : 2026-07-17
 
 | Ticket | Statut | Responsable | Validateur | Commit/déploiement | Preuve | Verdict |
 |---|---|---|---|---|---|---|
-| MLK-IMP-P0-001 | En validation — secondaire et canaris SMS/WhatsApp/2FA validés | Demandeur / Codex pour les contrôles | Demandeur | Branche issue de `develop`, `d7440ac` | `CANARY-P0-001-2FA-SMS-2026-07-17` | Canari campagne, promotion et rejet de l’ancien jeton requis |
+| MLK-IMP-P0-001 | En validation — secondaire et tous les canaris validés | Demandeur / Codex pour les contrôles | Demandeur | Branche issue de `develop`, `d7440ac` | `CANARY-P0-001-CAMPAIGN-SMS-2026-07-17` | Promotion et rejet prouvé de l’ancien jeton requis |
 | MLK-IMP-P0-002 | Pré-baseline enregistrée | Codex | Demandeur | Local, `d89ad55` | `PRECHECK-P0-2026-07-16` | Attente fermeture P0-001 |
 | MLK-IMP-P0-003 | À valider |  |  |  |  |  |
 | MLK-IMP-P0-004 | À valider |  |  |  |  |  |
