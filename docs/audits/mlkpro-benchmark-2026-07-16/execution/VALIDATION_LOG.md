@@ -107,6 +107,22 @@ Dernière mise à jour : 2026-07-17
 - Promotion : non exécutée ; l’ancien jeton principal reste valide.
 - Verdict : **harnais local validé** ; envoi WhatsApp bloqué proprement par l’absence de sender, autres canaris et rotation globale toujours ouverts.
 
+## CANARY-P0-001-WHATSAPP-2026-07-17 — Livraison et lecture WhatsApp confirmées
+
+- Ticket : `MLK-IMP-P0-001`.
+- Date : 2026-07-17.
+- Base applicative : `main` au commit de fusion `d210982`, incluant la PR `#130`.
+- Environnement : local, avec le jeton secondaire chargé depuis le `.env` ignoré par Git.
+- Préconditions : Sandbox WhatsApp activé par le demandeur et destinataire contrôlé joint au Sandbox ; l’expéditeur Sandbox a été appliqué uniquement à la commande canari par variable de processus, sans modifier le `.env`.
+- Précontrôle automatisé : 13 tests réussis, 50 assertions, couvrant la commande WhatsApp et les contrats des services Twilio.
+- Scénario : envoi unique avec `php artisan whatsapp:test <destinataire contrôlé>` en mode silencieux ; aucun numéro, SID de message, contenu d’authentification ou réponse fournisseur brute n’est conservé dans cette preuve.
+- Résultat de la commande : code de sortie `0`, confirmant l’acceptation par Twilio.
+- Contrôle fournisseur en lecture seule : le message canari sortant exact a été retrouvé comme récent par l’API Twilio, avec HTTP `200`, statut final `read` et aucun code d’erreur ; aucun identifiant ni numéro n’a été affiché.
+- Rollback : la variable de processus temporaire a été restaurée automatiquement ; aucune configuration persistante ni donnée applicative n’a été modifiée.
+- Canaris restants : activation 2FA SMS et test de campagne SMS sur des comptes QA contrôlés.
+- Promotion : non exécutée ; l’ancien jeton principal reste valide jusqu’à la réussite des canaris restants et de la revue fournisseur.
+- Verdict : **canari WhatsApp réussi** ; rotation globale encore ouverte.
+
 ## Gate d’entrée Phase 0 — À compléter
 
 - ID : `GATE-P0-ENTRY`
@@ -128,7 +144,7 @@ Dernière mise à jour : 2026-07-17
 
 | Ticket | Statut | Responsable | Validateur | Commit/déploiement | Preuve | Verdict |
 |---|---|---|---|---|---|---|
-| MLK-IMP-P0-001 | En validation — secondaire, SMS et harnais validés | Demandeur / Codex pour les contrôles | Demandeur | Local, `b7efe04` | `VALID-P0-001-HARNESS-2026-07-17` | Sender WhatsApp, canaris réels, promotion et rejet de l’ancien jeton requis |
+| MLK-IMP-P0-001 | En validation — secondaire et canaris SMS/WhatsApp validés | Demandeur / Codex pour les contrôles | Demandeur | Local, `d210982` | `CANARY-P0-001-WHATSAPP-2026-07-17` | Canaris 2FA/campagne, promotion et rejet de l’ancien jeton requis |
 | MLK-IMP-P0-002 | Pré-baseline enregistrée | Codex | Demandeur | Local, `d89ad55` | `PRECHECK-P0-2026-07-16` | Attente fermeture P0-001 |
 | MLK-IMP-P0-003 | À valider |  |  |  |  |  |
 | MLK-IMP-P0-004 | À valider |  |  |  |  |  |
