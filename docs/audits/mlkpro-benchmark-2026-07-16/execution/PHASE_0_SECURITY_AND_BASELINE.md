@@ -1,7 +1,7 @@
 # Phase 0 — Sécurité et baseline
 
 - Dernière mise à jour : 2026-07-17
-- Statut : **jeton secondaire et canaris SMS/WhatsApp validés — 2FA, campagne et promotion du jeton restent requis**
+- Statut : **jeton secondaire et canaris SMS/WhatsApp/2FA validés — campagne et promotion du jeton restent requises**
 - Responsable d’exécution locale : Codex
 - Propriétaire exploitation : à nommer
 - Validateur produit : demandeur
@@ -31,7 +31,7 @@ La phase ne passe à **validée** que si :
 - [ ] responsable technique nommé ;
 - [ ] propriétaire des comptes Twilio et environnements identifié ;
 - [ ] environnement de référence choisi : staging représentatif ou production en lecture seule ;
-- [ ] branche de travail dédiée convenue ;
+- [x] branche de travail dédiée depuis `develop` convenue ;
 - [ ] fenêtre de déploiement et contact de rollback définis ;
 - [ ] validation que les preuves ne contiendront aucun secret ni donnée client directe.
 
@@ -83,7 +83,7 @@ Cette baseline doit être confirmée au début de la phase et enregistrée dans 
 
 ### MLK-IMP-P0-001 — Contenir l’exposition Twilio
 
-- Statut : **en validation — jeton secondaire et canaris SMS/WhatsApp validés ; 2FA, campagne et promotion requis**
+- Statut : **en validation — jeton secondaire et canaris SMS/WhatsApp/2FA validés ; campagne et promotion requises**
 - Priorité : immédiate
 - Propriétaire attendu : administrateur Twilio / exploitation
 - But : rendre inutilisable tout jeton exposé et confirmer les communications avec un nouveau secret.

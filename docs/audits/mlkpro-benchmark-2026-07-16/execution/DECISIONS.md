@@ -21,6 +21,7 @@ Une proposition n’autorise aucun changement tant qu’elle n’est pas accept�
 | MLK-DEC-005 | Migrer Redis dans l’ordre cache → queue → décision sessions | Proposée | Technique / exploitation | Avant Phase 2 |
 | MLK-DEC-006 | Utiliser des clés API Twilio en production pour les appels sortants | À réévaluer après rotation | Sécurité / exploitation | Après P0-001 |
 | MLK-DEC-007 | Positionner MLK Pro comme OS opérationnel et financier des PME canadiennes de services | À valider par recherche | Produit | Avant Phase 4 |
+| MLK-DEC-008 | Utiliser exclusivement `develop` comme base et cible des travaux automatisés | Acceptée | Jules Roger Sombangnen | Permanente |
 
 ## MLK-DEC-001 — Phase 0 en premier
 
@@ -72,6 +73,17 @@ Une proposition n’autorise aucun changement tant qu’elle n’est pas accept�
 - Statut : **à valider par recherche**
 - Hypothèse : MLK Pro gagne davantage en étant l’OS opérations-finance des PME canadiennes de services qu’en copiant QuickBooks fonction par fonction.
 - Validation : entretiens, analyse des tâches, volonté de payer et pilotes par segment.
+
+## MLK-DEC-008 — Politique Git `develop` uniquement
+
+- Statut : **acceptée**.
+- Date : 2026-07-17.
+- Responsable et validateur : Jules Roger Sombangnen.
+- Décision : tout agent ou collaborateur automatisé travaille sur `develop` ou sur une branche créée depuis `develop`, et toute pull request automatisée cible `develop`.
+- Protection de `main` : aucun agent ne crée de commit, ne pousse, ne fusionne ni n’ouvre de pull request vers `main`. Seul Jules Roger Sombangnen peut effectuer ces opérations.
+- Procédure : avant toute modification, vérifier la branche active ; si elle est `main`, basculer sur `develop` puis créer une branche dédiée.
+- Cas ambigu : livrer le travail jusqu’à `develop` et laisser au propriétaire toute décision ou opération ultérieure concernant `main`.
+- Référence impérative : `AGENTS.md` à la racine du dépôt.
 
 ## Gabarit d’une nouvelle décision
 

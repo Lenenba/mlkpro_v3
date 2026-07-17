@@ -90,8 +90,8 @@ Dernière mise à jour : 2026-07-17
 
 - Ticket : `MLK-IMP-P0-001`.
 - Date : 2026-07-17.
-- Base livrée : `main` au commit `7b76232`, incluant la PR `#129` fusionnée.
-- Commit du lot : `b7efe04` sur `agent/twilio-canary-harness`.
+- Base de reprise : `develop` au commit `74bdba9`.
+- Commits fonctionnels du lot sur la branche issue de `develop` : `f54bb8c` pour le canari SMS et `d7440ac` pour le harnais Twilio.
 - Environnement : Windows local, PHP 8.4.23 et build Vite de production.
 - Changement contrôlé : ajout de `whatsapp:test`, diagnostic structuré du service WhatsApp, test du transport 2FA SMS avec repli email et test de campagne SMS limité à l’acteur connecté.
 - Protection des communications : toutes les requêtes Twilio des tests utilisent `Http::fake()` avec `Http::preventStrayRequests()` ; les notifications email utilisent `Notification::fake()` ; aucun SMS, WhatsApp ou email réel n’a été envoyé par ce lot.
@@ -111,7 +111,7 @@ Dernière mise à jour : 2026-07-17
 
 - Ticket : `MLK-IMP-P0-001`.
 - Date : 2026-07-17.
-- Base applicative : `main` au commit de fusion `d210982`, incluant la PR `#130`.
+- Base applicative : branche dédiée issue de `develop`, avec le harnais au commit `d7440ac`.
 - Environnement : local, avec le jeton secondaire chargé depuis le `.env` ignoré par Git.
 - Préconditions : Sandbox WhatsApp activé par le demandeur et destinataire contrôlé joint au Sandbox ; l’expéditeur Sandbox a été appliqué uniquement à la commande canari par variable de processus, sans modifier le `.env`.
 - Précontrôle automatisé : 13 tests réussis, 50 assertions, couvrant la commande WhatsApp et les contrats des services Twilio.
@@ -122,6 +122,23 @@ Dernière mise à jour : 2026-07-17
 - Canaris restants : activation 2FA SMS et test de campagne SMS sur des comptes QA contrôlés.
 - Promotion : non exécutée ; l’ancien jeton principal reste valide jusqu’à la réussite des canaris restants et de la revue fournisseur.
 - Verdict : **canari WhatsApp réussi** ; rotation globale encore ouverte.
+
+## CANARY-P0-001-2FA-SMS-2026-07-17 — Parcours 2FA SMS confirmé
+
+- Ticket : `MLK-IMP-P0-001`.
+- Date : 2026-07-17.
+- Base applicative : branche dédiée issue de `develop`, avec le harnais au commit `d7440ac`.
+- Environnement : local, compte QA propriétaire et terminal contrôlé ; aucune donnée d’identification n’est conservée dans cette preuve.
+- Préconditions : 2FA SMS autorisé pour l’entreprise QA, méthode SMS sélectionnée dans les paramètres de sécurité et téléphone QA contrôlé.
+- Scénario : une déconnexion puis une seule reconnexion ; réception du code 2FA par SMS, saisie du code et finalisation de la connexion.
+- Résultat métier : réception du SMS et connexion réussie confirmées par le demandeur.
+- Contrôle fournisseur en lecture seule : le SMS 2FA exact a été reconnu par sa structure sans lire ni conserver le code ; l’API Twilio a répondu HTTP `200`, avec un message récent au statut `delivered` et aucun code d’erreur.
+- Protection des données : aucun numéro, code 2FA, SID de message, corps de message ou secret fournisseur n’a été affiché ou versionné.
+- Couverture automatisée associée : succès du transport SMS, persistance du hash du code et repli email en cas d’échec Twilio couverts dans `TwoFactorServiceTest`.
+- Rollback QA : remettre la méthode 2FA précédente et désactiver l’option SMS de l’entreprise si elle n’était activée que pour le canari.
+- Canari restant : test de campagne SMS limité à l’acteur d’un tenant QA isolé.
+- Promotion : non exécutée ; l’ancien jeton principal reste valide jusqu’au dernier canari et à la revue fournisseur.
+- Verdict : **canari 2FA SMS réussi** ; rotation globale encore ouverte.
 
 ## Gate d’entrée Phase 0 — À compléter
 
@@ -144,7 +161,7 @@ Dernière mise à jour : 2026-07-17
 
 | Ticket | Statut | Responsable | Validateur | Commit/déploiement | Preuve | Verdict |
 |---|---|---|---|---|---|---|
-| MLK-IMP-P0-001 | En validation — secondaire et canaris SMS/WhatsApp validés | Demandeur / Codex pour les contrôles | Demandeur | Local, `d210982` | `CANARY-P0-001-WHATSAPP-2026-07-17` | Canaris 2FA/campagne, promotion et rejet de l’ancien jeton requis |
+| MLK-IMP-P0-001 | En validation — secondaire et canaris SMS/WhatsApp/2FA validés | Demandeur / Codex pour les contrôles | Demandeur | Branche issue de `develop`, `d7440ac` | `CANARY-P0-001-2FA-SMS-2026-07-17` | Canari campagne, promotion et rejet de l’ancien jeton requis |
 | MLK-IMP-P0-002 | Pré-baseline enregistrée | Codex | Demandeur | Local, `d89ad55` | `PRECHECK-P0-2026-07-16` | Attente fermeture P0-001 |
 | MLK-IMP-P0-003 | À valider |  |  |  |  |  |
 | MLK-IMP-P0-004 | À valider |  |  |  |  |  |

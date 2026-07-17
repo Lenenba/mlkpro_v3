@@ -1,8 +1,9 @@
 # Cockpit d’exécution contrôlée — amélioration MLK Pro
 
 - Dernière mise à jour : 2026-07-17
-- Statut global : **Phase 0 en cours — canaris SMS et WhatsApp validés ; 2FA, campagne et promotion du jeton restent à confirmer**
+- Statut global : **Phase 0 en cours — canaris SMS, WhatsApp et 2FA validés ; campagne et promotion du jeton restent à confirmer**
 - Phase active autorisée : **Phase 0, canaris et inventaire des environnements ; promotion interdite avant validation complète**
+- Politique Git : **travail et pull requests uniquement depuis/vers `develop` ; `main` est réservée au propriétaire humain du dépôt**
 - Responsable d’exécution locale : Codex
 - Responsable exploitation : à nommer
 - Validateur produit : demandeur
