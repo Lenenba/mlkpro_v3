@@ -20,7 +20,7 @@
         "symfony/http-client": "^8.0",
         "symfony/mailgun-mailer": "^8.0",
         "tightenco/ziggy": "^2.0",
-        "twilio/sdk": "*"
+        "twilio/sdk": "^8.11.6"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

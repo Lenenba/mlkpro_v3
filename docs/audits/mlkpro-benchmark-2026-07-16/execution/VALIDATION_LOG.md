@@ -157,6 +157,40 @@ Dernière mise à jour : 2026-07-17
 - Promotion : non exécutée ; l’ancien jeton principal reste valide jusqu’à la promotion contrôlée et à la preuve de rejet.
 - Verdict : **canari campagne SMS réussi** ; P0-001 est prêt pour la promotion du jeton secondaire.
 
+## VALID-P0-001-CLOSEOUT-2026-07-17 — Rotation Twilio fermée
+
+- Ticket : `MLK-IMP-P0-001`.
+- Date : 2026-07-17.
+- Commit applicatif de référence : `8da7b9c` sur une branche issue de `develop`.
+- Validation exploitation fournie par le demandeur : nouveau jeton promu et déployé dans les autres environnements ; ancien jeton révoqué et rejeté ; aucune activité inhabituelle observée dans Twilio.
+- Canaris : SMS direct, WhatsApp, 2FA SMS et campagne SMS confirmés ; un canari SMS minimal supplémentaire a réussi après la dernière rotation.
+- Contrôle local expurgé : Laravel charge le SID, le jeton, l’expéditeur SMS et l’expéditeur WhatsApp ; aucun secret n’a été affiché. `config:clear` et `queue:restart` ont réussi ; aucun worker Laravel persistant, Horizon ou Octane n’était actif localement.
+- Santé queue locale : connexion `database`, zéro job en attente et zéro échec sur 24 h et 7 jours.
+- Rollback : générer un nouveau jeton et le redéployer ; ne jamais réactiver un jeton exposé ou révoqué.
+- Verdict : **validé ; P0-001 terminé**.
+
+## BASELINE-P0-2026-07-17 — Baseline locale P0-002 gelée
+
+- Ticket : `MLK-IMP-P0-002`.
+- Date : 2026-07-17.
+- Commit de référence : `8da7b9c`.
+- Branche : `agent/twilio-rotation-closeout-develop`, confirmée descendante de `develop` ; worktree propre avant consignation.
+- Environnement : Windows local, PHP 8.4.23, Node 24.14.1, npm 11.11.0 et Composer 2.10.1.
+- Disponibilité Node : Node 24.14.1 et 25.8.2 installés ; Node 20 absent. La CI ou un environnement Node 20 doit rejouer les gates frontend avant la sortie de Phase 0.
+- Audit Composer verrouillé : 24 avis sur 14 paquets, dont 4 élevés, 15 moyens, 4 faibles et 1 sans sévérité renseignée ; remédiation reportée à P0-003.
+- Audit npm de production : 2 vulnérabilités, dont 1 élevée et 1 modérée ; remédiation reportée à P0-004.
+- Format : `composer qa:format` réussi.
+- Analyse statique : PHPStan complet réussi sans erreur avec une limite mémoire de 1 Go.
+- Tests Pest : 1 140 tests réussis, 12 071 assertions, durée 390,93 s avec `memory_limit=512M`.
+- MySQL isolé : bloqué avant exécution, car l’exécutable `mysql` est absent du `PATH` local ; aucun échec de test MySQL n’a été observé. Gate à rejouer sur l’environnement CI/MySQL.
+- Frontend sous Node 24 : build Vite réussi, 2 603 modules transformés ; suite Playwright complète réussie, statut final `passed` et aucun test échoué.
+- Queue locale : connexion `database`, zéro job en attente, zéro échec sur 24 h et 7 jours.
+- Observabilité : statut `critical` local ; les échantillons ne sont pas représentatifs. Le dashboard possède 17 observations sur un minimum de 25 ; les autres scénarios prioritaires n’ont pas d’échantillon exploitable.
+- Capacité : statut `warning` et tous les scénarios marqués `insufficient_data` ; P0-006 reste requis avant toute conclusion de performance.
+- `git diff --check` : réussi avant consignation.
+- Rollback : sans objet, aucune modification applicative ou de dépendance dans ce ticket.
+- Verdict : **baseline locale enregistrée ; P0-002 terminé avec gates Node 20 et MySQL à rejouer avant la sortie de Phase 0**.
+
 ## Gate d’entrée Phase 0 — À compléter
 
 - ID : `GATE-P0-ENTRY`
@@ -178,8 +212,8 @@ Dernière mise à jour : 2026-07-17
 
 | Ticket | Statut | Responsable | Validateur | Commit/déploiement | Preuve | Verdict |
 |---|---|---|---|---|---|---|
-| MLK-IMP-P0-001 | En validation — secondaire et tous les canaris validés | Demandeur / Codex pour les contrôles | Demandeur | Branche issue de `develop`, `d7440ac` | `CANARY-P0-001-CAMPAIGN-SMS-2026-07-17` | Promotion et rejet prouvé de l’ancien jeton requis |
-| MLK-IMP-P0-002 | Pré-baseline enregistrée | Codex | Demandeur | Local, `d89ad55` | `PRECHECK-P0-2026-07-16` | Attente fermeture P0-001 |
+| MLK-IMP-P0-001 | Terminé | Demandeur / Codex pour les contrôles | Demandeur | Branche issue de `develop`, `8da7b9c` | `VALID-P0-001-CLOSEOUT-2026-07-17` | Validé |
+| MLK-IMP-P0-002 | Terminé avec replays requis avant sortie de phase | Codex | Demandeur | Local, `8da7b9c` | `BASELINE-P0-2026-07-17` | Baseline gelée ; Node 20 et MySQL à rejouer |
 | MLK-IMP-P0-003 | À valider |  |  |  |  |  |
 | MLK-IMP-P0-004 | À valider |  |  |  |  |  |
 | MLK-IMP-P0-005 | À valider |  |  |  |  |  |

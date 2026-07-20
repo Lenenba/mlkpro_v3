@@ -1,7 +1,7 @@
 # Phase 0 — Sécurité et baseline
 
 - Dernière mise à jour : 2026-07-17
-- Statut : **jeton secondaire et canaris SMS/WhatsApp/2FA/campagne validés — promotion du jeton et rejet de l’ancien restent requis**
+- Statut : **en cours — rotation Twilio terminée et baseline locale P0-002 gelée**
 - Responsable d’exécution locale : Codex
 - Propriétaire exploitation : à nommer
 - Validateur produit : demandeur
@@ -83,7 +83,7 @@ Cette baseline doit être confirmée au début de la phase et enregistrée dans 
 
 ### MLK-IMP-P0-001 — Contenir l’exposition Twilio
 
-- Statut : **en validation — jeton secondaire et tous les canaris validés ; promotion et rejet de l’ancien jeton requis**
+- Statut : **terminé — promotion, révocation, rejet de l’ancien jeton, canaris et revue d’activité confirmés**
 - Priorité : immédiate
 - Propriétaire attendu : administrateur Twilio / exploitation
 - But : rendre inutilisable tout jeton exposé et confirmer les communications avec un nouveau secret.
@@ -113,7 +113,7 @@ Cette baseline doit être confirmée au début de la phase et enregistrée dans 
 
 ### MLK-IMP-P0-002 — Geler la baseline avant changement
 
-- Statut : **pré-baseline locale enregistrée — fermeture après P0-001**
+- Statut : **terminé — baseline locale enregistrée avec limites Node 20 et MySQL explicitées**
 - Dépendance : P0-001 terminé
 - But : disposer d’un point de comparaison réexécutable.
 - Livrables : commit de départ, versions PHP/Node, audits, tests, build, santé queue et rapports d’observabilité/capacité consignés.
