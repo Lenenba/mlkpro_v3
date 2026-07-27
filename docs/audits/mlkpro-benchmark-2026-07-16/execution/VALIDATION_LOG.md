@@ -220,6 +220,54 @@ Dernière mise à jour : 2026-07-17
 - Rollback : revert du lot P0-003 pour restaurer le manifeste et le lock précédents ; ne pas utiliser `git reset --hard`.
 - Verdict : **remédiation Composer et migration Laravel 12 validées localement sans avis connu ni régression ; P0-003 passe en validation jusqu’aux replays d’environnement**.
 
+## VALID-P0-003-CLOSEOUT-2026-07-27 — Remédiation PHP clôturée sur develop
+
+- Ticket : `MLK-IMP-P0-003`.
+- Date : 2026-07-27.
+- Livraison : commit applicatif `37bc336f524be4817df779555ad24eefba597442`, pull request [#131](https://github.com/Lenenba/mlkpro_v3/pull/131) vers `develop`, puis merge `28fc253f044d046be4906e214b2eb838df37f554`. Aucune opération n’a été effectuée sur `main`.
+- Validation humaine : le demandeur a demandé l’intégration du lot, puis en a confirmé le résultat.
+- Audit de sécurité : `composer audit --locked --format=json` a été exécuté localement avec zéro avis, zéro paquet abandonné et aucune exception configurée.
+- CI de référence : workflow `quality` réussi sur la tête de pull request `37bc336f524be4817df779555ad24eefba597442`, exécution [30276650856](https://github.com/Lenenba/mlkpro_v3/actions/runs/30276650856).
+- Reproductibilité CI : checkout propre, PHP 8.4, Node 20, `composer install`, `npm ci`, format, PHPStan, Pest et build Vite réussis.
+- Compatibilité environnement : la suite ciblée MySQL 8 et les six parcours Playwright/Chromium ont réussi ; les jobs `laravel-quality`, `laravel-quality-mysql` et `browser-smoke` sont tous verts.
+- Rollback : revert du merge `28fc253f044d046be4906e214b2eb838df37f554` sur `develop` si un retour arrière devient nécessaire ; ne pas utiliser `git reset --hard`.
+- Verdict : **P0-003 terminé ; les replays d’installation propre, Node 20 et MySQL demandés par la gate ont réussi**.
+
+## VALID-P0-004-LOCAL-2026-07-27 — Remédiation JavaScript validée localement
+
+- Ticket : `MLK-IMP-P0-004`.
+- Date : 2026-07-27.
+- Branche : `agent/p0-004-js-dependencies`, créée depuis `develop` au merge `28fc253f044d046be4906e214b2eb838df37f554` ; aucune opération sur `main`.
+- Autorisation réseau : le demandeur a autorisé l’envoi à npmjs.org des noms et versions contenus dans `package-lock.json` pour les audits et mises à jour npm ; aucun secret applicatif n’a été transmis ou journalisé.
+- Baseline avant remédiation : l’audit de production signalait deux paquets à sévérité élevée, `lodash` et `postcss`. L’audit complet signalait 13 vulnérabilités : 4 modérées, 7 élevées et 2 critiques.
+- Changement direct : retrait de `lodash` des dépendances applicatives après confirmation de son absence d’usage dans le code ; sa version sûre `4.18.1` reste uniquement transitive de développement via `concurrently`.
+- Contraintes sûres : `postcss:^8.5.18`, `axios:^1.18.0` et `vite:^6.4.3`. Le lock résout respectivement PostCSS 8.5.23, Axios 1.18.1 et Vite 6.4.3, avec les mises à jour transitives compatibles nécessaires.
+- Politique de résolution : aucun `npm audit fix --force`, aucune rupture majeure imposée et aucune exception d’audit ajoutée.
+- Audits après remédiation : `npm audit --omit=dev --json` et `npm audit --json` réussis avec zéro vulnérabilité, toutes sévérités confondues.
+- Installation propre : `npm ci` réussi, 226 paquets installés et 227 audités, sans vulnérabilité.
+- Cohérence du graphe : `npm ls lodash postcss nanoid concurrently axios vite sucrase --all` réussi ; `npm exec --offline concurrently -- --version` renvoie `9.1.2`.
+- Build : `npm run qa:build` réussi avec Vite 6.4.3 et 2 605 modules transformés.
+- Stabilisation Playwright : les journaux d’accès du serveur PHP sont ignorés par défaut et peuvent être réactivés avec `PLAYWRIGHT_SERVER_LOGS=1`. Le délai global passe de 45 à 90 secondes pour absorber le démarrage navigateur local ; le délai strict des assertions reste inchangé à 10 secondes.
+- E2E final : la commande officielle `npm run qa:e2e` a réussi les six parcours Playwright/Chromium en 4 min 30 s. Les attentes applicatives sont toutes passées sans retry local.
+- Environnement local : Node 24.14.1 et npm 11.11.0. La vérification Node 20 reste requise en CI avant de terminer le ticket.
+- Prévention de régression : le workflow `quality` exécute désormais explicitement `npm audit --audit-level=high` après l’installation propre ; son replay distant est encore ouvert.
+- Rollback : revert du futur commit P0-004, puis `npm ci` depuis le lock restauré ; ne pas utiliser `git reset --hard`.
+- Verdict : **P0-004 validé localement sans avis connu ni régression ; ticket en validation jusqu’au replay CI Node 20**.
+
+## VALID-P0-004-CLOSEOUT-2026-07-27 — Remédiation JavaScript clôturée
+
+- Ticket : `MLK-IMP-P0-004`.
+- Date : 2026-07-27.
+- Livraison : commit applicatif `ccaf1502475e7d397d313d7737c621b74f4335d9`, pull request [#132](https://github.com/Lenenba/mlkpro_v3/pull/132) vers `develop`. Aucune opération n’a été effectuée sur `main`.
+- Validation humaine : le demandeur a autorisé la remédiation npm et l’intégration des travaux sur `develop`.
+- CI de référence : workflow `quality` réussi sur le commit applicatif, exécution [30283056414](https://github.com/Lenenba/mlkpro_v3/actions/runs/30283056414).
+- Sécurité et reproductibilité Node 20 : `npm ci`, la nouvelle gate `npm audit --audit-level=high` et le build Vite ont réussi sur un checkout propre.
+- Qualité applicative : format PHP, PHPStan et Pest complets réussis ; la suite de compatibilité MySQL 8 est verte.
+- Non-régression navigateur : installation propre de Chromium et six parcours Playwright réussis dans le job `browser-smoke`.
+- Impact : aucun contrat de route, API ou workflow métier n’a changé ; Vite reste sur sa version majeure 6 et aucune résolution forcée n’a été utilisée.
+- Rollback : revert du lot P0-004 sur `develop`, puis `npm ci` depuis le lock restauré ; ne pas utiliser `git reset --hard`.
+- Verdict : **P0-004 terminé ; audits sans avis et toutes les gates locales et CI sont vertes**.
+
 ## Gate d’entrée Phase 0 — À compléter
 
 - ID : `GATE-P0-ENTRY`
@@ -242,9 +290,9 @@ Dernière mise à jour : 2026-07-17
 | Ticket | Statut | Responsable | Validateur | Commit/déploiement | Preuve | Verdict |
 |---|---|---|---|---|---|---|
 | MLK-IMP-P0-001 | Terminé | Demandeur / Codex pour les contrôles | Demandeur | Branche issue de `develop`, `8da7b9c` | `VALID-P0-001-CLOSEOUT-2026-07-17` | Validé |
-| MLK-IMP-P0-002 | Terminé avec replays requis avant sortie de phase | Codex | Demandeur | Local, `8da7b9c` | `BASELINE-P0-2026-07-17` | Baseline gelée ; Node 20 et MySQL à rejouer |
-| MLK-IMP-P0-003 | En validation | Codex | Demandeur | Base `197599f`, lot local non commité | `RESUME-P0-003-2026-07-27` | Audit zéro avis et Laravel 12.64 validés ; installation propre CI, MySQL et Node 20 ouverts |
-| MLK-IMP-P0-004 | À valider |  |  |  |  |  |
+| MLK-IMP-P0-002 | Terminé | Codex | Demandeur | Baseline `8da7b9c`, replays CI `37bc336f` | `BASELINE-P0-2026-07-17`, `VALID-P0-003-CLOSEOUT-2026-07-27` | Baseline gelée ; Node 20 et MySQL confirmés |
+| MLK-IMP-P0-003 | Terminé | Codex | Demandeur | PR #131, merge `28fc253f` vers `develop` | `VALID-P0-003-CLOSEOUT-2026-07-27` | Audit zéro avis, Laravel 12.64 et toutes les gates vertes |
+| MLK-IMP-P0-004 | Terminé | Codex | Demandeur | Commit `ccaf150`, PR #132 vers `develop` | `VALID-P0-004-LOCAL-2026-07-27`, `VALID-P0-004-CLOSEOUT-2026-07-27` | Audits zéro et toutes les gates locales/CI vertes |
 | MLK-IMP-P0-005 | À valider |  |  |  |  |  |
 | MLK-IMP-P0-006 | À valider |  |  |  |  |  |
 | MLK-IMP-P0-007 | À valider |  |  |  |  |  |
