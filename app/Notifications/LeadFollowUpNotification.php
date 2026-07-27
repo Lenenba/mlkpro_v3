@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\Request as LeadRequest;
 use App\Services\NotificationPreferenceService;
 use App\Support\LocalePreference;
+use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -18,7 +19,17 @@ class LeadFollowUpNotification extends Notification implements ShouldQueue
         public LeadRequest $lead,
         public string $type = 'follow_up_overdue',
         public int $hours = 24
-    ) {}
+    ) {
+        $this->onQueue(QueueWorkload::queue('notifications'));
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    public function backoff(): array
+    {
+        return QueueWorkload::backoff('notifications', [60, 300, 900]);
+    }
 
     public function via(object $notifiable): array
     {

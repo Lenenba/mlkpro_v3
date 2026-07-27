@@ -7,7 +7,6 @@ use App\Models\SocialAccountConnection;
 use App\Models\SocialPost;
 use App\Models\SocialPostTarget;
 use App\Models\User;
-use App\Support\QueueWorkload;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
@@ -194,8 +193,7 @@ class SocialPublishingService
         ])->save();
 
         foreach ($dispatchableTargets as $target) {
-            $dispatch = PublishSocialPostTargetJob::dispatch($target->id)
-                ->onQueue(QueueWorkload::queue('social_publish', 'social-publish'));
+            $dispatch = PublishSocialPostTargetJob::dispatch($target->id);
 
             if ($mode === 'scheduled' && $scheduledFor instanceof Carbon) {
                 $dispatch->delay($scheduledFor);

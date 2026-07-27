@@ -11,6 +11,8 @@ class SummarizeAiConversationJob implements ShouldQueue
 {
     use Queueable;
 
+    public int $tries = 1;
+
     public function __construct(
         public readonly int $conversationId
     ) {}

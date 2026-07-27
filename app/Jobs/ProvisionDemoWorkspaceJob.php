@@ -24,7 +24,7 @@ class ProvisionDemoWorkspaceJob implements ShouldQueue
         public int $actorUserId,
         public bool $isReset = false
     ) {
-        $this->onQueue(QueueWorkload::queue('demos', 'demo-provisioning'));
+        $this->onQueue(QueueWorkload::queue('demos'));
     }
 
     public function handle(

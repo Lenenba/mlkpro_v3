@@ -1,7 +1,7 @@
 # Phase 0 — Sécurité et baseline
 
 - Dernière mise à jour : 2026-07-27
-- Statut : **en cours — P0-001 à P0-004 terminés ; P0-005 est le prochain ticket d’exécution**
+- Statut : **en cours — P0-001 à P0-004 terminés ; P0-005 en cours d’implémentation et de validation**
 - Responsable d’exécution locale : Codex
 - Propriétaire exploitation : à nommer
 - Validateur produit : demandeur
@@ -20,8 +20,8 @@ Obtenir un état de référence reproductible, supprimer les vulnérabilités pr
 
 - des identifiants Twilio ont été exposés dans le contexte de travail ;
 - les audits Composer et npm signalent des avis à traiter ;
-- `social_publish` n’est pas centralisé dans la configuration asynchrone ni consommé par le worker de développement ;
-- la politique d’erreur de `AnalyzePlanScanJob` neutralise ses retries pour les exceptions capturées ;
+- l’audit initial a révélé que `social_publish` n’était ni centralisé ni consommé par le worker de développement ; P0-005 corrige cet écart par un workload et un profil social explicites ;
+- l’audit initial a révélé que la politique d’erreur de `AnalyzePlanScanJob` neutralisait ses retries pour les exceptions capturées ; P0-005 rend la reprise et l’échec terminal explicites ;
 - les mesures d’observabilité actuelles sont insuffisantes pour comparer proprement les optimisations.
 
 ## Gate d’entrée
@@ -153,19 +153,26 @@ Cette baseline doit être confirmée au début de la phase et enregistrée dans 
 
 ### MLK-IMP-P0-005 — Rendre l’inventaire queues/workers vérifiable
 
-- Statut : **à valider**
+- Statut : **en validation — implémentation et gates locales vertes ; CI, déploiement et canari exploitation à consigner**
 - Dépendances : P0-002 terminé
 - But : garantir que tout job explicitement routé possède une configuration et au moins un worker consommateur.
 - Livrables :
-  - workload `social_publish` ajouté à `config/async.php` ou décision de routage différente enregistrée ;
-  - worker local et documentation de production alignés ;
-  - décision sur `plan_scans` : `default` assumé ou file dédiée ;
+  - workloads `social_publish` et `plan_scans` explicitement routés vers `social-publish` et `plan-scans` ;
+  - profils dynamiques `development`, `operations`, `plan-scans`, `campaigns` et `social` issus de `config/async.php` ;
+  - commande `queue:workloads` pour résoudre et lancer les profils sans dupliquer les noms de files ;
+  - commande `queue:workload-audit` pour contrôler workloads, profils, connexions, collisions physiques, files orphelines et cohérence timeout/visibilité ;
+  - worker local et documentation de déploiement de production alignés ;
+  - décision acceptée de dédier une file et un worker aux analyses de plans ;
   - test automatique qui compare les queues explicites aux queues consommées ;
   - politique d’exception de `AnalyzePlanScanJob` rendue explicite.
-- Fichiers probables : `config/async.php`, `composer.json`, configuration Supervisor/Horizon/deployment, `app/Jobs/AnalyzePlanScanJob.php`, tests unitaires/feature.
-- Notes : conserver les payloads, les statuts métier et les noms externes existants. Si une exception doit être terminale, l’indiquer et tester `failed`; si elle doit être réessayée, la relancer après persistance de l’état utile.
-- Tests : configuration async, dispatch de chaque job, retry/backoff, échec terminal, `queue:health --json`.
-- Rollback : restaurer le routage précédent et redémarrer les workers ; prévoir le traitement des jobs déjà présents dans l’ancienne file.
+- Fichiers probables : `config/async.php`, `config/queue.php`, `.env.example`, `composer.json`, commandes Artisan, `app/Jobs/AnalyzePlanScanJob.php`, routage des jobs/notifications, tests unitaires/feature et documentation de déploiement.
+- Topologie retenue : `operations` consomme `default`, notifications, leads, works et demos ; `plan-scans` isole les analyses longues ; `campaigns` regroupe les trois files de campagne ; `social` regroupe automatisation et publication. Le profil local `development` couvre `default` et les dix workloads.
+- Délais retenus : timeout **configuré** `plan_scans` de 240 secondes, reprise après 60 secondes et `retry_after` de 300 secondes. Le délai de visibilité reste strictement supérieur au timeout maximal du profil ; SQS demeure un contrôle externe à confirmer.
+- Notes : conserver les payloads, les statuts métier et les noms externes existants. Les exceptions techniques de l’analyse de plans sont relancées après persistance de l’état utile ; le hook `failed` porte l’échec terminal. Les résultats métier de repli produits par l’extracteur IA ne deviennent pas artificiellement des échecs de queue. Les profils `development` et `operations` gardent trois tentatives de fallback pour les notifications sans `$tries`, tandis que les jobs IA implicites conservent explicitement une tentative.
+- Tests locaux : configuration async, audit positif/négatif, workload orphelin, connexion invalide, collision de files, priorité, résolution à sec de chaque profil, payload database réel, retry/backoff, journalisation best-effort, échec terminal et `queue:health --json`. La suite complète finale compte 1 179 tests et 12 236 assertions réussis.
+- Déploiement : préprovisionner les consommateurs ou maintenir le trafic, exécuter `queue:workload-audit --json`, inspecter chaque profil avec `queue:workloads <profil> --dry-run --json`, démarrer les nouveaux consommateurs avant les producteurs, conserver `default` pendant le drainage, puis réaliser un canari contrôlé.
+- Rollback : restaurer le routage précédent et redémarrer les workers, tout en conservant une release/commande de drainage, les consommateurs des anciennes et nouvelles files et `retry_after=300` jusqu’au traitement contrôlé des jobs déjà déposés. Voir [la stratégie de queues](../../../PHASE_6_QUEUE_STRATEGY_2026-03-07.md).
+- Limite de preuve : la configuration des processus persistants et les workers de production ne sont pas déclarés vérifiés à ce stade ; leur contrôle et le canari doivent être consignés par l’exploitation.
 - Critères d’acceptation :
   - aucun workload demandé n’est absent de `config/async.php` ;
   - toute queue configurée est consommée dans chaque environnement ;
