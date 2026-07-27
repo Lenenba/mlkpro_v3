@@ -153,7 +153,7 @@ Cette baseline doit être confirmée au début de la phase et enregistrée dans 
 
 ### MLK-IMP-P0-005 — Rendre l’inventaire queues/workers vérifiable
 
-- Statut : **en validation — implémentation et gates locales vertes ; CI, déploiement et canari exploitation à consigner**
+- Statut : **en validation — implémentation et gates locales/CI vertes ; déploiement et canari exploitation à consigner**
 - Dépendances : P0-002 terminé
 - But : garantir que tout job explicitement routé possède une configuration et au moins un worker consommateur.
 - Livrables :

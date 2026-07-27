@@ -1,7 +1,7 @@
 # Cockpit d’exécution contrôlée — amélioration MLK Pro
 
 - Dernière mise à jour : 2026-07-27
-- Statut global : **Phase 0 en cours — P0-001 à P0-004 terminés ; P0-005 en validation après gates locales vertes**
+- Statut global : **Phase 0 en cours — P0-001 à P0-004 terminés ; P0-005 en validation après gates locales et CI vertes**
 - Phase active autorisée : **Phase 0, tickets P0-005 à P0-006**
 - Politique Git : **travail et pull requests uniquement depuis/vers `develop` ; `main` est réservée au propriétaire humain du dépôt**
 - Responsable d’exécution locale : Codex
@@ -107,7 +107,7 @@ P0-005 retient une topologie centralisée dans `config/async.php` :
 - `queue:workload-audit` contrôle la correspondance workloads/files/workers, les connexions persistantes, les collisions et la cohérence timeout/visibilité ;
 - les exceptions techniques de `AnalyzePlanScanJob` doivent être relancées pour activer le retry, tandis que `failed` matérialise l’échec terminal.
 
-Les gates locales sont vertes, dont 1 179 tests/12 236 assertions et PHPStan sans erreur. La procédure complète de démarrage, canari et rollback est décrite dans [Phase 6 Queue Strategy](../../../PHASE_6_QUEUE_STRATEGY_2026-03-07.md). La topologie versionnée ne prouve pas que les processus de production sont actifs : la CI de la branche, le gestionnaire de processus et un canari contrôlé restent à vérifier et à consigner.
+Les gates locales sont vertes, dont 1 179 tests/12 236 assertions et PHPStan sans erreur. La CI de la PR #133 est également verte sous PHP 8.4, MySQL 8.4 et Chromium. La procédure complète de démarrage, canari et rollback est décrite dans [Phase 6 Queue Strategy](../../../PHASE_6_QUEUE_STRATEGY_2026-03-07.md). La topologie versionnée ne prouve pas que les processus de production sont actifs : le gestionnaire de processus et un canari contrôlé restent à vérifier et à consigner.
 
 ## Artefacts de référence
 

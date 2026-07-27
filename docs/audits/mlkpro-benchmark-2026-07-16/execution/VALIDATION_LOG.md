@@ -299,6 +299,18 @@ Dernière mise à jour : 2026-07-17
 - Limites : aucune CI de cette branche, aucune installation de processus persistants et aucun canari staging/production ne sont encore consignés. Les durées réelles des workloads bulk doivent être mesurées pendant les canaris.
 - Verdict : **validation locale réussie ; P0-005 passe en validation et reste ouvert jusqu’aux preuves CI et exploitation**.
 
+## VALID-P0-005-CI-2026-07-27 — Gates GitHub vertes
+
+- Ticket : `MLK-IMP-P0-005`.
+- Date : 2026-07-27.
+- PR : `#133`, ciblée vers `develop`, commit fonctionnel `45015e7e` ; aucune opération sur `main`.
+- Exécution GitHub Actions : `30292598379`.
+- `laravel-quality` : réussi en 3 min 31 s.
+- `laravel-quality-mysql` : réussi sous MySQL 8.4 en 1 min 38 s.
+- `browser-smoke` : réussi sous Chromium en 2 min 07 s.
+- Limites : cette preuve confirme la CI de la branche, pas l’installation ni l’activité des quatre processus persistants et pas le canari staging/production.
+- Verdict : **gates locales et CI vertes ; P0-005 reste en validation jusqu’aux preuves d’exploitation**.
+
 ## Gate d’entrée Phase 0 — À compléter
 
 - ID : `GATE-P0-ENTRY`
@@ -324,7 +336,7 @@ Dernière mise à jour : 2026-07-17
 | MLK-IMP-P0-002 | Terminé | Codex | Demandeur | Baseline `8da7b9c`, replays CI `37bc336f` | `BASELINE-P0-2026-07-17`, `VALID-P0-003-CLOSEOUT-2026-07-27` | Baseline gelée ; Node 20 et MySQL confirmés |
 | MLK-IMP-P0-003 | Terminé | Codex | Demandeur | PR #131, merge `28fc253f` vers `develop` | `VALID-P0-003-CLOSEOUT-2026-07-27` | Audit zéro avis, Laravel 12.64 et toutes les gates vertes |
 | MLK-IMP-P0-004 | Terminé | Codex | Demandeur | Commit `ccaf150`, PR #132 vers `develop` | `VALID-P0-004-LOCAL-2026-07-27`, `VALID-P0-004-CLOSEOUT-2026-07-27` | Audits zéro et toutes les gates locales/CI vertes |
-| MLK-IMP-P0-005 | En validation | Codex | À nommer | Branche `agent/p0-005-queue-workers` | `PREP-P0-005-2026-07-27`, `VALID-P0-005-LOCAL-2026-07-27` | Gates locales vertes ; CI et validation exploitation ouvertes |
+| MLK-IMP-P0-005 | En validation | Codex | À nommer | PR #133, commit fonctionnel `45015e7e` | `PREP-P0-005-2026-07-27`, `VALID-P0-005-LOCAL-2026-07-27`, `VALID-P0-005-CI-2026-07-27` | Gates locales/CI vertes ; validation exploitation ouverte |
 | MLK-IMP-P0-006 | À valider |  |  |  |  |  |
 | MLK-IMP-P0-007 | À valider |  |  |  |  |  |
 
