@@ -1,7 +1,7 @@
 # Phase 0 — Sécurité et baseline
 
 - Dernière mise à jour : 2026-07-27
-- Statut : **en cours — P0-001 à P0-003 terminés ; P0-004 validé localement sans avis npm et en attente du replay CI Node 20**
+- Statut : **en cours — P0-001 à P0-004 terminés ; P0-005 est le prochain ticket d’exécution**
 - Responsable d’exécution locale : Codex
 - Propriétaire exploitation : à nommer
 - Validateur produit : demandeur
@@ -141,7 +141,7 @@ Cette baseline doit être confirmée au début de la phase et enregistrée dans 
 
 ### MLK-IMP-P0-004 — Remédier les dépendances JavaScript
 
-- Statut : **en validation — audits npm de production et complet sans avis, installation propre, build et Playwright verts localement ; replay CI Node 20 ouvert**
+- Statut : **terminé — audits npm sans avis ; installation propre, gate d’audit, build et Playwright confirmés sous Node 20 en CI**
 - Dépendance : P0-002 terminé
 - But : corriger les avis lodash/PostCSS sans upgrade forcé incontrôlé.
 - Livrables : contraintes et lock npm revus, build reproductible, note sur tout breaking change.

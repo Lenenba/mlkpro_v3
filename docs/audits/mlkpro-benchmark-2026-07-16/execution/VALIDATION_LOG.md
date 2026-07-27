@@ -254,6 +254,20 @@ Dernière mise à jour : 2026-07-17
 - Rollback : revert du futur commit P0-004, puis `npm ci` depuis le lock restauré ; ne pas utiliser `git reset --hard`.
 - Verdict : **P0-004 validé localement sans avis connu ni régression ; ticket en validation jusqu’au replay CI Node 20**.
 
+## VALID-P0-004-CLOSEOUT-2026-07-27 — Remédiation JavaScript clôturée
+
+- Ticket : `MLK-IMP-P0-004`.
+- Date : 2026-07-27.
+- Livraison : commit applicatif `ccaf1502475e7d397d313d7737c621b74f4335d9`, pull request [#132](https://github.com/Lenenba/mlkpro_v3/pull/132) vers `develop`. Aucune opération n’a été effectuée sur `main`.
+- Validation humaine : le demandeur a autorisé la remédiation npm et l’intégration des travaux sur `develop`.
+- CI de référence : workflow `quality` réussi sur le commit applicatif, exécution [30283056414](https://github.com/Lenenba/mlkpro_v3/actions/runs/30283056414).
+- Sécurité et reproductibilité Node 20 : `npm ci`, la nouvelle gate `npm audit --audit-level=high` et le build Vite ont réussi sur un checkout propre.
+- Qualité applicative : format PHP, PHPStan et Pest complets réussis ; la suite de compatibilité MySQL 8 est verte.
+- Non-régression navigateur : installation propre de Chromium et six parcours Playwright réussis dans le job `browser-smoke`.
+- Impact : aucun contrat de route, API ou workflow métier n’a changé ; Vite reste sur sa version majeure 6 et aucune résolution forcée n’a été utilisée.
+- Rollback : revert du lot P0-004 sur `develop`, puis `npm ci` depuis le lock restauré ; ne pas utiliser `git reset --hard`.
+- Verdict : **P0-004 terminé ; audits sans avis et toutes les gates locales et CI sont vertes**.
+
 ## Gate d’entrée Phase 0 — À compléter
 
 - ID : `GATE-P0-ENTRY`
@@ -278,7 +292,7 @@ Dernière mise à jour : 2026-07-17
 | MLK-IMP-P0-001 | Terminé | Demandeur / Codex pour les contrôles | Demandeur | Branche issue de `develop`, `8da7b9c` | `VALID-P0-001-CLOSEOUT-2026-07-17` | Validé |
 | MLK-IMP-P0-002 | Terminé | Codex | Demandeur | Baseline `8da7b9c`, replays CI `37bc336f` | `BASELINE-P0-2026-07-17`, `VALID-P0-003-CLOSEOUT-2026-07-27` | Baseline gelée ; Node 20 et MySQL confirmés |
 | MLK-IMP-P0-003 | Terminé | Codex | Demandeur | PR #131, merge `28fc253f` vers `develop` | `VALID-P0-003-CLOSEOUT-2026-07-27` | Audit zéro avis, Laravel 12.64 et toutes les gates vertes |
-| MLK-IMP-P0-004 | En validation | Codex | Demandeur | Branche `agent/p0-004-js-dependencies` | `VALID-P0-004-LOCAL-2026-07-27` | Audits zéro, installation propre, build et E2E verts ; CI Node 20 ouverte |
+| MLK-IMP-P0-004 | Terminé | Codex | Demandeur | Commit `ccaf150`, PR #132 vers `develop` | `VALID-P0-004-LOCAL-2026-07-27`, `VALID-P0-004-CLOSEOUT-2026-07-27` | Audits zéro et toutes les gates locales/CI vertes |
 | MLK-IMP-P0-005 | À valider |  |  |  |  |  |
 | MLK-IMP-P0-006 | À valider |  |  |  |  |  |
 | MLK-IMP-P0-007 | À valider |  |  |  |  |  |
