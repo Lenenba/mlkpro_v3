@@ -335,6 +335,20 @@ Dernière mise à jour : 2026-07-27
 - Validation non exécutée dans cette entrée : aucune campagne externe, aucun import runner, aucun rapport strict représentatif et aucune validation d’exploitation P0-005. Les résultats de tests du lot P0-006 doivent être consignés séparément lorsqu’ils auront réellement été exécutés.
 - Verdict : **P0-006 est techniquement préparé ; la collecte représentative, les canaris P0-005 et la validation finale restent explicitement bloqués**.
 
+## VALID-P0-006-LOCAL-2026-07-27 — Contrôles frontend et statiques du harnais
+
+- Ticket : `MLK-IMP-P0-006`.
+- Date : 2026-07-27.
+- Branche : `agent/p0-006-observability-baseline`, issue de `develop` ; aucune opération sur `main`.
+- Commit fonctionnel contrôlé : `12b9ecde4e6315cf95574ae3e66bdd789658c0f5`.
+- Build frontend : build Vite de production réussi en 2 min 19 s.
+- E2E ciblé : `tests/e2e/superadmin-dashboard-health-smoke.spec.js` réussi, 1 test sur 1, avec les états inconnus de queue et de stockage couverts ; test en 26,8 s, exécution totale en 2,0 min.
+- Contrôles statiques : `git diff --check` réussi ; les trois catalogues i18n modifiés et l’exemple de résultat runner sont des JSON valides ; le scan des ajouts ne détecte aucun motif de secret.
+- Revue : les garde-fous de concurrence, d’isolation du tenant, d’identité du runner, de fenêtre, de couverture queue et de contexte CLI ont été relus sans bloquant certain restant.
+- Limite locale : les tests PHP, Pint et PHPStan n’ont pas été exécutés localement dans cette passe ; ils doivent être rejoués par la CI sur un checkout propre avant intégration.
+- Limite opérationnelle : cette preuve ne contient aucune charge représentative, aucun import runner réel, aucun rapport strict de campagne et aucun canari P0-005 d’exploitation.
+- Verdict : **frontend ciblé et contrôles statiques réussis ; validation code complète en attente de CI, validation P0-006 représentative toujours bloquée**.
+
 ## Gate d’entrée Phase 0 — À compléter
 
 - ID : `GATE-P0-ENTRY`
@@ -361,7 +375,7 @@ Dernière mise à jour : 2026-07-27
 | MLK-IMP-P0-003 | Terminé | Codex | Demandeur | PR #131, merge `28fc253f` vers `develop` | `VALID-P0-003-CLOSEOUT-2026-07-27` | Audit zéro avis, Laravel 12.64 et toutes les gates vertes |
 | MLK-IMP-P0-004 | Terminé | Codex | Demandeur | Commit `ccaf150`, PR #132 vers `develop` | `VALID-P0-004-LOCAL-2026-07-27`, `VALID-P0-004-CLOSEOUT-2026-07-27` | Audits zéro et toutes les gates locales/CI vertes |
 | MLK-IMP-P0-005 | En validation | Codex | À nommer | PR #133, commit fonctionnel `45015e7e` | `PREP-P0-005-2026-07-27`, `VALID-P0-005-LOCAL-2026-07-27`, `VALID-P0-005-CI-2026-07-27` | Code et gates locales/CI verts ; validation exploitation et canaris ouverts |
-| MLK-IMP-P0-006 | Préparé techniquement | Codex pour la préparation | Exploitation et validateur à nommer | Aucun déploiement représentatif consigné | `PREP-P0-006-2026-07-27` | Instrumentation et protocole préparés ; canaris P0-005 et validation représentative bloquants |
+| MLK-IMP-P0-006 | Préparé techniquement | Codex pour la préparation | Exploitation et validateur à nommer | Commit technique `12b9ecd` ; aucun déploiement représentatif | `PREP-P0-006-2026-07-27`, `VALID-P0-006-LOCAL-2026-07-27` | Instrumentation, frontend ciblé et protocole préparés ; CI, canaris P0-005 et validation représentative encore bloquants |
 | MLK-IMP-P0-007 | À valider |  |  |  |  |  |
 
 ## Gate de sortie Phase 0 — À compléter
