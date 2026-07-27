@@ -1,6 +1,6 @@
 # Protocole obligatoire de tests et de non-régression
 
-Dernière mise à jour : 2026-07-16
+Dernière mise à jour : 2026-07-27
 Statut : **applicable à tous les tickets du programme**
 
 ## Règle de décision
@@ -67,6 +67,57 @@ Le build seul ne valide pas un parcours utilisateur. Le test navigateur ciblé e
 | Interface ou design | Composant et scénario utilisateur | Build et Playwright complet | mobile, accessibilité, captures avant/après |
 | Performance interne | Égalité fonctionnelle sur mêmes entrées | Suite du domaine et globale | p50/p95/p99, requêtes, mémoire, charge comparable |
 | Documentation analytique | liens, formats structurés et secret scan | validation de l’artefact rendu | cohérence entre sources et rapport |
+
+## Gate spécifique — baseline d’observabilité P0-006
+
+La préparation technique ne vaut pas validation de la baseline. L’instrumentation est opt-in et inactive par défaut. Avant toute charge, les trois conditions d’activation suivantes sont obligatoires :
+
+- `OBSERVABILITY_ENABLED=true` uniquement pendant la campagne approuvée ;
+- `OBSERVABILITY_CACHE_STORE=redis`, le driver effectif devant être exactement Redis pour corréler les processus avec une faible surcharge ;
+- `OBSERVABILITY_RELEASE` non vide et propre au commit/release déployé.
+
+`php artisan capacity:plan --json` constitue le préflight exécutable. Son statut doit être `ready_for_approved_harness` et ses listes d’erreurs doivent être vides. La gate refuse notamment :
+
+- un contexte baseline incomplet ou incohérent ;
+- l’observabilité désactivée ou une release absente ;
+- tout driver effectif autre que Redis, ou un cache non partagé, à surcharge élevée, illisible, non inscriptible ou ayant perdu de la télémétrie ;
+- une santé de queue partiellement non mesurable, contenant des erreurs de mesure ou dépassant déjà un seuil de backlog, d’âge du plus ancien job ou d’échecs sur 24 h ;
+- un environnement `staging` absent de `CAPACITY_ALLOWED_STAGING_ENVIRONMENTS`, ou un scénario `controlled_write` qui n’exige pas un tenant isolé ;
+- un scénario, une route, un profil, un statut HTTP, un fixture ou une stratégie de résultat métier invalide, ainsi qu’un protocole autorisant le suivi automatique des redirections.
+
+Le contexte complet exige : run ID, environnement correspondant à l’application, commit, début et fin avec offset UTC explicite, trafic, runner et `CAPACITY_BASELINE_RUNNER_HASH` égal au SHA-256 du harness approuvé, exclusions, mode `staging` ou `production_read_only`, représentativité explicite, approbation explicite avec référence, canaris P0-005 vérifiés, propriétaire et validateur distincts. Si un scénario d’écriture non bloqué est prévu, `CAPACITY_BASELINE_ISOLATED_TENANT_VERIFIED=true` atteste l’isolation sous cette même approbation. Les connexions effectives de cache, base et queue sont consignées dans le contexte runtime.
+
+Chaque scénario suit sans réordonnancement :
+
+1. `capacity:scenario:start <scenario>` et snapshot queue initial, seulement si la fenêtre restante couvre le profil plus `CAPACITY_SCENARIO_START_BUFFER_SECONDS` et si cette clé n’a pas déjà été exécutée dans le run ;
+2. harness HTTP externe approuvé exécuté avec le manifeste exact et les redirections automatiques désactivées ;
+3. `capacity:scenario:stop <scenario>` et snapshot queue final ;
+4. import du résultat agrégé, limité à 64 Kio et nommé sans segment de chemin, depuis le dossier contrôlé `storage/app/capacity-imports` avec `capacity:result:import <scenario> <fichier.json> --json` ;
+5. `capacity:report --json --strict` après l’ensemble des scénarios.
+
+Le mode `--strict` retourne le code `0` pour `healthy` et `accepted_with_blockers`. Un rapport `accepted_with_blockers` contient au moins un scénario non exécuté couvert par un blocage formel valide ; il ne prouve pas que les sept scénarios ont été exécutés. Une gate automatisée doit donc lire et conserver le statut JSON, distinguer ces deux résultats et ne réserver la preuve d’exécution complète qu’à `healthy`.
+
+Le scheduler `queue:health --record --json` ajoute un snapshot selon une cadence nominale de 60 s lorsque l’observabilité est active. La série attribuée au bon run/scénario doit couvrir tout l’intervalle du runner : première et dernière captures à au plus 30 s des extrémités, aucun écart supérieur à 120 s et nombre de captures conforme à la cadence. Les seuls snapshots de début et de fin ne suffisent pas ; backlog, âge du plus ancien job prêt et échecs récents doivent rester mesurables.
+
+Le résultat du harness utilise le schéma fermé `schema_version: 1`. Il contient uniquement l’identité de campagne, l’identité du scénario, les empreintes SHA-256 `manifest_hash` et `runner_hash`, le profil réellement exécuté, les compteurs agrégés, les erreurs de transport/assertion et `client_latency_ms` avec p50/p95/p99/max monotones. L’import est refusé si le manifeste, le profil, la fenêtre, le run, le commit, l’environnement ou le runner ne correspondent pas, ou si `runner_hash` diffère de `CAPACITY_BASELINE_RUNNER_HASH`. Les erreurs de transport et d’assertion doivent être nulles ; `attempted_requests` et `completed_requests` doivent atteindre `profile.minimum_completed_requests`. Le nombre de requêtes complétées doit aussi être cohérent avec la télémétrie interne afin de détecter une perte de collecte.
+
+Les seuils p95/p99 utilisent la **latence client de bout en bout** du harness externe. Le **temps de traitement applicatif** mesuré dans Laravel est conservé séparément pour expliquer un écart, mais ne peut pas remplacer la latence client, qui inclut réseau, proxy et runtime HTTP.
+
+La collecte recevable respecte en plus toutes les conditions suivantes :
+
+- staging isolé et représentatif, ou production en lecture seule approuvée explicitement ;
+- six familles et sept scénarios exécutables : dashboard, détail client, création de réservation, création de vente, demande publique, consultation boutique et checkout boutique ;
+- profil du manifeste respecté, `targets.min_samples` et `profile.minimum_completed_requests` atteints pour chaque scénario, ou blocage formel associé à une raison, un propriétaire et une date de réévaluation future ;
+- résultats métier valides en plus des codes HTTP attendus ; une réponse techniquement acceptée mais métier en avertissement ne compte pas comme succès ;
+- erreurs, requêtes lentes, taille de réponse, nombre de requêtes SQL et santé des queues disponibles selon une méthode reproductible ;
+- même méthode, même environnement, même commit ou changement explicite, et charge comparable pour toute comparaison ultérieure ;
+- seuls les agrégats expurgés sont versionnés. Aucun chemin ou paramètre brut, message d’exception, SQL, binding, identifiant, secret ou donnée client directe ne doit apparaître dans le dépôt ;
+- les sorties brutes éventuelles restent dans un stockage contrôlé et le journal ne conserve qu’un lien non sensible ;
+- la surcharge de collecte est surveillée et le rollback reste immédiatement applicable.
+
+Le rollback consiste à remettre `OBSERVABILITY_ENABLED=false`, recharger la configuration puis redémarrer les processus PHP persistants ; il faut ensuite confirmer que la collecte HTTP et les snapshots planifiés ont cessé.
+
+La gate finale P0-006 reste bloquée tant que l’environnement, la fenêtre, le propriétaire exploitation, le validateur distinct, les canaris P0-005 et les échantillons représentatifs ne sont pas consignés. L’état actuel est **techniquement préparé**, pas `validé` ni `terminé`. Aucun test ou résultat de campagne non exécuté ne doit être décrit comme vert.
 
 ## Données et MySQL
 

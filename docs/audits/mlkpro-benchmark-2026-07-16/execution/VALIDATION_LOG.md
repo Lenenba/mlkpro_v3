@@ -1,6 +1,6 @@
 # Journal des validations — programme d’amélioration MLK Pro
 
-Dernière mise à jour : 2026-07-17
+Dernière mise à jour : 2026-07-27
 
 ## Règles de preuve
 
@@ -10,6 +10,7 @@ Dernière mise à jour : 2026-07-17
 - Une validation manuelle indique le scénario, le résultat attendu, le résultat observé et le validateur.
 - Une exception possède un propriétaire, une justification et une date d’expiration.
 - Les valeurs avant/après utilisent la même méthode, le même environnement et un volume comparable.
+- Une campagne P0-006 consigne le run, l’environnement, le commit, la release, la fenêtre UTC, le trafic, le runner et le SHA-256 de son harness approuvé dans `CAPACITY_BASELINE_RUNNER_HASH`, les exclusions, le mode, les approbations, les canaris P0-005, la configuration cache/base/queue, le responsable et le validateur distincts ; seules ses métriques agrégées et expurgées sont versionnées.
 
 ## Entrée initiale — AUDIT-2026-07-16
 
@@ -309,7 +310,30 @@ Dernière mise à jour : 2026-07-17
 - `laravel-quality-mysql` : réussi sous MySQL 8.4 en 1 min 38 s.
 - `browser-smoke` : réussi sous Chromium en 2 min 07 s.
 - Limites : cette preuve confirme la CI de la branche, pas l’installation ni l’activité des quatre processus persistants et pas le canari staging/production.
-- Verdict : **gates locales et CI vertes ; P0-005 reste en validation jusqu’aux preuves d’exploitation**.
+- Verdict : **code et gates locales/CI verts ; P0-005 reste en validation jusqu’aux preuves d’exploitation**.
+
+## PREP-P0-006-2026-07-27 — Protocole de baseline d’observabilité défini
+
+- Ticket : `MLK-IMP-P0-006`.
+- Date : 2026-07-27.
+- Branche : `agent/p0-006-observability-baseline`, issue de `develop` ; aucune opération sur `main`.
+- Type : préparation technique et documentaire du protocole ; cette entrée ne contient aucune mesure représentative et ne déclare aucun test P0-006 non exécuté comme réussi.
+- Périmètre : six familles et sept scénarios exécutables — dashboard, détail client, création de réservation, création de vente, demande publique, consultation de la boutique publique et checkout de la boutique publique.
+- Activation sûre : l’observabilité reste désactivée par défaut avec `OBSERVABILITY_ENABLED=false`. Une campagne recevable exige une activation explicite, le driver effectif Redis via `OBSERVABILITY_CACHE_STORE=redis` et une valeur de release dans `OBSERVABILITY_RELEASE`.
+- Préflight prévu : `capacity:plan --json` vérifie le contexte complet, le catalogue de scénarios, l’activation, la release, le driver Redis exact, la lecture/écriture du cache, l’absence de perte de télémétrie, la mesurabilité des queues et l’absence de seuil queue déjà dépassé avant d’autoriser le harness.
+- Contexte obligatoire : run ID, environnement, commit, fenêtre UTC, trafic, runner, `CAPACITY_BASELINE_RUNNER_HASH` égal au SHA-256 du harness approuvé, exclusions, mode, représentativité, approbation et référence, canaris P0-005 vérifiés, runtime cache/base/queue, propriétaire et validateur distincts. Le staging appartient à `CAPACITY_ALLOWED_STAGING_ENVIRONMENTS` et les scénarios d’écriture non bloqués exigent `CAPACITY_BASELINE_ISOLATED_TENANT_VERIFIED=true`.
+- Ordre d’exécution prévu : `capacity:scenario:start` → harness HTTP externe approuvé avec redirections automatiques désactivées → `capacity:scenario:stop` → `capacity:result:import` → `capacity:report`. Le start refuse une fenêtre plus courte que le profil plus `CAPACITY_SCENARIO_START_BUFFER_SECONDS` et le rejeu d’une même clé dans le run.
+- Snapshots de queue : `queue:health --record --json`, planifié à une cadence nominale de 60 s, doit couvrir tout l’intervalle runner avec au plus 120 s entre captures et 30 s de grâce aux extrémités. Les snapshots de début et de fin seuls ne suffisent pas.
+- Preuve runner : agrégat JSON fermé `schema_version: 1`, lié au run, à l’environnement, au commit, au scénario et au profil par `manifest_hash`, avec un `runner_hash` exactement égal à `CAPACITY_BASELINE_RUNNER_HASH`. Les fichiers d’import sont placés dans le dossier contrôlé `storage/app/capacity-imports` et ne doivent pas contenir de données brutes.
+- Mesures obligatoires : `attempted_requests` et `completed_requests` atteignant `profile.minimum_completed_requests`, latence client p50/p95/p99/max, temps de traitement applicatif séparé, résultats métier, erreurs, requêtes lentes, taille de réponse, nombre de requêtes SQL et santé des queues.
+- Sémantique de temps : les seuils p95/p99 portent sur la latence client du runner externe ; le temps applicatif Laravel est conservé séparément pour le diagnostic et ne remplace pas le bout en bout.
+- Environnement prévu : staging isolé et représentatif ; une production en lecture seule exige une approbation explicite. Aucun environnement n’est encore retenu ni déclaré prêt.
+- Expurgation : le dépôt ne reçoit que des agrégats. Aucun chemin ou paramètre brut, message d’exception, SQL, binding, identifiant, secret ou donnée client directe n’est admissible dans cette preuve.
+- Artefacts : les sorties brutes éventuelles restent dans un stockage contrôlé ; le journal ne conserve qu’une synthèse expurgée et un lien non sensible.
+- Rollback prévu : remettre `OBSERVABILITY_ENABLED=false`, recharger la configuration, redémarrer les processus PHP persistants concernés puis confirmer l’arrêt des captures HTTP et des snapshots planifiés.
+- Conditions manquantes : environnement représentatif, fenêtre de mesure, propriétaire exploitation, validateur distinct, canaris P0-005, échantillons atteignant `targets.min_samples`, charge atteignant `profile.minimum_completed_requests` et couverture temporelle complète des queues.
+- Validation non exécutée dans cette entrée : aucune campagne externe, aucun import runner, aucun rapport strict représentatif et aucune validation d’exploitation P0-005. Les résultats de tests du lot P0-006 doivent être consignés séparément lorsqu’ils auront réellement été exécutés.
+- Verdict : **P0-006 est techniquement préparé ; la collecte représentative, les canaris P0-005 et la validation finale restent explicitement bloqués**.
 
 ## Gate d’entrée Phase 0 — À compléter
 
@@ -336,8 +360,8 @@ Dernière mise à jour : 2026-07-17
 | MLK-IMP-P0-002 | Terminé | Codex | Demandeur | Baseline `8da7b9c`, replays CI `37bc336f` | `BASELINE-P0-2026-07-17`, `VALID-P0-003-CLOSEOUT-2026-07-27` | Baseline gelée ; Node 20 et MySQL confirmés |
 | MLK-IMP-P0-003 | Terminé | Codex | Demandeur | PR #131, merge `28fc253f` vers `develop` | `VALID-P0-003-CLOSEOUT-2026-07-27` | Audit zéro avis, Laravel 12.64 et toutes les gates vertes |
 | MLK-IMP-P0-004 | Terminé | Codex | Demandeur | Commit `ccaf150`, PR #132 vers `develop` | `VALID-P0-004-LOCAL-2026-07-27`, `VALID-P0-004-CLOSEOUT-2026-07-27` | Audits zéro et toutes les gates locales/CI vertes |
-| MLK-IMP-P0-005 | En validation | Codex | À nommer | PR #133, commit fonctionnel `45015e7e` | `PREP-P0-005-2026-07-27`, `VALID-P0-005-LOCAL-2026-07-27`, `VALID-P0-005-CI-2026-07-27` | Gates locales/CI vertes ; validation exploitation ouverte |
-| MLK-IMP-P0-006 | À valider |  |  |  |  |  |
+| MLK-IMP-P0-005 | En validation | Codex | À nommer | PR #133, commit fonctionnel `45015e7e` | `PREP-P0-005-2026-07-27`, `VALID-P0-005-LOCAL-2026-07-27`, `VALID-P0-005-CI-2026-07-27` | Code et gates locales/CI verts ; validation exploitation et canaris ouverts |
+| MLK-IMP-P0-006 | Préparé techniquement | Codex pour la préparation | Exploitation et validateur à nommer | Aucun déploiement représentatif consigné | `PREP-P0-006-2026-07-27` | Instrumentation et protocole préparés ; canaris P0-005 et validation représentative bloquants |
 | MLK-IMP-P0-007 | À valider |  |  |  |  |  |
 
 ## Gate de sortie Phase 0 — À compléter

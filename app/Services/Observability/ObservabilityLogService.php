@@ -3,6 +3,7 @@
 namespace App\Services\Observability;
 
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class ObservabilityLogService
 {
@@ -35,7 +36,7 @@ class ObservabilityLogService
      */
     private function write(string $level, string $event, array $context): void
     {
-        if (! config('observability.enabled', true)) {
+        if (! config('observability.enabled', false)) {
             return;
         }
 
@@ -45,7 +46,11 @@ class ObservabilityLogService
             'app' => config('app.name'),
         ], $context);
 
-        Log::channel((string) config('observability.log_channel', 'observability'))
-            ->{$level}($event, $payload);
+        try {
+            Log::channel((string) config('observability.log_channel', 'observability'))
+                ->{$level}($event, $payload);
+        } catch (Throwable) {
+            // Observability must never turn a successful business action into an error.
+        }
     }
 }

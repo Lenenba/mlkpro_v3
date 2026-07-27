@@ -10,23 +10,52 @@ class ObservabilityReportService
         private readonly QueueHealthService $queueHealth,
         private readonly RequestMetricsService $requestMetrics,
         private readonly SlowQueryService $slowQueries,
-        private readonly ErrorMetricsService $errors
+        private readonly ErrorMetricsService $errors,
+        private readonly ObservabilityCacheStore $cache,
+        private readonly TelemetryQueryGuard $queryGuard
     ) {}
 
     /**
      * @return array<string, mixed>
      */
-    public function summary(): array
+    public function summary(?array $scope = null): array
     {
-        $queue = $this->queueHealth->summary();
-        $requests = $this->requestMetrics->summary();
-        $queries = $this->slowQueries->summary();
-        $errors = $this->errors->summary();
+        $metrics = $this->queryGuard->run(fn (): array => [
+            'queue' => $scope === null
+                ? $this->queueHealth->summary(record: true)
+                : $this->queueHealth->summaryForScope($scope),
+            'requests' => $this->requestMetrics->summary($scope),
+            'queries' => $this->slowQueries->summary($scope),
+            'errors' => $this->errors->summary($scope),
+        ]);
+        $queue = $metrics['queue'];
+        $requests = $metrics['requests'];
+        $queries = $metrics['queries'];
+        $errors = $metrics['errors'];
+        $dataQuality = $this->dataQuality($queue, $requests, $queries, $errors);
         $alerts = $this->alerts($queue, $requests, $queries, $errors);
+        $windowStartedAt = is_string($scope['started_at'] ?? null)
+            ? $scope['started_at']
+            : now()->subHours(24)->toIso8601String();
+        $windowEndedAt = is_string($scope['ended_at'] ?? null)
+            ? $scope['ended_at']
+            : now()->toIso8601String();
 
         return [
             'generated_at' => now()->toIso8601String(),
-            'status' => $this->statusFromAlerts($alerts),
+            'environment' => (string) config('app.env'),
+            'release' => config('observability.release'),
+            'window' => [
+                'started_at' => $windowStartedAt,
+                'ended_at' => $windowEndedAt,
+                'hours' => $scope === null ? 24 : null,
+                'counter_precision_minutes' => max(
+                    1,
+                    (int) config('observability.cache.counter_bucket_minutes', 5)
+                ),
+            ],
+            'status' => $this->statusFromAlerts($alerts, $dataQuality),
+            'data_quality' => $dataQuality,
             'queue' => $queue,
             'requests' => $requests,
             'slow_queries' => $queries,
@@ -47,7 +76,21 @@ class ObservabilityReportService
         $alerts = [];
         $thresholds = config('observability.alerts', []);
 
-        if (($queue['pending_jobs'] ?? 0) >= (int) ($thresholds['queue_pending_jobs'] ?? PHP_INT_MAX)) {
+        if (! ($queue['backlog_measurable'] ?? false)) {
+            $alerts[] = [
+                'code' => 'queue_backlog_unmeasurable',
+                'severity' => 'warning',
+                'title' => 'Queue backlog is not measurable',
+                'message' => 'The active queue driver did not provide a reliable backlog measurement.',
+                'details' => [
+                    ['label' => 'Driver', 'value' => (string) ($queue['driver'] ?? 'unknown')],
+                ],
+            ];
+        }
+
+        if (($queue['backlog_measurable'] ?? false)
+            && is_numeric($queue['pending_jobs'] ?? null)
+            && (float) $queue['pending_jobs'] > (int) ($thresholds['queue_pending_jobs'] ?? PHP_INT_MAX)) {
             $alerts[] = [
                 'code' => 'queue_pending_jobs',
                 'severity' => 'warning',
@@ -60,8 +103,21 @@ class ObservabilityReportService
             ];
         }
 
-        if (($queue['oldest_job_minutes'] ?? 0) !== null
-            && (float) ($queue['oldest_job_minutes'] ?? 0) >= (float) ($thresholds['queue_oldest_job_minutes'] ?? PHP_INT_MAX)) {
+        if (! ($queue['oldest_job_measurable'] ?? false)) {
+            $alerts[] = [
+                'code' => 'queue_oldest_job_unmeasurable',
+                'severity' => 'warning',
+                'title' => 'Queue latency is not measurable',
+                'message' => 'The active queue driver did not provide the age of its oldest ready job.',
+                'details' => [
+                    ['label' => 'Driver', 'value' => (string) ($queue['driver'] ?? 'unknown')],
+                ],
+            ];
+        }
+
+        if (($queue['oldest_job_measurable'] ?? false)
+            && ($queue['oldest_job_minutes'] ?? null) !== null
+            && (float) ($queue['oldest_job_minutes'] ?? 0) > (float) ($thresholds['queue_oldest_job_minutes'] ?? PHP_INT_MAX)) {
             $alerts[] = [
                 'code' => 'queue_oldest_job_minutes',
                 'severity' => 'warning',
@@ -74,7 +130,21 @@ class ObservabilityReportService
             ];
         }
 
-        if (($queue['failed_jobs_24h'] ?? 0) >= (int) ($thresholds['failed_jobs_24h'] ?? PHP_INT_MAX)) {
+        if (! ($queue['failed_jobs_measurable'] ?? false)) {
+            $alerts[] = [
+                'code' => 'failed_jobs_unmeasurable',
+                'severity' => 'warning',
+                'title' => 'Failed jobs are not measurable',
+                'message' => 'The configured failed-job backend cannot be measured by the application report.',
+                'details' => [
+                    ['label' => 'Driver', 'value' => (string) config('queue.failed.driver', 'unknown')],
+                ],
+            ];
+        }
+
+        if (($queue['failed_jobs_measurable'] ?? false)
+            && is_numeric($queue['failed_jobs_24h'] ?? null)
+            && (float) $queue['failed_jobs_24h'] > (int) ($thresholds['failed_jobs_24h'] ?? PHP_INT_MAX)) {
             $alerts[] = [
                 'code' => 'failed_jobs_24h',
                 'severity' => 'critical',
@@ -87,7 +157,7 @@ class ObservabilityReportService
             ];
         }
 
-        if (($queries['count_24h'] ?? 0) >= (int) ($thresholds['slow_queries_24h'] ?? PHP_INT_MAX)) {
+        if (($queries['count_24h'] ?? 0) > (int) ($thresholds['slow_queries_24h'] ?? PHP_INT_MAX)) {
             $alerts[] = [
                 'code' => 'slow_queries_24h',
                 'severity' => 'warning',
@@ -101,7 +171,7 @@ class ObservabilityReportService
             ];
         }
 
-        if (($errors['count_1h'] ?? 0) >= (int) ($thresholds['errors_1h'] ?? PHP_INT_MAX)) {
+        if (($errors['count_1h'] ?? 0) > (int) ($thresholds['errors_1h'] ?? PHP_INT_MAX)) {
             $alerts[] = [
                 'code' => 'errors_1h',
                 'severity' => 'critical',
@@ -115,6 +185,11 @@ class ObservabilityReportService
         }
 
         foreach ($requests as $route) {
+            $minimumSamples = $this->minimumSamplesForRoute((string) ($route['route_name'] ?? ''));
+            if ((int) ($route['sample_count_24h'] ?? 0) < $minimumSamples) {
+                continue;
+            }
+
             if (($route['p95_ms'] ?? 0) >= (float) ($thresholds['request_p95_ms'] ?? PHP_INT_MAX)) {
                 $alerts[] = [
                     'code' => 'request_p95:'.$route['route_name'],
@@ -125,7 +200,7 @@ class ObservabilityReportService
                         ['label' => 'Route', 'value' => $route['route_name']],
                         ['label' => 'p95 (ms)', 'value' => $route['p95_ms']],
                         ['label' => 'Threshold', 'value' => (int) ($thresholds['request_p95_ms'] ?? 0)],
-                        ['label' => 'Samples', 'value' => (int) ($route['count_24h'] ?? 0)],
+                        ['label' => 'Samples', 'value' => (int) ($route['sample_count_24h'] ?? 0)],
                     ],
                 ];
             }
@@ -140,7 +215,7 @@ class ObservabilityReportService
                         ['label' => 'Route', 'value' => $route['route_name']],
                         ['label' => 'p99 (ms)', 'value' => $route['p99_ms']],
                         ['label' => 'Threshold', 'value' => (int) ($thresholds['request_p99_ms'] ?? 0)],
-                        ['label' => 'Samples', 'value' => (int) ($route['count_24h'] ?? 0)],
+                        ['label' => 'Samples', 'value' => (int) ($route['sample_count_24h'] ?? 0)],
                     ],
                 ];
             }
@@ -150,9 +225,101 @@ class ObservabilityReportService
     }
 
     /**
-     * @param  array<int, array<string, mixed>>  $alerts
+     * @param  array<string, mixed>  $queue
+     * @param  array<int, array<string, mixed>>  $requests
+     * @param  array<string, mixed>  $queries
+     * @param  array<string, mixed>  $errors
+     * @return array<string, mixed>
      */
-    private function statusFromAlerts(array $alerts): string
+    private function dataQuality(array $queue, array $requests, array $queries, array $errors): array
+    {
+        $storage = $this->cache->health();
+        $issues = [];
+
+        if (! config('observability.enabled', false)) {
+            $issues[] = 'observability_disabled';
+        }
+        if (! ($storage['shared'] ?? false)) {
+            $issues[] = 'cache_store_not_shared';
+        }
+        if (! ($storage['low_overhead'] ?? false)) {
+            $issues[] = 'cache_store_not_low_overhead';
+        }
+        if ((int) ($storage['dropped_writes'] ?? 0) > 0) {
+            $issues[] = 'telemetry_writes_dropped';
+        }
+        if ((int) ($storage['read_failures'] ?? 0) > 0) {
+            $issues[] = 'telemetry_reads_failed';
+        }
+        if (config('observability.release') === null || trim((string) config('observability.release')) === '') {
+            $issues[] = 'release_missing';
+        }
+        if (! ($queue['backlog_measurable'] ?? false)) {
+            $issues[] = 'queue_backlog_unmeasurable';
+        }
+        if (! ($queue['oldest_job_measurable'] ?? false)) {
+            $issues[] = 'queue_oldest_job_unmeasurable';
+        }
+        if (! ($queue['failed_jobs_measurable'] ?? false)) {
+            $issues[] = 'failed_jobs_unmeasurable';
+        }
+        if (array_key_exists('snapshot_count', $queue) && (int) $queue['snapshot_count'] === 0) {
+            $issues[] = 'queue_scope_samples_missing';
+        }
+        if (($queue['truncated'] ?? false) === true) {
+            $issues[] = 'queue_scope_samples_truncated';
+        }
+        if ($requests === []) {
+            $issues[] = 'request_samples_missing';
+        }
+        if (collect($requests)->contains(fn (array $route): bool => (bool) ($route['truncated'] ?? false))) {
+            $issues[] = 'request_samples_truncated';
+        }
+        if (($queries['truncated'] ?? false) === true) {
+            $issues[] = 'slow_query_samples_truncated';
+        }
+        if (($errors['truncated'] ?? false) === true) {
+            $issues[] = 'error_samples_truncated';
+        }
+
+        $status = 'ready';
+        if (! config('observability.enabled', false) || (int) ($storage['read_failures'] ?? 0) > 0) {
+            $status = 'unavailable';
+        } elseif ($issues !== []) {
+            $status = $requests === [] ? 'collecting' : 'degraded';
+        }
+
+        return [
+            'status' => $status,
+            'issues' => $issues,
+            'storage' => $storage,
+        ];
+    }
+
+    private function minimumSamplesForRoute(string $routeName): int
+    {
+        $scenarios = config('capacity.scenarios', []);
+
+        foreach (is_array($scenarios) ? $scenarios : [] as $scenario) {
+            if (! is_array($scenario)) {
+                continue;
+            }
+
+            $routeNames = $scenario['route_names'] ?? [$scenario['route_name'] ?? null];
+            $routeNames = is_array($routeNames) ? $routeNames : [$routeNames];
+            if (in_array($routeName, $routeNames, true)) {
+                return max(1, (int) data_get($scenario, 'targets.min_samples', 1));
+            }
+        }
+
+        return max(1, (int) config('observability.request.min_alert_samples', 10));
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $alerts
+     * @param  array<string, mixed>  $dataQuality
+     */
+    private function statusFromAlerts(array $alerts, array $dataQuality): string
     {
         if (collect($alerts)->contains(fn (array $alert) => ($alert['severity'] ?? null) === 'critical')) {
             return 'critical';
@@ -160,6 +327,10 @@ class ObservabilityReportService
 
         if ($alerts !== []) {
             return 'warning';
+        }
+
+        if (($dataQuality['status'] ?? null) !== 'ready') {
+            return 'unknown';
         }
 
         return 'healthy';

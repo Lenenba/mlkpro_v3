@@ -74,6 +74,7 @@
         "stripe_failures": "Fallos de rayas",
         "smtp_failures": "Fallos SMTP",
         "jobs_backlog": "Trabajos pendientes",
+        "measurement_unavailable": "Medición no disponible",
         "jobs_backlog_detail": "{pending} pendiente · más antiguo {oldest} min",
         "storage": "Uso de almacenamiento"
       },

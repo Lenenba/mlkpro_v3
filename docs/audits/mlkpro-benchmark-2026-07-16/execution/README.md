@@ -1,8 +1,8 @@
 # Cockpit d’exécution contrôlée — amélioration MLK Pro
 
 - Dernière mise à jour : 2026-07-27
-- Statut global : **Phase 0 en cours — P0-001 à P0-004 terminés ; P0-005 en validation après gates locales et CI vertes**
-- Phase active autorisée : **Phase 0, tickets P0-005 à P0-006**
+- Statut global : **Phase 0 en cours — P0-001 à P0-004 terminés ; P0-005 vert côté code/CI mais ouvert côté exploitation ; P0-006 techniquement préparé, validation représentative bloquée**
+- Phase active autorisée : **Phase 0, exploitation P0-005 et validation représentative P0-006**
 - Politique Git : **travail et pull requests uniquement depuis/vers `develop` ; `main` est réservée au propriétaire humain du dépôt**
 - Responsable d’exécution locale : Codex
 - Responsable exploitation : à nommer
@@ -26,7 +26,7 @@ Les optimisations visuelles et les changements d’architecture attendent la fer
 
 | Phase | Document | Statut | Dépendance | Gate de sortie |
 |---|---|---|---|---|
-| 0 | [Sécurité et baseline](PHASE_0_SECURITY_AND_BASELINE.md) | En cours — P0-001 à P0-004 terminés, P0-005 actif | Aucune | Secrets remplacés, audits traités, queues alignées, baseline exploitable |
+| 0 | [Sécurité et baseline](PHASE_0_SECURITY_AND_BASELINE.md) | En cours — P0-005 exploitation ouverte, P0-006 techniquement préparé mais sans campagne représentative | Aucune | Secrets remplacés, audits traités, queues alignées, baseline exploitable |
 | 1 | [Gains rapides de performance](PHASE_1_QUICK_PERFORMANCE_WINS.md) | En attente | Phase 0 terminée | Coûts globaux réduits sans régression de workflow |
 | 2 | [Performance données et runtime](PHASE_2_DATA_AND_RUNTIME_PERFORMANCE.md) | En attente | Phase 1 terminée | SQL, cache, props et infrastructure validés sous charge |
 | 3 | [Expérience utilisateur premium](PHASE_3_PREMIUM_USER_EXPERIENCE.md) | En attente | Phases 1 et 2 terminées | Parcours plus rapides et plus clairs, validés par rôle |
@@ -109,6 +109,33 @@ P0-005 retient une topologie centralisée dans `config/async.php` :
 
 Les gates locales sont vertes, dont 1 179 tests/12 236 assertions et PHPStan sans erreur. La CI de la PR #133 est également verte sous PHP 8.4, MySQL 8.4 et Chromium. La procédure complète de démarrage, canari et rollback est décrite dans [Phase 6 Queue Strategy](../../../PHASE_6_QUEUE_STRATEGY_2026-03-07.md). La topologie versionnée ne prouve pas que les processus de production sont actifs : le gestionnaire de processus et un canari contrôlé restent à vérifier et à consigner.
 
+## Préparation de la baseline d’observabilité P0-006
+
+P0-006 couvre six familles métier et sept scénarios exécutables : dashboard, détail client, création de réservation, création de vente, demande publique, consultation de la boutique publique et checkout de la boutique publique.
+
+L’instrumentation est volontairement inactive par défaut : `OBSERVABILITY_ENABLED=false`. Une campagne recevable exige `OBSERVABILITY_ENABLED=true`, le driver Redis effectif via `OBSERVABILITY_CACHE_STORE=redis` et une identité de release non vide dans `OBSERVABILITY_RELEASE`. Le préflight refuse une collecte si l’observabilité est inactive, si la release manque, si le driver effectif n’est pas exactement Redis, si le cache ne répond pas en lecture/écriture, si des pertes de télémétrie sont détectées, si la santé des queues n’est pas mesurable ou si les seuils de backlog, d’âge du plus ancien job ou d’échecs sur 24 h sont déjà dépassés.
+
+Le contexte de campagne doit être complet avant le plan : identifiant de run, environnement, commit, fenêtre UTC, trafic, runner externe approuvé et `CAPACITY_BASELINE_RUNNER_HASH` égal au SHA-256 du harness approuvé, exclusions, mode `staging` ou `production_read_only`, représentativité, approbation et sa référence, canaris P0-005 vérifiés, propriétaire et validateur distincts. En mode `staging`, l’environnement doit appartenir à l’allowlist explicite `CAPACITY_ALLOWED_STAGING_ENVIRONMENTS`. Tout scénario d’écriture non bloqué exige en plus `CAPACITY_BASELINE_ISOLATED_TENANT_VERIFIED=true`, attestation liée à la référence d’approbation. Le cache, la base et la connexion de queue effectifs sont ajoutés au contexte d’exécution.
+
+L’ordre contrôlé d’un scénario est :
+
+```text
+capacity:plan
+  → capacity:scenario:start
+  → harness externe approuvé
+  → capacity:scenario:stop
+  → capacity:result:import
+  → capacity:report
+```
+
+Avec `capacity:report --json --strict`, le code de sortie est `0` pour les statuts `healthy` **et** `accepted_with_blockers`. `accepted_with_blockers` signifie qu’au moins un scénario possède un blocage formel encore valide ; ce scénario n’a pas été exécuté ni validé par la campagne. Ce succès de commande ne prouve donc jamais que les sept scénarios ont été exécutés. Toute automatisation doit conserver le JSON et distinguer explicitement ces deux statuts.
+
+Le démarrage et l’arrêt encadrent les snapshots de queue propres au scénario. Au démarrage, la fenêtre restante doit contenir toute la durée du profil plus `CAPACITY_SCENARIO_START_BUFFER_SECONDS` ; une clé de scénario ne peut être exécutée qu’une fois dans un même run. La tâche planifiée `queue:health --record --json` doit couvrir tout l’intervalle du runner avec une cadence nominale de 60 s, un écart maximal de 120 s et une grâce de couverture de 30 s aux deux extrémités. Deux snapshots isolés ne suffisent pas. Le résultat du runner est un agrégat JSON strict et versionné, lié au run, au commit, au scénario, au hash du manifeste et au SHA-256 du harness approuvé déclaré dans `CAPACITY_BASELINE_RUNNER_HASH`. Le harness désactive le suivi automatique des redirections afin de valider le statut et le résultat métier de la réponse initiale. Les p50/p95/p99/max du runner mesurent la **latence client de bout en bout** et portent les seuils de capacité ; la télémétrie Laravel conserve séparément le **temps de traitement applicatif** pour le diagnostic. Voir le [gabarit de résultat runner](capacity-runner-result.example.json) ; ses identifiants et empreintes sont des valeurs d’exemple à remplacer par celles du plan et du harness réellement exécuté.
+
+Chaque scénario doit atteindre à la fois `targets.min_samples` et le plancher de charge `profile.minimum_completed_requests` défini dans `config/capacity.php`, ou être marqué bloqué avec raison, propriétaire et date de réévaluation. L’import refuse un résultat dont les requêtes tentées ou complétées restent sous cette enveloppe. Seuls des agrégats expurgés sont versionnés ; chemins, paramètres, messages d’exception, SQL, bindings, identifiants, secrets, données client et fichiers bruts du harness restent hors du dépôt.
+
+Le rollback opérationnel consiste à positionner `OBSERVABILITY_ENABLED=false`, recharger la configuration puis redémarrer les processus persistants concernés. L’instrumentation et le protocole sont **techniquement préparés**, mais aucune campagne représentative n’est encore consignée et les canaris d’exploitation P0-005 restent ouverts : **P0-006 ne peut pas être déclaré validé ni terminé**.
+
 ## Artefacts de référence
 
 - [Rapport HTML](../report.html)
@@ -119,6 +146,7 @@ Les gates locales sont vertes, dont 1 179 tests/12 236 assertions et PHPStan san
 - [Registre des décisions](DECISIONS.md)
 - [Journal des validations](VALIDATION_LOG.md)
 - [Protocole de tests et de non-régression](QUALITY_GATES.md)
+- [Gabarit agrégé du résultat runner P0-006](capacity-runner-result.example.json)
 
 ## Prochaine réunion de validation
 
@@ -128,7 +156,8 @@ Ordre du jour proposé :
 2. approuver le scope de la Phase 0 ;
 3. confirmer qui possède l’accès administrateur Twilio et aux environnements ;
 4. choisir l’environnement de baseline ;
-5. nommer le propriétaire des processus de queue en production ;
-6. confirmer la fenêtre de déploiement P0-005 et le contact de rollback ;
-7. choisir le périmètre de canari pour `plan-scans` et `social-publish` ;
-8. signer la validation de P0-005 après preuves locales, CI et exploitation.
+5. nommer le propriétaire des processus de queue et de l’observabilité en exploitation ;
+6. confirmer la fenêtre de déploiement P0-005, les canaris et le contact de rollback ;
+7. choisir le staging isolé et la fenêtre de collecte P0-006 ;
+8. approuver le profil de trafic, les exclusions et le protocole d’expurgation ;
+9. signer P0-005 et P0-006 uniquement après les preuves d’exploitation et les échantillons représentatifs.

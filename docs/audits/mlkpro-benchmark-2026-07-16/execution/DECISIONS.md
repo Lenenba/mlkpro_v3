@@ -22,6 +22,7 @@ Une proposition n’autorise aucun changement tant qu’elle n’est pas accept�
 | MLK-DEC-006 | Utiliser des clés API Twilio en production pour les appels sortants | À réévaluer après rotation | Sécurité / exploitation | Après P0-001 |
 | MLK-DEC-007 | Positionner MLK Pro comme OS opérationnel et financier des PME canadiennes de services | À valider par recherche | Produit | Avant Phase 4 |
 | MLK-DEC-008 | Utiliser exclusivement `develop` comme base et cible des travaux automatisés | Acceptée | Jules Roger Sombangnen | Permanente |
+| MLK-DEC-009 | Collecter P0-006 sur un staging isolé avec preuves expurgées | Proposée | Technique / exploitation | Avant collecte représentative |
 
 ## MLK-DEC-001 — Phase 0 en premier
 
@@ -95,6 +96,25 @@ Une proposition n’autorise aucun changement tant qu’elle n’est pas accept�
 - Procédure : avant toute modification, vérifier la branche active ; si elle est `main`, basculer sur `develop` puis créer une branche dédiée.
 - Cas ambigu : livrer le travail jusqu’à `develop` et laisser au propriétaire toute décision ou opération ultérieure concernant `main`.
 - Référence impérative : `AGENTS.md` à la racine du dépôt.
+
+## MLK-DEC-009 — Protocole de baseline d’observabilité P0-006
+
+- Statut : **proposée — contrat préparé techniquement, validation représentative absente**.
+- Date : 2026-07-27.
+- Contexte : la baseline locale P0-002 est insuffisante pour choisir les optimisations ; aucun environnement ni jeu d’échantillons représentatif P0-006 n’est encore validé.
+- Décision proposée : utiliser un staging isolé et représentatif. Une production en lecture seule n’est permise qu’après approbation explicite du produit, de la technique et de l’exploitation.
+- Activation : conserver l’observabilité opt-in et désactivée par défaut (`OBSERVABILITY_ENABLED=false`). Une campagne approuvée active temporairement la collecte, exige Redis comme cache partagé (`OBSERVABILITY_CACHE_STORE=redis`) et identifie la release avec `OBSERVABILITY_RELEASE`.
+- Périmètre : six familles et sept scénarios exécutables — dashboard, détail client, création de réservation, création de vente, demande publique, consultation boutique et checkout boutique.
+- Mesures : latence client p50/p95/p99/max, temps de traitement applicatif séparé, échantillons, résultats métier, erreurs, requêtes lentes, taille de réponse, nombre de requêtes SQL et santé des queues.
+- Contexte exigé : identifiant de run, commit, environnement, fenêtre UTC, profil et origine du trafic, runner externe et `CAPACITY_BASELINE_RUNNER_HASH` égal au SHA-256 du harness approuvé, exclusions, mode, représentativité, approbation et référence, canaris P0-005, configuration runtime cache/base/queue, responsable et validateur distincts. Le mode staging exige l’appartenance à `CAPACITY_ALLOWED_STAGING_ENVIRONMENTS` ; toute écriture non bloquée exige `CAPACITY_BASELINE_ISOLATED_TENANT_VERIFIED=true` sous la même approbation.
+- Préflight : exiger un `capacity:plan --json` prêt avant le harness. Le plan doit refuser un contexte incomplet, une release absente, tout driver effectif autre que Redis, un échec de lecture/écriture, une perte de télémétrie, des mesures de queue incomplètes ou des seuils queue déjà dépassés.
+- Séquençage : pour chaque scénario, imposer `capacity:scenario:start` → harness externe approuvé sans suivi automatique des redirections → `capacity:scenario:stop` → `capacity:result:import`; exécuter `capacity:report` uniquement après les imports. Le start exige la durée complète plus `CAPACITY_SCENARIO_START_BUFFER_SECONDS` dans la fenêtre restante et interdit de rejouer la même clé dans le run. `queue:health --record --json` couvre tout l’intervalle runner à une cadence nominale de 60 s, avec au plus 120 s entre captures et 30 s de grâce aux extrémités ; le start et le stop seuls ne suffisent pas.
+- Preuve externe : accepter uniquement un résultat JSON agrégé au schéma versionné. Le payload lie le run, l’environnement, le commit, le scénario et le profil au `manifest_hash`, et son `runner_hash` doit être égal au SHA-256 du harness approuvé déclaré dans `CAPACITY_BASELINE_RUNNER_HASH`. `attempted_requests` et `completed_requests` atteignent le `profile.minimum_completed_requests` du scénario ; tout champ brut ou inconnu est refusé.
+- Sémantique de latence : appliquer les seuils de capacité aux percentiles de latence client mesurés par le harness externe. Conserver le traitement applicatif Laravel comme mesure de diagnostic séparée, car il n’inclut pas à lui seul réseau, proxy et runtime HTTP.
+- Protection des données : ne versionner que des agrégats expurgés. Les sorties brutes, chemins, paramètres, messages d’exception, SQL, bindings, identifiants, secrets et données client restent dans un stockage contrôlé ou sont supprimés.
+- Garde-fous : ne pas mélanger les environnements, commits ou méthodes ; vérifier explicitement l’environnement staging et l’isolation du tenant pour toute écriture ; satisfaire `targets.min_samples`, `profile.minimum_completed_requests` et la couverture temporelle des queues, ou documenter le blocage avec propriétaire et échéance ; ne pas choisir les candidats Phase 1 avant une baseline recevable.
+- Rollback : remettre `OBSERVABILITY_ENABLED=false`, recharger la configuration, redémarrer les processus PHP persistants et vérifier l’arrêt des snapshots planifiés si la collecte dégrade latence, mémoire ou stockage.
+- Validation manquante : environnement, fenêtre, propriétaire exploitation, validateur distinct, canaris P0-005 et échantillons représentatifs. L’instrumentation et le contrat sont techniquement préparés, mais aucun test non exécuté ni aucune mesure représentative ne sont réputés verts ; la proposition ne clôt ni P0-005 ni P0-006.
 
 ## Gabarit d’une nouvelle décision
 

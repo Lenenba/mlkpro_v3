@@ -74,6 +74,7 @@
         "stripe_failures": "Stripe failures",
         "smtp_failures": "SMTP failures",
         "jobs_backlog": "Jobs backlog",
+        "measurement_unavailable": "Measurement unavailable",
         "jobs_backlog_detail": "{pending} pending · oldest {oldest} min",
         "storage": "Storage usage"
       },
