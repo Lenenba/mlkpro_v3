@@ -1,7 +1,7 @@
 # Phase 0 — Sécurité et baseline
 
 - Dernière mise à jour : 2026-07-27
-- Statut : **en cours — P0-003 en validation après migration Laravel 12.64 et audit Composer sans avis**
+- Statut : **en cours — P0-001 à P0-003 terminés ; P0-004 validé localement sans avis npm et en attente du replay CI Node 20**
 - Responsable d’exécution locale : Codex
 - Propriétaire exploitation : à nommer
 - Validateur produit : demandeur
@@ -113,7 +113,7 @@ Cette baseline doit être confirmée au début de la phase et enregistrée dans 
 
 ### MLK-IMP-P0-002 — Geler la baseline avant changement
 
-- Statut : **terminé — baseline locale enregistrée avec limites Node 20 et MySQL explicitées**
+- Statut : **terminé — baseline locale enregistrée ; replays Node 20 et MySQL confirmés par la CI de clôture P0-003**
 - Dépendance : P0-001 terminé
 - But : disposer d’un point de comparaison réexécutable.
 - Livrables : commit de départ, versions PHP/Node, audits, tests, build, santé queue et rapports d’observabilité/capacité consignés.
@@ -125,7 +125,7 @@ Cette baseline doit être confirmée au début de la phase et enregistrée dans 
 
 ### MLK-IMP-P0-003 — Remédier les dépendances PHP
 
-- Statut : **en validation — Laravel 12.64, Carbon 3 et audit Composer validés localement ; installation propre CI, MySQL et Node 20 restent à rejouer**
+- Statut : **terminé — Laravel 12.64, Carbon 3 et audit Composer sans avis ; installation propre, MySQL 8, Node 20 et Playwright confirmés par la CI**
 - Dépendance : P0-002 terminé
 - But : retirer les avis élevés/critiques applicables sans mise à jour globale non maîtrisée.
 - Livrables : contraintes Composer revues, `twilio/sdk` explicitement contraint, `composer.lock` mis à jour, justification de chaque exception.
@@ -141,8 +141,8 @@ Cette baseline doit être confirmée au début de la phase et enregistrée dans 
 
 ### MLK-IMP-P0-004 — Remédier les dépendances JavaScript
 
-- Statut : **à valider**
-- Dépendance : P0-002 terminé ; peut avancer en parallèle de P0-003 sur une branche distincte
+- Statut : **en validation — audits npm de production et complet sans avis, installation propre, build et Playwright verts localement ; replay CI Node 20 ouvert**
+- Dépendance : P0-002 terminé
 - But : corriger les avis lodash/PostCSS sans upgrade forcé incontrôlé.
 - Livrables : contraintes et lock npm revus, build reproductible, note sur tout breaking change.
 - Fichiers probables : `package.json`, `package-lock.json`.

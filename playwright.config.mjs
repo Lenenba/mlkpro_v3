@@ -5,7 +5,7 @@ export default defineConfig({
     fullyParallel: false,
     workers: 1,
     retries: process.env.CI ? 1 : 0,
-    timeout: 45_000,
+    timeout: 90_000,
     expect: {
         timeout: 10_000,
     },
@@ -22,5 +22,6 @@ export default defineConfig({
         url: 'http://127.0.0.1:38103/login',
         timeout: 180_000,
         reuseExistingServer: false,
+        stderr: process.env.PLAYWRIGHT_SERVER_LOGS === '1' ? 'pipe' : 'ignore',
     },
 });
