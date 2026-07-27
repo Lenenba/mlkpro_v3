@@ -1,7 +1,7 @@
 # Cockpit d’exécution contrôlée — amélioration MLK Pro
 
 - Dernière mise à jour : 2026-07-27
-- Statut global : **Phase 0 en cours — P0-001 à P0-004 terminés ; audits Composer et npm sans avis, gates Node 20, MySQL 8 et Playwright vertes**
+- Statut global : **Phase 0 en cours — P0-001 à P0-004 terminés ; P0-005 en validation après gates locales et CI vertes**
 - Phase active autorisée : **Phase 0, tickets P0-005 à P0-006**
 - Politique Git : **travail et pull requests uniquement depuis/vers `develop` ; `main` est réservée au propriétaire humain du dépôt**
 - Responsable d’exécution locale : Codex
@@ -26,7 +26,7 @@ Les optimisations visuelles et les changements d’architecture attendent la fer
 
 | Phase | Document | Statut | Dépendance | Gate de sortie |
 |---|---|---|---|---|
-| 0 | [Sécurité et baseline](PHASE_0_SECURITY_AND_BASELINE.md) | En cours — P0-001 à P0-004 terminés, P0-005 suivant | Aucune | Secrets remplacés, audits traités, queues alignées, baseline exploitable |
+| 0 | [Sécurité et baseline](PHASE_0_SECURITY_AND_BASELINE.md) | En cours — P0-001 à P0-004 terminés, P0-005 actif | Aucune | Secrets remplacés, audits traités, queues alignées, baseline exploitable |
 | 1 | [Gains rapides de performance](PHASE_1_QUICK_PERFORMANCE_WINS.md) | En attente | Phase 0 terminée | Coûts globaux réduits sans régression de workflow |
 | 2 | [Performance données et runtime](PHASE_2_DATA_AND_RUNTIME_PERFORMANCE.md) | En attente | Phase 1 terminée | SQL, cache, props et infrastructure validés sous charge |
 | 3 | [Expérience utilisateur premium](PHASE_3_PREMIUM_USER_EXPERIENCE.md) | En attente | Phases 1 et 2 terminées | Parcours plus rapides et plus clairs, validés par rôle |
@@ -97,13 +97,17 @@ Avant de terminer un ticket :
 
 ## Précision importante sur les files
 
-L’audit initial doit être lu avec cette précision :
+P0-005 retient une topologie centralisée dans `config/async.php` :
 
-- `AnalyzePlanScanJob` demande le workload `plan_scans`. Dans la configuration actuelle, ce workload pointe par défaut vers `default`, et le worker de développement consomme bien `default`. Le risque est un **écart futur de configuration** si `ASYNC_QUEUE_PLAN_SCANS` devient `plan-scans` sans mise à jour des workers.
-- `PublishSocialPostTargetJob` demande `social_publish`, mais ce workload n’est pas déclaré dans `config/async.php`. Son fallback `social-publish` n’est pas présent dans le worker de développement : ce risque est actuel.
-- `AnalyzePlanScanJob` capture une exception sans la relancer, ce qui empêche Laravel d’appliquer normalement `tries` et `backoff` pour cette erreur.
+- les dix workloads sont déclarés, dont `plan_scans` vers `plan-scans` et `social_publish` vers `social-publish` ;
+- les profils `development`, `operations`, `plan-scans`, `campaigns` et `social` résolvent dynamiquement leurs files avec `queue:workloads` ;
+- `plan-scans` est isolé avec un timeout de 240 secondes et un `retry_after` de 300 secondes ;
+- `default` reste consommée localement et par `operations` pour les jobs implicites et le drainage des anciens scans ;
+- les files explicites sont prioritaires sur `default`, avec `campaigns-send` avant dispatch et `social-publish` avant automation ;
+- `queue:workload-audit` contrôle la correspondance workloads/files/workers, les connexions persistantes, les collisions et la cohérence timeout/visibilité ;
+- les exceptions techniques de `AnalyzePlanScanJob` doivent être relancées pour activer le retry, tandis que `failed` matérialise l’échec terminal.
 
-La Phase 0 doit centraliser ces décisions et ajouter un test de cohérence automatique.
+Les gates locales sont vertes, dont 1 179 tests/12 236 assertions et PHPStan sans erreur. La CI de la PR #133 est également verte sous PHP 8.4, MySQL 8.4 et Chromium. La procédure complète de démarrage, canari et rollback est décrite dans [Phase 6 Queue Strategy](../../../PHASE_6_QUEUE_STRATEGY_2026-03-07.md). La topologie versionnée ne prouve pas que les processus de production sont actifs : le gestionnaire de processus et un canari contrôlé restent à vérifier et à consigner.
 
 ## Artefacts de référence
 
@@ -124,6 +128,7 @@ Ordre du jour proposé :
 2. approuver le scope de la Phase 0 ;
 3. confirmer qui possède l’accès administrateur Twilio et aux environnements ;
 4. choisir l’environnement de baseline ;
-5. décider si `plan_scans` reste sur `default` ou reçoit une file dédiée ;
-6. autoriser une branche dédiée aux remédiations de dépendances ;
-7. signer la gate d’entrée de la Phase 0 dans le journal.
+5. nommer le propriétaire des processus de queue en production ;
+6. confirmer la fenêtre de déploiement P0-005 et le contact de rollback ;
+7. choisir le périmètre de canari pour `plan-scans` et `social-publish` ;
+8. signer la validation de P0-005 après preuves locales, CI et exploitation.

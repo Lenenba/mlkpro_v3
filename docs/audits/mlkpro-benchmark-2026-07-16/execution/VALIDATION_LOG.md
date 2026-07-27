@@ -268,6 +268,49 @@ Dernière mise à jour : 2026-07-17
 - Rollback : revert du lot P0-004 sur `develop`, puis `npm ci` depuis le lock restauré ; ne pas utiliser `git reset --hard`.
 - Verdict : **P0-004 terminé ; audits sans avis et toutes les gates locales et CI sont vertes**.
 
+## PREP-P0-005-2026-07-27 — Topologie queues/workers et procédure de validation définies
+
+- Ticket : `MLK-IMP-P0-005`.
+- Date : 2026-07-27.
+- Branche : `agent/p0-005-queue-workers`, issue de `develop` ; aucune opération sur `main`.
+- Décisions : `plan_scans` est isolé sur `plan-scans` avec un profil dédié ; `social_publish` est centralisé sur `social-publish` et consommé par le profil `social`.
+- Inventaire cible : dix workloads et cinq profils dynamiques — `development`, `operations`, `plan-scans`, `campaigns` et `social` — résolus depuis `config/async.php`.
+- Délais cibles : timeout de 240 secondes pour `plan_scans`, backoff de 60 secondes et `retry_after` de 300 secondes pour les connexions concernées. La visibilité doit rester strictement supérieure au timeout maximal.
+- Contrôles prévus : `queue:workload-audit --json`, résolution à sec de chaque profil avec `queue:workloads <profil> --dry-run --json`, tests d’inventaire positif/négatif, tests de routage, retry/backoff et échec terminal, puis santé des queues.
+- Déploiement prévu : installer quatre processus persistants séparés (`operations`, `plan-scans`, `campaigns`, `social`), démarrer les nouveaux consommateurs avant les producteurs et maintenir `default` pendant le drainage des jobs historiques.
+- Canari prévu : un scan de plan non client et une cible sociale de test ou privée, suivis dans la file, les statuts métier, les journaux et `failed_jobs` jusqu’à consommation complète.
+- Rollback prévu : revenir au routage précédent par revert, conserver simultanément les consommateurs des anciennes et nouvelles files jusqu’au drainage, redémarrer les workers puis vérifier santé et échecs.
+- Limites : cette entrée consigne la conception et la procédure. Elle ne prouve ni que les tests P0-005 sont verts, ni que les processus de production sont installés ou actifs, ni qu’un canari de production a été exécuté.
+- Verdict : **préparation documentée ; P0-005 reste en cours jusqu’aux validations locale, CI et exploitation**.
+
+## VALID-P0-005-LOCAL-2026-07-27 — Topologie et retries validés localement
+
+- Ticket : `MLK-IMP-P0-005`.
+- Date : 2026-07-27.
+- Branche : `agent/p0-005-queue-workers`, issue de `develop` ; aucune opération sur `main`.
+- Implémentation : dix workloads centralisés, cinq profils dynamiques, `plan-scans` et `social-publish` consommés, files explicites prioritaires, fallback de trois tentatives pour `development`/`operations`, connexions persistantes vérifiées et collisions inter-profils refusées.
+- Fiabilité scan : payload database vérifié avec queue `plan-scans`, deux tentatives, backoff 60 secondes et timeout 240 secondes ; exception technique relancée, état terminal porté uniquement par `failed`, journal d’activité best-effort après analyse réussie.
+- Audit local : `queue:workload-audit --json` retourne zéro erreur et zéro workload orphelin ; les cinq profils `queue:workloads ... --dry-run --json` se résolvent sans démarrer de worker. Le visibility timeout SQS reste explicitement externe et non vérifié.
+- Tests ciblés P0-005 : 29 tests, 146 assertions, tous réussis.
+- Non-régression finale : 1 179 tests Pest, 12 236 assertions, tous réussis avec `memory_limit=512M`.
+- Gates supplémentaires : Pint réussi sur 22 fichiers PHP, PHPStan complet sans erreur, `composer validate --strict` réussi et résolution Artisan des commandes confirmée.
+- Revue indépendante : correction avant clôture des tentatives notifications, connexions invalides, collisions physiques, ordre de priorité, timeout CLI trop court, journalisation post-succès et procédure de drainage.
+- Déploiement et rollback : consommateurs préprovisionnés ou trafic maintenu pendant la bascule ; `retry_after=300` et release/commandes de drainage conservés jusqu’au vidage des nouvelles files.
+- Limites : aucune CI de cette branche, aucune installation de processus persistants et aucun canari staging/production ne sont encore consignés. Les durées réelles des workloads bulk doivent être mesurées pendant les canaris.
+- Verdict : **validation locale réussie ; P0-005 passe en validation et reste ouvert jusqu’aux preuves CI et exploitation**.
+
+## VALID-P0-005-CI-2026-07-27 — Gates GitHub vertes
+
+- Ticket : `MLK-IMP-P0-005`.
+- Date : 2026-07-27.
+- PR : `#133`, ciblée vers `develop`, commit fonctionnel `45015e7e` ; aucune opération sur `main`.
+- Exécution GitHub Actions : `30292598379`.
+- `laravel-quality` : réussi en 3 min 31 s.
+- `laravel-quality-mysql` : réussi sous MySQL 8.4 en 1 min 38 s.
+- `browser-smoke` : réussi sous Chromium en 2 min 07 s.
+- Limites : cette preuve confirme la CI de la branche, pas l’installation ni l’activité des quatre processus persistants et pas le canari staging/production.
+- Verdict : **gates locales et CI vertes ; P0-005 reste en validation jusqu’aux preuves d’exploitation**.
+
 ## Gate d’entrée Phase 0 — À compléter
 
 - ID : `GATE-P0-ENTRY`
@@ -293,7 +336,7 @@ Dernière mise à jour : 2026-07-17
 | MLK-IMP-P0-002 | Terminé | Codex | Demandeur | Baseline `8da7b9c`, replays CI `37bc336f` | `BASELINE-P0-2026-07-17`, `VALID-P0-003-CLOSEOUT-2026-07-27` | Baseline gelée ; Node 20 et MySQL confirmés |
 | MLK-IMP-P0-003 | Terminé | Codex | Demandeur | PR #131, merge `28fc253f` vers `develop` | `VALID-P0-003-CLOSEOUT-2026-07-27` | Audit zéro avis, Laravel 12.64 et toutes les gates vertes |
 | MLK-IMP-P0-004 | Terminé | Codex | Demandeur | Commit `ccaf150`, PR #132 vers `develop` | `VALID-P0-004-LOCAL-2026-07-27`, `VALID-P0-004-CLOSEOUT-2026-07-27` | Audits zéro et toutes les gates locales/CI vertes |
-| MLK-IMP-P0-005 | À valider |  |  |  |  |  |
+| MLK-IMP-P0-005 | En validation | Codex | À nommer | PR #133, commit fonctionnel `45015e7e` | `PREP-P0-005-2026-07-27`, `VALID-P0-005-LOCAL-2026-07-27`, `VALID-P0-005-CI-2026-07-27` | Gates locales/CI vertes ; validation exploitation ouverte |
 | MLK-IMP-P0-006 | À valider |  |  |  |  |  |
 | MLK-IMP-P0-007 | À valider |  |  |  |  |  |
 

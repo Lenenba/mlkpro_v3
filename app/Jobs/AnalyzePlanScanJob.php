@@ -13,12 +13,15 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Throwable;
 
 class AnalyzePlanScanJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 2;
+
+    public int $timeout;
 
     /**
      * @param  array<string, mixed>  $metrics
@@ -29,7 +32,8 @@ class AnalyzePlanScanJob implements ShouldQueue
         public array $metrics = [],
         public array $options = []
     ) {
-        $this->onQueue(QueueWorkload::queue('plan_scans', 'plan-scans'));
+        $this->onQueue(QueueWorkload::queue('plan_scans'));
+        $this->timeout = QueueWorkload::timeout('plan_scans');
     }
 
     /**
@@ -37,7 +41,7 @@ class AnalyzePlanScanJob implements ShouldQueue
      */
     public function backoff(): array
     {
-        return QueueWorkload::backoff('plan_scans', [60, 300, 900]);
+        return QueueWorkload::backoff('plan_scans', [60]);
     }
 
     public function handle(
@@ -68,12 +72,15 @@ class AnalyzePlanScanJob implements ShouldQueue
             'error_message' => null,
         ]);
 
-        $extraction = $pipeline->run($scan, $this->metrics, $this->options);
-        $normalized = is_array($extraction['normalized'] ?? null) ? $extraction['normalized'] : [];
-        $effectiveMetrics = $this->effectiveMetrics($normalized, $this->metrics);
-        $reviewedPayload = $this->initialReviewedPayload($scan, $normalized, $effectiveMetrics);
-
+        $extraction = [];
+        $normalized = [];
+        $reviewedPayload = [];
         try {
+            $extraction = $pipeline->run($scan, $this->metrics, $this->options);
+            $normalized = is_array($extraction['normalized'] ?? null) ? $extraction['normalized'] : [];
+            $effectiveMetrics = $this->effectiveMetrics($normalized, $this->metrics);
+            $reviewedPayload = $this->initialReviewedPayload($scan, $normalized, $effectiveMetrics);
+
             $analysis = $planScanService->analyze(
                 $scan,
                 $effectiveMetrics,
@@ -135,20 +142,10 @@ class AnalyzePlanScanJob implements ShouldQueue
                 'analyzed_at' => now(),
             ]);
 
-            ActivityLog::record($actor, $scan, 'analyzed', [
-                'trade_type' => $scan->trade_type,
-                'confidence_score' => $scan->confidence_score,
-                'ai_status' => $scan->ai_status,
-                'ai_model' => $scan->ai_model,
-                'ai_cache_hit' => (bool) $scan->ai_cache_hit,
-                'ai_estimated_cost_usd' => $scan->ai_estimated_cost_usd,
-                'ai_retry_count' => $scan->ai_retry_count,
-                'requested_mode' => $mode,
-            ], 'Plan scan analyzed');
-        } catch (\Throwable $exception) {
+        } catch (Throwable $exception) {
             $scan->update([
-                'status' => PlanScanService::STATUS_FAILED,
-                'ai_status' => $extraction['status'] ?? 'failed',
+                'status' => PlanScanService::STATUS_PROCESSING,
+                'ai_status' => 'retrying',
                 'ai_model' => $extraction['model'] ?? null,
                 'ai_cache_key' => $extraction['cache_key'] ?? null,
                 'ai_cache_hit' => (bool) ($extraction['cache_hit'] ?? false),
@@ -163,11 +160,51 @@ class AnalyzePlanScanJob implements ShouldQueue
                 'ai_retry_count' => $retryCount,
                 'ai_last_requested_at' => $scan->ai_last_requested_at ?? now(),
                 'ai_escalated_at' => $mode === 'escalate' ? now() : $scan->ai_escalated_at,
-                'ai_failed_at' => now(),
-                'ai_error_message' => $extraction['error_message'] ?? null,
+                'ai_failed_at' => null,
+                'ai_error_message' => $extraction['error_message'] ?? $exception->getMessage(),
                 'error_message' => $exception->getMessage(),
             ]);
+
+            throw $exception;
         }
+
+        try {
+            ActivityLog::record($actor, $scan, 'analyzed', [
+                'trade_type' => $scan->trade_type,
+                'confidence_score' => $scan->confidence_score,
+                'ai_status' => $scan->ai_status,
+                'ai_model' => $scan->ai_model,
+                'ai_cache_hit' => (bool) $scan->ai_cache_hit,
+                'ai_estimated_cost_usd' => $scan->ai_estimated_cost_usd,
+                'ai_retry_count' => $scan->ai_retry_count,
+                'requested_mode' => $mode,
+            ], 'Plan scan analyzed');
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+    }
+
+    public function failed(?Throwable $exception): void
+    {
+        $scan = PlanScan::query()->find($this->scanId);
+
+        if (! $scan) {
+            return;
+        }
+
+        $message = trim((string) ($exception?->getMessage() ?: $scan->error_message));
+        if ($message === '') {
+            $message = 'Plan scan analysis failed after all retry attempts.';
+        }
+
+        $scan->update([
+            'status' => PlanScanService::STATUS_FAILED,
+            'ai_status' => 'failed',
+            'ai_review_required' => true,
+            'ai_failed_at' => now(),
+            'ai_error_message' => $message,
+            'error_message' => $message,
+        ]);
     }
 
     /**

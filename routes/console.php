@@ -66,6 +66,7 @@ use App\Services\WhatsappNotificationService;
 use App\Services\WorkBillingService;
 use App\Support\LocalePreference;
 use App\Support\NotificationDispatcher;
+use App\Support\QueueWorkload;
 use App\Support\SchemaAudit\ManualSelectContractAudit;
 use Database\Seeders\LaunchResetSeeder;
 use Illuminate\Auth\Notifications\ResetPassword;
@@ -2152,8 +2153,7 @@ Artisan::command('campaigns:vip-auto-sync {--account_id=} {--dry-run}', function
 
 Artisan::command('campaigns:interest-scores {--account_id=}', function (): int {
     $accountId = $this->option('account_id');
-    ComputeInterestScoresJob::dispatch($accountId ? (int) $accountId : null)
-        ->onQueue((string) config('campaigns.queues.maintenance', 'campaigns-maintenance'));
+    ComputeInterestScoresJob::dispatch($accountId ? (int) $accountId : null);
 
     $this->info('Customer interest score recomputation queued.');
 
@@ -2161,8 +2161,7 @@ Artisan::command('campaigns:interest-scores {--account_id=}', function (): int {
 })->purpose('Queue interest score recomputation');
 
 Artisan::command('campaigns:reconcile-delivery', function (): int {
-    ReconcileDeliveryReportsJob::dispatch()
-        ->onQueue((string) config('campaigns.queues.maintenance', 'campaigns-maintenance'));
+    ReconcileDeliveryReportsJob::dispatch();
 
     $this->info('Campaign delivery reconciliation queued.');
 
@@ -2458,6 +2457,161 @@ Artisan::command('queue:health {--json}', function (QueueHealthService $queueHea
 
     return 0;
 })->purpose('Show queue backlog and failed job health');
+
+Artisan::command('queue:workload-audit {--json}', function (): int {
+    $inventory = QueueWorkload::inventory();
+    $errors = is_array($inventory['errors'] ?? null) ? $inventory['errors'] : [];
+    $externalChecks = is_array($inventory['external_checks'] ?? null) ? $inventory['external_checks'] : [];
+
+    if ((bool) $this->option('json')) {
+        $this->line(json_encode(
+            $inventory,
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+        ));
+
+        return $errors === [] ? 0 : 1;
+    }
+
+    $workloadRows = collect($inventory['workloads'] ?? [])
+        ->map(fn ($queue, $workload) => [(string) $workload, (string) $queue])
+        ->values()
+        ->all();
+    $workerRows = collect($inventory['workers'] ?? [])
+        ->map(fn (array $worker, $name) => [
+            (string) $name,
+            (string) ($worker['environment'] ?? 'unknown'),
+            implode(',', $worker['queues'] ?? []),
+            (int) ($worker['timeout'] ?? 0),
+            (int) ($worker['tries'] ?? 1),
+        ])
+        ->values()
+        ->all();
+
+    $this->table(['Workload', 'Queue'], $workloadRows);
+    $this->table(['Worker profile', 'Environment', 'Queues', 'Timeout', 'Fallback tries'], $workerRows);
+
+    foreach ($externalChecks as $externalCheck) {
+        $this->warn((string) $externalCheck);
+    }
+
+    if ($errors === []) {
+        $this->info('Async workload topology is valid.');
+
+        return 0;
+    }
+
+    foreach ($errors as $error) {
+        $this->error((string) $error);
+    }
+
+    return 1;
+})->purpose('Validate async workload routing and worker coverage');
+
+Artisan::command('queue:workloads
+    {profile=development : Worker profile configured in async.workers}
+    {connection? : Queue connection; defaults to queue.default}
+    {--listen : Run queue:listen instead of queue:work}
+    {--dry-run : Print the resolved worker configuration without starting it}
+    {--json : Print JSON and do not start the worker}
+    {--tries= : Fallback attempts for jobs without an explicit policy}
+    {--timeout= : Worker timeout; cannot be lower than the profile timeout}
+    {--sleep=3 : Seconds to sleep when no job is available}
+    {--memory=256 : Memory limit in megabytes}
+', function (): int {
+    $profile = trim((string) $this->argument('profile'));
+    $connection = trim((string) ($this->argument('connection') ?: config('queue.default', 'database')));
+
+    try {
+        QueueWorkload::validateWorkerConnection($connection);
+        $queues = QueueWorkload::workerQueues($profile, $connection);
+        $configuredTimeout = QueueWorkload::workerTimeout($profile);
+        $configuredTries = QueueWorkload::workerTries($profile);
+    } catch (LogicException $exception) {
+        $this->error($exception->getMessage());
+
+        return 1;
+    }
+
+    $timeoutOption = $this->option('timeout');
+    if ($timeoutOption !== null && (int) $timeoutOption < $configuredTimeout) {
+        $this->error(sprintf(
+            'Worker timeout override (%d) cannot be lower than profile [%s] timeout (%d).',
+            (int) $timeoutOption,
+            $profile,
+            $configuredTimeout
+        ));
+
+        return 1;
+    }
+
+    $timeout = $timeoutOption === null ? $configuredTimeout : (int) $timeoutOption;
+    $tries = max(1, (int) ($this->option('tries') ?? $configuredTries));
+    $sleep = max(0, (int) $this->option('sleep'));
+    $memory = max(1, (int) $this->option('memory'));
+    $retryAfter = config("queue.connections.{$connection}.retry_after");
+
+    if ($retryAfter !== null && (int) $retryAfter <= $timeout) {
+        $this->error(sprintf(
+            'Queue connection [%s] retry_after (%d) must exceed worker timeout (%d).',
+            $connection,
+            (int) $retryAfter,
+            $timeout
+        ));
+
+        return 1;
+    }
+
+    $command = (bool) $this->option('listen') ? 'queue:listen' : 'queue:work';
+    $externalChecks = [];
+    if (config("queue.connections.{$connection}.driver") === 'sqs') {
+        $externalChecks[] = "Verify that the externally managed SQS visibility timeout exceeds {$timeout} seconds.";
+    }
+    $resolved = [
+        'command' => $command,
+        'profile' => $profile,
+        'environment' => (string) config("async.workers.{$profile}.environment", 'production'),
+        'connection' => $connection,
+        'queues' => $queues,
+        'timeout' => $timeout,
+        'tries' => $tries,
+        'sleep' => $sleep,
+        'memory' => $memory,
+        'external_checks' => $externalChecks,
+    ];
+
+    if ((bool) $this->option('json')) {
+        $this->line(json_encode(
+            $resolved,
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+        ));
+
+        return 0;
+    }
+
+    if ((bool) $this->option('dry-run')) {
+        $this->info(sprintf('Resolved worker profile: %s', $profile));
+        $this->line('Command: '.$command);
+        $this->line('Connection: '.$connection);
+        $this->line('Queues: '.implode(',', $queues));
+        $this->line("Timeout: {$timeout}s; tries: {$tries}; sleep: {$sleep}s; memory: {$memory}MB");
+
+        foreach ($externalChecks as $externalCheck) {
+            $this->warn($externalCheck);
+        }
+
+        return 0;
+    }
+
+    return $this->call($command, [
+        'connection' => $connection,
+        '--name' => $profile,
+        '--queue' => implode(',', $queues),
+        '--timeout' => $timeout,
+        '--tries' => $tries,
+        '--sleep' => $sleep,
+        '--memory' => $memory,
+    ]);
+})->purpose('Run a queue worker from a validated async workload profile');
 
 Artisan::command('observability:report {--json} {--notify}', function (
     ObservabilityReportService $observability,

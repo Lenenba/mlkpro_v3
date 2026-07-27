@@ -23,25 +23,80 @@ return [
             'backoff' => [60, 300, 900],
         ],
         'plan_scans' => [
-            'queue' => env('ASYNC_QUEUE_PLAN_SCANS', 'default'),
+            'queue' => env('ASYNC_QUEUE_PLAN_SCANS', 'plan-scans'),
             'run_inline' => env('ASYNC_PLAN_SCANS_INLINE', env('APP_ENV', 'production') === 'local'),
-            'backoff' => [60, 300, 900],
+            'backoff' => [60],
+            'timeout' => 240,
         ],
         'campaigns_dispatch' => [
-            'queue' => env('ASYNC_QUEUE_CAMPAIGNS_DISPATCH', 'campaigns-dispatch'),
+            'queue' => env('ASYNC_QUEUE_CAMPAIGNS_DISPATCH', env('CAMPAIGNS_QUEUE_DISPATCH', 'campaigns-dispatch')),
             'backoff' => [60, 300, 900],
         ],
         'campaigns_send' => [
-            'queue' => env('ASYNC_QUEUE_CAMPAIGNS_SEND', 'campaigns-send'),
+            'queue' => env('ASYNC_QUEUE_CAMPAIGNS_SEND', env('CAMPAIGNS_QUEUE_SEND', 'campaigns-send')),
             'backoff' => [30, 120, 300, 600],
         ],
         'campaigns_maintenance' => [
-            'queue' => env('ASYNC_QUEUE_CAMPAIGNS_MAINTENANCE', 'campaigns-maintenance'),
+            'queue' => env('ASYNC_QUEUE_CAMPAIGNS_MAINTENANCE', env('CAMPAIGNS_QUEUE_MAINTENANCE', 'campaigns-maintenance')),
             'backoff' => [120, 300, 900],
         ],
         'social_automation' => [
             'queue' => env('ASYNC_QUEUE_SOCIAL_AUTOMATION', 'social-automation'),
             'backoff' => [60, 300, 900],
+        ],
+        'social_publish' => [
+            'queue' => env('ASYNC_QUEUE_SOCIAL_PUBLISH', 'social-publish'),
+            'backoff' => [30, 120, 300],
+        ],
+    ],
+
+    'workers' => [
+        'development' => [
+            'environment' => 'development',
+            'include_default' => true,
+            'tries' => 3,
+            'workloads' => [
+                'notifications',
+                'leads',
+                'works',
+                'demos',
+                'plan_scans',
+                'campaigns_send',
+                'campaigns_dispatch',
+                'campaigns_maintenance',
+                'social_publish',
+                'social_automation',
+            ],
+        ],
+        'operations' => [
+            'environment' => 'production',
+            'include_default' => true,
+            'tries' => 3,
+            'workloads' => [
+                'notifications',
+                'leads',
+                'works',
+                'demos',
+            ],
+        ],
+        'plan-scans' => [
+            'environment' => 'production',
+            'workloads' => ['plan_scans'],
+        ],
+        'campaigns' => [
+            'environment' => 'production',
+            'workloads' => [
+                'campaigns_send',
+                'campaigns_dispatch',
+                'campaigns_maintenance',
+            ],
+        ],
+        'social' => [
+            'environment' => 'production',
+            'workloads' => [
+                'social_publish',
+                'social_automation',
+            ],
         ],
     ],
 ];

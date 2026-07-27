@@ -378,8 +378,7 @@ class CampaignService
             'started_at' => $scheduledFor && $scheduledFor->isFuture() ? null : now(),
         ])->save();
 
-        $dispatch = DispatchCampaignRunJob::dispatch($run->id)
-            ->onQueue((string) config('campaigns.queues.dispatch', 'campaigns-dispatch'));
+        $dispatch = DispatchCampaignRunJob::dispatch($run->id);
         if ($scheduledFor && $scheduledFor->isFuture()) {
             $dispatch->delay($scheduledFor);
         }

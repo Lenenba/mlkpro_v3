@@ -388,8 +388,7 @@ class SendCampaignRecipientJob implements ShouldQueue
 
             $trackingService->ensureTokens($fallbackRecipient);
 
-            SendCampaignRecipientJob::dispatch((int) $fallbackRecipient->id)
-                ->onQueue((string) config('campaigns.queues.send', 'campaigns-send'));
+            SendCampaignRecipientJob::dispatch((int) $fallbackRecipient->id);
 
             return [
                 'queued' => true,

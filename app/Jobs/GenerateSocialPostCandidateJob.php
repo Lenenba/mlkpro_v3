@@ -20,7 +20,7 @@ class GenerateSocialPostCandidateJob implements ShouldQueue
         public int $ruleId,
         public bool $dryRun = false,
     ) {
-        $this->onQueue(QueueWorkload::queue('social_automation', 'social-automation'));
+        $this->onQueue(QueueWorkload::queue('social_automation'));
     }
 
     public function backoff(): array

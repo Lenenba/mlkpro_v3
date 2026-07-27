@@ -19,7 +19,7 @@ class PublishSocialPostTargetJob implements ShouldQueue
     public function __construct(
         public int $targetId
     ) {
-        $this->onQueue(QueueWorkload::queue('social_publish', 'social-publish'));
+        $this->onQueue(QueueWorkload::queue('social_publish'));
     }
 
     public function backoff(): array
