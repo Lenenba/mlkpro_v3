@@ -1,7 +1,7 @@
 # Phase 0 — Sécurité et baseline
 
-- Dernière mise à jour : 2026-07-17
-- Statut : **jeton secondaire et canari SMS validés localement — autres canaris et gate externe incomplets**
+- Dernière mise à jour : 2026-07-27
+- Statut : **en cours — P0-003 en validation après migration Laravel 12.64 et audit Composer sans avis**
 - Responsable d’exécution locale : Codex
 - Propriétaire exploitation : à nommer
 - Validateur produit : demandeur
@@ -31,7 +31,7 @@ La phase ne passe à **validée** que si :
 - [ ] responsable technique nommé ;
 - [ ] propriétaire des comptes Twilio et environnements identifié ;
 - [ ] environnement de référence choisi : staging représentatif ou production en lecture seule ;
-- [ ] branche de travail dédiée convenue ;
+- [x] branche de travail dédiée depuis `develop` convenue ;
 - [ ] fenêtre de déploiement et contact de rollback définis ;
 - [ ] validation que les preuves ne contiendront aucun secret ni donnée client directe.
 
@@ -83,7 +83,7 @@ Cette baseline doit être confirmée au début de la phase et enregistrée dans 
 
 ### MLK-IMP-P0-001 — Contenir l’exposition Twilio
 
-- Statut : **en validation — jeton secondaire et canari SMS validés localement ; autres canaris et promotion requis**
+- Statut : **terminé — promotion, révocation, rejet de l’ancien jeton, canaris et revue d’activité confirmés**
 - Priorité : immédiate
 - Propriétaire attendu : administrateur Twilio / exploitation
 - But : rendre inutilisable tout jeton exposé et confirmer les communications avec un nouveau secret.
@@ -113,7 +113,7 @@ Cette baseline doit être confirmée au début de la phase et enregistrée dans 
 
 ### MLK-IMP-P0-002 — Geler la baseline avant changement
 
-- Statut : **pré-baseline locale enregistrée — fermeture après P0-001**
+- Statut : **terminé — baseline locale enregistrée avec limites Node 20 et MySQL explicitées**
 - Dépendance : P0-001 terminé
 - But : disposer d’un point de comparaison réexécutable.
 - Livrables : commit de départ, versions PHP/Node, audits, tests, build, santé queue et rapports d’observabilité/capacité consignés.
@@ -125,12 +125,12 @@ Cette baseline doit être confirmée au début de la phase et enregistrée dans 
 
 ### MLK-IMP-P0-003 — Remédier les dépendances PHP
 
-- Statut : **à valider**
+- Statut : **en validation — Laravel 12.64, Carbon 3 et audit Composer validés localement ; installation propre CI, MySQL et Node 20 restent à rejouer**
 - Dépendance : P0-002 terminé
 - But : retirer les avis élevés/critiques applicables sans mise à jour globale non maîtrisée.
 - Livrables : contraintes Composer revues, `twilio/sdk` explicitement contraint, `composer.lock` mis à jour, justification de chaque exception.
 - Fichiers probables : `composer.json`, `composer.lock`.
-- Notes : mettre à jour une famille de paquets à la fois avec `--with-all-dependencies`. Ne pas masquer un avis sans décision de risque.
+- Notes : la famille Laravel/Inertia/Larastan/Breeze et les paquets avisés ont été renouvelés ensemble avec `--with-all-dependencies`. Les trois exceptions d’audit obsolètes ont été supprimées ; aucun avis n’est masqué.
 - Tests : suite ciblée du domaine touché, PHPStan, Pest complet, MySQL ciblé et build frontend.
 - Rollback : revenir au lock précédent par revert du commit du ticket ; aucun `git reset --hard`.
 - Critères d’acceptation :

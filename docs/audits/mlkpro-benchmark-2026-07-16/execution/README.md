@@ -1,8 +1,9 @@
 # Cockpit d’exécution contrôlée — amélioration MLK Pro
 
-- Dernière mise à jour : 2026-07-17
-- Statut global : **Phase 0 en cours — jeton secondaire et canari SMS validés localement, rotation non finalisée**
-- Phase active autorisée : **Phase 0, canaris et inventaire des environnements ; promotion interdite avant validation complète**
+- Dernière mise à jour : 2026-07-27
+- Statut global : **Phase 0 en cours — P0-003 en validation ; audit Composer sans avis, Laravel 12.64 et gates locales vertes, replays d’environnement encore ouverts**
+- Phase active autorisée : **Phase 0, tickets P0-003 à P0-006**
+- Politique Git : **travail et pull requests uniquement depuis/vers `develop` ; `main` est réservée au propriétaire humain du dépôt**
 - Responsable d’exécution locale : Codex
 - Responsable exploitation : à nommer
 - Validateur produit : demandeur
@@ -25,7 +26,7 @@ Les optimisations visuelles et les changements d’architecture attendent la fer
 
 | Phase | Document | Statut | Dépendance | Gate de sortie |
 |---|---|---|---|---|
-| 0 | [Sécurité et baseline](PHASE_0_SECURITY_AND_BASELINE.md) | Précontrôles en cours | Aucune | Secrets remplacés, audits traités, queues alignées, baseline exploitable |
+| 0 | [Sécurité et baseline](PHASE_0_SECURITY_AND_BASELINE.md) | En cours — P0-001 et P0-002 terminés, P0-003 en validation | Aucune | Secrets remplacés, audits traités, queues alignées, baseline exploitable |
 | 1 | [Gains rapides de performance](PHASE_1_QUICK_PERFORMANCE_WINS.md) | En attente | Phase 0 terminée | Coûts globaux réduits sans régression de workflow |
 | 2 | [Performance données et runtime](PHASE_2_DATA_AND_RUNTIME_PERFORMANCE.md) | En attente | Phase 1 terminée | SQL, cache, props et infrastructure validés sous charge |
 | 3 | [Expérience utilisateur premium](PHASE_3_PREMIUM_USER_EXPERIENCE.md) | En attente | Phases 1 et 2 terminées | Parcours plus rapides et plus clairs, validés par rôle |

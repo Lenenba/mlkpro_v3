@@ -1211,7 +1211,7 @@ class PerformanceController extends Controller
             return 0;
         }
 
-        return $start->diffInMinutes($end) / 60;
+        return ((int) $start->diffInMinutes($end, true)) / 60;
     }
 
     private function parseTime(?string $value): ?Carbon

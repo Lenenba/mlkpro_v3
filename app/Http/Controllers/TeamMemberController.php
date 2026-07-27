@@ -196,7 +196,7 @@ class TeamMemberController extends Controller
             'planning_rules.min_hours_day' => 'nullable|numeric|min:0|max:24',
             'planning_rules.max_hours_day' => 'nullable|numeric|min:0|max:24',
             'planning_rules.max_hours_week' => 'nullable|numeric|min:0|max:168',
-            'profile_picture' => 'nullable|image|mimes:jpg,jpeg,png,svg|max:2048',
+            'profile_picture' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'avatar_icon' => [
                 'nullable',
                 'string',
@@ -315,7 +315,7 @@ class TeamMemberController extends Controller
             'planning_rules.max_hours_day' => 'nullable|numeric|min:0|max:24',
             'planning_rules.max_hours_week' => 'nullable|numeric|min:0|max:168',
             'is_active' => 'nullable|boolean',
-            'profile_picture' => 'nullable|image|mimes:jpg,jpeg,png,svg|max:2048',
+            'profile_picture' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'avatar_icon' => [
                 'nullable',
                 'string',

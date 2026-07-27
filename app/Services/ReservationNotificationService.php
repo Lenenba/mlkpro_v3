@@ -443,7 +443,7 @@ class ReservationNotificationService
                 continue;
             }
 
-            $minutesUntilStart = $now->diffInMinutes($reservation->starts_at, false);
+            $minutesUntilStart = (int) $now->diffInMinutes($reservation->starts_at, false);
             if ($minutesUntilStart < 0) {
                 continue;
             }

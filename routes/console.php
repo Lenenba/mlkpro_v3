@@ -62,6 +62,7 @@ use App\Services\StripePlanPriceProvisioner;
 use App\Services\SupportAssignmentService;
 use App\Services\SupportSettingsService;
 use App\Services\UpcomingBillingReminderService;
+use App\Services\WhatsappNotificationService;
 use App\Services\WorkBillingService;
 use App\Support\LocalePreference;
 use App\Support\NotificationDispatcher;
@@ -829,6 +830,10 @@ Artisan::command('sms:test {to} {--message=}', function (SmsNotificationService 
         return 1;
     }
 
+    if (preg_match('/^\d{10}$/', $to)) {
+        $to = '+1'.$to;
+    }
+
     if (! preg_match('/^\+[1-9]\d{7,14}$/', $to)) {
         $this->error('Numero invalide. Utilisez le format E.164, ex: +15145551234');
 
@@ -886,6 +891,77 @@ Artisan::command('sms:test {to} {--message=}', function (SmsNotificationService 
 
     return 0;
 })->purpose('Send a test SMS using Twilio credentials');
+
+Artisan::command('whatsapp:test {to} {--message=}', function (WhatsappNotificationService $whatsappService): int {
+    $to = preg_replace('/^whatsapp:/i', '', trim((string) $this->argument('to'))) ?? '';
+    $message = trim((string) $this->option('message'));
+    $sid = trim((string) config('services.twilio.sid'));
+    $token = trim((string) config('services.twilio.token'));
+    $from = trim((string) config('services.twilio.whatsapp_from'));
+
+    if ($to === '') {
+        $this->error('Numero destinataire manquant.');
+
+        return 1;
+    }
+
+    if (preg_match('/^\d{10}$/', $to)) {
+        $to = '+1'.$to;
+    }
+
+    if (! preg_match('/^\+[1-9]\d{7,14}$/', $to)) {
+        $this->error('Numero invalide. Utilisez le format E.164, ex: +15145551234');
+
+        return 1;
+    }
+
+    if ($sid === '' || $token === '' || $from === '') {
+        $this->error('Configuration Twilio WhatsApp incomplete. Definissez TWILIO_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM.');
+
+        return 1;
+    }
+
+    if ($message === '') {
+        $message = implode(' | ', [
+            'Test WhatsApp',
+            (string) config('app.name'),
+            now()->toDateTimeString(),
+        ]);
+    }
+
+    $this->line('Envoi du canari WhatsApp vers le destinataire controle...');
+    $result = $whatsappService->sendWithResult($to, $message);
+
+    if (! ($result['ok'] ?? false)) {
+        $reason = (string) ($result['reason'] ?? 'unknown');
+        $status = (string) ($result['status'] ?? '-');
+        $code = (string) ($result['code'] ?? '-');
+        $errorMessage = trim((string) ($result['message'] ?? $result['error'] ?? 'Unknown error'));
+        $moreInfo = trim((string) ($result['more_info'] ?? ''));
+
+        $this->error('Echec envoi WhatsApp.');
+        $this->line("reason={$reason} status={$status} code={$code}");
+        if ($errorMessage !== '') {
+            $this->line("message={$errorMessage}");
+        }
+        if ($moreInfo !== '') {
+            $this->line("more_info={$moreInfo}");
+        }
+
+        if ($reason === 'twilio_error' && $code === '63015') {
+            $this->line('Hint: le destinataire doit rejoindre le Sandbox WhatsApp Twilio avant le test.');
+        }
+        if ($reason === 'twilio_error' && $code === '63007') {
+            $this->line('Hint: TWILIO_WHATSAPP_FROM doit etre un expediteur WhatsApp Twilio actif.');
+        }
+
+        return 1;
+    }
+
+    $this->info('OK: message WhatsApp accepte par Twilio.');
+
+    return 0;
+})->purpose('Send a controlled WhatsApp test using Twilio credentials');
 
 Artisan::command('mailgun:test {to}
     {--from= : Override from address}

@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 test('profile page is displayed', function () {
     $user = User::factory()->create();
@@ -48,6 +50,28 @@ test('email verification status is unchanged when the email address is unchanged
         ->assertRedirect('/profile');
 
     $this->assertNotNull($user->refresh()->email_verified_at);
+});
+
+test('profile picture rejects uploaded SVG content', function () {
+    Storage::fake('public');
+
+    $user = User::factory()->create(['profile_picture' => null]);
+    $svg = UploadedFile::fake()->createWithContent(
+        'profile.svg',
+        '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
+    );
+
+    $this
+        ->actingAs($user)
+        ->patch('/profile', [
+            'name' => $user->name,
+            'email' => $user->email,
+            'profile_picture' => $svg,
+        ])
+        ->assertSessionHasErrors('profile_picture');
+
+    expect($user->refresh()->profile_picture)->toBeNull()
+        ->and(Storage::disk('public')->allFiles())->toBe([]);
 });
 
 test('user can delete their account', function () {

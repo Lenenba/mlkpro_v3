@@ -18,11 +18,10 @@ class DashboardKpiService
 {
     public function __construct(
         private readonly MarketingSettingsService $marketingSettingsService,
-    ) {
-    }
+    ) {}
 
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
      */
     public function resolve(User $accountOwner, array $filters = []): array
@@ -83,7 +82,7 @@ class DashboardKpiService
                 ->where('is_vip', true)
                 ->count();
 
-            $periodDays = $start->diffInDays($end) + 1;
+            $periodDays = (int) $start->diffInDays($end, true) + 1;
             $previousStart = $start->subDays($periodDays);
             $previousEnd = $start->subDay();
             $currentGrowth = Customer::query()
@@ -144,7 +143,7 @@ class DashboardKpiService
     }
 
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      * @return array{0: CarbonImmutable, 1: CarbonImmutable, 2: string}
      */
     private function resolveRange(array $filters): array
@@ -155,6 +154,7 @@ class DashboardKpiService
         if (in_array($preset, ['7', '30', '90'], true)) {
             $days = (int) $preset;
             $start = $now->subDays($days - 1)->startOfDay();
+
             return [$start, $now, "{$days}d"];
         }
 
@@ -172,7 +172,7 @@ class DashboardKpiService
         }
 
         $defaultStart = $now->subDays(29)->startOfDay();
+
         return [$defaultStart, $now, '30d'];
     }
 }
-

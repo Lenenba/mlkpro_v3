@@ -63,7 +63,7 @@ class LeadTriageClassifier
             'stale_since_at' => $staleSinceAt,
             'triage_priority' => $lead->triage_priority ?? $this->defaultPriority($queue),
             'risk_level' => $lead->risk_level ?? $this->defaultRiskLevel($queue),
-            'days_since_activity' => $lastActivityAt ? $now->diffInDays($lastActivityAt) : null,
+            'days_since_activity' => $lastActivityAt ? (int) $now->diffInDays($lastActivityAt, true) : null,
         ];
     }
 

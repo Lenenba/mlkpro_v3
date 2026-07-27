@@ -208,7 +208,7 @@ class BuildProspectDashboardData
                     return null;
                 }
 
-                return round($prospect->created_at->diffInSeconds($prospect->converted_at) / 86400, 1);
+                return round(((int) $prospect->created_at->diffInSeconds($prospect->converted_at, true)) / 86400, 1);
             })
             ->filter(fn (?float $duration): bool => $duration !== null)
             ->values();

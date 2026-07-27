@@ -172,7 +172,7 @@ class PlanningController extends Controller
             $breakMinutesOverride = null;
             $startDate = Carbon::parse($validated['shift_date'])->startOfDay();
             $endDate = Carbon::parse($validated['end_date'] ?? $validated['shift_date'])->startOfDay();
-            $daySpan = $startDate->diffInDays($endDate);
+            $daySpan = (int) $startDate->diffInDays($endDate, true);
             if ($daySpan > 365) {
                 throw ValidationException::withMessages([
                     'end_date' => ['La periode ne peut pas depasser 365 jours.'],
@@ -1265,7 +1265,7 @@ class PlanningController extends Controller
             return 0;
         }
 
-        $minutes = $startTime->diffInMinutes($endTime);
+        $minutes = (int) $startTime->diffInMinutes($endTime, true);
         if ($breakMinutes > 0) {
             $minutes = max(0, $minutes - $breakMinutes);
         }

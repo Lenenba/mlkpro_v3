@@ -167,7 +167,7 @@ const previewTypeLabel = (asset) => {
                             ref="fileInput"
                             type="file"
                             multiple
-                            accept="image/*,application/pdf,video/*"
+                            accept="image/jpeg,image/png,image/gif,image/bmp,image/webp,image/avif,application/pdf,video/*"
                             class="mt-1 block w-full text-sm text-stone-600 file:me-4 file:rounded-sm file:border-0 file:bg-stone-100 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-stone-700 hover:file:bg-stone-200 dark:text-neutral-300 dark:file:bg-neutral-800 dark:file:text-neutral-200 dark:hover:file:bg-neutral-700"
                             @change="onFilesChange"
                         >

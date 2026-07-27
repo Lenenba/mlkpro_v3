@@ -144,16 +144,39 @@ test('whatsapp normalizes prefixes and authenticates', function () {
     Http::assertSentCount(1);
 });
 
-test('whatsapp returns false when the provider rejects authentication', function () {
+test('whatsapp exposes provider rejection details', function () {
     config()->set('services.twilio.sid', 'AC_TEST_ACCOUNT_SID');
     config()->set('services.twilio.token', 'rejected-test-token');
     config()->set('services.twilio.whatsapp_from', '+15145550101');
 
     Http::fake([
-        'https://api.twilio.com/*' => Http::response(['code' => 20003], 401),
+        'https://api.twilio.com/*' => Http::response([
+            'code' => 20003,
+            'message' => 'Authentication rejected',
+        ], 401),
     ]);
 
-    $sent = app(WhatsappNotificationService::class)->send('+15145550102', 'Rotation canary');
+    $result = app(WhatsappNotificationService::class)->sendWithResult('+15145550102', 'Rotation canary');
 
-    expect($sent)->toBeFalse();
+    expect($result)->toMatchArray([
+        'ok' => false,
+        'reason' => 'twilio_error',
+        'status' => 401,
+        'code' => 20003,
+    ]);
+});
+
+test('whatsapp maps a connection failure', function () {
+    config()->set('services.twilio.sid', 'AC_TEST_ACCOUNT_SID');
+    config()->set('services.twilio.token', 'test-token');
+    config()->set('services.twilio.whatsapp_from', '+15145550101');
+
+    Http::fake(fn () => throw new ConnectionException('Simulated connection failure'));
+
+    $result = app(WhatsappNotificationService::class)->sendWithResult('+15145550102', 'Rotation canary');
+
+    expect($result)->toMatchArray([
+        'ok' => false,
+        'reason' => 'http_exception',
+    ]);
 });

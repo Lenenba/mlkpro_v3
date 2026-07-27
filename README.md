@@ -19,6 +19,15 @@ Tech Stack
 - Vite + Vue
 - Stripe / Paddle billing
 
+Git Workflow
+------------
+- `develop` is the only base branch for day-to-day work.
+- Feature and maintenance branches must be created from `develop`.
+- Pull requests must target `develop`, never `main`.
+- `main` is reserved for the repository owner, Jules Roger Sombangnen. Automated agents must never commit, push, merge, or open pull requests against `main`.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the contributor workflow and [AGENTS.md](AGENTS.md) for the mandatory automation rules.
+
 Quick Start (Local)
 ------------------
 Requirements:

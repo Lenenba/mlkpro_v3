@@ -112,7 +112,7 @@ class UpcomingBillingReminderService
                 continue;
             }
 
-            $daysUntilBilling = now()->startOfDay()->diffInDays($billingDate, false);
+            $daysUntilBilling = (int) now()->startOfDay()->diffInDays($billingDate, false);
             if (! in_array($daysUntilBilling, $normalizedDays, true)) {
                 $result['skipped']++;
 

@@ -5,9 +5,11 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Models\PlatformAsset;
 use App\Services\PlatformStockAssetCatalog;
 use App\Support\PlatformPermissions;
+use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
@@ -50,7 +52,35 @@ class PlatformAssetController extends BaseSuperAdminController
 
         $validated = $request->validate([
             'files' => ['required', 'array', 'min:1'],
-            'files.*' => ['file', 'max:20480', 'mimetypes:image/*,application/pdf,video/*'],
+            'files.*' => [
+                'bail',
+                'file',
+                'max:20480',
+                'mimetypes:image/*,application/pdf,video/*',
+                static function (string $attribute, mixed $value, Closure $fail): void {
+                    if (! $value instanceof UploadedFile) {
+                        return;
+                    }
+
+                    $mime = strtolower((string) $value->getMimeType());
+                    $extension = strtolower($value->getClientOriginalExtension());
+
+                    if ($extension === 'svg' || in_array($mime, ['image/svg', 'image/svg+xml'], true)) {
+                        $fail('SVG files are not allowed.');
+
+                        return;
+                    }
+
+                    $rasterExtensions = ['avif', 'bmp', 'gif', 'jpeg', 'jpg', 'png', 'webp'];
+                    $isImageUpload = str_starts_with($mime, 'image/')
+                        || in_array($extension, $rasterExtensions, true);
+                    $path = $value->getRealPath();
+
+                    if ($isImageUpload && (! is_string($path) || @getimagesize($path) === false)) {
+                        $fail('The file must be a valid raster image.');
+                    }
+                },
+            ],
             'tags' => ['nullable', 'string', 'max:160'],
             'alt' => ['nullable', 'string', 'max:160'],
         ]);

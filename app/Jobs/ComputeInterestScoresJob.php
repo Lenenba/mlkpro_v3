@@ -75,7 +75,7 @@ class ComputeInterestScoresJob implements ShouldQueue
         foreach ($customers as $customer) {
             $customerId = (int) $customer->id;
             $lastPurchaseAt = $lastPurchases[$customerId] ?? null;
-            $daysSince = $lastPurchaseAt ? now()->diffInDays($lastPurchaseAt) : 365;
+            $daysSince = $lastPurchaseAt ? (int) now()->diffInDays($lastPurchaseAt, true) : 365;
             $recencyScore = max(0, min(100, 100 - ($daysSince * 2)));
 
             $frequency = (int) ($stats90[$customerId]->purchase_count ?? 0);
