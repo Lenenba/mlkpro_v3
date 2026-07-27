@@ -133,7 +133,7 @@ class PlatformAdminNotifier
                     continue;
                 }
 
-                $daysLeft = now()->diffInDays($trialEndsAt, false);
+                $daysLeft = (int) now()->diffInDays($trialEndsAt, false);
                 if ($daysLeft < 0 || $daysLeft > $thresholdDays) {
                     continue;
                 }

@@ -479,7 +479,7 @@ class SuperAdminDashboardService
             $score = 0;
 
             if (! $owner->onboarding_completed_at) {
-                $ageDays = Carbon::parse($owner->created_at)->diffInDays(now());
+                $ageDays = (int) Carbon::parse($owner->created_at)->diffInDays(now(), true);
                 if ($ageDays >= 7) {
                     $flags[] = 'onboarding_blocked';
                     $score += 3;
@@ -509,8 +509,8 @@ class SuperAdminDashboardService
 
             $lastActivity = $lastActivityMap->get($owner->id);
             $inactiveDays = $lastActivity
-                ? Carbon::parse($lastActivity)->diffInDays(now())
-                : Carbon::parse($owner->created_at)->diffInDays(now());
+                ? (int) Carbon::parse($lastActivity)->diffInDays(now(), true)
+                : (int) Carbon::parse($owner->created_at)->diffInDays(now(), true);
 
             if ($inactiveDays >= 30) {
                 $flags[] = 'inactive_30';
@@ -801,7 +801,7 @@ class SuperAdminDashboardService
                 continue;
             }
 
-            $diffDays = Carbon::parse($firstCreatedAt)->diffInHours(Carbon::parse($owner->created_at)) / 24;
+            $diffDays = ((int) Carbon::parse($firstCreatedAt)->diffInHours(Carbon::parse($owner->created_at), true)) / 24;
             $days[] = $diffDays;
         }
 
@@ -839,7 +839,7 @@ class SuperAdminDashboardService
                 continue;
             }
 
-            $diffDays = Carbon::parse($firstCreatedAt)->diffInHours(Carbon::parse($owner->created_at)) / 24;
+            $diffDays = ((int) Carbon::parse($firstCreatedAt)->diffInHours(Carbon::parse($owner->created_at), true)) / 24;
             $days[] = $diffDays;
         }
 

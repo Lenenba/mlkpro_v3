@@ -172,6 +172,7 @@ watch(
                         <label class="block text-xs text-stone-500 dark:text-neutral-400">Upload image or file</label>
                         <input
                             type="file"
+                            accept="image/jpeg,image/png,image/gif,image/bmp,image/webp,image/avif,application/pdf,video/*"
                             class="mt-1 block w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
                             @change="handleFileChange"
                         />

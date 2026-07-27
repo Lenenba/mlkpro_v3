@@ -115,7 +115,7 @@ class ExpenseRecurringService
             ? CarbonImmutable::parse($template->expense_date)
             : $nextDate;
         $dueOffset = $template->due_date
-            ? $expenseDate->diffInDays(CarbonImmutable::parse($template->due_date), false)
+            ? (int) $expenseDate->diffInDays(CarbonImmutable::parse($template->due_date), false)
             : 0;
         $dueDate = $template->due_date ? $nextDate->addDays($dueOffset)->toDateString() : null;
         $status = filled($template->category_key)

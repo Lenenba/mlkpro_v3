@@ -349,7 +349,7 @@ class AiReservationOrchestrator
         if (! empty($draft['preferred_time'])) {
             $preferredDate = (string) ($draft['preferred_date'] ?? $draft['preferred_date_start']);
             $preferred = Carbon::parse($preferredDate.' '.$draft['preferred_time'], $timezone);
-            $slots = $slots->sortBy(fn (array $slot): int => abs(Carbon::parse((string) $slot['starts_at'])->diffInMinutes($preferred, false)));
+            $slots = $slots->sortBy(fn (array $slot): int => (int) abs(Carbon::parse((string) $slot['starts_at'])->diffInMinutes($preferred, false)));
         }
 
         if (($draft['availability_strategy'] ?? null) === 'earliest') {

@@ -257,7 +257,7 @@ class WorkScheduleService
         }
 
         $maxIterations = $end
-            ? max(1, $start->diffInDays($end) + 1)
+            ? max(1, (int) $start->diffInDays($end, true) + 1)
             : max(1, $maxVisits * $estimateMultiplier);
         $maxIterations = min($maxIterations, 365 * 3);
 

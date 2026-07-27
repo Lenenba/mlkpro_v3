@@ -30,10 +30,10 @@ class TwoFactorService
         $cooldown = self::RESEND_COOLDOWN_SECONDS;
         $resolvedMethod = $this->resolveEffectiveMethod($user, $preferredMethod);
 
-        if (! $force && $lastSent && $lastSent->diffInSeconds($now) < $cooldown) {
+        if (! $force && $lastSent && (int) $lastSent->diffInSeconds($now, true) < $cooldown) {
             return [
                 'sent' => false,
-                'retry_after' => $cooldown - $lastSent->diffInSeconds($now),
+                'retry_after' => $cooldown - (int) $lastSent->diffInSeconds($now, true),
                 'expires_at' => $user->two_factor_expires_at,
                 'method' => $resolvedMethod,
                 'reason' => 'cooldown',
@@ -220,7 +220,7 @@ class TwoFactorService
 
     private function smsMessage(User $user, string $code, CarbonInterface $expiresAt): string
     {
-        $minutes = max(1, (int) ceil(now()->diffInSeconds($expiresAt) / 60));
+        $minutes = max(1, (int) ceil(now()->diffInSeconds($expiresAt, true) / 60));
         $appName = (string) config('app.name', 'App');
         $locale = LocalePreference::forNotifiable($user);
 

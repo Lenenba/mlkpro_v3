@@ -205,7 +205,7 @@ class CampaignDraftScoringService
 
                 if (! empty($template['updated_at'])) {
                     $updatedAt = Carbon::parse((string) $template['updated_at']);
-                    $score += max(0.0, 6.0 - min(6.0, $updatedAt->diffInDays(now()) / 7));
+                    $score += max(0.0, 6.0 - min(6.0, ((int) $updatedAt->diffInDays(now(), true)) / 7));
                     $reasons[] = 'recent_template';
                 }
 

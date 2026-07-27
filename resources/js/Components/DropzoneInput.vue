@@ -75,6 +75,16 @@ const processSelectedFile = async (selectedFile, resetInput = null) => {
   errorMessage.value = '';
   progress.value = 0;
 
+  const mime = selectedFile.type?.toLowerCase() || '';
+  const extension = selectedFile.name?.split('.').pop()?.toLowerCase() || '';
+  if (extension === 'svg' || mime === 'image/svg' || mime === 'image/svg+xml') {
+    errorMessage.value = 'SVG images are not allowed.';
+    if (resetInput) {
+      resetInput.value = '';
+    }
+    return;
+  }
+
   const result = await resizeImageFile(selectedFile, {
     maxDimension: MEDIA_LIMITS.maxImageDimension,
     maxBytes: MEDIA_LIMITS.maxImageBytes,
@@ -275,7 +285,7 @@ watch(
     <!-- Champ caché pour sélectionner le fichier -->
     <input
       type="file"
-      accept="image/*"
+      accept="image/jpeg,image/png,image/gif,image/bmp,image/webp"
       class="sr-only"
       @change="handleFileChange"
       ref="input"

@@ -723,7 +723,7 @@ class ReservationQueueService
                         return true;
                     }
 
-                    return $now->diffInMinutes($next, false) >= ($duration + $buffer);
+                    return (int) $now->diffInMinutes($next, false) >= ($duration + $buffer);
                 };
                 if ($item->team_member_id) {
                     $memberId = (int) $item->team_member_id;

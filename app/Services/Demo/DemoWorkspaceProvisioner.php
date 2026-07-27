@@ -151,7 +151,7 @@ class DemoWorkspaceProvisioner
         $cloneDataMode = (string) ($overrides['clone_data_mode'] ?? 'keep_current_profile');
         $basePayload = $this->workspaceSnapshotPayload($workspace);
         $days = $workspace->expires_at && $workspace->expires_at->isFuture()
-            ? max(1, now()->diffInDays($workspace->expires_at) + 1)
+            ? max(1, (int) now()->diffInDays($workspace->expires_at, true) + 1)
             : 14;
 
         $payload = array_replace_recursive($basePayload, $overrides, [
@@ -183,7 +183,7 @@ class DemoWorkspaceProvisioner
         $cloneDataMode = (string) ($overrides['clone_data_mode'] ?? 'keep_current_profile');
         $basePayload = $this->workspaceSnapshotPayload($workspace);
         $days = $workspace->expires_at && $workspace->expires_at->isFuture()
-            ? max(1, now()->diffInDays($workspace->expires_at) + 1)
+            ? max(1, (int) now()->diffInDays($workspace->expires_at, true) + 1)
             : 14;
 
         $payload = array_replace_recursive($basePayload, $overrides, [

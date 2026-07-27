@@ -61,7 +61,7 @@ class SlotRequest extends FormRequest
             try {
                 $start = Carbon::parse((string) $this->input('range_start'));
                 $end = Carbon::parse((string) $this->input('range_end'));
-                if ($start->diffInDays($end) > 60) {
+                if ((int) $start->diffInDays($end, true) > 60) {
                     $validator->errors()->add('range_end', 'Please request a date range of 60 days or less.');
                 }
             } catch (\Throwable) {

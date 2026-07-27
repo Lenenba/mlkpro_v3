@@ -219,7 +219,7 @@ class PublicBookingController extends Controller
         $startDate = Carbon::parse($start);
         $endDate = Carbon::parse($end);
 
-        if ($startDate->diffInDays($endDate) > 60) {
+        if ((int) $startDate->diffInDays($endDate, true) > 60) {
             throw ValidationException::withMessages([
                 'range_end' => ['Please request a date range of 60 days or less.'],
             ]);

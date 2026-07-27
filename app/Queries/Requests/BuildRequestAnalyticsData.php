@@ -262,7 +262,7 @@ class BuildRequestAnalyticsData
         $response = Carbon::parse($responseAt);
 
         return $response->greaterThan($created)
-            ? $response->diffInSeconds($created)
+            ? (int) $response->diffInSeconds($created, true)
             : 0;
     }
 

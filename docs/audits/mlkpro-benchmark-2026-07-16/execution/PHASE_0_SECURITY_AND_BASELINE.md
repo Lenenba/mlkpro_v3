@@ -1,7 +1,7 @@
 # Phase 0 — Sécurité et baseline
 
-- Dernière mise à jour : 2026-07-17
-- Statut : **en cours — rotation Twilio terminée et baseline locale P0-002 gelée**
+- Dernière mise à jour : 2026-07-27
+- Statut : **en cours — P0-003 en validation après migration Laravel 12.64 et audit Composer sans avis**
 - Responsable d’exécution locale : Codex
 - Propriétaire exploitation : à nommer
 - Validateur produit : demandeur
@@ -125,12 +125,12 @@ Cette baseline doit être confirmée au début de la phase et enregistrée dans 
 
 ### MLK-IMP-P0-003 — Remédier les dépendances PHP
 
-- Statut : **à valider**
+- Statut : **en validation — Laravel 12.64, Carbon 3 et audit Composer validés localement ; installation propre CI, MySQL et Node 20 restent à rejouer**
 - Dépendance : P0-002 terminé
 - But : retirer les avis élevés/critiques applicables sans mise à jour globale non maîtrisée.
 - Livrables : contraintes Composer revues, `twilio/sdk` explicitement contraint, `composer.lock` mis à jour, justification de chaque exception.
 - Fichiers probables : `composer.json`, `composer.lock`.
-- Notes : mettre à jour une famille de paquets à la fois avec `--with-all-dependencies`. Ne pas masquer un avis sans décision de risque.
+- Notes : la famille Laravel/Inertia/Larastan/Breeze et les paquets avisés ont été renouvelés ensemble avec `--with-all-dependencies`. Les trois exceptions d’audit obsolètes ont été supprimées ; aucun avis n’est masqué.
 - Tests : suite ciblée du domaine touché, PHPStan, Pest complet, MySQL ciblé et build frontend.
 - Rollback : revenir au lock précédent par revert du commit du ticket ; aucun `git reset --hard`.
 - Critères d’acceptation :

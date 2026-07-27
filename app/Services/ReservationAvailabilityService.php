@@ -366,7 +366,7 @@ class ReservationAvailabilityService
             ]);
         }
 
-        $durationMinutes = $startUtc->diffInMinutes($endUtc);
+        $durationMinutes = (int) $startUtc->diffInMinutes($endUtc, true);
         $partySize = $this->normalizePartySize($payload['party_size'] ?? null);
         $resourceFilters = $this->normalizeResourceFilters($payload['resource_filters'] ?? null);
         $requestedResourceIds = $this->normalizeResourceIds($payload['resource_ids'] ?? []);
@@ -505,7 +505,7 @@ class ReservationAvailabilityService
             ]);
         }
 
-        $durationMinutes = $startUtc->diffInMinutes($endUtc);
+        $durationMinutes = (int) $startUtc->diffInMinutes($endUtc, true);
         $resourceIdsProvided = array_key_exists('resource_ids', $payload);
         $resourceFiltersProvided = array_key_exists('resource_filters', $payload);
         $partySizeProvided = array_key_exists('party_size', $payload);

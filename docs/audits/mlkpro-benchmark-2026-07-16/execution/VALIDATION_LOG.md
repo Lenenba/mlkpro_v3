@@ -191,6 +191,35 @@ Dernière mise à jour : 2026-07-17
 - Rollback : sans objet, aucune modification applicative ou de dépendance dans ce ticket.
 - Verdict : **baseline locale enregistrée ; P0-002 terminé avec gates Node 20 et MySQL à rejouer avant la sortie de Phase 0**.
 
+## RESUME-P0-003-2026-07-27 — Remédiation PHP reprise et migration Laravel 12 validée localement
+
+- Ticket : `MLK-IMP-P0-003`.
+- Date : 2026-07-27.
+- Branche : `agent/twilio-rotation-closeout-develop`, issue de `develop` et jamais de `main` ; base de reprise `197599f` avec worktree propre.
+- Point d’arrêt retrouvé : `197599f` avait déjà contraint `twilio/sdk` à `^8.11.6` et renouvelé 82 paquets, mais aucune validation P0-003 n’avait été consignée après cette résolution large.
+- Cohérence initiale : les 149 paquets installés correspondaient au lock. `composer validate --strict --no-check-publish` confirmait un manifeste valide, avec l’avertissement préexistant sur la contrainte exacte `laravel/cashier-paddle: 2.6`.
+- Test ciblé avant correction : 101 tests et 699 assertions réussis sur Twilio, SMS, WhatsApp, 2FA, campagnes, notifications et tâches.
+- Non-régression initiale : 1 136 tests réussis et 4 échoués. Les quatre écarts étaient des durées négatives après le passage de Carbon 2 à Carbon 3, dont `diffIn*` renvoie désormais un flottant signé par défaut.
+- Changement contrôlé : tous les appels applicatifs `diffIn*` ont reçu une intention de signe explicite ; les contrats historiquement entiers sont convertis explicitement en entier. Aucun contrat de route, API, payload ou modèle n’a changé.
+- Rejeu ciblé : 7 tests et 242 assertions réussis sur les prévisions, le dashboard manager et les analyses de demandes qui avaient échoué.
+- Autorisation réseau : le demandeur a explicitement autorisé l’envoi à Packagist.org des noms et versions de `composer.lock` pour `composer audit` et `composer update` ; aucun secret applicatif n’a été transmis ou journalisé.
+- Audit avant remédiation : audit complet à 15 avis sur 4 paquets — 1 élevé, 8 moyens, 5 faibles et 1 sans sévérité — dont 12 avis de production sur Dompdf, Guzzle et Laravel. L’avis élevé concernait Laravel.
+- Résolution Composer contrôlée : contraintes `laravel/framework:^12.61.1`, `larastan/larastan:^3.10` et `laravel/cashier-paddle:^2.6`; suppression des trois exceptions d’audit obsolètes. Le lock a réalisé 2 installations, 19 mises à jour et 1 retrait.
+- Versions de sortie principales : Laravel 12.64.0, Inertia Laravel 2.0.24, Larastan 3.10.0, Breeze 2.4.2, Cashier Paddle 2.8.1, Dompdf 3.1.6, Guzzle 7.15.2, Symfony YAML 7.4.14 et PHPStan 2.2.6.
+- Audit après remédiation : `composer audit --locked --format=json` réussi avec zéro avis, zéro paquet abandonné et aucune exception configurée. `composer validate --strict --no-check-publish` et `composer check-platform-reqs` ont réussi sous PHP 8.4.23.
+- Reproductibilité locale : `composer install --dry-run --no-interaction` a validé le lock et annoncé qu’aucune opération n’était nécessaire. Une installation réellement propre reste à rejouer en CI ou dans un clone vierge.
+- Compatibilité Laravel 12 — SVG : retrait de cinq autorisations explicites de SVG, rejet par MIME, extension et contenu raster réel dans la bibliothèque d’assets, refus côté composant de dépôt et sélecteurs d’assets. Un test confirme aussi le rejet d’un SVG renommé en `.png`. Les SVG statiques versionnés et de confiance restent disponibles.
+- Compatibilité Laravel 12 — routes : suppression de 367 noms vides `api.` / `api.super-admin.`, préservation explicite des cinq contrats API existants, préfixage des ressources API `product`, `service`, `customer` et `work`. Les noms sont globalement uniques et `artisan route:cache` réussit ; le cache de vérification a ensuite été retiré.
+- Tests ciblés Laravel 12 : 25 tests et 167 assertions réussis sur les routes, le profil et les assets, y compris les quatre familles de ressources API et le SVG déguisé.
+- Format : Pint réussi sur les 39 fichiers PHP modifiés.
+- Analyse statique : PHPStan complet réussi sans erreur avec Larastan 3.10, PHPStan 2.2 et une limite mémoire de 1 Go ; le rejeu final après durcissement SVG est également vert.
+- Pest complet final : 1 152 tests réussis, 12 099 assertions, durée 225,01 s avec PHP 8.4.23 et `memory_limit=1G`.
+- Frontend : build Vite final réussi sous Node 24.14.1, 2 603 modules transformés, durée 34,49 s.
+- E2E : 6 parcours Playwright/Chromium réussis sur SQLite avec le build final et le serveur Laravel 12 local, durée totale 2 min 18 s.
+- Gates encore ouvertes : installation réellement propre depuis le lock sur un checkout vierge, MySQL ciblé, replay Node 20/CI et validation humaine du lot. L’exécutable MySQL et Node 20 ne sont pas disponibles dans l’environnement local actuel.
+- Rollback : revert du lot P0-003 pour restaurer le manifeste et le lock précédents ; ne pas utiliser `git reset --hard`.
+- Verdict : **remédiation Composer et migration Laravel 12 validées localement sans avis connu ni régression ; P0-003 passe en validation jusqu’aux replays d’environnement**.
+
 ## Gate d’entrée Phase 0 — À compléter
 
 - ID : `GATE-P0-ENTRY`
@@ -214,7 +243,7 @@ Dernière mise à jour : 2026-07-17
 |---|---|---|---|---|---|---|
 | MLK-IMP-P0-001 | Terminé | Demandeur / Codex pour les contrôles | Demandeur | Branche issue de `develop`, `8da7b9c` | `VALID-P0-001-CLOSEOUT-2026-07-17` | Validé |
 | MLK-IMP-P0-002 | Terminé avec replays requis avant sortie de phase | Codex | Demandeur | Local, `8da7b9c` | `BASELINE-P0-2026-07-17` | Baseline gelée ; Node 20 et MySQL à rejouer |
-| MLK-IMP-P0-003 | À valider |  |  |  |  |  |
+| MLK-IMP-P0-003 | En validation | Codex | Demandeur | Base `197599f`, lot local non commité | `RESUME-P0-003-2026-07-27` | Audit zéro avis et Laravel 12.64 validés ; installation propre CI, MySQL et Node 20 ouverts |
 | MLK-IMP-P0-004 | À valider |  |  |  |  |  |
 | MLK-IMP-P0-005 | À valider |  |  |  |  |  |
 | MLK-IMP-P0-006 | À valider |  |  |  |  |  |
