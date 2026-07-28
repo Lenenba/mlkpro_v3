@@ -13,6 +13,11 @@ use Illuminate\Support\Str;
 
 beforeEach(function () {
     Cache::flush();
+    Cache::store('array')->flush();
+    config()->set('observability.enabled', true);
+    config()->set('observability.release', 'observability-command-test');
+    config()->set('observability.cache.store', 'array');
+    config()->set('observability.cache.prefix', 'observability-command-test-'.Str::random(8));
     config()->set('queue.default', 'database');
 });
 
@@ -33,10 +38,10 @@ function phase8CreateSuperadmin(): User
 }
 
 it('reports observability metrics and alerts as json', function () {
-    config()->set('observability.alerts.queue_pending_jobs', 1);
-    config()->set('observability.alerts.failed_jobs_24h', 1);
-    config()->set('observability.alerts.slow_queries_24h', 1);
-    config()->set('observability.alerts.errors_1h', 1);
+    config()->set('observability.alerts.queue_pending_jobs', 0);
+    config()->set('observability.alerts.failed_jobs_24h', 0);
+    config()->set('observability.alerts.slow_queries_24h', 0);
+    config()->set('observability.alerts.errors_1h', 0);
     config()->set('observability.alerts.request_p95_ms', 500);
     config()->set('observability.alerts.request_p99_ms', 1000);
 
@@ -88,7 +93,7 @@ it('reports observability metrics and alerts as json', function () {
 });
 
 it('notifies platform admins when observability alerts are active', function () {
-    config()->set('observability.alerts.queue_pending_jobs', 1);
+    config()->set('observability.alerts.queue_pending_jobs', 0);
 
     phase8CreateSuperadmin();
 

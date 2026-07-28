@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "run_id": "p0-006-staging-20260727-1200",
+  "environment": "staging",
+  "commit": "0123456789abcdef0123456789abcdef01234567",
+  "scenario_key": "dashboard_usage",
+  "manifest_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "runner": "k6-capacity-v1",
+  "runner_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+  "started_at": "2026-07-27T12:00:00.000000Z",
+  "ended_at": "2026-07-27T12:10:00.000000Z",
+  "virtual_users": 25,
+  "duration_seconds": 600,
+  "ramp_up_seconds": 120,
+  "attempted_requests": 250,
+  "completed_requests": 250,
+  "transport_errors": 0,
+  "assertion_failures": 0,
+  "client_latency_ms": {
+    "p50": 210.4,
+    "p95": 480.2,
+    "p99": 690.8,
+    "max": 845.1
+  }
+}

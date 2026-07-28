@@ -32,7 +32,12 @@ use App\Notifications\UpcomingBillingReminderNotification;
 use App\Notifications\WelcomeEmailNotification;
 use App\Services\Campaigns\CampaignAutomationService;
 use App\Services\Campaigns\VipService;
+use App\Services\Capacity\CapacityPreflightService;
 use App\Services\Capacity\CapacityReportService;
+use App\Services\Capacity\CapacityRunContextService;
+use App\Services\Capacity\CapacityRunnerResultService;
+use App\Services\Capacity\CapacityRunnerResultValidationException;
+use App\Services\Capacity\CapacityScenarioCatalog;
 use App\Services\DailyAgendaService;
 use App\Services\Demo\DemoWorkspacePurgeService;
 use App\Services\ExpenseRecurringService;
@@ -2421,13 +2426,30 @@ Artisan::command('app:launch-reset {--force : Skip confirmation prompt}', functi
     return 0;
 })->purpose('Reset database with the minimal platform baseline, clear caches, and optimize');
 
-Artisan::command('queue:health {--json}', function (QueueHealthService $queueHealth): int {
-    $summary = $queueHealth->summary();
+Artisan::command('queue:health {--json} {--strict} {--record}', function (QueueHealthService $queueHealth): int {
+    $summary = $queueHealth->summary(record: (bool) $this->option('record'));
+    $thresholdExceeded = (($summary['backlog_measurable'] ?? false)
+        && is_numeric($summary['pending_jobs'] ?? null)
+        && (float) $summary['pending_jobs'] > (float) config('observability.alerts.queue_pending_jobs', PHP_INT_MAX))
+        || (($summary['oldest_job_measurable'] ?? false)
+            && is_numeric($summary['oldest_job_minutes'] ?? null)
+            && (float) $summary['oldest_job_minutes'] > (float) config('observability.alerts.queue_oldest_job_minutes', PHP_INT_MAX))
+        || (($summary['failed_jobs_measurable'] ?? false)
+            && is_numeric($summary['failed_jobs_24h'] ?? null)
+            && (float) $summary['failed_jobs_24h'] > (float) config('observability.alerts.failed_jobs_24h', PHP_INT_MAX));
+    $exitCode = (bool) $this->option('strict')
+        && (! ($summary['backlog_measurable'] ?? false)
+            || ! ($summary['oldest_job_measurable'] ?? false)
+            || ! ($summary['failed_jobs_measurable'] ?? false)
+            || ($summary['measurement_errors'] ?? []) !== []
+            || $thresholdExceeded)
+        ? 1
+        : 0;
 
     if ((bool) $this->option('json')) {
         $this->line(json_encode($summary, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
-        return 0;
+        return $exitCode;
     }
 
     $this->info(sprintf(
@@ -2435,10 +2457,13 @@ Artisan::command('queue:health {--json}', function (QueueHealthService $queueHea
         (string) ($summary['connection'] ?? 'unknown'),
         (string) ($summary['driver'] ?? 'unknown')
     ));
-    $this->line('Pending jobs: '.(int) ($summary['pending_jobs'] ?? 0));
+    $this->line('Pending jobs: '.(is_numeric($summary['pending_jobs'] ?? null) ? (int) $summary['pending_jobs'] : 'n/a'));
+    $this->line('Ready jobs: '.(is_numeric($summary['ready_jobs'] ?? null) ? (int) $summary['ready_jobs'] : 'n/a'));
+    $this->line('Delayed jobs: '.(is_numeric($summary['delayed_jobs'] ?? null) ? (int) $summary['delayed_jobs'] : 'n/a'));
+    $this->line('Reserved jobs: '.(is_numeric($summary['reserved_jobs'] ?? null) ? (int) $summary['reserved_jobs'] : 'n/a'));
     $this->line('Oldest queued job (minutes): '.(($summary['oldest_job_minutes'] ?? null) ?? 'n/a'));
-    $this->line('Failed jobs (24h): '.(int) ($summary['failed_jobs_24h'] ?? 0));
-    $this->line('Failed jobs (7d): '.(int) ($summary['failed_jobs_7d'] ?? 0));
+    $this->line('Failed jobs (24h): '.(is_numeric($summary['failed_jobs_24h'] ?? null) ? (int) $summary['failed_jobs_24h'] : 'n/a'));
+    $this->line('Failed jobs (7d): '.(is_numeric($summary['failed_jobs_7d'] ?? null) ? (int) $summary['failed_jobs_7d'] : 'n/a'));
 
     $pendingByQueue = is_array($summary['pending_by_queue'] ?? null)
         ? $summary['pending_by_queue']
@@ -2455,7 +2480,7 @@ Artisan::command('queue:health {--json}', function (QueueHealthService $queueHea
         $this->warn('Pending backlog is not measurable for the current queue driver.');
     }
 
-    return 0;
+    return $exitCode;
 })->purpose('Show queue backlog and failed job health');
 
 Artisan::command('queue:workload-audit {--json}', function (): int {
@@ -2613,11 +2638,12 @@ Artisan::command('queue:workloads
     ]);
 })->purpose('Run a queue worker from a validated async workload profile');
 
-Artisan::command('observability:report {--json} {--notify}', function (
+Artisan::command('observability:report {--json} {--notify} {--strict}', function (
     ObservabilityReportService $observability,
     PlatformAdminNotifier $notifier
 ): int {
     $summary = $observability->summary();
+    $exitCode = (bool) $this->option('strict') && ($summary['status'] ?? null) !== 'healthy' ? 1 : 0;
 
     if ((bool) $this->option('notify')) {
         $referenceBucket = now()->format('YmdH');
@@ -2631,16 +2657,36 @@ Artisan::command('observability:report {--json} {--notify}', function (
                 'reference' => 'observability:'.($alert['code'] ?? 'unknown').':'.$referenceBucket,
             ]);
         }
+
+        if (data_get($summary, 'data_quality.status') !== 'ready') {
+            $issues = collect(data_get($summary, 'data_quality.issues', []))
+                ->filter(fn ($issue): bool => is_string($issue))
+                ->values();
+            $notifier->notify('operational_health', 'Observability data quality degraded', [
+                'intro' => $issues->isEmpty()
+                    ? 'Observability data quality is not ready.'
+                    : 'Issues: '.$issues->implode(', '),
+                'details' => [
+                    ['label' => 'Status', 'value' => (string) data_get($summary, 'data_quality.status', 'unknown')],
+                    ['label' => 'Release', 'value' => (string) ($summary['release'] ?? 'missing')],
+                ],
+                'severity' => data_get($summary, 'data_quality.status') === 'unavailable' ? 'warning' : 'info',
+                'reference' => 'observability:data-quality:'.$referenceBucket,
+            ]);
+        }
     }
 
     if ((bool) $this->option('json')) {
         $this->line(json_encode($summary, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
-        return 0;
+        return $exitCode;
     }
 
     $this->info('Observability status: '.(string) ($summary['status'] ?? 'unknown'));
-    $this->line('Queue pending jobs: '.(int) data_get($summary, 'queue.pending_jobs', 0));
+    $this->line('Data quality: '.(string) data_get($summary, 'data_quality.status', 'unknown'));
+    $this->line('Queue pending jobs: '.(is_numeric(data_get($summary, 'queue.pending_jobs'))
+        ? (int) data_get($summary, 'queue.pending_jobs')
+        : 'n/a'));
     $this->line('Queue oldest job (minutes): '.(data_get($summary, 'queue.oldest_job_minutes') ?? 'n/a'));
     $this->line('Slow queries (24h): '.(int) data_get($summary, 'slow_queries.count_24h', 0));
     $this->line('Errors (1h): '.(int) data_get($summary, 'errors.count_1h', 0));
@@ -2650,15 +2696,18 @@ Artisan::command('observability:report {--json} {--notify}', function (
         ->take(5)
         ->map(fn (array $route) => [
             (string) ($route['route_name'] ?? 'unknown'),
+            $route['p50_ms'] ?? 'n/a',
             $route['p95_ms'] ?? 'n/a',
             $route['p99_ms'] ?? 'n/a',
-            (int) ($route['count_24h'] ?? 0),
+            (int) ($route['sample_count_24h'] ?? 0),
+            data_get($route, 'response_body_bytes.p95') ?? 'n/a',
+            data_get($route, 'query_count.p95') ?? 'n/a',
             (int) ($route['error_count_24h'] ?? 0),
         ])
         ->all();
 
     if ($requestRows !== []) {
-        $this->table(['Route', 'p95 ms', 'p99 ms', 'Samples', '5xx'], $requestRows);
+        $this->table(['Route', 'p50 ms', 'p95 ms', 'p99 ms', 'Samples', 'Body p95 B', 'SQL p95', '5xx'], $requestRows);
     }
 
     $alerts = collect($summary['alerts'] ?? [])
@@ -2675,27 +2724,289 @@ Artisan::command('observability:report {--json} {--notify}', function (
         $this->info('No active observability alerts.');
     }
 
-    return 0;
+    return $exitCode;
 })->purpose('Show observability summary and optionally notify platform admins');
 
-Artisan::command('capacity:report {--json} {--notify}', function (
+Artisan::command('capacity:scenario:start {scenario}', function (
+    string $scenario,
+    CapacityScenarioCatalog $catalog,
+    CapacityReportService $capacity,
+    CapacityPreflightService $preflight,
+    CapacityRunContextService $runContext,
+    QueueHealthService $queueHealth
+): int {
+    $configured = collect($catalog->all())->firstWhere('key', $scenario);
+    if (! is_array($configured)) {
+        $this->error('Unknown capacity scenario: '.$scenario);
+
+        return 1;
+    }
+    if ((bool) data_get($configured, 'safety.requires_isolated_tenant', false)
+        && ! filter_var(config('capacity.baseline.isolated_tenant_verified', false), FILTER_VALIDATE_BOOL)) {
+        $this->error('This capacity scenario requires an explicitly verified isolated tenant.');
+
+        return 1;
+    }
+    $catalogIssues = $catalog->issues();
+    $context = $capacity->baselineContext();
+    $preflightSummary = $preflight->summary();
+    if ($catalogIssues !== []
+        || ($context['status'] ?? null) !== 'complete'
+        || ! ($preflightSummary['ready'] ?? false)) {
+        $this->error('The capacity execution plan is not ready. Run capacity:plan for the complete diagnostics.');
+
+        return 1;
+    }
+    if (($context['mode'] ?? null) === 'production_read_only'
+        && data_get($configured, 'safety.mode') !== 'read_only') {
+        $this->error('A controlled-write scenario cannot run in production_read_only mode.');
+
+        return 1;
+    }
+    if (is_string(data_get($configured, 'blocker.reason'))
+        && trim((string) data_get($configured, 'blocker.reason')) !== '') {
+        $this->error('This capacity scenario has a configured execution blocker.');
+
+        return 1;
+    }
+    $durationSeconds = $catalog->durationInSeconds(data_get($configured, 'profile.duration'));
+    try {
+        $baselineEndsAt = Carbon::parse((string) data_get($context, 'period.ended_at'));
+    } catch (Throwable) {
+        $baselineEndsAt = null;
+    }
+    $startBufferSeconds = max(0, (int) config('capacity.scenario_start_buffer_seconds', 60));
+    if ($durationSeconds === null
+        || $baselineEndsAt === null
+        || now()->addSeconds($durationSeconds + $startBufferSeconds)->greaterThan($baselineEndsAt)) {
+        $this->error('The baseline window does not have enough time left for this scenario and its final snapshot.');
+
+        return 1;
+    }
+    if ($runContext->activeScenarioKey() !== null) {
+        $this->error('Another capacity scenario is already active. Stop it before starting a new one.');
+
+        return 1;
+    }
+    if (! $runContext->start($scenario)) {
+        $this->error('The configured capacity run is not active or the scenario state could not be stored.');
+
+        return 1;
+    }
+
+    $queueSnapshot = $queueHealth->summary(record: true, forceRecord: true);
+    if (! ($queueSnapshot['snapshot_recorded'] ?? false)) {
+        $cancelled = $runContext->cancel($scenario);
+        $this->error($cancelled
+            ? 'The initial queue snapshot could not be persisted; the scenario was cancelled.'
+            : 'The initial queue snapshot failed and the active scenario state could not be cleared.');
+
+        return 1;
+    }
+    $this->info('Capacity scenario started: '.$scenario);
+
+    return 0;
+})->purpose('Start a tagged capacity scenario and capture its initial queue snapshot');
+
+Artisan::command('capacity:scenario:stop {scenario}', function (
+    string $scenario,
+    CapacityRunContextService $runContext,
+    QueueHealthService $queueHealth
+): int {
+    if ($runContext->activeScenarioKey() !== $scenario) {
+        $this->error('The requested capacity scenario is not active: '.$scenario);
+
+        return 1;
+    }
+
+    $queueSnapshot = $queueHealth->summary(record: true, forceRecord: true);
+    if (! ($queueSnapshot['snapshot_recorded'] ?? false)) {
+        $this->error('The final queue snapshot could not be persisted; the scenario remains active.');
+
+        return 1;
+    }
+    if (! $runContext->stop($scenario)) {
+        $this->error('The capacity scenario stop marker could not be stored.');
+
+        return 1;
+    }
+
+    $this->info('Capacity scenario stopped: '.$scenario);
+
+    return 0;
+})->purpose('Capture the final queue snapshot and stop a tagged capacity scenario');
+
+Artisan::command('capacity:plan {--json}', function (
+    CapacityScenarioCatalog $catalog,
+    CapacityReportService $capacity,
+    CapacityPreflightService $preflight
+): int {
+    $configurationIssues = $catalog->issues();
+    $context = $capacity->baselineContext();
+    $preflightSummary = $preflight->summary();
+    $issues = collect($configurationIssues)
+        ->merge(collect($context['missing'] ?? [])->map(
+            fn (string $field): string => 'Baseline context is missing '.$field.'.'
+        ))
+        ->merge($context['issues'] ?? [])
+        ->merge($preflightSummary['issues'] ?? [])
+        ->filter(fn ($issue): bool => is_string($issue) && trim($issue) !== '')
+        ->unique()
+        ->values()
+        ->all();
+    $ready = $issues === [] && ($preflightSummary['ready'] ?? false);
+    $plan = [
+        'generated_at' => now()->toIso8601String(),
+        'status' => $ready ? 'ready_for_approved_harness' : 'invalid',
+        'baseline_context' => $context,
+        'preflight' => $preflightSummary,
+        'runner' => $context['runner'] ?? null,
+        'runner_hash' => $context['runner_hash'] ?? null,
+        'run_id' => $context['run_id'] ?? null,
+        'environment' => $context['environment'] ?? null,
+        'commit' => $context['commit'] ?? null,
+        'period' => $context['period'] ?? [],
+        'configuration_issues' => $configurationIssues,
+        'issues' => $issues,
+        'runner_result_contract' => [
+            'schema_version' => CapacityRunnerResultService::SCHEMA_VERSION,
+            'import_directory' => 'storage/app/capacity-imports',
+            'import_command' => 'capacity:result:import {scenario} {file} --json',
+        ],
+        'scenarios' => $catalog->all(),
+    ];
+
+    if ((bool) $this->option('json')) {
+        $this->line(json_encode($plan, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+        return $ready ? 0 : 1;
+    }
+
+    $this->info('Capacity execution plan: '.$plan['status']);
+    $this->line('Runner: '.((string) ($plan['runner'] ?: 'not configured')));
+    $this->table(
+        ['Scenario', 'Method', 'Routes', 'Statuses', 'Fixture', 'Safety'],
+        collect($plan['scenarios'])->map(fn (array $scenario): array => [
+            (string) $scenario['label'],
+            (string) $scenario['method'],
+            implode(', ', $scenario['route_uris'] ?? []),
+            implode(', ', $scenario['accepted_status_codes'] ?? []),
+            (string) data_get($scenario, 'protocol.fixture_reference', 'missing'),
+            (string) data_get($scenario, 'safety.mode', 'unknown'),
+        ])->all()
+    );
+
+    foreach ($issues as $issue) {
+        $this->error($issue);
+    }
+
+    return $ready ? 0 : 1;
+})->purpose('Render the sanitized P0-006 scenario manifest for an approved external load harness');
+
+Artisan::command('capacity:result:import {scenario} {file} {--json}', function (
+    string $scenario,
+    string $file,
+    CapacityRunnerResultService $runnerResults
+): int {
+    $scenario = trim($scenario);
+    $file = trim($file);
+    $errors = [];
+    $result = null;
+
+    try {
+        if ($file === '' || basename($file) !== $file || in_array($file, ['.', '..'], true)) {
+            throw new RuntimeException('The result file must be a plain filename without path segments.');
+        }
+
+        $directory = storage_path('app/capacity-imports');
+        $resolvedDirectory = realpath($directory);
+        $resolvedPath = realpath($directory.DIRECTORY_SEPARATOR.$file);
+        if ($resolvedDirectory === false
+            || $resolvedPath === false
+            || ! is_file($resolvedPath)
+            || ! str_starts_with(
+                strtolower($resolvedPath),
+                strtolower(rtrim($resolvedDirectory, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR)
+            )) {
+            throw new RuntimeException('The result file must exist inside storage/app/capacity-imports.');
+        }
+        $size = filesize($resolvedPath);
+        if ($size === false || $size > 65_536) {
+            throw new RuntimeException('The result file must not exceed 64 KiB.');
+        }
+
+        $contents = file_get_contents($resolvedPath);
+        if (! is_string($contents) || strlen($contents) > 65_536) {
+            throw new RuntimeException('The result file could not be read.');
+        }
+        $payload = json_decode($contents, true, 64, JSON_THROW_ON_ERROR);
+        if (! is_array($payload) || array_is_list($payload)) {
+            throw new RuntimeException('The result file must contain one JSON object.');
+        }
+        if (($payload['scenario_key'] ?? null) !== $scenario) {
+            throw new RuntimeException('The command scenario must match payload scenario_key.');
+        }
+
+        $result = $runnerResults->ingest($payload);
+    } catch (CapacityRunnerResultValidationException $exception) {
+        $errors = $exception->errors();
+    } catch (Throwable $exception) {
+        $errors = [$exception->getMessage()];
+    }
+
+    $response = [
+        'status' => $errors === [] ? 'accepted' : 'invalid',
+        'scenario_key' => $scenario,
+        'result' => $result,
+        'errors' => $errors,
+    ];
+
+    if ((bool) $this->option('json')) {
+        $this->line(json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+        return $errors === [] ? 0 : 1;
+    }
+
+    if ($errors === []) {
+        $this->info('Capacity runner result accepted for scenario: '.$scenario);
+
+        return 0;
+    }
+
+    $this->error('Capacity runner result rejected.');
+    foreach ($errors as $error) {
+        $this->line('- '.$error);
+    }
+
+    return 1;
+})->purpose('Validate and import a sanitized aggregate result from an approved external load harness');
+
+Artisan::command('capacity:report {--json} {--notify} {--strict}', function (
     CapacityReportService $capacity,
     PlatformAdminNotifier $notifier
 ): int {
     $summary = $capacity->summary();
+    $exitCode = (bool) $this->option('strict')
+        && ! in_array($summary['status'] ?? null, ['healthy', 'accepted_with_blockers'], true)
+        ? 1
+        : 0;
 
     if ((bool) $this->option('notify')) {
         $referenceBucket = now()->format('YmdH');
 
         foreach ($summary['scenarios'] ?? [] as $scenario) {
-            if (! is_array($scenario) || ! in_array($scenario['status'] ?? null, ['fail', 'insufficient_data'], true)) {
+            if (! is_array($scenario) || ! in_array(
+                $scenario['status'] ?? null,
+                ['fail', 'insufficient_data', 'blocked'],
+                true
+            )) {
                 continue;
             }
 
             $details = [
                 ['label' => 'Scenario', 'value' => (string) ($scenario['label'] ?? 'Unknown scenario')],
                 ['label' => 'Routes', 'value' => implode(', ', $scenario['route_names'] ?? [])],
-                ['label' => 'Samples', 'value' => (int) data_get($scenario, 'observed.count_24h', 0)],
+                ['label' => 'Valid samples', 'value' => (int) data_get($scenario, 'observed.valid_sample_count_24h', 0)],
                 ['label' => 'p95', 'value' => data_get($scenario, 'observed.p95_ms') ?? 'n/a'],
                 ['label' => 'p99', 'value' => data_get($scenario, 'observed.p99_ms') ?? 'n/a'],
             ];
@@ -2709,7 +3020,7 @@ Artisan::command('capacity:report {--json} {--notify}', function (
         }
 
         foreach ($summary['shared_checks'] ?? [] as $check) {
-            if (! is_array($check) || ($check['status'] ?? null) !== 'fail') {
+            if (! is_array($check) || ! in_array($check['status'] ?? null, ['fail', 'unknown'], true)) {
                 continue;
             }
 
@@ -2720,8 +3031,33 @@ Artisan::command('capacity:report {--json} {--notify}', function (
                     ['label' => 'Observed', 'value' => $check['observed'] ?? 'n/a'],
                     ['label' => 'Target', 'value' => $check['target'] ?? 'n/a'],
                 ],
-                'severity' => 'warning',
+                'severity' => ($check['status'] ?? null) === 'fail' ? 'warning' : 'info',
                 'reference' => 'capacity:shared:'.($check['key'] ?? 'unknown').':'.$referenceBucket,
+            ]);
+        }
+
+        if (($summary['status'] ?? null) !== 'healthy'
+            && (data_get($summary, 'baseline_context.status') !== 'complete'
+                || ($summary['configuration_issues'] ?? []) !== []
+                || data_get($summary, 'data_quality.status') !== 'ready')) {
+            $rootCauses = collect()
+                ->merge(data_get($summary, 'baseline_context.missing', []))
+                ->merge(data_get($summary, 'baseline_context.issues', []))
+                ->merge($summary['configuration_issues'] ?? [])
+                ->merge(data_get($summary, 'data_quality.issues', []))
+                ->filter(fn ($issue): bool => is_string($issue))
+                ->unique()
+                ->values();
+            $notifier->notify('operational_health', 'Capacity baseline context is not valid', [
+                'intro' => $rootCauses->isEmpty()
+                    ? 'The capacity baseline cannot be accepted yet.'
+                    : 'Root causes: '.$rootCauses->implode(', '),
+                'details' => [
+                    ['label' => 'Status', 'value' => (string) ($summary['status'] ?? 'unknown')],
+                    ['label' => 'Context', 'value' => (string) data_get($summary, 'baseline_context.status', 'unknown')],
+                ],
+                'severity' => 'warning',
+                'reference' => 'capacity:context:'.$referenceBucket,
             ]);
         }
     }
@@ -2729,25 +3065,33 @@ Artisan::command('capacity:report {--json} {--notify}', function (
     if ((bool) $this->option('json')) {
         $this->line(json_encode($summary, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
-        return 0;
+        return $exitCode;
     }
 
     $this->info('Capacity validation status: '.(string) ($summary['status'] ?? 'unknown'));
+    $this->line('Baseline context: '.(string) data_get($summary, 'baseline_context.status', 'unknown'));
 
     $scenarioRows = collect($summary['scenarios'] ?? [])
         ->map(fn (array $scenario) => [
             (string) ($scenario['label'] ?? 'unknown'),
             implode(', ', $scenario['route_names'] ?? []),
             (string) ($scenario['status'] ?? 'unknown'),
-            (int) data_get($scenario, 'observed.count_24h', 0),
+            (int) data_get($scenario, 'observed.valid_sample_count_24h', 0),
+            data_get($scenario, 'observed.p50_ms') ?? 'n/a',
             data_get($scenario, 'observed.p95_ms') ?? 'n/a',
             data_get($scenario, 'observed.p99_ms') ?? 'n/a',
+            data_get($scenario, 'observed.response_body_bytes.p95') ?? 'n/a',
+            data_get($scenario, 'observed.query_count.p95') ?? 'n/a',
+            (int) data_get($scenario, 'observed.slow_queries.count_24h', 0),
             (int) data_get($scenario, 'observed.error_count_24h', 0),
         ])
         ->all();
 
     if ($scenarioRows !== []) {
-        $this->table(['Scenario', 'Routes', 'Status', 'Samples', 'p95 ms', 'p99 ms', '5xx'], $scenarioRows);
+        $this->table(
+            ['Scenario', 'Routes', 'Status', 'Valid', 'p50 ms', 'p95 ms', 'p99 ms', 'Body p95 B', 'SQL p95', 'Slow SQL', '5xx'],
+            $scenarioRows
+        );
     }
 
     $sharedRows = collect($summary['shared_checks'] ?? [])
@@ -2777,7 +3121,7 @@ Artisan::command('capacity:report {--json} {--notify}', function (
         $this->info('No active capacity remediation items.');
     }
 
-    return 0;
+    return $exitCode;
 })->purpose('Show scenario-based capacity validation and optionally notify platform admins');
 
 Artisan::command('schema:audit-selects {--json}', function (ManualSelectContractAudit $audit): int {
@@ -2943,7 +3287,15 @@ Schedule::command('campaigns:reconcile-delivery')->everyTenMinutes()->withoutOve
 Schedule::command('playbooks:run-scheduled')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('expenses:generate-recurring')->dailyAt('05:15')->withoutOverlapping();
 Schedule::command('demo:purge-expired')->dailyAt('03:10')->withoutOverlapping();
-Schedule::command('observability:report --notify')->everyTenMinutes()->withoutOverlapping();
+Schedule::command('observability:report --notify')
+    ->everyTenMinutes()
+    ->withoutOverlapping()
+    ->when(fn (): bool => (bool) config('observability.enabled', false));
+Schedule::command('queue:health --record --json')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->when(fn (): bool => (bool) config('observability.enabled', false));
 Schedule::command('notifications:retry-failed --notification=App\\Notifications\\InviteUserNotification --max=20 --within-hours=24 --cooldown=30')
     ->everyTenMinutes()
     ->withoutOverlapping();
