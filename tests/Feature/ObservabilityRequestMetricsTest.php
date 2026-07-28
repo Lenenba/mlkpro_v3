@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 
 beforeEach(function () {
     Cache::flush();
+    config()->set('observability.enabled', true);
     config()->set('observability.request.tracked_routes', ['phase8.ping']);
 });
 

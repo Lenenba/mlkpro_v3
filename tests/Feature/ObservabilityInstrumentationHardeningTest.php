@@ -29,9 +29,12 @@ beforeEach(function () {
     Cache::store('array')->flush();
 });
 
-function p0006RequestMetric(string $routeName): ?array
+/**
+ * @param  array<string, mixed>|null  $scope
+ */
+function p0006RequestMetric(string $routeName, ?array $scope = null): ?array
 {
-    return collect(app(RequestMetricsService::class)->summary())
+    return collect(app(RequestMetricsService::class)->summary($scope))
         ->firstWhere('route_name', $routeName);
 }
 
@@ -70,6 +73,21 @@ function p0006StartInstrumentationScenario(string $scenarioKey): CapacityRunCont
     expect($runContext->start($scenarioKey))->toBeTrue();
 
     return $runContext;
+}
+
+/**
+ * @return array<string, mixed>
+ */
+function p0006InstrumentationScope(): array
+{
+    return [
+        'environment' => (string) config('app.env'),
+        'release' => config('observability.release'),
+        'run_id' => config('capacity.baseline.run_id'),
+        'commit' => config('capacity.baseline.commit'),
+        'started_at' => config('capacity.baseline.started_at'),
+        'ended_at' => config('capacity.baseline.ended_at'),
+    ];
 }
 
 it('captures response body size and database query metrics for a request', function () {
@@ -184,10 +202,11 @@ it('keeps HTTP success separate from the configured business outcome', function 
     ], 201))->name($routeName);
 
     $runContext = p0006StartInstrumentationScenario('business_outcome_probe');
+    $scope = p0006InstrumentationScope();
     $this->postJson('/p0-006/business-outcome')->assertCreated();
     expect($runContext->stop('business_outcome_probe'))->toBeTrue();
 
-    $metric = p0006RequestMetric($routeName);
+    $metric = p0006RequestMetric($routeName, $scope);
 
     expect($metric)->not->toBeNull()
         ->and($metric['business_success_count'])->toBe(0)
@@ -237,10 +256,11 @@ it('fails a JSON business assertion when the successful response is malformed', 
     )->name($routeName);
 
     $runContext = p0006StartInstrumentationScenario('malformed_business_outcome_probe');
+    $scope = p0006InstrumentationScope();
     $this->postJson('/p0-006/malformed-business-outcome')->assertCreated();
     expect($runContext->stop('malformed_business_outcome_probe'))->toBeTrue();
 
-    $metric = p0006RequestMetric($routeName);
+    $metric = p0006RequestMetric($routeName, $scope);
 
     expect($metric)->not->toBeNull()
         ->and($metric['business_success_count'])->toBe(0)

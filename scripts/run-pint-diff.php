@@ -44,18 +44,25 @@ function normalizeFileList(array $lines): array
     }, $lines), static fn (string $path): bool => $path !== '')));
 }
 
+function gitFileList(string $command, string $description): array
+{
+    $code = runCommand($command, $output);
+
+    if ($code !== 0) {
+        fwrite(STDERR, "Unable to determine {$description}.\n");
+        exit(1);
+    }
+
+    return normalizeFileList($output);
+}
+
 function dirtyPhpFiles(): array
 {
-    $files = [];
-
-    runCommand('git diff --name-only -- "*.php"', $unstagedOutput);
-    $files = array_merge($files, normalizeFileList($unstagedOutput));
-
-    runCommand('git diff --cached --name-only -- "*.php"', $stagedOutput);
-    $files = array_merge($files, normalizeFileList($stagedOutput));
-
-    runCommand('git ls-files --others --exclude-standard -- "*.php"', $untrackedOutput);
-    $files = array_merge($files, normalizeFileList($untrackedOutput));
+    $files = array_merge(
+        gitFileList('git diff --name-only -- "*.php"', 'unstaged PHP files'),
+        gitFileList('git diff --cached --name-only -- "*.php"', 'staged PHP files'),
+        gitFileList('git ls-files --others --exclude-standard -- "*.php"', 'untracked PHP files'),
+    );
 
     return array_values(array_unique($files));
 }
@@ -68,7 +75,8 @@ function diffPhpFiles(string $baseBranch): array
     );
 
     if ($code !== 0) {
-        return [];
+        fwrite(STDERR, "Unable to determine PHP files changed from {$baseBranch}.\n");
+        exit(1);
     }
 
     return normalizeFileList($output);
@@ -102,25 +110,48 @@ function runPintOnFiles(string $pintBinary, array $files): int
     return 0;
 }
 
+function verifiedBaseReference(string $candidate, bool $required = false): ?string
+{
+    $code = runCommand(
+        'git rev-parse --verify '.escapeshellarg($candidate.'^{commit}'),
+        $output
+    );
+
+    if ($code === 0) {
+        return $candidate;
+    }
+
+    if ($required) {
+        fwrite(STDERR, "Unable to resolve the required Pint base reference.\n");
+        exit(1);
+    }
+
+    return null;
+}
+
 function firstAvailableBaseBranch(): ?string
 {
+    $explicitBaseRef = getenv('PINT_BASE_REF');
+    if (is_string($explicitBaseRef) && trim($explicitBaseRef) !== '') {
+        return verifiedBaseReference(trim($explicitBaseRef), true);
+    }
+
     $candidates = [];
     $githubBaseRef = getenv('GITHUB_BASE_REF');
     if (is_string($githubBaseRef) && $githubBaseRef !== '') {
-        $candidates[] = 'origin/'.$githubBaseRef;
+        $candidates[] = 'origin/'.trim($githubBaseRef);
+        $candidates[] = trim($githubBaseRef);
     }
 
     $candidates = array_merge($candidates, [
-        'origin/main',
-        'origin/master',
-        'main',
-        'master',
+        'origin/develop',
+        'develop',
     ]);
 
     foreach (array_unique($candidates) as $candidate) {
-        $code = runCommand('git rev-parse --verify '.escapeshellarg($candidate), $output);
-        if ($code === 0) {
-            return $candidate;
+        $verifiedReference = verifiedBaseReference($candidate);
+        if ($verifiedReference !== null) {
+            return $verifiedReference;
         }
     }
 
@@ -128,26 +159,26 @@ function firstAvailableBaseBranch(): ?string
 }
 
 $dirtyPhpFiles = dirtyPhpFiles();
-$hasDirtyPhpFiles = count($dirtyPhpFiles) > 0;
-
-if ($hasDirtyPhpFiles) {
-    $exitCode = runPintOnFiles($pintBinary, $dirtyPhpFiles);
-    exit($exitCode);
-}
-
 $baseBranch = firstAvailableBaseBranch();
 
 if ($baseBranch !== null) {
-    $exitCode = runPintOnFiles($pintBinary, diffPhpFiles($baseBranch));
-    exit($exitCode);
+    $committedPhpFiles = diffPhpFiles($baseBranch);
+} else {
+    fwrite(STDERR, "Unable to determine the develop base branch for Pint.\n");
+    exit(1);
 }
 
-$command = escapeshellarg($pintBinary).' --test --dirty';
-passthru($command, $exitCode);
+$phpFiles = array_values(array_unique(array_merge($dirtyPhpFiles, $committedPhpFiles)));
+fwrite(
+    STDOUT,
+    sprintf(
+        "Pint base: %s; %d PHP file(s) selected (%d dirty, %d committed).\n",
+        $baseBranch,
+        count($phpFiles),
+        count($dirtyPhpFiles),
+        count($committedPhpFiles),
+    )
+);
 
-if ($exitCode === 0) {
-    exit(0);
-}
-
-fwrite(STDERR, "Unable to determine a base branch for Pint.\n");
+$exitCode = runPintOnFiles($pintBinary, $phpFiles);
 exit($exitCode);

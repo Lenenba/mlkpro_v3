@@ -32,4 +32,6 @@ gh pr create --base develop --draft
 
 Every change must include tests proportionate to its risk and preserve existing workflows. The controlled improvement program uses the detailed protocol in [QUALITY_GATES.md](docs/audits/mlkpro-benchmark-2026-07-16/execution/QUALITY_GATES.md).
 
+For every PHP change, run `composer qa:format` after the last PHP edit and again immediately before pushing or handing off the branch. A PHP branch is not ready to merge until the `laravel-quality` check is green on that exact commit. If PHP, Composer, or Pint is unavailable locally, report the validation as blocked and wait for the CI result instead of claiming success.
+
 No secret, real authentication token, one-time code, full customer phone number, or direct customer data may be committed or copied into validation evidence.

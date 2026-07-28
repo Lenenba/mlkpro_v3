@@ -187,7 +187,7 @@ class CapacityRunnerResultService
         $scenarioKey = $this->requiredString($payload, 'scenario_key', $errors);
         $scenario = $scenarioKey === null ? null : $this->scenario($scenarioKey);
         if ($scenarioKey !== null && $scenario === null) {
-            $errors[] = "scenario_key does not identify a configured capacity scenario.";
+            $errors[] = 'scenario_key does not identify a configured capacity scenario.';
         }
 
         $schemaVersion = $this->requiredInteger($payload, 'schema_version', $errors, 1);

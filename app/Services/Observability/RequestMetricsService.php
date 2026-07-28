@@ -223,7 +223,8 @@ class RequestMetricsService
                 );
             }
         } else {
-            if (! $this->isConfiguredRoute($routeName, $routePattern)) {
+            if (! $this->isConfiguredRoute($routeName, $routePattern)
+                || Route::getRoutes()->getByName($routeName) === null) {
                 $this->cache->addIndexValue(self::ROUTE_INDEX_KEY, $routeName, $retentionHours);
             }
             $this->cache->increment($this->counterKey($routeName, 'requests', $recordedAt), $retentionHours + 1);

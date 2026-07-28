@@ -13,3 +13,11 @@
 - Si une demande semble nécessiter une action sur `main`, l’agent doit s’arrêter à une branche ou une pull request vers `develop`; Jules Roger Sombangnen réalisera lui-même toute opération ultérieure sur `main`.
 
 Ces règles sont permanentes et prioritaires pour tous les agents et collaborateurs automatisés travaillant dans ce dépôt.
+
+## Gate PHP obligatoire avant livraison
+
+- Avant tout commit qui ajoute ou modifie un fichier PHP, puis immédiatement avant le push ou la livraison, exécuter `composer qa:format`.
+- Après toute correction de format, relancer `composer qa:format` et vérifier `git diff --check`.
+- Un lot PHP ne doit jamais être présenté comme prêt à fusionner tant que le check de format n’est pas vert.
+- Si PHP, Composer ou Pint ne peut pas être exécuté localement, déclarer le lot bloqué côté validation et attendre une CI verte avant toute fusion ; l’impossibilité locale ne vaut jamais validation.
+- Dans le compte rendu de livraison, consigner explicitement le résultat du check PHP et, en cas de CI, l’exécution qui le prouve.

@@ -62,6 +62,8 @@ jobs:
           php artisan key:generate --force
 
       - name: Check PHP formatting
+        env:
+          PINT_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: composer qa:format
 
       - name: Run static analysis

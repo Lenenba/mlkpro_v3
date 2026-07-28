@@ -20,8 +20,7 @@ class CapacityOutcomeClassifier
         int $statusCode,
         ?Response $response,
         ?string $activeScenarioKey = null
-    ): ?bool
-    {
+    ): ?bool {
         $routeName = $request->route()?->getName();
         if (! is_string($routeName)) {
             return null;
