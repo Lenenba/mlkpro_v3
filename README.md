@@ -28,6 +28,10 @@ Git Workflow
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the contributor workflow and [AGENTS.md](AGENTS.md) for the mandatory automation rules.
 
+Improvement Program
+-------------------
+The complete Phase 0–4 roadmap, completed-work recap, current status, blockers, and next actions are maintained in the [global improvement tracker](docs/audits/mlkpro-benchmark-2026-07-16/execution/SUIVI_GLOBAL.md). The [execution cockpit](docs/audits/mlkpro-benchmark-2026-07-16/execution/README.md) and [validation log](docs/audits/mlkpro-benchmark-2026-07-16/execution/VALIDATION_LOG.md) provide the detailed controls and evidence.
+
 Quick Start (Local)
 ------------------
 Requirements:

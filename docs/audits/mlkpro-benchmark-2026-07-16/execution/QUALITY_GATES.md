@@ -1,6 +1,6 @@
 # Protocole obligatoire de tests et de non-régression
 
-Dernière mise à jour : 2026-07-27
+Dernière mise à jour : 2026-08-01
 Statut : **applicable à tous les tickets du programme**
 
 ## Règle de décision
@@ -119,7 +119,7 @@ La collecte recevable respecte en plus toutes les conditions suivantes :
 
 Le rollback consiste à remettre `OBSERVABILITY_ENABLED=false`, recharger la configuration puis redémarrer les processus PHP persistants ; il faut ensuite confirmer que la collecte HTTP et les snapshots planifiés ont cessé.
 
-La gate finale P0-006 reste bloquée tant que l’environnement, la fenêtre, le propriétaire exploitation, le validateur distinct, les canaris P0-005 et les échantillons représentatifs ne sont pas consignés. L’état actuel est **techniquement préparé**, pas `validé` ni `terminé`. Aucun test ou résultat de campagne non exécuté ne doit être décrit comme vert.
+La gate finale P0-006 reste bloquée tant que l’environnement, la fenêtre, le propriétaire exploitation, le validateur distinct, les canaris P0-005 et les échantillons représentatifs ne sont pas consignés. L’état actuel est **en validation** : la préparation technique et le correctif local sont disponibles, mais P0-006 n’est ni `validé` ni `terminé`. Aucun test ou résultat de campagne non exécuté ne doit être décrit comme vert.
 
 ## Données et MySQL
 

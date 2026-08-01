@@ -1,16 +1,17 @@
 # Cockpit d’exécution contrôlée — amélioration MLK Pro
 
-- Dernière mise à jour : 2026-07-27
-- Statut global : **Phase 0 en cours — P0-001 à P0-004 terminés ; P0-005 vert côté code/CI mais ouvert côté exploitation ; P0-006 techniquement préparé, validation représentative bloquée**
-- Phase active autorisée : **Phase 0, exploitation P0-005 et validation représentative P0-006**
+- Dernière mise à jour : 2026-08-01
+- Statut global : **Phase 0 en cours — P0-001 à P0-004 terminés ; P0-005 en validation côté exploitation ; correctif P0-006 validé localement, validation distante et campagne représentative requises**
+- Phase active autorisée : **Phase 0 uniquement : livraison du correctif, exploitation P0-005, validation représentative P0-006 puis décision P0-007**
 - Politique Git : **travail et pull requests uniquement depuis/vers `develop` ; `main` est réservée au propriétaire humain du dépôt**
 - Responsable d’exécution locale : Codex
 - Responsable exploitation : à nommer
 - Validateur produit : demandeur
+- Document maître de suivi : **[Suivi global des Phases 0 à 4](SUIVI_GLOBAL.md)**
 
 ## Décision recommandée
 
-Commencer par la [Phase 0 — Sécurité et baseline](PHASE_0_SECURITY_AND_BASELINE.md).
+Terminer la [Phase 0 — Sécurité et baseline](PHASE_0_SECURITY_AND_BASELINE.md) avant d’ouvrir la Phase 1. Le [suivi global](SUIVI_GLOBAL.md) récapitule ce qui est déjà terminé et détaille tout le travail prévu jusqu’à la Phase 4.
 
 Cette phase traite, dans cet ordre :
 
@@ -26,21 +27,25 @@ Les optimisations visuelles et les changements d’architecture attendent la fer
 
 | Phase | Document | Statut | Dépendance | Gate de sortie |
 |---|---|---|---|---|
-| 0 | [Sécurité et baseline](PHASE_0_SECURITY_AND_BASELINE.md) | En cours — P0-005 exploitation ouverte, P0-006 techniquement préparé mais sans campagne représentative | Aucune | Secrets remplacés, audits traités, queues alignées, baseline exploitable |
+| 0 | [Sécurité et baseline](PHASE_0_SECURITY_AND_BASELINE.md) | En cours — correctif P0-006 validé localement ; validation distante, exploitation P0-005 et campagne P0-006 ouvertes | Aucune | Secrets remplacés, audits traités, queues alignées, baseline exploitable et décision P0-007 signée |
 | 1 | [Gains rapides de performance](PHASE_1_QUICK_PERFORMANCE_WINS.md) | En attente | Phase 0 terminée | Coûts globaux réduits sans régression de workflow |
 | 2 | [Performance données et runtime](PHASE_2_DATA_AND_RUNTIME_PERFORMANCE.md) | En attente | Phase 1 terminée | SQL, cache, props et infrastructure validés sous charge |
 | 3 | [Expérience utilisateur premium](PHASE_3_PREMIUM_USER_EXPERIENCE.md) | En attente | Phases 1 et 2 terminées | Parcours plus rapides et plus clairs, validés par rôle |
 | 4 | [Différenciation produit](PHASE_4_PRODUCT_DIFFERENTIATION.md) | En attente | Phase 3 terminée | Avantages opérations-finance validés avec des pilotes |
 
+Le détail ticket par ticket, les acquis, les blocages et les prochaines actions de ces cinq phases sont centralisés dans [SUIVI_GLOBAL.md](SUIVI_GLOBAL.md).
+
 ## Règle de fonctionnement
 
-Une seule phase peut avoir le statut **en cours**.
+Le séquencement ci-dessous correspond à la politique proposée dans `MLK-DEC-002`, appliquée prudemment par le cockpit. Son acceptation formelle reste à consigner dans [DECISIONS.md](DECISIONS.md) ; sans cette décision et sans gate signée, aucune phase future n’est considérée ouverte.
+
+Une seule phase peut donc avoir le statut **en cours** dans le suivi actuel.
 
 Une phase suit obligatoirement ce cycle :
 
 ```text
-À valider → Validée → En cours → En validation → Terminée
-                              ↘ Bloquée
+En attente → À valider → Validée → En cours → En validation → Terminée
+                                           ↘ Bloquée
 ```
 
 Le passage à l’état suivant exige une entrée dans [VALIDATION_LOG.md](VALIDATION_LOG.md). Toute décision qui modifie le scope, l’ordre, une cible ou un contrat protégé est enregistrée dans [DECISIONS.md](DECISIONS.md).
@@ -142,7 +147,8 @@ Le rollback opérationnel consiste à positionner `OBSERVABILITY_ENABLED=false`,
 - [Artefact analytique canonique](../artifact.json)
 - [Preuves de l’audit](../evidence.md)
 - [Backlog priorisé](../priorities.csv)
-- [Roadmap de synthèse](../roadmap.csv)
+- [Suivi global des Phases 0 à 4](SUIVI_GLOBAL.md)
+- [Roadmap historique de synthèse](../roadmap.csv)
 - [Registre des décisions](DECISIONS.md)
 - [Journal des validations](VALIDATION_LOG.md)
 - [Protocole de tests et de non-régression](QUALITY_GATES.md)
@@ -160,4 +166,5 @@ Ordre du jour proposé :
 6. confirmer la fenêtre de déploiement P0-005, les canaris et le contact de rollback ;
 7. choisir le staging isolé et la fenêtre de collecte P0-006 ;
 8. approuver le profil de trafic, les exclusions et le protocole d’expurgation ;
-9. signer P0-005 et P0-006 uniquement après les preuves d’exploitation et les échantillons représentatifs.
+9. signer P0-005 et P0-006 uniquement après les preuves d’exploitation et les échantillons représentatifs ;
+10. actualiser P0-007 et signer la décision GO / NO-GO avant toute ouverture de la Phase 1.

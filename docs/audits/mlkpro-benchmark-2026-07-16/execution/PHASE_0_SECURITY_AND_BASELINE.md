@@ -1,7 +1,7 @@
 # Phase 0 — Sécurité et baseline
 
-- Dernière mise à jour : 2026-07-27
-- Statut : **en cours — P0-001 à P0-004 terminés ; P0-005 vert côté code et CI mais encore ouvert côté exploitation ; P0-006 techniquement préparé, validation représentative bloquée**
+- Dernière mise à jour : 2026-08-01
+- Statut : **en cours — P0-001 à P0-004 terminés ; P0-005 en validation côté exploitation ; P0-006 en validation avec correctif local vert, mais validation distante et campagne représentative bloquées**
 - Responsable d’exécution locale : Codex
 - Propriétaire exploitation : à nommer
 - Validateur produit : demandeur
@@ -182,7 +182,7 @@ Cette baseline doit être confirmée au début de la phase et enregistrée dans 
 
 ### MLK-IMP-P0-006 — Établir la baseline d’observabilité
 
-- Statut : **préparé techniquement — validation représentative et canaris d’exploitation P0-005 bloquants**
+- Statut : **en validation — préparation technique fusionnée et correctif local vert ; validation distante, campagne représentative et canaris d’exploitation P0-005 bloquants**
 - Dépendances : P0-002 terminé ; canaris d’exploitation P0-005 vérifiés avant toute acceptation de baseline
 - But : obtenir assez d’échantillons pour décider Phase 1 et Phase 2 sur des faits.
 - Livrables : latence client p50/p95/p99/max, temps de traitement applicatif, erreurs, résultats métier, requêtes lentes, taille de réponse, nombre de requêtes SQL et santé des queues par scénario critique.
@@ -226,7 +226,7 @@ Cette baseline doit être confirmée au début de la phase et enregistrée dans 
 - Deux familles de temps : `client_latency_ms.p50/p95/p99/max`, calculée par le runner externe, représente le temps de bout en bout vu par le client et porte les seuils de capacité. `app_processing_ms`, collecté par Laravel, représente seulement le traitement applicatif et sert au diagnostic ; il ne remplace pas la latence client.
 - Protection des données : seules des métriques agrégées et expurgées sont versionnées. Les chemins bruts, paramètres, messages d’exception, SQL, bindings, identifiants et données client restent hors du dépôt ; un artefact brut éventuel demeure dans un stockage contrôlé avec accès limité.
 - Rollback : positionner `OBSERVABILITY_ENABLED=false`, recharger la configuration avec la procédure de l’environnement, redémarrer les processus PHP persistants et vérifier que le scheduler ne crée plus de snapshots. Conserver uniquement les résultats déjà collectés et expurgés ; les fichiers d’import contrôlés peuvent être archivés ou supprimés selon la politique d’exploitation.
-- Blocage actuel : l’instrumentation, les manifestes, le préflight et le contrat d’import sont préparés techniquement, mais aucune campagne représentative complète n’est encore consignée. Les canaris d’exploitation P0-005, l’environnement, la fenêtre, le propriétaire/validateur et les mesures représentatives restent bloquants. Aucun test P0-006 non exécuté n’est revendiqué comme vert.
+- Blocage actuel : l’instrumentation, les manifestes, le préflight et le contrat d’import sont préparés techniquement, mais la CI liée à la PR #134 a échoué sur cinq tests d’observabilité. Le correctif est vert localement sans validation distante, et aucune campagne représentative complète n’est consignée. Les canaris d’exploitation P0-005, l’environnement, la fenêtre, le propriétaire/validateur et les mesures représentatives restent bloquants. Aucun test P0-006 non exécuté n’est revendiqué comme vert.
 - Critères d’acceptation :
   - les sept scénarios exécutables atteignent `targets.min_samples` et `profile.minimum_completed_requests`, ou sont explicitement marqués bloqués avec propriétaire, justification et échéance ;
   - le préflight et le plan sont recevables sur le commit et l’environnement mesurés ;

@@ -1,8 +1,10 @@
 # Journal des validations — programme d’amélioration MLK Pro
 
-Dernière mise à jour : 2026-07-27
+Dernière mise à jour : 2026-08-01
 
 ## Règles de preuve
+
+La vue consolidée des travaux terminés, en cours et planifiés pour les Phases 0 à 4 est maintenue dans [SUIVI_GLOBAL.md](SUIVI_GLOBAL.md). Le présent journal reste la source des preuves qui autorisent chaque changement d’état.
 
 - Ne jamais enregistrer de secret, jeton, mot de passe, donnée personnelle directe ou URL contenant des identifiants.
 - Identifier chaque résultat par date, commit Git, environnement et responsable.
@@ -349,6 +351,22 @@ Dernière mise à jour : 2026-07-27
 - Limite opérationnelle : cette preuve ne contient aucune charge représentative, aucun import runner réel, aucun rapport strict de campagne et aucun canari P0-005 d’exploitation.
 - Verdict : **frontend ciblé et contrôles statiques réussis ; validation code complète en attente de CI, validation P0-006 représentative toujours bloquée**.
 
+## VALID-P0-006-CORRECTIVE-LOCAL-2026-08-01 — Correctif CI et durcissement de la gate PHP
+
+- Ticket : `MLK-IMP-P0-006` et gate qualité PHP transversale.
+- Date : 2026-08-01.
+- Branche : `agent/fix-p0-006-php-format`.
+- Commits techniques validés : `af133457` et `dbe50152`.
+- Cause vérifiée : l’exécution GitHub Actions `30369949212` liée à la PR #134 a terminé `laravel-quality` en échec sur cinq tests d’observabilité ; `laravel-quality-mysql` a réussi et `browser-smoke` a été ignoré après cet échec.
+- Correctifs : isolation du scope et du cache des tests d’observabilité, rafraîchissement déterministe du registre des routes, sélection Git NUL-safe des fichiers PHP, refus des fichiers PHP partiellement indexés et des suppressions non indexées, distinction des diffs `direct` et `merge-base`, et exécution fail-closed du proxy PHP de Pint.
+- Gate PHP du lot technique : `composer qa:format` réussi sur le commit `dbe50152`, avec six fichiers PHP sélectionnés et aucune modification de format produite.
+- Tests ciblés Observability/Capacity : **56 réussis, 326 assertions**.
+- Analyse statique : **PHPStan réussi, 850 fichiers analysés, zéro erreur**.
+- Non-régression : **Pest complet réussi, 1 240 tests et 12 654 assertions**.
+- Contrôle de diff : `git diff --check` réussi.
+- Validation distante : non exécutée, car les deux commits techniques et le présent suivi ne sont pas encore poussés et aucune PR corrective n’existe.
+- Verdict : **correctif validé localement ; validation distante requise. P0-006 reste ouvert jusqu’au push, à la PR vers `develop`, à une CI verte et à la campagne représentative**.
+
 ## Gate d’entrée Phase 0 — À compléter
 
 - ID : `GATE-P0-ENTRY`
@@ -366,17 +384,26 @@ Dernière mise à jour : 2026-07-27
 - Décision : GO / NO-GO
 - Commentaires :
 
-## Suivi des tickets Phase 0
+## Tableau de suivi opérationnel Phase 0
 
-| Ticket | Statut | Responsable | Validateur | Commit/déploiement | Preuve | Verdict |
-|---|---|---|---|---|---|---|
-| MLK-IMP-P0-001 | Terminé | Demandeur / Codex pour les contrôles | Demandeur | Branche issue de `develop`, `8da7b9c` | `VALID-P0-001-CLOSEOUT-2026-07-17` | Validé |
-| MLK-IMP-P0-002 | Terminé | Codex | Demandeur | Baseline `8da7b9c`, replays CI `37bc336f` | `BASELINE-P0-2026-07-17`, `VALID-P0-003-CLOSEOUT-2026-07-27` | Baseline gelée ; Node 20 et MySQL confirmés |
-| MLK-IMP-P0-003 | Terminé | Codex | Demandeur | PR #131, merge `28fc253f` vers `develop` | `VALID-P0-003-CLOSEOUT-2026-07-27` | Audit zéro avis, Laravel 12.64 et toutes les gates vertes |
-| MLK-IMP-P0-004 | Terminé | Codex | Demandeur | Commit `ccaf150`, PR #132 vers `develop` | `VALID-P0-004-LOCAL-2026-07-27`, `VALID-P0-004-CLOSEOUT-2026-07-27` | Audits zéro et toutes les gates locales/CI vertes |
-| MLK-IMP-P0-005 | En validation | Codex | À nommer | PR #133, commit fonctionnel `45015e7e` | `PREP-P0-005-2026-07-27`, `VALID-P0-005-LOCAL-2026-07-27`, `VALID-P0-005-CI-2026-07-27` | Code et gates locales/CI verts ; validation exploitation et canaris ouverts |
-| MLK-IMP-P0-006 | Préparé techniquement | Codex pour la préparation | Exploitation et validateur à nommer | Commit technique `12b9ecd` ; aucun déploiement représentatif | `PREP-P0-006-2026-07-27`, `VALID-P0-006-LOCAL-2026-07-27` | Instrumentation, frontend ciblé et protocole préparés ; CI, canaris P0-005 et validation représentative encore bloquants |
-| MLK-IMP-P0-007 | À valider |  |  |  |  |  |
+Ce tableau détaille la sortie de la Phase 0. La suite du programme, jusqu’à la Phase 4, est visible dans le [suivi global](SUIVI_GLOBAL.md).
+
+État constaté le 2026-08-01. Les lignes sont ordonnées selon l’avancement acquis puis l’ordre de dépendance des prochaines actions. `Terminé` signifie que la preuve attendue est consignée ; une préparation locale ou une fusion sans gate complète ne clôt pas l’étape.
+
+| Ordre | Avancement | État | Preuve actuelle | Prochaine action |
+|---:|---|---|---|---|
+| 1 | P0-001 — Rotation et invalidation Twilio | Terminé | `VALID-P0-001-CLOSEOUT-2026-07-17`, commit `8da7b9c` | Aucune ; conserver les preuves expurgées |
+| 2 | P0-002 — Baseline gelée | Terminé | `BASELINE-P0-2026-07-17` ; replays Node 20 et MySQL dans `VALID-P0-003-CLOSEOUT-2026-07-27` | Aucune |
+| 3 | P0-003 — Dépendances PHP sécurisées | Terminé | PR #131, merge `28fc253f`, audit sans avis et gates vertes | Maintenir la surveillance des avis Composer |
+| 4 | P0-004 — Dépendances JavaScript sécurisées | Terminé | PR #132, commit `ccaf150`, audits et gates locales/CI verts | Maintenir la surveillance des avis npm |
+| 5 | P0-005 — Topologie queues/workers et CI | En validation | PR #133, commit fonctionnel `45015e7e`, code et CI verts dans `VALID-P0-005-CI-2026-07-27` | Passer à la validation d’exploitation |
+| 6 | P0-006 — Instrumentation et protocole de baseline | En validation | PR #134 fusionnée dans `develop` au merge `c35f4d67` ; MySQL vert, `laravel-quality` en échec sur cinq tests et smoke ignoré dans l’exécution `30369949212` | Livrer le correctif local et obtenir une CI complète verte |
+| 7 | Correctif P0-006 et durcissement de la gate PHP | En validation | Branche `agent/fix-p0-006-php-format`, commits `af133457` et `dbe50152`, validation locale verte dans `VALID-P0-006-CORRECTIVE-LOCAL-2026-08-01` | Pousser la branche, ouvrir une PR vers `develop`, puis consigner l’URL, le SHA exact testé et le résultat de chaque job CI |
+| 8 | P0-005 — Déploiement des quatre processus et canaris | En validation | Code et CI verts, mais aucune installation persistante, activité réelle, fenêtre ni preuve de rollback n’est consignée | Nommer le responsable, choisir l’environnement et la fenêtre, déployer, exécuter les canaris puis tester le rollback |
+| 9 | P0-006 — Campagne représentative des sept scénarios | Bloqué | Aucun runner réel, aucun résultat runner agrégé importé et lié aux empreintes approuvées, et aucun rapport strict représentatif ; dépend des canaris P0-005 | Choisir le staging isolé, le propriétaire et un validateur distinct, approuver le trafic, puis collecter et importer les mesures |
+| 10 | P0-007 — Revue documentaire de sortie | À valider | Branche locale `agent/p0-007-phase0-gate`, commit `98199402`, recommandation NO-GO non signée préparée mais non intégrée | Actualiser la matrice avec les nouvelles preuves, puis l’intégrer sans transformer la recommandation en signature humaine |
+| 11 | Sous-étape P0-007 — Signatures finales | Bloqué | P0-005 et P0-006 restent ouverts ; signatures produit, technique et exploitation absentes | Lever ou accepter formellement chaque blocage, puis signer une nouvelle gate datée |
+| 12 | Ouverture de la Phase 1 | En attente | Dépend d’un GO P0-007 signé ; la phase reste fermée par défaut | Ne démarrer qu’après la décision GO signée |
 
 ## Gate de sortie Phase 0 — À compléter
 
