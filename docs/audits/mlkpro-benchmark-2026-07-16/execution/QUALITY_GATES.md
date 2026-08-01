@@ -43,7 +43,7 @@ php -d memory_limit=512M vendor/bin/pest --compact
 git diff --check
 ```
 
-`composer qa:format` est obligatoire après la dernière modification PHP et juste avant le push ou la livraison. Le lot ne peut pas être déclaré prêt tant que `laravel-quality` n’est pas vert sur le commit exact ; une indisponibilité locale de PHP, Composer ou Pint doit être consignée comme un blocage, jamais comme une validation.
+`composer qa:format` est obligatoire après le dernier ajout, la dernière modification ou la dernière suppression PHP et après la dernière indexation (`git add`), puis juste avant le push ou la livraison. Le contrôle doit refuser les fichiers PHP partiellement indexés et les suppressions PHP non indexées. Le lot ne peut pas être déclaré prêt tant que `laravel-quality` n’est pas vert sur le commit exact ; une indisponibilité locale de PHP, Composer ou Pint doit être consignée comme un blocage, jamais comme une validation.
 
 Pour tout changement frontend ou de dépendance JavaScript :
 

@@ -50,6 +50,12 @@ jobs:
       - name: Install PHP dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
+      - name: Check PHP formatting
+        env:
+          PINT_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+          PINT_DIFF_MODE: ${{ github.event_name == 'push' && 'direct' || 'merge-base' }}
+        run: composer qa:format
+
       - name: Install Node dependencies
         run: npm ci
 
@@ -60,11 +66,6 @@ jobs:
         run: |
           cp .env.example .env
           php artisan key:generate --force
-
-      - name: Check PHP formatting
-        env:
-          PINT_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: composer qa:format
 
       - name: Run static analysis
         run: composer qa:analyse

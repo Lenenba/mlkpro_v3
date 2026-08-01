@@ -16,7 +16,7 @@ Ces règles sont permanentes et prioritaires pour tous les agents et collaborate
 
 ## Gate PHP obligatoire avant livraison
 
-- Avant tout commit qui ajoute ou modifie un fichier PHP, puis immédiatement avant le push ou la livraison, exécuter `composer qa:format`.
+- Avant tout commit qui ajoute, modifie ou supprime un fichier PHP, terminer l’indexation (`git add`), puis exécuter `composer qa:format`; le contrôle doit refuser tout fichier PHP partiellement indexé ou toute suppression PHP non indexée. Relancer ce contrôle immédiatement avant le push ou la livraison.
 - Après toute correction de format, relancer `composer qa:format` et vérifier `git diff --check`.
 - Un lot PHP ne doit jamais être présenté comme prêt à fusionner tant que le check de format n’est pas vert.
 - Si PHP, Composer ou Pint ne peut pas être exécuté localement, déclarer le lot bloqué côté validation et attendre une CI verte avant toute fusion ; l’impossibilité locale ne vaut jamais validation.
