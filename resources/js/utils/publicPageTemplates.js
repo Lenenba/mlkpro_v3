@@ -1,4 +1,4 @@
-import { loadLocaleMessages, normalizeLocale } from '../i18n/catalog';
+import { loadLocaleDomains, normalizeLocale } from '../i18n/catalog';
 
 const getMessageValue = (sources, path) => {
     const segments = String(path || '')
@@ -30,8 +30,8 @@ const getMessages = (sources, paths = []) => paths.map((path) => getMessageValue
 export const buildPageTemplateContent = async (templateId, locale = 'fr') => {
     const resolvedLocale = normalizeLocale(locale);
     const [messages, fallbackMessages] = await Promise.all([
-        loadLocaleMessages(resolvedLocale),
-        loadLocaleMessages('en'),
+        loadLocaleDomains(resolvedLocale, ['super_admin']),
+        loadLocaleDomains('en', ['super_admin']),
     ]);
     const sources = [messages, fallbackMessages];
 

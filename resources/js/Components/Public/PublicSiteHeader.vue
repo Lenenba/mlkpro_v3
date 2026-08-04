@@ -4,6 +4,7 @@ import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import MegaMenuDisplay from '@/Components/MegaMenu/MegaMenuDisplay.vue';
 import LocaleFlag from '@/Components/UI/LocaleFlag.vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
+import { preloadI18nPageMessages } from '@/i18n';
 
 const props = defineProps({
     megaMenu: {
@@ -93,12 +94,21 @@ const showCurrencySwitcher = computed(() =>
 const showLogin = computed(() => !props.isAuthenticated && props.canLogin);
 const showRegister = computed(() => !props.isAuthenticated && props.canRegister);
 
-const setLocale = (locale) => {
+const setLocale = async (locale) => {
     if (!locale || locale === currentLocale.value) {
         return;
     }
 
     langMenuOpen.value = false;
+
+    try {
+        await preloadI18nPageMessages(locale, page.component);
+    } catch (error) {
+        if (import.meta.env.DEV) {
+            console.warn('[i18n] locale preloading failed', error);
+        }
+    }
+
     router.post(route('locale.update'), { locale }, { preserveScroll: true });
 };
 
@@ -316,6 +326,7 @@ onBeforeUnmount(() => {
                     <div ref="langMenuRef" class="public-site-header__locale">
                         <button
                             type="button"
+                            data-testid="public-language-switcher-toggle"
                             class="public-site-header__locale-toggle"
                             aria-haspopup="listbox"
                             :aria-label="$t('account.language')"
@@ -353,6 +364,7 @@ onBeforeUnmount(() => {
                                 :key="locale"
                                 type="button"
                                 role="option"
+                                :data-locale="locale"
                                 class="public-site-header__locale-item"
                                 :class="{ 'is-active': currentLocale === locale }"
                                 :aria-selected="currentLocale === locale"

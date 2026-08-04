@@ -5,11 +5,12 @@ import { createInertiaApp, router } from '@inertiajs/vue3';
 import { Fragment, createApp, defineComponent, h } from 'vue';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import AppSeo from './Components/Seo/AppSeo.vue';
-import { createI18nInstance, ensureI18nLocale } from './i18n';
+import { createI18nInstance, ensureI18nDomains, ensureI18nLocale } from './i18n';
 import { applyAccessibilityPreferences, readAccessibilityPreferences } from './utils/accessibility';
 import { createPrelineInitializer, refreshPrelineOverlays } from './utils/preline';
 
 let i18nInstance = null;
+let pendingI18nLocale = null;
 let sessionReloading = false;
 let csrfRefreshPromise = null;
 
@@ -220,6 +221,18 @@ const isAuthenticationRoutePath = (url) => {
         || destination.pathname.startsWith('/reset-password/');
 };
 
+const isLocaleUpdateVisit = (visit) => {
+    if (typeof window === 'undefined' || visit?.method?.toLowerCase() !== 'post') {
+        return false;
+    }
+
+    try {
+        return new URL(String(visit.url || ''), window.location.origin).pathname === '/locale';
+    } catch (error) {
+        return false;
+    }
+};
+
 const isZiggyBoundaryPage = (page) => {
     const component = String(page?.component || '');
 
@@ -292,7 +305,17 @@ const attachSeoLayout = (pageComponent) => {
     return pageComponent;
 };
 
-const resolveInertiaPage = (name) => {
+const resolveInertiaPage = async (name) => {
+    if (i18nInstance) {
+        const targetLocale = pendingI18nLocale || i18nInstance.global.locale.value;
+        const resolvedLocale = await ensureI18nDomains(i18nInstance, targetLocale, name);
+
+        if (pendingI18nLocale) {
+            i18nInstance.global.locale.value = resolvedLocale;
+            setDocumentLang(resolvedLocale);
+        }
+    }
+
     const normalizedName = String(name || '')
         .replace(/\\/g, '/')
         .replace(/^\/+|\/+$/g, '')
@@ -327,7 +350,7 @@ createInertiaApp({
     resolve: (name) => resolveInertiaPage(name),
     async setup({ el, App, props, plugin }) {
         const initialLocale = props.initialPage?.props?.locale || 'fr';
-        i18nInstance = await createI18nInstance(initialLocale);
+        i18nInstance = await createI18nInstance(initialLocale, props.initialPage?.component);
         setDocumentLang(initialLocale);
 
         // Création de l'application Vue
@@ -351,6 +374,10 @@ createInertiaApp({
 router.on('before', (event) => {
     const visit = event?.detail?.visit;
 
+    if (isLocaleUpdateVisit(visit)) {
+        pendingI18nLocale = visit.data?.locale || null;
+    }
+
     if (visit?.method?.toLowerCase() !== 'get' || !isAuthenticationRoutePath(visit.url)) {
         return;
     }
@@ -373,19 +400,24 @@ router.on('navigate', (event) => {
 });
 
 router.on('success', async (event) => {
-    const locale = event?.detail?.page?.props?.locale;
-    if (i18nInstance && locale && i18nInstance.global.locale.value !== locale) {
-        const resolvedLocale = await ensureI18nLocale(i18nInstance, locale);
+    const page = event?.detail?.page;
+    const locale = page?.props?.locale;
+    if (i18nInstance && locale) {
+        const resolvedLocale = await ensureI18nLocale(i18nInstance, locale, page?.component);
         setDocumentLang(resolvedLocale);
     }
+
+    pendingI18nLocale = null;
 });
 
 router.on('error', (event) => {
+    pendingI18nLocale = null;
     const status = event?.detail?.response?.status;
     handleSessionExpired(status);
 });
 
 router.on('invalid', (event) => {
+    pendingI18nLocale = null;
     const status = event?.detail?.response?.status;
     handleSessionExpired(status);
 });
