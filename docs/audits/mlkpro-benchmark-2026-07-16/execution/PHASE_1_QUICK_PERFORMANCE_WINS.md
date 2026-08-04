@@ -1,7 +1,7 @@
 # Phase 1 — Gains rapides de performance
 
 - Dernière mise à jour : 2026-08-04
-- Statut : **ouverte — aucun ticket P1 encore démarré**
+- Statut : **ouverte — P1-001 en validation locale**
 - Responsable : Jules Roger Sombangnen
 - Validateurs : à nommer (distinct du responsable)
 - Dépendance : GO P0-007 sous dérogation MLK-DEC-010
@@ -31,11 +31,14 @@ Navigation Inertia, menus, dropdowns, modales, onglets, tableaux, traductions, r
 
 ### MLK-IMP-P1-001 — Initialisation Preline unique et ciblée
 
-- Statut : **en attente**
+- Statut : **en validation locale**
 - But : remplacer le mixin global et les timers multiples par une initialisation après navigation.
-- Fichiers probables : `resources/js/app.js` et tests Playwright.
-- Critères : une seule initialisation par navigation ; menus/modales/onglets inchangés ; aucun scan DOM après chaque montage enfant.
-- Rollback : feature flag de boot ou revert isolé.
+- Changement livré : l’initialisation est demandée au montage racine et après navigation Inertia, coalescée au prochain rendu stable ; les overlays Preline dont les déclencheurs ont été remplacés sont fermés, détruits puis rebondés avant le scan global.
+- Fichiers modifiés : `resources/js/app.js`, `resources/js/utils/preline.js`, tests Node et Playwright.
+- Critères vérifiés localement : aucune initialisation issue d’un montage enfant ; une demande applicative coalescée par rendu stable ; menus, modales, onglets et navigation mobile protégés.
+- Preuve : `VALID-P1-001-LOCAL-2026-08-04`.
+- Validation restante : revue humaine et acceptation avant de déclarer le ticket terminé.
+- Rollback : revert isolé du commit `71c1252c64b92d5153fa01f79afe146dd0a1628c`.
 
 ### MLK-IMP-P1-002 — Groupes de routes Ziggy
 

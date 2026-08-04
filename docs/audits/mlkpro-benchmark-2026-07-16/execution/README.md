@@ -1,7 +1,7 @@
 # Cockpit d’exécution contrôlée — amélioration MLK Pro
 
 - Dernière mise à jour : 2026-08-04
-- Statut global : **Phase 0 terminée sous dérogation MLK-DEC-010 — P0-001 à P0-004 terminés ; harnais P0-005/P0-006 intégrés dans `develop` par `e91adf8` ; preuves d’exploitation et baseline dynamique reportées jusqu’au 2027-08-04 ; Phase 1 ouverte**
+- Statut global : **Phase 0 terminée sous dérogation MLK-DEC-010 — P0-001 à P0-004 terminés ; harnais P0-005/P0-006 intégrés dans `develop` par `e91adf8` ; preuves d’exploitation et baseline dynamique reportées jusqu’au 2027-08-04 ; Phase 1 ouverte, P1-001 en validation locale**
 - Phase active autorisée : **Phase 1 — gains rapides de performance ; les preuves P0-005/P0-006 restent dues sous dérogation**
 - Politique Git : **travail et pull requests uniquement depuis/vers `develop` ; `main` est réservée au propriétaire humain du dépôt**
 - Responsable d’exécution locale : Codex
@@ -28,7 +28,7 @@ Les optimisations visuelles et les changements d’architecture peuvent commence
 | Phase | Document | Statut | Dépendance | Gate de sortie |
 |---|---|---|---|---|
 | 0 | [Sécurité et baseline](PHASE_0_SECURITY_AND_BASELINE.md) | Terminée sous dérogation — GO P0-007 signé ; exploitation P0-005 et campagne P0-006 reportées jusqu’au 2027-08-04 | Aucune | Dérogation tracée, risques acceptés et preuves opérationnelles planifiées avant échéance |
-| 1 | [Gains rapides de performance](PHASE_1_QUICK_PERFORMANCE_WINS.md) | Ouverte — aucun ticket démarré | GO P0-007 sous dérogation | Coûts globaux réduits sans régression de workflow |
+| 1 | [Gains rapides de performance](PHASE_1_QUICK_PERFORMANCE_WINS.md) | Ouverte — P1-001 en validation locale | GO P0-007 sous dérogation | Valider P1-001, puis réduire les coûts globaux sans régression de workflow |
 | 2 | [Performance données et runtime](PHASE_2_DATA_AND_RUNTIME_PERFORMANCE.md) | En attente | Phase 1 terminée | SQL, cache, props et infrastructure validés sous charge |
 | 3 | [Expérience utilisateur premium](PHASE_3_PREMIUM_USER_EXPERIENCE.md) | En attente | Phases 1 et 2 terminées | Parcours plus rapides et plus clairs, validés par rôle |
 | 4 | [Différenciation produit](PHASE_4_PRODUCT_DIFFERENTIATION.md) | En attente | Phase 3 terminée | Avantages opérations-finance validés avec des pilotes |
@@ -160,7 +160,7 @@ Le rollback opérationnel consiste à positionner `OBSERVABILITY_ENABLED=false`,
 
 Ordre du jour proposé :
 
-1. démarrer P1-001 avec la baseline statique P0-002 et les gates frontend existantes ;
+1. faire valider humainement P1-001, dont la preuve locale est consignée dans `VALID-P1-001-LOCAL-2026-08-04` ;
 2. fournir un staging et son mécanisme d’accès/déploiement avant le 2027-08-04 ;
 3. exécuter les quatre canaris P0-005, les contrôles métier, le redémarrage et le rollback ;
 4. réévaluer `MLK-DEC-009`, nommer un validateur distinct et approuver la campagne P0-006 ;

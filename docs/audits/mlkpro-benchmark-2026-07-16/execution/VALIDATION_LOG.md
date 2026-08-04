@@ -431,6 +431,23 @@ La vue consolidée des travaux terminés, en cours et planifiés pour les Phases
 - Référence de gouvernance : MLK-DEC-010 ; MLK-DEC-009 reste proposée pour la future campagne staging.
 - Verdict : **Phase 0 clôturée sous dérogation ; Phase 1 ouverte. Les preuves opérationnelles P0-005/P0-006 restent dues et ne sont pas décrites comme vertes.**
 
+## VALID-P1-001-LOCAL-2026-08-04 — Initialisation Preline unique et ciblée
+
+- Ticket : `MLK-IMP-P1-001`.
+- Date : 2026-08-04.
+- Commit technique : `71c1252c64b92d5153fa01f79afe146dd0a1628c` sur `develop`.
+- Portée : remplacement du mixin Vue global et du délai de 100 ms par un planificateur `requestAnimationFrame` au montage racine et après navigation Inertia. Les demandes répétées avant le rendu stable sont coalescées.
+- Correctif de navigation : les instances d’overlay Preline dont les déclencheurs ont été remplacés par Inertia sont fermées de façon synchrone, détruites, puis initialisées sur les nouveaux déclencheurs. Cela évite un backdrop ou un verrouillage de défilement orphelin sur la navigation mobile.
+- Vérification unitaire ciblée : `node --test tests/Node/P1001PrelineInitializerTest.mjs` — **4/4 réussis**.
+- Vérification navigateur ciblée : `tests/e2e/preline-navigation.spec.js` — navigation Inertia mobile, sidebar, backdrop, nouvel ouvreur et touche Échap — **1/1 réussi**.
+- Non-régression : `npm run qa:e2e` — build Vite réussi puis **8/8 scénarios Playwright réussis**.
+- Contrôle de livraison : `git diff --check` réussi. Aucun fichier PHP n’est modifié ; la gate `composer qa:format` n’est donc pas applicable à ce lot.
+- Mesure statique : le chemin `vueApp.mixin({ mounted() { … } })` passe de 1 à 0 et le délai fixe de 100 ms du boot Preline passe de 1 à 0. Cette preuve ne constitue pas une mesure dynamique représentative, absente sous la dérogation `MLK-DEC-010`.
+- Environnement : exécution locale avec build Vite et environnement Playwright isolé ; aucune écriture, charge ou action staging/production.
+- Rollback : revert isolé du commit technique ci-dessus ; aucune migration ni donnée persistante impliquée.
+- Validation indépendante : aucune signature humaine distincte n’est encore consignée.
+- Verdict : **validation technique locale réussie ; P1-001 reste en validation jusqu’à l’acceptation humaine.**
+
 ## Gate d’entrée Phase 0 — Archive historique non rétroactive
 
 Ce gabarit initial n’a pas été signé à l’ouverture. Il est conservé comme dette de gouvernance et ne doit pas être rempli rétroactivement sans preuve datée.
@@ -467,7 +484,7 @@ Ce tableau détaille la sortie de la Phase 0. La suite du programme, jusqu’à 
 | 7 | P0-005 — Déploiement des quatre processus et canaris | Dérogation acceptée jusqu’au 2027-08-04 | Procédure et harnais prêts ; aucune installation persistante, sortie canari opérationnelle, fenêtre ni preuve de rollback | Fournir staging, déployer, exécuter quatre canaris, santé/métier/redémarrage et rollback |
 | 8 | P0-006 — Campagne représentative des sept scénarios | Dérogation acceptée jusqu’au 2027-08-04 | Aucun résultat v3 importé ni rapport strict représentatif ; MLK-DEC-009 reste proposée | Fournir staging, nommer un validateur distinct, approuver le trafic, collecter, importer et archiver le rapport |
 | 9 | P0-007 — Revue et signatures de sortie | Terminé — GO sous dérogation | VALID-P0-007-GO-CONDITIONNEL-2026-08-04 ; décision unique de Produit/Technique/Exploitation | Réévaluer la dérogation à l’échéance ou après livraison des preuves |
-| 10 | Ouverture de la Phase 1 | Ouverte | GO P0-007 sous dérogation ; aucune implémentation P1 encore démarrée | Démarrer P1-001 avec la baseline statique disponible |
+| 10 | P1-001 — Initialisation Preline unique et ciblée | En validation locale | `VALID-P1-001-LOCAL-2026-08-04` ; commit `71c1252`, Node 4/4 et Playwright 8/8 verts | Obtenir la validation humaine avant P1-002 |
 
 ## Gate de sortie Phase 0 — Matrice factuelle au 2026-08-04
 

@@ -8,7 +8,7 @@ Ce document est la vue maître pour suivre l’évolution complète du programme
 - Phase active autorisée : **Phase 1 — Gains rapides de performance**.
 - État global : **Phase 0 clôturée sous dérogation MLK-DEC-010 ; Phase 1 ouverte ; Phases 2 à 4 planifiées mais non ouvertes**.
 - Progression des tickets canoniques : **4 terminés avec preuve complète ; P0-005/P0-006 restent des preuves opérationnelles reportées sous dérogation et P0-007 est clôturé par GO**. Cet indicateur ne mesure ni la charge ni un pourcentage d’achèvement produit.
-- Prochaine gate de sortie de phase : **P1-001 — première optimisation frontend avec mesures statiques, tests et rollback**.
+- Prochaine gate de sortie de phase : **validation humaine de P1-001 — première optimisation frontend avec mesures statiques, tests et rollback**.
 - Règle Git : les travaux et pull requests ciblent `develop` ; `main` reste réservé au propriétaire humain du dépôt.
 
 ## Comment lire les états
@@ -30,7 +30,7 @@ Une validation locale ne vaut pas validation distante. Une fusion ne vaut pas d�
 | Phase | Objectif | Récapitulatif acquis | État actuel | Prochaine action | Gate de sortie |
 |---:|---|---|---|---|---|
 | 0 — Sécurité et baseline | Retirer les risques immédiats et produire une base de mesure fiable | P0-001 à P0-004 terminés ; harnais P0-005 et runner/import P0-006 v3 intégrés dans develop par e91adf8, validés localement et par la CI de la PR #135 | Terminée sous dérogation | GO P0-007 accepté ; réaliser les preuves opérationnelles P0-005/P0-006 avant le 2027-08-04 | Dérogation MLK-DEC-010 tracée, risques acceptés et échéance ferme |
-| 1 — Gains rapides de performance | Supprimer les coûts frontend globaux sans changer les workflows | Plan détaillé, baseline statique et cinq tickets définis ; aucune implémentation P1 validée | Ouverte — aucun ticket démarré | Démarrer P1-001 avec la baseline statique, sans attribuer de gain à une baseline dynamique absente | Gains mesurés, contrats frontend inchangés, Playwright vert et budgets frontend actifs en CI |
+| 1 — Gains rapides de performance | Supprimer les coûts frontend globaux sans changer les workflows | P1-001 implémenté et validé localement : initialisation Preline coalescée, test Node et parcours mobile Playwright ajoutés | Ouverte — P1-001 en validation locale | Faire accepter P1-001, sans attribuer de gain à une baseline dynamique absente, avant d’ouvrir P1-002 | Gains mesurés, contrats frontend inchangés, Playwright vert et budgets frontend actifs en CI |
 | 2 — Performance données et runtime | Stabiliser p95, mémoire, SQL, cache et queues lorsque les volumes augmentent | Sept tickets, principes de mode ombre et critères de comparaison définis ; aucun ticket P2 démarré | En attente | Après la Phase 1, sélectionner trois priorités initiales et faire accepter `MLK-DEC-005` avant toute migration Redis | Résultats ancien/nouveau identiques, requêtes et mémoire bornées, Redis contrôlé et canari multi-entreprise réussi |
 | 3 — Expérience utilisateur premium | Réduire la complexité perçue et accélérer les tâches par rôle | Six tickets, rollout par rôle et critères utilisateur définis ; aucune validation P3 | En attente | Après les Phases 1 et 2, définir la baseline des cinq tâches, les pilotes et le protocole de validation | Cinq parcours améliorés, desktop/mobile/accessibilité/langues validés, pilotes favorables et rollback testé |
 | 4 — Différenciation produit | Relier opérations et finance dans une chaîne traçable, réversible et difficile à copier | Huit tickets exploratoires et critères de pilote définis ; aucune validation P4 | En attente | Après la Phase 3, valider par recherche `MLK-DEC-007`, puis le segment et les cinq workflows P4-001 avant tout investissement majeur | Pilote concluant, chaîne opérations-finance auditée, intégrations et IA contrôlées, décision d’investissement consignée |
@@ -120,7 +120,7 @@ Baseline statique déjà documentée : application JavaScript à 188,6 kB gzip, 
 
 | Ordre | Ticket | Ce que l’on compte faire | État | Déclencheur ou prochaine action |
 |---:|---|---|---|---|
-| 1 | P1-001 — Initialisation Preline ciblée | Remplacer le mixin global et les timers multiples par une initialisation unique après navigation | Ouverte — non démarrée | GO P0-007 sous MLK-DEC-010 ; mesurer depuis la baseline statique sans revendication dynamique |
+| 1 | P1-001 — Initialisation Preline ciblée | Remplacer le mixin global et les timers multiples par une initialisation unique après navigation | En validation locale | Commit `71c1252`, `VALID-P1-001-LOCAL-2026-08-04`, Node 4/4 et Playwright 8/8 verts ; validation humaine requise, sans revendication dynamique |
 | 2 | P1-002 — Groupes de routes Ziggy | Fournir uniquement les routes nécessaires aux surfaces public, portail et admin | En attente | Après P1-001 ; mesurer la baisse HTML et tester chaque surface |
 | 3 | P1-003 — Traductions par domaine | Charger les catalogues nécessaires sans changer les clés ni le fallback anglais | En attente | Après P1-002 ; mesurer le JavaScript initial et vérifier FR/EN/ES |
 | 4 | P1-004 — Images et polices critiques | Ajouter AVIF/WebP, `srcset`, dimensions, priorité du héros et police non bloquante | En attente | Après P1-002, parallélisable avec P1-003 ; conserver les anciens médias pour rollback |
@@ -191,7 +191,7 @@ Gate de sortie : segment et proposition validés, chaîne opérations-finance au
 | 3 | Réévaluer MLK-DEC-009 et préparer P0-006 | Dérogation MLK-DEC-010 active jusqu’au 2027-08-04 | Environnement, validateur distinct et protocole de collecte autorisés |
 | 4 | Traiter les sept scénarios P0-006 | Reporté sous dérogation | Résultats v3 importés, empreintes approuvées, télémétrie et rapport strict représentatif |
 | 5 | Réévaluer ou clôturer MLK-DEC-010 | Échéance ferme : 2027-08-04 | Preuves P0-005/P0-006 réalisées ou nouvelle décision explicite |
-| 6 | Démarrer P1-001 | Ouverte | Première optimisation contrôlée à partir de la baseline statique |
+| 6 | Valider P1-001 | En validation locale | Revue humaine de la preuve locale, puis ouverture contrôlée de P1-002 |
 | 7 | Terminer Phase 1, prioriser Phase 2 et faire statuer `MLK-DEC-005` | En attente | Trois priorités P2 fondées sur les mesures et décision Redis explicite |
 | 8 | Exécuter Phase 2 puis ouvrir Phase 3 | En attente | Runtime borné, puis expérience utilisateur mesurable |
 | 9 | Valider Phase 3 puis conduire la recherche `MLK-DEC-007` avant Phase 4 | En attente | Pilotes UX concluants, positionnement décidé, puis différenciation produit validée par le marché |
