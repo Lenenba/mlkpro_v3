@@ -110,17 +110,12 @@ const form = useForm({
     taxes: props.quote?.taxes?.map(tax => tax.tax_id) || [],
 });
 
-const selectedOfferPackageId = ref('');
-const selectedOfferPackageQuantity = ref(1);
+form.transform((data) => ({
+    ...data,
+    product: (data.product || []).map(({ line_type, offer_package_id, ...line }) => line),
+}));
+
 const properties = computed(() => props.customer?.properties || []);
-const offerPackageOptions = computed(() => (props.offerPackages || []).map((offer) => ({
-    id: offer.id,
-    name: `${offer.type === 'forfait' ? 'Forfait' : 'Pack'} - ${offer.name} - $${Number(offer.price || 0).toFixed(2)}`,
-})));
-const selectedOfferPackage = computed(() => {
-    const id = Number(selectedOfferPackageId.value || 0);
-    return (props.offerPackages || []).find((offer) => Number(offer.id) === id) || null;
-});
 const propertyOptions = computed(() =>
     properties.value.map((property) => ({
         id: property.id,
@@ -271,41 +266,6 @@ const applyTemplate = (template) => {
     }
 };
 
-const addOfferPackageLine = () => {
-    if (isLocked.value || !selectedOfferPackage.value) {
-        return;
-    }
-
-    const offer = selectedOfferPackage.value;
-    const quantity = Math.max(1, Number(selectedOfferPackageQuantity.value || 1));
-    const baseLine = JSON.parse(JSON.stringify(offer.quote_line || {}));
-    const price = Number(baseLine.price ?? offer.price ?? 0);
-    const line = {
-        ...baseLine,
-        id: null,
-        name: baseLine.name || offer.name,
-        description: baseLine.description || offer.description || '',
-        quantity,
-        price,
-        total: Math.round(quantity * price * 100) / 100,
-        item_type: baseLine.item_type || 'service',
-        source_details: baseLine.source_details || null,
-    };
-
-    const existingLines = form.product || [];
-    const shouldReplaceBlankLine = existingLines.length === 1
-        && !existingLines[0].id
-        && !String(existingLines[0].name || '').trim()
-        && Number(existingLines[0].price || 0) === 0;
-
-    form.product = shouldReplaceBlankLine
-        ? [line]
-        : [...existingLines, line];
-    updateSubtotal(form.product.reduce((sum, product) => sum + Number(product.total || 0), 0));
-    selectedOfferPackageId.value = '';
-    selectedOfferPackageQuantity.value = 1;
-};
-
 const dispatchDemoEvent = (eventName) => {
     if (typeof window === 'undefined') {
         return;
@@ -450,42 +410,12 @@ const submit = () => {
                         class="p-5 space-y-3 flex flex-col bg-white border border-stone-200 rounded-sm shadow-sm xl:shadow-none dark:bg-neutral-900 dark:border-neutral-700"
                         data-testid="demo-quote-line-items"
                     >
-                        <div
-                            v-if="offerPackageOptions.length && !isLocked"
-                            class="flex flex-col gap-3 rounded-sm border border-stone-200 bg-stone-50 p-3 md:flex-row md:items-end dark:border-neutral-700 dark:bg-neutral-800/50"
-                        >
-                            <div class="min-w-0 flex-1">
-                                <FloatingSelect
-                                    v-model="selectedOfferPackageId"
-                                    label="Pack / forfait"
-                                    :options="offerPackageOptions"
-                                    placeholder="Choisir une offre active"
-                                    dense
-                                />
-                            </div>
-                            <div class="w-full md:w-32">
-                                <FloatingInput
-                                    v-model="selectedOfferPackageQuantity"
-                                    type="number"
-                                    min="1"
-                                    label="Quantite"
-                                />
-                            </div>
-                            <button
-                                type="button"
-                                class="inline-flex min-h-[38px] items-center justify-center rounded-sm border border-transparent bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
-                                :disabled="!selectedOfferPackageId"
-                                @click="addOfferPackageLine"
-                                data-testid="quote-offer-package-add"
-                            >
-                                Ajouter
-                            </button>
-                        </div>
                         <ProductTableList
                             v-model="form.product"
                             :read-only="isLocked"
                             :allow-mixed-types="true"
                             :enable-price-lookup="true"
+                            :offer-packages="props.offerPackages"
                             @update:subtotal="updateSubtotal"
                         />
                     </div>
