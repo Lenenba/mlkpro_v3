@@ -7,6 +7,7 @@ import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import AppSeo from './Components/Seo/AppSeo.vue';
 import { createI18nInstance, ensureI18nLocale } from './i18n';
 import { applyAccessibilityPreferences, readAccessibilityPreferences } from './utils/accessibility';
+import { createPrelineInitializer, refreshPrelineOverlays } from './utils/preline';
 
 let i18nInstance = null;
 let sessionReloading = false;
@@ -186,22 +187,17 @@ const patchPrelineTabs = () => {
 
 patchPrelineTabs();
 
-// Fonction pour initialiser Preline.js après chaque navigation
-const initializePreline = () => {
-    if (window.HSStaticMethods && typeof window.HSStaticMethods.autoInit === 'function') {
-        setTimeout(() => {
-            try {
-                ensurePrelineTabsHaveActive();
-                window.HSStaticMethods.autoInit(); // Réinitialisation des composants Preline.js
-            } catch (error) {
-                // Evite de casser l'app si Preline rencontre un element invalide.
-                if (import.meta.env.DEV) {
-                    console.warn('[preline] autoInit failed', error);
-                }
-            }
-        }, 100); // Ajoute un léger délai pour s'assurer que le DOM est rendu
-    }
-};
+const initializePreline = createPrelineInitializer({
+    beforeInitialize: () => {
+        refreshPrelineOverlays();
+        ensurePrelineTabsHaveActive();
+    },
+    onError: (error) => {
+        if (import.meta.env.DEV) {
+            console.warn('[preline] autoInit failed', error);
+        }
+    },
+});
 
 // Configuration de l'application Inertia
 const inertiaPages = import.meta.glob([
@@ -298,24 +294,18 @@ createInertiaApp({
             .use(ZiggyVue)
             .use(i18nInstance);
 
-        // Initialisation de Preline.js après le montage de l'application
-        vueApp.mixin({
-            mounted() {
-                initializePreline(); // Appeler Preline.js à chaque chargement de composant
-            },
-        });
+        const mountedApp = vueApp.mount(el);
+        initializePreline();
 
-        return vueApp.mount(el);
+        return mountedApp;
     },
     progress: {
         color: '#4B5563', // Couleur de la barre de progression Inertia
     },
 });
 
-// Réinitialiser Preline.js après chaque navigation Inertia
-router.on('navigate', () => {
-    initializePreline();
-});
+// Réinitialiser Preline.js une seule fois après chaque navigation Inertia.
+router.on('navigate', initializePreline);
 
 router.on('success', async (event) => {
     const locale = event?.detail?.page?.props?.locale;
