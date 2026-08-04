@@ -5,6 +5,7 @@
         "build": "node --max_old_space_size=1536 ./node_modules/vite/bin/vite.js build",
         "dev": "vite",
         "qa:build": "npm run build",
+        "qa:capacity-runner": "node --test tests/Node/P0006CapacityRunnerTest.mjs",
         "qa:e2e": "npm run qa:build && playwright test",
         "qa:e2e:install": "playwright install chromium"
     },

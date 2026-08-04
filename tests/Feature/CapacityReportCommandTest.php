@@ -52,6 +52,8 @@ function phase9CapacityScenario(
             'virtual_users' => 10,
             'duration' => '5m',
             'ramp_up' => '30s',
+            'request_interval_ms' => 1000,
+            'request_timeout_ms' => 10000,
             'minimum_completed_requests' => 100,
         ],
         'safety' => [

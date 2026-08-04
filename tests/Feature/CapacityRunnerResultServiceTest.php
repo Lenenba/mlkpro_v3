@@ -1,5 +1,7 @@
 <?php
 
+use App\Services\Capacity\CapacityPreflightService;
+use App\Services\Capacity\CapacityRunContextService;
 use App\Services\Capacity\CapacityRunnerResultService;
 use App\Services\Capacity\CapacityRunnerResultValidationException;
 use App\Services\Capacity\CapacityScenarioCatalog;
@@ -16,24 +18,53 @@ beforeEach(function () {
     config()->set('observability.cache.store', 'array');
     config()->set('observability.cache.prefix', 'capacity-runner-result-tests');
     config()->set('observability.release', 'p0-006-runner-result-test');
+    config()->set('capacity.allowed_staging_environments', ['testing']);
     config()->set('capacity.baseline', [
         'run_id' => 'p0-006-runner-test',
         'environment' => 'testing',
         'commit' => 'deadc0de',
         'started_at' => '2026-07-27T12:00:00+00:00',
         'ended_at' => '2026-07-27T12:15:00+00:00',
+        'traffic' => 'synthetic',
         'runner' => 'k6@0.52.0',
         'runner_hash' => hash('sha256', 'approved-k6-script'),
+        'fixture_hash' => hash('sha256', 'approved-capacity-fixtures'),
+        'allowed_origins' => 'https://capacity.example.test',
+        'exclusions' => 'none',
+        'mode' => 'staging',
+        'representative' => true,
+        'approved' => true,
+        'approval_reference' => 'P0-006-RUNNER-TEST',
+        'queue_canaries_verified' => true,
+        'isolated_tenant_verified' => true,
+        'owner' => 'capacity-owner',
+        'validator' => 'capacity-validator',
     ]);
     config()->set('capacity.scenarios.dashboard_usage.profile', [
         'virtual_users' => 25,
         'duration' => '10m',
         'ramp_up' => '2m',
+        'request_interval_ms' => 1000,
+        'request_timeout_ms' => 10000,
         'minimum_completed_requests' => 250,
     ]);
     config()->set('capacity.scenarios.dashboard_usage.targets.min_samples', 25);
 
     Cache::store('array')->flush();
+
+    $this->mock(CapacityPreflightService::class, function ($mock): void {
+        $mock->shouldReceive('summary')->andReturn([
+            'ready' => true,
+            'issues' => [],
+        ]);
+    });
+
+    Carbon::setTestNow('2026-07-27T12:00:30Z');
+    $runContext = app(CapacityRunContextService::class);
+    expect($runContext->start('dashboard_usage'))->toBeTrue();
+    Carbon::setTestNow('2026-07-27T12:11:30Z');
+    expect($runContext->stop('dashboard_usage'))->toBeTrue();
+    Carbon::setTestNow('2026-07-27T12:20:00Z');
 });
 
 afterEach(function () {
@@ -50,12 +81,15 @@ function capacityRunnerPayload(array $overrides = []): array
         ->firstWhere('key', 'dashboard_usage');
 
     return array_replace_recursive([
-        'schema_version' => 1,
+        'schema_version' => CapacityRunnerResultService::SCHEMA_VERSION,
         'run_id' => 'p0-006-runner-test',
         'environment' => 'testing',
         'commit' => 'deadc0de',
         'scenario_key' => 'dashboard_usage',
         'manifest_hash' => $scenario['manifest_hash'],
+        'fixture_hash' => hash('sha256', 'approved-capacity-fixtures'),
+        'baseline_fingerprint' => app(CapacityRunnerResultService::class)->baselineFingerprint(),
+        'target_origin_hash' => hash('sha256', 'https://capacity.example.test'),
         'runner' => 'k6@0.52.0',
         'runner_hash' => strtoupper(hash('sha256', 'approved-k6-script')),
         'started_at' => '2026-07-27T12:01:00+00:00',
@@ -63,6 +97,8 @@ function capacityRunnerPayload(array $overrides = []): array
         'virtual_users' => 25,
         'duration_seconds' => 600,
         'ramp_up_seconds' => 120,
+        'request_interval_ms' => 1000,
+        'request_timeout_ms' => 10000,
         'attempted_requests' => 250,
         'completed_requests' => 250,
         'transport_errors' => 0,
@@ -98,11 +134,44 @@ test('external runner evidence is strictly validated canonicalized and stored by
         ->and($service->latestForScope($scopeId, 'dashboard_usage'))->toBe($stored);
 });
 
+test('baseline fingerprint uses the canonical identity shared with the Node runner', function () {
+    config()->set('observability.release', 'release/é');
+    config()->set('capacity.baseline', [
+        'run_id' => 'run',
+        'environment' => 'staging',
+        'commit' => 'abc',
+        'started_at' => '2026-07-27T12:00:00Z',
+        'ended_at' => '2026-07-27T12:10:00Z',
+        'traffic' => 'synthetic',
+        'runner' => 'node',
+        'runner_hash' => str_repeat('A', 64),
+        'fixture_hash' => str_repeat('B', 64),
+        'allowed_origins' => 'https://staging.example.test',
+        'exclusions' => ' none, raw ',
+        'mode' => 'staging',
+        'representative' => true,
+        'approved' => true,
+        'approval_reference' => 'CHANGE/1',
+        'queue_canaries_verified' => true,
+        'isolated_tenant_verified' => true,
+        'owner' => 'owner',
+        'validator' => 'validator',
+    ]);
+    $canonicalJson = '{"allowed_origins":["https:\/\/staging.example.test"],"approval_reference":"CHANGE\/1","approved":true,"commit":"abc","environment":"staging","exclusions":["none","raw"],"fixture_hash":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","isolated_tenant_verified":true,"mode":"staging","owner":"owner","period":{"ended_at":"2026-07-27T12:10:00Z","started_at":"2026-07-27T12:00:00Z"},"queue_canaries_verified":true,"release":"release\/\u00e9","representative":true,"run_id":"run","runner":"node","runner_hash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","traffic":"synthetic","validator":"validator"}';
+
+    expect(app(CapacityRunnerResultService::class)->baselineFingerprint())
+        ->toBe(hash('sha256', $canonicalJson));
+});
+
 test('external runner evidence rejects unknown or raw fields and identity mismatches', function () {
     $payload = capacityRunnerPayload([
         'commit' => 'different-commit',
         'runner' => 'unapproved-runner',
         'manifest_hash' => str_repeat('a', 64),
+        'fixture_hash' => str_repeat('c', 64),
+        'baseline_fingerprint' => str_repeat('b', 64),
+        'target_origin_hash' => str_repeat('d', 64),
+        'request_timeout_ms' => 9999,
         'raw_responses' => [['body' => 'sensitive']],
         'client_latency_ms' => [
             'raw_samples' => [10, 20],
@@ -118,8 +187,88 @@ test('external runner evidence rejects unknown or raw fields and identity mismat
             ->toContain('client_latency_ms.raw_samples is not allowed.')
             ->toContain('commit does not match the configured baseline.')
             ->toContain('runner does not match the configured baseline.')
-            ->toContain('manifest_hash does not match the current scenario manifest.');
+            ->toContain('fixture_hash does not match the configured baseline.')
+            ->toContain('target_origin_hash does not match an approved baseline origin.')
+            ->toContain('baseline_fingerprint does not match the current baseline identity.')
+            ->toContain('manifest_hash does not match the current scenario manifest.')
+            ->toContain('request_timeout_ms must match the scenario profile (10000).');
     }
+});
+
+test('runner evidence requires the current preflight to remain ready', function () {
+    $this->mock(CapacityPreflightService::class, function ($mock): void {
+        $mock->shouldReceive('summary')->once()->andReturn([
+            'ready' => false,
+            'issues' => ['queue_backlog_unmeasurable'],
+        ]);
+    });
+
+    expect(fn () => app(CapacityRunnerResultService::class)->ingest(capacityRunnerPayload()))
+        ->toThrow(
+            CapacityRunnerResultValidationException::class,
+            'The current capacity preflight is not ready to accept runner evidence.'
+        );
+});
+
+test('runner evidence requires a complete uncancelled lifecycle for the same scope', function () {
+    config()->set('capacity.baseline.run_id', 'scope-without-lifecycle');
+
+    expect(fn () => app(CapacityRunnerResultService::class)->ingest(capacityRunnerPayload([
+        'run_id' => 'scope-without-lifecycle',
+    ])))->toThrow(
+        CapacityRunnerResultValidationException::class,
+        'Runner evidence requires a completed started-to-stopped capacity scenario lifecycle.'
+    );
+
+    config()->set('capacity.baseline.run_id', 'cancelled-scope');
+    Carbon::setTestNow('2026-07-27T12:00:30Z');
+    $runContext = app(CapacityRunContextService::class);
+    expect($runContext->start('dashboard_usage'))->toBeTrue();
+    Carbon::setTestNow('2026-07-27T12:00:45Z');
+    expect($runContext->cancel('dashboard_usage'))->toBeTrue();
+    Carbon::setTestNow('2026-07-27T12:20:00Z');
+
+    expect(fn () => app(CapacityRunnerResultService::class)->ingest(capacityRunnerPayload([
+        'run_id' => 'cancelled-scope',
+    ])))->toThrow(
+        CapacityRunnerResultValidationException::class,
+        'The capacity scenario lifecycle was cancelled and cannot accept runner evidence.'
+    );
+});
+
+test('runner timestamps must be contained by the lifecycle markers', function () {
+    config()->set('capacity.baseline.run_id', 'narrow-lifecycle-scope');
+    Carbon::setTestNow('2026-07-27T12:02:00Z');
+    $runContext = app(CapacityRunContextService::class);
+    expect($runContext->start('dashboard_usage'))->toBeTrue();
+    Carbon::setTestNow('2026-07-27T12:10:00Z');
+    expect($runContext->stop('dashboard_usage'))->toBeTrue();
+    Carbon::setTestNow('2026-07-27T12:20:00Z');
+
+    try {
+        app(CapacityRunnerResultService::class)->ingest(capacityRunnerPayload([
+            'run_id' => 'narrow-lifecycle-scope',
+        ]));
+        $this->fail('Evidence outside the lifecycle markers was accepted.');
+    } catch (CapacityRunnerResultValidationException $exception) {
+        expect($exception->errors())
+            ->toContain('runner started_at must be on or after the capacity scenario start marker.')
+            ->toContain('runner ended_at must be on or before the capacity scenario stop marker.');
+    }
+});
+
+test('runner evidence is rejected while the current scenario has a formal blocker', function () {
+    config()->set('capacity.scenarios.dashboard_usage.blocker', [
+        'reason' => 'The staging route is under maintenance.',
+        'owner' => 'capacity-owner',
+        'review_at' => '2026-07-28T12:00:00Z',
+    ]);
+
+    expect(fn () => app(CapacityRunnerResultService::class)->ingest(capacityRunnerPayload()))
+        ->toThrow(
+            CapacityRunnerResultValidationException::class,
+            'scenario_key is blocked by an active formal capacity blocker.'
+        );
 });
 
 test('external runner evidence enforces the scenario profile counters assertions and latency order', function () {
@@ -129,6 +278,7 @@ test('external runner evidence enforces the scenario profile counters assertions
         'virtual_users' => 24,
         'duration_seconds' => 599,
         'ramp_up_seconds' => 119,
+        'request_interval_ms' => 999,
         'attempted_requests' => 24,
         'completed_requests' => 21,
         'transport_errors' => 2,
@@ -151,6 +301,7 @@ test('external runner evidence enforces the scenario profile counters assertions
             ->toContain('virtual_users must match the scenario profile (25).')
             ->toContain('duration_seconds must match the scenario profile (600).')
             ->toContain('ramp_up_seconds must match the scenario profile (120).')
+            ->toContain('request_interval_ms must match the scenario profile (1000).')
             ->toContain('attempted_requests must be at least 25 for this scenario.')
             ->toContain('completed_requests must be at least 25 for this scenario.')
             ->toContain('attempted_requests must satisfy the scenario load envelope (250).')
@@ -162,16 +313,33 @@ test('external runner evidence enforces the scenario profile counters assertions
     }
 });
 
-test('runner timestamps must cover exactly the declared duration', function () {
-    $payload = capacityRunnerPayload([
+test('runner timestamps allow only the configured real-world duration drift', function () {
+    config()->set('capacity.runner_results.duration_tolerance_seconds', 2);
+
+    $accepted = app(CapacityRunnerResultService::class)->validate(capacityRunnerPayload([
         'ended_at' => '2026-07-27T12:10:59Z',
+    ]));
+
+    expect($accepted['ended_at'])->toBe('2026-07-27T12:10:59.000000Z');
+
+    $payload = capacityRunnerPayload([
+        'ended_at' => '2026-07-27T12:10:57Z',
     ]);
 
     expect(fn () => app(CapacityRunnerResultService::class)->ingest($payload))
         ->toThrow(
             CapacityRunnerResultValidationException::class,
-            'ended_at minus started_at must equal duration_seconds.'
+            'ended_at minus started_at must match duration_seconds within the configured tolerance.'
         );
+
+    config()->set('capacity.runner_results.duration_tolerance_seconds', 30);
+
+    expect(fn () => app(CapacityRunnerResultService::class)->ingest(capacityRunnerPayload([
+        'ended_at' => '2026-07-27T12:11:06Z',
+    ])))->toThrow(
+        CapacityRunnerResultValidationException::class,
+        'ended_at minus started_at must match duration_seconds within the configured tolerance.'
+    );
 });
 
 test('runner evidence cannot declare a result that has not ended yet', function () {
@@ -193,6 +361,38 @@ test('runner evidence must match the approved script hash', function () {
             'runner_hash does not match the configured baseline.'
         );
 });
+
+test('runner evidence independently rejects an unauthorized configured baseline', function (
+    string $field,
+    mixed $value,
+    string $expectedError
+) {
+    config()->set("capacity.baseline.{$field}", $value);
+
+    expect(fn () => app(CapacityRunnerResultService::class)->ingest(capacityRunnerPayload()))
+        ->toThrow(CapacityRunnerResultValidationException::class, $expectedError);
+})->with([
+    'not representative' => [
+        'representative',
+        false,
+        'The configured baseline must be explicitly marked representative.',
+    ],
+    'not approved' => [
+        'approved',
+        false,
+        'The configured baseline execution must be explicitly approved.',
+    ],
+    'queue canaries not verified' => [
+        'queue_canaries_verified',
+        false,
+        'The configured baseline must verify the P0-005 queue canaries.',
+    ],
+    'isolated tenant not verified' => [
+        'isolated_tenant_verified',
+        false,
+        'The configured baseline must verify an isolated tenant for controlled-write scenarios.',
+    ],
+]);
 
 test('runner evidence cannot leak into another baseline scope or survive a manifest change', function () {
     $service = app(CapacityRunnerResultService::class);

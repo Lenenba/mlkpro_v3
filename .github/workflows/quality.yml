@@ -62,6 +62,9 @@ jobs:
       - name: Audit JavaScript dependencies
         run: npm audit --audit-level=high
 
+      - name: Test P0-006 capacity runner
+        run: npm run qa:capacity-runner
+
       - name: Prepare environment
         run: |
           cp .env.example .env

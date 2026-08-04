@@ -108,6 +108,33 @@ class CapacityRunContextService
         });
     }
 
+    /**
+     * @return array<int, array{scope_id: string, scenario_key: string, state: string, recorded_at: string}>
+     */
+    public function lifecycleForScope(string $scopeId, string $scenarioKey): array
+    {
+        $scopeId = strtolower(trim($scopeId));
+        $scenarioKey = trim($scenarioKey);
+        if (preg_match('/^[a-f0-9]{64}$/', $scopeId) !== 1 || $scenarioKey === '') {
+            return [];
+        }
+
+        return collect($this->cache->get(self::STATE_KEY))
+            ->filter(fn ($event): bool => is_array($event)
+                && ($event['scope_id'] ?? null) === $scopeId
+                && ($event['scenario_key'] ?? null) === $scenarioKey
+                && in_array($event['state'] ?? null, ['started', 'stopped', 'cancelled'], true)
+                && is_string($event['recorded_at'] ?? null))
+            ->map(fn (array $event): array => [
+                'scope_id' => $scopeId,
+                'scenario_key' => $scenarioKey,
+                'state' => $event['state'],
+                'recorded_at' => $event['recorded_at'],
+            ])
+            ->values()
+            ->all();
+    }
+
     private function recordState(string $scopeId, string $scenarioKey, string $state): bool
     {
         return $this->cache->append(self::STATE_KEY, [

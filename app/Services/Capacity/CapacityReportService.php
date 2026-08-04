@@ -461,6 +461,8 @@ class CapacityReportService
             'traffic',
             'runner',
             'runner_hash',
+            'fixture_hash',
+            'allowed_origins',
             'exclusions',
             'mode',
             'approval_reference',
@@ -506,6 +508,27 @@ class CapacityReportService
         if ($values['runner_hash'] !== null
             && preg_match('/^[a-f0-9]{64}$/i', $values['runner_hash']) !== 1) {
             $issues[] = 'Baseline runner_hash must be a 64-character SHA-256 hexadecimal digest.';
+        }
+        if ($values['fixture_hash'] !== null
+            && preg_match('/^[a-f0-9]{64}$/i', $values['fixture_hash']) !== 1) {
+            $issues[] = 'Baseline fixture_hash must be a 64-character SHA-256 hexadecimal digest.';
+        }
+        $allowedOrigins = [];
+        if ($values['allowed_origins'] !== null) {
+            foreach (explode(',', $values['allowed_origins']) as $configuredOrigin) {
+                $origin = $this->normalizedHttpsOrigin($configuredOrigin);
+                if ($origin === null) {
+                    $issues[] = 'Baseline allowed_origins must contain only exact HTTPS origins.';
+
+                    continue;
+                }
+                $allowedOrigins[] = $origin;
+            }
+            $allowedOrigins = array_values(array_unique($allowedOrigins));
+            sort($allowedOrigins);
+        }
+        if ($values['allowed_origins'] !== null && $allowedOrigins === []) {
+            $issues[] = 'Baseline allowed_origins must contain at least one exact HTTPS origin.';
         }
         $representative = filter_var($configured['representative'] ?? false, FILTER_VALIDATE_BOOL);
         $approved = filter_var($configured['approved'] ?? false, FILTER_VALIDATE_BOOL);
@@ -578,6 +601,7 @@ class CapacityReportService
 
         return [
             'status' => $missing === [] && $issues === [] ? 'complete' : 'incomplete',
+            'release' => config('observability.release'),
             'run_id' => $values['run_id'],
             'environment' => $values['environment'],
             'commit' => $values['commit'],
@@ -588,7 +612,9 @@ class CapacityReportService
             ],
             'traffic' => $values['traffic'],
             'runner' => $values['runner'],
-            'runner_hash' => $values['runner_hash'],
+            'runner_hash' => is_string($values['runner_hash']) ? strtolower($values['runner_hash']) : null,
+            'fixture_hash' => is_string($values['fixture_hash']) ? strtolower($values['fixture_hash']) : null,
+            'allowed_origins' => $allowedOrigins,
             'mode' => $values['mode'],
             'period_complete' => $periodComplete,
             'representative' => $representative,
@@ -806,6 +832,38 @@ class CapacityReportService
             (int) config('observability.query.retention_hours', 24),
             (int) config('observability.error.retention_hours', 24)
         );
+    }
+
+    private function normalizedHttpsOrigin(mixed $value): ?string
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        $parts = parse_url(trim($value));
+        if (! is_array($parts)
+            || strtolower((string) ($parts['scheme'] ?? '')) !== 'https'
+            || ! is_string($parts['host'] ?? null)
+            || ($parts['host'] ?? '') === ''
+            || isset($parts['user'])
+            || isset($parts['pass'])
+            || isset($parts['query'])
+            || isset($parts['fragment'])
+            || ! in_array($parts['path'] ?? '', ['', '/'], true)) {
+            return null;
+        }
+
+        $host = strtolower($parts['host']);
+        if (preg_match('/^[a-z0-9.-]+$/', $host) !== 1
+            && preg_match('/^\[[a-f0-9:]+\]$/', $host) !== 1) {
+            return null;
+        }
+        $port = $parts['port'] ?? null;
+        if ($port !== null && ($port < 1 || $port > 65535)) {
+            return null;
+        }
+
+        return 'https://'.$host.($port !== null && $port !== 443 ? ':'.$port : '');
     }
 
     /**

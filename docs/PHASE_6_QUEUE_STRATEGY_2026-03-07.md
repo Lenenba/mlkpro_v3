@@ -1,5 +1,7 @@
 # Phase 6 Queue Strategy
 
+> **Document historique — hors numérotation canonique.** Le titre « Phase 6 » provient de l'ancien découpage technique des files. Dans le programme d'audit actuel, seules les phases **0 à 4** sont canoniques ; ce document reste un runbook technique de référence et ne crée pas une phase 6 supplémentaire dans le suivi de l'audit.
+
 ## Objectif
 
 Garder les requêtes HTTP centrées sur les écritures métier critiques et déplacer les effets secondaires asynchrones vers des files explicites, consommées et observables.
@@ -102,13 +104,43 @@ php artisan queue:health --json
 
 Elle inclut la connexion, le volume en attente, le détail par file, l’âge du plus ancien job et les échecs récents. L’audit de topologie et la santé d’exécution sont complémentaires : un audit vert ne prouve pas que les processus de production tournent réellement.
 
+### Harnais de consommation sans effet métier
+
+`queue:workload-canary` dépose un job dédié sans effet métier sur **chaque** file résolue d’un profil de production, puis attend un accusé pour chacune d’elles :
+
+```bash
+php artisan queue:workload-canary operations --dry-run --json
+php artisan queue:workload-canary operations --json
+php artisan queue:workload-canary plan-scans --json
+php artisan queue:workload-canary campaigns --json
+php artisan queue:workload-canary social --json
+```
+
+La connexion peut être passée comme second argument et l’attente peut être bornée avec `--timeout=<secondes>`. Chaque exécution crée un identifiant de run et un identifiant distinct par file. La sortie JSON ne contient ni clé de cache, ni nom d’hôte, ni payload métier, ni exception brute. Dans un run opérationnel, le code de sortie est `0` uniquement lorsque toutes les files du profil ont produit un accusé exact avant le timeout.
+
+Les accusés expirent automatiquement et utilisent le store défini par `ASYNC_QUEUE_CANARY_STORE`, avec le préfixe `ASYNC_QUEUE_CANARY_PREFIX`, la durée `ASYNC_QUEUE_CANARY_TTL_SECONDS` et le timeout par défaut `ASYNC_QUEUE_CANARY_TIMEOUT_SECONDS`. Le harnais accepte Redis, DynamoDB ou un cache `database` adossé à MySQL/MariaDB, PostgreSQL ou SQL Server. Il refuse les stores locaux ou éphémères, notamment `array`, `file`, `null`, `octane`, Memcached et une base SQLite.
+
+Une preuve opérationnelle exige en plus :
+
+- `APP_ENV=staging` ou `APP_ENV=production` ; tout autre environnement est refusé en mode réel ;
+- `ASYNC_QUEUE_CANARY_RELEASE` non vide, limité à 128 caractères et à l'alphabet sûr `A-Z`, `a-z`, `0-9`, `.`, `_`, `:`, `+`, `-` ;
+- `ASYNC_QUEUE_CANARY_COMMIT` contenant un SHA-1 ou SHA-256 hexadécimal complet, donc exactement 40 ou 64 caractères ;
+- si `CAPACITY_BASELINE_COMMIT` est défini, sa valeur doit être identique à `ASYNC_QUEUE_CANARY_COMMIT` ; si `OBSERVABILITY_RELEASE` est défini, sa valeur doit être identique à `ASYNC_QUEUE_CANARY_RELEASE` ; en leur absence, les deux variables canari explicites restent la source d'identité ;
+- une connexion de file dont le driver appartient à la liste fermée `database`, `redis`, `sqs` ou `beanstalkd`. Le préflight résout réellement la connexion et exige respectivement un objet Laravel `DatabaseQueue`, `RedisQueue`, `SqsQueue` ou `BeanstalkdQueue` — les sous-classes restent acceptées. Les drivers `sync`, `null`, les connecteurs inconnus et un connecteur détourné qui annonce `database` mais retourne `SyncQueue` sont refusés. Pour `database`, SQLite est refusé hors du harnais interne de tests car il ne constitue pas une file partagée entre hôtes.
+
+Le job exige l'enveloppe fournie par un vrai worker, compare la connexion et la file observées par cette enveloppe aux cibles attendues, puis écrit dans l'accusé les valeurs **observées**. Les URL physiques SQS sont normalisées à partir du transport Laravel résolu. Il compare aussi l'environnement, la release et le commit configurés côté worker à ceux du lanceur et lie ces valeurs à l'accusé. Ces contrôles détectent une dérive de configuration ou de routage ; l'identité reste cependant une identité de build/release **configurée**, pas une attestation cryptographique du binaire effectivement exécuté.
+
+La sortie et chaque accusé portent un mode fermé : `operational` ou `internal_test`, ainsi qu'un booléen `evidence_eligible`. Le harnais PHPUnit interne retourne explicitement `passed_internal_test` et `evidence_eligible=false` ; il ne peut jamais être confondu avec un succès d'exploitation. Le mode `--dry-run` valide le store, le transport résolu et la topologie sans écrire dans le store et sans déposer de job ; le mode réel effectue d’abord une sonde lecture/écriture expurgée. En local, le dry-run peut retourner le code `0` avec le statut `ready_with_requirements` et lister les identités manquantes. **Ni `ready_with_requirements` ni `passed_internal_test` ne sont une preuve de consommation recevable** : seule une sortie réelle combinant `status=passed`, `mode=operational` et `evidence_eligible=true`, dans `staging` ou `production`, avec ses accusés liés à la release/au commit, constitue la preuve P0-005.
+
+Une sortie recevable (`passed`, `operational`, `evidence_eligible=true`) établit qu’un consommateur a traité chaque file pendant la fenêtre du run. Elle n’établit ni le nom du processus dans Supervisor/systemd, ni son redémarrage automatique, ni sa disponibilité durable. Le contrôle du gestionnaire de processus, `queue:health --json`, les canaris métier représentatifs et le rollback restent donc complémentaires.
+
 ## Procédure de déploiement
 
-1. Définir toutes les variables `ASYNC_QUEUE_*`, `DB_QUEUE_RETRY_AFTER=300` et/ou `REDIS_QUEUE_RETRY_AFTER=300` dans l’environnement ciblé, sans encore basculer les producteurs web.
+1. Définir toutes les variables `ASYNC_QUEUE_*`, dont obligatoirement `ASYNC_QUEUE_CANARY_RELEASE` et `ASYNC_QUEUE_CANARY_COMMIT`, ainsi que `DB_QUEUE_RETRY_AFTER=300` et/ou `REDIS_QUEUE_RETRY_AFTER=300` dans l’environnement `staging` ou `production` ciblé, sans encore basculer les producteurs web.
 2. Préprovisionner les quatre processus persistants `operations`, `plan-scans`, `campaigns` et `social` sur une release compatible avec `queue:workloads`, ou placer le trafic en maintenance pendant la bascule.
 3. Déployer la release, recharger la configuration Laravel, puis exécuter `php artisan queue:workload-audit --json`. Arrêter le déploiement si le code de sortie est non nul ou si un contrôle externe requis reste non confirmé.
 4. Exécuter les quatre commandes `queue:workloads ... --dry-run --json` et confirmer les files, la connexion, l’ordre, les tentatives et les timeouts résolus.
-5. Démarrer et vérifier les nouveaux consommateurs avant de rouvrir le trafic ou d’autoriser les producteurs à déposer des jobs sur `plan-scans` et `social-publish`.
+5. Démarrer et vérifier les nouveaux consommateurs, puis exécuter `queue:workload-canary <profil> --json` pour chacun des quatre profils avant de rouvrir le trafic ou d’autoriser les producteurs à déposer des jobs sur `plan-scans` et `social-publish`.
 6. Conserver le consommateur de `default` pendant toute la transition afin de vider les jobs créés par l’ancienne version.
 7. Exécuter `php artisan queue:restart`, vérifier que chaque processus redémarre, puis contrôler `queue:health --json`, les journaux et `failed_jobs`.
 8. Procéder au canari décrit ci-dessous avant l’élargissement du trafic.

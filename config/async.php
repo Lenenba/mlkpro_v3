@@ -1,6 +1,16 @@
 <?php
 
 return [
+    'canary' => [
+        'store' => env('ASYNC_QUEUE_CANARY_STORE', env('CACHE_STORE', 'database')),
+        'prefix' => env('ASYNC_QUEUE_CANARY_PREFIX', 'async-queue-canary'),
+        'ack_ttl_seconds' => (int) env('ASYNC_QUEUE_CANARY_TTL_SECONDS', 600),
+        'timeout_seconds' => (int) env('ASYNC_QUEUE_CANARY_TIMEOUT_SECONDS', 60),
+        'release' => env('ASYNC_QUEUE_CANARY_RELEASE'),
+        'commit' => env('ASYNC_QUEUE_CANARY_COMMIT'),
+        'max_timeout_seconds' => 600,
+    ],
+
     'workloads' => [
         'notifications' => [
             'queue' => env('ASYNC_QUEUE_NOTIFICATIONS', 'notifications'),

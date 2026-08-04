@@ -184,6 +184,8 @@ it('keeps HTTP success separate from the configured business outcome', function 
                 'virtual_users' => 1,
                 'duration' => '1m',
                 'ramp_up' => '1s',
+                'request_interval_ms' => 1000,
+                'request_timeout_ms' => 10000,
                 'minimum_completed_requests' => 1,
             ],
             'safety' => [
@@ -237,6 +239,8 @@ it('fails a JSON business assertion when the successful response is malformed', 
                 'virtual_users' => 1,
                 'duration' => '1m',
                 'ramp_up' => '1s',
+                'request_interval_ms' => 1000,
+                'request_timeout_ms' => 10000,
                 'minimum_completed_requests' => 1,
             ],
             'safety' => [

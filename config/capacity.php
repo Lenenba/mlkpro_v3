@@ -10,6 +10,8 @@ return [
         'traffic' => env('CAPACITY_BASELINE_TRAFFIC'),
         'runner' => env('CAPACITY_BASELINE_RUNNER'),
         'runner_hash' => env('CAPACITY_BASELINE_RUNNER_HASH'),
+        'fixture_hash' => env('CAPACITY_BASELINE_FIXTURE_HASH'),
+        'allowed_origins' => env('CAPACITY_BASELINE_ALLOWED_ORIGINS'),
         'exclusions' => env('CAPACITY_BASELINE_EXCLUSIONS'),
         'mode' => env('CAPACITY_BASELINE_MODE'),
         'representative' => env('CAPACITY_BASELINE_REPRESENTATIVE', false),
@@ -35,6 +37,7 @@ return [
     'runner_results' => [
         'limit' => (int) env('CAPACITY_RUNNER_RESULT_LIMIT', 25),
         'retention_hours' => (int) env('CAPACITY_RUNNER_RESULT_RETENTION_HOURS', 24),
+        'duration_tolerance_seconds' => (float) env('CAPACITY_RUNNER_DURATION_TOLERANCE_SECONDS', 2),
     ],
 
     'scenario_start_buffer_seconds' => (int) env('CAPACITY_SCENARIO_START_BUFFER_SECONDS', 60),
@@ -60,6 +63,8 @@ return [
                 'virtual_users' => 25,
                 'duration' => '10m',
                 'ramp_up' => '2m',
+                'request_interval_ms' => (int) env('CAPACITY_DASHBOARD_REQUEST_INTERVAL_MS', 1000),
+                'request_timeout_ms' => (int) env('CAPACITY_DASHBOARD_REQUEST_TIMEOUT_MS', 10000),
                 'minimum_completed_requests' => (int) env('CAPACITY_DASHBOARD_MIN_COMPLETED_REQUESTS', 250),
             ],
             'safety' => [
@@ -97,6 +102,8 @@ return [
                 'virtual_users' => 20,
                 'duration' => '10m',
                 'ramp_up' => '2m',
+                'request_interval_ms' => (int) env('CAPACITY_CUSTOMER_SHOW_REQUEST_INTERVAL_MS', 1000),
+                'request_timeout_ms' => (int) env('CAPACITY_CUSTOMER_SHOW_REQUEST_TIMEOUT_MS', 10000),
                 'minimum_completed_requests' => (int) env('CAPACITY_CUSTOMER_SHOW_MIN_COMPLETED_REQUESTS', 200),
             ],
             'safety' => [
@@ -134,6 +141,8 @@ return [
                 'virtual_users' => 15,
                 'duration' => '10m',
                 'ramp_up' => '2m',
+                'request_interval_ms' => (int) env('CAPACITY_RESERVATION_STORE_REQUEST_INTERVAL_MS', 1000),
+                'request_timeout_ms' => (int) env('CAPACITY_RESERVATION_STORE_REQUEST_TIMEOUT_MS', 10000),
                 'minimum_completed_requests' => (int) env('CAPACITY_RESERVATION_STORE_MIN_COMPLETED_REQUESTS', 150),
             ],
             'safety' => [
@@ -171,6 +180,8 @@ return [
                 'virtual_users' => 15,
                 'duration' => '10m',
                 'ramp_up' => '2m',
+                'request_interval_ms' => (int) env('CAPACITY_SALES_STORE_REQUEST_INTERVAL_MS', 1000),
+                'request_timeout_ms' => (int) env('CAPACITY_SALES_STORE_REQUEST_TIMEOUT_MS', 10000),
                 'minimum_completed_requests' => (int) env('CAPACITY_SALES_STORE_MIN_COMPLETED_REQUESTS', 150),
             ],
             'safety' => [
@@ -208,6 +219,8 @@ return [
                 'virtual_users' => 20,
                 'duration' => '10m',
                 'ramp_up' => '2m',
+                'request_interval_ms' => (int) env('CAPACITY_PUBLIC_REQUEST_REQUEST_INTERVAL_MS', 1000),
+                'request_timeout_ms' => (int) env('CAPACITY_PUBLIC_REQUEST_REQUEST_TIMEOUT_MS', 10000),
                 'minimum_completed_requests' => (int) env('CAPACITY_PUBLIC_REQUEST_MIN_COMPLETED_REQUESTS', 200),
             ],
             'safety' => [
@@ -245,6 +258,8 @@ return [
                 'virtual_users' => 20,
                 'duration' => '10m',
                 'ramp_up' => '2m',
+                'request_interval_ms' => (int) env('CAPACITY_PUBLIC_STORE_SHOW_REQUEST_INTERVAL_MS', 1000),
+                'request_timeout_ms' => (int) env('CAPACITY_PUBLIC_STORE_SHOW_REQUEST_TIMEOUT_MS', 10000),
                 'minimum_completed_requests' => (int) env('CAPACITY_PUBLIC_STORE_SHOW_MIN_COMPLETED_REQUESTS', 200),
             ],
             'safety' => [
@@ -282,6 +297,8 @@ return [
                 'virtual_users' => 10,
                 'duration' => '10m',
                 'ramp_up' => '2m',
+                'request_interval_ms' => (int) env('CAPACITY_PUBLIC_STORE_CHECKOUT_REQUEST_INTERVAL_MS', 1000),
+                'request_timeout_ms' => (int) env('CAPACITY_PUBLIC_STORE_CHECKOUT_REQUEST_TIMEOUT_MS', 10000),
                 'minimum_completed_requests' => (int) env('CAPACITY_PUBLIC_STORE_CHECKOUT_MIN_COMPLETED_REQUESTS', 100),
             ],
             'safety' => [

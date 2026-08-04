@@ -1,6 +1,7 @@
 <?php
 
 use App\Jobs\ComputeInterestScoresJob;
+use App\Jobs\QueueTopologyCanaryJob;
 use App\Jobs\ReconcileDeliveryReportsJob;
 use App\Mail\DemoWorkspaceAccessMail;
 use App\Models\ActivityLog;
@@ -71,10 +72,12 @@ use App\Services\WhatsappNotificationService;
 use App\Services\WorkBillingService;
 use App\Support\LocalePreference;
 use App\Support\NotificationDispatcher;
+use App\Support\QueueCanary;
 use App\Support\QueueWorkload;
 use App\Support\SchemaAudit\ManualSelectContractAudit;
 use Database\Seeders\LaunchResetSeeder;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
@@ -2638,6 +2641,332 @@ Artisan::command('queue:workloads
     ]);
 })->purpose('Run a queue worker from a validated async workload profile');
 
+Artisan::command('queue:workload-canary
+    {profile : Production worker profile configured in async.workers}
+    {connection? : Queue connection; defaults to queue.default}
+    {--store= : Shared acknowledgement cache store; defaults to async.canary.store}
+    {--timeout= : Maximum seconds to wait for every queue acknowledgement}
+    {--dry-run : Validate and print the plan without probing, dispatching or waiting}
+    {--json : Print a redacted JSON result}
+', function (CacheFactory $cache): int {
+    $startedAt = QueueCanary::timestamp();
+    $startedAtMonotonic = QueueCanary::monotonicNow();
+    $runId = (string) Str::uuid();
+    $profile = trim((string) $this->argument('profile'));
+    $connection = trim((string) ($this->argument('connection') ?: config('queue.default', 'database')));
+    $requestedStore = trim((string) $this->option('store'));
+    $storeStatus = QueueCanary::storeStatus($requestedStore !== '' ? $requestedStore : null);
+    $queueStatus = QueueCanary::queueConnectionStatus($connection);
+    $identity = QueueCanary::executionIdentity();
+    $mode = QueueCanary::mode();
+    $dryRun = (bool) $this->option('dry-run');
+    $json = (bool) $this->option('json');
+    $requirements = $identity['errors'];
+    $errors = array_merge($storeStatus['errors'], $queueStatus['errors']);
+    $queues = [];
+    $profileDefinition = config("async.workers.{$profile}");
+
+    if (! is_array($profileDefinition)) {
+        $errors[] = 'worker_profile_not_configured';
+    } elseif (($profileDefinition['environment'] ?? null) !== 'production') {
+        $errors[] = 'worker_profile_not_production';
+    }
+
+    try {
+        QueueWorkload::validateWorkerConnection($connection);
+        if (is_array($profileDefinition)) {
+            $queues = QueueWorkload::workerQueues($profile, $connection);
+        }
+    } catch (Throwable) {
+        $errors[] = 'worker_profile_or_connection_invalid';
+    }
+
+    $timeoutOption = $this->option('timeout');
+    $timeout = QueueCanary::defaultTimeoutSeconds();
+    if ($timeoutOption !== null && trim((string) $timeoutOption) !== '') {
+        $rawTimeout = trim((string) $timeoutOption);
+        if (! ctype_digit($rawTimeout)) {
+            $errors[] = 'wait_timeout_invalid';
+        } else {
+            $timeout = (int) $rawTimeout;
+        }
+    }
+
+    if ($timeout < 1 || $timeout > QueueCanary::maximumTimeoutSeconds()) {
+        $errors[] = 'wait_timeout_out_of_range';
+    }
+
+    if (! $dryRun) {
+        $errors = array_merge($errors, $requirements);
+    }
+
+    $ttlSeconds = QueueCanary::ttlSeconds();
+    $queueResults = collect($queues)
+        ->map(fn (string $queue): array => [
+            'queue' => $queue,
+            'canary_id' => (string) Str::uuid(),
+            'status' => 'planned',
+            'acknowledged_at' => null,
+            'duration_ms' => null,
+        ])
+        ->values()
+        ->all();
+    $errors = array_values(array_unique($errors));
+    $requirements = array_values(array_unique($requirements));
+
+    $initialStatus = match (true) {
+        $errors !== [] => 'failed',
+        ! $dryRun => 'running',
+        $requirements !== [] => 'ready_with_requirements',
+        default => 'ready',
+    };
+
+    $result = [
+        'schema_version' => QueueCanary::SCHEMA_VERSION,
+        'status' => $initialStatus,
+        'mode' => $mode,
+        'evidence_eligible' => false,
+        'dry_run' => $dryRun,
+        'run_id' => $runId,
+        'profile' => $profile,
+        'connection' => $connection,
+        'queue_connection' => [
+            'driver' => $queueStatus['driver'],
+            'transport_class' => $queueStatus['transport_class'],
+            'persistent' => $queueStatus['persistent'],
+        ],
+        'identity' => [
+            'app_env' => $identity['app_env'],
+            'release' => $identity['release'],
+            'commit' => $identity['commit'],
+            'valid' => $identity['valid'],
+        ],
+        'wait_timeout_seconds' => $timeout,
+        'acknowledgement_store' => [
+            'name' => $storeStatus['store'],
+            'driver' => $storeStatus['driver'],
+            'shared' => $storeStatus['shared'],
+            'ephemeral' => $storeStatus['ephemeral'],
+            'ttl_seconds' => $ttlSeconds,
+            'probe' => 'not_run',
+        ],
+        'queue_count' => count($queueResults),
+        'queues' => $queueResults,
+        'started_at' => $startedAt,
+        'finished_at' => null,
+        'duration_ms' => null,
+        'requirements' => $requirements,
+        'errors' => $errors,
+    ];
+
+    $render = function (array $payload) use ($json): void {
+        if ($json) {
+            $this->line(json_encode(
+                $payload,
+                JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+            ));
+
+            return;
+        }
+
+        $message = sprintf(
+            'Queue workload canary [%s] for profile [%s]: %s.',
+            (string) ($payload['run_id'] ?? 'unknown'),
+            (string) ($payload['profile'] ?? 'unknown'),
+            (string) ($payload['status'] ?? 'unknown')
+        );
+        if (in_array($payload['status'] ?? null, ['passed', 'ready'], true)) {
+            $this->info($message);
+        } elseif (in_array($payload['status'] ?? null, ['passed_internal_test', 'ready_with_requirements'], true)) {
+            $this->warn($message);
+        } else {
+            $this->error($message);
+        }
+
+        $rows = collect($payload['queues'] ?? [])
+            ->map(fn (array $queue): array => [
+                (string) ($queue['queue'] ?? ''),
+                (string) ($queue['canary_id'] ?? ''),
+                (string) ($queue['status'] ?? 'unknown'),
+                (string) ($queue['acknowledged_at'] ?? ''),
+            ])
+            ->all();
+        if ($rows !== []) {
+            $this->table(['Queue', 'Canary ID', 'Status', 'Acknowledged at'], $rows);
+        }
+
+        foreach ($payload['errors'] ?? [] as $error) {
+            $this->error((string) $error);
+        }
+        foreach ($payload['requirements'] ?? [] as $requirement) {
+            $this->warn((string) $requirement);
+        }
+    };
+    $finish = function () use (&$result, $startedAtMonotonic): void {
+        $result['finished_at'] = QueueCanary::timestamp();
+        $result['duration_ms'] = QueueCanary::elapsedMilliseconds($startedAtMonotonic);
+    };
+
+    if ($errors !== []) {
+        $finish();
+        $render($result);
+
+        return 1;
+    }
+
+    if ($dryRun) {
+        $finish();
+        $render($result);
+
+        return 0;
+    }
+
+    try {
+        QueueCanary::probe($cache, $storeStatus['store'], $runId);
+        $result['acknowledgement_store']['probe'] = 'passed';
+    } catch (Throwable) {
+        $result['status'] = 'failed';
+        $result['acknowledgement_store']['probe'] = 'failed';
+        $result['errors'] = ['ack_store_probe_failed'];
+        $finish();
+        $render($result);
+
+        return 1;
+    }
+
+    $dispatchedAt = [];
+    foreach ($result['queues'] as $index => $queueResult) {
+        $canaryId = (string) $queueResult['canary_id'];
+        $dispatchedAt[$canaryId] = QueueCanary::monotonicNow();
+
+        try {
+            QueueTopologyCanaryJob::dispatch(
+                $runId,
+                $canaryId,
+                $profile,
+                $connection,
+                (string) $queueResult['queue'],
+                $storeStatus['store'],
+                $mode,
+                $identity['app_env'],
+                $identity['release'],
+                $identity['commit'],
+                $ttlSeconds
+            );
+            $result['queues'][$index]['status'] = 'dispatched';
+        } catch (Throwable) {
+            $result['queues'][$index]['status'] = 'dispatch_failed';
+            $result['errors'][] = 'queue_canary_dispatch_failed';
+        }
+    }
+
+    $result['errors'] = array_values(array_unique($result['errors']));
+    if ($result['errors'] !== []) {
+        $result['status'] = 'failed';
+        $finish();
+        $render($result);
+
+        return 1;
+    }
+
+    try {
+        QueueCanary::runTestingTick();
+    } catch (Throwable) {
+        $result['status'] = 'failed';
+        $result['errors'][] = 'queue_canary_testing_tick_failed';
+        $finish();
+        $render($result);
+
+        return 1;
+    }
+
+    $deadline = QueueCanary::monotonicNow() + ($timeout * 1_000_000_000);
+    $invalidAcknowledgement = false;
+    do {
+        foreach ($result['queues'] as $index => $queueResult) {
+            if (($queueResult['status'] ?? null) === 'acknowledged') {
+                continue;
+            }
+            $canaryId = (string) $queueResult['canary_id'];
+
+            try {
+                $acknowledgement = QueueCanary::readAcknowledgement(
+                    $cache,
+                    $storeStatus['store'],
+                    $runId,
+                    $canaryId
+                );
+            } catch (Throwable) {
+                $result['errors'][] = 'ack_store_read_failed';
+                $invalidAcknowledgement = true;
+
+                break;
+            }
+
+            if ($acknowledgement === null) {
+                continue;
+            }
+
+            if (! QueueCanary::acknowledgementMatches(
+                $acknowledgement,
+                $runId,
+                $canaryId,
+                $profile,
+                $connection,
+                (string) $queueResult['queue'],
+                $mode,
+                $identity['app_env'],
+                $identity['release'],
+                $identity['commit']
+            )) {
+                $result['queues'][$index]['status'] = 'invalid_acknowledgement';
+                $result['errors'][] = 'queue_canary_acknowledgement_invalid';
+                $invalidAcknowledgement = true;
+
+                break;
+            }
+
+            $result['queues'][$index]['status'] = 'acknowledged';
+            $result['queues'][$index]['acknowledged_at'] = (string) $acknowledgement['acknowledged_at'];
+            $result['queues'][$index]['duration_ms'] = QueueCanary::elapsedMilliseconds(
+                $dispatchedAt[$canaryId]
+            );
+        }
+
+        $pending = collect($result['queues'])
+            ->contains(fn (array $queue): bool => ($queue['status'] ?? null) === 'dispatched');
+
+        if (! $pending || $invalidAcknowledgement || QueueCanary::monotonicNow() >= $deadline) {
+            break;
+        }
+
+        usleep(200_000);
+    } while (true);
+
+    foreach ($result['queues'] as $index => $queueResult) {
+        if (($queueResult['status'] ?? null) === 'dispatched') {
+            $result['queues'][$index]['status'] = 'timeout';
+        }
+    }
+
+    $passed = collect($result['queues'])
+        ->every(fn (array $queue): bool => ($queue['status'] ?? null) === 'acknowledged');
+    $result['status'] = match (true) {
+        ! $passed => 'failed',
+        $mode === QueueCanary::MODE_INTERNAL_TEST => 'passed_internal_test',
+        default => 'passed',
+    };
+    $result['evidence_eligible'] = $passed && $mode === QueueCanary::MODE_OPERATIONAL;
+    if (! $passed && ! $invalidAcknowledgement) {
+        $result['errors'][] = 'queue_canary_acknowledgement_timeout';
+    }
+    $result['errors'] = array_values(array_unique($result['errors']));
+    $finish();
+    $render($result);
+
+    return $passed ? 0 : 1;
+})->purpose('Prove that every queue of a production worker profile is consumed');
+
 Artisan::command('observability:report {--json} {--notify} {--strict}', function (
     ObservabilityReportService $observability,
     PlatformAdminNotifier $notifier
@@ -2839,7 +3168,8 @@ Artisan::command('capacity:scenario:stop {scenario}', function (
 Artisan::command('capacity:plan {--json}', function (
     CapacityScenarioCatalog $catalog,
     CapacityReportService $capacity,
-    CapacityPreflightService $preflight
+    CapacityPreflightService $preflight,
+    CapacityRunnerResultService $runnerResults
 ): int {
     $configurationIssues = $catalog->issues();
     $context = $capacity->baselineContext();
@@ -2859,9 +3189,12 @@ Artisan::command('capacity:plan {--json}', function (
         'generated_at' => now()->toIso8601String(),
         'status' => $ready ? 'ready_for_approved_harness' : 'invalid',
         'baseline_context' => $context,
+        'baseline_fingerprint' => $runnerResults->baselineFingerprint(),
         'preflight' => $preflightSummary,
         'runner' => $context['runner'] ?? null,
         'runner_hash' => $context['runner_hash'] ?? null,
+        'fixture_hash' => $context['fixture_hash'] ?? null,
+        'allowed_origins' => $context['allowed_origins'] ?? [],
         'run_id' => $context['run_id'] ?? null,
         'environment' => $context['environment'] ?? null,
         'commit' => $context['commit'] ?? null,
@@ -2921,13 +3254,21 @@ Artisan::command('capacity:result:import {scenario} {file} {--json}', function (
         $directory = storage_path('app/capacity-imports');
         $resolvedDirectory = realpath($directory);
         $resolvedPath = realpath($directory.DIRECTORY_SEPARATOR.$file);
+        $directoryPrefix = $resolvedDirectory === false
+            ? null
+            : rtrim($resolvedDirectory, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR;
+        $pathForComparison = DIRECTORY_SEPARATOR === '\\' && is_string($resolvedPath)
+            ? strtolower($resolvedPath)
+            : $resolvedPath;
+        $prefixForComparison = DIRECTORY_SEPARATOR === '\\' && is_string($directoryPrefix)
+            ? strtolower($directoryPrefix)
+            : $directoryPrefix;
         if ($resolvedDirectory === false
             || $resolvedPath === false
             || ! is_file($resolvedPath)
-            || ! str_starts_with(
-                strtolower($resolvedPath),
-                strtolower(rtrim($resolvedDirectory, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR)
-            )) {
+            || ! is_string($pathForComparison)
+            || ! is_string($prefixForComparison)
+            || ! str_starts_with($pathForComparison, $prefixForComparison)) {
             throw new RuntimeException('The result file must exist inside storage/app/capacity-imports.');
         }
         $size = filesize($resolvedPath);

@@ -217,6 +217,15 @@ class CapacityScenarioCatalog
                 || (int) data_get($scenario, 'profile.virtual_users') < 1) {
                 $issues[] = "Scenario {$key} profile virtual_users must be a positive integer.";
             }
+            if (! is_int(data_get($scenario, 'profile.request_interval_ms'))
+                || (int) data_get($scenario, 'profile.request_interval_ms') < 1) {
+                $issues[] = "Scenario {$key} profile request_interval_ms must be a positive integer.";
+            }
+            if (! is_int(data_get($scenario, 'profile.request_timeout_ms'))
+                || (int) data_get($scenario, 'profile.request_timeout_ms') < 500
+                || (int) data_get($scenario, 'profile.request_timeout_ms') > 60_000) {
+                $issues[] = "Scenario {$key} profile request_timeout_ms must be an integer between 500 and 60000.";
+            }
             foreach (['duration', 'ramp_up'] as $profileKey) {
                 $duration = data_get($scenario, "profile.{$profileKey}");
                 $durationSeconds = $this->durationInSeconds($duration);
@@ -296,6 +305,7 @@ class CapacityScenarioCatalog
             'profile',
             'safety',
             'targets',
+            'blocker',
         ])->all();
 
         return hash('sha256', json_encode($this->canonicalize($manifest), JSON_THROW_ON_ERROR));

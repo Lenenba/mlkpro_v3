@@ -10,7 +10,7 @@ use Throwable;
 
 class CapacityRunnerResultService
 {
-    public const SCHEMA_VERSION = 1;
+    public const SCHEMA_VERSION = 3;
 
     /**
      * @var array<int, string>
@@ -22,6 +22,9 @@ class CapacityRunnerResultService
         'commit',
         'scenario_key',
         'manifest_hash',
+        'fixture_hash',
+        'baseline_fingerprint',
+        'target_origin_hash',
         'runner',
         'runner_hash',
         'started_at',
@@ -29,6 +32,8 @@ class CapacityRunnerResultService
         'virtual_users',
         'duration_seconds',
         'ramp_up_seconds',
+        'request_interval_ms',
+        'request_timeout_ms',
         'attempted_requests',
         'completed_requests',
         'transport_errors',
@@ -49,7 +54,9 @@ class CapacityRunnerResultService
     public function __construct(
         private readonly ObservabilityCacheStore $cache,
         private readonly CapacityScenarioCatalog $catalog,
-        private readonly TelemetryScope $telemetryScope
+        private readonly TelemetryScope $telemetryScope,
+        private readonly CapacityPreflightService $preflight,
+        private readonly CapacityRunContextService $runContext
     ) {}
 
     /**
@@ -115,7 +122,7 @@ class CapacityRunnerResultService
         $result = $this->latestForScope($scopeId, $scenarioKey);
         if ($result === null
             || ! hash_equals(
-                $this->baselineFingerprint($this->baselineConfiguration()),
+                $this->baselineFingerprint(),
                 (string) ($result['baseline_fingerprint'] ?? '')
             )) {
             return null;
@@ -183,6 +190,14 @@ class CapacityRunnerResultService
         $errors = [];
         $this->validateShape($payload, $errors);
 
+        $preflight = $this->preflight->summary();
+        if (($preflight['ready'] ?? false) !== true || ($preflight['issues'] ?? []) !== []) {
+            $errors[] = 'The current capacity preflight is not ready to accept runner evidence.';
+        }
+        foreach ($this->catalog->issues() as $issue) {
+            $errors[] = 'The current capacity catalog is invalid: '.$issue;
+        }
+
         $baseline = $this->validatedBaseline($errors);
         $scenarioKey = $this->requiredString($payload, 'scenario_key', $errors);
         $scenario = $scenarioKey === null ? null : $this->scenario($scenarioKey);
@@ -202,19 +217,38 @@ class CapacityRunnerResultService
         $environment = $this->requiredString($payload, 'environment', $errors);
         $commit = $this->requiredString($payload, 'commit', $errors);
         $manifestHash = $this->hash($payload, 'manifest_hash', $errors);
+        $fixtureHash = $this->hash($payload, 'fixture_hash', $errors);
+        $baselineFingerprint = $this->hash($payload, 'baseline_fingerprint', $errors);
+        $targetOriginHash = $this->hash($payload, 'target_origin_hash', $errors);
         $runner = $this->requiredString($payload, 'runner', $errors);
         $runnerHash = $this->hash($payload, 'runner_hash', $errors);
+        $expectedBaselineFingerprint = $this->baselineFingerprint();
 
         $this->matchesBaseline($runId, 'run_id', $baseline, $errors);
         $this->matchesBaseline($environment, 'environment', $baseline, $errors);
         $this->matchesBaseline($commit, 'commit', $baseline, $errors);
         $this->matchesBaseline($runner, 'runner', $baseline, $errors);
         $this->matchesBaseline($runnerHash, 'runner_hash', $baseline, $errors);
+        $this->matchesBaseline($fixtureHash, 'fixture_hash', $baseline, $errors);
+
+        if ($targetOriginHash !== null
+            && ! in_array($targetOriginHash, $this->approvedOriginHashes($baseline), true)) {
+            $errors[] = 'target_origin_hash does not match an approved baseline origin.';
+        }
+
+        if ($baselineFingerprint !== null
+            && ! hash_equals($expectedBaselineFingerprint, $baselineFingerprint)) {
+            $errors[] = 'baseline_fingerprint does not match the current baseline identity.';
+        }
 
         if ($manifestHash !== null
             && $scenario !== null
             && $manifestHash !== ($scenario['manifest_hash'] ?? null)) {
             $errors[] = 'manifest_hash does not match the current scenario manifest.';
+        }
+        if ($scenario !== null
+            && $this->isFormalBlocker(is_array($scenario['blocker'] ?? null) ? $scenario['blocker'] : [])) {
+            $errors[] = 'scenario_key is blocked by an active formal capacity blocker.';
         }
 
         $startedAt = $this->utcTimestamp($payload, 'started_at', $errors);
@@ -241,6 +275,8 @@ class CapacityRunnerResultService
         $virtualUsers = $this->requiredInteger($payload, 'virtual_users', $errors, 1);
         $durationSeconds = $this->requiredInteger($payload, 'duration_seconds', $errors, 1);
         $rampUpSeconds = $this->requiredInteger($payload, 'ramp_up_seconds', $errors, 0);
+        $requestIntervalMs = $this->requiredInteger($payload, 'request_interval_ms', $errors, 1);
+        $requestTimeoutMs = $this->requiredInteger($payload, 'request_timeout_ms', $errors, 500);
         $attemptedRequests = $this->requiredInteger($payload, 'attempted_requests', $errors, 0);
         $completedRequests = $this->requiredInteger($payload, 'completed_requests', $errors, 0);
         $transportErrors = $this->requiredInteger($payload, 'transport_errors', $errors, 0);
@@ -249,10 +285,17 @@ class CapacityRunnerResultService
         if ($startedAt !== null
             && $endedAt !== null
             && $durationSeconds !== null
-            && $startedAt->lessThan($endedAt)
-            && (float) $startedAt->diffInMicroseconds($endedAt)
-                !== (float) ($durationSeconds * 1_000_000)) {
-            $errors[] = 'ended_at minus started_at must equal duration_seconds.';
+            && $startedAt->lessThan($endedAt)) {
+            $actualDurationMicroseconds = (float) $startedAt->diffInMicroseconds($endedAt);
+            $declaredDurationMicroseconds = (float) ($durationSeconds * 1_000_000);
+            $durationToleranceMicroseconds = min(
+                5,
+                max(0, (float) config('capacity.runner_results.duration_tolerance_seconds', 2))
+            ) * 1_000_000;
+
+            if (abs($actualDurationMicroseconds - $declaredDurationMicroseconds) > $durationToleranceMicroseconds) {
+                $errors[] = 'ended_at minus started_at must match duration_seconds within the configured tolerance.';
+            }
         }
 
         if ($scenario !== null) {
@@ -261,6 +304,8 @@ class CapacityRunnerResultService
                 $virtualUsers,
                 $durationSeconds,
                 $rampUpSeconds,
+                $requestIntervalMs,
+                $requestTimeoutMs,
                 $errors
             );
 
@@ -298,6 +343,12 @@ class CapacityRunnerResultService
 
         $latency = $this->latency($payload, $errors);
         $scopeId = $baseline['scope_id'] ?? null;
+        if (is_string($scopeId)
+            && $scenarioKey !== null
+            && $startedAt !== null
+            && $endedAt !== null) {
+            $this->validateLifecycle($scopeId, $scenarioKey, $startedAt, $endedAt, $errors);
+        }
 
         if ($errors !== [] || ! is_string($scopeId)) {
             throw new CapacityRunnerResultValidationException(array_values(array_unique($errors)));
@@ -310,6 +361,9 @@ class CapacityRunnerResultService
             'commit' => $commit,
             'scenario_key' => $scenarioKey,
             'manifest_hash' => $manifestHash,
+            'fixture_hash' => $fixtureHash,
+            'baseline_fingerprint' => $baselineFingerprint,
+            'target_origin_hash' => $targetOriginHash,
             'runner' => $runner,
             'runner_hash' => $runnerHash,
             'started_at' => $startedAt?->utc()->format('Y-m-d\TH:i:s.u\Z'),
@@ -317,12 +371,14 @@ class CapacityRunnerResultService
             'virtual_users' => $virtualUsers,
             'duration_seconds' => $durationSeconds,
             'ramp_up_seconds' => $rampUpSeconds,
+            'request_interval_ms' => $requestIntervalMs,
+            'request_timeout_ms' => $requestTimeoutMs,
             'attempted_requests' => $attemptedRequests,
             'completed_requests' => $completedRequests,
             'transport_errors' => $transportErrors,
             'assertion_failures' => $assertionFailures,
             'client_latency_ms' => $latency,
-        ], $scopeId, $this->baselineFingerprint($baseline)];
+        ], $scopeId, $expectedBaselineFingerprint];
     }
 
     /**
@@ -365,7 +421,23 @@ class CapacityRunnerResultService
     {
         $baseline = $this->baselineConfiguration();
 
-        foreach (['run_id', 'environment', 'commit', 'runner', 'runner_hash', 'started_at', 'ended_at'] as $field) {
+        foreach ([
+            'run_id',
+            'environment',
+            'commit',
+            'started_at',
+            'ended_at',
+            'traffic',
+            'runner',
+            'runner_hash',
+            'fixture_hash',
+            'allowed_origins',
+            'exclusions',
+            'mode',
+            'approval_reference',
+            'owner',
+            'validator',
+        ] as $field) {
             if (! is_string($baseline[$field] ?? null) || trim((string) $baseline[$field]) === '') {
                 $errors[] = "The configured baseline {$field} is required.";
             } else {
@@ -379,6 +451,16 @@ class CapacityRunnerResultService
                 $errors[] = 'The configured baseline runner_hash must be a 64-character SHA-256 hexadecimal digest.';
             }
         }
+        if (is_string($baseline['fixture_hash'] ?? null)) {
+            $baseline['fixture_hash'] = strtolower($baseline['fixture_hash']);
+            if (preg_match('/^[a-f0-9]{64}$/', $baseline['fixture_hash']) !== 1) {
+                $errors[] = 'The configured baseline fixture_hash must be a 64-character SHA-256 hexadecimal digest.';
+            }
+        }
+        $baseline['allowed_origins'] = $this->normalizedAllowedOrigins(
+            $baseline['allowed_origins'] ?? null,
+            $errors
+        );
 
         $release = config('observability.release');
         if (! is_string($release) || trim($release) === '') {
@@ -388,6 +470,73 @@ class CapacityRunnerResultService
         if (is_string($baseline['environment'] ?? null)
             && $baseline['environment'] !== (string) config('app.env')) {
             $errors[] = 'The configured baseline environment must match the application environment.';
+        }
+
+        $representative = filter_var($baseline['representative'] ?? false, FILTER_VALIDATE_BOOL);
+        $approved = filter_var($baseline['approved'] ?? false, FILTER_VALIDATE_BOOL);
+        $queueCanariesVerified = filter_var(
+            $baseline['queue_canaries_verified'] ?? false,
+            FILTER_VALIDATE_BOOL
+        );
+        $isolatedTenantVerified = filter_var(
+            $baseline['isolated_tenant_verified'] ?? false,
+            FILTER_VALIDATE_BOOL
+        );
+        if (! $representative) {
+            $errors[] = 'The configured baseline must be explicitly marked representative.';
+        }
+        if (! $approved) {
+            $errors[] = 'The configured baseline execution must be explicitly approved.';
+        }
+        if (! $queueCanariesVerified) {
+            $errors[] = 'The configured baseline must verify the P0-005 queue canaries.';
+        }
+
+        $mode = $baseline['mode'] ?? null;
+        if (! in_array($mode, ['staging', 'production_read_only'], true)) {
+            $errors[] = 'The configured baseline mode must be staging or production_read_only.';
+        }
+        $allowedStagingEnvironments = collect(config('capacity.allowed_staging_environments', ['staging']))
+            ->filter(fn ($environment): bool => is_string($environment))
+            ->map(fn (string $environment): string => strtolower(trim($environment)))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+        if ($mode === 'staging'
+            && ! in_array(strtolower((string) ($baseline['environment'] ?? '')), $allowedStagingEnvironments, true)) {
+            $errors[] = 'The configured staging baseline environment must be explicitly allowlisted.';
+        }
+        if ($mode === 'production_read_only'
+            && strtolower((string) ($baseline['environment'] ?? '')) !== 'production') {
+            $errors[] = 'The configured production_read_only baseline must run in production.';
+        }
+
+        $requiresIsolatedTenant = collect($this->catalog->all())->contains(function (array $scenario): bool {
+            $blocker = is_array($scenario['blocker'] ?? null) ? $scenario['blocker'] : [];
+
+            return (bool) data_get($scenario, 'safety.requires_isolated_tenant', false)
+                && ! $this->isFormalBlocker($blocker);
+        });
+        if ($requiresIsolatedTenant && ! $isolatedTenantVerified) {
+            $errors[] = 'The configured baseline must verify an isolated tenant for controlled-write scenarios.';
+        }
+        if (($baseline['owner'] ?? null) === ($baseline['validator'] ?? null)
+            && is_string($baseline['owner'] ?? null)) {
+            $errors[] = 'The configured baseline owner and validator must be distinct.';
+        }
+        if ($mode === 'production_read_only') {
+            foreach ($this->catalog->all() as $scenario) {
+                $blocker = is_array($scenario['blocker'] ?? null) ? $scenario['blocker'] : [];
+                if (data_get($scenario, 'safety.mode') === 'read_only' || $this->isFormalBlocker($blocker)) {
+                    continue;
+                }
+
+                $errors[] = sprintf(
+                    'Scenario %s must have a formal blocker for a production_read_only baseline.',
+                    (string) ($scenario['key'] ?? 'unknown')
+                );
+            }
         }
 
         $baseline['started_at_parsed'] = $this->configuredUtcTimestamp(
@@ -432,11 +581,15 @@ class CapacityRunnerResultService
         ?int $virtualUsers,
         ?int $durationSeconds,
         ?int $rampUpSeconds,
+        ?int $requestIntervalMs,
+        ?int $requestTimeoutMs,
         array &$errors
     ): void {
         $expectedVirtualUsers = data_get($scenario, 'profile.virtual_users');
         $expectedDuration = $this->durationInSeconds(data_get($scenario, 'profile.duration'));
         $expectedRampUp = $this->durationInSeconds(data_get($scenario, 'profile.ramp_up'));
+        $expectedRequestIntervalMs = data_get($scenario, 'profile.request_interval_ms');
+        $expectedRequestTimeoutMs = data_get($scenario, 'profile.request_timeout_ms');
 
         if (! is_int($expectedVirtualUsers) && ! ctype_digit((string) $expectedVirtualUsers)) {
             $errors[] = 'The configured scenario virtual_users profile is invalid.';
@@ -457,6 +610,20 @@ class CapacityRunnerResultService
             $errors[] = 'The configured scenario ramp_up profile is invalid.';
         } elseif ($rampUpSeconds !== null && $rampUpSeconds !== $expectedRampUp) {
             $errors[] = "ramp_up_seconds must match the scenario profile ({$expectedRampUp}).";
+        }
+
+        if (! is_int($expectedRequestIntervalMs) || $expectedRequestIntervalMs < 1) {
+            $errors[] = 'The configured scenario request_interval_ms profile is invalid.';
+        } elseif ($requestIntervalMs !== null && $requestIntervalMs !== $expectedRequestIntervalMs) {
+            $errors[] = "request_interval_ms must match the scenario profile ({$expectedRequestIntervalMs}).";
+        }
+
+        if (! is_int($expectedRequestTimeoutMs)
+            || $expectedRequestTimeoutMs < 500
+            || $expectedRequestTimeoutMs > 60_000) {
+            $errors[] = 'The configured scenario request_timeout_ms profile is invalid.';
+        } elseif ($requestTimeoutMs !== null && $requestTimeoutMs !== $expectedRequestTimeoutMs) {
+            $errors[] = "request_timeout_ms must match the scenario profile ({$expectedRequestTimeoutMs}).";
         }
     }
 
@@ -665,6 +832,56 @@ class CapacityRunnerResultService
     }
 
     /**
+     * @param  array<int, string>  $errors
+     */
+    private function validateLifecycle(
+        string $scopeId,
+        string $scenarioKey,
+        Carbon $runnerStartedAt,
+        Carbon $runnerEndedAt,
+        array &$errors
+    ): void {
+        $startedAt = null;
+        $stoppedAt = null;
+
+        foreach ($this->runContext->lifecycleForScope($scopeId, $scenarioKey) as $event) {
+            if (($event['state'] ?? null) === 'cancelled') {
+                $errors[] = 'The capacity scenario lifecycle was cancelled and cannot accept runner evidence.';
+
+                return;
+            }
+
+            try {
+                $recordedAt = Carbon::parse((string) ($event['recorded_at'] ?? ''));
+            } catch (Throwable) {
+                $errors[] = 'The capacity scenario lifecycle contains an invalid timestamp.';
+
+                return;
+            }
+
+            if (($event['state'] ?? null) === 'started' && $startedAt === null) {
+                $startedAt = $recordedAt;
+            } elseif (($event['state'] ?? null) === 'stopped'
+                && $startedAt instanceof Carbon
+                && $recordedAt->greaterThanOrEqualTo($startedAt)) {
+                $stoppedAt = $recordedAt;
+            }
+        }
+
+        if (! $startedAt instanceof Carbon || ! $stoppedAt instanceof Carbon) {
+            $errors[] = 'Runner evidence requires a completed started-to-stopped capacity scenario lifecycle.';
+
+            return;
+        }
+        if ($runnerStartedAt->lessThan($startedAt)) {
+            $errors[] = 'runner started_at must be on or after the capacity scenario start marker.';
+        }
+        if ($runnerEndedAt->greaterThan($stoppedAt)) {
+            $errors[] = 'runner ended_at must be on or before the capacity scenario stop marker.';
+        }
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function baselineConfiguration(): array
@@ -674,28 +891,36 @@ class CapacityRunnerResultService
         return is_array($baseline) ? $baseline : [];
     }
 
-    /**
-     * @param  array<string, mixed>  $baseline
-     */
-    private function baselineFingerprint(array $baseline): string
+    public function baselineFingerprint(): string
     {
+        $baseline = $this->baselineConfiguration();
+        $originErrors = [];
         $identity = [
-            'release' => config('observability.release'),
-            'run_id' => $baseline['run_id'] ?? null,
-            'environment' => $baseline['environment'] ?? null,
-            'commit' => $baseline['commit'] ?? null,
-            'started_at' => $baseline['started_at'] ?? null,
-            'ended_at' => $baseline['ended_at'] ?? null,
-            'traffic' => $baseline['traffic'] ?? null,
-            'runner' => $baseline['runner'] ?? null,
+            'release' => $this->normalizedBaselineString(config('observability.release')),
+            'run_id' => $this->normalizedBaselineString($baseline['run_id'] ?? null),
+            'environment' => $this->normalizedBaselineString($baseline['environment'] ?? null),
+            'commit' => $this->normalizedBaselineString($baseline['commit'] ?? null),
+            'period' => [
+                'started_at' => $this->normalizedBaselineString($baseline['started_at'] ?? null),
+                'ended_at' => $this->normalizedBaselineString($baseline['ended_at'] ?? null),
+            ],
+            'traffic' => $this->normalizedBaselineString($baseline['traffic'] ?? null),
+            'runner' => $this->normalizedBaselineString($baseline['runner'] ?? null),
             'runner_hash' => is_string($baseline['runner_hash'] ?? null)
                 ? strtolower(trim($baseline['runner_hash']))
                 : null,
-            'exclusions' => $baseline['exclusions'] ?? null,
-            'mode' => $baseline['mode'] ?? null,
+            'fixture_hash' => is_string($baseline['fixture_hash'] ?? null)
+                ? strtolower(trim($baseline['fixture_hash']))
+                : null,
+            'allowed_origins' => $this->normalizedAllowedOrigins(
+                $baseline['allowed_origins'] ?? null,
+                $originErrors
+            ),
+            'exclusions' => $this->normalizedExclusions($baseline['exclusions'] ?? null),
+            'mode' => $this->normalizedBaselineString($baseline['mode'] ?? null),
             'representative' => filter_var($baseline['representative'] ?? false, FILTER_VALIDATE_BOOL),
             'approved' => filter_var($baseline['approved'] ?? false, FILTER_VALIDATE_BOOL),
-            'approval_reference' => $baseline['approval_reference'] ?? null,
+            'approval_reference' => $this->normalizedBaselineString($baseline['approval_reference'] ?? null),
             'queue_canaries_verified' => filter_var(
                 $baseline['queue_canaries_verified'] ?? false,
                 FILTER_VALIDATE_BOOL
@@ -704,11 +929,138 @@ class CapacityRunnerResultService
                 $baseline['isolated_tenant_verified'] ?? false,
                 FILTER_VALIDATE_BOOL
             ),
-            'owner' => $baseline['owner'] ?? null,
-            'validator' => $baseline['validator'] ?? null,
+            'owner' => $this->normalizedBaselineString($baseline['owner'] ?? null),
+            'validator' => $this->normalizedBaselineString($baseline['validator'] ?? null),
         ];
 
-        return hash('sha256', json_encode($identity, JSON_THROW_ON_ERROR));
+        return hash('sha256', json_encode($this->canonicalize($identity), JSON_THROW_ON_ERROR));
+    }
+
+    /**
+     * @param  array<int, string>  $errors
+     * @return array<int, string>
+     */
+    private function normalizedAllowedOrigins(mixed $value, array &$errors): array
+    {
+        $values = is_array($value) ? $value : (is_string($value) ? explode(',', $value) : []);
+        $origins = [];
+        foreach ($values as $configuredOrigin) {
+            $origin = $this->normalizedHttpsOrigin($configuredOrigin);
+            if ($origin === null) {
+                $errors[] = 'The configured baseline allowed_origins must contain only exact HTTPS origins.';
+
+                continue;
+            }
+            $origins[] = $origin;
+        }
+        $origins = array_values(array_unique($origins));
+        sort($origins);
+        if ($origins === []) {
+            $errors[] = 'The configured baseline allowed_origins must contain at least one exact HTTPS origin.';
+        }
+
+        return $origins;
+    }
+
+    private function normalizedHttpsOrigin(mixed $value): ?string
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        $parts = parse_url(trim($value));
+        if (! is_array($parts)
+            || strtolower((string) ($parts['scheme'] ?? '')) !== 'https'
+            || ! is_string($parts['host'] ?? null)
+            || ($parts['host'] ?? '') === ''
+            || isset($parts['user'])
+            || isset($parts['pass'])
+            || isset($parts['query'])
+            || isset($parts['fragment'])
+            || ! in_array($parts['path'] ?? '', ['', '/'], true)) {
+            return null;
+        }
+
+        $host = strtolower($parts['host']);
+        if (preg_match('/^[a-z0-9.-]+$/', $host) !== 1
+            && preg_match('/^\[[a-f0-9:]+\]$/', $host) !== 1) {
+            return null;
+        }
+        $port = $parts['port'] ?? null;
+        if ($port !== null && ($port < 1 || $port > 65535)) {
+            return null;
+        }
+
+        return 'https://'.$host.($port !== null && $port !== 443 ? ':'.$port : '');
+    }
+
+    /**
+     * @param  array<string, mixed>  $baseline
+     * @return array<int, string>
+     */
+    private function approvedOriginHashes(array $baseline): array
+    {
+        $origins = is_array($baseline['allowed_origins'] ?? null) ? $baseline['allowed_origins'] : [];
+
+        return array_map(fn (string $origin): string => hash('sha256', $origin), $origins);
+    }
+
+    private function normalizedBaselineString(mixed $value): ?string
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        return trim($value);
+    }
+
+    /**
+     * @return array<int, string>|null
+     */
+    private function normalizedExclusions(mixed $value): ?array
+    {
+        $values = is_array($value) ? $value : (is_string($value) ? explode(',', $value) : null);
+        if ($values === null) {
+            return null;
+        }
+
+        return array_values(array_filter(array_map(
+            fn (mixed $exclusion): string => is_string($exclusion) ? trim($exclusion) : '',
+            $values
+        )));
+    }
+
+    private function canonicalize(mixed $value): mixed
+    {
+        if (! is_array($value)) {
+            return $value;
+        }
+
+        if (array_is_list($value)) {
+            return array_map(fn (mixed $item): mixed => $this->canonicalize($item), $value);
+        }
+
+        ksort($value);
+
+        return array_map(fn (mixed $item): mixed => $this->canonicalize($item), $value);
+    }
+
+    /**
+     * @param  array<string, mixed>  $blocker
+     */
+    private function isFormalBlocker(array $blocker): bool
+    {
+        if (! is_string($blocker['reason'] ?? null)
+            || ! is_string($blocker['owner'] ?? null)
+            || ! is_string($blocker['review_at'] ?? null)) {
+            return false;
+        }
+
+        try {
+            return Carbon::parse($blocker['review_at'])->isFuture();
+        } catch (Throwable) {
+            return false;
+        }
     }
 
     private function retentionHours(): int

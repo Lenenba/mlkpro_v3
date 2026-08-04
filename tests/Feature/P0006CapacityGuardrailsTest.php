@@ -47,6 +47,8 @@ function p0006DashboardScenario(array $overrides = []): array
             'virtual_users' => 1,
             'duration' => '1m',
             'ramp_up' => '10s',
+            'request_interval_ms' => 1000,
+            'request_timeout_ms' => 10000,
             'minimum_completed_requests' => 1,
         ],
         'safety' => [
@@ -85,6 +87,8 @@ function p0006ConfigureCompleteBaseline(): void
         'traffic' => 'approved isolated capacity harness',
         'runner' => 'k6@0.52.0',
         'runner_hash' => hash('sha256', 'approved-test-runner'),
+        'fixture_hash' => hash('sha256', 'approved-test-fixtures'),
+        'allowed_origins' => 'https://capacity-staging.example.test',
         'exclusions' => 'customer data, raw responses',
         'mode' => 'staging',
         'representative' => true,
@@ -140,21 +144,34 @@ function p0006CompleteScenarioRun(
     if ($recordQueueSnapshots) {
         app(QueueHealthService::class)->summary(record: true);
     }
+    if (! $coverQueueInterval) {
+        Carbon::setTestNow('2026-07-27T12:02:00Z');
+    }
     expect($runContext->stop('dashboard_usage'))->toBeTrue();
 
     Carbon::setTestNow('2026-07-27T12:11:00Z');
     if ($importRunnerResult) {
+        $preflight = \Mockery::mock(CapacityPreflightService::class);
+        $preflight->shouldReceive('summary')->andReturn([
+            'ready' => true,
+            'issues' => [],
+        ]);
+        app()->instance(CapacityPreflightService::class, $preflight);
+
         $scenario = collect(app(CapacityScenarioCatalog::class)->all())
             ->firstWhere('key', 'dashboard_usage');
         $completed = $runnerCompletedRequests ?? count($samples);
 
         app(CapacityRunnerResultService::class)->ingest([
-            'schema_version' => 1,
+            'schema_version' => CapacityRunnerResultService::SCHEMA_VERSION,
             'run_id' => 'p0-006-guardrail-run',
             'environment' => 'p0-006-staging',
             'commit' => '0123456789abcdef0123456789abcdef01234567',
             'scenario_key' => 'dashboard_usage',
             'manifest_hash' => $scenario['manifest_hash'],
+            'fixture_hash' => hash('sha256', 'approved-test-fixtures'),
+            'baseline_fingerprint' => app(CapacityRunnerResultService::class)->baselineFingerprint(),
+            'target_origin_hash' => hash('sha256', 'https://capacity-staging.example.test'),
             'runner' => 'k6@0.52.0',
             'runner_hash' => hash('sha256', 'approved-test-runner'),
             'started_at' => '2026-07-27T12:01:00Z',
@@ -162,6 +179,8 @@ function p0006CompleteScenarioRun(
             'virtual_users' => 1,
             'duration_seconds' => 60,
             'ramp_up_seconds' => 10,
+            'request_interval_ms' => 1000,
+            'request_timeout_ms' => 10000,
             'attempted_requests' => $completed,
             'completed_requests' => $completed,
             'transport_errors' => 0,
@@ -206,6 +225,30 @@ test('P0-006 exposes exactly the seven executable scenarios with their methods a
                 ->and($route->methods())->toContain($scenario['method']);
         }
     }
+});
+
+test('capacity scenario request cadence must be a positive canonical profile integer', function () {
+    config()->set('capacity.scenarios', [
+        'dashboard_usage' => p0006DashboardScenario([
+            'profile' => ['request_interval_ms' => 0],
+        ]),
+    ]);
+
+    expect(app(CapacityScenarioCatalog::class)->issues())->toContain(
+        'Scenario dashboard_usage profile request_interval_ms must be a positive integer.'
+    );
+});
+
+test('capacity scenario request timeout must stay inside the signed safe range', function () {
+    config()->set('capacity.scenarios', [
+        'dashboard_usage' => p0006DashboardScenario([
+            'profile' => ['request_timeout_ms' => 499],
+        ]),
+    ]);
+
+    expect(app(CapacityScenarioCatalog::class)->issues())->toContain(
+        'Scenario dashboard_usage profile request_timeout_ms must be an integer between 500 and 60000.'
+    );
 });
 
 test('a non-persistent queue reports unknown measurements and fails strict health validation', function () {
@@ -272,6 +315,9 @@ test('capacity plan and scenario start fail closed when the runtime preflight is
 
     expect($planExit)->toBe(1)
         ->and($plan['status'])->toBe('invalid')
+        ->and($plan['baseline_fingerprint'])->toBe(
+            app(CapacityRunnerResultService::class)->baselineFingerprint()
+        )
         ->and($plan['preflight']['ready'])->toBeFalse()
         ->and($plan['issues'])->toContain('cache_store_not_shared');
 
