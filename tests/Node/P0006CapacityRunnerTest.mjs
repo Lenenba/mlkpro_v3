@@ -9,6 +9,7 @@ import {
     RunnerFailure,
     calculateBaselineFingerprint,
     calculateManifestHash,
+    calculateMaximumTheoreticalRequests,
     executeBusinessRequest,
     executeScenario,
     runCli,
@@ -64,6 +65,17 @@ function documentsFor({
     acceptedStatusCodes = [200],
     outcome = { strategy: 'status_code' },
     runnerHash = TEST_HASH,
+    safetyMode = 'read_only',
+    fixtureStrategy = safetyMode === 'controlled_write' ? 'one_shot' : 'repeat',
+    uniqueBy = safetyMode === 'controlled_write' ? [['query.variant']] : [],
+    preparation = [],
+    authentication = 'public',
+    csrf = false,
+    virtualUsers = 1,
+    duration = '1s',
+    rampUp = '0s',
+    requestIntervalMs = 50,
+    minimumCompletedRequests = 1,
 } = {}) {
     const now = Date.now();
     const scenario = {
@@ -81,22 +93,25 @@ function documentsFor({
             },
             follow_redirects: false,
             runner_policy: 'external_approved_harness',
-            authentication: 'public',
-            csrf: false,
+            authentication,
+            csrf,
+            fixture_strategy: fixtureStrategy,
+            unique_by: uniqueBy,
+            preparation,
             fixture_reference: 'external:node-test',
             outcome,
         },
         profile: {
-            virtual_users: 1,
-            duration: '1s',
-            ramp_up: '0s',
-            request_interval_ms: 50,
+            virtual_users: virtualUsers,
+            duration,
+            ramp_up: rampUp,
+            request_interval_ms: requestIntervalMs,
             request_timeout_ms: 500,
-            minimum_completed_requests: 1,
+            minimum_completed_requests: minimumCompletedRequests,
         },
         safety: {
-            mode: 'read_only',
-            requires_isolated_tenant: false,
+            mode: safetyMode,
+            requires_isolated_tenant: safetyMode === 'controlled_write',
         },
         blocker: {
             reason: null,
@@ -133,7 +148,7 @@ function documentsFor({
         approved: true,
         approval_reference: 'P0-006-NODE-TEST',
         queue_canaries_verified: true,
-        isolated_tenant_verified: false,
+        isolated_tenant_verified: safetyMode === 'controlled_write',
         owner: 'node-test-owner',
         validator: 'node-test-validator',
     };
@@ -155,20 +170,42 @@ function documentsFor({
         scenarios: [scenario],
     };
     const fixtures = {
-        schema_version: 2,
+        schema_version: 3,
         base_url: origin,
         scenarios: {
             node_runner_test: {
-                method: scenario.method,
-                route_name: 'test.route',
-                route_uri: scenario.route_uris['test.route'],
-                path_parameters: {},
-                query: {},
-                headers: {},
-                body: ['GET', 'HEAD'].includes(scenario.method) ? null : { synthetic: true },
+                strategy: fixtureStrategy,
+                requests: [],
             },
         },
     };
+    const durationSeconds = Number.parseInt(duration, 10);
+    const rampUpSeconds = Number.parseInt(rampUp, 10);
+    const requestBudget = calculateMaximumTheoreticalRequests({
+        virtualUsers,
+        durationSeconds,
+        rampUpSeconds,
+        requestIntervalMs,
+    });
+    const requestCount = fixtureStrategy === 'repeat' ? 1 : requestBudget;
+    fixtures.scenarios.node_runner_test.requests = Array.from({ length: requestCount }, (_, index) => ({
+        method: scenario.method,
+        route_name: 'test.route',
+        route_uri: scenario.route_uris['test.route'],
+        path_parameters: {},
+        query: fixtureStrategy === 'one_shot' ? { variant: index + 1 } : {},
+        headers: {},
+        body: ['GET', 'HEAD'].includes(scenario.method) ? null : { synthetic: true, variant: index + 1 },
+        preparation: preparation.map((descriptor) => ({
+            method: descriptor.method,
+            route_name: descriptor.route_name,
+            route_uri: descriptor.route_uri,
+            path_parameters: {},
+            query: {},
+            headers: {},
+            body: ['GET', 'HEAD'].includes(descriptor.method) ? null : { synthetic: true, variant: index + 1 },
+        })),
+    }));
     const binding = bindFixture(plan, fixtures);
 
     return { plan, fixtures, ...binding };
@@ -256,6 +293,20 @@ test('the baseline fingerprint matches the normalized PHP v3 identity contract',
     assert.equal(calculateBaselineFingerprint(context), sha256(phpCanonicalJson));
 });
 
+test('the integer request budget matches the signed 10m/2m/45s write profiles', () => {
+    const profile = (virtualUsers) => calculateMaximumTheoreticalRequests({
+        virtualUsers,
+        durationSeconds: 600,
+        rampUpSeconds: 120,
+        requestIntervalMs: 45_000,
+    });
+
+    assert.equal(profile(15), 187);
+    assert.equal(profile(15), 187);
+    assert.equal(profile(20), 250);
+    assert.equal(profile(10), 125);
+});
+
 test('valid configuration is bound to the runner, fixture, baseline, origin, and profile', () => {
     const documents = documentsFor({ method: 'POST' });
     const configuration = configurationFor(documents);
@@ -265,7 +316,7 @@ test('valid configuration is bound to the runner, fixture, baseline, origin, and
     assert.equal(configuration.baselineFingerprint, documents.plan.baseline_fingerprint);
     assert.equal(configuration.targetOriginHash, sha256(TEST_ORIGIN));
     assert.equal(configuration.requestTimeoutMs, 500);
-    assert.equal(configuration.requestUrl.href, `${TEST_ORIGIN}/success`);
+    assert.equal(configuration.requests[0].requestUrl.href, `${TEST_ORIGIN}/success`);
 });
 
 test('manifest, baseline, and top-level identity tampering fail closed', () => {
@@ -298,7 +349,7 @@ test('stale preflight, active blockers, and fixture-byte tampering are refused',
     expectFailure('SCENARIO_BLOCKED', () => configurationFor(blockedDocuments));
 
     const tamperedFixtureDocuments = documentsFor();
-    tamperedFixtureDocuments.fixtures.scenarios.node_runner_test.query.signed = 'changed-after-approval';
+    tamperedFixtureDocuments.fixtures.scenarios.node_runner_test.requests[0].query.signed = 'changed-after-approval';
     tamperedFixtureDocuments.fixtureHash = sha256(JSON.stringify(tamperedFixtureDocuments.fixtures));
     expectFailure('FIXTURE_HASH_MISMATCH', () => configurationFor(tamperedFixtureDocuments));
 });
@@ -331,7 +382,7 @@ test('route traversal, method overrides, and unsafe headers are rejected', () =>
     }
 
     const pathParameterDocuments = documentsFor({ routeUri: '/customers/{customer}' });
-    pathParameterDocuments.fixtures.scenarios.node_runner_test.path_parameters.customer = '../admin';
+    pathParameterDocuments.fixtures.scenarios.node_runner_test.requests[0].path_parameters.customer = '../admin';
     Object.assign(pathParameterDocuments, bindFixture(
         pathParameterDocuments.plan,
         pathParameterDocuments.fixtures
@@ -339,7 +390,7 @@ test('route traversal, method overrides, and unsafe headers are rejected', () =>
     expectFailure('FIXTURE_ROUTE_URI_INVALID', () => configurationFor(pathParameterDocuments));
 
     const queryOverrideDocuments = documentsFor();
-    queryOverrideDocuments.fixtures.scenarios.node_runner_test.query._method = 'DELETE';
+    queryOverrideDocuments.fixtures.scenarios.node_runner_test.requests[0].query._method = 'DELETE';
     Object.assign(queryOverrideDocuments, bindFixture(
         queryOverrideDocuments.plan,
         queryOverrideDocuments.fixtures
@@ -348,13 +399,22 @@ test('route traversal, method overrides, and unsafe headers are rejected', () =>
 
     for (const header of ['Host', 'X-HTTP-Method-Override', 'X-Forwarded-Host']) {
         const documents = documentsFor();
-        documents.fixtures.scenarios.node_runner_test.headers[header] = 'forbidden';
+        documents.fixtures.scenarios.node_runner_test.requests[0].headers[header] = 'forbidden';
         Object.assign(documents, bindFixture(documents.plan, documents.fixtures));
         expectFailure('FIXTURE_HEADERS_INVALID', () => configurationFor(documents));
     }
 
+    const duplicateHeaderDocuments = documentsFor();
+    duplicateHeaderDocuments.fixtures.scenarios.node_runner_test.requests[0].headers.Cookie = 'session=one';
+    duplicateHeaderDocuments.fixtures.scenarios.node_runner_test.requests[0].headers.cookie = 'session=two';
+    Object.assign(duplicateHeaderDocuments, bindFixture(
+        duplicateHeaderDocuments.plan,
+        duplicateHeaderDocuments.fixtures
+    ));
+    expectFailure('FIXTURE_HEADERS_INVALID', () => configurationFor(duplicateHeaderDocuments));
+
     const bodyOverrideDocuments = documentsFor({ method: 'POST' });
-    bodyOverrideDocuments.fixtures.scenarios.node_runner_test.body._method = 'DELETE';
+    bodyOverrideDocuments.fixtures.scenarios.node_runner_test.requests[0].body._method = 'DELETE';
     Object.assign(bodyOverrideDocuments, bindFixture(
         bodyOverrideDocuments.plan,
         bodyOverrideDocuments.fixtures
@@ -369,25 +429,24 @@ test('authentication, CSRF, safety mode, and timeout policy are enforced', () =>
     refreshScenarioBinding(authenticatedDocuments);
     expectFailure('FIXTURE_SESSION_COOKIE_REQUIRED', () => configurationFor(authenticatedDocuments));
 
-    authenticatedDocuments.fixtures.scenarios.node_runner_test.headers.Cookie = 'session=synthetic';
+    authenticatedDocuments.fixtures.scenarios.node_runner_test.requests[0].headers.Cookie = 'session=synthetic';
     Object.assign(authenticatedDocuments, bindFixture(
         authenticatedDocuments.plan,
         authenticatedDocuments.fixtures
     ));
     expectFailure('FIXTURE_CSRF_REQUIRED', () => configurationFor(authenticatedDocuments));
 
-    authenticatedDocuments.fixtures.scenarios.node_runner_test.headers['X-CSRF-TOKEN'] = 'synthetic-token';
+    authenticatedDocuments.fixtures.scenarios.node_runner_test.requests[0].headers['X-CSRF-TOKEN'] = 'synthetic-token';
     Object.assign(authenticatedDocuments, bindFixture(
         authenticatedDocuments.plan,
         authenticatedDocuments.fixtures
     ));
     assert.doesNotThrow(() => configurationFor(authenticatedDocuments));
 
-    const productionWriteDocuments = documentsFor({ method: 'POST' });
-    productionWriteDocuments.plan.scenarios[0].safety = {
-        mode: 'controlled_write',
-        requires_isolated_tenant: true,
-    };
+    const productionWriteDocuments = documentsFor({
+        method: 'POST',
+        safetyMode: 'controlled_write',
+    });
     productionWriteDocuments.plan.baseline_context.mode = 'production_read_only';
     productionWriteDocuments.plan.baseline_context.isolated_tenant_verified = true;
     refreshScenarioBinding(productionWriteDocuments);
@@ -407,9 +466,63 @@ test('authentication, CSRF, safety mode, and timeout policy are enforced', () =>
     expectFailure('FIXTURE_SCHEMA_INVALID', () => configurationFor(fixtureTimeoutDocuments));
 });
 
+test('controlled writes require a complete semantic one-shot fixture budget', () => {
+    const missingSemanticIdentity = documentsFor({
+        method: 'POST',
+        safetyMode: 'controlled_write',
+        uniqueBy: [],
+    });
+    expectFailure('PLAN_UNIQUE_BY_REQUIRED_FOR_CONTROLLED_WRITE', () => configurationFor(missingSemanticIdentity));
+
+    const incompleteFixture = documentsFor({
+        method: 'POST',
+        safetyMode: 'controlled_write',
+    });
+    incompleteFixture.fixtures.scenarios.node_runner_test.requests.pop();
+    Object.assign(incompleteFixture, bindFixture(incompleteFixture.plan, incompleteFixture.fixtures));
+    expectFailure('FIXTURE_ONE_SHOT_CARDINALITY_INVALID', () => configurationFor(incompleteFixture));
+
+    const duplicateIdentity = documentsFor({
+        method: 'POST',
+        safetyMode: 'controlled_write',
+    });
+    duplicateIdentity.fixtures.scenarios.node_runner_test.requests[1].query.variant = 1;
+    Object.assign(duplicateIdentity, bindFixture(duplicateIdentity.plan, duplicateIdentity.fixtures));
+    expectFailure('FIXTURE_ONE_SHOT_UNIQUE_VALUE_DUPLICATE', () => configurationFor(duplicateIdentity));
+});
+
+test('checkout preparation shares its session and tenant route identity with the target request', () => {
+    const preparation = [{
+        method: 'POST',
+        route_name: 'test.cart.add',
+        route_uri: '/store/{slug}/cart',
+        accepted_status_codes: [200],
+        authentication: 'public',
+        csrf: false,
+        share_session_headers: true,
+        outcome: { strategy: 'status_code' },
+    }];
+    const documents = documentsFor({
+        routeUri: '/store/{slug}/checkout',
+        method: 'POST',
+        safetyMode: 'controlled_write',
+        preparation,
+        requestIntervalMs: 1000,
+    });
+    const request = documents.fixtures.scenarios.node_runner_test.requests[0];
+    request.path_parameters.slug = 'isolated-store';
+    request.preparation[0].path_parameters.slug = 'isolated-store';
+    Object.assign(documents, bindFixture(documents.plan, documents.fixtures));
+    assert.doesNotThrow(() => configurationFor(documents));
+
+    request.preparation[0].path_parameters.slug = 'other-store';
+    Object.assign(documents, bindFixture(documents.plan, documents.fixtures));
+    expectFailure('FIXTURE_PREPARATION_PATH_PARAMETERS_MISMATCH', () => configurationFor(documents));
+});
+
 test('business responses, redirects, oversized bodies, and transport failures fail closed', async () => {
     const statusConfiguration = configurationFor(documentsFor());
-    const unexpectedStatus = await executeBusinessRequest(statusConfiguration, {
+    const unexpectedStatus = await executeBusinessRequest(statusConfiguration.requests[0], {
         fetchImpl: async () => jsonResponse({ unavailable: true }, 503),
     });
     assert.equal(unexpectedStatus.assertionFailure, true);
@@ -417,13 +530,13 @@ test('business responses, redirects, oversized bodies, and transport failures fa
     const outcomeConfiguration = configurationFor(documentsFor({
         outcome: { strategy: 'json_field_equals', field: 'outcome.ok', value: true },
     }));
-    const wrongOutcome = await executeBusinessRequest(outcomeConfiguration, {
+    const wrongOutcome = await executeBusinessRequest(outcomeConfiguration.requests[0], {
         fetchImpl: async () => jsonResponse({ outcome: { ok: false } }),
     });
     assert.equal(wrongOutcome.assertionFailure, true);
 
     let redirectPolicy;
-    const redirect = await executeBusinessRequest(statusConfiguration, {
+    const redirect = await executeBusinessRequest(statusConfiguration.requests[0], {
         fetchImpl: async (url, options) => {
             redirectPolicy = options.redirect;
             return new Response(null, { status: 302, headers: { Location: '/sensitive' } });
@@ -432,13 +545,13 @@ test('business responses, redirects, oversized bodies, and transport failures fa
     assert.equal(redirectPolicy, 'manual');
     assert.equal(redirect.assertionFailure, true);
 
-    const oversized = await executeBusinessRequest(statusConfiguration, {
+    const oversized = await executeBusinessRequest(statusConfiguration.requests[0], {
         fetchImpl: async () => new Response(new Uint8Array((1024 * 1024) + 1), { status: 200 }),
     });
     assert.equal(oversized.completed, true);
     assert.equal(oversized.assertionFailure, true);
 
-    const streamFailure = await executeBusinessRequest(statusConfiguration, {
+    const streamFailure = await executeBusinessRequest(statusConfiguration.requests[0], {
         fetchImpl: async () => new Response(new ReadableStream({
             start(controller) {
                 controller.enqueue(new Uint8Array([123]));
@@ -449,7 +562,7 @@ test('business responses, redirects, oversized bodies, and transport failures fa
     assert.equal(streamFailure.completed, false);
     assert.equal(streamFailure.transportError, true);
 
-    const transportFailure = await executeBusinessRequest(statusConfiguration, {
+    const transportFailure = await executeBusinessRequest(statusConfiguration.requests[0], {
         fetchImpl: async () => { throw new Error('secret target must not escape'); },
     });
     assert.deepEqual(transportFailure, {
@@ -458,6 +571,66 @@ test('business responses, redirects, oversized bodies, and transport failures fa
         assertionFailure: false,
         latencyMs: null,
     });
+});
+
+test('a failed preparation aborts and awaits all controlled-write workers before any target request', async () => {
+    const preparation = [{
+        method: 'POST',
+        route_name: 'test.cart.add',
+        route_uri: '/prepare',
+        accepted_status_codes: [200],
+        authentication: 'public',
+        csrf: false,
+        share_session_headers: false,
+        outcome: { strategy: 'status_code' },
+    }];
+    const configuration = configurationFor(documentsFor({
+        method: 'POST',
+        safetyMode: 'controlled_write',
+        preparation,
+        virtualUsers: 2,
+        duration: '1s',
+        rampUp: '0s',
+        requestIntervalMs: 1000,
+    }));
+    let preparationCalls = 0;
+    let targetCalls = 0;
+    let resolveFirstPreparation;
+    const startedAt = new Date();
+
+    await assert.rejects(
+        executeScenario(configuration, {
+            fetchImpl: (url, options) => {
+                if (url.pathname !== '/prepare') {
+                    targetCalls += 1;
+
+                    return Promise.resolve(jsonResponse({ ok: true }));
+                }
+
+                preparationCalls += 1;
+                if (preparationCalls === 1) {
+                    return new Promise((resolvePreparation) => {
+                        resolveFirstPreparation = resolvePreparation;
+                    });
+                }
+
+                resolveFirstPreparation(jsonResponse({ unavailable: true }, 503));
+
+                return new Promise((resolvePreparation, rejectPreparation) => {
+                    options.signal.addEventListener('abort', () => rejectPreparation(new Error('aborted')), {
+                        once: true,
+                    });
+                });
+            },
+            now: () => startedAt,
+            monotonicNow: () => 0,
+            sleepImpl: async () => {},
+        }),
+        (error) => error instanceof RunnerFailure && error.code === 'PREPARATION_REQUEST_FAILED'
+    );
+
+    assert.equal(preparationCalls, 2);
+    assert.equal(targetCalls, 0);
 });
 
 test('the runner emits schema v3 and uses fixed-delay cadence without catch-up bursts', async () => {
@@ -601,9 +774,9 @@ test('runCli preserves failed results, existing files, and secret-free diagnosti
         const secretDirectory = await mkdtemp(join(tmpdir(), 'p0-006-secret-runner-'));
         try {
             const secretFiles = await cliFixture(secretDirectory, (fixtures) => {
-                fixtures.scenarios.node_runner_test.route_uri = '/tampered-route';
-                fixtures.scenarios.node_runner_test.headers.Cookie = 'sensitive-cookie-sentinel';
-                fixtures.scenarios.node_runner_test.query.signature = 'sensitive-signature-sentinel';
+                fixtures.scenarios.node_runner_test.requests[0].route_uri = '/tampered-route';
+                fixtures.scenarios.node_runner_test.requests[0].headers.Cookie = 'sensitive-cookie-sentinel';
+                fixtures.scenarios.node_runner_test.requests[0].query.signature = 'sensitive-signature-sentinel';
             });
             let diagnostic = '';
             const secretExitCode = await runCli({

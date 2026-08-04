@@ -173,6 +173,9 @@ it('keeps HTTP success separate from the configured business outcome', function 
             'protocol' => [
                 'authentication' => 'public',
                 'csrf' => false,
+                'fixture_strategy' => 'one_shot',
+                'unique_by' => [['body.probe_id']],
+                'preparation' => [],
                 'fixture_reference' => 'external:test-probe',
                 'outcome' => [
                     'strategy' => 'json_field_equals',
@@ -228,6 +231,9 @@ it('fails a JSON business assertion when the successful response is malformed', 
             'protocol' => [
                 'authentication' => 'public',
                 'csrf' => false,
+                'fixture_strategy' => 'one_shot',
+                'unique_by' => [['body.probe_id']],
+                'preparation' => [],
                 'fixture_reference' => 'external:malformed-test-probe',
                 'outcome' => [
                     'strategy' => 'json_field_equals',

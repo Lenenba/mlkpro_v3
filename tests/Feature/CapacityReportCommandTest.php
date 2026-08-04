@@ -45,6 +45,9 @@ function phase9CapacityScenario(
         'protocol' => [
             'authentication' => $method === 'GET' ? 'authenticated_session' : 'public_csrf_session',
             'csrf' => $method !== 'GET',
+            'fixture_strategy' => $method === 'GET' ? 'repeat' : 'one_shot',
+            'unique_by' => $method === 'GET' ? [] : [['body.capacity_test_id']],
+            'preparation' => [],
             'fixture_reference' => 'external:phase9-command-test',
             'outcome' => $outcome,
         ],

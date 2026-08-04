@@ -326,6 +326,19 @@ class CapacityRunnerResultService
             if ($completedRequests !== null && $completedRequests < $minimumCompletedRequests) {
                 $errors[] = "completed_requests must satisfy the scenario load envelope ({$minimumCompletedRequests}).";
             }
+            $maximumTheoreticalRequests = $this->catalog->maximumTheoreticalRequests(
+                is_array($scenario['profile'] ?? null) ? $scenario['profile'] : []
+            );
+            if ($maximumTheoreticalRequests !== null
+                && $attemptedRequests !== null
+                && $attemptedRequests > $maximumTheoreticalRequests) {
+                $errors[] = "attempted_requests exceeds the signed theoretical request budget ({$maximumTheoreticalRequests}).";
+            }
+            if ($maximumTheoreticalRequests !== null
+                && $completedRequests !== null
+                && $completedRequests > $maximumTheoreticalRequests) {
+                $errors[] = "completed_requests exceeds the signed theoretical request budget ({$maximumTheoreticalRequests}).";
+            }
         }
 
         if ($transportErrors !== null && $transportErrors !== 0) {

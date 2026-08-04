@@ -34,7 +34,7 @@ const RESULT_FIELDS = Object.freeze([
 
 const RESULT_SCHEMA_VERSION = 3;
 const MAX_PLAN_BYTES = 2 * 1024 * 1024;
-const MAX_FIXTURE_BYTES = 256 * 1024;
+const MAX_FIXTURE_BYTES = 4 * 1024 * 1024;
 const MAX_JSON_RESPONSE_BYTES = 1024 * 1024;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const SAFE_REQUEST_HEADERS = new Set([
@@ -318,6 +318,9 @@ function validateHeaders(headers, code) {
             || !SAFE_REQUEST_HEADERS.has(normalizedName)) {
             fail(code);
         }
+        if (normalized.has(normalizedName)) {
+            fail(code);
+        }
 
         normalized.set(normalizedName, [name.trim(), value]);
     }
@@ -395,6 +398,12 @@ function resolveRoute(routeUri, pathParameters) {
     return resolvedRoute;
 }
 
+function routeParameterNames(routeUri) {
+    return [...new Set(
+        [...routeUri.matchAll(/\{([^}?]+)\??\}/g)].map((match) => match[1])
+    )];
+}
+
 function appendQuery(url, query) {
     if (!isObject(query)) {
         fail('FIXTURE_QUERY_INVALID');
@@ -446,6 +455,372 @@ function valueAtPath(payload, field) {
 
 function sameJsonValue(left, right) {
     return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function hasExactFields(value, expectedFields) {
+    return isObject(value)
+        && JSON.stringify(Object.keys(value).sort()) === JSON.stringify([...expectedFields].sort());
+}
+
+export function calculateMaximumTheoreticalRequests({
+    virtualUsers,
+    durationSeconds: plannedDurationSeconds,
+    rampUpSeconds,
+    requestIntervalMs,
+}) {
+    if (!Number.isInteger(virtualUsers)
+        || virtualUsers < 1
+        || !Number.isInteger(plannedDurationSeconds)
+        || plannedDurationSeconds < 1
+        || !Number.isInteger(rampUpSeconds)
+        || rampUpSeconds < 0
+        || rampUpSeconds >= plannedDurationSeconds
+        || !Number.isInteger(requestIntervalMs)
+        || requestIntervalMs < 1) {
+        fail('PLAN_REQUEST_BUDGET_INVALID');
+    }
+
+    const durationMs = plannedDurationSeconds * 1000;
+    const rampUpMs = rampUpSeconds * 1000;
+    const rampDenominator = Math.max(1, virtualUsers - 1);
+    const intervalDenominator = requestIntervalMs * rampDenominator;
+    if (![durationMs, rampUpMs, intervalDenominator].every(Number.isSafeInteger)
+        || !Number.isSafeInteger(durationMs * rampDenominator)
+        || !Number.isSafeInteger(rampUpMs * (virtualUsers - 1))) {
+        fail('PLAN_REQUEST_BUDGET_INVALID');
+    }
+    let maximum = 0;
+    for (let workerIndex = 0; workerIndex < virtualUsers; workerIndex += 1) {
+        const numerator = virtualUsers === 1
+            ? durationMs
+            : (durationMs * rampDenominator) - (rampUpMs * workerIndex);
+        const denominator = virtualUsers === 1 ? requestIntervalMs : intervalDenominator;
+        const workerMaximum = Math.floor((numerator + denominator - 1) / denominator);
+        if (!Number.isSafeInteger(workerMaximum)
+            || !Number.isSafeInteger(maximum + workerMaximum)) {
+            fail('PLAN_REQUEST_BUDGET_INVALID');
+        }
+        maximum += workerMaximum;
+    }
+
+    return maximum;
+}
+
+function validatedHttpRequest({
+    request,
+    descriptor,
+    baseOrigin,
+    planHeaders,
+    preparationDescriptors = null,
+    scope = 'FIXTURE',
+}) {
+    const requestFields = preparationDescriptors === null
+        ? ['method', 'route_name', 'route_uri', 'path_parameters', 'query', 'headers', 'body']
+        : ['method', 'route_name', 'route_uri', 'path_parameters', 'query', 'headers', 'body', 'preparation'];
+    if (!hasExactFields(request, requestFields)) {
+        fail(`${scope}_FIELDS_INVALID`);
+    }
+
+    const method = requiredString(descriptor.method, `PLAN_${scope}_METHOD_INVALID`).toUpperCase();
+    if (!['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+        fail(`PLAN_${scope}_METHOD_INVALID`);
+    }
+    if (requiredString(request.method, `${scope}_METHOD_REQUIRED`).toUpperCase() !== method) {
+        fail(`${scope}_METHOD_MISMATCH`);
+    }
+
+    const routeNames = Array.isArray(descriptor.route_names)
+        ? descriptor.route_names
+        : [descriptor.route_name];
+    const routeUris = isObject(descriptor.route_uris)
+        ? descriptor.route_uris
+        : { [descriptor.route_name]: descriptor.route_uri };
+    const routeName = requiredString(request.route_name, `${scope}_ROUTE_NAME_REQUIRED`);
+    if (!routeNames.includes(routeName)) {
+        fail(`${scope}_ROUTE_NAME_MISMATCH`);
+    }
+    const routeUri = requiredString(routeUris[routeName], `PLAN_${scope}_ROUTE_URI_MISSING`);
+    if (requiredString(request.route_uri, `${scope}_ROUTE_URI_REQUIRED`) !== routeUri) {
+        fail(`${scope}_ROUTE_URI_MISMATCH`);
+    }
+
+    const resolvedRoute = resolveRoute(routeUri, request.path_parameters);
+    const requestUrl = new URL(resolvedRoute, `${baseOrigin}/`);
+    const expectedPathname = requestUrl.pathname;
+    appendQuery(requestUrl, request.query);
+    if (requestUrl.origin !== baseOrigin || requestUrl.pathname !== expectedPathname) {
+        fail(`${scope}_ORIGIN_CHANGED`);
+    }
+
+    const fixtureHeaders = validateHeaders(request.headers, `${scope}_HEADERS_INVALID`);
+    for (const protectedHeader of ['accept', 'content-type']) {
+        if (fixtureHeaders.has(protectedHeader)) {
+            fail(`${scope}_PROTECTED_HEADER_OVERRIDE`);
+        }
+    }
+    const headers = new Headers();
+    for (const [, [name, value]] of [...planHeaders, ...fixtureHeaders]) {
+        headers.set(name, value);
+    }
+
+    const authentication = requiredString(
+        descriptor.authentication,
+        `PLAN_${scope}_AUTHENTICATION_INVALID`
+    );
+    if (authentication !== 'public' && !headers.has('cookie')) {
+        fail(`${scope}_SESSION_COOKIE_REQUIRED`);
+    }
+    if (descriptor.csrf === true
+        && !headers.has('x-csrf-token')
+        && !headers.has('x-xsrf-token')) {
+        fail(`${scope}_CSRF_REQUIRED`);
+    }
+
+    let body;
+    if (['GET', 'HEAD'].includes(method)) {
+        if (request.body !== null) {
+            fail(`${scope}_BODY_NOT_ALLOWED`);
+        }
+    } else {
+        if ((!isObject(request.body) && !Array.isArray(request.body)) || containsPlaceholder(request.body)) {
+            fail(`${scope}_BODY_REQUIRED`);
+        }
+        if (isObject(request.body)
+            && Object.keys(request.body).some((key) => key.toLowerCase() === '_method')) {
+            fail(`${scope}_METHOD_OVERRIDE_FORBIDDEN`);
+        }
+        body = JSON.stringify(request.body);
+    }
+
+    const acceptedStatusCodes = Array.isArray(descriptor.accepted_status_codes)
+        ? descriptor.accepted_status_codes
+        : [];
+    if (acceptedStatusCodes.length === 0
+        || acceptedStatusCodes.some((status) => !Number.isInteger(status) || status < 100 || status > 599)) {
+        fail(`PLAN_${scope}_STATUS_CODES_INVALID`);
+    }
+    const outcome = validateOutcome(descriptor.outcome);
+
+    let preparation = [];
+    if (preparationDescriptors !== null) {
+        if (!Array.isArray(request.preparation)
+            || request.preparation.length !== preparationDescriptors.length) {
+            fail('FIXTURE_PREPARATION_MISMATCH');
+        }
+        preparation = request.preparation.map((preparationRequest, preparationIndex) => validatedHttpRequest({
+            request: preparationRequest,
+            descriptor: preparationDescriptors[preparationIndex],
+            baseOrigin,
+            planHeaders,
+            preparationDescriptors: null,
+            scope: 'PREPARATION',
+        }));
+        for (let preparationIndex = 0; preparationIndex < preparationDescriptors.length; preparationIndex += 1) {
+            if (preparationDescriptors[preparationIndex].share_session_headers !== true) {
+                continue;
+            }
+            for (const headerName of ['cookie', 'x-csrf-token', 'x-xsrf-token']) {
+                if (headers.get(headerName) !== preparation[preparationIndex].headers.get(headerName)) {
+                    fail('FIXTURE_PREPARATION_SESSION_MISMATCH');
+                }
+            }
+            const sharedRouteParameters = routeParameterNames(routeUri)
+                .filter((parameter) => routeParameterNames(preparation[preparationIndex].routeUri)
+                    .includes(parameter));
+            for (const parameter of sharedRouteParameters) {
+                if (request.path_parameters[parameter]
+                    !== preparation[preparationIndex].pathParameters[parameter]) {
+                    fail('FIXTURE_PREPARATION_PATH_PARAMETERS_MISMATCH');
+                }
+            }
+        }
+    }
+
+    return Object.freeze({
+        method,
+        routeUri,
+        pathParameters: Object.freeze({ ...request.path_parameters }),
+        requestUrl,
+        headers,
+        body,
+        outcome,
+        acceptedStatusCodes,
+        preparation: Object.freeze(preparation),
+    });
+}
+
+function validatedFixtureScenario({ scenario, fixture, baseOrigin }) {
+    if (!isObject(scenario.safety)
+        || !['read_only', 'controlled_write'].includes(scenario.safety.mode)) {
+        fail('SCENARIO_SAFETY_INVALID');
+    }
+    if (!isObject(scenario.protocol)
+        || scenario.protocol.transport !== 'http'
+        || scenario.protocol.request_format !== 'json'
+        || scenario.protocol.follow_redirects !== false
+        || scenario.protocol.runner_policy !== 'external_approved_harness') {
+        fail('PLAN_PROTOCOL_INVALID');
+    }
+    const outcome = validateOutcome(scenario.protocol.outcome);
+    const acceptedStatusCodes = Array.isArray(scenario.accepted_status_codes)
+        ? scenario.accepted_status_codes
+        : [];
+    if (acceptedStatusCodes.length === 0
+        || acceptedStatusCodes.some((status) => !Number.isInteger(status) || status < 100 || status > 599)) {
+        fail('PLAN_STATUS_CODES_INVALID');
+    }
+    const planHeaders = validateHeaders(scenario.protocol.headers, 'PLAN_HEADERS_INVALID');
+
+    if (!isObject(scenario.profile)) {
+        fail('PLAN_PROFILE_INVALID');
+    }
+    const virtualUsers = requiredInteger(scenario.profile.virtual_users, 1, 'PLAN_VIRTUAL_USERS_INVALID');
+    const plannedDurationSeconds = durationSeconds(scenario.profile.duration, false, 'PLAN_DURATION_INVALID');
+    const rampUpSeconds = durationSeconds(scenario.profile.ramp_up, true, 'PLAN_RAMP_UP_INVALID');
+    if (rampUpSeconds >= plannedDurationSeconds) {
+        fail('PLAN_RAMP_UP_INVALID');
+    }
+    const minimumCompletedRequests = requiredInteger(
+        scenario.profile.minimum_completed_requests,
+        1,
+        'PLAN_MINIMUM_REQUESTS_INVALID'
+    );
+    const requestIntervalMs = requiredInteger(
+        scenario.profile.request_interval_ms,
+        1,
+        'PLAN_REQUEST_INTERVAL_INVALID'
+    );
+    const requestTimeoutMs = requiredInteger(
+        scenario.profile.request_timeout_ms,
+        500,
+        'PLAN_REQUEST_TIMEOUT_INVALID'
+    );
+    if (requestTimeoutMs > 60_000) {
+        fail('PLAN_REQUEST_TIMEOUT_INVALID');
+    }
+    if (Object.hasOwn(scenario.profile, 'minimum_request_interval_ms')) {
+        const minimumRequestIntervalMs = requiredInteger(
+            scenario.profile.minimum_request_interval_ms,
+            1,
+            'PLAN_MINIMUM_REQUEST_INTERVAL_INVALID'
+        );
+        if (requestIntervalMs < minimumRequestIntervalMs) {
+            fail('PLAN_REQUEST_INTERVAL_BELOW_SAFETY_MINIMUM');
+        }
+    }
+    const maximumTheoreticalRequests = calculateMaximumTheoreticalRequests({
+        virtualUsers,
+        durationSeconds: plannedDurationSeconds,
+        rampUpSeconds,
+        requestIntervalMs,
+    });
+    if (minimumCompletedRequests > maximumTheoreticalRequests) {
+        fail('PLAN_MINIMUM_REQUESTS_EXCEEDS_BUDGET');
+    }
+
+    const fixtureStrategy = requiredString(
+        scenario.protocol.fixture_strategy,
+        'PLAN_FIXTURE_STRATEGY_INVALID'
+    );
+    if (!['repeat', 'one_shot'].includes(fixtureStrategy)) {
+        fail('PLAN_FIXTURE_STRATEGY_INVALID');
+    }
+    if ((scenario.safety.mode === 'read_only' && fixtureStrategy !== 'repeat')
+        || (scenario.safety.mode === 'controlled_write' && fixtureStrategy !== 'one_shot')) {
+        fail('PLAN_FIXTURE_STRATEGY_SAFETY_MISMATCH');
+    }
+    const uniqueBy = scenario.protocol.unique_by;
+    if (!Array.isArray(uniqueBy)
+        || uniqueBy.some((group) => !Array.isArray(group)
+            || group.length === 0
+            || group.some((path) => typeof path !== 'string'
+                || !/^(?:body|headers|path_parameters|query)\.[A-Za-z0-9_.-]+$/.test(path)))) {
+        fail('PLAN_UNIQUE_BY_INVALID');
+    }
+    if (scenario.safety.mode === 'controlled_write' && uniqueBy.length === 0) {
+        fail('PLAN_UNIQUE_BY_REQUIRED_FOR_CONTROLLED_WRITE');
+    }
+    const preparationDescriptors = scenario.protocol.preparation;
+    if (!Array.isArray(preparationDescriptors)
+        || preparationDescriptors.some((descriptor) => !hasExactFields(descriptor, [
+            'method',
+            'route_name',
+            'route_uri',
+            'accepted_status_codes',
+            'authentication',
+            'csrf',
+            'share_session_headers',
+            'outcome',
+        ]))
+        || (preparationDescriptors.length > 0 && fixtureStrategy !== 'one_shot')) {
+        fail('PLAN_PREPARATION_INVALID');
+    }
+
+    if (!hasExactFields(fixture, ['strategy', 'requests'])
+        || fixture.strategy !== fixtureStrategy
+        || !Array.isArray(fixture.requests)) {
+        fail('FIXTURE_SCENARIO_SCHEMA_INVALID');
+    }
+    if (fixture.strategy === 'repeat' && fixture.requests.length !== 1) {
+        fail('FIXTURE_REPEAT_CARDINALITY_INVALID');
+    }
+    if (fixture.strategy === 'one_shot'
+        && fixture.requests.length !== maximumTheoreticalRequests) {
+        fail('FIXTURE_ONE_SHOT_CARDINALITY_INVALID');
+    }
+    if (fixture.strategy === 'one_shot') {
+        const requestFingerprints = fixture.requests.map((request) => createHash('sha256')
+            .update(phpJsonEncode(canonicalizeManifestValue(request)))
+            .digest('hex'));
+        if (new Set(requestFingerprints).size !== requestFingerprints.length) {
+            fail('FIXTURE_ONE_SHOT_DUPLICATE_REQUEST');
+        }
+        for (const uniqueGroup of uniqueBy) {
+            const uniqueFingerprints = fixture.requests.map((request) => {
+                const values = uniqueGroup.map((path) => valueAtPath(request, path));
+                if (values.some(({ exists, value }) => !exists
+                    || value === null
+                    || (typeof value === 'string' && value.trim() === ''))) {
+                    fail('FIXTURE_ONE_SHOT_UNIQUE_VALUE_MISSING');
+                }
+
+                return createHash('sha256')
+                    .update(phpJsonEncode(values.map(({ value }) => canonicalizeManifestValue(value))))
+                    .digest('hex');
+            });
+            if (new Set(uniqueFingerprints).size !== uniqueFingerprints.length) {
+                fail('FIXTURE_ONE_SHOT_UNIQUE_VALUE_DUPLICATE');
+            }
+        }
+    }
+
+    const requests = fixture.requests.map((request) => validatedHttpRequest({
+        request,
+        descriptor: {
+            method: scenario.method,
+            route_names: scenario.route_names,
+            route_uris: scenario.route_uris,
+            accepted_status_codes: acceptedStatusCodes,
+            authentication: scenario.protocol.authentication,
+            csrf: scenario.protocol.csrf,
+            outcome,
+        },
+        baseOrigin,
+        planHeaders,
+        preparationDescriptors,
+    }));
+
+    return Object.freeze({
+        fixtureStrategy,
+        requests: Object.freeze(requests),
+        virtualUsers,
+        durationSeconds: plannedDurationSeconds,
+        rampUpSeconds,
+        minimumCompletedRequests,
+        requestIntervalMs,
+        requestTimeoutMs,
+        maximumTheoreticalRequests,
+    });
 }
 
 export function validateRunConfiguration({
@@ -501,6 +876,13 @@ export function validateRunConfiguration({
 
     const selectedScenarioKey = requiredString(scenarioKey, 'SCENARIO_REQUIRED');
     const scenarios = Array.isArray(plan.scenarios) ? plan.scenarios : [];
+    if (scenarios.length === 0
+        || scenarios.some((candidate) => !isObject(candidate)
+            || typeof candidate.key !== 'string'
+            || candidate.key.trim() === '')
+        || new Set(scenarios.map((candidate) => candidate.key)).size !== scenarios.length) {
+        fail('PLAN_SCENARIOS_INVALID');
+    }
     const matchingScenarios = scenarios.filter((candidate) => isObject(candidate) && candidate.key === selectedScenarioKey);
     if (matchingScenarios.length !== 1) {
         fail('SCENARIO_NOT_UNIQUE');
@@ -512,6 +894,16 @@ export function validateRunConfiguration({
     }
     if (calculateManifestHash(scenario) !== manifestHash) {
         fail('MANIFEST_HASH_MISMATCH');
+    }
+    for (const plannedScenario of scenarios) {
+        const plannedManifestHash = requiredString(
+            plannedScenario.manifest_hash,
+            'MANIFEST_HASH_REQUIRED'
+        ).toLowerCase();
+        if (!SHA256_PATTERN.test(plannedManifestHash)
+            || calculateManifestHash(plannedScenario) !== plannedManifestHash) {
+            fail('MANIFEST_HASH_MISMATCH');
+        }
     }
 
     const baselineContext = plan.baseline_context;
@@ -586,141 +978,48 @@ export function validateRunConfiguration({
         fail('SCENARIO_BLOCKED');
     }
 
-    if (!isObject(fixtures)
-        || fixtures.schema_version !== 2
+    if (!hasExactFields(fixtures, ['schema_version', 'base_url', 'scenarios'])
+        || fixtures.schema_version !== 3
         || !isObject(fixtures.scenarios)
-        || Object.keys(fixtures).some((field) => !['schema_version', 'base_url', 'scenarios'].includes(field))) {
+        || containsPlaceholder(fixtures)) {
         fail('FIXTURE_SCHEMA_INVALID');
     }
-    const fixture = fixtures.scenarios[selectedScenarioKey];
-    if (!isObject(fixture)) {
-        fail('FIXTURE_SCENARIO_MISSING');
-    }
-    if (Object.keys(fixture).some((field) => ![
-        'method',
-        'route_name',
-        'route_uri',
-        'path_parameters',
-        'query',
-        'headers',
-        'body',
-    ].includes(field))) {
-        fail('FIXTURE_FIELDS_INVALID');
-    }
-
-    const method = requiredString(scenario.method, 'PLAN_METHOD_INVALID').toUpperCase();
-    if (!['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
-        fail('PLAN_METHOD_INVALID');
-    }
-    if (requiredString(fixture.method, 'FIXTURE_METHOD_REQUIRED').toUpperCase() !== method) {
-        fail('FIXTURE_METHOD_MISMATCH');
-    }
-    const routeName = requiredString(fixture.route_name, 'FIXTURE_ROUTE_NAME_REQUIRED');
-    if (!Array.isArray(scenario.route_names) || !scenario.route_names.includes(routeName)) {
-        fail('FIXTURE_ROUTE_NAME_MISMATCH');
-    }
-    if (!isObject(scenario.route_uris)) {
-        fail('PLAN_ROUTE_URIS_INVALID');
-    }
-    const routeUri = requiredString(scenario.route_uris[routeName], 'PLAN_ROUTE_URI_MISSING');
-    if (requiredString(fixture.route_uri, 'FIXTURE_ROUTE_URI_REQUIRED') !== routeUri) {
-        fail('FIXTURE_ROUTE_URI_MISMATCH');
-    }
-
-    if (!isObject(scenario.protocol)
-        || scenario.protocol.transport !== 'http'
-        || scenario.protocol.request_format !== 'json'
-        || scenario.protocol.follow_redirects !== false
-        || scenario.protocol.runner_policy !== 'external_approved_harness') {
-        fail('PLAN_PROTOCOL_INVALID');
-    }
-    const outcome = validateOutcome(scenario.protocol.outcome);
-    const acceptedStatusCodes = Array.isArray(scenario.accepted_status_codes)
-        ? scenario.accepted_status_codes
-        : [];
-    if (acceptedStatusCodes.length === 0
-        || acceptedStatusCodes.some((status) => !Number.isInteger(status) || status < 100 || status > 599)) {
-        fail('PLAN_STATUS_CODES_INVALID');
+    const planScenarioKeys = scenarios
+        .filter((candidate) => isObject(candidate))
+        .map((candidate) => candidate.key)
+        .sort();
+    const fixtureScenarioKeys = Object.keys(fixtures.scenarios).sort();
+    if (JSON.stringify(planScenarioKeys) !== JSON.stringify(fixtureScenarioKeys)) {
+        fail('FIXTURE_SCENARIO_SET_MISMATCH');
     }
 
     const baseOrigin = normalizedOrigin(fixtures.base_url);
     if (!approvedOrigins.includes(baseOrigin)) {
         fail('BASE_URL_NOT_ALLOWLISTED');
     }
-
-    const resolvedRoute = resolveRoute(routeUri, fixture.path_parameters ?? {});
-    const requestUrl = new URL(resolvedRoute, `${baseOrigin}/`);
-    const expectedPathname = requestUrl.pathname;
-    appendQuery(requestUrl, fixture.query ?? {});
-    if (requestUrl.origin !== baseOrigin || requestUrl.pathname !== expectedPathname) {
-        fail('REQUEST_ORIGIN_CHANGED');
+    const validatedScenarios = new Map(scenarios.map((plannedScenario) => [
+        plannedScenario.key,
+        validatedFixtureScenario({
+            scenario: plannedScenario,
+            fixture: fixtures.scenarios[plannedScenario.key],
+            baseOrigin,
+        }),
+    ]));
+    const selectedFixture = validatedScenarios.get(selectedScenarioKey);
+    if (selectedFixture === undefined) {
+        fail('FIXTURE_SCENARIO_MISSING');
     }
-
-    const planHeaders = validateHeaders(scenario.protocol.headers, 'PLAN_HEADERS_INVALID');
-    const fixtureHeaders = validateHeaders(fixture.headers ?? {}, 'FIXTURE_HEADERS_INVALID');
-    for (const protectedHeader of ['accept', 'content-type']) {
-        if (fixtureHeaders.has(protectedHeader)) {
-            fail('FIXTURE_PROTECTED_HEADER_OVERRIDE');
-        }
-    }
-    const headers = new Headers();
-    for (const [, [name, value]] of [...planHeaders, ...fixtureHeaders]) {
-        headers.set(name, value);
-    }
-
-    const authentication = requiredString(scenario.protocol.authentication, 'PLAN_AUTHENTICATION_INVALID');
-    if (authentication !== 'public' && !headers.has('cookie')) {
-        fail('FIXTURE_SESSION_COOKIE_REQUIRED');
-    }
-    if (scenario.protocol.csrf === true
-        && !headers.has('x-csrf-token')
-        && !headers.has('x-xsrf-token')) {
-        fail('FIXTURE_CSRF_REQUIRED');
-    }
-
-    let body;
-    if (['GET', 'HEAD'].includes(method)) {
-        if (fixture.body !== undefined && fixture.body !== null) {
-            fail('FIXTURE_BODY_NOT_ALLOWED');
-        }
-    } else {
-        if ((!isObject(fixture.body) && !Array.isArray(fixture.body)) || containsPlaceholder(fixture.body)) {
-            fail('FIXTURE_BODY_REQUIRED');
-        }
-        if (isObject(fixture.body)
-            && Object.keys(fixture.body).some((key) => key.toLowerCase() === '_method')) {
-            fail('FIXTURE_METHOD_OVERRIDE_FORBIDDEN');
-        }
-        body = JSON.stringify(fixture.body);
-    }
-
-    if (!isObject(scenario.profile)) {
-        fail('PLAN_PROFILE_INVALID');
-    }
-    const virtualUsers = requiredInteger(scenario.profile.virtual_users, 1, 'PLAN_VIRTUAL_USERS_INVALID');
-    const plannedDurationSeconds = durationSeconds(scenario.profile.duration, false, 'PLAN_DURATION_INVALID');
-    const rampUpSeconds = durationSeconds(scenario.profile.ramp_up, true, 'PLAN_RAMP_UP_INVALID');
-    if (rampUpSeconds >= plannedDurationSeconds) {
-        fail('PLAN_RAMP_UP_INVALID');
-    }
-    const minimumCompletedRequests = requiredInteger(
-        scenario.profile.minimum_completed_requests,
-        1,
-        'PLAN_MINIMUM_REQUESTS_INVALID'
-    );
-    const requestIntervalMs = requiredInteger(
-        scenario.profile.request_interval_ms,
-        1,
-        'PLAN_REQUEST_INTERVAL_INVALID'
-    );
-    const requestTimeoutMs = requiredInteger(
-        scenario.profile.request_timeout_ms,
-        500,
-        'PLAN_REQUEST_TIMEOUT_INVALID'
-    );
-    if (requestTimeoutMs > 60_000) {
-        fail('PLAN_REQUEST_TIMEOUT_INVALID');
-    }
+    const {
+        fixtureStrategy,
+        requests,
+        virtualUsers,
+        durationSeconds: plannedDurationSeconds,
+        rampUpSeconds,
+        minimumCompletedRequests,
+        requestIntervalMs,
+        requestTimeoutMs,
+        maximumTheoreticalRequests,
+    } = selectedFixture;
 
     const period = isObject(plan.period) ? plan.period : {};
     const periodStartedAt = new Date(requiredString(period.started_at, 'PLAN_PERIOD_INVALID'));
@@ -742,18 +1041,15 @@ export function validateRunConfiguration({
         fixtureHash: normalizedFixtureHash,
         baselineFingerprint,
         targetOriginHash: createHash('sha256').update(baseOrigin).digest('hex'),
-        method,
-        requestUrl,
-        headers,
-        body,
-        outcome,
-        acceptedStatusCodes,
+        fixtureStrategy,
+        requests: Object.freeze(requests),
         virtualUsers,
         durationSeconds: plannedDurationSeconds,
         rampUpSeconds,
         minimumCompletedRequests,
         requestIntervalMs,
         requestTimeoutMs,
+        maximumTheoreticalRequests,
         periodStartedAt,
         periodEndedAt,
     });
@@ -806,27 +1102,41 @@ function outcomeMatches(body, outcome) {
     return selected.exists && sameJsonValue(selected.value, outcome.value);
 }
 
-export async function executeBusinessRequest(configuration, {
+export async function executeBusinessRequest(request, {
     fetchImpl = globalThis.fetch,
-    timeoutMs = configuration.requestTimeoutMs,
+    timeoutMs = 10_000,
+    abortSignal = null,
 } = {}) {
     const startedAt = performance.now();
     const abortController = new AbortController();
     const timeout = setTimeout(() => abortController.abort(), Math.max(1, timeoutMs));
+    const abortFromRun = () => abortController.abort();
+
+    if (abortSignal?.aborted) {
+        clearTimeout(timeout);
+
+        return {
+            completed: false,
+            transportError: true,
+            assertionFailure: false,
+            latencyMs: null,
+        };
+    }
+    abortSignal?.addEventListener?.('abort', abortFromRun, { once: true });
 
     try {
-        const response = await fetchImpl(configuration.requestUrl, {
-            method: configuration.method,
-            headers: configuration.headers,
-            body: configuration.body,
+        const response = await fetchImpl(request.requestUrl, {
+            method: request.method,
+            headers: request.headers,
+            body: request.body,
             redirect: 'manual',
             signal: abortController.signal,
         });
         const body = await consumeBoundedBody(response);
         const latencyMs = Math.max(0, performance.now() - startedAt);
-        const acceptedStatus = configuration.acceptedStatusCodes.includes(response.status);
+        const acceptedStatus = request.acceptedStatusCodes.includes(response.status);
         const acceptedOutcome = acceptedStatus && body.withinLimit
-            ? outcomeMatches(body.bytes, configuration.outcome)
+            ? outcomeMatches(body.bytes, request.outcome)
             : false;
 
         return {
@@ -844,11 +1154,27 @@ export async function executeBusinessRequest(configuration, {
         };
     } finally {
         clearTimeout(timeout);
+        abortSignal?.removeEventListener?.('abort', abortFromRun);
     }
 }
 
-function sleep(milliseconds) {
-    return new Promise((resolveSleep) => setTimeout(resolveSleep, Math.max(0, milliseconds)));
+function sleep(milliseconds, abortSignal = null) {
+    return new Promise((resolveSleep) => {
+        if (abortSignal?.aborted) {
+            resolveSleep(false);
+
+            return;
+        }
+        const abort = () => {
+            clearTimeout(timeout);
+            resolveSleep(false);
+        };
+        const timeout = setTimeout(() => {
+            abortSignal?.removeEventListener?.('abort', abort);
+            resolveSleep(true);
+        }, Math.max(0, milliseconds));
+        abortSignal?.addEventListener?.('abort', abort, { once: true });
+    });
 }
 
 function percentile(values, percentileValue) {
@@ -898,48 +1224,130 @@ export async function executeScenario(configuration, {
         assertionFailures: 0,
         latencies: [],
     };
+    const runAbortController = new AbortController();
+    let failure = null;
 
-    const worker = async (workerIndex) => {
-        const startDelay = configuration.virtualUsers === 1
-            ? 0
-            : (configuration.rampUpSeconds * 1000 * workerIndex) / (configuration.virtualUsers - 1);
-        await sleepImpl(Math.max(0, (monotonicStartedAt + startDelay) - monotonicNow()));
-        let nextRequestAt = monotonicStartedAt + startDelay;
-
-        while (monotonicNow() < deadline) {
-            const wait = nextRequestAt - monotonicNow();
-            if (wait > 0) {
-                await sleepImpl(wait);
-            }
-            const remainingMs = deadline - monotonicNow();
-            if (remainingMs <= 0) {
-                break;
-            }
-
-            counters.attempted += 1;
-            const observation = await executeBusinessRequest(configuration, {
-                fetchImpl,
-                timeoutMs: Math.min(configuration.requestTimeoutMs, Math.max(1, remainingMs)),
-            });
-            if (observation.completed) {
-                counters.completed += 1;
-                counters.latencies.push(observation.latencyMs);
-            }
-            if (observation.transportError) {
-                counters.transportErrors += 1;
-            }
-            if (observation.assertionFailure) {
-                counters.assertionFailures += 1;
-            }
-            // Fixed-delay cadence: a slow response never creates a catch-up burst.
-            nextRequestAt = monotonicNow() + configuration.requestIntervalMs;
+    const abortRun = (error) => {
+        if (failure === null) {
+            failure = error;
+            runAbortController.abort();
         }
     };
 
-    await Promise.all(Array.from(
+    const claimRequest = () => {
+        if (runAbortController.signal.aborted
+            || counters.attempted >= configuration.maximumTheoreticalRequests) {
+            return null;
+        }
+
+        const requestIndex = counters.attempted;
+        const request = configuration.fixtureStrategy === 'repeat'
+            ? configuration.requests[0]
+            : configuration.requests[requestIndex];
+        if (request === undefined) {
+            fail('ONE_SHOT_REQUEST_REUSE_PREVENTED');
+        }
+
+        // This increment is deliberately synchronous and occurs before the
+        // first await, so no worker can claim the same one-shot variant.
+        counters.attempted += 1;
+
+        return request;
+    };
+
+    const worker = async (workerIndex) => {
+        try {
+            const startDelay = configuration.virtualUsers === 1
+                ? 0
+                : (configuration.rampUpSeconds * 1000 * workerIndex) / (configuration.virtualUsers - 1);
+            await sleepImpl(
+                Math.max(0, (monotonicStartedAt + startDelay) - monotonicNow()),
+                runAbortController.signal
+            );
+            if (runAbortController.signal.aborted) {
+                return;
+            }
+            let nextRequestAt = monotonicStartedAt + startDelay;
+
+            while (!runAbortController.signal.aborted && monotonicNow() < deadline) {
+                const wait = nextRequestAt - monotonicNow();
+                if (wait > 0) {
+                    await sleepImpl(wait, runAbortController.signal);
+                }
+                if (runAbortController.signal.aborted) {
+                    return;
+                }
+                const remainingMs = deadline - monotonicNow();
+                if (remainingMs <= 0) {
+                    break;
+                }
+
+                const request = claimRequest();
+                if (request === null) {
+                    break;
+                }
+                for (const preparationRequest of request.preparation) {
+                    if (runAbortController.signal.aborted) {
+                        return;
+                    }
+                    const preparationRemainingMs = deadline - monotonicNow();
+                    if (preparationRemainingMs <= 0) {
+                        fail('PREPARATION_EXCEEDED_DEADLINE');
+                    }
+                    const preparationObservation = await executeBusinessRequest(preparationRequest, {
+                        fetchImpl,
+                        timeoutMs: Math.min(configuration.requestTimeoutMs, preparationRemainingMs),
+                        abortSignal: runAbortController.signal,
+                    });
+                    if (runAbortController.signal.aborted) {
+                        return;
+                    }
+                    if (!preparationObservation.completed
+                        || preparationObservation.transportError
+                        || preparationObservation.assertionFailure) {
+                        fail('PREPARATION_REQUEST_FAILED');
+                    }
+                }
+                if (runAbortController.signal.aborted) {
+                    return;
+                }
+                const targetRemainingMs = deadline - monotonicNow();
+                if (targetRemainingMs <= 0) {
+                    fail('PREPARATION_EXCEEDED_DEADLINE');
+                }
+                const observation = await executeBusinessRequest(request, {
+                    fetchImpl,
+                    timeoutMs: Math.min(configuration.requestTimeoutMs, targetRemainingMs),
+                    abortSignal: runAbortController.signal,
+                });
+                if (runAbortController.signal.aborted) {
+                    return;
+                }
+                if (observation.completed) {
+                    counters.completed += 1;
+                    counters.latencies.push(observation.latencyMs);
+                }
+                if (observation.transportError) {
+                    counters.transportErrors += 1;
+                }
+                if (observation.assertionFailure) {
+                    counters.assertionFailures += 1;
+                }
+                // Fixed-delay cadence: a slow response never creates a catch-up burst.
+                nextRequestAt = monotonicNow() + configuration.requestIntervalMs;
+            }
+        } catch (error) {
+            abortRun(error);
+        }
+    };
+
+    await Promise.allSettled(Array.from(
         { length: configuration.virtualUsers },
         (_, workerIndex) => worker(workerIndex)
     ));
+    if (failure !== null) {
+        throw failure;
+    }
     const wallEndedAt = now();
 
     const result = {

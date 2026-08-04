@@ -40,6 +40,9 @@ function p0006DashboardScenario(array $overrides = []): array
         'protocol' => [
             'authentication' => 'authenticated_session',
             'csrf' => false,
+            'fixture_strategy' => 'repeat',
+            'unique_by' => [],
+            'preparation' => [],
             'fixture_reference' => 'external:dashboard-owner',
             'outcome' => ['strategy' => 'status_code'],
         ],
@@ -216,6 +219,25 @@ test('P0-006 exposes exactly the seven executable scenarios with their methods a
     expect($actual)->toBe($expected)
         ->and($catalog->issues())->toBe([]);
 
+    $checkout = collect($catalog->all())->firstWhere('key', 'public_store_checkout');
+    expect($checkout['protocol']['fixture_strategy'])->toBe('one_shot')
+        ->and($checkout['protocol']['unique_by'])->toBe([
+            ['headers.Cookie'],
+            ['body.email'],
+        ])
+        ->and($checkout['protocol']['preparation'])->toBe([
+            [
+                'method' => 'POST',
+                'route_name' => 'public.store.cart.add',
+                'route_uri' => '/store/{slug}/cart',
+                'accepted_status_codes' => [200],
+                'authentication' => 'public_cart_session',
+                'csrf' => true,
+                'share_session_headers' => true,
+                'outcome' => ['strategy' => 'json_key_present', 'field' => 'cart'],
+            ],
+        ]);
+
     foreach ($catalog->all() as $scenario) {
         expect($scenario['manifest_hash'])->toMatch('/^[a-f0-9]{64}$/');
         foreach ($scenario['route_names'] as $routeName) {
@@ -249,6 +271,56 @@ test('capacity scenario request timeout must stay inside the signed safe range',
     expect(app(CapacityScenarioCatalog::class)->issues())->toContain(
         'Scenario dashboard_usage profile request_timeout_ms must be an integer between 500 and 60000.'
     );
+});
+
+test('capacity scenarios reject unsafe controlled-write fixture contracts and load envelopes', function () {
+    config()->set('capacity.scenarios', [
+        'dashboard_usage' => p0006DashboardScenario([
+            'protocol' => [
+                'fixture_strategy' => 'repeat',
+                'unique_by' => [],
+            ],
+            'profile' => [
+                'virtual_users' => 15,
+                'duration' => '10m',
+                'ramp_up' => '2m',
+                'request_interval_ms' => 44_999,
+                'minimum_request_interval_ms' => 45_000,
+                'minimum_completed_requests' => 500,
+            ],
+            'safety' => [
+                'mode' => 'controlled_write',
+                'requires_isolated_tenant' => true,
+            ],
+        ]),
+    ]);
+
+    $catalog = app(CapacityScenarioCatalog::class);
+
+    expect($catalog->maximumTheoreticalRequests([
+        'virtual_users' => 15,
+        'duration' => '10m',
+        'ramp_up' => '2m',
+        'request_interval_ms' => 45_000,
+    ]))->toBe(187)
+        ->and($catalog->maximumTheoreticalRequests([
+            'virtual_users' => 20,
+            'duration' => '10m',
+            'ramp_up' => '2m',
+            'request_interval_ms' => 45_000,
+        ]))->toBe(250)
+        ->and($catalog->maximumTheoreticalRequests([
+            'virtual_users' => 10,
+            'duration' => '10m',
+            'ramp_up' => '2m',
+            'request_interval_ms' => 45_000,
+        ]))->toBe(125)
+        ->and($catalog->issues())->toContain(
+            'Scenario dashboard_usage profile request_interval_ms is below its signed safety minimum.'
+        )
+        ->toContain('Scenario dashboard_usage minimum_completed_requests exceeds its theoretical request budget.')
+        ->toContain('Scenario dashboard_usage controlled_write safety must use one_shot fixtures.')
+        ->toContain('Scenario dashboard_usage controlled_write safety must define at least one semantic unique_by group.');
 });
 
 test('a non-persistent queue reports unknown measurements and fails strict health validation', function () {
@@ -558,6 +630,8 @@ test('controlled write scenarios must require an isolated tenant', function () {
     p0006ConfigureCompleteBaseline();
     config()->set('capacity.scenarios.dashboard_usage.safety.mode', 'controlled_write');
     config()->set('capacity.scenarios.dashboard_usage.safety.requires_isolated_tenant', false);
+    config()->set('capacity.scenarios.dashboard_usage.protocol.fixture_strategy', 'one_shot');
+    config()->set('capacity.scenarios.dashboard_usage.protocol.unique_by', [['body.p0006_fixture_id']]);
 
     expect(app(CapacityScenarioCatalog::class)->issues())->toContain(
         'Scenario dashboard_usage controlled_write safety must require an isolated tenant.'
@@ -568,6 +642,8 @@ test('unblocked isolated writes require an explicit tenant attestation before st
     p0006ConfigureCompleteBaseline();
     config()->set('capacity.scenarios.dashboard_usage.safety.mode', 'controlled_write');
     config()->set('capacity.scenarios.dashboard_usage.safety.requires_isolated_tenant', true);
+    config()->set('capacity.scenarios.dashboard_usage.protocol.fixture_strategy', 'one_shot');
+    config()->set('capacity.scenarios.dashboard_usage.protocol.unique_by', [['body.p0006_fixture_id']]);
     config()->set('capacity.baseline.isolated_tenant_verified', false);
 
     $context = app(CapacityReportService::class)->baselineContext();

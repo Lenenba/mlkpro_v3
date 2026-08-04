@@ -313,6 +313,30 @@ test('external runner evidence enforces the scenario profile counters assertions
     }
 });
 
+test('runner evidence cannot exceed the signed theoretical request budget', function () {
+    $catalog = app(CapacityScenarioCatalog::class);
+    $profile = config('capacity.scenarios.dashboard_usage.profile');
+    if (! is_array($profile)) {
+        $this->fail('The dashboard scenario profile was not configured.');
+    }
+    $maximum = $catalog->maximumTheoreticalRequests($profile);
+    if (! is_int($maximum)) {
+        $this->fail('The dashboard scenario did not produce a deterministic request budget.');
+    }
+
+    try {
+        app(CapacityRunnerResultService::class)->ingest(capacityRunnerPayload([
+            'attempted_requests' => $maximum + 1,
+            'completed_requests' => $maximum + 1,
+        ]));
+        $this->fail('Runner evidence above the signed request budget was accepted.');
+    } catch (CapacityRunnerResultValidationException $exception) {
+        expect($exception->errors())
+            ->toContain("attempted_requests exceeds the signed theoretical request budget ({$maximum}).")
+            ->toContain("completed_requests exceeds the signed theoretical request budget ({$maximum}).");
+    }
+});
+
 test('runner timestamps allow only the configured real-world duration drift', function () {
     config()->set('capacity.runner_results.duration_tolerance_seconds', 2);
 
