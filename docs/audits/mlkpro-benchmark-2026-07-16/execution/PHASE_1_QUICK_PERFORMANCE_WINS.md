@@ -1,7 +1,7 @@
 # Phase 1 — Gains rapides de performance
 
 - Dernière mise à jour : 2026-08-04
-- Statut : **ouverte — P1-001 en validation locale**
+- Statut : **ouverte — P1-001 terminé ; P1-002 en validation locale**
 - Responsable : Jules Roger Sombangnen
 - Validateurs : à nommer (distinct du responsable)
 - Dépendance : GO P0-007 sous dérogation MLK-DEC-010
@@ -31,22 +31,26 @@ Navigation Inertia, menus, dropdowns, modales, onglets, tableaux, traductions, r
 
 ### MLK-IMP-P1-001 — Initialisation Preline unique et ciblée
 
-- Statut : **en validation locale**
+- Statut : **terminé — acceptation humaine consignée le 2026-08-04**
 - But : remplacer le mixin global et les timers multiples par une initialisation après navigation.
 - Changement livré : l’initialisation est demandée au montage racine et après navigation Inertia, coalescée au prochain rendu stable ; les overlays Preline dont les déclencheurs ont été remplacés sont fermés, détruits puis rebondés avant le scan global.
 - Fichiers modifiés : `resources/js/app.js`, `resources/js/utils/preline.js`, tests Node et Playwright.
 - Critères vérifiés localement : aucune initialisation issue d’un montage enfant ; une demande applicative coalescée par rendu stable ; menus, modales, onglets et navigation mobile protégés.
-- Preuve : `VALID-P1-001-LOCAL-2026-08-04`.
-- Validation restante : revue humaine et acceptation avant de déclarer le ticket terminé.
+- Preuves : `VALID-P1-001-LOCAL-2026-08-04` et `VALID-P1-001-ACCEPTATION-HUMAINE-2026-08-04`.
+- Acceptation : Jules Roger Sombangnen, responsable Produit, Technique et Exploitation, a accepté la preuve locale et autorisé le passage à P1-002.
 - Rollback : revert isolé du commit `71c1252c64b92d5153fa01f79afe146dd0a1628c`.
 
 ### MLK-IMP-P1-002 — Groupes de routes Ziggy
 
-- Statut : **en attente**
+- Statut : **en validation locale**
 - But : ne fournir à chaque surface que les routes nécessaires.
-- Fichiers probables : configuration Ziggy, Blade d’entrée et tests de présence de routes.
-- Critères : baisse mesurée du HTML ; aucune route appelée par le frontend n’est absente ; portail/public/admin testés séparément.
-- Rollback : groupe complet temporaire par configuration.
+- Changement livré : groupes `public`, `portal` et `admin` dans `config/ziggy.php`, sélectionnés au rendu HTML par `ZiggyRouteGroupResolver` et `@routes($ziggyGroups)`. Les parcours authentification/onboarding utilisent temporairement la carte complète ; les franchissements de surface rechargent ensuite le document adapté.
+- Frontières protégées : navigation vers authentification/onboarding, sortie login/2FA/onboarding, logout, login démo, suppression de compte et expiration d’un espace démo. L’admin et le superadmin restent volontairement dans une même surface afin de préserver l’impersonation.
+- Mesure statique locale (sérialisation Ziggy homogène) : carte complète 711 routes / 83 324 octets JSON ; public 81 / 8 241 (-90,1 %), portail 134 / 14 793 (-82,2 %), admin 590 / 69 248 (-16,9 %). Cette mesure ne remplace pas la baseline dynamique reportée sous `MLK-DEC-010`.
+- Critères vérifiés localement : audit de 494 noms `route()` littéraux frontend, aucun absent de l’union des groupes ; rendus public/portail/admin ; transitions Inertia et parcours navigateur public → onboarding, login → dashboard et boutique publique.
+- Preuve : `VALID-P1-002-LOCAL-2026-08-04`, commit `477894887cd99fb9685daecaa281499ae6e9c973`.
+- Validation restante : acceptation humaine de P1-002 avant l’ouverture de P1-003.
+- Rollback : revert isolé du commit technique ci-dessus ; aucune migration ni donnée métier persistante.
 
 ### MLK-IMP-P1-003 — Traductions chargées par domaine
 

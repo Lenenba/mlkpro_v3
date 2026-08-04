@@ -448,6 +448,41 @@ La vue consolidée des travaux terminés, en cours et planifiés pour les Phases
 - Validation indépendante : aucune signature humaine distincte n’est encore consignée.
 - Verdict : **validation technique locale réussie ; P1-001 reste en validation jusqu’à l’acceptation humaine.**
 
+## VALID-P1-001-ACCEPTATION-HUMAINE-2026-08-04 — Clôture
+
+- Ticket : `MLK-IMP-P1-001`.
+- Décideur : Jules Roger Sombangnen, responsable Produit, Technique et Exploitation.
+- Source : acceptation explicite dans la conversation de pilotage (« parfait, on continue ») après remise de `VALID-P1-001-LOCAL-2026-08-04`.
+- Décision : la preuve locale Preline est acceptée et le démarrage de P1-002 est autorisé.
+- Portée : cette acceptation ne transforme pas la mesure statique en baseline dynamique représentative et ne modifie pas la dérogation `MLK-DEC-010`.
+- Verdict : **P1-001 terminé ; P1-002 ouvert.**
+
+## VALID-P1-002-LOCAL-2026-08-04 — Groupes de routes Ziggy
+
+- Ticket : `MLK-IMP-P1-002`.
+- Date : 2026-08-04.
+- Commit technique : `477894887cd99fb9685daecaa281499ae6e9c973` sur `develop`.
+- Portée : cartes Ziggy distinctes pour les surfaces public, portail et admin ; sélection au rendu HTML par route et rôle ; carte complète limitée aux frontières authentification/onboarding.
+- Franchissements protégés : navigation public/admin/portail vers authentification ou onboarding, sortie de ces écrans, logout, login démo, suppression de compte et expiration d’espace démo. L’admin et le superadmin partagent volontairement une surface pour conserver l’impersonation sans transition de carte.
+- Audit de couverture : 494 noms `route()` littéraux dans `resources/js`, aucun absent de l’union des groupes. Les usages publics conditionnels de `dashboard` et `portal.orders.index` reçoivent la carte admin ou portail selon la session ; `offers.*` reste interne.
+- Mesure statique locale, même sérialisation Ziggy :
+
+| Carte | Routes | JSON (octets) | Écart vs complète |
+|---|---:|---:|---:|
+| Complète | 711 | 83 324 | référence |
+| Public | 81 | 8 241 | -90,1 % |
+| Portail (`public` + `portal`) | 134 | 14 793 | -82,2 % |
+| Admin | 590 | 69 248 | -16,9 % |
+
+- Vérification PHP ciblée : `php artisan test tests/Feature/ZiggyRouteGroupsTest.php` — **6 tests réussis, 39 assertions** ; couvre les rendus HTML public/portail/admin et les réponses `Inertia::location` aux frontières logout, démo et suppression de compte.
+- Vérification Node ciblée : `node --test tests/Node/P1001PrelineInitializerTest.mjs` — **4/4 réussis**.
+- Vérification navigateur et build : `npm run qa:e2e` — build Vite réussi puis **11/11 scénarios Playwright réussis**, incluant boutique publique, public → onboarding et login → dashboard.
+- Gate PHP : `composer qa:format` exécuté après indexation complète des 8 fichiers PHP modifiés — **réussi**. `git diff --cached --check` puis `git diff --check` réussis.
+- Environnement : validations locales uniquement ; aucune écriture, charge ni action staging/production.
+- Rollback : revert isolé du commit technique ci-dessus ; aucune migration ni donnée métier persistante.
+- Validation restante : acceptation humaine de P1-002 avant l’ouverture de P1-003.
+- Verdict : **validation technique locale réussie ; P1-002 reste en validation jusqu’à l’acceptation humaine.**
+
 ## Gate d’entrée Phase 0 — Archive historique non rétroactive
 
 Ce gabarit initial n’a pas été signé à l’ouverture. Il est conservé comme dette de gouvernance et ne doit pas être rempli rétroactivement sans preuve datée.
@@ -484,7 +519,8 @@ Ce tableau détaille la sortie de la Phase 0. La suite du programme, jusqu’à 
 | 7 | P0-005 — Déploiement des quatre processus et canaris | Dérogation acceptée jusqu’au 2027-08-04 | Procédure et harnais prêts ; aucune installation persistante, sortie canari opérationnelle, fenêtre ni preuve de rollback | Fournir staging, déployer, exécuter quatre canaris, santé/métier/redémarrage et rollback |
 | 8 | P0-006 — Campagne représentative des sept scénarios | Dérogation acceptée jusqu’au 2027-08-04 | Aucun résultat v3 importé ni rapport strict représentatif ; MLK-DEC-009 reste proposée | Fournir staging, nommer un validateur distinct, approuver le trafic, collecter, importer et archiver le rapport |
 | 9 | P0-007 — Revue et signatures de sortie | Terminé — GO sous dérogation | VALID-P0-007-GO-CONDITIONNEL-2026-08-04 ; décision unique de Produit/Technique/Exploitation | Réévaluer la dérogation à l’échéance ou après livraison des preuves |
-| 10 | P1-001 — Initialisation Preline unique et ciblée | En validation locale | `VALID-P1-001-LOCAL-2026-08-04` ; commit `71c1252`, Node 4/4 et Playwright 8/8 verts | Obtenir la validation humaine avant P1-002 |
+| 10 | P1-001 — Initialisation Preline unique et ciblée | Terminé | `VALID-P1-001-LOCAL-2026-08-04` et `VALID-P1-001-ACCEPTATION-HUMAINE-2026-08-04` ; commit `71c1252`, Node 4/4 et Playwright 8/8 verts | Aucun ; P1-002 est ouvert |
+| 11 | P1-002 — Groupes de routes Ziggy | En validation locale | `VALID-P1-002-LOCAL-2026-08-04` ; commit `4778948`, Feature 6/39, Node 4/4 et Playwright 11/11 verts | Obtenir l’acceptation humaine avant P1-003 |
 
 ## Gate de sortie Phase 0 — Matrice factuelle au 2026-08-04
 
