@@ -29,7 +29,7 @@ Une validation locale ne vaut pas validation distante. Une fusion ne vaut pas d�
 
 | Phase | Objectif | Récapitulatif acquis | État actuel | Prochaine action | Gate de sortie |
 |---:|---|---|---|---|---|
-| 0 — Sécurité et baseline | Retirer les risques immédiats et produire une base de mesure fiable | P0-001 à P0-004 terminés ; harnais P0-005 et runner/import P0-006 v3 validés localement et par la CI de la PR #135 | En cours | Intégrer la PR #135 dans `develop`, valider P0-005 en exploitation, exécuter P0-006 puis signer P0-007 | Secrets remplacés, audits traités, queues vérifiées en exploitation, baseline représentative acceptée et décision P0-007 signée |
+| 0 — Sécurité et baseline | Retirer les risques immédiats et produire une base de mesure fiable | P0-001 à P0-004 terminés ; harnais P0-005 et runner/import P0-006 v3 intégrés dans `develop` par `e91adf8`, validés localement et par la CI de la PR #135 | En cours | Valider P0-005 en exploitation, exécuter P0-006 puis signer P0-007 | Secrets remplacés, audits traités, queues vérifiées en exploitation, baseline représentative acceptée et décision P0-007 signée |
 | 1 — Gains rapides de performance | Supprimer les coûts frontend globaux sans changer les workflows | Plan détaillé, baseline statique et cinq tickets définis ; aucune implémentation P1 validée | En attente | Avant P0-007, accepter la baseline, prioriser trois candidats P1 et nommer les responsables ; après le GO, démarrer P1-001 avec cette baseline | Gains mesurés, contrats frontend inchangés, Playwright vert et budgets frontend actifs en CI |
 | 2 — Performance données et runtime | Stabiliser p95, mémoire, SQL, cache et queues lorsque les volumes augmentent | Sept tickets, principes de mode ombre et critères de comparaison définis ; aucun ticket P2 démarré | En attente | Après la Phase 1, sélectionner trois priorités initiales et faire accepter `MLK-DEC-005` avant toute migration Redis | Résultats ancien/nouveau identiques, requêtes et mémoire bornées, Redis contrôlé et canari multi-entreprise réussi |
 | 3 — Expérience utilisateur premium | Réduire la complexité perçue et accélérer les tâches par rôle | Six tickets, rollout par rôle et critères utilisateur définis ; aucune validation P3 | En attente | Après les Phases 1 et 2, définir la baseline des cinq tâches, les pilotes et le protocole de validation | Cinq parcours améliorés, desktop/mobile/accessibilité/langues validés, pilotes favorables et rollback testé |
@@ -39,7 +39,7 @@ Une validation locale ne vaut pas validation distante. Une fusion ne vaut pas d�
 
 Le programme ne se termine pas à la Phase 1. Les Phases 1 à 4 sont planifiées ci-dessous, mais elles ne peuvent pas encore commencer parce que la gate de sortie de la Phase 0 n’est pas satisfaite :
 
-1. le lot technique `6af521e`, inclus dans le SHA de PR `02dc5c3`, passe les gates locales et les trois jobs distants de la PR #135 ; la PR reste à intégrer dans `develop` ;
+1. le lot technique `6af521e`, inclus dans le SHA de PR `02dc5c3`, est désormais intégré dans `develop` par `e91adf8` après les gates locales et les trois jobs distants de la PR #135 ;
 2. P0-005 attend le staging, le déploiement des quatre processus persistants, quatre sorties canari opérationnelles, les contrôles métier/santé, le redémarrage et un rollback exécuté ;
 3. P0-006 attend l’acceptation ou le remplacement de `MLK-DEC-009`, puis une campagne représentative couvrant chacun des sept scénarios par exécution conforme ou blocage formel ;
 4. P0-007 est bloqué : produit, technique et exploitation n’ont signé ni GO ni NO-GO.
@@ -49,10 +49,9 @@ Le cockpit applique prudemment le séquencement proposé dans `MLK-DEC-002` — 
 ## Chaîne de progression
 
 ```text
-Intégration de la PR #135 dans develop ────┐
-                                           ├→ campagne représentative P0-006
-Validation exploitation et canaris P0-005 ┘   → décision signée P0-007
-                                               → Phase 1 → Phase 2 → Phase 3 → Phase 4
+Validation exploitation et canaris P0-005 → campagne représentative P0-006
+                                            → décision signée P0-007
+                                            → Phase 1 → Phase 2 → Phase 3 → Phase 4
 ```
 
 ## Correspondance avec la roadmap historique
@@ -89,8 +88,8 @@ Document détaillé : [PHASE_0_SECURITY_AND_BASELINE.md](PHASE_0_SECURITY_AND_BA
 | 2 | P0-002 — Baseline initiale | Geler versions, tests, audits, build, queues et mesures de départ | Terminé | Baseline enregistrée ; replays Node 20 et MySQL confirmés |
 | 3 | P0-003 — Dépendances PHP | Retirer les avis applicables et contraindre explicitement les dépendances sensibles | Terminé | PR #131 fusionnée ; Laravel 12.64, audit Composer sans avis et gates vertes |
 | 4 | P0-004 — Dépendances JavaScript | Corriger les avis npm sans mise à niveau globale incontrôlée | Terminé | PR #132 ; audits, build et Playwright verts sous Node 20 |
-| 5 | P0-005 — Queues et workers | Déclarer les workloads, vérifier les consommateurs, retries, timeouts et visibilité | En validation | Harnais `queue:workload-canary` de `6af521e` validé localement et dans la PR #135. Restent le staging, quatre processus, les preuves opérationnelles et le rollback |
-| 6 | P0-006 — Observabilité et baseline | Traiter sept scénarios par exécution conforme ou blocage formel, puis produire les mesures représentatives acceptables | En validation | Runner Node 20, contrat de fixture v3 `strategy/requests`, résultat/import v3 et garde-fous. Restent la validation du lot courant, décision `MLK-DEC-009`, environnement et campagne représentative |
+| 5 | P0-005 — Queues et workers | Déclarer les workloads, vérifier les consommateurs, retries, timeouts et visibilité | En validation | Harnais `queue:workload-canary` de `6af521e` intégré dans `develop` par `e91adf8`, validé localement et dans la PR #135. Restent le staging, quatre processus, les preuves opérationnelles et le rollback |
+| 6 | P0-006 — Observabilité et baseline | Traiter sept scénarios par exécution conforme ou blocage formel, puis produire les mesures représentatives acceptables | En validation | Runner Node 20, contrat de fixture v3 `strategy/requests`, résultat/import v3 et garde-fous intégrés dans `develop`. Restent la décision `MLK-DEC-009`, l’environnement et la campagne représentative |
 | 7 | P0-007 — Revue GO / NO-GO | Examiner les preuves, préparer la recommandation et obtenir la décision signée | Bloqué | Matrice factuelle ci-dessous actualisée ; recommandation NO-GO non signée tant que P0-005/P0-006 et les signatures restent absents |
 
 La Phase 0 ne sera terminée qu’après une gate P0-007 entièrement déterminée et signée. Un GO ouvre la Phase 1 ; un NO-GO signé maintient la Phase 0 active avec des actions correctives.
@@ -104,7 +103,7 @@ La Phase 0 ne sera terminée qu’après une gate P0-007 entièrement détermin�
 | Exploitation P0-005 | Bloqué | Procédure, audit, canari et rollback documentés | Staging, propriétaire, quatre processus, quatre canaris opérationnels, santé/métier/redémarrage/rollback |
 | Harnais P0-006 | Conforme localement et en CI | Runner Node 20 : 12/12 ; import v3 ; workflow `30911394066` vert | Aucun manque technique ; campagne séparée ci-dessous |
 | Campagne P0-006 | Bloqué | Contrat et guide reproductibles | Décision `MLK-DEC-009`, staging isolé, fenêtre, propriétaire/validateur, sept résultats/imports et rapport strict |
-| Qualité globale | Conforme localement et en CI | Local : PHPStan 852/852, Pest 1 284/13 180, MySQL 137/1 093, Node 12/12, Vite et Playwright 7/7 ; CI PR #135 : trois jobs verts | Aucun manque technique |
+| Qualité globale | Conforme localement et en CI | Dernier lot `e91adf8` : PHPStan sans erreur, Pest 1 286/13 194, Node 16/16, Vite, format et diff verts ; CI PR #135 : trois jobs verts | Aucun manque technique |
 | Gouvernance P0-007 | Bloqué | Recommandation factuelle : **NO-GO** | Signatures produit, technique et exploitation ; aucune signature n’est simulée par ce document |
 
 Verdict actuel : **Phase 0 non terminée et Phase 1 fermée**. Ce NO-GO est une recommandation documentaire, pas une décision humaine signée.
@@ -187,7 +186,7 @@ Gate de sortie : segment et proposition validés, chaîne opérations-finance au
 
 | Priorité | Action | État actuel | Résultat attendu |
 |---|---|---|---|
-| 1 | Finaliser puis intégrer la PR #135 vers `develop` | Branche poussée ; trois jobs CI verts ; PR encore en brouillon | Lot disponible dans `develop` pour déploiement |
+| 1 | Intégrer le lot P0-005/P0-006 dans `develop` | Terminé — commit `e91adf8` poussé sur `develop` | Lot disponible dans `develop` pour déploiement |
 | 2 | Fermer P0-005 côté exploitation | Responsable, environnement et fenêtre à nommer | Quatre processus actifs, quatre canaris opérationnels, santé/métier, redémarrage et rollback testés |
 | 3 | Faire statuer `MLK-DEC-009`, parallèlement à P0-005 | Proposition non acceptée | Environnement et protocole de collecte P0-006 autorisés ou remplacés explicitement |
 | 4 | Traiter les sept scénarios P0-006 | Bloqué par P0-005 et la gouvernance de campagne | Résultats v3 importés, empreintes approuvées, télémétrie et rapport strict représentatif |

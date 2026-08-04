@@ -1,8 +1,8 @@
 # Cockpit d’exécution contrôlée — amélioration MLK Pro
 
 - Dernière mise à jour : 2026-08-04
-- Statut global : **Phase 0 en cours — P0-001 à P0-004 terminés ; harnais P0-005/P0-006 techniquement terminés avec validations locales et CI PR #135 vertes ; staging, campagne représentative et signatures requis**
-- Phase active autorisée : **Phase 0 uniquement : intégration PR #135, exploitation P0-005, campagne P0-006 puis décision signée P0-007**
+- Statut global : **Phase 0 en cours — P0-001 à P0-004 terminés ; harnais P0-005/P0-006 techniquement terminés, intégrés dans `develop` par `e91adf8`, avec validations locales et CI PR #135 vertes ; staging, campagne représentative et signatures requis**
+- Phase active autorisée : **Phase 0 uniquement : exploitation P0-005, campagne P0-006 puis décision signée P0-007**
 - Politique Git : **travail et pull requests uniquement depuis/vers `develop` ; `main` est réservée au propriétaire humain du dépôt**
 - Responsable d’exécution locale : Codex
 - Responsable exploitation : à nommer
@@ -160,10 +160,9 @@ Le rollback opérationnel consiste à positionner `OBSERVABILITY_ENABLED=false`,
 
 Ordre du jour proposé :
 
-1. intégrer la PR #135 dans `develop` ;
-2. nommer le propriétaire exploitation et le validateur distinct ;
-3. choisir le staging isolé et la fenêtre de déploiement P0-005 ;
-4. exécuter les quatre canaris de profils, les canaris métier, le redémarrage et le rollback ;
-5. accepter, rejeter ou remplacer `MLK-DEC-009`, puis approuver le trafic et l’expurgation P0-006 ;
-6. exécuter et importer les sept scénarios, puis archiver le rapport strict ;
-7. signer P0-007 comme GO ou NO-GO avant toute ouverture de la Phase 1.
+1. nommer le propriétaire exploitation et le validateur distinct ;
+2. choisir le staging isolé et la fenêtre de déploiement P0-005 ;
+3. exécuter les quatre canaris de profils, les canaris métier, le redémarrage et le rollback ;
+4. accepter, rejeter ou remplacer `MLK-DEC-009`, puis approuver le trafic et l’expurgation P0-006 ;
+5. exécuter et importer les sept scénarios, puis archiver le rapport strict ;
+6. signer P0-007 comme GO ou NO-GO avant toute ouverture de la Phase 1.
