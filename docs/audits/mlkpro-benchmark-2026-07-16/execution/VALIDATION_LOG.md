@@ -493,6 +493,25 @@ La vue consolidée des travaux terminés, en cours et planifiés pour les Phases
 - Portée : cette acceptation ne transforme pas les mesures statiques en baseline dynamique représentative, ne modifie pas la dérogation `MLK-DEC-010` et n’autorise ni staging, ni production, ni test de charge.
 - Verdict : **P1-002 terminé ; P1-003 ouvert.**
 
+## VALID-P1-003-LOCAL-2026-08-04 — Traductions chargées par domaine
+
+- Ticket : `MLK-IMP-P1-003`.
+- Date : 2026-08-04.
+- Commit technique : `a27fdea4e1b54fdf41060bcb4880faa0672c2c2f` sur `develop`.
+- Portée : modules i18n asynchrones par domaine, sélection par page Inertia, fallback anglais conservé, préchargement avant résolution de page et avant changement de langue, avec repli sûr sur le catalogue complet pour toute page inconnue.
+- Mesure locale statique du **payload i18n additionnel** (entrée applicative déjà chargée exclue) :
+  - Dashboard FR + fallback EN : catalogues complets historiques 142 actifs / 769 852 o bruts / 269 430 o gzip ; domaines 40 actifs / 227 318 o bruts / 79 734 o gzip ; réduction **-70,5 % brute / -70,4 % gzip**.
+  - Boutique publique ES + fallback EN : catalogues complets historiques 142 actifs / 722 981 o bruts / 255 431 o gzip ; domaines 32 actifs / 66 427 o bruts / 28 965 o gzip ; réduction **-90,8 % brute / -88,7 % gzip**.
+  - Protocole : `scripts/measure-i18n-domain-loading.mjs --mode domain` mesure les actifs domaine ; `--mode legacy-full-catalog` mesure le repli historique. Le mode est explicite car Vite conserve les chunks de domaine dans le manifeste même quand le repli est compilé.
+- Vérification Node : `node --test tests/Node/P1003I18nDomainLoaderTest.mjs` — **4/4 réussis**.
+- Build : `vite build` réussi avec le mode domaines par défaut et avec `VITE_I18N_DOMAIN_LOADING=false` pour le rollback.
+- Vérification navigateur sur les actifs construits : **2/2 scénarios Playwright réussis** en mode domaines, puis **2/2 réussis** avec le rollback compilé ; parcours couvert : accueil public FR → ES → EN sans clé brute et dashboard authentifié avec préchargement de la langue cible.
+- Gate PHP : non applicable ; ce lot ne modifie aucun fichier PHP. `git diff --cached --check` et `git diff --check` réussis.
+- Environnement : validations locales uniquement ; aucune écriture, charge ni action staging/production.
+- Rollback : positionner `VITE_I18N_DOMAIN_LOADING=false` dans l’environnement de build, reconstruire puis déployer les actifs Vite ; les catalogues complets historiques sont alors utilisés. En alternative, revert isolé du commit technique ; aucune migration ni donnée métier persistante.
+- Validation restante : acceptation humaine explicite de P1-003 avant l’ouverture du ticket suivant.
+- Verdict : **validation technique locale réussie ; P1-003 reste en validation locale jusqu’à l’acceptation humaine.**
+
 ## Gate d’entrée Phase 0 — Archive historique non rétroactive
 
 Ce gabarit initial n’a pas été signé à l’ouverture. Il est conservé comme dette de gouvernance et ne doit pas être rempli rétroactivement sans preuve datée.
@@ -531,7 +550,7 @@ Ce tableau détaille la sortie de la Phase 0. La suite du programme, jusqu’à 
 | 9 | P0-007 — Revue et signatures de sortie | Terminé — GO sous dérogation | VALID-P0-007-GO-CONDITIONNEL-2026-08-04 ; décision unique de Produit/Technique/Exploitation | Réévaluer la dérogation à l’échéance ou après livraison des preuves |
 | 10 | P1-001 — Initialisation Preline unique et ciblée | Terminé | `VALID-P1-001-LOCAL-2026-08-04` et `VALID-P1-001-ACCEPTATION-HUMAINE-2026-08-04` ; commit `71c1252`, Node 4/4 et Playwright 8/8 verts | Aucun ; P1-002 est ouvert |
 | 11 | P1-002 — Groupes de routes Ziggy | Terminé | `VALID-P1-002-LOCAL-2026-08-04` et `VALID-P1-002-ACCEPTATION-HUMAINE-2026-08-04` ; commit `4778948`, Feature 6/39, Node 4/4 et Playwright 11/11 verts | Aucun ; P1-003 est ouvert |
-| 12 | P1-003 — Traductions chargées par domaine | En cours | GO P1-003 autorisé le 2026-08-04 ; validation technique locale à produire | Mesurer le JavaScript initial, vérifier FR/EN/ES et documenter le rollback |
+| 12 | P1-003 — Traductions chargées par domaine | En validation locale | `VALID-P1-003-LOCAL-2026-08-04` ; commit `a27fdea4`, Node 4/4, Vite et Playwright 2/2 dans les deux modes | Obtenir l’acceptation humaine de P1-003 avant le ticket suivant |
 
 ## Gate de sortie Phase 0 — Matrice factuelle au 2026-08-04
 

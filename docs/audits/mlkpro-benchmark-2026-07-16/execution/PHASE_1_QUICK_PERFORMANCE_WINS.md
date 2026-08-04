@@ -1,7 +1,7 @@
 # Phase 1 — Gains rapides de performance
 
 - Dernière mise à jour : 2026-08-04
-- Statut : **ouverte — P1-001 et P1-002 terminés ; P1-003 en cours**
+- Statut : **ouverte — P1-001 et P1-002 terminés ; P1-003 en validation locale**
 - Responsable : Jules Roger Sombangnen
 - Validateurs : à nommer (distinct du responsable)
 - Dépendance : GO P0-007 sous dérogation MLK-DEC-010
@@ -54,12 +54,23 @@ Navigation Inertia, menus, dropdowns, modales, onglets, tableaux, traductions, r
 
 ### MLK-IMP-P1-003 — Traductions chargées par domaine
 
-- Statut : **en cours**
+- Statut : **en validation locale**
 - But : réduire les locales initiales sans changer les clés.
-- Fichiers probables : `resources/js/i18n/catalog.js`, fichiers de locales et imports de pages.
-- Critères : fallback anglais intact ; aucune clé manquante sur les parcours pilotes ; baisse mesurée du JavaScript initial.
+- Changement livré : les 70 modules de traduction sont déclarés par domaine et chargés à la demande selon la page Inertia. Le shell de chaque surface et les domaines métier de la page sont chargés pour la langue active et le fallback anglais ; une page inconnue reçoit volontairement le catalogue complet afin de ne jamais afficher une clé brute.
+- Navigation et langues : les domaines de la destination sont préchargés avant la résolution Inertia ; le changement de langue précharge la langue cible avant le POST `/locale`. Les anciens consommateurs de catalogue complet restent compatibles.
+- Mesure statique locale du **payload i18n additionnel au démarrage** (le bundle applicatif déjà chargé est exclu) :
+
+  | Parcours | Catalogues complets historiques | Domaines chargés | Réduction |
+  |---|---:|---:|---:|
+  | Dashboard FR + fallback EN | 142 actifs, 769 852 o bruts / 269 430 o gzip | 40 actifs, 227 318 o bruts / 79 734 o gzip | -70,5 % brut / -70,4 % gzip |
+  | Boutique publique ES + fallback EN | 142 actifs, 722 981 o bruts / 255 431 o gzip | 32 actifs, 66 427 o bruts / 28 965 o gzip | -90,8 % brut / -88,7 % gzip |
+
+  Ces mesures sont locales et statiques ; elles ne remplacent pas la baseline dynamique P0-006 reportée sous `MLK-DEC-010`.
+- Critères vérifiés localement : fallback anglais, absence de clé brute pendant les bascules FR/ES/EN, cache par langue/domaine, parcours public et authentifié, build Vite des deux configurations et rollback fonctionnel.
 - Autorisation : GO explicitement donné après l’acceptation de P1-002 ; validations locales uniquement, sans staging, production ni test de charge.
-- Rollback : chargeur complet derrière configuration.
+- Preuve technique : `VALID-P1-003-LOCAL-2026-08-04`, commit `a27fdea4e1b54fdf41060bcb4880faa0672c2c2f`.
+- Validation restante : acceptation humaine de P1-003 avant l’ouverture du ticket suivant.
+- Rollback : définir `VITE_I18N_DOMAIN_LOADING=false` dans l’environnement **de build**, reconstruire puis déployer les actifs Vite ; le chargeur complet historique est alors utilisé. La variable `VITE_*` étant compilée, modifier l’environnement après le build ne suffit pas. Un revert isolé du commit technique reste disponible ; aucune migration ni donnée métier persistante n’est concernée.
 
 ### MLK-IMP-P1-004 — Images et polices du chemin critique
 
