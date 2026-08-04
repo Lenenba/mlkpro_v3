@@ -114,7 +114,7 @@ Une proposition n’autorise aucun changement tant qu’elle n’est pas accept�
 - Protection des données : ne versionner que des agrégats expurgés. Les sorties brutes, chemins, paramètres, messages d’exception, SQL, bindings, identifiants, secrets et données client restent dans un stockage contrôlé ou sont supprimés.
 - Garde-fous : ne pas mélanger les environnements, commits ou méthodes ; vérifier explicitement l’environnement staging et l’isolation du tenant pour toute écriture ; satisfaire `targets.min_samples`, `profile.minimum_completed_requests` et la couverture temporelle des queues, ou documenter le blocage avec propriétaire et échéance ; ne pas choisir les candidats Phase 1 avant une baseline recevable.
 - Rollback : remettre `OBSERVABILITY_ENABLED=false`, recharger la configuration, redémarrer les processus PHP persistants et vérifier l’arrêt des snapshots planifiés si la collecte dégrade latence, mémoire ou stockage.
-- Validation manquante : CI distante du SHA courant, environnement, fenêtre, propriétaire exploitation, validateur distinct, canaris P0-005 et échantillons représentatifs. Le contrat v3 est techniquement validé localement dans `6af521e`, mais aucune mesure représentative n’est réputée verte ; la proposition reste non acceptée et ne clôt ni P0-005 ni P0-006.
+- Validation manquante : environnement, fenêtre, propriétaire exploitation, validateur distinct, canaris P0-005 et échantillons représentatifs. Le contrat v3 est techniquement validé localement et par la CI PR #135, mais aucune mesure représentative n’est réputée verte ; la proposition reste non acceptée et ne clôt ni P0-005 ni P0-006.
 
 ## Gabarit d’une nouvelle décision
 

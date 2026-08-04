@@ -389,6 +389,32 @@ La vue consolidée des travaux terminés, en cours et planifiés pour les Phases
 - Limite opérationnelle : aucune installation staging des quatre processus, aucun canari P0-005 éligible, aucune campagne P0-006, aucun import représentatif et aucun rollback réel ne sont consignés.
 - Verdict : **implémentation technique locale P0-005/P0-006 terminée et gates locales vertes ; tickets canoniques toujours en validation faute de CI distante et de preuves d’exploitation**.
 
+## VALID-P0-005-P0-006-CI-2026-08-04 — Validation distante de la PR #135
+
+- Tickets : `MLK-IMP-P0-005`, `MLK-IMP-P0-006` et gates qualité transversales.
+- Date : 2026-08-04.
+- Pull request : [#135 — Harden Phase 0 queue and capacity validation](https://github.com/Lenenba/mlkpro_v3/pull/135), cible `develop`, branche `agent/fix-p0-006-php-format`.
+- SHA contrôlé : `02dc5c355dc9a08ce5afa8f4c09bb2ce66de49de`, qui contient le commit technique `6af521ee90fecb6927545a3985dcbc59b1a3bac6`.
+- Workflow GitHub Actions : `quality`, exécution `30911394066`.
+- `laravel-quality` : **réussi**, durée 4 min 01 s.
+- `laravel-quality-mysql` : **réussi**, durée 1 min 49 s.
+- `browser-smoke` : **réussi**, durée 1 min 56 s.
+- État GitHub : PR fusionnable sur le plan Git ; créée en brouillon selon la procédure de publication contrôlée.
+- Limite : cette CI valide le code et les tests du lot, pas le déploiement des quatre processus, les canaris staging, la campagne représentative ou le rollback.
+- Verdict : **validation technique locale et distante complète ; P0-005/P0-006 restent ouverts uniquement sur leurs preuves d’exploitation et de campagne**.
+
+## AUDIT-P0-STAGING-ACCESS-2026-08-04 — Inventaire des moyens d’exploitation disponibles
+
+- Date : 2026-08-04.
+- GitHub : seul le workflow actif `quality` est déclaré ; aucun workflow de déploiement n’est disponible.
+- Environnements GitHub : liste vide.
+- Variables et secrets GitHub Actions au niveau dépôt : listes vides. Seuls les noms ont été interrogés ; aucune valeur sensible n’a été lue ni exposée.
+- Checkout local : `APP_ENV=local`. Les variables `OBSERVABILITY_*`, `CAPACITY_BASELINE_*` et `ASYNC_QUEUE_CANARY_*` nécessaires au staging sont absentes.
+- Dépôt : aucun script ou manifeste exploitable Forge, Supervisor, systemd, Horizon ou Docker n’a été trouvé pour installer et contrôler les quatre processus persistants.
+- Conséquence : aucun endpoint staging, fournisseur, gestionnaire de processus, tenant isolé, fenêtre ou identité de release n’est accessible depuis le périmètre actuel. Exécuter localement avec une étiquette `staging` fabriquerait une preuve non représentative et est donc interdit.
+- Déblocage requis : fournir l’environnement staging et son mode d’accès/déploiement, nommer le propriétaire exploitation et le validateur distinct, puis approuver la fenêtre et `MLK-DEC-009`.
+- Verdict : **blocage externe confirmé et documenté ; aucune action locale supplémentaire ne peut produire les preuves opérationnelles exigées**.
+
 ## Gate d’entrée Phase 0 — Archive historique non rétroactive
 
 Ce gabarit initial n’a pas été signé à l’ouverture. Il est conservé comme dette de gouvernance et ne doit pas être rempli rétroactivement sans preuve datée.
@@ -420,8 +446,8 @@ Ce tableau détaille la sortie de la Phase 0. La suite du programme, jusqu’à 
 | 2 | P0-002 — Baseline gelée | Terminé | `BASELINE-P0-2026-07-17` ; replays Node 20 et MySQL dans `VALID-P0-003-CLOSEOUT-2026-07-27` | Aucune |
 | 3 | P0-003 — Dépendances PHP sécurisées | Terminé | PR #131, merge `28fc253f`, audit sans avis et gates vertes | Maintenir la surveillance des avis Composer |
 | 4 | P0-004 — Dépendances JavaScript sécurisées | Terminé | PR #132, commit `ccaf150`, audits et gates locales/CI verts | Maintenir la surveillance des avis npm |
-| 5 | P0-005 — Technique queues/workers | En validation | PR #133/CI historique vertes ; harnais `6af521e`, 33 tests/457 assertions ; gates globales dans `VALID-P0-005-P0-006-LOCAL-2026-08-04` | Pousser le SHA courant et obtenir sa CI, puis passer à l’exploitation |
-| 6 | P0-006 — Technique observabilité/runner | En validation | Instrumentation fusionnée dans `c35f4d67` ; runner/import v3 dans `6af521e`, Node 12/12 et gates locales globales vertes | Pousser la branche, ouvrir une PR vers `develop` et obtenir une CI complète verte |
+| 5 | P0-005 — Technique queues/workers | En validation | Harnais `6af521e`, 33 tests/457 assertions ; PR #135 et ses trois jobs verts dans `VALID-P0-005-P0-006-CI-2026-08-04` | Intégrer la PR puis passer à la validation d’exploitation |
+| 6 | P0-006 — Technique observabilité/runner | En validation | Runner/import v3, Node 12/12, validations locales et trois jobs CI PR #135 verts | Intégrer la PR puis passer à la campagne représentative après P0-005 |
 | 7 | P0-005 — Déploiement des quatre processus et canaris | Bloqué | Procédure et harnais prêts ; aucune installation persistante, sortie canari opérationnelle, fenêtre ni preuve de rollback | Nommer le responsable, choisir le staging/la fenêtre, déployer, exécuter quatre canaris, santé/métier/redémarrage et rollback |
 | 8 | P0-006 — Campagne représentative des sept scénarios | Bloqué | Aucun résultat v3 importé ni rapport strict représentatif ; dépend de P0-005 et de `MLK-DEC-009` | Faire statuer la décision, nommer propriétaire/validateur, approuver le trafic, collecter, importer et archiver le rapport |
 | 9 | P0-007 — Revue et signatures de sortie | Bloqué | Matrice factuelle actualisée le 2026-08-04 ; recommandation NO-GO non signée | Lever ou accepter formellement les blocages, puis obtenir les signatures produit, technique et exploitation |
@@ -445,7 +471,7 @@ Ce tableau détaille la sortie de la Phase 0. La suite du programme, jusqu’à 
 | Runner Node | Réussi localement | 12/12 |
 | Build Vite | Réussi localement | 2 605 modules |
 | Playwright | Réussi au rejeu | 7/7 après un échec intermittent consigné |
-| CI distante du SHA courant | Bloqué | Branche non poussée |
+| CI distante du lot | Réussi | PR #135, SHA `02dc5c3`, workflow `30911394066`, trois jobs verts |
 | Baseline capacité complète | Bloqué | Staging, sept résultats v3/imports et rapport strict absents |
 | Rollout et rollback | Bloqué | Aucune preuve d’exploitation P0-005/P0-006 |
 | Signatures | Bloqué | Produit, technique et exploitation non signés |

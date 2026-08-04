@@ -1,8 +1,8 @@
 # Cockpit d’exécution contrôlée — amélioration MLK Pro
 
 - Dernière mise à jour : 2026-08-04
-- Statut global : **Phase 0 en cours — P0-001 à P0-004 terminés ; harnais P0-005/P0-006 techniquement terminés et validés localement ; CI distante, staging, campagne représentative et signatures requis**
-- Phase active autorisée : **Phase 0 uniquement : livraison du lot `6af521e`, exploitation P0-005, campagne P0-006 puis décision signée P0-007**
+- Statut global : **Phase 0 en cours — P0-001 à P0-004 terminés ; harnais P0-005/P0-006 techniquement terminés avec validations locales et CI PR #135 vertes ; staging, campagne représentative et signatures requis**
+- Phase active autorisée : **Phase 0 uniquement : intégration PR #135, exploitation P0-005, campagne P0-006 puis décision signée P0-007**
 - Politique Git : **travail et pull requests uniquement depuis/vers `develop` ; `main` est réservée au propriétaire humain du dépôt**
 - Responsable d’exécution locale : Codex
 - Responsable exploitation : à nommer
@@ -27,7 +27,7 @@ Les optimisations visuelles et les changements d’architecture attendent la fer
 
 | Phase | Document | Statut | Dépendance | Gate de sortie |
 |---|---|---|---|---|
-| 0 | [Sécurité et baseline](PHASE_0_SECURITY_AND_BASELINE.md) | En cours — technique locale P0-005/P0-006 verte ; CI distante, exploitation, campagne et signatures ouvertes | Aucune | Secrets remplacés, audits traités, queues alignées en exploitation, baseline exploitable et décision P0-007 signée |
+| 0 | [Sécurité et baseline](PHASE_0_SECURITY_AND_BASELINE.md) | En cours — technique locale et CI P0-005/P0-006 vertes ; exploitation, campagne et signatures ouvertes | Aucune | Secrets remplacés, audits traités, queues alignées en exploitation, baseline exploitable et décision P0-007 signée |
 | 1 | [Gains rapides de performance](PHASE_1_QUICK_PERFORMANCE_WINS.md) | En attente | Phase 0 terminée | Coûts globaux réduits sans régression de workflow |
 | 2 | [Performance données et runtime](PHASE_2_DATA_AND_RUNTIME_PERFORMANCE.md) | En attente | Phase 1 terminée | SQL, cache, props et infrastructure validés sous charge |
 | 3 | [Expérience utilisateur premium](PHASE_3_PREMIUM_USER_EXPERIENCE.md) | En attente | Phases 1 et 2 terminées | Parcours plus rapides et plus clairs, validés par rôle |
@@ -139,7 +139,7 @@ Le démarrage et l’arrêt encadrent les snapshots de queue propres au scénari
 
 Chaque scénario doit atteindre à la fois `targets.min_samples` et le plancher de charge `profile.minimum_completed_requests` défini dans `config/capacity.php`, ou être marqué bloqué avec raison, propriétaire et date de réévaluation. L’import refuse un résultat dont les requêtes tentées ou complétées restent sous cette enveloppe. Seuls des agrégats expurgés sont versionnés ; chemins, paramètres, messages d’exception, SQL, bindings, identifiants, secrets, données client et fichiers bruts du harness restent hors du dépôt.
 
-Le rollback opérationnel consiste à positionner `OBSERVABILITY_ENABLED=false`, recharger la configuration puis redémarrer les processus persistants concernés. Le runner et l’import sont **techniquement validés localement**, mais aucune CI distante du SHA courant ni campagne représentative n’est consignée et les canaris d’exploitation P0-005 restent ouverts : **P0-006 ne peut pas être déclaré terminé**.
+Le rollback opérationnel consiste à positionner `OBSERVABILITY_ENABLED=false`, recharger la configuration puis redémarrer les processus persistants concernés. Le runner et l’import sont **techniquement validés localement et en CI**, mais aucune campagne représentative n’est consignée et les canaris d’exploitation P0-005 restent ouverts : **P0-006 ne peut pas être déclaré terminé**.
 
 ## Artefacts de référence
 
@@ -160,7 +160,7 @@ Le rollback opérationnel consiste à positionner `OBSERVABILITY_ENABLED=false`,
 
 Ordre du jour proposé :
 
-1. autoriser ou refuser le push de la branche et la PR vers `develop` ;
+1. intégrer la PR #135 dans `develop` ;
 2. nommer le propriétaire exploitation et le validateur distinct ;
 3. choisir le staging isolé et la fenêtre de déploiement P0-005 ;
 4. exécuter les quatre canaris de profils, les canaris métier, le redémarrage et le rollback ;

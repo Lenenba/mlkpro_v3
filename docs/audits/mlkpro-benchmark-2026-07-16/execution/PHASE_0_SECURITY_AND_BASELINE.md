@@ -1,7 +1,7 @@
 # Phase 0 — Sécurité et baseline
 
 - Dernière mise à jour : 2026-08-04
-- Statut : **en cours — P0-001 à P0-004 terminés ; harnais P0-005 et P0-006 techniquement terminés et validés localement ; validation distante, staging, campagne représentative et signatures bloquants**
+- Statut : **en cours — P0-001 à P0-004 terminés ; harnais P0-005/P0-006 techniquement terminés avec validations locales et CI PR #135 vertes ; staging, campagne représentative et signatures bloquants**
 - Responsable d’exécution locale : Codex
 - Propriétaire exploitation : à nommer
 - Validateur produit : demandeur
@@ -185,7 +185,7 @@ Cette liste conserve volontairement la photographie initiale. L’état courant 
 
 ### MLK-IMP-P0-006 — Établir la baseline d’observabilité
 
-- Statut : **en validation — runner et import v3 techniquement terminés et validés localement dans `6af521e` ; validation distante, campagne représentative et canaris d’exploitation P0-005 bloquants**
+- Statut : **en validation — runner et import v3 techniquement terminés dans `6af521e`, validations locales et CI PR #135 vertes ; campagne représentative et canaris d’exploitation P0-005 bloquants**
 - Dépendances : P0-002 terminé ; canaris d’exploitation P0-005 vérifiés avant toute acceptation de baseline
 - But : obtenir assez d’échantillons pour décider Phase 1 et Phase 2 sur des faits.
 - Livrables : latence client p50/p95/p99/max, temps de traitement applicatif, erreurs, résultats métier, requêtes lentes, taille de réponse, nombre de requêtes SQL et santé des queues par scénario critique.
@@ -231,7 +231,7 @@ Cette liste conserve volontairement la photographie initiale. L’état courant 
 - Deux familles de temps : `client_latency_ms.p50/p95/p99/max`, calculée par le runner externe, représente le temps de bout en bout vu par le client et porte les seuils de capacité. `app_processing_ms`, collecté par Laravel, représente seulement le traitement applicatif et sert au diagnostic ; il ne remplace pas la latence client.
 - Protection des données : seules des métriques agrégées et expurgées sont versionnées. Les chemins bruts, paramètres, messages d’exception, SQL, bindings, identifiants et données client restent hors du dépôt ; un artefact brut éventuel demeure dans un stockage contrôlé avec accès limité.
 - Rollback : positionner `OBSERVABILITY_ENABLED=false`, recharger la configuration avec la procédure de l’environnement, redémarrer les processus PHP persistants et vérifier que le scheduler ne crée plus de snapshots. Conserver uniquement les résultats déjà collectés et expurgés ; les fichiers d’import contrôlés peuvent être archivés ou supprimés selon la politique d’exploitation.
-- Blocage actuel : la CI historique de la PR #134 a échoué sur cinq tests d’observabilité. Les défauts sont corrigés et les gates locales du lot `6af521e` sont vertes, mais ce SHA n’a encore ni push ni CI distante et aucune campagne représentative complète n’est consignée. Les canaris d’exploitation P0-005, l’environnement, la fenêtre, le propriétaire/validateur et les mesures représentatives restent bloquants. Aucun résultat de staging non exécuté n’est revendiqué comme vert.
+- Blocage actuel : la CI historique de la PR #134 avait échoué sur cinq tests d’observabilité. Les défauts sont corrigés ; les gates locales et les trois jobs de la PR #135 sont verts sur le SHA `02dc5c3`. Aucune campagne représentative complète n’est cependant consignée. Les canaris d’exploitation P0-005, l’environnement, la fenêtre, le propriétaire/validateur et les mesures représentatives restent bloquants.
 - Critères d’acceptation :
   - les sept scénarios exécutables atteignent `targets.min_samples` et `profile.minimum_completed_requests`, ou sont explicitement marqués bloqués avec propriétaire, justification et échéance ;
   - le préflight et le plan sont recevables sur le commit et l’environnement mesurés ;
@@ -314,7 +314,7 @@ php artisan queue:restart
 | Topologie et retries testés | Conforme localement | PR #133 et harnais P0-005 du commit `6af521e` |
 | Queues réellement consommées par quatre processus persistants | Bloqué exploitation | Staging, gestionnaire de processus et quatre sorties canari opérationnelles absents |
 | PHPStan, Pest, MySQL, Node, build et Playwright | Conforme localement | `VALID-P0-005-P0-006-LOCAL-2026-08-04` |
-| CI distante du SHA courant | Bloqué livraison | Branche locale non poussée ; aucune CI sur `6af521e` |
+| CI distante du lot | Conforme | PR #135, SHA `02dc5c3`, workflow `30911394066` : trois jobs verts |
 | Baseline des sept scénarios | Bloqué exploitation | Environnement, campagne, imports et rapport strict absents |
 | Rollout et rollback P0-005/P0-006 | Bloqué exploitation | Aucune exécution représentative consignée |
 | Décision P0-007 signée | Bloqué gouvernance | Signatures produit, technique et exploitation absentes ; recommandation actuelle NO-GO |
