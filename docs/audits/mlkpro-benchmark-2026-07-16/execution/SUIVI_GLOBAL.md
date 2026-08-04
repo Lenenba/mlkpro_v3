@@ -5,10 +5,10 @@ Dernière mise à jour : 2026-08-04
 Ce document est la vue maître pour suivre l’évolution complète du programme, de la Phase 0 à la Phase 4. Les documents de phase décrivent le détail technique ; le [journal des validations](VALIDATION_LOG.md) contient les preuves qui autorisent un changement d’état.
 
 - Plan canonique actuel : **cinq phases d’exécution, numérotées de 0 à 4**.
-- Phase active autorisée : **Phase 0 — Sécurité et baseline**.
-- État global : **Phase 0 en cours ; Phases 1 à 4 planifiées mais non ouvertes**.
-- Progression des tickets canoniques : **4 terminés sur 33**. Cet indicateur compte les tickets, pas leur charge ni un pourcentage d’achèvement produit.
-- Prochaine gate de sortie de phase : **P0-007 — décision GO / NO-GO signée pour ouvrir ou refuser la Phase 1**.
+- Phase active autorisée : **Phase 1 — Gains rapides de performance**.
+- État global : **Phase 0 clôturée sous dérogation MLK-DEC-010 ; Phase 1 ouverte ; Phases 2 à 4 planifiées mais non ouvertes**.
+- Progression des tickets canoniques : **4 terminés avec preuve complète ; P0-005/P0-006 restent des preuves opérationnelles reportées sous dérogation et P0-007 est clôturé par GO**. Cet indicateur ne mesure ni la charge ni un pourcentage d’achèvement produit.
+- Prochaine gate de sortie de phase : **P1-001 — première optimisation frontend avec mesures statiques, tests et rollback**.
 - Règle Git : les travaux et pull requests ciblent `develop` ; `main` reste réservé au propriétaire humain du dépôt.
 
 ## Comment lire les états
@@ -29,29 +29,28 @@ Une validation locale ne vaut pas validation distante. Une fusion ne vaut pas d�
 
 | Phase | Objectif | Récapitulatif acquis | État actuel | Prochaine action | Gate de sortie |
 |---:|---|---|---|---|---|
-| 0 — Sécurité et baseline | Retirer les risques immédiats et produire une base de mesure fiable | P0-001 à P0-004 terminés ; harnais P0-005 et runner/import P0-006 v3 intégrés dans `develop` par `e91adf8`, validés localement et par la CI de la PR #135 | En cours | Valider P0-005 en exploitation, exécuter P0-006 puis signer P0-007 | Secrets remplacés, audits traités, queues vérifiées en exploitation, baseline représentative acceptée et décision P0-007 signée |
-| 1 — Gains rapides de performance | Supprimer les coûts frontend globaux sans changer les workflows | Plan détaillé, baseline statique et cinq tickets définis ; aucune implémentation P1 validée | En attente | Avant P0-007, accepter la baseline, prioriser trois candidats P1 et nommer les responsables ; après le GO, démarrer P1-001 avec cette baseline | Gains mesurés, contrats frontend inchangés, Playwright vert et budgets frontend actifs en CI |
+| 0 — Sécurité et baseline | Retirer les risques immédiats et produire une base de mesure fiable | P0-001 à P0-004 terminés ; harnais P0-005 et runner/import P0-006 v3 intégrés dans develop par e91adf8, validés localement et par la CI de la PR #135 | Terminée sous dérogation | GO P0-007 accepté ; réaliser les preuves opérationnelles P0-005/P0-006 avant le 2027-08-04 | Dérogation MLK-DEC-010 tracée, risques acceptés et échéance ferme |
+| 1 — Gains rapides de performance | Supprimer les coûts frontend globaux sans changer les workflows | Plan détaillé, baseline statique et cinq tickets définis ; aucune implémentation P1 validée | Ouverte — aucun ticket démarré | Démarrer P1-001 avec la baseline statique, sans attribuer de gain à une baseline dynamique absente | Gains mesurés, contrats frontend inchangés, Playwright vert et budgets frontend actifs en CI |
 | 2 — Performance données et runtime | Stabiliser p95, mémoire, SQL, cache et queues lorsque les volumes augmentent | Sept tickets, principes de mode ombre et critères de comparaison définis ; aucun ticket P2 démarré | En attente | Après la Phase 1, sélectionner trois priorités initiales et faire accepter `MLK-DEC-005` avant toute migration Redis | Résultats ancien/nouveau identiques, requêtes et mémoire bornées, Redis contrôlé et canari multi-entreprise réussi |
 | 3 — Expérience utilisateur premium | Réduire la complexité perçue et accélérer les tâches par rôle | Six tickets, rollout par rôle et critères utilisateur définis ; aucune validation P3 | En attente | Après les Phases 1 et 2, définir la baseline des cinq tâches, les pilotes et le protocole de validation | Cinq parcours améliorés, desktop/mobile/accessibilité/langues validés, pilotes favorables et rollback testé |
 | 4 — Différenciation produit | Relier opérations et finance dans une chaîne traçable, réversible et difficile à copier | Huit tickets exploratoires et critères de pilote définis ; aucune validation P4 | En attente | Après la Phase 3, valider par recherche `MLK-DEC-007`, puis le segment et les cinq workflows P4-001 avant tout investissement majeur | Pilote concluant, chaîne opérations-finance auditée, intégrations et IA contrôlées, décision d’investissement consignée |
 
-## Pourquoi l’exécution s’arrête actuellement avant la Phase 1
+## Conditions de la clôture sous dérogation
 
-Le programme ne se termine pas à la Phase 1. Les Phases 1 à 4 sont planifiées ci-dessous, mais elles ne peuvent pas encore commencer parce que la gate de sortie de la Phase 0 n’est pas satisfaite :
+Le GO P0-007 a été explicitement accepté par Jules Roger Sombangnen, responsable Produit, Technique et Exploitation. La Phase 1 peut commencer, mais les preuves opérationnelles attendues de la Phase 0 ne sont pas supprimées :
 
-1. le lot technique `6af521e`, inclus dans le SHA de PR `02dc5c3`, est désormais intégré dans `develop` par `e91adf8` après les gates locales et les trois jobs distants de la PR #135 ;
-2. P0-005 attend le staging, le déploiement des quatre processus persistants, quatre sorties canari opérationnelles, les contrôles métier/santé, le redémarrage et un rollback exécuté ;
-3. P0-006 attend l’acceptation ou le remplacement de `MLK-DEC-009`, puis une campagne représentative couvrant chacun des sept scénarios par exécution conforme ou blocage formel ;
-4. P0-007 est bloqué : produit, technique et exploitation n’ont signé ni GO ni NO-GO.
+1. P0-005 attend toujours le staging, le déploiement des quatre processus persistants, quatre sorties canari opérationnelles, les contrôles métier/santé, le redémarrage et un rollback exécuté ;
+2. P0-006 attend toujours la campagne représentative de sept scénarios définie par MLK-DEC-009, un validateur distinct et un rapport strict ;
+3. MLK-DEC-010 accepte jusqu’au 2027-08-04 les risques de workers non validés en exploitation et d’absence de baseline dynamique représentative ;
+4. aucun test de charge, canari opérationnel, runner de capacité ou écriture en production n’est autorisé sans une nouvelle approbation explicite.
 
-Le cockpit applique prudemment le séquencement proposé dans `MLK-DEC-002` — une seule phase active — mais son acceptation formelle reste à consigner. Tant que cette gouvernance et la gate P0-007 ne sont pas résolues, aucune phase future n’est considérée ouverte. Commencer P1 avant les preuves ci-dessus rendrait impossible de comparer correctement les gains et mélangerait les causes de régression.
+Cette ouverture est une exception ciblée aux prérequis de baseline dynamique des décisions MLK-DEC-001/MLK-DEC-002 ; elle ne rend pas ces décisions générales acceptées et ne permet pas d’affirmer un gain dynamique représentatif avant les preuves reportées.
 
 ## Chaîne de progression
 
 ```text
-Validation exploitation et canaris P0-005 → campagne représentative P0-006
-                                            → décision signée P0-007
-                                            → Phase 1 → Phase 2 → Phase 3 → Phase 4
+GO P0-007 sous dérogation → Phase 1 → Phase 2 → Phase 3 → Phase 4
+              └→ staging, canaris P0-005, campagne P0-006 et rollback dus avant 2027-08-04
 ```
 
 ## Correspondance avec la roadmap historique
@@ -76,7 +75,8 @@ Ces décisions ne doivent pas être considérées acceptées tant que leurs vali
 | `MLK-DEC-005` — Redis cache → queue → décision sessions | Proposée | Prérequis à toute migration Redis de P2-006 | Faire accepter, rejeter ou remplacer la stratégie avant Phase 2 |
 | `MLK-DEC-006` — Identité Twilio de production | À réévaluer après rotation | Peut séparer les clés d’appels sortants du secret de validation des webhooks | Réévaluer l’architecture maintenant que P0-001 est terminé |
 | `MLK-DEC-007` — Positionnement opérations-finance | À valider par recherche | Prérequis produit avant l’investissement majeur de Phase 4 | Réaliser entretiens, analyse des tâches, volonté de payer et pilotes par segment |
-| `MLK-DEC-009` — Collecte P0-006 sur staging isolé | Proposée | Gouverne l’environnement et les preuves de la campagne représentative | Faire statuer la proposition avant toute collecte P0-006 |
+| `MLK-DEC-009` — Collecte P0-006 sur staging isolé | Proposée — reportée | Gouverne l’environnement et les preuves de la future campagne représentative | Réévaluer dès qu’un staging existe, avant le 2027-08-04 |
+| `MLK-DEC-010` — Dérogation temporaire de sortie P0 sans staging | Acceptée | Autorise le GO P0-007 tout en reportant les preuves P0-005/P0-006 | Fournir les preuves avant expiration le 2027-08-04 |
 
 ## Détail de la Phase 0 — Sécurité et baseline
 
@@ -88,9 +88,9 @@ Document détaillé : [PHASE_0_SECURITY_AND_BASELINE.md](PHASE_0_SECURITY_AND_BA
 | 2 | P0-002 — Baseline initiale | Geler versions, tests, audits, build, queues et mesures de départ | Terminé | Baseline enregistrée ; replays Node 20 et MySQL confirmés |
 | 3 | P0-003 — Dépendances PHP | Retirer les avis applicables et contraindre explicitement les dépendances sensibles | Terminé | PR #131 fusionnée ; Laravel 12.64, audit Composer sans avis et gates vertes |
 | 4 | P0-004 — Dépendances JavaScript | Corriger les avis npm sans mise à niveau globale incontrôlée | Terminé | PR #132 ; audits, build et Playwright verts sous Node 20 |
-| 5 | P0-005 — Queues et workers | Déclarer les workloads, vérifier les consommateurs, retries, timeouts et visibilité | En validation | Harnais `queue:workload-canary` de `6af521e` intégré dans `develop` par `e91adf8`, validé localement et dans la PR #135. Restent le staging, quatre processus, les preuves opérationnelles et le rollback |
-| 6 | P0-006 — Observabilité et baseline | Traiter sept scénarios par exécution conforme ou blocage formel, puis produire les mesures représentatives acceptables | En validation | Runner Node 20, contrat de fixture v3 `strategy/requests`, résultat/import v3 et garde-fous intégrés dans `develop`. Restent la décision `MLK-DEC-009`, l’environnement et la campagne représentative |
-| 7 | P0-007 — Revue GO / NO-GO | Examiner les preuves, préparer la recommandation et obtenir la décision signée | Bloqué | Matrice factuelle ci-dessous actualisée ; recommandation NO-GO non signée tant que P0-005/P0-006 et les signatures restent absents |
+| 5 | P0-005 — Queues et workers | Déclarer les workloads, vérifier les consommateurs, retries, timeouts et visibilité | Dérogation acceptée jusqu’au 2027-08-04 | Harnais validé localement/CI ; preuves de staging, quatre processus, canaris et rollback toujours dues |
+| 6 | P0-006 — Observabilité et baseline | Traiter sept scénarios par exécution conforme ou blocage formel, puis produire les mesures représentatives acceptables | Dérogation acceptée jusqu’au 2027-08-04 | Runner/import v3 et garde-fous intégrés ; staging, campagne représentative et validateur distinct toujours dus |
+| 7 | P0-007 — Revue GO / NO-GO | Examiner les preuves, préparer la recommandation et obtenir la décision signée | Terminé — GO sous dérogation | Décision explicite de Jules Roger Sombangnen en Produit, Technique et Exploitation ; MLK-DEC-010 |
 
 La Phase 0 ne sera terminée qu’après une gate P0-007 entièrement déterminée et signée. Un GO ouvre la Phase 1 ; un NO-GO signé maintient la Phase 0 active avec des actions correctives.
 
@@ -100,13 +100,13 @@ La Phase 0 ne sera terminée qu’après une gate P0-007 entièrement détermin�
 |---|---|---|---|
 | P0-001 à P0-004 | Conforme | Tickets terminés et preuves historiques consignées | Aucun |
 | Harnais P0-005 | Conforme localement et en CI | `6af521e` inclus dans PR #135 ; 33 tests/457 assertions ; workflow `30911394066` vert | Aucun manque technique ; preuve d’exploitation séparée ci-dessous |
-| Exploitation P0-005 | Bloqué | Procédure, audit, canari et rollback documentés | Staging, propriétaire, quatre processus, quatre canaris opérationnels, santé/métier/redémarrage/rollback |
+| Exploitation P0-005 | Dérogation acceptée jusqu’au 2027-08-04 | Procédure, audit, canari et rollback documentés | Staging, quatre processus, quatre canaris opérationnels, santé/métier/redémarrage/rollback restent dus |
 | Harnais P0-006 | Conforme localement et en CI | Runner Node 20 : 12/12 ; import v3 ; workflow `30911394066` vert | Aucun manque technique ; campagne séparée ci-dessous |
-| Campagne P0-006 | Bloqué | Contrat et guide reproductibles | Décision `MLK-DEC-009`, staging isolé, fenêtre, propriétaire/validateur, sept résultats/imports et rapport strict |
+| Campagne P0-006 | Dérogation acceptée jusqu’au 2027-08-04 | Contrat et guide reproductibles | MLK-DEC-009, staging isolé, fenêtre, validateur distinct, sept résultats/imports et rapport strict restent dus |
 | Qualité globale | Conforme localement et en CI | Dernier lot `e91adf8` : PHPStan sans erreur, Pest 1 286/13 194, Node 16/16, Vite, format et diff verts ; CI PR #135 : trois jobs verts | Aucun manque technique |
-| Gouvernance P0-007 | Bloqué | Recommandation factuelle : **NO-GO** | Signatures produit, technique et exploitation ; aucune signature n’est simulée par ce document |
+| Gouvernance P0-007 | GO sous dérogation signé | Décision explicite du responsable Produit, Technique et Exploitation ; MLK-DEC-010 | Réévaluer la dérogation avant le 2027-08-04 |
 
-Verdict actuel : **Phase 0 non terminée et Phase 1 fermée**. Ce NO-GO est une recommandation documentaire, pas une décision humaine signée.
+Verdict actuel : **Phase 0 terminée sous dérogation et Phase 1 ouverte**. Les preuves opérationnelles P0-005/P0-006 restent absentes, ne sont pas décrites comme vertes et doivent être fournies avant le 2027-08-04.
 
 ### Accès d’exploitation constaté au 2026-08-04
 
@@ -116,11 +116,11 @@ L’inventaire en lecture seule ne trouve qu’un workflow GitHub `quality`. Le 
 
 Document détaillé : [PHASE_1_QUICK_PERFORMANCE_WINS.md](PHASE_1_QUICK_PERFORMANCE_WINS.md)
 
-Baseline statique déjà documentée : application JavaScript à 188,6 kB gzip, locales FR/EN/ES à 116,1/106,6/102,6 kB gzip et table Ziggy d’environ 101,7 k caractères par réponse HTML. P0-006 doit compléter et faire accepter les mesures dynamiques avant P0-007 ; après un GO, P1-001 reprend cette baseline sans la réinventer.
+Baseline statique déjà documentée : application JavaScript à 188,6 kB gzip, locales FR/EN/ES à 116,1/106,6/102,6 kB gzip et table Ziggy d’environ 101,7 k caractères par réponse HTML. MLK-DEC-010 autorise P1-001 à partir de cette baseline statique, mais P0-006 doit toujours compléter les mesures dynamiques avant toute affirmation de gain dynamique représentatif.
 
 | Ordre | Ticket | Ce que l’on compte faire | État | Déclencheur ou prochaine action |
 |---:|---|---|---|---|
-| 1 | P1-001 — Initialisation Preline ciblée | Remplacer le mixin global et les timers multiples par une initialisation unique après navigation | En attente | Responsable/validateur nommés et baseline acceptée avant P0-007 ; démarrage uniquement après le GO |
+| 1 | P1-001 — Initialisation Preline ciblée | Remplacer le mixin global et les timers multiples par une initialisation unique après navigation | Ouverte — non démarrée | GO P0-007 sous MLK-DEC-010 ; mesurer depuis la baseline statique sans revendication dynamique |
 | 2 | P1-002 — Groupes de routes Ziggy | Fournir uniquement les routes nécessaires aux surfaces public, portail et admin | En attente | Après P1-001 ; mesurer la baisse HTML et tester chaque surface |
 | 3 | P1-003 — Traductions par domaine | Charger les catalogues nécessaires sans changer les clés ni le fallback anglais | En attente | Après P1-002 ; mesurer le JavaScript initial et vérifier FR/EN/ES |
 | 4 | P1-004 — Images et polices critiques | Ajouter AVIF/WebP, `srcset`, dimensions, priorité du héros et police non bloquante | En attente | Après P1-002, parallélisable avec P1-003 ; conserver les anciens médias pour rollback |
@@ -187,11 +187,11 @@ Gate de sortie : segment et proposition validés, chaîne opérations-finance au
 | Priorité | Action | État actuel | Résultat attendu |
 |---|---|---|---|
 | 1 | Intégrer le lot P0-005/P0-006 dans `develop` | Terminé — commit `e91adf8` poussé sur `develop` | Lot disponible dans `develop` pour déploiement |
-| 2 | Fermer P0-005 côté exploitation | Responsable, environnement et fenêtre à nommer | Quatre processus actifs, quatre canaris opérationnels, santé/métier, redémarrage et rollback testés |
-| 3 | Faire statuer `MLK-DEC-009`, parallèlement à P0-005 | Proposition non acceptée | Environnement et protocole de collecte P0-006 autorisés ou remplacés explicitement |
-| 4 | Traiter les sept scénarios P0-006 | Bloqué par P0-005 et la gouvernance de campagne | Résultats v3 importés, empreintes approuvées, télémétrie et rapport strict représentatif |
-| 5 | Faire statuer `MLK-DEC-001`/`002`, puis signer P0-007 | Bloqué par P0-005/P0-006 et décisions proposées | Décision GO ou NO-GO datée et signée par produit, technique et exploitation |
-| 6 | Ouvrir la Phase 1 et P1-001 | En attente d’un GO | Reprise de la baseline acceptée et première optimisation contrôlée |
+| 2 | Fournir un staging et fermer P0-005 côté exploitation | Dérogation MLK-DEC-010 active jusqu’au 2027-08-04 | Quatre processus actifs, quatre canaris opérationnels, santé/métier, redémarrage et rollback testés |
+| 3 | Réévaluer MLK-DEC-009 et préparer P0-006 | Dérogation MLK-DEC-010 active jusqu’au 2027-08-04 | Environnement, validateur distinct et protocole de collecte autorisés |
+| 4 | Traiter les sept scénarios P0-006 | Reporté sous dérogation | Résultats v3 importés, empreintes approuvées, télémétrie et rapport strict représentatif |
+| 5 | Réévaluer ou clôturer MLK-DEC-010 | Échéance ferme : 2027-08-04 | Preuves P0-005/P0-006 réalisées ou nouvelle décision explicite |
+| 6 | Démarrer P1-001 | Ouverte | Première optimisation contrôlée à partir de la baseline statique |
 | 7 | Terminer Phase 1, prioriser Phase 2 et faire statuer `MLK-DEC-005` | En attente | Trois priorités P2 fondées sur les mesures et décision Redis explicite |
 | 8 | Exécuter Phase 2 puis ouvrir Phase 3 | En attente | Runtime borné, puis expérience utilisateur mesurable |
 | 9 | Valider Phase 3 puis conduire la recherche `MLK-DEC-007` avant Phase 4 | En attente | Pilotes UX concluants, positionnement décidé, puis différenciation produit validée par le marché |

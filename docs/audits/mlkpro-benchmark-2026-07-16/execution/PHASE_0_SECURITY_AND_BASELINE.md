@@ -1,10 +1,10 @@
 # Phase 0 — Sécurité et baseline
 
 - Dernière mise à jour : 2026-08-04
-- Statut : **en cours — P0-001 à P0-004 terminés ; harnais P0-005/P0-006 techniquement terminés avec validations locales et CI PR #135 vertes ; staging, campagne représentative et signatures bloquants**
+- Statut : **terminée sous dérogation — GO P0-007 accepté via MLK-DEC-010 ; les preuves opérationnelles P0-005/P0-006 restent reportées jusqu’au 2027-08-04**
 - Responsable d’exécution locale : Codex
-- Propriétaire exploitation : à nommer
-- Validateur produit : demandeur
+- Propriétaire exploitation : Jules Roger Sombangnen
+- Validation P0-006 : exception au validateur distinct acceptée par le décideur jusqu’au 2027-08-04
 - Dépendances : aucune
 - Risque de phase : élevé, car elle inclut secrets, dépendances et traitements asynchrones
 
@@ -231,7 +231,7 @@ Cette liste conserve volontairement la photographie initiale. L’état courant 
 - Deux familles de temps : `client_latency_ms.p50/p95/p99/max`, calculée par le runner externe, représente le temps de bout en bout vu par le client et porte les seuils de capacité. `app_processing_ms`, collecté par Laravel, représente seulement le traitement applicatif et sert au diagnostic ; il ne remplace pas la latence client.
 - Protection des données : seules des métriques agrégées et expurgées sont versionnées. Les chemins bruts, paramètres, messages d’exception, SQL, bindings, identifiants et données client restent hors du dépôt ; un artefact brut éventuel demeure dans un stockage contrôlé avec accès limité.
 - Rollback : positionner `OBSERVABILITY_ENABLED=false`, recharger la configuration avec la procédure de l’environnement, redémarrer les processus PHP persistants et vérifier que le scheduler ne crée plus de snapshots. Conserver uniquement les résultats déjà collectés et expurgés ; les fichiers d’import contrôlés peuvent être archivés ou supprimés selon la politique d’exploitation.
-- Blocage actuel : la CI historique de la PR #134 avait échoué sur cinq tests d’observabilité. Les défauts sont corrigés ; les gates locales et les trois jobs de la PR #135 sont verts sur le SHA `02dc5c3`. Aucune campagne représentative complète n’est cependant consignée. Les canaris d’exploitation P0-005, l’environnement, la fenêtre, le propriétaire/validateur et les mesures représentatives restent bloquants.
+- État de preuve : la CI historique de la PR #134 avait échoué sur cinq tests d’observabilité. Les défauts sont corrigés ; les gates locales et les trois jobs de la PR #135 sont verts sur le SHA `02dc5c3`. Aucune campagne représentative complète n’est consignée. MLK-DEC-010 reporte les canaris P0-005, l’environnement, la fenêtre, le propriétaire/validateur distinct et les mesures représentatives jusqu’au 2027-08-04 ; aucun de ces éléments n’est réputé vert.
 - Critères d’acceptation :
   - les sept scénarios exécutables atteignent `targets.min_samples` et `profile.minimum_completed_requests`, ou sont explicitement marqués bloqués avec propriétaire, justification et échéance ;
   - le préflight et le plan sont recevables sur le commit et l’environnement mesurés ;
@@ -244,11 +244,11 @@ Cette liste conserve volontairement la photographie initiale. L’état courant 
 
 ### MLK-IMP-P0-007 — Revue GO / NO-GO de Phase 0
 
-- Statut : **bloqué — revue factuelle actualisée, mais P0-005/P0-006 opérationnels et signatures absents**
+- Statut : **terminé — GO P0-007 sous dérogation, explicitement accepté le 2026-08-04 par Jules Roger Sombangnen en tant que responsable Produit, Technique et Exploitation**
 - Dépendances : P0-001 à P0-006 terminés ou exception formellement acceptée
 - But : autoriser ou refuser l’ouverture de la Phase 1.
 - Livrable : décision signée dans [VALIDATION_LOG.md](VALIDATION_LOG.md).
-- Critère d’acceptation : aucune case de la gate de sortie ne reste indéterminée.
+- Critère d’acceptation : aucune case de la gate de sortie ne reste indéterminée ; une preuve absente doit être soit exécutée, soit couverte par une dérogation formellement acceptée, bornée et traçable.
 
 ## Ordre d’exécution
 
@@ -312,16 +312,16 @@ php artisan queue:restart
 | Ancien jeton Twilio inutilisable | Conforme | `VALID-P0-001-CLOSEOUT-2026-07-17` |
 | Avis Composer/npm prioritaires traités et contrainte Twilio fermée | Conforme | P0-003/P0-004 ; audits courants sans avis |
 | Topologie et retries testés | Conforme localement | PR #133 et harnais P0-005 du commit `6af521e` |
-| Queues réellement consommées par quatre processus persistants | Bloqué exploitation | Staging, gestionnaire de processus et quatre sorties canari opérationnelles absents |
+| Queues réellement consommées par quatre processus persistants | Dérogation acceptée jusqu’au 2027-08-04 | Staging, gestionnaire de processus et quatre sorties canari opérationnelles absents ; risque accepté dans MLK-DEC-010 |
 | PHPStan, Pest, MySQL, Node, build et Playwright | Conforme localement | `VALID-P0-005-P0-006-LOCAL-2026-08-04` |
 | CI distante du lot | Conforme | PR #135, SHA `02dc5c3`, workflow `30911394066` : trois jobs verts |
-| Baseline des sept scénarios | Bloqué exploitation | Environnement, campagne, imports et rapport strict absents |
-| Rollout et rollback P0-005/P0-006 | Bloqué exploitation | Aucune exécution représentative consignée |
-| Décision P0-007 signée | Bloqué gouvernance | Signatures produit, technique et exploitation absentes ; recommandation actuelle NO-GO |
+| Baseline des sept scénarios | Dérogation acceptée jusqu’au 2027-08-04 | Environnement, campagne, imports et rapport strict absents ; risque accepté dans MLK-DEC-010 |
+| Rollout et rollback P0-005/P0-006 | Dérogation acceptée jusqu’au 2027-08-04 | Aucune exécution représentative consignée ; interdiction de charge ou écriture production sans nouvelle approbation |
+| Décision P0-007 signée | GO sous dérogation | Décision explicite de Jules Roger Sombangnen, responsable Produit, Technique et Exploitation ; MLK-DEC-010 |
 
 ## Definition of Done
 
-La Phase 0 est terminée uniquement lorsque la gate de sortie est entièrement renseignée, les preuves sont dans le journal, les décisions ouvertes ont un propriétaire et la Phase 1 possède une liste priorisée fondée sur les mesures obtenues.
+La Phase 0 est terminée uniquement lorsque la gate de sortie est entièrement renseignée, les preuves sont dans le journal, les décisions ouvertes ont un propriétaire et la Phase 1 possède une liste priorisée fondée sur les mesures obtenues. La clôture actuelle est une clôture sous dérogation : les preuves P0-005/P0-006 restent explicitement dues avant le 2027-08-04 et la Phase 1 ne peut pas attribuer un gain à une baseline dynamique absente.
 
 ## Documents liés
 

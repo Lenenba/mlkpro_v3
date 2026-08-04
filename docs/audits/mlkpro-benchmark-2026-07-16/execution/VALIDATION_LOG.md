@@ -415,6 +415,22 @@ La vue consolidée des travaux terminés, en cours et planifiés pour les Phases
 - Déblocage requis : fournir l’environnement staging et son mode d’accès/déploiement, nommer le propriétaire exploitation et le validateur distinct, puis approuver la fenêtre et `MLK-DEC-009`.
 - Verdict : **blocage externe confirmé et documenté ; aucune action locale supplémentaire ne peut produire les preuves opérationnelles exigées**.
 
+## VALID-P0-007-GO-CONDITIONNEL-2026-08-04 — Sortie Phase 0 sous dérogation
+
+- Ticket : MLK-IMP-P0-007.
+- Date : 2026-08-04.
+- Référence technique : lot P0-005/P0-006 intégré dans develop par le commit `e91adf8`.
+- Environnement : aucune action staging ou production exécutée ; le constat d’accès reste celui de AUDIT-P0-STAGING-ACCESS-2026-08-04.
+- Décideur et signataire : Jules Roger Sombangnen, responsable Produit, Technique et Exploitation.
+- Trace de signature : déclaration explicite du décideur dans la conversation de pilotage du 2026-08-04.
+- Décision : **GO P0-007 sous dérogation** ; l’ouverture de la Phase 1 est autorisée.
+- Dérogation : P0-005 exploitation et P0-006 campagne représentative restent sans preuve opérationnelle faute de staging. Les risques acceptés sont des workers non validés en exploitation et l’absence de baseline dynamique représentative.
+- Limites impératives : aucun test de charge, canari opérationnel, runner de capacité ni écriture en production sans nouvelle approbation explicite, datée et bornée. Cette validation ne vaut ni déploiement, ni validation staging, ni conformité opérationnelle.
+- Validation distincte : l’exception au validateur distinct P0-006 est acceptée jusqu’au 2027-08-04 ; le décideur assume seul cette responsabilité.
+- Échéance : 2027-08-04, sans renouvellement automatique. Avant cette date, fournir un staging, exécuter les quatre canaris P0-005 avec redémarrage/rollback, puis collecter/importer les sept scénarios P0-006 et archiver un rapport strict.
+- Référence de gouvernance : MLK-DEC-010 ; MLK-DEC-009 reste proposée pour la future campagne staging.
+- Verdict : **Phase 0 clôturée sous dérogation ; Phase 1 ouverte. Les preuves opérationnelles P0-005/P0-006 restent dues et ne sont pas décrites comme vertes.**
+
 ## Gate d’entrée Phase 0 — Archive historique non rétroactive
 
 Ce gabarit initial n’a pas été signé à l’ouverture. Il est conservé comme dette de gouvernance et ne doit pas être rempli rétroactivement sans preuve datée.
@@ -438,7 +454,7 @@ Ce gabarit initial n’a pas été signé à l’ouverture. Il est conservé com
 
 Ce tableau détaille la sortie de la Phase 0. La suite du programme, jusqu’à la Phase 4, est visible dans le [suivi global](SUIVI_GLOBAL.md).
 
-État constaté le 2026-08-04. Les lignes sont ordonnées selon l’avancement acquis puis l’ordre de dépendance des prochaines actions. `Terminé` signifie que la preuve attendue est consignée ; une préparation locale ou une fusion sans gate complète ne clôt pas l’étape.
+État constaté le 2026-08-04. Les lignes sont ordonnées selon l’avancement acquis puis l’ordre de dépendance des prochaines actions. `Terminé` signifie que la preuve attendue est consignée ; `Dérogation acceptée` signifie que la preuve reste absente, le risque est explicitement accepté et l’échéance est ferme.
 
 | Ordre | Avancement | État | Preuve actuelle | Prochaine action |
 |---:|---|---|---|---|
@@ -446,25 +462,25 @@ Ce tableau détaille la sortie de la Phase 0. La suite du programme, jusqu’à 
 | 2 | P0-002 — Baseline gelée | Terminé | `BASELINE-P0-2026-07-17` ; replays Node 20 et MySQL dans `VALID-P0-003-CLOSEOUT-2026-07-27` | Aucune |
 | 3 | P0-003 — Dépendances PHP sécurisées | Terminé | PR #131, merge `28fc253f`, audit sans avis et gates vertes | Maintenir la surveillance des avis Composer |
 | 4 | P0-004 — Dépendances JavaScript sécurisées | Terminé | PR #132, commit `ccaf150`, audits et gates locales/CI verts | Maintenir la surveillance des avis npm |
-| 5 | P0-005 — Technique queues/workers | En validation | Harnais `6af521e`, 33 tests/457 assertions ; PR #135 et ses trois jobs verts dans `VALID-P0-005-P0-006-CI-2026-08-04` | Intégrer la PR puis passer à la validation d’exploitation |
-| 6 | P0-006 — Technique observabilité/runner | En validation | Runner/import v3, Node 12/12, validations locales et trois jobs CI PR #135 verts | Intégrer la PR puis passer à la campagne représentative après P0-005 |
-| 7 | P0-005 — Déploiement des quatre processus et canaris | Bloqué | Procédure et harnais prêts ; aucune installation persistante, sortie canari opérationnelle, fenêtre ni preuve de rollback | Nommer le responsable, choisir le staging/la fenêtre, déployer, exécuter quatre canaris, santé/métier/redémarrage et rollback |
-| 8 | P0-006 — Campagne représentative des sept scénarios | Bloqué | Aucun résultat v3 importé ni rapport strict représentatif ; dépend de P0-005 et de `MLK-DEC-009` | Faire statuer la décision, nommer propriétaire/validateur, approuver le trafic, collecter, importer et archiver le rapport |
-| 9 | P0-007 — Revue et signatures de sortie | Bloqué | Matrice factuelle actualisée le 2026-08-04 ; recommandation NO-GO non signée | Lever ou accepter formellement les blocages, puis obtenir les signatures produit, technique et exploitation |
-| 10 | Ouverture de la Phase 1 | En attente | Dépend d’un GO P0-007 signé ; la phase reste fermée par défaut | Ne démarrer qu’après la décision GO signée |
+| 5 | P0-005 — Technique queues/workers | Terminé techniquement | Harnais `6af521e`, 33 tests/457 assertions ; lot intégré dans develop par `e91adf8` | Conserver les gates et préparer la preuve d’exploitation avant l’échéance |
+| 6 | P0-006 — Technique observabilité/runner | Terminé techniquement | Runner/import v3, Node 16/16, validations locales et trois jobs CI PR #135 verts | Conserver les gates et préparer la campagne staging avant l’échéance |
+| 7 | P0-005 — Déploiement des quatre processus et canaris | Dérogation acceptée jusqu’au 2027-08-04 | Procédure et harnais prêts ; aucune installation persistante, sortie canari opérationnelle, fenêtre ni preuve de rollback | Fournir staging, déployer, exécuter quatre canaris, santé/métier/redémarrage et rollback |
+| 8 | P0-006 — Campagne représentative des sept scénarios | Dérogation acceptée jusqu’au 2027-08-04 | Aucun résultat v3 importé ni rapport strict représentatif ; MLK-DEC-009 reste proposée | Fournir staging, nommer un validateur distinct, approuver le trafic, collecter, importer et archiver le rapport |
+| 9 | P0-007 — Revue et signatures de sortie | Terminé — GO sous dérogation | VALID-P0-007-GO-CONDITIONNEL-2026-08-04 ; décision unique de Produit/Technique/Exploitation | Réévaluer la dérogation à l’échéance ou après livraison des preuves |
+| 10 | Ouverture de la Phase 1 | Ouverte | GO P0-007 sous dérogation ; aucune implémentation P1 encore démarrée | Démarrer P1-001 avec la baseline statique disponible |
 
 ## Gate de sortie Phase 0 — Matrice factuelle au 2026-08-04
 
 - ID : `GATE-P0-EXIT-2026-08-04`
-- Commit technique local : `6af521e`.
-- Environnement validé : local pour le code ; aucun staging validé.
+- Commit technique intégré : `e91adf8`.
+- Environnement validé : local pour le code ; aucun staging validé. L’absence de staging est une dérogation acceptée, pas une validation opérationnelle.
 
 | Critère | État | Preuve ou blocage |
 |---|---|---|
 | Ancien jeton Twilio invalidé | Réussi | `VALID-P0-001-CLOSEOUT-2026-07-17` |
 | Avis Composer/npm de production | Réussi localement | Audits du 2026-08-04 sans avis/vulnérabilité |
 | Topologie et retry plan scan | Réussi localement | PR #133 et `6af521e` |
-| Consommation réelle des queues | Bloqué | Aucun staging ni quatre canaris opérationnels |
+| Consommation réelle des queues | Dérogation acceptée jusqu’au 2027-08-04 | Aucun staging ni quatre canaris opérationnels ; risque accepté dans MLK-DEC-010 |
 | PHPStan | Réussi localement | 852/852, zéro erreur |
 | Pest complet | Réussi localement | 1 284 tests, 13 180 assertions |
 | MySQL ciblé | Réussi localement | 137 tests, 1 093 assertions |
@@ -472,12 +488,12 @@ Ce tableau détaille la sortie de la Phase 0. La suite du programme, jusqu’à 
 | Build Vite | Réussi localement | 2 605 modules |
 | Playwright | Réussi au rejeu | 7/7 après un échec intermittent consigné |
 | CI distante du lot | Réussi | PR #135, SHA `02dc5c3`, workflow `30911394066`, trois jobs verts |
-| Baseline capacité complète | Bloqué | Staging, sept résultats v3/imports et rapport strict absents |
-| Rollout et rollback | Bloqué | Aucune preuve d’exploitation P0-005/P0-006 |
-| Signatures | Bloqué | Produit, technique et exploitation non signés |
+| Baseline capacité complète | Dérogation acceptée jusqu’au 2027-08-04 | Staging, sept résultats v3/imports et rapport strict absents ; aucune mesure n’est réputée verte |
+| Rollout et rollback | Dérogation acceptée jusqu’au 2027-08-04 | Aucune preuve d’exploitation P0-005/P0-006 ; aucune charge ou écriture production n’est autorisée |
+| Signatures | GO sous dérogation signé | Jules Roger Sombangnen assume Produit, Technique et Exploitation ; VALID-P0-007-GO-CONDITIONNEL-2026-08-04 |
 
-- Recommandation documentaire : **NO-GO Phase 1**.
-- Décision humaine : **non signée** ; cette recommandation ne vaut pas approbation.
+- Recommandation documentaire : **NO-GO remplacé par la décision humaine GO sous dérogation**.
+- Décision humaine : **signée dans la conversation de pilotage du 2026-08-04** par Jules Roger Sombangnen (Produit, Technique et Exploitation) ; échéance de la dérogation : 2027-08-04.
 
 ## Gabarit de validation d’un ticket
 

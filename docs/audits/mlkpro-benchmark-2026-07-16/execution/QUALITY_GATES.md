@@ -131,7 +131,7 @@ La collecte recevable respecte en plus toutes les conditions suivantes :
 
 Le rollback consiste à remettre `OBSERVABILITY_ENABLED=false`, recharger la configuration puis redémarrer les processus PHP persistants ; il faut ensuite confirmer que la collecte HTTP et les snapshots planifiés ont cessé.
 
-La gate finale P0-006 reste bloquée tant que l’environnement, la fenêtre, le propriétaire exploitation, le validateur distinct, les canaris P0-005 et les échantillons représentatifs ne sont pas consignés. L’état actuel est **en validation** : le runner/import v3, les gates locales et la CI PR #135 sont verts, mais la campagne manque. Aucun résultat de staging non exécuté ne doit être décrit comme vert.
+La gate finale P0-006 reste bloquée tant que l’environnement, la fenêtre, le propriétaire exploitation, le validateur distinct, les canaris P0-005 et les échantillons représentatifs ne sont pas consignés. L’état actuel est **en validation** : le runner/import v3, les gates locales et la CI PR #135 sont verts, mais la campagne manque. Aucun résultat de staging non exécuté ne doit être décrit comme vert. MLK-DEC-010 autorise uniquement le report de cette preuve pour la sortie P0-007 jusqu’au 2027-08-04 ; il ne rend pas P0-006 conforme, ne modifie aucune gate technique et n’autorise aucune campagne en production.
 
 ## Données et MySQL
 

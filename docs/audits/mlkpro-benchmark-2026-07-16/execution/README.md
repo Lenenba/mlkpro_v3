@@ -1,17 +1,17 @@
 # Cockpit d’exécution contrôlée — amélioration MLK Pro
 
 - Dernière mise à jour : 2026-08-04
-- Statut global : **Phase 0 en cours — P0-001 à P0-004 terminés ; harnais P0-005/P0-006 techniquement terminés, intégrés dans `develop` par `e91adf8`, avec validations locales et CI PR #135 vertes ; staging, campagne représentative et signatures requis**
-- Phase active autorisée : **Phase 0 uniquement : exploitation P0-005, campagne P0-006 puis décision signée P0-007**
+- Statut global : **Phase 0 terminée sous dérogation MLK-DEC-010 — P0-001 à P0-004 terminés ; harnais P0-005/P0-006 intégrés dans `develop` par `e91adf8` ; preuves d’exploitation et baseline dynamique reportées jusqu’au 2027-08-04 ; Phase 1 ouverte**
+- Phase active autorisée : **Phase 1 — gains rapides de performance ; les preuves P0-005/P0-006 restent dues sous dérogation**
 - Politique Git : **travail et pull requests uniquement depuis/vers `develop` ; `main` est réservée au propriétaire humain du dépôt**
 - Responsable d’exécution locale : Codex
-- Responsable exploitation : à nommer
-- Validateur produit : demandeur
+- Responsable exploitation : Jules Roger Sombangnen
+- Décideur produit / technique / exploitation : Jules Roger Sombangnen
 - Document maître de suivi : **[Suivi global des Phases 0 à 4](SUIVI_GLOBAL.md)**
 
 ## Décision recommandée
 
-Terminer la [Phase 0 — Sécurité et baseline](PHASE_0_SECURITY_AND_BASELINE.md) avant d’ouvrir la Phase 1. Le [suivi global](SUIVI_GLOBAL.md) récapitule ce qui est déjà terminé et détaille tout le travail prévu jusqu’à la Phase 4.
+La [Phase 0 — Sécurité et baseline](PHASE_0_SECURITY_AND_BASELINE.md) est clôturée sous la dérogation MLK-DEC-010 avant l’ouverture de la Phase 1. Le [suivi global](SUIVI_GLOBAL.md) récapitule ce qui est terminé, ce qui reste dû sous dérogation et tout le travail prévu jusqu’à la Phase 4.
 
 Cette phase traite, dans cet ordre :
 
@@ -21,14 +21,14 @@ Cette phase traite, dans cet ordre :
 4. la cohérence des files et des workers ;
 5. la collecte d’une baseline de production ou de staging représentatif.
 
-Les optimisations visuelles et les changements d’architecture attendent la fermeture de cette phase. Cela évite de rendre le produit plus joli alors qu’un risque de sécurité, un job non consommé ou une mesure insuffisante subsiste.
+Les optimisations visuelles et les changements d’architecture peuvent commencer en Phase 1 sous la dérogation acceptée. Cela ne masque ni le risque de worker non consommé ni l’absence de mesure dynamique : les preuves P0-005/P0-006 restent dues avant le 2027-08-04.
 
 ## Tableau de contrôle
 
 | Phase | Document | Statut | Dépendance | Gate de sortie |
 |---|---|---|---|---|
-| 0 | [Sécurité et baseline](PHASE_0_SECURITY_AND_BASELINE.md) | En cours — technique locale et CI P0-005/P0-006 vertes ; exploitation, campagne et signatures ouvertes | Aucune | Secrets remplacés, audits traités, queues alignées en exploitation, baseline exploitable et décision P0-007 signée |
-| 1 | [Gains rapides de performance](PHASE_1_QUICK_PERFORMANCE_WINS.md) | En attente | Phase 0 terminée | Coûts globaux réduits sans régression de workflow |
+| 0 | [Sécurité et baseline](PHASE_0_SECURITY_AND_BASELINE.md) | Terminée sous dérogation — GO P0-007 signé ; exploitation P0-005 et campagne P0-006 reportées jusqu’au 2027-08-04 | Aucune | Dérogation tracée, risques acceptés et preuves opérationnelles planifiées avant échéance |
+| 1 | [Gains rapides de performance](PHASE_1_QUICK_PERFORMANCE_WINS.md) | Ouverte — aucun ticket démarré | GO P0-007 sous dérogation | Coûts globaux réduits sans régression de workflow |
 | 2 | [Performance données et runtime](PHASE_2_DATA_AND_RUNTIME_PERFORMANCE.md) | En attente | Phase 1 terminée | SQL, cache, props et infrastructure validés sous charge |
 | 3 | [Expérience utilisateur premium](PHASE_3_PREMIUM_USER_EXPERIENCE.md) | En attente | Phases 1 et 2 terminées | Parcours plus rapides et plus clairs, validés par rôle |
 | 4 | [Différenciation produit](PHASE_4_PRODUCT_DIFFERENTIATION.md) | En attente | Phase 3 terminée | Avantages opérations-finance validés avec des pilotes |
@@ -37,7 +37,7 @@ Le détail ticket par ticket, les acquis, les blocages et les prochaines actions
 
 ## Règle de fonctionnement
 
-Le séquencement ci-dessous correspond à la politique proposée dans `MLK-DEC-002`, appliquée prudemment par le cockpit. Son acceptation formelle reste à consigner dans [DECISIONS.md](DECISIONS.md) ; sans cette décision et sans gate signée, aucune phase future n’est considérée ouverte.
+Le séquencement ci-dessous correspond à la politique proposée dans `MLK-DEC-002`, appliquée prudemment par le cockpit. Son acceptation générale reste à consigner dans [DECISIONS.md](DECISIONS.md). MLK-DEC-010 constitue toutefois une exception ciblée, appuyée par un GO P0-007 signé, qui ouvre uniquement la Phase 1 sans rendre la baseline dynamique ou les validations de workers conformes.
 
 Une seule phase peut donc avoir le statut **en cours** dans le suivi actuel.
 
@@ -112,7 +112,7 @@ P0-005 retient une topologie centralisée dans `config/async.php` :
 - `queue:workload-audit` contrôle la correspondance workloads/files/workers, les connexions persistantes, les collisions et la cohérence timeout/visibilité ;
 - les exceptions techniques de `AnalyzePlanScanJob` doivent être relancées pour activer le retry, tandis que `failed` matérialise l’échec terminal.
 
-La preuve historique de la PR #133 compte 1 179 tests/12 236 assertions et une CI verte sous PHP 8.4, MySQL 8.4 et Chromium. Le lot courant `6af521e` ajoute `queue:workload-canary` et 33 tests/457 assertions ciblés ; le rejeu global atteint 1 284 tests/13 180 assertions. La commande exige, pour chaque file, un accusé produit par un vrai worker et lié à la connexion, la file, l’environnement, la release et le commit. La procédure complète est décrite dans [Phase 6 Queue Strategy](../../../PHASE_6_QUEUE_STRATEGY_2026-03-07.md). Les modes `internal_test` et `dry-run` sont explicitement inéligibles comme preuves : le gestionnaire de processus, quatre sorties opérationnelles, la santé, les canaris métier et le rollback restent à vérifier en staging/production.
+La preuve historique de la PR #133 compte 1 179 tests/12 236 assertions et une CI verte sous PHP 8.4, MySQL 8.4 et Chromium. Le lot courant `6af521e` ajoute `queue:workload-canary` et 33 tests/457 assertions ciblés ; le rejeu global atteint 1 284 tests/13 180 assertions. La commande exige, pour chaque file, un accusé produit par un vrai worker et lié à la connexion, la file, l’environnement, la release et le commit. La procédure complète est décrite dans [Phase 6 Queue Strategy](../../../PHASE_6_QUEUE_STRATEGY_2026-03-07.md). Les modes `internal_test` et `dry-run` sont explicitement inéligibles comme preuves : le gestionnaire de processus, quatre sorties opérationnelles, la santé, les canaris métier et le rollback restent à vérifier en staging/production. MLK-DEC-010 reporte ces preuves jusqu’au 2027-08-04 sans les décrire comme validées en exploitation.
 
 ## Préparation de la baseline d’observabilité P0-006
 
@@ -139,7 +139,7 @@ Le démarrage et l’arrêt encadrent les snapshots de queue propres au scénari
 
 Chaque scénario doit atteindre à la fois `targets.min_samples` et le plancher de charge `profile.minimum_completed_requests` défini dans `config/capacity.php`, ou être marqué bloqué avec raison, propriétaire et date de réévaluation. L’import refuse un résultat dont les requêtes tentées ou complétées restent sous cette enveloppe. Seuls des agrégats expurgés sont versionnés ; chemins, paramètres, messages d’exception, SQL, bindings, identifiants, secrets, données client et fichiers bruts du harness restent hors du dépôt.
 
-Le rollback opérationnel consiste à positionner `OBSERVABILITY_ENABLED=false`, recharger la configuration puis redémarrer les processus persistants concernés. Le runner et l’import sont **techniquement validés localement et en CI**, mais aucune campagne représentative n’est consignée et les canaris d’exploitation P0-005 restent ouverts : **P0-006 ne peut pas être déclaré terminé**.
+Le rollback opérationnel consiste à positionner `OBSERVABILITY_ENABLED=false`, recharger la configuration puis redémarrer les processus persistants concernés. Le runner et l’import sont **techniquement validés localement et en CI**, mais aucune campagne représentative n’est consignée et les canaris d’exploitation P0-005 restent ouverts : **P0-006 n’est pas validé en exploitation**. MLK-DEC-010 reporte cette preuve jusqu’au 2027-08-04 et autorise seulement l’ouverture de la Phase 1 ; aucune amélioration ne peut être attribuée à une baseline dynamique absente.
 
 ## Artefacts de référence
 
@@ -156,13 +156,13 @@ Le rollback opérationnel consiste à positionner `OBSERVABILITY_ENABLED=false`,
 - [Exemple de fixture privée P0-006](capacity-runner-fixtures.example.json)
 - [Gabarit agrégé du résultat runner P0-006](capacity-runner-result.example.json)
 
-## Prochaine réunion de validation
+## Suivi de la dérogation et démarrage de la Phase 1
 
 Ordre du jour proposé :
 
-1. nommer le propriétaire exploitation et le validateur distinct ;
-2. choisir le staging isolé et la fenêtre de déploiement P0-005 ;
-3. exécuter les quatre canaris de profils, les canaris métier, le redémarrage et le rollback ;
-4. accepter, rejeter ou remplacer `MLK-DEC-009`, puis approuver le trafic et l’expurgation P0-006 ;
+1. démarrer P1-001 avec la baseline statique P0-002 et les gates frontend existantes ;
+2. fournir un staging et son mécanisme d’accès/déploiement avant le 2027-08-04 ;
+3. exécuter les quatre canaris P0-005, les contrôles métier, le redémarrage et le rollback ;
+4. réévaluer `MLK-DEC-009`, nommer un validateur distinct et approuver la campagne P0-006 ;
 5. exécuter et importer les sept scénarios, puis archiver le rapport strict ;
-6. signer P0-007 comme GO ou NO-GO avant toute ouverture de la Phase 1.
+6. réévaluer ou clôturer la dérogation avant son expiration, sans renouvellement automatique.

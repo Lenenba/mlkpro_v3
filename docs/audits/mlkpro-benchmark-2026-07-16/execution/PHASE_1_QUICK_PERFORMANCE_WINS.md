@@ -1,10 +1,10 @@
 # Phase 1 — Gains rapides de performance
 
 - Dernière mise à jour : 2026-08-04
-- Statut : **en attente**
-- Responsable : à nommer
-- Validateurs : à nommer
-- Dépendance : Phase 0 terminée
+- Statut : **ouverte — aucun ticket P1 encore démarré**
+- Responsable : Jules Roger Sombangnen
+- Validateurs : à nommer (distinct du responsable)
+- Dépendance : GO P0-007 sous dérogation MLK-DEC-010
 - Risque de phase : faible à moyen
 - Vue maître et état courant : [suivi global des Phases 0 à 4](SUIVI_GLOBAL.md)
 
@@ -20,6 +20,8 @@ Supprimer les coûts globaux payés sur de nombreuses pages, sans modifier les d
 - initialisations Preline par navigation et par montage ;
 - LCP, INP, CLS et taille transférée des parcours pilotes ;
 - captures desktop/mobile avant changement.
+
+La baseline dynamique P0-006 n’existe pas encore : elle est reportée sous MLK-DEC-010 jusqu’au 2027-08-04. Les mesures Phase 1 partent donc de la baseline statique disponible et ne doivent pas être présentées comme une comparaison dynamique représentative ni comme une validation des workers.
 
 ## Workflows à protéger
 

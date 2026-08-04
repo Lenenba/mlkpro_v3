@@ -22,7 +22,8 @@ Une proposition n’autorise aucun changement tant qu’elle n’est pas accept�
 | MLK-DEC-006 | Utiliser des clés API Twilio en production pour les appels sortants | À réévaluer après rotation | Sécurité / exploitation | Après P0-001 |
 | MLK-DEC-007 | Positionner MLK Pro comme OS opérationnel et financier des PME canadiennes de services | À valider par recherche | Produit | Avant Phase 4 |
 | MLK-DEC-008 | Utiliser exclusivement `develop` comme base et cible des travaux automatisés | Acceptée | Jules Roger Sombangnen | Permanente |
-| MLK-DEC-009 | Collecter P0-006 sur un staging isolé avec preuves expurgées | Proposée | Technique / exploitation | Avant collecte représentative |
+| MLK-DEC-009 | Collecter P0-006 sur un staging isolé avec preuves expurgées | Proposée — reportée par MLK-DEC-010 | Technique / exploitation | À réévaluer avant le 2027-08-04 |
+| MLK-DEC-010 | Dérogation temporaire de sortie P0 sans staging | Acceptée | Jules Roger Sombangnen | 2027-08-04 |
 
 ## MLK-DEC-001 — Phase 0 en premier
 
@@ -99,7 +100,7 @@ Une proposition n’autorise aucun changement tant qu’elle n’est pas accept�
 
 ## MLK-DEC-009 — Protocole de baseline d’observabilité P0-006
 
-- Statut : **proposée — contrat v3 techniquement validé localement, validation représentative absente**.
+- Statut : **proposée — contrat v3 techniquement validé localement, validation représentative absente ; application reportée par MLK-DEC-010 jusqu’au 2027-08-04**.
 - Date : 2026-08-04.
 - Contexte : la baseline locale P0-002 est insuffisante pour choisir les optimisations ; aucun environnement ni jeu d’échantillons représentatif P0-006 n’est encore validé.
 - Décision proposée : utiliser un staging isolé et représentatif. Une production en lecture seule n’est permise qu’après approbation explicite du produit, de la technique et de l’exploitation.
@@ -114,7 +115,24 @@ Une proposition n’autorise aucun changement tant qu’elle n’est pas accept�
 - Protection des données : ne versionner que des agrégats expurgés. Les sorties brutes, chemins, paramètres, messages d’exception, SQL, bindings, identifiants, secrets et données client restent dans un stockage contrôlé ou sont supprimés.
 - Garde-fous : ne pas mélanger les environnements, commits ou méthodes ; vérifier explicitement l’environnement staging et l’isolation du tenant pour toute écriture ; satisfaire `targets.min_samples`, `profile.minimum_completed_requests` et la couverture temporelle des queues, ou documenter le blocage avec propriétaire et échéance ; ne pas choisir les candidats Phase 1 avant une baseline recevable.
 - Rollback : remettre `OBSERVABILITY_ENABLED=false`, recharger la configuration, redémarrer les processus PHP persistants et vérifier l’arrêt des snapshots planifiés si la collecte dégrade latence, mémoire ou stockage.
-- Validation manquante : environnement, fenêtre, propriétaire exploitation, validateur distinct, canaris P0-005 et échantillons représentatifs. Le contrat v3 est techniquement validé localement et par la CI PR #135, mais aucune mesure représentative n’est réputée verte ; la proposition reste non acceptée et ne clôt ni P0-005 ni P0-006.
+- Validation manquante : environnement, fenêtre, propriétaire exploitation, validateur distinct, canaris P0-005 et échantillons représentatifs. Le contrat v3 est techniquement validé localement et par la CI PR #135, mais aucune mesure représentative n’est réputée verte ; la proposition reste non acceptée et ne clôt ni P0-005 ni P0-006. MLK-DEC-010 ne modifie pas cette gate : il diffère seulement son exécution pour autoriser la sortie de Phase 0.
+
+## MLK-DEC-010 — Dérogation temporaire de sortie Phase 0 sans staging
+
+- Statut : **acceptée**.
+- Date : 2026-08-04.
+- Décideur : Jules Roger Sombangnen, responsable Produit, Technique et Exploitation.
+- Trace d’approbation : déclaration explicite du décideur dans la conversation de pilotage du 2026-08-04.
+- Échéance impérative : 2027-08-04, sans renouvellement automatique.
+- Contexte : aucun environnement staging, mécanisme de déploiement ou gestionnaire de processus exploitable n’est disponible dans le périmètre actuel.
+- Décision : un **GO P0-007 sous dérogation** autorise l’ouverture de la Phase 1. Les preuves opérationnelles P0-005 et la campagne représentative P0-006 sont reportées jusqu’à l’échéance ; MLK-DEC-009 demeure proposée et doit être réévaluée dès qu’un staging est disponible.
+- Limite de preuve : P0-005 et P0-006 ne sont ni exécutés, ni verts, ni validés en exploitation. Cette décision ne transforme aucune preuve locale en preuve staging.
+- Risques acceptés : workers non validés en exploitation ; absence de baseline dynamique représentative.
+- Interdictions : aucun test de charge, canari opérationnel, runner de capacité ou écriture en production sans une nouvelle approbation explicite, datée et bornée. La dérogation n’autorise aucune modification de configuration production.
+- Validation distincte : l’exception au validateur distinct s’applique uniquement à P0-006 jusqu’au 2027-08-04 ; le décideur assume seul cette responsabilité.
+- Sortie de dérogation : avant l’échéance, fournir un staging, exécuter les quatre canaris P0-005 avec redémarrage et rollback, puis collecter/importer les sept scénarios P0-006 et archiver un rapport strict.
+- Expiration : à défaut de ces preuves au 2027-08-04, la dérogation expire ; P0-005 et P0-006 redeviennent bloqués et toute progression inter-phase ultérieure exige une nouvelle décision explicite.
+- Portée : exception limitée à l’ouverture de la Phase 1. Elle lève les prérequis P0-006 de baseline dynamique pour cette ouverture seulement, sans accepter ni modifier les décisions générales MLK-DEC-001 et MLK-DEC-002.
 
 ## Gabarit d’une nouvelle décision
 
