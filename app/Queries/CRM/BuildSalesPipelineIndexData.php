@@ -274,7 +274,7 @@ class BuildSalesPipelineIndexData
         $nextActionAt = $this->dateValue(data_get($opportunity, 'next_action.at'));
         $amountTotal = $this->floatOrNull(data_get($opportunity, 'amount.total'));
         $weightedAmount = $this->floatOrNull(data_get($opportunity, 'forecast.weighted_amount'));
-        $ageDays = $openedAt ? $referenceTime->diffInDays($openedAt) : null;
+        $ageDays = $openedAt ? (int) $referenceTime->diffInDays($openedAt, true) : null;
         $hasOverdueNextAction = $nextActionAt ? $nextActionAt->lte($referenceTime) : false;
         $crmLinks = data_get($opportunity, 'crm_links', []);
         $primarySubjectType = data_get($crmLinks, 'subject.type');

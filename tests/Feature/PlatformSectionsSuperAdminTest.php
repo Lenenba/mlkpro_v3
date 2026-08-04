@@ -2,12 +2,15 @@
 
 use App\Http\Middleware\EnsureTwoFactorVerified;
 use App\Models\PlatformAdmin;
+use App\Models\PlatformAsset;
 use App\Models\PlatformPage;
 use App\Models\PlatformSection;
 use App\Models\Role;
 use App\Models\User;
 use App\Support\PlatformPermissions;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
@@ -232,6 +235,39 @@ it('exposes platform stock images in the shared assets module', function () {
     expect($welcomeAssets)->toBeArray()
         ->and(collect($welcomeAssets)->contains(fn (array $asset) => ($asset['url'] ?? null) === '/images/landing/stock/field-checklist.jpg'))
         ->and(collect($welcomeAssets)->every(fn (array $asset) => in_array('welcome', $asset['tags'] ?? [], true)))->toBeTrue();
+});
+
+it('rejects uploaded SVG assets while preserving raster uploads', function () {
+    Storage::fake('public');
+
+    $admin = platformSectionAdmin([PlatformPermissions::PAGES_MANAGE]);
+    $svg = UploadedFile::fake()->createWithContent(
+        'unsafe.svg',
+        '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
+    );
+    $renamedSvg = UploadedFile::fake()->createWithContent(
+        'unsafe.png',
+        '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
+    );
+
+    foreach ([$svg, $renamedSvg] as $unsafeFile) {
+        $this->actingAs($admin)
+            ->postJson(route('superadmin.assets.store'), ['files' => [$unsafeFile]])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('files.0');
+    }
+
+    expect(PlatformAsset::query()->count())->toBe(0)
+        ->and(Storage::disk('public')->allFiles())->toBe([]);
+
+    $png = UploadedFile::fake()->image('safe.png', 32, 32);
+
+    $this->actingAs($admin)
+        ->postJson(route('superadmin.assets.store'), ['files' => [$png]])
+        ->assertOk();
+
+    expect(PlatformAsset::query()->count())->toBe(1)
+        ->and(Storage::disk('public')->allFiles())->toHaveCount(1);
 });
 
 it('keeps an empty sections payload empty when saving a page from the admin', function () {

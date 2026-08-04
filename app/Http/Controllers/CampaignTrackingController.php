@@ -104,8 +104,7 @@ class CampaignTrackingController extends Controller
 
     public function reconcile()
     {
-        ReconcileDeliveryReportsJob::dispatch()
-            ->onQueue((string) config('campaigns.queues.maintenance', 'campaigns-maintenance'));
+        ReconcileDeliveryReportsJob::dispatch();
 
         return response()->json([
             'queued' => true,

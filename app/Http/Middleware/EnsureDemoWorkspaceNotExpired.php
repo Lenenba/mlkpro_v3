@@ -6,6 +6,7 @@ use App\Models\DemoWorkspace;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureDemoWorkspaceNotExpired
@@ -34,7 +35,7 @@ class EnsureDemoWorkspaceNotExpired
             return $next($request);
         }
 
-        if ($request->expectsJson()) {
+        if ($request->expectsJson() && ! $request->header('X-Inertia')) {
             return response()->json([
                 'message' => 'This demo workspace has expired.',
             ], 403);
@@ -43,6 +44,15 @@ class EnsureDemoWorkspaceNotExpired
         Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+
+        if ($request->header('X-Inertia')) {
+            $request->session()->flash(
+                'warning',
+                'This demo workspace has expired. Please request a refreshed access link.'
+            );
+
+            return Inertia::location(route('demo.index'));
+        }
 
         return redirect()
             ->route('demo.index')

@@ -9,6 +9,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
+use Inertia\Inertia;
 
 class ProfileController extends Controller
 {
@@ -50,13 +51,13 @@ class ProfileController extends Controller
                 $defaultAvatar,
                 $user->profile_picture
             );
-        } elseif (!empty($validated['avatar_icon'])) {
+        } elseif (! empty($validated['avatar_icon'])) {
             if (
                 $user->profile_picture
                 && $user->profile_picture !== $validated['avatar_icon']
-                && !str_starts_with($user->profile_picture, '/')
-                && !str_starts_with($user->profile_picture, 'http://')
-                && !str_starts_with($user->profile_picture, 'https://')
+                && ! str_starts_with($user->profile_picture, '/')
+                && ! str_starts_with($user->profile_picture, 'http://')
+                && ! str_starts_with($user->profile_picture, 'https://')
                 && $user->profile_picture !== $defaultAvatar
             ) {
                 FileHandler::deleteFile($user->profile_picture, $defaultAvatar);
@@ -113,6 +114,10 @@ class ProfileController extends Controller
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+
+        if ($request->header('X-Inertia')) {
+            return Inertia::location(route('welcome'));
+        }
 
         return Redirect::to('/');
     }

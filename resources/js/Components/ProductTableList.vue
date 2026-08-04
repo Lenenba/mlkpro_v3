@@ -80,7 +80,59 @@ const normalizeLine = (line = {}) => ({
   item_type: line.item_type ?? defaultItemType.value,
   source_details: line.source_details ?? null,
 });
-const products = ref(props.modelValue.map(normalizeLine));
+const normalizeLines = (lines) => {
+  const entries = Array.isArray(lines) && lines.length ? lines : [{}];
+
+  return entries.map(normalizeLine);
+};
+const sameLines = (first, second) => JSON.stringify(first ?? []) === JSON.stringify(second ?? []);
+const offerPackageDetails = (line = {}) => {
+  let details = line?.source_details;
+
+  if (typeof details === 'string') {
+    try {
+      details = JSON.parse(details);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  if (!details || typeof details !== 'object' || details.source !== 'offer_package') {
+    return null;
+  }
+
+  return details;
+};
+const isOfferPackageLine = (line) => Boolean(offerPackageDetails(line));
+const offerPackageTypeLabel = (line) => (
+  offerPackageDetails(line)?.offer_package_type === 'forfait' ? 'Forfait' : 'Pack'
+);
+const offerPackageSummary = (line) => offerPackageDetails(line)?.summary || '';
+const isBlankLine = (line = {}) => (
+  !line.id
+  && !String(line.name || '').trim()
+  && Number(line.price || 0) === 0
+  && !line.source_details
+);
+const removeLineLabel = (line) => (
+  isOfferPackageLine(line)
+    ? `Retirer le ${offerPackageTypeLabel(line).toLowerCase()} ${line.name}`
+    : 'Retirer cette ligne'
+);
+const products = ref(normalizeLines(props.modelValue));
+const canRemoveLine = (line) => products.value.length > 1 || !isBlankLine(line);
+
+watch(
+  () => props.modelValue,
+  (lines) => {
+    const nextLines = normalizeLines(lines);
+
+    if (!sameLines(products.value, nextLines)) {
+      products.value = nextLines;
+    }
+  },
+  { deep: true }
+);
 
 // Computed property for subtotal calculation
 const subtotal = computed(() => {
@@ -96,7 +148,9 @@ watch(
       product.total = product.quantity * product.price;
     });
     // Emit updated product list and subtotal to parent component
-    emits('update:modelValue', newProducts);
+    if (!sameLines(props.modelValue, newProducts)) {
+      emits('update:modelValue', newProducts);
+    }
     emits('update:subtotal', subtotal.value);
   },
   { deep: true }
@@ -158,9 +212,14 @@ const removeLine = index => {
   if (props.readOnly) {
     return;
   }
-  if (products.value.length > 1) {
-    products.value.splice(index, 1);
+
+  if (products.value.length === 1) {
+    products.value.splice(index, 1, normalizeLine());
+
+    return;
   }
+
+  products.value.splice(index, 1);
 };
 
 // Function to search for products based on query and update search results for the given index
@@ -418,6 +477,27 @@ const handleItemTypeChange = (index) => {
             <tr class="align-top">
               <td class="min-w-[320px] px-4 py-4 align-top">
                 <div class="relative space-y-2">
+                  <div
+                    v-if="isOfferPackageLine(product)"
+                    class="rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-left dark:border-emerald-900/70 dark:bg-emerald-950/30"
+                    data-testid="quote-offer-package-line"
+                  >
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                        {{ offerPackageTypeLabel(product) }}
+                      </span>
+                      <span class="text-sm font-semibold text-emerald-950 dark:text-emerald-100">
+                        {{ product.name }}
+                      </span>
+                    </div>
+                    <p
+                      v-if="offerPackageSummary(product)"
+                      class="mt-1 whitespace-pre-line text-xs text-emerald-800 dark:text-emerald-200"
+                    >
+                      {{ offerPackageSummary(product) }}
+                    </p>
+                  </div>
+                  <template v-else>
                   <div v-if="allowMixed">
                     <FloatingSelect
                       v-model="products[index].item_type"
@@ -431,6 +511,7 @@ const handleItemTypeChange = (index) => {
                   </div>
                   <FloatingInput autofocus v-model="products[index].name" label="Nom" class="w-full" :disabled="readOnly"
                     @input="searchProducts(products[index].name, index)" />
+                  </template>
                   <ul v-if="searchResults[index]?.length"
                       class="absolute left-0 top-full z-50 mt-1 w-full max-h-60 overflow-y-auto rounded-sm border border-stone-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-800">
                     <li v-for="result in searchResults[index]" :key="result.id"
@@ -464,15 +545,21 @@ const handleItemTypeChange = (index) => {
               <td class="px-4 py-4 align-top">
                 <div class="flex min-h-[52px] items-start gap-2">
                   <button
-                     v-if="enablePriceLookup && !readOnly && !products[index].id && !searchResults[index]?.length"
+                     v-if="enablePriceLookup && !readOnly && !isOfferPackageLine(product) && !products[index].id && !searchResults[index]?.length"
                      type="button"
                      class="inline-flex min-h-[38px] items-center rounded-sm border border-stone-200 px-2.5 py-1.5 text-xs font-medium text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
                      @click="searchPrices(index, false)"
                    >
                      Find prices
                    </button>
-                   <button type="button" v-if="!readOnly && products.length > 1" @click="removeLine(index)"
-                       class="inline-flex min-h-[38px] items-center gap-x-2 px-2.5 py-1.5 text-sm font-medium text-red-800 hover:text-red-600 disabled:pointer-events-none disabled:opacity-50 focus:outline-none dark:text-red-300">
+                   <button
+                     v-if="!readOnly && canRemoveLine(product)"
+                     type="button"
+                     :aria-label="removeLineLabel(product)"
+                     :title="removeLineLabel(product)"
+                     @click="removeLine(index)"
+                     class="inline-flex min-h-[38px] items-center gap-x-2 px-2.5 py-1.5 text-sm font-medium text-red-800 hover:text-red-600 disabled:pointer-events-none disabled:opacity-50 focus:outline-none dark:text-red-300"
+                   >
                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
                          fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                          stroke-linejoin="round" class="lucide lucide-trash-2">
@@ -482,6 +569,7 @@ const handleItemTypeChange = (index) => {
                       <line x1="10" x2="10" y1="11" y2="17" />
                       <line x1="14" x2="14" y1="11" y2="17" />
                     </svg>
+                    <span class="sr-only">{{ removeLineLabel(product) }}</span>
                   </button>
                 </div>
               </td>

@@ -240,13 +240,23 @@ class SuperAdminDashboardService
 
     private function platformAlerts(array $limitAlerts, array $health): array
     {
+        $stripeFailuresMeasurable = (bool) ($health['failed_stripe_jobs_measurable'] ?? false);
+        $smtpFailuresMeasurable = (bool) ($health['failed_mail_jobs_measurable'] ?? false);
+
         return [
             'limit_warnings' => $limitAlerts,
-            'stripe_failures_24h' => $health['failed_stripe_jobs_24h'] ?? 0,
-            'smtp_failures_24h' => $health['failed_mail_jobs_24h'] ?? 0,
+            'stripe_failures_24h' => $stripeFailuresMeasurable && is_numeric($health['failed_stripe_jobs_24h'] ?? null)
+                ? (int) $health['failed_stripe_jobs_24h']
+                : null,
+            'stripe_failures_measurable' => $stripeFailuresMeasurable,
+            'smtp_failures_24h' => $smtpFailuresMeasurable && is_numeric($health['failed_mail_jobs_24h'] ?? null)
+                ? (int) $health['failed_mail_jobs_24h']
+                : null,
+            'smtp_failures_measurable' => $smtpFailuresMeasurable,
             'jobs_backlog' => [
-                'pending' => $health['pending_jobs'] ?? 0,
+                'pending' => $health['pending_jobs'] ?? null,
                 'oldest_minutes' => $health['oldest_job_minutes'] ?? null,
+                'measurable' => $health['queue_backlog_measurable'] ?? false,
             ],
             'storage' => [
                 'used_bytes' => $health['storage_public_bytes'] ?? null,
@@ -479,7 +489,7 @@ class SuperAdminDashboardService
             $score = 0;
 
             if (! $owner->onboarding_completed_at) {
-                $ageDays = Carbon::parse($owner->created_at)->diffInDays(now());
+                $ageDays = (int) Carbon::parse($owner->created_at)->diffInDays(now(), true);
                 if ($ageDays >= 7) {
                     $flags[] = 'onboarding_blocked';
                     $score += 3;
@@ -509,8 +519,8 @@ class SuperAdminDashboardService
 
             $lastActivity = $lastActivityMap->get($owner->id);
             $inactiveDays = $lastActivity
-                ? Carbon::parse($lastActivity)->diffInDays(now())
-                : Carbon::parse($owner->created_at)->diffInDays(now());
+                ? (int) Carbon::parse($lastActivity)->diffInDays(now(), true)
+                : (int) Carbon::parse($owner->created_at)->diffInDays(now(), true);
 
             if ($inactiveDays >= 30) {
                 $flags[] = 'inactive_30';
@@ -801,7 +811,7 @@ class SuperAdminDashboardService
                 continue;
             }
 
-            $diffDays = Carbon::parse($firstCreatedAt)->diffInHours(Carbon::parse($owner->created_at)) / 24;
+            $diffDays = ((int) Carbon::parse($firstCreatedAt)->diffInHours(Carbon::parse($owner->created_at), true)) / 24;
             $days[] = $diffDays;
         }
 
@@ -839,7 +849,7 @@ class SuperAdminDashboardService
                 continue;
             }
 
-            $diffDays = Carbon::parse($firstCreatedAt)->diffInHours(Carbon::parse($owner->created_at)) / 24;
+            $diffDays = ((int) Carbon::parse($firstCreatedAt)->diffInHours(Carbon::parse($owner->created_at), true)) / 24;
             $days[] = $diffDays;
         }
 
@@ -1061,26 +1071,9 @@ class SuperAdminDashboardService
     private function healthStats(): array
     {
         $queueHealth = $this->queueHealthService->summary();
-
-        $failedMailLast24 = DB::table('failed_jobs')
-            ->where('failed_at', '>=', now()->subDay())
-            ->where(function ($query) {
-                $query->where('payload', 'like', '%Mail%')
-                    ->orWhere('payload', 'like', '%mail%')
-                    ->orWhere('exception', 'like', '%SMTP%')
-                    ->orWhere('exception', 'like', '%Mail%');
-            })
-            ->count();
-
-        $failedStripeLast24 = DB::table('failed_jobs')
-            ->where('failed_at', '>=', now()->subDay())
-            ->where(function ($query) {
-                $query->where('payload', 'like', '%Stripe%')
-                    ->orWhere('payload', 'like', '%stripe%')
-                    ->orWhere('exception', 'like', '%Stripe%')
-                    ->orWhere('exception', 'like', '%stripe%');
-            })
-            ->count();
+        $failedJobCategories = $this->failedJobCategoryStats(
+            (bool) ($queueHealth['failed_jobs_measurable'] ?? false)
+        );
 
         $storageBytes = null;
         $storageTotal = null;
@@ -1113,12 +1106,22 @@ class SuperAdminDashboardService
         }
 
         return [
-            'failed_jobs_24h' => (int) ($queueHealth['failed_jobs_24h'] ?? 0),
-            'failed_jobs_7d' => (int) ($queueHealth['failed_jobs_7d'] ?? 0),
-            'failed_mail_jobs_24h' => $failedMailLast24,
-            'failed_stripe_jobs_24h' => $failedStripeLast24,
-            'pending_jobs' => (int) ($queueHealth['pending_jobs'] ?? 0),
+            'failed_jobs_24h' => is_numeric($queueHealth['failed_jobs_24h'] ?? null)
+                ? (int) $queueHealth['failed_jobs_24h']
+                : null,
+            'failed_jobs_7d' => is_numeric($queueHealth['failed_jobs_7d'] ?? null)
+                ? (int) $queueHealth['failed_jobs_7d']
+                : null,
+            'failed_mail_jobs_24h' => $failedJobCategories['mail_24h'],
+            'failed_mail_jobs_measurable' => $failedJobCategories['measurable'],
+            'failed_stripe_jobs_24h' => $failedJobCategories['stripe_24h'],
+            'failed_stripe_jobs_measurable' => $failedJobCategories['measurable'],
+            'pending_jobs' => is_numeric($queueHealth['pending_jobs'] ?? null)
+                ? (int) $queueHealth['pending_jobs']
+                : null,
             'pending_jobs_by_queue' => $queueHealth['pending_by_queue'] ?? [],
+            'queue_backlog_measurable' => $queueHealth['backlog_measurable'] ?? false,
+            'queue_failed_jobs_measurable' => $queueHealth['failed_jobs_measurable'] ?? false,
             'queue_connection' => $queueHealth['connection'] ?? config('queue.default', 'sync'),
             'queue_driver' => $queueHealth['driver'] ?? config('queue.default', 'sync'),
             'oldest_job_minutes' => $queueHealth['oldest_job_minutes'] ?? null,
@@ -1127,6 +1130,61 @@ class SuperAdminDashboardService
             'storage_used_percent' => $storagePercent,
             'storage_critical' => $storageCritical,
         ];
+    }
+
+    /**
+     * @return array{measurable: bool, mail_24h: int|null, stripe_24h: int|null}
+     */
+    private function failedJobCategoryStats(bool $failedJobsMeasurable): array
+    {
+        $unknown = [
+            'measurable' => false,
+            'mail_24h' => null,
+            'stripe_24h' => null,
+        ];
+
+        $driver = (string) config('queue.failed.driver', 'database-uuids');
+        if (! $failedJobsMeasurable || ! in_array($driver, ['database', 'database-uuids'], true)) {
+            return $unknown;
+        }
+
+        $configuredDatabase = config('queue.failed.database');
+        $database = is_string($configuredDatabase) && trim($configuredDatabase) !== ''
+            ? trim($configuredDatabase)
+            : null;
+        $table = trim((string) config('queue.failed.table', 'failed_jobs')) ?: 'failed_jobs';
+
+        try {
+            $query = DB::connection($database)
+                ->table($table)
+                ->where('failed_at', '>=', now()->subDay());
+
+            $mailCount = (int) (clone $query)
+                ->where(function ($query) {
+                    $query->where('payload', 'like', '%Mail%')
+                        ->orWhere('payload', 'like', '%mail%')
+                        ->orWhere('exception', 'like', '%SMTP%')
+                        ->orWhere('exception', 'like', '%Mail%');
+                })
+                ->count();
+
+            $stripeCount = (int) (clone $query)
+                ->where(function ($query) {
+                    $query->where('payload', 'like', '%Stripe%')
+                        ->orWhere('payload', 'like', '%stripe%')
+                        ->orWhere('exception', 'like', '%Stripe%')
+                        ->orWhere('exception', 'like', '%stripe%');
+                })
+                ->count();
+
+            return [
+                'measurable' => true,
+                'mail_24h' => $mailCount,
+                'stripe_24h' => $stripeCount,
+            ];
+        } catch (\Throwable) {
+            return $unknown;
+        }
     }
 
     private function dataQualityStats(): array

@@ -23,7 +23,7 @@ class TwoFactorCodeNotification extends Notification
     {
         $locale = LocalePreference::forNotifiable($notifiable);
         $minutes = $this->expiresAt
-            ? max(1, (int) ceil(now()->diffInSeconds($this->expiresAt) / 60))
+            ? max(1, (int) ceil(now()->diffInSeconds($this->expiresAt, true) / 60))
             : null;
 
         return (new MailMessage)

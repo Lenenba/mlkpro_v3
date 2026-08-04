@@ -18,7 +18,7 @@ class ShiftScheduleService
         $maxVisits = max(0, (int) ($totalShifts ?? 0));
         $frequency = strtolower((string) ($frequency ?: ''));
 
-        if (!$end && $maxVisits <= 0) {
+        if (! $end && $maxVisits <= 0) {
             return [$start];
         }
 
@@ -39,6 +39,7 @@ class ShiftScheduleService
             $key = strtolower((string) $value);
             if (array_key_exists($key, $weekdayMap)) {
                 $repeatWeekdays[] = $weekdayMap[$key];
+
                 continue;
             }
 
@@ -48,11 +49,11 @@ class ShiftScheduleService
             }
         }
 
-        if (!$repeatWeekdays) {
+        if (! $repeatWeekdays) {
             $repeatWeekdays = [$start->dayOfWeek];
         }
 
-        if (!$repeatMonthDays) {
+        if (! $repeatMonthDays) {
             $repeatMonthDays = [$start->day];
         }
 
@@ -66,7 +67,7 @@ class ShiftScheduleService
         }
 
         $maxIterations = $end
-            ? max(1, $start->diffInDays($end) + 1)
+            ? max(1, (int) $start->diffInDays($end, true) + 1)
             : max(1, $maxVisits * $estimateMultiplier);
         $maxIterations = min($maxIterations, 365 * 3);
 

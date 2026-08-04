@@ -7,6 +7,7 @@ import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import AppSeo from './Components/Seo/AppSeo.vue';
 import { createI18nInstance, ensureI18nLocale } from './i18n';
 import { applyAccessibilityPreferences, readAccessibilityPreferences } from './utils/accessibility';
+import { createPrelineInitializer, refreshPrelineOverlays } from './utils/preline';
 
 let i18nInstance = null;
 let sessionReloading = false;
@@ -186,21 +187,58 @@ const patchPrelineTabs = () => {
 
 patchPrelineTabs();
 
-// Fonction pour initialiser Preline.js après chaque navigation
-const initializePreline = () => {
-    if (window.HSStaticMethods && typeof window.HSStaticMethods.autoInit === 'function') {
-        setTimeout(() => {
-            try {
-                ensurePrelineTabsHaveActive();
-                window.HSStaticMethods.autoInit(); // Réinitialisation des composants Preline.js
-            } catch (error) {
-                // Evite de casser l'app si Preline rencontre un element invalide.
-                if (import.meta.env.DEV) {
-                    console.warn('[preline] autoInit failed', error);
-                }
-            }
-        }, 100); // Ajoute un léger délai pour s'assurer que le DOM est rendu
+const initializePreline = createPrelineInitializer({
+    beforeInitialize: () => {
+        refreshPrelineOverlays();
+        ensurePrelineTabsHaveActive();
+    },
+    onError: (error) => {
+        if (import.meta.env.DEV) {
+            console.warn('[preline] autoInit failed', error);
+        }
+    },
+});
+
+const authRoutePaths = [
+    '/login',
+    '/register',
+    '/onboarding',
+    '/forgot-password',
+    '/confirm-password',
+    '/two-factor-challenge',
+    '/verify-email',
+];
+
+const isAuthenticationRoutePath = (url) => {
+    if (typeof window === 'undefined' || !url) {
+        return false;
     }
+
+    const destination = new URL(String(url), window.location.origin);
+
+    return authRoutePaths.includes(destination.pathname)
+        || destination.pathname.startsWith('/reset-password/');
+};
+
+const isZiggyBoundaryPage = (page) => {
+    const component = String(page?.component || '');
+
+    return component.startsWith('Auth/') || component.startsWith('Onboarding/');
+};
+
+const shouldReloadForZiggyPage = (page) => {
+    if (typeof document === 'undefined') {
+        return false;
+    }
+
+    const currentGroup = document.documentElement.dataset.ziggyGroup;
+
+    // Les pages d'authentification et d'onboarding utilisent volontairement la
+    // carte complète. Toute traversée de cette frontière recharge le document
+    // afin que la surface d'arrivée reçoive sa propre carte Ziggy.
+    return isZiggyBoundaryPage(page)
+        ? currentGroup !== 'full'
+        : currentGroup === 'full';
 };
 
 // Configuration de l'application Inertia
@@ -298,22 +336,39 @@ createInertiaApp({
             .use(ZiggyVue)
             .use(i18nInstance);
 
-        // Initialisation de Preline.js après le montage de l'application
-        vueApp.mixin({
-            mounted() {
-                initializePreline(); // Appeler Preline.js à chaque chargement de composant
-            },
-        });
+        const mountedApp = vueApp.mount(el);
+        initializePreline();
 
-        return vueApp.mount(el);
+        return mountedApp;
     },
     progress: {
         color: '#4B5563', // Couleur de la barre de progression Inertia
     },
 });
 
-// Réinitialiser Preline.js après chaque navigation Inertia
-router.on('navigate', () => {
+// Les vues d’authentification doivent recevoir leur document complet : leur
+// validation peut ensuite rediriger vers une surface Ziggy différente.
+router.on('before', (event) => {
+    const visit = event?.detail?.visit;
+
+    if (visit?.method?.toLowerCase() !== 'get' || !isAuthenticationRoutePath(visit.url)) {
+        return;
+    }
+
+    window.location.assign(new URL(String(visit.url), window.location.origin).href);
+
+    return false;
+});
+
+// Recharger le document aux frontières Ziggy, sinon réinitialiser Preline.js
+// une seule fois après chaque navigation Inertia.
+router.on('navigate', (event) => {
+    if (shouldReloadForZiggyPage(event?.detail?.page)) {
+        window.location.reload();
+
+        return;
+    }
+
     initializePreline();
 });
 

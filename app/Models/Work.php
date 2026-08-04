@@ -247,7 +247,7 @@ class Work extends Model
             return 0.0;
         }
 
-        $minutes = $start->diffInMinutes($end, false);
+        $minutes = (int) $start->diffInMinutes($end, false);
 
         return round(max(0, $minutes) / 60, 2);
     }

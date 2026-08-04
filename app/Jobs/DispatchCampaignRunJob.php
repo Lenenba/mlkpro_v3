@@ -200,8 +200,7 @@ class DispatchCampaignRunJob implements ShouldQueue
             ->pluck('id');
 
         foreach ($recipientIds as $recipientId) {
-            SendCampaignRecipientJob::dispatch((int) $recipientId)
-                ->onQueue((string) config('campaigns.queues.send', 'campaigns-send'));
+            SendCampaignRecipientJob::dispatch((int) $recipientId);
         }
 
         $progressService->refresh($run);

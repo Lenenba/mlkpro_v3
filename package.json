@@ -5,6 +5,7 @@
         "build": "node --max_old_space_size=1536 ./node_modules/vite/bin/vite.js build",
         "dev": "vite",
         "qa:build": "npm run build",
+        "qa:capacity-runner": "node --test tests/Node/P0006CapacityRunnerTest.mjs",
         "qa:e2e": "npm run qa:build && playwright test",
         "qa:e2e:install": "playwright install chromium"
     },
@@ -15,12 +16,12 @@
         "@types/dropzone": "^5.7.9",
         "@vitejs/plugin-vue": "^5.0.0",
         "autoprefixer": "^10.4.12",
-        "axios": "^1.7.4",
+        "axios": "^1.18.0",
         "concurrently": "^9.0.1",
         "laravel-vite-plugin": "^1.0",
-        "postcss": "^8.4.31",
+        "postcss": "^8.5.18",
         "tailwindcss": "^3.2.1",
-        "vite": "^6.0",
+        "vite": "^6.4.3",
         "vue": "^3.4.0"
     },
     "dependencies": {
@@ -37,7 +38,6 @@
         "datatables.net-dt": "^2.2.1",
         "dayjs": "^1.11.13",
         "dropzone": "^6.0.0-beta.2",
-        "lodash": "^4.17.21",
         "lucide-vue-next": "^0.577.0",
         "preline": "^2.7.0",
         "vue-i18n": "^11.2.7",

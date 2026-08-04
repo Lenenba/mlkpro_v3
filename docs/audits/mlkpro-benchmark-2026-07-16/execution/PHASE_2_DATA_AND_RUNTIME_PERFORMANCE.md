@@ -1,11 +1,12 @@
 # Phase 2 — Performance données et runtime
 
-- Dernière mise à jour : 2026-07-16
+- Dernière mise à jour : 2026-08-04
 - Statut : **en attente**
 - Responsable : à nommer
 - Validateurs : à nommer
 - Dépendance : Phase 1 terminée
 - Risque de phase : moyen à élevé
+- Vue maître et état courant : [suivi global des Phases 0 à 4](SUIVI_GLOBAL.md)
 
 ## Objectif
 

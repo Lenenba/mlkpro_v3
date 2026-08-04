@@ -17,21 +17,25 @@ return Application::configure(basePath: dirname(__DIR__))
         apiPrefix: 'api/v1',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->web(prepend: [
+            \App\Http\Middleware\RecordRequestMetrics::class,
+        ]);
         $middleware->web(append: [
             \App\Http\Middleware\NormalizePublicSeoUrls::class,
             \App\Http\Middleware\SetLocale::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
             \App\Http\Middleware\SecurityHeaders::class,
-            \App\Http\Middleware\RecordRequestMetrics::class,
             \App\Http\Middleware\EnsureTwoFactorVerified::class,
             \App\Http\Middleware\EnsureOnboardingIsComplete::class,
             \App\Http\Middleware\EnsureNotSuspended::class,
             \App\Http\Middleware\EnsureDemoWorkspaceNotExpired::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
+        $middleware->api(prepend: [
+            \App\Http\Middleware\RecordRequestMetrics::class,
+        ]);
         $middleware->api(append: [
             \App\Http\Middleware\SecurityHeaders::class,
-            \App\Http\Middleware\RecordRequestMetrics::class,
         ]);
         $middleware->throttleApi();
         $middleware->validateCsrfTokens(except: [

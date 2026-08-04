@@ -623,7 +623,7 @@ class PublicKioskReservationController extends Controller
             ->map(function (ReservationQueueItem $item) {
                 $duration = max(5, min(240, (int) ($item->estimated_duration_minutes ?: 60)));
                 $elapsed = $item->started_at
-                    ? max(0, $item->started_at->diffInMinutes(now('UTC')))
+                    ? max(0, (int) $item->started_at->diffInMinutes(now('UTC'), true))
                     : 0;
 
                 return max(0, $duration - $elapsed);

@@ -2963,7 +2963,7 @@ class ExpenseController extends Controller
         }
 
         if ($periodKey === 'custom') {
-            $days = max(1, $start->diffInDays($end) + 1);
+            $days = max(1, (int) $start->diffInDays($end, true) + 1);
             $previousEnd = $start->copy()->subDay()->endOfDay();
             $previousStart = $previousEnd->copy()->subDays($days - 1)->startOfDay();
         } else {

@@ -404,7 +404,7 @@ class CampaignLeadAttributionService
         }
 
         try {
-            return Carbon::parse($capturedAt)->diffInHours(now()) <= self::ATTRIBUTION_TTL_HOURS;
+            return (int) Carbon::parse($capturedAt)->diffInHours(now(), true) <= self::ATTRIBUTION_TTL_HOURS;
         } catch (\Throwable) {
             return false;
         }

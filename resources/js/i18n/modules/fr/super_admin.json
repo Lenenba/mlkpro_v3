@@ -74,6 +74,7 @@
         "stripe_failures": "Echecs Stripe",
         "smtp_failures": "Echecs SMTP",
         "jobs_backlog": "Jobs en backlog",
+        "measurement_unavailable": "Mesure indisponible",
         "jobs_backlog_detail": "{pending} en attente · plus ancien {oldest} min",
         "storage": "Stockage"
       },

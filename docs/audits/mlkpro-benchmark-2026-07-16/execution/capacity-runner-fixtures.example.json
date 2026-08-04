@@ -1,0 +1,180 @@
+{
+  "schema_version": 3,
+  "base_url": "https://staging.example.invalid",
+  "scenarios": {
+    "dashboard_usage": {
+      "strategy": "repeat",
+      "requests": [
+        {
+          "method": "GET",
+          "route_name": "dashboard",
+          "route_uri": "/dashboard",
+          "path_parameters": {},
+          "query": {},
+          "headers": {
+            "Cookie": "REPLACE_WITH_SYNTHETIC_OWNER_SESSION"
+          },
+          "body": null,
+          "preparation": []
+        }
+      ]
+    },
+    "customer_detail_access": {
+      "strategy": "repeat",
+      "requests": [
+        {
+          "method": "GET",
+          "route_name": "customer.show",
+          "route_uri": "/customer/{customer}",
+          "path_parameters": {
+            "customer": "REPLACE_WITH_SYNTHETIC_CUSTOMER_ID"
+          },
+          "query": {},
+          "headers": {
+            "Cookie": "REPLACE_WITH_SYNTHETIC_OWNER_SESSION"
+          },
+          "body": null,
+          "preparation": []
+        }
+      ]
+    },
+    "reservation_creation": {
+      "strategy": "one_shot",
+      "requests": [
+        {
+          "method": "POST",
+          "route_name": "client.reservations.store",
+          "route_uri": "/client/reservations/book",
+          "path_parameters": {},
+          "query": {},
+          "headers": {
+            "Cookie": "REPLACE_WITH_SYNTHETIC_CLIENT_SESSION",
+            "X-CSRF-TOKEN": "REPLACE_WITH_SYNTHETIC_CSRF_TOKEN"
+          },
+          "body": {
+            "team_member_id": "REPLACE_WITH_SYNTHETIC_TEAM_MEMBER_ID",
+            "service_id": "REPLACE_WITH_SYNTHETIC_SERVICE_ID",
+            "starts_at": "REPLACE_WITH_UNIQUE_APPROVED_SYNTHETIC_STARTS_AT",
+            "timezone": "UTC",
+            "client_notes": "P0-006 synthetic reservation"
+          },
+          "preparation": []
+        }
+      ]
+    },
+    "sales_creation": {
+      "strategy": "one_shot",
+      "requests": [
+        {
+          "method": "POST",
+          "route_name": "sales.store",
+          "route_uri": "/sales",
+          "path_parameters": {},
+          "query": {},
+          "headers": {
+            "Cookie": "REPLACE_WITH_SYNTHETIC_OWNER_SESSION",
+            "X-CSRF-TOKEN": "REPLACE_WITH_SYNTHETIC_CSRF_TOKEN"
+          },
+          "body": {
+            "customer_id": "REPLACE_WITH_UNIQUE_SYNTHETIC_CUSTOMER_ID",
+            "status": "pending",
+            "items": [
+              {
+                "product_id": "REPLACE_WITH_SYNTHETIC_PRODUCT_ID",
+                "quantity": 1,
+                "price": "REPLACE_WITH_SYNTHETIC_PRODUCT_PRICE"
+              }
+            ]
+          },
+          "preparation": []
+        }
+      ]
+    },
+    "public_request_submission": {
+      "strategy": "one_shot",
+      "requests": [
+        {
+          "method": "POST",
+          "route_name": "public.requests.store",
+          "route_uri": "/public/requests/{user}",
+          "path_parameters": {
+            "user": "REPLACE_WITH_SYNTHETIC_OWNER_ID"
+          },
+          "query": {
+            "expires": "REPLACE_WITH_APPROVED_SIGNED_URL_EXPIRY",
+            "signature": "REPLACE_WITH_APPROVED_SIGNED_URL_SIGNATURE"
+          },
+          "headers": {
+            "Cookie": "REPLACE_WITH_SYNTHETIC_PUBLIC_SESSION",
+            "X-CSRF-TOKEN": "REPLACE_WITH_SYNTHETIC_CSRF_TOKEN"
+          },
+          "body": {
+            "contact_name": "P0-006 Synthetic Lead",
+            "contact_email": "REPLACE_WITH_UNIQUE_SYNTHETIC_CONTACT_EMAIL",
+            "description": "P0-006 synthetic public request"
+          },
+          "preparation": []
+        }
+      ]
+    },
+    "public_store_browse": {
+      "strategy": "repeat",
+      "requests": [
+        {
+          "method": "GET",
+          "route_name": "public.store.show",
+          "route_uri": "/store/{slug}",
+          "path_parameters": {
+            "slug": "REPLACE_WITH_SYNTHETIC_STORE_SLUG"
+          },
+          "query": {},
+          "headers": {},
+          "body": null,
+          "preparation": []
+        }
+      ]
+    },
+    "public_store_checkout": {
+      "strategy": "one_shot",
+      "requests": [
+        {
+          "method": "POST",
+          "route_name": "public.store.checkout",
+          "route_uri": "/store/{slug}/checkout",
+          "path_parameters": {
+            "slug": "REPLACE_WITH_SHARED_SYNTHETIC_STORE_SLUG"
+          },
+          "query": {},
+          "headers": {
+            "Cookie": "REPLACE_WITH_UNIQUE_SHARED_SYNTHETIC_CART_SESSION",
+            "X-CSRF-TOKEN": "REPLACE_WITH_SHARED_SYNTHETIC_CART_CSRF_TOKEN"
+          },
+          "body": {
+            "name": "P0-006 Synthetic Buyer",
+            "email": "REPLACE_WITH_UNIQUE_SYNTHETIC_BUYER_EMAIL",
+            "fulfillment_method": "pickup"
+          },
+          "preparation": [
+            {
+              "method": "POST",
+              "route_name": "public.store.cart.add",
+              "route_uri": "/store/{slug}/cart",
+              "path_parameters": {
+                "slug": "REPLACE_WITH_SHARED_SYNTHETIC_STORE_SLUG"
+              },
+              "query": {},
+              "headers": {
+                "Cookie": "REPLACE_WITH_UNIQUE_SHARED_SYNTHETIC_CART_SESSION",
+                "X-CSRF-TOKEN": "REPLACE_WITH_SHARED_SYNTHETIC_CART_CSRF_TOKEN"
+              },
+              "body": {
+                "product_id": "REPLACE_WITH_SYNTHETIC_PRODUCT_ID",
+                "quantity": 1
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

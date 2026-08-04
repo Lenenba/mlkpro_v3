@@ -1,5 +1,9 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+@php
+    $ziggyGroups = app(\App\Support\Routing\ZiggyRouteGroupResolver::class)->resolve(request());
+    $ziggyGroupLabel = $ziggyGroups === null ? 'full' : implode(',', (array) $ziggyGroups);
+@endphp
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-ziggy-group="{{ $ziggyGroupLabel }}">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -42,7 +46,7 @@
         </script>
 
         <!-- Scripts -->
-        @routes
+        @routes($ziggyGroups)
         @vite(['resources/js/app.js', "resources/js/Pages/{$page['component']}.vue"])
         @inertiaHead
     </head>

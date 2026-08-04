@@ -185,7 +185,7 @@ class BuildQuoteRecoveryIndexData
             && $effectiveLastSentAt !== null
             && $effectiveLastSentAt->lte($referenceTime->copy()->subDays(self::EXPIRED_AFTER_DAYS));
         $quoteAgeDays = $effectiveLastSentAt
-            ? $referenceTime->diffInDays($effectiveLastSentAt)
+            ? (int) $referenceTime->diffInDays($effectiveLastSentAt, true)
             : null;
 
         return [

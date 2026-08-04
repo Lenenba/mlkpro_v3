@@ -1,15 +1,17 @@
 # Cockpit d’exécution contrôlée — amélioration MLK Pro
 
-- Dernière mise à jour : 2026-07-17
-- Statut global : **Phase 0 en cours — SMS et harnais des canaris validés localement ; aucun sender WhatsApp enregistré, rotation non finalisée**
-- Phase active autorisée : **Phase 0, canaris et inventaire des environnements ; promotion interdite avant validation complète**
+- Dernière mise à jour : 2026-08-04
+- Statut global : **Phase 0 terminée sous dérogation MLK-DEC-010 — P0-001 à P0-004 terminés ; harnais P0-005/P0-006 intégrés dans `develop` par `e91adf8` ; preuves d’exploitation et baseline dynamique reportées jusqu’au 2027-08-04 ; Phase 1 ouverte, P1-001 terminé et P1-002 en validation locale**
+- Phase active autorisée : **Phase 1 — gains rapides de performance ; les preuves P0-005/P0-006 restent dues sous dérogation**
+- Politique Git : **travail et pull requests uniquement depuis/vers `develop` ; `main` est réservée au propriétaire humain du dépôt**
 - Responsable d’exécution locale : Codex
-- Responsable exploitation : à nommer
-- Validateur produit : demandeur
+- Responsable exploitation : Jules Roger Sombangnen
+- Décideur produit / technique / exploitation : Jules Roger Sombangnen
+- Document maître de suivi : **[Suivi global des Phases 0 à 4](SUIVI_GLOBAL.md)**
 
 ## Décision recommandée
 
-Commencer par la [Phase 0 — Sécurité et baseline](PHASE_0_SECURITY_AND_BASELINE.md).
+La [Phase 0 — Sécurité et baseline](PHASE_0_SECURITY_AND_BASELINE.md) est clôturée sous la dérogation MLK-DEC-010 avant l’ouverture de la Phase 1. Le [suivi global](SUIVI_GLOBAL.md) récapitule ce qui est terminé, ce qui reste dû sous dérogation et tout le travail prévu jusqu’à la Phase 4.
 
 Cette phase traite, dans cet ordre :
 
@@ -19,27 +21,31 @@ Cette phase traite, dans cet ordre :
 4. la cohérence des files et des workers ;
 5. la collecte d’une baseline de production ou de staging représentatif.
 
-Les optimisations visuelles et les changements d’architecture attendent la fermeture de cette phase. Cela évite de rendre le produit plus joli alors qu’un risque de sécurité, un job non consommé ou une mesure insuffisante subsiste.
+Les optimisations visuelles et les changements d’architecture peuvent commencer en Phase 1 sous la dérogation acceptée. Cela ne masque ni le risque de worker non consommé ni l’absence de mesure dynamique : les preuves P0-005/P0-006 restent dues avant le 2027-08-04.
 
 ## Tableau de contrôle
 
 | Phase | Document | Statut | Dépendance | Gate de sortie |
 |---|---|---|---|---|
-| 0 | [Sécurité et baseline](PHASE_0_SECURITY_AND_BASELINE.md) | Précontrôles en cours | Aucune | Secrets remplacés, audits traités, queues alignées, baseline exploitable |
-| 1 | [Gains rapides de performance](PHASE_1_QUICK_PERFORMANCE_WINS.md) | En attente | Phase 0 terminée | Coûts globaux réduits sans régression de workflow |
+| 0 | [Sécurité et baseline](PHASE_0_SECURITY_AND_BASELINE.md) | Terminée sous dérogation — GO P0-007 signé ; exploitation P0-005 et campagne P0-006 reportées jusqu’au 2027-08-04 | Aucune | Dérogation tracée, risques acceptés et preuves opérationnelles planifiées avant échéance |
+| 1 | [Gains rapides de performance](PHASE_1_QUICK_PERFORMANCE_WINS.md) | Ouverte — P1-002 en validation locale | GO P0-007 sous dérogation | Valider P1-002, puis réduire les coûts globaux sans régression de workflow |
 | 2 | [Performance données et runtime](PHASE_2_DATA_AND_RUNTIME_PERFORMANCE.md) | En attente | Phase 1 terminée | SQL, cache, props et infrastructure validés sous charge |
 | 3 | [Expérience utilisateur premium](PHASE_3_PREMIUM_USER_EXPERIENCE.md) | En attente | Phases 1 et 2 terminées | Parcours plus rapides et plus clairs, validés par rôle |
 | 4 | [Différenciation produit](PHASE_4_PRODUCT_DIFFERENTIATION.md) | En attente | Phase 3 terminée | Avantages opérations-finance validés avec des pilotes |
 
+Le détail ticket par ticket, les acquis, les blocages et les prochaines actions de ces cinq phases sont centralisés dans [SUIVI_GLOBAL.md](SUIVI_GLOBAL.md).
+
 ## Règle de fonctionnement
 
-Une seule phase peut avoir le statut **en cours**.
+Le séquencement ci-dessous correspond à la politique proposée dans `MLK-DEC-002`, appliquée prudemment par le cockpit. Son acceptation générale reste à consigner dans [DECISIONS.md](DECISIONS.md). MLK-DEC-010 constitue toutefois une exception ciblée, appuyée par un GO P0-007 signé, qui ouvre uniquement la Phase 1 sans rendre la baseline dynamique ou les validations de workers conformes.
+
+Une seule phase peut donc avoir le statut **en cours** dans le suivi actuel.
 
 Une phase suit obligatoirement ce cycle :
 
 ```text
-À valider → Validée → En cours → En validation → Terminée
-                              ↘ Bloquée
+En attente → À valider → Validée → En cours → En validation → Terminée
+                                           ↘ Bloquée
 ```
 
 Le passage à l’état suivant exige une entrée dans [VALIDATION_LOG.md](VALIDATION_LOG.md). Toute décision qui modifie le scope, l’ordre, une cible ou un contrat protégé est enregistrée dans [DECISIONS.md](DECISIONS.md).
@@ -96,13 +102,44 @@ Avant de terminer un ticket :
 
 ## Précision importante sur les files
 
-L’audit initial doit être lu avec cette précision :
+P0-005 retient une topologie centralisée dans `config/async.php` :
 
-- `AnalyzePlanScanJob` demande le workload `plan_scans`. Dans la configuration actuelle, ce workload pointe par défaut vers `default`, et le worker de développement consomme bien `default`. Le risque est un **écart futur de configuration** si `ASYNC_QUEUE_PLAN_SCANS` devient `plan-scans` sans mise à jour des workers.
-- `PublishSocialPostTargetJob` demande `social_publish`, mais ce workload n’est pas déclaré dans `config/async.php`. Son fallback `social-publish` n’est pas présent dans le worker de développement : ce risque est actuel.
-- `AnalyzePlanScanJob` capture une exception sans la relancer, ce qui empêche Laravel d’appliquer normalement `tries` et `backoff` pour cette erreur.
+- les dix workloads sont déclarés, dont `plan_scans` vers `plan-scans` et `social_publish` vers `social-publish` ;
+- les profils `development`, `operations`, `plan-scans`, `campaigns` et `social` résolvent dynamiquement leurs files avec `queue:workloads` ;
+- `plan-scans` est isolé avec un timeout de 240 secondes et un `retry_after` de 300 secondes ;
+- `default` reste consommée localement et par `operations` pour les jobs implicites et le drainage des anciens scans ;
+- les files explicites sont prioritaires sur `default`, avec `campaigns-send` avant dispatch et `social-publish` avant automation ;
+- `queue:workload-audit` contrôle la correspondance workloads/files/workers, les connexions persistantes, les collisions et la cohérence timeout/visibilité ;
+- les exceptions techniques de `AnalyzePlanScanJob` doivent être relancées pour activer le retry, tandis que `failed` matérialise l’échec terminal.
 
-La Phase 0 doit centraliser ces décisions et ajouter un test de cohérence automatique.
+La preuve historique de la PR #133 compte 1 179 tests/12 236 assertions et une CI verte sous PHP 8.4, MySQL 8.4 et Chromium. Le lot courant `6af521e` ajoute `queue:workload-canary` et 33 tests/457 assertions ciblés ; le rejeu global atteint 1 284 tests/13 180 assertions. La commande exige, pour chaque file, un accusé produit par un vrai worker et lié à la connexion, la file, l’environnement, la release et le commit. La procédure complète est décrite dans [Phase 6 Queue Strategy](../../../PHASE_6_QUEUE_STRATEGY_2026-03-07.md). Les modes `internal_test` et `dry-run` sont explicitement inéligibles comme preuves : le gestionnaire de processus, quatre sorties opérationnelles, la santé, les canaris métier et le rollback restent à vérifier en staging/production. MLK-DEC-010 reporte ces preuves jusqu’au 2027-08-04 sans les décrire comme validées en exploitation.
+
+## Préparation de la baseline d’observabilité P0-006
+
+P0-006 couvre six familles métier et sept scénarios exécutables : dashboard, détail client, création de réservation, création de vente, demande publique, consultation de la boutique publique et checkout de la boutique publique.
+
+L’instrumentation est volontairement inactive par défaut : `OBSERVABILITY_ENABLED=false`. Une campagne recevable exige `OBSERVABILITY_ENABLED=true`, le driver Redis effectif via `OBSERVABILITY_CACHE_STORE=redis` et une identité de release non vide dans `OBSERVABILITY_RELEASE`. Le préflight refuse une collecte si l’observabilité est inactive, si la release manque, si le driver effectif n’est pas exactement Redis, si le cache ne répond pas en lecture/écriture, si des pertes de télémétrie sont détectées, si la santé des queues n’est pas mesurable ou si les seuils de backlog, d’âge du plus ancien job ou d’échecs sur 24 h sont déjà dépassés.
+
+Le contexte de campagne doit être complet avant le plan : identifiant de run, environnement, commit, fenêtre UTC, trafic, runner externe approuvé et `CAPACITY_BASELINE_RUNNER_HASH`, fixture privée et `CAPACITY_BASELINE_FIXTURE_HASH`, allowlist d’origines HTTPS exactes dans `CAPACITY_BASELINE_ALLOWED_ORIGINS`, exclusions, mode `staging` ou `production_read_only`, représentativité, approbation et sa référence, canaris P0-005 vérifiés, propriétaire et validateur distincts. En mode `staging`, l’environnement doit appartenir à `CAPACITY_ALLOWED_STAGING_ENVIRONMENTS`. Tout scénario d’écriture non bloqué exige `CAPACITY_BASELINE_ISOLATED_TENANT_VERIFIED=true`. Le cache, la base et la connexion de queue effectifs sont ajoutés au contexte d’exécution.
+
+L’ordre contrôlé d’un scénario est :
+
+```text
+capacity:plan
+  → capacity:scenario:start
+  → harness externe approuvé
+  → capacity:scenario:stop
+  → capacity:result:import
+  → capacity:report
+```
+
+Avec `capacity:report --json --strict`, le code de sortie est `0` pour les statuts `healthy` **et** `accepted_with_blockers`. `accepted_with_blockers` signifie qu’au moins un scénario possède un blocage formel encore valide ; ce scénario n’a pas été exécuté ni validé par la campagne. Ce succès de commande ne prouve donc jamais que les sept scénarios ont été exécutés. Toute automatisation doit conserver le JSON et distinguer explicitement ces deux statuts.
+
+Le démarrage et l’arrêt encadrent les snapshots de queue propres au scénario. Au démarrage, la fenêtre restante doit contenir toute la durée du profil plus `CAPACITY_SCENARIO_START_BUFFER_SECONDS` ; une clé de scénario ne peut être exécutée qu’une fois dans un même run. La tâche planifiée `queue:health --record --json` doit couvrir tout l’intervalle du runner avec une cadence nominale de 60 s, un écart maximal de 120 s et une grâce de 30 s aux deux extrémités. Le résultat fermé `schema_version: 3` lie séparément le scénario (`manifest_hash`), la fixture v3 (`fixture_hash`), le contexte approuvé (`baseline_fingerprint`), l’origine sans l’exposer (`target_origin_hash`) et le harness (`runner_hash`). La fixture v3 contient exactement chaque scénario prévu avec la stratégie `repeat` ou `one_shot` signée ; la première contient une requête, la seconde le budget intégral de requêtes distinctes. Il signe aussi `request_interval_ms` et `request_timeout_ms`. Le runner Node 20 refuse les redirections, les origines non allowlistées, les méthodes/routes divergentes, les en-têtes dangereux, les fixtures altérées et tout plan ou préflight devenu invalide. Les p50/p95/p99/max mesurent la **latence client de bout en bout** ; le **temps de traitement applicatif** Laravel reste diagnostique.
+
+Chaque scénario doit atteindre à la fois `targets.min_samples` et le plancher de charge `profile.minimum_completed_requests` défini dans `config/capacity.php`, ou être marqué bloqué avec raison, propriétaire et date de réévaluation. L’import refuse un résultat dont les requêtes tentées ou complétées restent sous cette enveloppe. Seuls des agrégats expurgés sont versionnés ; chemins, paramètres, messages d’exception, SQL, bindings, identifiants, secrets, données client et fichiers bruts du harness restent hors du dépôt.
+
+Le rollback opérationnel consiste à positionner `OBSERVABILITY_ENABLED=false`, recharger la configuration puis redémarrer les processus persistants concernés. Le runner et l’import sont **techniquement validés localement et en CI**, mais aucune campagne représentative n’est consignée et les canaris d’exploitation P0-005 restent ouverts : **P0-006 n’est pas validé en exploitation**. MLK-DEC-010 reporte cette preuve jusqu’au 2027-08-04 et autorise seulement l’ouverture de la Phase 1 ; aucune amélioration ne peut être attribuée à une baseline dynamique absente.
 
 ## Artefacts de référence
 
@@ -110,19 +147,22 @@ La Phase 0 doit centraliser ces décisions et ajouter un test de cohérence auto
 - [Artefact analytique canonique](../artifact.json)
 - [Preuves de l’audit](../evidence.md)
 - [Backlog priorisé](../priorities.csv)
-- [Roadmap de synthèse](../roadmap.csv)
+- [Suivi global des Phases 0 à 4](SUIVI_GLOBAL.md)
+- [Roadmap historique de synthèse](../roadmap.csv)
 - [Registre des décisions](DECISIONS.md)
 - [Journal des validations](VALIDATION_LOG.md)
 - [Protocole de tests et de non-régression](QUALITY_GATES.md)
+- [Guide d’exécution du runner P0-006](P0_006_RUNNER.md)
+- [Exemple de fixture privée P0-006](capacity-runner-fixtures.example.json)
+- [Gabarit agrégé du résultat runner P0-006](capacity-runner-result.example.json)
 
-## Prochaine réunion de validation
+## Suivi de la dérogation et démarrage de la Phase 1
 
 Ordre du jour proposé :
 
-1. nommer le responsable produit, le responsable technique et le validateur métier ;
-2. approuver le scope de la Phase 0 ;
-3. confirmer qui possède l’accès administrateur Twilio et aux environnements ;
-4. choisir l’environnement de baseline ;
-5. décider si `plan_scans` reste sur `default` ou reçoit une file dédiée ;
-6. autoriser une branche dédiée aux remédiations de dépendances ;
-7. signer la gate d’entrée de la Phase 0 dans le journal.
+1. faire valider humainement P1-002, dont la preuve locale est consignée dans `VALID-P1-002-LOCAL-2026-08-04` ;
+2. fournir un staging et son mécanisme d’accès/déploiement avant le 2027-08-04 ;
+3. exécuter les quatre canaris P0-005, les contrôles métier, le redémarrage et le rollback ;
+4. réévaluer `MLK-DEC-009`, nommer un validateur distinct et approuver la campagne P0-006 ;
+5. exécuter et importer les sept scénarios, puis archiver le rapport strict ;
+6. réévaluer ou clôturer la dérogation avant son expiration, sans renouvellement automatique.

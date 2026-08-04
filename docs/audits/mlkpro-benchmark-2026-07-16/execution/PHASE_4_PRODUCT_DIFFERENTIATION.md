@@ -1,11 +1,12 @@
 # Phase 4 — Différenciation produit
 
-- Dernière mise à jour : 2026-07-16
+- Dernière mise à jour : 2026-08-04
 - Statut : **en attente**
 - Responsable : à nommer
 - Validateurs : direction produit, finance/comptabilité, sécurité et pilotes à nommer
 - Dépendance : Phase 3 terminée
 - Risque de phase : élevé
+- Vue maître et état courant : [suivi global des Phases 0 à 4](SUIVI_GLOBAL.md)
 
 ## Objectif
 

@@ -239,7 +239,7 @@ class BuildCustomerDetailViewData
         $salesTotal = (float) (clone $salesQuery)->sum('total');
         $salesPaid = (float) (clone $salesQuery)->where('status', Sale::STATUS_PAID)->sum('total');
         $lastPurchaseAt = (clone $salesQuery)->latest()->value('created_at');
-        $daysSinceLast = $lastPurchaseAt ? now()->diffInDays($lastPurchaseAt) : null;
+        $daysSinceLast = $lastPurchaseAt ? (int) now()->diffInDays($lastPurchaseAt, true) : null;
         $recent30Count = (clone $salesQuery)
             ->where('created_at', '>=', now()->subDays(30))
             ->count();
@@ -256,7 +256,7 @@ class BuildCustomerDetailViewData
                 $current = $saleDates[$index];
                 $previous = $saleDates[$index - 1];
                 if ($current && $previous) {
-                    $intervals[] = $current->diffInDays($previous);
+                    $intervals[] = (int) $current->diffInDays($previous, true);
                 }
             }
             if ($intervals) {

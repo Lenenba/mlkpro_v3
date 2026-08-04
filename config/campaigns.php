@@ -20,9 +20,9 @@ return [
     ],
 
     'queues' => [
-        'dispatch' => env('CAMPAIGNS_QUEUE_DISPATCH', 'campaigns-dispatch'),
-        'send' => env('CAMPAIGNS_QUEUE_SEND', 'campaigns-send'),
-        'maintenance' => env('CAMPAIGNS_QUEUE_MAINTENANCE', 'campaigns-maintenance'),
+        'dispatch' => env('ASYNC_QUEUE_CAMPAIGNS_DISPATCH', env('CAMPAIGNS_QUEUE_DISPATCH', 'campaigns-dispatch')),
+        'send' => env('ASYNC_QUEUE_CAMPAIGNS_SEND', env('CAMPAIGNS_QUEUE_SEND', 'campaigns-send')),
+        'maintenance' => env('ASYNC_QUEUE_CAMPAIGNS_MAINTENANCE', env('CAMPAIGNS_QUEUE_MAINTENANCE', 'campaigns-maintenance')),
     ],
 
     'rate_limits' => [

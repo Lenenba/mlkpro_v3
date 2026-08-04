@@ -17,7 +17,16 @@ use App\Modules\AiAssistant\Policies\AiConversationPolicy;
 use App\Observers\PaymentObserver;
 use App\Services\Campaigns\MarketingSettingsService;
 use App\Services\Campaigns\TemplateSeederService;
+use App\Services\Capacity\CapacityOutcomeClassifier;
+use App\Services\Capacity\CapacityRunContextService;
+use App\Services\Observability\ExceptionStatusCodeResolver;
+use App\Services\Observability\ObservabilityCacheStore;
+use App\Services\Observability\ObservabilityLogService;
+use App\Services\Observability\RequestMetricsService;
 use App\Services\Observability\SlowQueryService;
+use App\Services\Observability\TelemetryQueryGuard;
+use App\Services\Observability\TelemetrySanitizer;
+use App\Services\Observability\TelemetryScope;
 use App\Services\PlatformAdminNotifier;
 use App\Services\Rbac\AccessControl;
 use App\Support\LocalePreference;
@@ -32,6 +41,7 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
@@ -52,7 +62,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(ObservabilityCacheStore::class);
+        $this->app->singleton(ObservabilityLogService::class);
+        $this->app->singleton(ExceptionStatusCodeResolver::class);
+        $this->app->singleton(TelemetrySanitizer::class);
+        $this->app->singleton(TelemetryQueryGuard::class);
+        $this->app->singleton(TelemetryScope::class);
+        $this->app->singleton(RequestMetricsService::class);
+        $this->app->singleton(SlowQueryService::class);
+        $this->app->singleton(CapacityRunContextService::class);
+        $this->app->singleton(CapacityOutcomeClassifier::class);
     }
 
     /**
@@ -168,9 +187,45 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(max(1, $limit))->by($key);
         });
 
-        if (config('observability.enabled', true) && ! $this->app->runningUnitTests()) {
-            DB::listen(function (QueryExecuted $query): void {
-                app(SlowQueryService::class)->recordExecutedQuery($query);
+        if ($this->app->runningUnitTests() || config('observability.enabled', false)) {
+            $application = $this->app;
+
+            DB::listen(function (QueryExecuted $query) use ($application): void {
+                if (! config('observability.enabled', false)) {
+                    return;
+                }
+
+                $guard = app(TelemetryQueryGuard::class);
+                if ($guard->active() || $this->isObservabilityCacheQuery($query)) {
+                    return;
+                }
+
+                $guard->run(function () use ($application, $query): void {
+                    try {
+                        app(RequestMetricsService::class)->recordExecutedQuery($query);
+                    } catch (\Throwable $exception) {
+                        try {
+                            Log::warning('request_query_metrics_failed', ['exception' => $exception::class]);
+                        } catch (\Throwable) {
+                            // Query telemetry must never alter a business query.
+                        }
+                    }
+
+                    if ($application->runningUnitTests()
+                        && ! config('observability.query.capture_in_tests', false)) {
+                        return;
+                    }
+
+                    try {
+                        app(SlowQueryService::class)->recordExecutedQuery($query);
+                    } catch (\Throwable $exception) {
+                        try {
+                            Log::warning('slow_query_observability_failed', ['exception' => $exception::class]);
+                        } catch (\Throwable) {
+                            // Slow-query telemetry is best-effort.
+                        }
+                    }
+                });
             });
         }
 
@@ -391,5 +446,35 @@ class AppServiceProvider extends ServiceProvider
                 'severity' => 'warning',
             ]);
         });
+    }
+
+    private function isObservabilityCacheQuery(QueryExecuted $query): bool
+    {
+        $storeName = (string) config('observability.cache.store', config('cache.default', 'database'));
+        if ((string) config("cache.stores.{$storeName}.driver", $storeName) !== 'database') {
+            return false;
+        }
+
+        $connection = config("cache.stores.{$storeName}.connection") ?: config('database.default');
+        if (is_string($connection) && $connection !== '' && $query->connectionName !== $connection) {
+            return false;
+        }
+
+        $sql = preg_replace('/[`"\[\]]/', '', strtolower($query->sql)) ?? '';
+        $tables = [
+            (string) config("cache.stores.{$storeName}.table", 'cache'),
+            (string) config("cache.stores.{$storeName}.lock_table", 'cache_locks'),
+        ];
+
+        return collect($tables)
+            ->filter(fn (string $table): bool => trim($table) !== '')
+            ->contains(function (string $table) use ($sql): bool {
+                $identifier = preg_quote(strtolower(trim($table)), '/');
+
+                return preg_match(
+                    '/\b(?:from|into|update|join)\s+(?:[a-z0-9_]+\.)?'.$identifier.'\b/i',
+                    $sql
+                ) === 1;
+            });
     }
 }

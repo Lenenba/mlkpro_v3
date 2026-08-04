@@ -61,7 +61,7 @@ class ClientWaitlistRequest extends FormRequest
             try {
                 $start = Carbon::parse((string) $this->input('requested_start_at'));
                 $end = Carbon::parse((string) $this->input('requested_end_at'));
-                if ($start->diffInDays($end) > 60) {
+                if ((int) $start->diffInDays($end, true) > 60) {
                     $validator->errors()->add('requested_end_at', 'Please request a date range of 60 days or less.');
                 }
             } catch (\Throwable) {
@@ -70,4 +70,3 @@ class ClientWaitlistRequest extends FormRequest
         });
     }
 }
-

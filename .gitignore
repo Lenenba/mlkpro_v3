@@ -9,6 +9,9 @@
 /storage/pail
 /storage/phpstan
 /storage/backups
+/storage/app/capacity-fixtures/
+/storage/app/capacity-failed/
+/storage/app/capacity-plans/
 /vendor
 .env
 .env.backup

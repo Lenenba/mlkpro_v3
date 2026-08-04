@@ -96,11 +96,11 @@ use App\Http\Middleware\EnsureOnboardingIsComplete;
 use App\Http\Middleware\EnsurePlatformAdmin;
 use Illuminate\Support\Facades\Route;
 
-Route::name('api.')->group(function () {
-    Route::post('stripe/webhook', [StripeWebhookController::class, 'handle'])->name('stripe.webhook');
+Route::group([], function () {
+    Route::post('stripe/webhook', [StripeWebhookController::class, 'handle'])->name('api.stripe.webhook');
     Route::post('webhooks/campaigns/sms', [CampaignTrackingController::class, 'smsWebhook']);
     Route::post('webhooks/campaigns/email', [CampaignTrackingController::class, 'emailWebhook']);
-    Route::get('public/pricing', [PublicPricingController::class, 'index'])->name('public.pricing');
+    Route::get('public/pricing', [PublicPricingController::class, 'index'])->name('api.public.pricing');
 
     Route::prefix('auth')->group(function () {
         Route::post('login', [AuthController::class, 'login']);
@@ -330,7 +330,7 @@ Route::name('api.')->group(function () {
                 Route::post('product/{product}/supplier-email', [ProductController::class, 'requestSupplierStock']);
                 Route::get('product/export/csv', [ProductController::class, 'export']);
                 Route::post('product/import/csv', [ProductController::class, 'import']);
-                Route::apiResource('product', ProductController::class);
+                Route::apiResource('product', ProductController::class)->names('api.product');
             });
 
             Route::prefix('integrations')->group(function () {
@@ -341,9 +341,9 @@ Route::name('api.')->group(function () {
                 Route::get('alerts', [IntegrationInventoryController::class, 'alerts']);
                 Route::post('products/{product}/adjust', [IntegrationInventoryController::class, 'adjust']);
                 Route::post('requests', [IntegrationRequestController::class, 'store'])
-                    ->name('integrations.requests.store');
+                    ->name('api.integrations.requests.store');
                 Route::post('crm/connector-events', [IntegrationCrmConnectorEventController::class, 'store'])
-                    ->name('integrations.crm.connector_events.store');
+                    ->name('api.integrations.crm.connector_events.store');
             });
 
             Route::middleware('company.feature:services')->group(function () {
@@ -351,7 +351,9 @@ Route::name('api.')->group(function () {
                 Route::post('services/quick', [ServiceController::class, 'storeQuick']);
                 Route::get('services/categories', [ServiceController::class, 'categories']);
 
-                Route::apiResource('service', ServiceController::class)->only(['index', 'store', 'update', 'destroy']);
+                Route::apiResource('service', ServiceController::class)
+                    ->only(['index', 'store', 'update', 'destroy'])
+                    ->names('api.service');
             });
 
             Route::middleware('company.feature:sales')->group(function () {
@@ -366,7 +368,7 @@ Route::name('api.')->group(function () {
             });
 
             Route::get('finance-approvals', [FinanceApprovalInboxController::class, 'index'])
-                ->name('finance-approvals.index');
+                ->name('api.finance-approvals.index');
 
             Route::middleware('company.feature:accounting')->group(function () {
                 Route::get('accounting', [AccountingController::class, 'index']);
@@ -535,13 +537,17 @@ Route::name('api.')->group(function () {
             Route::patch('customer/{customer}/notes', [CustomerController::class, 'updateNotes']);
             Route::patch('customer/{customer}/tags', [CustomerController::class, 'updateTags']);
             Route::patch('customer/{customer}/auto-validation', [CustomerController::class, 'updateAutoValidation']);
-            Route::apiResource('customer', CustomerController::class)->only(['index', 'store', 'update', 'show', 'destroy']);
+            Route::apiResource('customer', CustomerController::class)
+                ->only(['index', 'store', 'update', 'show', 'destroy'])
+                ->names('api.customer');
 
             Route::middleware('company.feature:jobs')->group(function () {
                 Route::get('jobs', [WorkController::class, 'index']);
                 Route::get('work/create/{customer}', [WorkController::class, 'create']);
                 Route::get('work/{work}/edit', [WorkController::class, 'edit']);
-                Route::apiResource('work', WorkController::class)->except(['create', 'edit']);
+                Route::apiResource('work', WorkController::class)
+                    ->except(['create', 'edit'])
+                    ->names('api.work');
                 Route::get('work/{work}/proofs', [WorkProofController::class, 'show']);
                 Route::post('work/{work}/status', [WorkController::class, 'updateStatus']);
                 Route::post('work/{work}/extras', [WorkController::class, 'addExtraQuote']);
@@ -581,7 +587,6 @@ Route::name('api.')->group(function () {
 
     Route::middleware(['auth:sanctum', EnsurePlatformAdmin::class, EnsureNotSuspended::class])
         ->prefix('super-admin')
-        ->name('super-admin.')
         ->group(function () {
             Route::get('dashboard', [SuperAdminDashboardController::class, 'index']);
             Route::get('admins', [SuperAdminAdminController::class, 'index']);
