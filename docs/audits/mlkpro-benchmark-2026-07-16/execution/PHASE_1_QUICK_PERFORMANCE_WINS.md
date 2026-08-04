@@ -1,7 +1,7 @@
 # Phase 1 — Gains rapides de performance
 
 - Dernière mise à jour : 2026-08-04
-- Statut : **ouverte — P1-001 terminé ; P1-002 en validation locale**
+- Statut : **ouverte — P1-001 et P1-002 terminés ; P1-003 en cours**
 - Responsable : Jules Roger Sombangnen
 - Validateurs : à nommer (distinct du responsable)
 - Dépendance : GO P0-007 sous dérogation MLK-DEC-010
@@ -42,22 +42,23 @@ Navigation Inertia, menus, dropdowns, modales, onglets, tableaux, traductions, r
 
 ### MLK-IMP-P1-002 — Groupes de routes Ziggy
 
-- Statut : **en validation locale**
+- Statut : **terminé**
 - But : ne fournir à chaque surface que les routes nécessaires.
 - Changement livré : groupes `public`, `portal` et `admin` dans `config/ziggy.php`, sélectionnés au rendu HTML par `ZiggyRouteGroupResolver` et `@routes($ziggyGroups)`. Les parcours authentification/onboarding utilisent temporairement la carte complète ; les franchissements de surface rechargent ensuite le document adapté.
 - Frontières protégées : navigation vers authentification/onboarding, sortie login/2FA/onboarding, logout, login démo, suppression de compte et expiration d’un espace démo. L’admin et le superadmin restent volontairement dans une même surface afin de préserver l’impersonation.
 - Mesure statique locale (sérialisation Ziggy homogène) : carte complète 711 routes / 83 324 octets JSON ; public 81 / 8 241 (-90,1 %), portail 134 / 14 793 (-82,2 %), admin 590 / 69 248 (-16,9 %). Cette mesure ne remplace pas la baseline dynamique reportée sous `MLK-DEC-010`.
 - Critères vérifiés localement : audit de 494 noms `route()` littéraux frontend, aucun absent de l’union des groupes ; rendus public/portail/admin ; transitions Inertia et parcours navigateur public → onboarding, login → dashboard et boutique publique.
 - Preuve : `VALID-P1-002-LOCAL-2026-08-04`, commit `477894887cd99fb9685daecaa281499ae6e9c973`.
-- Validation restante : acceptation humaine de P1-002 avant l’ouverture de P1-003.
+- Acceptation : Jules Roger Sombangnen, responsable Produit, Technique et Exploitation, a accepté les preuves locales et le rollback, puis autorisé le GO P1-003 (`VALID-P1-002-ACCEPTATION-HUMAINE-2026-08-04`).
 - Rollback : revert isolé du commit technique ci-dessus ; aucune migration ni donnée métier persistante.
 
 ### MLK-IMP-P1-003 — Traductions chargées par domaine
 
-- Statut : **en attente**
+- Statut : **en cours**
 - But : réduire les locales initiales sans changer les clés.
 - Fichiers probables : `resources/js/i18n/catalog.js`, fichiers de locales et imports de pages.
 - Critères : fallback anglais intact ; aucune clé manquante sur les parcours pilotes ; baisse mesurée du JavaScript initial.
+- Autorisation : GO explicitement donné après l’acceptation de P1-002 ; validations locales uniquement, sans staging, production ni test de charge.
 - Rollback : chargeur complet derrière configuration.
 
 ### MLK-IMP-P1-004 — Images et polices du chemin critique

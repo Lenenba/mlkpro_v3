@@ -483,6 +483,16 @@ La vue consolidée des travaux terminés, en cours et planifiés pour les Phases
 - Validation restante : acceptation humaine de P1-002 avant l’ouverture de P1-003.
 - Verdict : **validation technique locale réussie ; P1-002 reste en validation jusqu’à l’acceptation humaine.**
 
+## VALID-P1-002-ACCEPTATION-HUMAINE-2026-08-04 — Clôture
+
+- Ticket : `MLK-IMP-P1-002`.
+- Date : 2026-08-04.
+- Décideur : Jules Roger Sombangnen, responsable Produit, Technique et Exploitation.
+- Source : acceptation explicite dans la conversation de pilotage : « J’accepte P1-002 — Groupes de routes Ziggy, ses preuves locales et son rollback. J’autorise le GO P1-003 — Traductions chargées par domaine. »
+- Décision : la preuve locale, les mesures statiques, les tests et le rollback de P1-002 sont acceptés ; l’exécution de P1-003 est autorisée.
+- Portée : cette acceptation ne transforme pas les mesures statiques en baseline dynamique représentative, ne modifie pas la dérogation `MLK-DEC-010` et n’autorise ni staging, ni production, ni test de charge.
+- Verdict : **P1-002 terminé ; P1-003 ouvert.**
+
 ## Gate d’entrée Phase 0 — Archive historique non rétroactive
 
 Ce gabarit initial n’a pas été signé à l’ouverture. Il est conservé comme dette de gouvernance et ne doit pas être rempli rétroactivement sans preuve datée.
@@ -520,7 +530,8 @@ Ce tableau détaille la sortie de la Phase 0. La suite du programme, jusqu’à 
 | 8 | P0-006 — Campagne représentative des sept scénarios | Dérogation acceptée jusqu’au 2027-08-04 | Aucun résultat v3 importé ni rapport strict représentatif ; MLK-DEC-009 reste proposée | Fournir staging, nommer un validateur distinct, approuver le trafic, collecter, importer et archiver le rapport |
 | 9 | P0-007 — Revue et signatures de sortie | Terminé — GO sous dérogation | VALID-P0-007-GO-CONDITIONNEL-2026-08-04 ; décision unique de Produit/Technique/Exploitation | Réévaluer la dérogation à l’échéance ou après livraison des preuves |
 | 10 | P1-001 — Initialisation Preline unique et ciblée | Terminé | `VALID-P1-001-LOCAL-2026-08-04` et `VALID-P1-001-ACCEPTATION-HUMAINE-2026-08-04` ; commit `71c1252`, Node 4/4 et Playwright 8/8 verts | Aucun ; P1-002 est ouvert |
-| 11 | P1-002 — Groupes de routes Ziggy | En validation locale | `VALID-P1-002-LOCAL-2026-08-04` ; commit `4778948`, Feature 6/39, Node 4/4 et Playwright 11/11 verts | Obtenir l’acceptation humaine avant P1-003 |
+| 11 | P1-002 — Groupes de routes Ziggy | Terminé | `VALID-P1-002-LOCAL-2026-08-04` et `VALID-P1-002-ACCEPTATION-HUMAINE-2026-08-04` ; commit `4778948`, Feature 6/39, Node 4/4 et Playwright 11/11 verts | Aucun ; P1-003 est ouvert |
+| 12 | P1-003 — Traductions chargées par domaine | En cours | GO P1-003 autorisé le 2026-08-04 ; validation technique locale à produire | Mesurer le JavaScript initial, vérifier FR/EN/ES et documenter le rollback |
 
 ## Gate de sortie Phase 0 — Matrice factuelle au 2026-08-04
 
