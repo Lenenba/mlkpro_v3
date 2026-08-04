@@ -321,7 +321,7 @@ class PaymentController extends Controller
             }
 
             if ($invoice->status === 'paid') {
-                app(CustomerPackageService::class)->renewFromPaidInvoice($invoice, $actor);
+                app(CustomerPackageService::class)->fulfillPaidInvoice($invoice, $actor);
             }
         }
 

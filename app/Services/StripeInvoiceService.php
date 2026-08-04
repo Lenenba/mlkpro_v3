@@ -553,7 +553,7 @@ class StripeInvoiceService
         }
 
         if ($invoice->status === 'paid') {
-            app(CustomerPackageService::class)->renewFromPaidInvoice($invoice);
+            app(CustomerPackageService::class)->fulfillPaidInvoice($invoice);
         }
 
         return $payment;

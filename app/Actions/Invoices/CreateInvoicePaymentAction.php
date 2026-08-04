@@ -84,7 +84,7 @@ class CreateInvoicePaymentAction
         }
 
         if ($invoice->status === 'paid') {
-            app(CustomerPackageService::class)->renewFromPaidInvoice(
+            app(CustomerPackageService::class)->fulfillPaidInvoice(
                 $invoice,
                 $activityActor instanceof User ? $activityActor : null
             );

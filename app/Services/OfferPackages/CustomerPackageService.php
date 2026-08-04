@@ -7,10 +7,13 @@ use App\Models\Customer;
 use App\Models\CustomerPackage;
 use App\Models\CustomerPackageUsage;
 use App\Models\Invoice;
+use App\Models\InvoiceItem;
 use App\Models\OfferPackage;
+use App\Models\Payment;
 use App\Models\Reservation;
 use App\Models\User;
 use App\Models\Work;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -415,6 +418,7 @@ class CustomerPackageService
                 ? Carbon::parse($payload['expires_at'])->startOfDay()
                 : $recurrenceDates['period_ends_at'];
             $periodAllocationQuantity = $this->renewalAllocationQuantity($locked, $payload);
+            $subscriptionQuantity = $this->subscriptionQuantityForPackage($locked);
             $carryOverUnusedBalance = $this->resolveCustomerPackageCarryOverUnusedBalance($locked, $payload);
             $paymentGraceDays = $this->paymentGraceDaysForPackage($locked);
             $paymentReminderDays = $this->paymentReminderDaysForPackage($locked);
@@ -444,6 +448,7 @@ class CustomerPackageService
                 'current_period_ends_at' => $recurrenceDates['period_ends_at']?->toDateString(),
                 'next_renewal_at' => $recurrenceDates['next_renewal_at']?->toDateString(),
                 'period_allocation_quantity' => $periodAllocationQuantity,
+                'subscription_quantity' => $subscriptionQuantity,
                 'carry_over_unused_balance' => $carryOverUnusedBalance,
                 'carried_over_quantity' => $carriedOverQuantity,
                 'payment_grace_days' => $paymentGraceDays,
@@ -481,6 +486,7 @@ class CustomerPackageService
                     'renewed_from_customer_package_id' => $locked->id,
                     'recurrence' => [
                         'period_allocation_quantity' => $periodAllocationQuantity,
+                        'subscription_quantity' => $subscriptionQuantity,
                         'carry_over_unused_balance' => $carryOverUnusedBalance,
                         'carried_over_quantity' => $carriedOverQuantity,
                         'renewed_from_remaining_quantity' => (int) $locked->remaining_quantity,
@@ -575,7 +581,11 @@ class CustomerPackageService
                 return $existingInvoice->fresh(['items', 'customer']) ?: $existingInvoice;
             }
 
-            $price = round((float) ($payload['price_paid'] ?? $locked->offerPackage->price ?? $locked->price_paid ?? 0), 2);
+            $subscriptionQuantity = $this->subscriptionQuantityForPackage($locked);
+            $price = round((float) (
+                $payload['price_paid']
+                ?? ((float) $locked->offerPackage->price * $subscriptionQuantity)
+            ), 2);
             $work = Work::query()->create([
                 'user_id' => $accountId,
                 'customer_id' => $customer->id,
@@ -606,10 +616,15 @@ class CustomerPackageService
                     'customer_package_id' => $locked->id,
                     'renewal_for_customer_package_id' => $locked->id,
                     'recurrence_frequency' => $locked->recurrence_frequency,
+                    'subscription_quantity' => $subscriptionQuantity,
                     'next_renewal_at' => $locked->next_renewal_at?->toDateString(),
                     'carry_over_unused_balance' => $this->resolveCustomerPackageCarryOverUnusedBalance($locked, []),
                 ]
             );
+
+            if ($subscriptionQuantity > 1) {
+                $itemAttributes['description'] .= "\nSubscription quantity: {$subscriptionQuantity}";
+            }
 
             $item = $invoice->items()->create($itemAttributes);
             $metadata = (array) ($locked->metadata ?? []);
@@ -651,6 +666,49 @@ class CustomerPackageService
         ], 'Recurring forfait renewal invoice created');
 
         return $invoice;
+    }
+
+    /**
+     * Provision all customer-package consequences of a fully paid invoice.
+     *
+     * A recurring renewal and an initial forfait purchase intentionally use
+     * distinct flows: renewal keeps its existing lifecycle, while a first
+     * purchase grants rights once per paid invoice item.
+     *
+     * @return Collection<int, CustomerPackage>
+     */
+    public function fulfillPaidInvoice(Invoice $invoice, ?User $actor = null): Collection
+    {
+        $invoice->loadMissing(['items', 'customer']);
+
+        if ($invoice->status !== 'paid' || ! $invoice->customer instanceof Customer) {
+            return collect();
+        }
+
+        $actor = $this->actorForInvoice($invoice, $actor);
+        if (! $actor) {
+            return collect();
+        }
+
+        $fulfilled = collect();
+        $renewal = $this->renewFromPaidInvoice($invoice, $actor);
+        if ($renewal) {
+            $fulfilled->push($renewal);
+        }
+
+        $paidAt = $this->paidAtForInvoice($invoice);
+        foreach ($invoice->items as $item) {
+            if (! $this->isInitialForfaitInvoiceItem($item)) {
+                continue;
+            }
+
+            $package = $this->provisionInitialForfaitFromPaidInvoice($invoice, $item, $actor, $paidAt);
+            if ($package) {
+                $fulfilled->push($package);
+            }
+        }
+
+        return $fulfilled;
     }
 
     public function renewFromPaidInvoice(Invoice $invoice, ?User $actor = null): ?CustomerPackage
@@ -703,7 +761,7 @@ class CustomerPackageService
             ?? now()->toDateString();
         $renewed = $this->renew($owner, $sourcePackage->customer, $sourcePackage, [
             'starts_at' => $startsAt,
-            'price_paid' => (float) $invoice->total,
+            'price_paid' => (float) ($renewalItem?->total ?? $invoice->total),
             'invoice_id' => $invoice->id,
             'invoice_item_id' => $renewalItem?->id,
             'note' => 'Renewed from paid invoice '.$invoice->number,
@@ -1223,6 +1281,250 @@ class CustomerPackageService
             ->first();
     }
 
+    private function actorForInvoice(Invoice $invoice, ?User $actor): ?User
+    {
+        if ($actor && (int) $actor->accountOwnerId() === (int) $invoice->user_id) {
+            return $actor;
+        }
+
+        return User::query()->find((int) $invoice->user_id);
+    }
+
+    private function paidAtForInvoice(Invoice $invoice): Carbon
+    {
+        $paidAt = $invoice->payments()
+            ->whereIn('status', Payment::settledStatuses())
+            ->whereNotNull('paid_at')
+            ->latest('paid_at')
+            ->value('paid_at');
+
+        return $paidAt ? Carbon::parse($paidAt) : now();
+    }
+
+    private function isInitialForfaitInvoiceItem(InvoiceItem $item): bool
+    {
+        return data_get($item->meta, 'source') === 'offer_package'
+            && data_get($item->meta, 'offer_package_type') === OfferPackage::TYPE_FORFAIT
+            && (int) data_get($item->meta, 'renewal_for_customer_package_id', 0) < 1;
+    }
+
+    private function provisionInitialForfaitFromPaidInvoice(
+        Invoice $invoice,
+        InvoiceItem $item,
+        User $actor,
+        Carbon $paidAt
+    ): ?CustomerPackage {
+        $invoiceItemId = (int) $item->id;
+
+        try {
+            $result = DB::transaction(function () use ($invoice, $invoiceItemId, $actor, $paidAt): array {
+                $lockedInvoice = Invoice::query()
+                    ->with('customer')
+                    ->lockForUpdate()
+                    ->find($invoice->id);
+
+                if (! $lockedInvoice || $lockedInvoice->status !== 'paid' || ! $lockedInvoice->customer instanceof Customer) {
+                    return ['package' => null, 'created' => false];
+                }
+
+                $existing = CustomerPackage::query()
+                    ->where('invoice_item_id', $invoiceItemId)
+                    ->with(['offerPackage', 'usages.creator'])
+                    ->first();
+                if ($existing) {
+                    return ['package' => $existing, 'created' => false];
+                }
+
+                $lockedItem = InvoiceItem::query()
+                    ->where('invoice_id', $lockedInvoice->id)
+                    ->whereKey($invoiceItemId)
+                    ->first();
+                if (! $lockedItem || ! $this->isInitialForfaitInvoiceItem($lockedItem)) {
+                    return ['package' => null, 'created' => false];
+                }
+
+                $offer = OfferPackage::query()
+                    ->forAccount((int) $lockedInvoice->user_id)
+                    ->whereKey((int) data_get($lockedItem->meta, 'offer_package_id', 0))
+                    ->where('type', OfferPackage::TYPE_FORFAIT)
+                    ->first();
+                if (! $offer) {
+                    return ['package' => null, 'created' => false];
+                }
+
+                $lineQuantity = $this->positiveWholeInvoiceQuantity($lockedItem);
+                $snapshot = (array) (
+                    data_get($lockedItem->meta, 'offer_package_snapshot')
+                    ?? data_get($lockedItem->meta, 'source_details.offer_package', [])
+                );
+                $rightsPerUnit = (int) ($snapshot['included_quantity'] ?? 0);
+                if (! $lineQuantity || $rightsPerUnit < 1) {
+                    return ['package' => null, 'created' => false];
+                }
+
+                $allocatedQuantity = $lineQuantity * $rightsPerUnit;
+                if ($allocatedQuantity > 4_294_967_295) {
+                    return ['package' => null, 'created' => false];
+                }
+
+                $startsAt = $paidAt->copy()->startOfDay();
+                $isRecurring = (bool) ($snapshot['is_recurring'] ?? false);
+                $recurrenceFrequency = $isRecurring
+                    ? $this->paidInvoiceRecurrenceFrequency($snapshot, $offer)
+                    : null;
+                $recurrenceDates = $isRecurring
+                    ? $this->recurrenceDates($startsAt, (string) $recurrenceFrequency)
+                    : ['period_ends_at' => null, 'next_renewal_at' => null];
+                $validityDays = (int) ($snapshot['validity_days'] ?? 0);
+                $expiresAt = $validityDays > 0
+                    ? $startsAt->copy()->addDays($validityDays)
+                    : ($isRecurring ? $recurrenceDates['period_ends_at'] : null);
+                $carryOverUnusedBalance = $isRecurring && (bool) (
+                    $snapshot['carry_over_unused_balance']
+                    ?? data_get($offer->metadata, 'recurrence.carry_over_unused_balance', false)
+                );
+                $paymentGraceDays = $isRecurring
+                    ? max(1, (int) ($snapshot['payment_grace_days'] ?? 7))
+                    : null;
+                $paymentReminderDays = $isRecurring
+                    ? $this->normalizePaymentReminderDays($snapshot['payment_reminder_days'] ?? [0, 3, 6])
+                    : [];
+                $sourceDetails = (array) data_get($lockedItem->meta, 'source_details', []);
+                $sourceDetails['assignment'] = [
+                    'source' => 'paid_invoice_item',
+                    'assigned_by_user_id' => $actor->id,
+                    'invoice_id' => $lockedInvoice->id,
+                    'invoice_item_id' => $lockedItem->id,
+                    'paid_at' => $paidAt->toIso8601String(),
+                ];
+
+                if ($isRecurring) {
+                    $sourceDetails['recurrence'] = [
+                        'source' => 'paid_invoice_item',
+                        'frequency' => $recurrenceFrequency,
+                        'subscription_quantity' => $lineQuantity,
+                        'current_period_starts_at' => $startsAt->toDateString(),
+                        'current_period_ends_at' => $recurrenceDates['period_ends_at']?->toDateString(),
+                        'next_renewal_at' => $recurrenceDates['next_renewal_at']?->toDateString(),
+                        'period_allocation_quantity' => $allocatedQuantity,
+                        'carry_over_unused_balance' => $carryOverUnusedBalance,
+                        'payment_grace_days' => $paymentGraceDays,
+                        'payment_reminder_days' => $paymentReminderDays,
+                    ];
+                }
+
+                $package = CustomerPackage::query()->create([
+                    'user_id' => $lockedInvoice->user_id,
+                    'customer_id' => $lockedInvoice->customer_id,
+                    'offer_package_id' => $offer->id,
+                    'quote_id' => (int) data_get($lockedItem->meta, 'quote_id', 0) ?: null,
+                    'invoice_id' => $lockedInvoice->id,
+                    'invoice_item_id' => $lockedItem->id,
+                    'status' => CustomerPackage::STATUS_ACTIVE,
+                    'starts_at' => $startsAt->toDateString(),
+                    'expires_at' => $expiresAt?->toDateString(),
+                    'initial_quantity' => $allocatedQuantity,
+                    'consumed_quantity' => 0,
+                    'remaining_quantity' => $allocatedQuantity,
+                    'unit_type' => $snapshot['unit_type'] ?? $offer->unit_type ?? OfferPackage::UNIT_CREDIT,
+                    'price_paid' => round((float) $lockedItem->total, 2),
+                    'currency_code' => $lockedItem->currency_code ?: $lockedInvoice->currency_code,
+                    'is_recurring' => $isRecurring,
+                    'recurrence_frequency' => $recurrenceFrequency,
+                    'recurrence_status' => $isRecurring ? CustomerPackage::RECURRENCE_ACTIVE : null,
+                    'current_period_starts_at' => $isRecurring ? $startsAt->toDateString() : null,
+                    'current_period_ends_at' => $recurrenceDates['period_ends_at']?->toDateString(),
+                    'next_renewal_at' => $recurrenceDates['next_renewal_at']?->toDateString(),
+                    'renewal_count' => 0,
+                    'source_details' => $sourceDetails,
+                    'metadata' => array_filter([
+                        'recurrence_enabled' => $isRecurring,
+                        'provisioning' => [
+                            'source' => 'paid_invoice_item',
+                            'invoice_id' => $lockedInvoice->id,
+                            'invoice_item_id' => $lockedItem->id,
+                            'line_quantity' => $lineQuantity,
+                            'rights_per_unit' => $rightsPerUnit,
+                            'allocated_quantity' => $allocatedQuantity,
+                            'unit_price' => (float) $lockedItem->unit_price,
+                            'line_total' => (float) $lockedItem->total,
+                            'paid_at' => $paidAt->toIso8601String(),
+                        ],
+                        'recurrence' => $isRecurring ? [
+                            'subscription_quantity' => $lineQuantity,
+                            'period_allocation_quantity' => $allocatedQuantity,
+                            'carry_over_unused_balance' => $carryOverUnusedBalance,
+                            'carried_over_quantity' => 0,
+                            'payment_grace_days' => $paymentGraceDays,
+                            'payment_reminder_days' => $paymentReminderDays,
+                        ] : null,
+                    ], fn (mixed $value): bool => $value !== null && $value !== ''),
+                ]);
+
+                return ['package' => $package->fresh(['offerPackage', 'usages.creator']), 'created' => true];
+            });
+        } catch (QueryException $exception) {
+            $existing = CustomerPackage::query()
+                ->where('invoice_item_id', $invoiceItemId)
+                ->with(['offerPackage', 'usages.creator'])
+                ->first();
+
+            if (! $existing) {
+                throw $exception;
+            }
+
+            $result = ['package' => $existing, 'created' => false];
+        }
+
+        /** @var CustomerPackage|null $package */
+        $package = $result['package'];
+        if (! $package || ! $result['created']) {
+            return $package;
+        }
+
+        $customer = $invoice->customer;
+        ActivityLog::record($actor, $customer, 'customer_package_provisioned_from_paid_invoice', [
+            'customer_package_id' => $package->id,
+            'offer_package_id' => $package->offer_package_id,
+            'invoice_id' => $invoice->id,
+            'invoice_item_id' => $item->id,
+            'quantity' => $package->initial_quantity,
+            'unit_type' => $package->unit_type,
+            'price_paid' => (float) $package->price_paid,
+            'currency_code' => $package->currency_code,
+            'is_recurring' => $package->is_recurring,
+        ], 'Forfait rights activated after invoice payment');
+
+        $this->marketingEvents->record($package, CustomerPackageMarketingEventService::EVENT_PURCHASED, [
+            'source' => 'paid_invoice_item',
+            'invoice_id' => $invoice->id,
+            'invoice_item_id' => $item->id,
+            'price_paid' => (float) $package->price_paid,
+            'currency_code' => $package->currency_code,
+        ]);
+
+        return $package;
+    }
+
+    private function positiveWholeInvoiceQuantity(InvoiceItem $item): ?int
+    {
+        $quantity = (float) $item->quantity;
+        $integerQuantity = (int) $quantity;
+
+        return $integerQuantity > 0 && abs($quantity - $integerQuantity) < 0.00001
+            ? $integerQuantity
+            : null;
+    }
+
+    private function paidInvoiceRecurrenceFrequency(array $snapshot, OfferPackage $offer): string
+    {
+        $frequency = (string) ($snapshot['recurrence_frequency'] ?? $offer->recurrence_frequency ?? '');
+
+        return in_array($frequency, OfferPackage::recurrenceFrequencies(), true)
+            ? $frequency
+            : OfferPackage::RECURRENCE_MONTHLY;
+    }
+
     private function resolveIsRecurring(OfferPackage $offer, array $payload): bool
     {
         return $offer->type === OfferPackage::TYPE_FORFAIT
@@ -1317,10 +1619,19 @@ class CustomerPackageService
     {
         return max(1, (int) (
             $payload['initial_quantity']
-            ?? $package->offerPackage?->included_quantity
             ?? data_get($package->metadata, 'recurrence.period_allocation_quantity')
             ?? data_get($package->source_details, 'recurrence.period_allocation_quantity')
+            ?? $package->offerPackage?->included_quantity
             ?? $package->initial_quantity
+            ?? 1
+        ));
+    }
+
+    private function subscriptionQuantityForPackage(CustomerPackage $package): int
+    {
+        return max(1, (int) (
+            data_get($package->metadata, 'recurrence.subscription_quantity')
+            ?? data_get($package->source_details, 'recurrence.subscription_quantity')
             ?? 1
         ));
     }
