@@ -199,6 +199,48 @@ const initializePreline = createPrelineInitializer({
     },
 });
 
+const authRoutePaths = [
+    '/login',
+    '/register',
+    '/onboarding',
+    '/forgot-password',
+    '/confirm-password',
+    '/two-factor-challenge',
+    '/verify-email',
+];
+
+const isAuthenticationRoutePath = (url) => {
+    if (typeof window === 'undefined' || !url) {
+        return false;
+    }
+
+    const destination = new URL(String(url), window.location.origin);
+
+    return authRoutePaths.includes(destination.pathname)
+        || destination.pathname.startsWith('/reset-password/');
+};
+
+const isZiggyBoundaryPage = (page) => {
+    const component = String(page?.component || '');
+
+    return component.startsWith('Auth/') || component.startsWith('Onboarding/');
+};
+
+const shouldReloadForZiggyPage = (page) => {
+    if (typeof document === 'undefined') {
+        return false;
+    }
+
+    const currentGroup = document.documentElement.dataset.ziggyGroup;
+
+    // Les pages d'authentification et d'onboarding utilisent volontairement la
+    // carte complète. Toute traversée de cette frontière recharge le document
+    // afin que la surface d'arrivée reçoive sa propre carte Ziggy.
+    return isZiggyBoundaryPage(page)
+        ? currentGroup !== 'full'
+        : currentGroup === 'full';
+};
+
 // Configuration de l'application Inertia
 const inertiaPages = import.meta.glob([
     './Pages/**/*.vue',
@@ -304,8 +346,31 @@ createInertiaApp({
     },
 });
 
-// Réinitialiser Preline.js une seule fois après chaque navigation Inertia.
-router.on('navigate', initializePreline);
+// Les vues d’authentification doivent recevoir leur document complet : leur
+// validation peut ensuite rediriger vers une surface Ziggy différente.
+router.on('before', (event) => {
+    const visit = event?.detail?.visit;
+
+    if (visit?.method?.toLowerCase() !== 'get' || !isAuthenticationRoutePath(visit.url)) {
+        return;
+    }
+
+    window.location.assign(new URL(String(visit.url), window.location.origin).href);
+
+    return false;
+});
+
+// Recharger le document aux frontières Ziggy, sinon réinitialiser Preline.js
+// une seule fois après chaque navigation Inertia.
+router.on('navigate', (event) => {
+    if (shouldReloadForZiggyPage(event?.detail?.page)) {
+        window.location.reload();
+
+        return;
+    }
+
+    initializePreline();
+});
 
 router.on('success', async (event) => {
     const locale = event?.detail?.page?.props?.locale;

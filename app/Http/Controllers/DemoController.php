@@ -11,12 +11,13 @@ use App\Services\Demo\DemoResetService;
 use App\Services\Demo\DemoSeedService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class DemoController extends Controller
 {
     public function index()
     {
-        if (!config('demo.enabled')) {
+        if (! config('demo.enabled')) {
             abort(404);
         }
 
@@ -25,7 +26,7 @@ class DemoController extends Controller
 
     public function login(Request $request, string $type, DemoAccountService $accounts, DemoSeedService $seeds)
     {
-        if (!config('demo.enabled')) {
+        if (! config('demo.enabled')) {
             abort(404);
         }
 
@@ -35,13 +36,17 @@ class DemoController extends Controller
         Auth::login($account, true);
         $request->session()->regenerate();
 
+        if ($request->header('X-Inertia')) {
+            return Inertia::location(route('dashboard'));
+        }
+
         return redirect()->route('dashboard');
     }
 
     public function checklist(Request $request, DemoContextService $context)
     {
         $user = $request->user();
-        if (!$this->isGuidedDemo($user)) {
+        if (! $this->isGuidedDemo($user)) {
             abort(403);
         }
 
@@ -85,11 +90,11 @@ class DemoController extends Controller
     public function reset(Request $request, DemoResetService $reset, DemoSeedService $seeds)
     {
         $user = $request->user();
-        if (!$user || !(bool) $user->is_demo_user) {
+        if (! $user || ! (bool) $user->is_demo_user) {
             abort(403);
         }
 
-        if (!config('demo.enabled') || !config('demo.allow_reset')) {
+        if (! config('demo.enabled') || ! config('demo.allow_reset')) {
             abort(403);
         }
 
@@ -112,11 +117,11 @@ class DemoController extends Controller
 
     private function isGuidedDemo(?User $user): bool
     {
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
-        if (!(bool) $user->is_demo_user) {
+        if (! (bool) $user->is_demo_user) {
             return false;
         }
 

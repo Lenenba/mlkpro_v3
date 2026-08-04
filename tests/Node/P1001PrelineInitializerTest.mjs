@@ -111,12 +111,13 @@ test('removes stale Preline overlays before their replaced triggers are rebound'
     assert.equal(runtimeWindow.document.body.style.overflow, '');
 });
 
-test('wires the application to a single mount and Inertia navigation initializer', () => {
+test('wires the application to a single mount and an Inertia navigation initializer', () => {
     const appSource = readFileSync(resolve('resources/js/app.js'), 'utf8');
 
     assert.match(appSource, /const initializePreline = createPrelineInitializer/);
     assert.match(appSource, /refreshPrelineOverlays\(\);\s+ensurePrelineTabsHaveActive\(\);/);
     assert.match(appSource, /const mountedApp = vueApp\.mount\(el\);\s+initializePreline\(\);/);
-    assert.match(appSource, /router\.on\('navigate', initializePreline\);/);
+    assert.match(appSource, /shouldReloadForZiggyPage\(event\?\.detail\?\.page\)/);
+    assert.match(appSource, /router\.on\('navigate', \(event\) => \{[\s\S]*?initializePreline\(\);[\s\S]*?\}\);/);
     assert.doesNotMatch(appSource, /vueApp\.mixin\(/);
 });
