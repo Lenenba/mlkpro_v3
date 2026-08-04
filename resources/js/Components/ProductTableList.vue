@@ -35,6 +35,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  offerPackages: {
+    type: Array,
+    default: () => [],
+  },
 });
 
 // Define events to emit
@@ -53,15 +57,16 @@ const defaultItemType = computed(() => {
 });
 const lineItemLabel = computed(() => {
   if (allowMixed.value) {
-    return 'Produit / Service';
+    return props.offerPackages.length ? 'Produit / Service / Offre' : 'Produit / Service';
   }
   return defaultItemType.value === 'service' ? 'Service' : 'Produit';
 });
 const itemTypeLabel = 'Type';
-const itemTypeOptions = [
+const standardItemTypeOptions = [
   { id: 'product', name: 'Produit' },
   { id: 'service', name: 'Service' },
 ];
+const isOfferPackageType = (type) => ['pack', 'forfait'].includes(type);
 const itemPickerId = 'hs-quote-item-picker';
 const activeLineIndex = ref(null);
 const pickerQuery = ref('');
@@ -69,23 +74,6 @@ const pickerType = ref(defaultItemType.value);
 const pickerLoading = ref(false);
 const pickerError = ref('');
 
-// Local reactive state for product lines
-const normalizeLine = (line = {}) => ({
-  ...line,
-  id: line.id ?? null,
-  name: line.name ?? '',
-  quantity: line.quantity ?? 1,
-  price: line.price ?? 0,
-  total: line.total ?? 0,
-  item_type: line.item_type ?? defaultItemType.value,
-  source_details: line.source_details ?? null,
-});
-const normalizeLines = (lines) => {
-  const entries = Array.isArray(lines) && lines.length ? lines : [{}];
-
-  return entries.map(normalizeLine);
-};
-const sameLines = (first, second) => JSON.stringify(first ?? []) === JSON.stringify(second ?? []);
 const offerPackageDetails = (line = {}) => {
   let details = line?.source_details;
 
@@ -108,6 +96,33 @@ const offerPackageTypeLabel = (line) => (
   offerPackageDetails(line)?.offer_package_type === 'forfait' ? 'Forfait' : 'Pack'
 );
 const offerPackageSummary = (line) => offerPackageDetails(line)?.summary || '';
+const offerPackageId = (line) => Number(
+  line?.offer_package_id || offerPackageDetails(line)?.offer_package_id || 0
+);
+
+// Local reactive state for product lines
+const normalizeLine = (line = {}) => {
+  const packageDetails = offerPackageDetails(line);
+
+  return {
+    ...line,
+    id: line.id ?? null,
+    name: line.name ?? '',
+    quantity: line.quantity ?? 1,
+    price: line.price ?? 0,
+    total: line.total ?? 0,
+    item_type: line.item_type ?? defaultItemType.value,
+    line_type: packageDetails?.offer_package_type ?? line.line_type ?? line.item_type ?? defaultItemType.value,
+    offer_package_id: line.offer_package_id ?? packageDetails?.offer_package_id ?? '',
+    source_details: line.source_details ?? null,
+  };
+};
+const normalizeLines = (lines) => {
+  const entries = Array.isArray(lines) && lines.length ? lines : [{}];
+
+  return entries.map(normalizeLine);
+};
+const sameLines = (first, second) => JSON.stringify(first ?? []) === JSON.stringify(second ?? []);
 const isBlankLine = (line = {}) => (
   !line.id
   && !String(line.name || '').trim()
@@ -121,6 +136,39 @@ const removeLineLabel = (line) => (
 );
 const products = ref(normalizeLines(props.modelValue));
 const canRemoveLine = (line) => products.value.length > 1 || !isBlankLine(line);
+const itemTypeOptions = computed(() => {
+  const availableOfferTypes = new Set([
+    ...(props.offerPackages || []).map((offer) => offer.type),
+    ...products.value
+      .map((line) => offerPackageDetails(line)?.offer_package_type)
+      .filter(Boolean),
+  ]);
+
+  return [
+    ...standardItemTypeOptions,
+    ...(availableOfferTypes.has('pack') ? [{ id: 'pack', name: 'Pack' }] : []),
+    ...(availableOfferTypes.has('forfait') ? [{ id: 'forfait', name: 'Forfait' }] : []),
+  ];
+});
+const offerPackageOptionsForLine = (line) => {
+  const type = line?.line_type;
+  const selectedId = offerPackageId(line);
+  const options = (props.offerPackages || [])
+    .filter((offer) => offer.type === type)
+    .map((offer) => ({
+      id: offer.id,
+      name: `${offer.name} - $${Number(offer.price || 0).toFixed(2)}`,
+    }));
+
+  if (selectedId && !options.some((option) => Number(option.id) === selectedId)) {
+    options.push({
+      id: selectedId,
+      name: `${line.name || offerPackageTypeLabel(line)} (offre archivee)`,
+    });
+  }
+
+  return options;
+};
 
 watch(
   () => props.modelValue,
@@ -257,9 +305,44 @@ const selectProduct = (product, index) => {
     price: product.price,
     total: product.price,
     item_type: product.item_type || defaultItemType.value,
+    line_type: product.item_type || defaultItemType.value,
     unit: product.unit ?? null,
+    offer_package_id: '',
     source_details: null,
   };
+  searchResults.value[index] = [];
+};
+
+const selectOfferPackage = (index) => {
+  if (props.readOnly) {
+    return;
+  }
+
+  const line = products.value[index];
+  const selectedId = offerPackageId(line);
+  const offer = (props.offerPackages || []).find((candidate) => Number(candidate.id) === selectedId);
+  if (!line || !offer) {
+    return;
+  }
+
+  const baseLine = JSON.parse(JSON.stringify(offer.quote_line || {}));
+  const quantity = Math.max(1, Number(line.quantity || 1));
+  const price = Number(baseLine.price ?? offer.price ?? 0);
+
+  products.value[index] = normalizeLine({
+    ...line,
+    ...baseLine,
+    id: null,
+    name: baseLine.name || offer.name,
+    description: baseLine.description || offer.description || '',
+    quantity,
+    price,
+    total: Math.round(quantity * price * 100) / 100,
+    item_type: baseLine.item_type || 'service',
+    line_type: offer.type,
+    offer_package_id: offer.id,
+    source_details: baseLine.source_details || null,
+  });
   searchResults.value[index] = [];
 };
 
@@ -402,7 +485,7 @@ const scanAllPrices = async () => {
   bulkLookupLoading.value = true;
   for (let index = 0; index < products.value.length; index += 1) {
     const line = products.value[index];
-    if (!line?.name || line?.id || Number(line.price) > 0 || searchResults.value[index]?.length) {
+    if (isOfferPackageLine(line) || !line?.name || line?.id || Number(line.price) > 0 || searchResults.value[index]?.length) {
       continue;
     }
     await searchPrices(index, true);
@@ -410,7 +493,7 @@ const scanAllPrices = async () => {
   bulkLookupLoading.value = false;
 };
 
-const handleItemTypeChange = (index) => {
+const handleLineTypeChange = (index) => {
   if (props.readOnly) {
     return;
   }
@@ -418,9 +501,46 @@ const handleItemTypeChange = (index) => {
   if (!line) {
     return;
   }
+
+  if (isOfferPackageType(line.line_type)) {
+    products.value[index] = normalizeLine({
+      id: null,
+      name: '',
+      quantity: line.quantity ?? 1,
+      price: 0,
+      total: 0,
+      item_type: 'service',
+      line_type: line.line_type,
+      offer_package_id: '',
+      source_details: null,
+    });
+    searchResults.value[index] = [];
+
+    return;
+  }
+
+  if (isOfferPackageLine(line)) {
+    products.value[index] = normalizeLine({
+      id: null,
+      name: '',
+      quantity: line.quantity ?? 1,
+      price: 0,
+      total: 0,
+      item_type: line.line_type,
+      line_type: line.line_type,
+      offer_package_id: '',
+      source_details: null,
+    });
+    searchResults.value[index] = [];
+
+    return;
+  }
+
   if (line.id) {
     line.id = null;
   }
+  line.item_type = line.line_type;
+  line.offer_package_id = '';
   line.source_details = null;
   searchResults.value[index] = [];
   if (line.name?.trim()) {
@@ -477,41 +597,44 @@ const handleItemTypeChange = (index) => {
             <tr class="align-top">
               <td class="min-w-[320px] px-4 py-4 align-top">
                 <div class="relative space-y-2">
-                  <div
-                    v-if="isOfferPackageLine(product)"
-                    class="rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-left dark:border-emerald-900/70 dark:bg-emerald-950/30"
-                    data-testid="quote-offer-package-line"
-                  >
-                    <div class="flex flex-wrap items-center gap-2">
-                      <span class="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                        {{ offerPackageTypeLabel(product) }}
-                      </span>
-                      <span class="text-sm font-semibold text-emerald-950 dark:text-emerald-100">
-                        {{ product.name }}
-                      </span>
-                    </div>
-                    <p
-                      v-if="offerPackageSummary(product)"
-                      class="mt-1 whitespace-pre-line text-xs text-emerald-800 dark:text-emerald-200"
-                    >
-                      {{ offerPackageSummary(product) }}
-                    </p>
-                  </div>
-                  <template v-else>
                   <div v-if="allowMixed">
                     <FloatingSelect
-                      v-model="products[index].item_type"
+                      v-model="products[index].line_type"
                       :label="itemTypeLabel"
                       :options="itemTypeOptions"
                       :disabled="readOnly"
                       dense
                       class="text-[11px]"
-                      @change="handleItemTypeChange(index)"
+                      @change="handleLineTypeChange(index)"
                     />
                   </div>
-                  <FloatingInput autofocus v-model="products[index].name" label="Nom" class="w-full" :disabled="readOnly"
-                    @input="searchProducts(products[index].name, index)" />
+                  <template v-if="isOfferPackageType(products[index].line_type)">
+                    <FloatingSelect
+                      v-model="products[index].offer_package_id"
+                      :label="products[index].line_type === 'forfait' ? 'Forfait' : 'Pack'"
+                      :options="offerPackageOptionsForLine(product)"
+                      :placeholder="products[index].line_type === 'forfait' ? 'Choisir un forfait' : 'Choisir un pack'"
+                      :disabled="readOnly"
+                      dense
+                      data-testid="quote-offer-package-select"
+                      @change="selectOfferPackage(index)"
+                    />
+                    <p
+                      v-if="offerPackageSummary(product)"
+                      class="whitespace-pre-line text-xs text-stone-500 dark:text-neutral-400"
+                    >
+                      {{ offerPackageSummary(product) }}
+                    </p>
                   </template>
+                  <FloatingInput
+                    v-else
+                    autofocus
+                    v-model="products[index].name"
+                    label="Nom"
+                    class="w-full"
+                    :disabled="readOnly"
+                    @input="searchProducts(products[index].name, index)"
+                  />
                   <ul v-if="searchResults[index]?.length"
                       class="absolute left-0 top-full z-50 mt-1 w-full max-h-60 overflow-y-auto rounded-sm border border-stone-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-800">
                     <li v-for="result in searchResults[index]" :key="result.id"
@@ -545,7 +668,7 @@ const handleItemTypeChange = (index) => {
               <td class="px-4 py-4 align-top">
                 <div class="flex min-h-[52px] items-start gap-2">
                   <button
-                     v-if="enablePriceLookup && !readOnly && !isOfferPackageLine(product) && !products[index].id && !searchResults[index]?.length"
+                     v-if="enablePriceLookup && !readOnly && !isOfferPackageType(products[index].line_type) && !products[index].id && !searchResults[index]?.length"
                      type="button"
                      class="inline-flex min-h-[38px] items-center rounded-sm border border-stone-200 px-2.5 py-1.5 text-xs font-medium text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
                      @click="searchPrices(index, false)"
