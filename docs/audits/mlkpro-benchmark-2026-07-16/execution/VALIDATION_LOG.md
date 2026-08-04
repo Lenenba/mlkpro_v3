@@ -1,6 +1,6 @@
 # Journal des validations — programme d’amélioration MLK Pro
 
-Dernière mise à jour : 2026-08-01
+Dernière mise à jour : 2026-08-04
 
 ## Règles de preuve
 
@@ -12,7 +12,7 @@ La vue consolidée des travaux terminés, en cours et planifiés pour les Phases
 - Une validation manuelle indique le scénario, le résultat attendu, le résultat observé et le validateur.
 - Une exception possède un propriétaire, une justification et une date d’expiration.
 - Les valeurs avant/après utilisent la même méthode, le même environnement et un volume comparable.
-- Une campagne P0-006 consigne le run, l’environnement, le commit, la release, la fenêtre UTC, le trafic, le runner et le SHA-256 de son harness approuvé dans `CAPACITY_BASELINE_RUNNER_HASH`, les exclusions, le mode, les approbations, les canaris P0-005, la configuration cache/base/queue, le responsable et le validateur distincts ; seules ses métriques agrégées et expurgées sont versionnées.
+- Une campagne P0-006 consigne le run, l’environnement, le commit, la release, la fenêtre UTC, le trafic, le runner et son SHA-256, la fixture privée et son SHA-256, les origines HTTPS autorisées, les exclusions, le mode, les approbations, les canaris P0-005, la configuration cache/base/queue, le responsable et le validateur distincts ; seules ses métriques agrégées et expurgées sont versionnées.
 
 ## Entrée initiale — AUDIT-2026-07-16
 
@@ -367,7 +367,31 @@ La vue consolidée des travaux terminés, en cours et planifiés pour les Phases
 - Validation distante : non exécutée, car les deux commits techniques et le présent suivi ne sont pas encore poussés et aucune PR corrective n’existe.
 - Verdict : **correctif validé localement ; validation distante requise. P0-006 reste ouvert jusqu’au push, à la PR vers `develop`, à une CI verte et à la campagne représentative**.
 
-## Gate d’entrée Phase 0 — À compléter
+## VALID-P0-005-P0-006-LOCAL-2026-08-04 — Harnais finaux et gates locales
+
+- Tickets : `MLK-IMP-P0-005`, `MLK-IMP-P0-006` et gate qualité PHP transversale.
+- Date : 2026-08-04.
+- Branche : `agent/fix-p0-006-php-format`.
+- Commit technique validé : `6af521e`.
+- P0-005 : `queue:workload-canary` vérifie chaque file d’un profil par un job sans effet métier, un vrai worker, la connexion/file observée et l’identité environnement/release/commit. Les modes `internal_test` et dry-run sont inéligibles comme preuves opérationnelles. Tests ciblés : **33 tests, 457 assertions, tous réussis**.
+- P0-006 : runner Node 20 et import fermés en résultat `schema_version: 3`, fixture v2 liée par SHA-256, origines HTTPS allowlistées, empreinte du contexte, cadence/timeout signés, redirections interdites, préflight/catalogue/blocage revérifiés et cycle `start` → `stop` obligatoire. Tests Node : **12/12 réussis**.
+- Suite ciblée combinée queues/capacité/observabilité : **93 tests, 798 assertions, tous réussis**.
+- Gate PHP après indexation complète : `composer qa:format` **réussi**, 18 fichiers PHP sélectionnés, aucun échec Pint.
+- Analyse statique : **PHPStan réussi, 852/852 fichiers analysés, zéro erreur**.
+- Non-régression SQLite : **Pest complet réussi, 1 284 tests et 13 180 assertions** avec `COMPOSER_PROCESS_TIMEOUT=1200` ; une première tentative avait seulement atteint le délai Composer de 300 s, sans échec de test.
+- Compatibilité MySQL isolée : **137 tests, 1 093 assertions, tous réussis** ; la base temporaire `mlkpro_v3_test` a été supprimée par le script à la fin.
+- Dépendances : `composer audit` sans avis de sécurité et `npm audit` avec **0 vulnérabilité**.
+- Frontend : build Vite réussi, **2 605 modules** transformés.
+- E2E : une première suite a produit un échec intermittent du contrôle d’URL après un filtre alors que l’écran était correctement filtré ; sans modification de code, le test isolé a réussi **1/1**, puis le rejeu complet a réussi **7/7**. L’incident et le rejeu ne sont pas masqués.
+- Contrôle de diff : `git diff --check` et `git diff --cached --check` réussis avant le commit.
+- Rectificatif : les anciennes entrées décrivant un résultat runner v1 restent historiques ; le contrat courant qui les remplace est le résultat v3 avec fixture v2 du commit `6af521e`.
+- Validation distante : absente, car la branche n’est pas poussée et aucune CI ne couvre encore `6af521e`.
+- Limite opérationnelle : aucune installation staging des quatre processus, aucun canari P0-005 éligible, aucune campagne P0-006, aucun import représentatif et aucun rollback réel ne sont consignés.
+- Verdict : **implémentation technique locale P0-005/P0-006 terminée et gates locales vertes ; tickets canoniques toujours en validation faute de CI distante et de preuves d’exploitation**.
+
+## Gate d’entrée Phase 0 — Archive historique non rétroactive
+
+Ce gabarit initial n’a pas été signé à l’ouverture. Il est conservé comme dette de gouvernance et ne doit pas être rempli rétroactivement sans preuve datée.
 
 - ID : `GATE-P0-ENTRY`
 - Date :
@@ -388,7 +412,7 @@ La vue consolidée des travaux terminés, en cours et planifiés pour les Phases
 
 Ce tableau détaille la sortie de la Phase 0. La suite du programme, jusqu’à la Phase 4, est visible dans le [suivi global](SUIVI_GLOBAL.md).
 
-État constaté le 2026-08-01. Les lignes sont ordonnées selon l’avancement acquis puis l’ordre de dépendance des prochaines actions. `Terminé` signifie que la preuve attendue est consignée ; une préparation locale ou une fusion sans gate complète ne clôt pas l’étape.
+État constaté le 2026-08-04. Les lignes sont ordonnées selon l’avancement acquis puis l’ordre de dépendance des prochaines actions. `Terminé` signifie que la preuve attendue est consignée ; une préparation locale ou une fusion sans gate complète ne clôt pas l’étape.
 
 | Ordre | Avancement | État | Preuve actuelle | Prochaine action |
 |---:|---|---|---|---|
@@ -396,37 +420,38 @@ Ce tableau détaille la sortie de la Phase 0. La suite du programme, jusqu’à 
 | 2 | P0-002 — Baseline gelée | Terminé | `BASELINE-P0-2026-07-17` ; replays Node 20 et MySQL dans `VALID-P0-003-CLOSEOUT-2026-07-27` | Aucune |
 | 3 | P0-003 — Dépendances PHP sécurisées | Terminé | PR #131, merge `28fc253f`, audit sans avis et gates vertes | Maintenir la surveillance des avis Composer |
 | 4 | P0-004 — Dépendances JavaScript sécurisées | Terminé | PR #132, commit `ccaf150`, audits et gates locales/CI verts | Maintenir la surveillance des avis npm |
-| 5 | P0-005 — Topologie queues/workers et CI | En validation | PR #133, commit fonctionnel `45015e7e`, code et CI verts dans `VALID-P0-005-CI-2026-07-27` | Passer à la validation d’exploitation |
-| 6 | P0-006 — Instrumentation et protocole de baseline | En validation | PR #134 fusionnée dans `develop` au merge `c35f4d67` ; MySQL vert, `laravel-quality` en échec sur cinq tests et smoke ignoré dans l’exécution `30369949212` | Livrer le correctif local et obtenir une CI complète verte |
-| 7 | Correctif P0-006 et durcissement de la gate PHP | En validation | Branche `agent/fix-p0-006-php-format`, commits `af133457` et `dbe50152`, validation locale verte dans `VALID-P0-006-CORRECTIVE-LOCAL-2026-08-01` | Pousser la branche, ouvrir une PR vers `develop`, puis consigner l’URL, le SHA exact testé et le résultat de chaque job CI |
-| 8 | P0-005 — Déploiement des quatre processus et canaris | En validation | Code et CI verts, mais aucune installation persistante, activité réelle, fenêtre ni preuve de rollback n’est consignée | Nommer le responsable, choisir l’environnement et la fenêtre, déployer, exécuter les canaris puis tester le rollback |
-| 9 | P0-006 — Campagne représentative des sept scénarios | Bloqué | Aucun runner réel, aucun résultat runner agrégé importé et lié aux empreintes approuvées, et aucun rapport strict représentatif ; dépend des canaris P0-005 | Choisir le staging isolé, le propriétaire et un validateur distinct, approuver le trafic, puis collecter et importer les mesures |
-| 10 | P0-007 — Revue documentaire de sortie | À valider | Branche locale `agent/p0-007-phase0-gate`, commit `98199402`, recommandation NO-GO non signée préparée mais non intégrée | Actualiser la matrice avec les nouvelles preuves, puis l’intégrer sans transformer la recommandation en signature humaine |
-| 11 | Sous-étape P0-007 — Signatures finales | Bloqué | P0-005 et P0-006 restent ouverts ; signatures produit, technique et exploitation absentes | Lever ou accepter formellement chaque blocage, puis signer une nouvelle gate datée |
-| 12 | Ouverture de la Phase 1 | En attente | Dépend d’un GO P0-007 signé ; la phase reste fermée par défaut | Ne démarrer qu’après la décision GO signée |
+| 5 | P0-005 — Technique queues/workers | En validation | PR #133/CI historique vertes ; harnais `6af521e`, 33 tests/457 assertions ; gates globales dans `VALID-P0-005-P0-006-LOCAL-2026-08-04` | Pousser le SHA courant et obtenir sa CI, puis passer à l’exploitation |
+| 6 | P0-006 — Technique observabilité/runner | En validation | Instrumentation fusionnée dans `c35f4d67` ; runner/import v3 dans `6af521e`, Node 12/12 et gates locales globales vertes | Pousser la branche, ouvrir une PR vers `develop` et obtenir une CI complète verte |
+| 7 | P0-005 — Déploiement des quatre processus et canaris | Bloqué | Procédure et harnais prêts ; aucune installation persistante, sortie canari opérationnelle, fenêtre ni preuve de rollback | Nommer le responsable, choisir le staging/la fenêtre, déployer, exécuter quatre canaris, santé/métier/redémarrage et rollback |
+| 8 | P0-006 — Campagne représentative des sept scénarios | Bloqué | Aucun résultat v3 importé ni rapport strict représentatif ; dépend de P0-005 et de `MLK-DEC-009` | Faire statuer la décision, nommer propriétaire/validateur, approuver le trafic, collecter, importer et archiver le rapport |
+| 9 | P0-007 — Revue et signatures de sortie | Bloqué | Matrice factuelle actualisée le 2026-08-04 ; recommandation NO-GO non signée | Lever ou accepter formellement les blocages, puis obtenir les signatures produit, technique et exploitation |
+| 10 | Ouverture de la Phase 1 | En attente | Dépend d’un GO P0-007 signé ; la phase reste fermée par défaut | Ne démarrer qu’après la décision GO signée |
 
-## Gate de sortie Phase 0 — À compléter
+## Gate de sortie Phase 0 — Matrice factuelle au 2026-08-04
 
-- ID : `GATE-P0-EXIT`
-- Date :
-- Commit livré :
-- Environnement :
-- Ancien jeton Twilio invalidé : oui / non / preuve contrôlée
-- Avis élevés/critiques de production : zéro / exceptions listées
-- Queues/workers alignés : oui / non
-- Retry plan scan validé : oui / non
-- PHPStan : réussi / bloqué
-- Pest complet : réussi / bloqué
-- MySQL ciblé : réussi / bloqué
-- Build Vite : réussi / bloqué
-- Playwright : réussi / bloqué
-- Baseline capacité complète : oui / non
-- Rollback vérifié : oui / non
-- Exceptions et dates d’expiration :
-- Validateur produit :
-- Validateur technique :
-- Validateur exploitation :
-- Décision : GO Phase 1 / NO-GO
+- ID : `GATE-P0-EXIT-2026-08-04`
+- Commit technique local : `6af521e`.
+- Environnement validé : local pour le code ; aucun staging validé.
+
+| Critère | État | Preuve ou blocage |
+|---|---|---|
+| Ancien jeton Twilio invalidé | Réussi | `VALID-P0-001-CLOSEOUT-2026-07-17` |
+| Avis Composer/npm de production | Réussi localement | Audits du 2026-08-04 sans avis/vulnérabilité |
+| Topologie et retry plan scan | Réussi localement | PR #133 et `6af521e` |
+| Consommation réelle des queues | Bloqué | Aucun staging ni quatre canaris opérationnels |
+| PHPStan | Réussi localement | 852/852, zéro erreur |
+| Pest complet | Réussi localement | 1 284 tests, 13 180 assertions |
+| MySQL ciblé | Réussi localement | 137 tests, 1 093 assertions |
+| Runner Node | Réussi localement | 12/12 |
+| Build Vite | Réussi localement | 2 605 modules |
+| Playwright | Réussi au rejeu | 7/7 après un échec intermittent consigné |
+| CI distante du SHA courant | Bloqué | Branche non poussée |
+| Baseline capacité complète | Bloqué | Staging, sept résultats v3/imports et rapport strict absents |
+| Rollout et rollback | Bloqué | Aucune preuve d’exploitation P0-005/P0-006 |
+| Signatures | Bloqué | Produit, technique et exploitation non signés |
+
+- Recommandation documentaire : **NO-GO Phase 1**.
+- Décision humaine : **non signée** ; cette recommandation ne vaut pas approbation.
 
 ## Gabarit de validation d’un ticket
 

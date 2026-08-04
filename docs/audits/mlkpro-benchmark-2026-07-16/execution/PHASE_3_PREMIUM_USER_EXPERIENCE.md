@@ -1,11 +1,12 @@
 # Phase 3 — Expérience utilisateur premium
 
-- Dernière mise à jour : 2026-07-16
+- Dernière mise à jour : 2026-08-04
 - Statut : **en attente**
 - Responsable : à nommer
 - Validateurs : produit, design, support et utilisateurs pilotes à nommer
 - Dépendances : Phases 1 et 2 terminées
 - Risque de phase : moyen
+- Vue maître et état courant : [suivi global des Phases 0 à 4](SUIVI_GLOBAL.md)
 
 ## Objectif
 
