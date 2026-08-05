@@ -6,6 +6,8 @@
         "dev": "vite",
         "qa:build": "npm run build",
         "qa:capacity-runner": "node --test tests/Node/P0006CapacityRunnerTest.mjs",
+        "qa:frontend-budgets": "node scripts/check-frontend-budgets.mjs",
+        "qa:frontend-budgets:measure": "node scripts/check-frontend-budgets.mjs --measure",
         "qa:e2e": "npm run qa:build && playwright test",
         "qa:e2e:install": "playwright install chromium"
     },

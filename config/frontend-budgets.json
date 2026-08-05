@@ -1,0 +1,158 @@
+{
+    "version": 1,
+    "routes": [
+        {
+            "id": "welcome",
+            "component": "Welcome",
+            "entry": "resources/js/Pages/Welcome.vue",
+            "locale": "fr",
+            "fallback_locale": "en",
+            "baseline": {
+                "javascript": { "raw_bytes": 878641, "gzip_bytes": 253063 },
+                "css": { "raw_bytes": 360058, "gzip_bytes": 51623 },
+                "i18n": { "raw_bytes": 66320, "gzip_bytes": 29375 }
+            },
+            "maximum": {
+                "javascript": { "raw_bytes": 922574, "gzip_bytes": 265717 },
+                "css": { "raw_bytes": 378061, "gzip_bytes": 54205 },
+                "i18n": { "raw_bytes": 69636, "gzip_bytes": 30844 }
+            }
+        },
+        {
+            "id": "auth-login",
+            "component": "Auth/Login",
+            "entry": "resources/js/Pages/Auth/Login.vue",
+            "locale": "fr",
+            "fallback_locale": "en",
+            "baseline": {
+                "javascript": { "raw_bytes": 729860, "gzip_bytes": 216138 },
+                "css": { "raw_bytes": 268320, "gzip_bytes": 36180 },
+                "i18n": { "raw_bytes": 18511, "gzip_bytes": 8628 }
+            },
+            "maximum": {
+                "javascript": { "raw_bytes": 766353, "gzip_bytes": 226945 },
+                "css": { "raw_bytes": 281736, "gzip_bytes": 37989 },
+                "i18n": { "raw_bytes": 19437, "gzip_bytes": 9060 }
+            }
+        },
+        {
+            "id": "dashboard",
+            "component": "Dashboard",
+            "entry": "resources/js/Pages/Dashboard.vue",
+            "locale": "fr",
+            "fallback_locale": "en",
+            "baseline": {
+                "javascript": { "raw_bytes": 1010705, "gzip_bytes": 286958 },
+                "css": { "raw_bytes": 270990, "gzip_bytes": 36839 },
+                "i18n": { "raw_bytes": 227318, "gzip_bytes": 79734 }
+            },
+            "maximum": {
+                "javascript": { "raw_bytes": 1061241, "gzip_bytes": 301306 },
+                "css": { "raw_bytes": 284540, "gzip_bytes": 38681 },
+                "i18n": { "raw_bytes": 238684, "gzip_bytes": 83721 }
+            }
+        },
+        {
+            "id": "customer-show",
+            "component": "Customer/Show",
+            "entry": "resources/js/Pages/Customer/Show.vue",
+            "locale": "fr",
+            "fallback_locale": "en",
+            "baseline": {
+                "javascript": { "raw_bytes": 1167140, "gzip_bytes": 318991 },
+                "css": { "raw_bytes": 270990, "gzip_bytes": 36839 },
+                "i18n": { "raw_bytes": 358619, "gzip_bytes": 122454 }
+            },
+            "maximum": {
+                "javascript": { "raw_bytes": 1225497, "gzip_bytes": 334941 },
+                "css": { "raw_bytes": 284540, "gzip_bytes": 38681 },
+                "i18n": { "raw_bytes": 376550, "gzip_bytes": 128577 }
+            }
+        },
+        {
+            "id": "planning-index",
+            "component": "Planning/Index",
+            "entry": "resources/js/Pages/Planning/Index.vue",
+            "locale": "fr",
+            "fallback_locale": "en",
+            "baseline": {
+                "javascript": { "raw_bytes": 1021886, "gzip_bytes": 289711 },
+                "css": { "raw_bytes": 270990, "gzip_bytes": 36839 },
+                "i18n": { "raw_bytes": 235311, "gzip_bytes": 82754 }
+            },
+            "maximum": {
+                "javascript": { "raw_bytes": 1072981, "gzip_bytes": 304197 },
+                "css": { "raw_bytes": 284540, "gzip_bytes": 38681 },
+                "i18n": { "raw_bytes": 247077, "gzip_bytes": 86892 }
+            }
+        },
+        {
+            "id": "public-store",
+            "component": "Public/Store",
+            "entry": "resources/js/Pages/Public/Store.vue",
+            "locale": "fr",
+            "fallback_locale": "en",
+            "baseline": {
+                "javascript": { "raw_bytes": 951358, "gzip_bytes": 274564 },
+                "css": { "raw_bytes": 338814, "gzip_bytes": 47655 },
+                "i18n": { "raw_bytes": 66320, "gzip_bytes": 29375 }
+            },
+            "maximum": {
+                "javascript": { "raw_bytes": 998926, "gzip_bytes": 288293 },
+                "css": { "raw_bytes": 355755, "gzip_bytes": 50038 },
+                "i18n": { "raw_bytes": 69636, "gzip_bytes": 30844 }
+            }
+        },
+        {
+            "id": "public-showcase",
+            "component": "Public/Showcase",
+            "entry": "resources/js/Pages/Public/Showcase.vue",
+            "locale": "fr",
+            "fallback_locale": "en",
+            "baseline": {
+                "javascript": { "raw_bytes": 862514, "gzip_bytes": 249496 },
+                "css": { "raw_bytes": 342744, "gzip_bytes": 48137 },
+                "i18n": { "raw_bytes": 66320, "gzip_bytes": 29375 }
+            },
+            "maximum": {
+                "javascript": { "raw_bytes": 905640, "gzip_bytes": 261971 },
+                "css": { "raw_bytes": 359882, "gzip_bytes": 50544 },
+                "i18n": { "raw_bytes": 69636, "gzip_bytes": 30844 }
+            }
+        }
+    ],
+    "stock_image_profiles": [
+        {
+            "id": "stock-avif-640",
+            "format": "avif",
+            "width": 640,
+            "expected_asset_count": 25,
+            "baseline": { "encoded_bytes": 727672 },
+            "maximum": { "encoded_bytes": 764056 }
+        },
+        {
+            "id": "stock-avif-1280",
+            "format": "avif",
+            "width": 1280,
+            "expected_asset_count": 25,
+            "baseline": { "encoded_bytes": 2046667 },
+            "maximum": { "encoded_bytes": 2149001 }
+        },
+        {
+            "id": "stock-webp-640",
+            "format": "webp",
+            "width": 640,
+            "expected_asset_count": 25,
+            "baseline": { "encoded_bytes": 915912 },
+            "maximum": { "encoded_bytes": 961708 }
+        },
+        {
+            "id": "stock-webp-1280",
+            "format": "webp",
+            "width": 1280,
+            "expected_asset_count": 25,
+            "baseline": { "encoded_bytes": 2441984 },
+            "maximum": { "encoded_bytes": 2564084 }
+        }
+    ]
+}
