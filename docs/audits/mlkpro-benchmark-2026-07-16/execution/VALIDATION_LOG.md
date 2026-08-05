@@ -532,6 +532,25 @@ La vue consolidée des travaux terminés, en cours et planifiés pour les Phases
 - Validation restante : acceptation humaine de P1-004. La preuve ne prétend pas valider toutes les images personnalisées ni améliorer dynamiquement les Web Vitals avant P0-006.
 - Verdict : **validation technique locale réussie ; P1-004 reste en validation locale jusqu’à l’acceptation humaine.**
 
+## VALID-P1-005-LOCAL-2026-08-04 — Budgets frontend CI
+
+- Ticket : `MLK-IMP-P1-005`.
+- Date : 2026-08-04.
+- Commit technique : `2ff77eea71b591523cd1f8c4780a2295bd5109ed` sur `develop`.
+- Portée : `config/frontend-budgets.json` versionne les baselines et plafonds des actifs JavaScript, CSS et i18n bruts/gzip. Le script suit l’entrée `app` + l’entrée de page et leurs imports **statiques** Vite, dédupliqués ; les imports dynamiques ne font pas partie du budget initial. Les domaines i18n de la locale et du fallback sont isolés des actifs déjà comptés par la route.
+- Parcours : accueil, connexion, dashboard, détail client, planning, boutique publique et vitrine publique. Les quatre profils d’images concernent exclusivement les 25 images stock locales AVIF/WebP en `640w` et `1280w` ; les images tenant, uploads et CDN sont explicitement hors périmètre.
+- Tolérance : chaque plafond est `ceil(baseline × 1,05)`. À titre de baseline gzip : accueil JS/CSS/i18n `253 063 / 51 623 / 29 375 o`, connexion `216 138 / 36 180 / 8 628 o`, dashboard `286 958 / 36 839 / 79 734 o`, détail client `318 991 / 36 839 / 122 454 o`, planning `289 711 / 36 839 / 82 754 o`, boutique `274 564 / 47 655 / 29 375 o`, vitrine `249 496 / 48 137 / 29 375 o`.
+- Images encodées locales : AVIF `640w` `727 672 o`, AVIF `1280w` `2 046 667 o`, WebP `640w` `915 912 o`, WebP `1280w` `2 441 984 o`, chacune avec un plafond de +5 % et 25 fichiers attendus.
+- Politique : après le build, la CI compare la configuration au SHA de base de la PR/push. Une hausse de baseline/plafond, une suppression, un changement d’identité ou de version est refusé sans `FRONTEND_BUDGET_EXCEPTION=MLK-DEC-XXX`. Cette décision doit être explicitement acceptée, active, non expirée et dédiée à P1-005 **et** aux budgets frontend. Aucune dérogation n’a été utilisée pour créer cette première baseline.
+- Vérification Node : `node --test tests/Node/P1005FrontendBudgetsTest.mjs` — **3/3 réussis** ; couverture des sept parcours, imports statiques/déduplication, isolation i18n et refus d’une dérogation générique ou expirée.
+- Build et garde : `vite build` — **2 611 modules transformés** ; `node scripts/check-frontend-budgets.mjs --base-ref HEAD` — **réussi** pour les sept parcours et les quatre profils. Le SHA de base ne contenait pas encore de configuration P1-005 : statut attendu `base_config_absent` pour l’initialisation.
+- CI : `.github/workflows/quality.yml` lance le test Node puis, après `npm run qa:build`, `npm run qa:frontend-budgets` avec le SHA de base. La CI distante n’a pas encore été observée dans cette preuve locale.
+- Gate PHP : non applicable ; aucun fichier PHP n’est modifié. `git diff --cached --check` et `git diff --check` réussis.
+- Environnement : validations locales uniquement ; aucune écriture, charge, action staging ou production.
+- Rollback : revert isolé du commit technique ; il retire le garde et son étape CI, sans migration ni donnée métier persistante.
+- Validation restante : CI distante verte, puis acceptation humaine de P1-005 avec P1-003/P1-004 avant clôture de Phase 1. Le garde n’est pas une baseline dynamique et ne démontre aucun LCP, INP ou CLS représentatif avant P0-006.
+- Verdict : **validation technique locale réussie ; P1-005 reste en validation locale jusqu’à la CI distante et l’acceptation humaine.**
+
 ## Gate d’entrée Phase 0 — Archive historique non rétroactive
 
 Ce gabarit initial n’a pas été signé à l’ouverture. Il est conservé comme dette de gouvernance et ne doit pas être rempli rétroactivement sans preuve datée.
@@ -572,6 +591,7 @@ Ce tableau détaille la sortie de la Phase 0. La suite du programme, jusqu’à 
 | 11 | P1-002 — Groupes de routes Ziggy | Terminé | `VALID-P1-002-LOCAL-2026-08-04` et `VALID-P1-002-ACCEPTATION-HUMAINE-2026-08-04` ; commit `4778948`, Feature 6/39, Node 4/4 et Playwright 11/11 verts | Aucun ; P1-003 est ouvert |
 | 12 | P1-003 — Traductions chargées par domaine | En validation locale | `VALID-P1-003-LOCAL-2026-08-04` ; commit `a27fdea4`, Node 4/4, Vite et Playwright 2/2 dans les deux modes | Obtenir l’acceptation humaine de P1-003 avant la clôture de Phase 1 ; P1-004 parallélisable après P1-002 |
 | 13 | P1-004 — Images et polices critiques | En validation locale | `VALID-P1-004-LOCAL-2026-08-04` ; commit `4fa1ac3f`, 100 variantes vérifiées, Node 3/3, Vite, Pest 1 297/13 270 et Playwright 16/16 verts | Obtenir l’acceptation humaine de P1-004 ; baseline dynamique P0-006 toujours reportée |
+| 14 | P1-005 — Budgets frontend CI | En validation locale | `VALID-P1-005-LOCAL-2026-08-04` ; commit `2ff77eea`, sept parcours, quatre profils locaux AVIF/WebP, Node 3/3, Vite et garde réelle verts | Observer la CI distante puis obtenir l’acceptation humaine ; toute dérogation doit être dédiée à P1-005, acceptée et active |
 
 ## Gate de sortie Phase 0 — Matrice factuelle au 2026-08-04
 

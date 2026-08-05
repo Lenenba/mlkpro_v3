@@ -1,7 +1,7 @@
 # Phase 1 — Gains rapides de performance
 
 - Dernière mise à jour : 2026-08-04
-- Statut : **ouverte — P1-001 et P1-002 terminés ; P1-003 et P1-004 en validation locale**
+- Statut : **ouverte — P1-001 et P1-002 terminés ; P1-003 à P1-005 en validation locale**
 - Responsable : Jules Roger Sombangnen
 - Validateurs : à nommer (distinct du responsable)
 - Dépendance : GO P0-007 sous dérogation MLK-DEC-010
@@ -87,10 +87,17 @@ Navigation Inertia, menus, dropdowns, modales, onglets, tableaux, traductions, r
 
 ### MLK-IMP-P1-005 — Budgets frontend en CI
 
-- Statut : **en attente**
+- Statut : **en validation locale**
 - But : empêcher le retour silencieux des coûts supprimés.
-- Livrables : tailles gzip visibles, budget par entrée/parcours, tolérance documentée.
-- Critères : CI échoue sur régression non approuvée ; exception possible uniquement via [DECISIONS.md](DECISIONS.md).
+- Changement livré : `config/frontend-budgets.json` versionne, par parcours, les tailles JavaScript, CSS et i18n brutes et gzip ainsi que quatre profils locaux AVIF/WebP (`640w` / `1280w`). Le contrôle suit l’entrée `app` et celle de la page avec leurs imports **statiques** Vite, dédupliqués ; les imports dynamiques sont volontairement exclus du chargement initial. Les domaines i18n de la locale et du fallback sont comptés séparément des actifs déjà chargés par la route.
+- Parcours protégés : accueil, connexion, dashboard, détail client, planning, boutique publique et vitrine publique (`Public/Showcase`). Les images sont limitées au catalogue versionné `public/images/landing/stock/optimized` : aucune image tenant, upload utilisateur ou CDN n’est mesurée ni présentée comme couverte.
+- Tolérance : baseline initiale mesurée localement, plafond égal à `ceil(baseline × 1,05)` pour chaque métrique ; le rapport JSON rend valeurs mesurées, baseline et plafond visibles. `npm run qa:frontend-budgets:measure` permet de consulter les mesures sans faire échouer le contrôle.
+- CI : le job `quality` teste le garde, construit les actifs, puis exécute `npm run qa:frontend-budgets` avec le SHA de base de la PR ou du push. Toute hausse de baseline/plafond, suppression de profil, changement d’identité de parcours/profil ou changement de version est refusé.
+- Dérogation : elle exige `FRONTEND_BUDGET_EXCEPTION=MLK-DEC-XXX` et une section dans [DECISIONS.md](DECISIONS.md) explicitement **acceptée**, non expirée, dédiée à **P1-005** et aux budgets frontend. Aucune dérogation n’a été utilisée pour l’initialisation.
+- Preuve technique : `VALID-P1-005-LOCAL-2026-08-04`, commit `2ff77eea71b591523cd1f8c4780a2295bd5109ed`.
+- Validation locale : test Node **3/3**, build Vite (2 611 modules) et contrôle réel des sept parcours / quatre profils d’images réussis. Aucune écriture, charge, action staging ou production n’a été réalisée.
+- Validation restante : exécution verte de la CI distante puis acceptation humaine des preuves locales et du rollback avant la clôture de la Phase 1. Le garde ne remplace pas la baseline dynamique P0-006 et ne revendique aucun gain LCP, INP ou CLS.
+- Rollback : revert isolé du commit technique ci-dessus ; il retire la configuration, le script et l’étape CI sans migration ni donnée métier persistante.
 
 ## Hors-scope
 
@@ -108,6 +115,8 @@ Tous les résultats ─────────→ P1-005 budgets CI
 
 ```powershell
 npm run qa:build
+npm run qa:frontend-budgets
+node --test tests/Node/P1005FrontendBudgetsTest.mjs
 npm run qa:e2e
 php -d memory_limit=512M vendor/bin/pest
 git diff --check
@@ -121,7 +130,7 @@ Mesurer avant/après sur accueil public, connexion, dashboard, détail client et
 - [ ] Playwright desktop/mobile vert ;
 - [ ] tailles et Web Vitals avant/après consignés ;
 - [ ] aucune clé de traduction ni route manquante ;
-- [ ] budgets CI actifs ;
+- [ ] budgets CI actifs et contrôle distant vert ;
 - [ ] rollback de chaque ticket documenté ;
 - [ ] trois priorités de Phase 2 choisies à partir des données.
 
