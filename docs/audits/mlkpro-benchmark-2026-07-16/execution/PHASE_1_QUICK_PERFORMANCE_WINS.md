@@ -1,7 +1,7 @@
 # Phase 1 — Gains rapides de performance
 
 - Dernière mise à jour : 2026-08-04
-- Statut : **ouverte — P1-001 et P1-002 terminés ; P1-003 en validation locale**
+- Statut : **ouverte — P1-001 et P1-002 terminés ; P1-003 et P1-004 en validation locale**
 - Responsable : Jules Roger Sombangnen
 - Validateurs : à nommer (distinct du responsable)
 - Dépendance : GO P0-007 sous dérogation MLK-DEC-010
@@ -69,16 +69,21 @@ Navigation Inertia, menus, dropdowns, modales, onglets, tableaux, traductions, r
 - Critères vérifiés localement : fallback anglais, absence de clé brute pendant les bascules FR/ES/EN, cache par langue/domaine, parcours public et authentifié, build Vite des deux configurations et rollback fonctionnel.
 - Autorisation : GO explicitement donné après l’acceptation de P1-002 ; validations locales uniquement, sans staging, production ni test de charge.
 - Preuve technique : `VALID-P1-003-LOCAL-2026-08-04`, commit `a27fdea4e1b54fdf41060bcb4880faa0672c2c2f`.
-- Validation restante : acceptation humaine de P1-003 avant l’ouverture du ticket suivant.
+- Validation restante : acceptation humaine de P1-003 avant la clôture de la Phase 1. P1-004 était explicitement parallélisable après P1-002 et ne modifie ni ses contrats i18n ni son rollback.
 - Rollback : définir `VITE_I18N_DOMAIN_LOADING=false` dans l’environnement **de build**, reconstruire puis déployer les actifs Vite ; le chargeur complet historique est alors utilisé. La variable `VITE_*` étant compilée, modifier l’environnement après le build ne suffit pas. Un revert isolé du commit technique reste disponible ; aucune migration ni donnée métier persistante n’est concernée.
 
 ### MLK-IMP-P1-004 — Images et polices du chemin critique
 
-- Statut : **en attente**
+- Statut : **en validation locale**
 - But : réduire le poids et améliorer le rendu initial des pages publiques.
-- Livrables : AVIF/WebP, `srcset`, dimensions explicites, priorité du héros, Montserrat chargée sans `@import` bloquant.
-- Critères : aucune régression visuelle ; LCP/CLS améliorés ; JPEG de repli conservé si nécessaire.
-- Rollback : conserver les anciens médias jusqu’à validation.
+- Changement livré : 25 JPEG stock locaux disposent chacun de variantes AVIF et WebP en `640w` et `1280w` (100 fichiers) ; `PublicResponsiveImage` ne construit un `picture/srcset` que pour ce catalogue connu. Il conserve le JPEG source comme repli et conserve exactement l’URL pour les images tenant, externes ou `data:`.
+- Chemins critiques : les héros accueil, page produit/solution, boutique et vitrine disposent de dimensions intrinsèques lorsque l’image est stock, chargent la première diapositive en `eager` + priorité haute, puis laissent les diapositives suivantes et les images sous le pli en `lazy`. Les styles de couverture du héros vitrine restent vérifiés après le composant Vue.
+- Police : Montserrat sort de l’`@import` CSS ; le document établit une préconnexion Bunny et charge directement la feuille `display=swap`. Aucun hack JavaScript inline incompatible CSP n’est ajouté.
+- Mesure locale statique des médias : le catalogue JPEG historique totalise 7 843 029 o ; les 100 variantes ajoutées totalisent 6 132 235 o au déploiement. Elles ne sont pas toutes transférées : par exemple, `hero-team.jpg` pèse 301 175 o, contre 107 488 o en AVIF 1280w (-64,3 %) et 40 433 o en AVIF 640w (-86,6 %). Ce sont des tailles de fichiers locales, pas une mesure LCP/Web Vitals représentative.
+- Critères vérifiés localement : générateur et dimensions des 100 variantes ; repli AVIF → WebP → JPEG ; MIME de l’actif choisi ; absence de collapse desktop/mobile ; priorité limitée à la première diapositive ; héros vitrine `object-fit: cover` conservé ; images personnalisées non réécrites.
+- Preuve technique : `VALID-P1-004-LOCAL-2026-08-04`, commit `4fa1ac3f`.
+- Validation restante : acceptation humaine des preuves locales et du rollback. La baseline P0-006 étant reportée sous `MLK-DEC-010`, aucune amélioration dynamique LCP/CLS n’est revendiquée.
+- Rollback : revert isolé du commit technique ci-dessus ; les JPEG historiques restent présents et aucune migration ni donnée métier persistante n’est concernée.
 
 ### MLK-IMP-P1-005 — Budgets frontend en CI
 

@@ -509,8 +509,28 @@ La vue consolidée des travaux terminés, en cours et planifiés pour les Phases
 - Gate PHP : non applicable ; ce lot ne modifie aucun fichier PHP. `git diff --cached --check` et `git diff --check` réussis.
 - Environnement : validations locales uniquement ; aucune écriture, charge ni action staging/production.
 - Rollback : positionner `VITE_I18N_DOMAIN_LOADING=false` dans l’environnement de build, reconstruire puis déployer les actifs Vite ; les catalogues complets historiques sont alors utilisés. En alternative, revert isolé du commit technique ; aucune migration ni donnée métier persistante.
-- Validation restante : acceptation humaine explicite de P1-003 avant l’ouverture du ticket suivant.
+- Validation restante : acceptation humaine explicite de P1-003 avant la clôture de la Phase 1 ; P1-004 était parallélisable après P1-002.
 - Verdict : **validation technique locale réussie ; P1-003 reste en validation locale jusqu’à l’acceptation humaine.**
+
+## VALID-P1-004-LOCAL-2026-08-04 — Images et polices critiques
+
+- Ticket : `MLK-IMP-P1-004`.
+- Date : 2026-08-04.
+- Commit technique : `4fa1ac3f` sur `develop`.
+- Portée : 25 JPEG du catalogue stock public reçoivent AVIF/WebP en `640w` et `1280w` (100 variantes). Le composant `PublicResponsiveImage` ne transforme que les chemins locaux connus, expose `picture`, `srcset`, `sizes`, `width` et `height`, puis conserve le JPEG d’origine comme fallback. Toute URL tenant, CDN externe ou `data:` demeure strictement inchangée.
+- Chemins critiques : accueil, page produit/solution, boutique et vitrine utilisent le composant ; la première image de chaque carrousel est `eager` avec `fetchpriority=high`, les suivantes sont `lazy`. Les images de contenu restent différées. La vitrine conserve `object-fit: cover` à travers la frontière de composant Vue.
+- Police : suppression de l’`@import` Bunny dans le CSS ; ajout d’une préconnexion et d’une feuille Montserrat directe avec `display=swap`, sans JavaScript inline.
+- Mesure locale statique : JPEG stock historiques 7 843 029 o ; variantes AVIF/WebP ajoutées 6 132 235 o. Exemple déterministe : `hero-team.jpg` 301 175 o, AVIF 1280w 107 488 o (-64,3 %), AVIF 640w 40 433 o (-86,6 %). Ce constat de fichier n’est ni un LCP, ni un CLS, ni une baseline dynamique représentative.
+- Vérification Node : `node --test tests/Node/P1004PublicMediaTest.mjs` — **3/3 réussis** ; manifeste aligné, 100 variantes attendues, fallback sécurisé, polices et priorités contrôlés.
+- Générateur : `php scripts/generate-public-image-variants.php --check` — **100 variantes vérifiées**, existence et dimensions comprises.
+- Build : `vite build` réussi, 2 611 modules transformés.
+- Vérification navigateur : Playwright complet — **16/16 scénarios réussis**, incluant accueil desktop/mobile, sélection AVIF/WebP avec MIME correspondant, boutique publique et vitrine avec `object-fit: cover`.
+- Gate PHP : le script de `composer qa:format` (`php scripts/run-pint-diff.php`, Composer non exposé dans cet environnement) a été exécuté après indexation complète des 3 fichiers PHP modifiés — **réussi**. `git diff --cached --check` et `git diff --check` réussis.
+- Non-régression PHP finale : `php -d memory_limit=512M vendor/bin/pest` — **1 297 tests réussis, 13 270 assertions**, 412,39 s.
+- Environnement : validations locales uniquement ; aucune écriture, charge ni action staging/production.
+- Rollback : revert isolé du commit technique ci-dessus. Les JPEG historiques sont conservés ; aucune migration ni donnée métier persistante.
+- Validation restante : acceptation humaine de P1-004. La preuve ne prétend pas valider toutes les images personnalisées ni améliorer dynamiquement les Web Vitals avant P0-006.
+- Verdict : **validation technique locale réussie ; P1-004 reste en validation locale jusqu’à l’acceptation humaine.**
 
 ## Gate d’entrée Phase 0 — Archive historique non rétroactive
 
@@ -550,7 +570,8 @@ Ce tableau détaille la sortie de la Phase 0. La suite du programme, jusqu’à 
 | 9 | P0-007 — Revue et signatures de sortie | Terminé — GO sous dérogation | VALID-P0-007-GO-CONDITIONNEL-2026-08-04 ; décision unique de Produit/Technique/Exploitation | Réévaluer la dérogation à l’échéance ou après livraison des preuves |
 | 10 | P1-001 — Initialisation Preline unique et ciblée | Terminé | `VALID-P1-001-LOCAL-2026-08-04` et `VALID-P1-001-ACCEPTATION-HUMAINE-2026-08-04` ; commit `71c1252`, Node 4/4 et Playwright 8/8 verts | Aucun ; P1-002 est ouvert |
 | 11 | P1-002 — Groupes de routes Ziggy | Terminé | `VALID-P1-002-LOCAL-2026-08-04` et `VALID-P1-002-ACCEPTATION-HUMAINE-2026-08-04` ; commit `4778948`, Feature 6/39, Node 4/4 et Playwright 11/11 verts | Aucun ; P1-003 est ouvert |
-| 12 | P1-003 — Traductions chargées par domaine | En validation locale | `VALID-P1-003-LOCAL-2026-08-04` ; commit `a27fdea4`, Node 4/4, Vite et Playwright 2/2 dans les deux modes | Obtenir l’acceptation humaine de P1-003 avant le ticket suivant |
+| 12 | P1-003 — Traductions chargées par domaine | En validation locale | `VALID-P1-003-LOCAL-2026-08-04` ; commit `a27fdea4`, Node 4/4, Vite et Playwright 2/2 dans les deux modes | Obtenir l’acceptation humaine de P1-003 avant la clôture de Phase 1 ; P1-004 parallélisable après P1-002 |
+| 13 | P1-004 — Images et polices critiques | En validation locale | `VALID-P1-004-LOCAL-2026-08-04` ; commit `4fa1ac3f`, 100 variantes vérifiées, Node 3/3, Vite, Pest 1 297/13 270 et Playwright 16/16 verts | Obtenir l’acceptation humaine de P1-004 ; baseline dynamique P0-006 toujours reportée |
 
 ## Gate de sortie Phase 0 — Matrice factuelle au 2026-08-04
 
