@@ -1,7 +1,7 @@
 # Phase 1 — Gains rapides de performance
 
 - Dernière mise à jour : 2026-08-04
-- Statut : **ouverte — P1-001 et P1-002 terminés ; P1-003 à P1-005 en validation locale**
+- Statut : **ouverte — P1-001 et P1-002 terminés ; P1-003/P1-004 en validation locale, P1-005 en validation humaine après CI verte**
 - Responsable : Jules Roger Sombangnen
 - Validateurs : à nommer (distinct du responsable)
 - Dépendance : GO P0-007 sous dérogation MLK-DEC-010
@@ -87,16 +87,17 @@ Navigation Inertia, menus, dropdowns, modales, onglets, tableaux, traductions, r
 
 ### MLK-IMP-P1-005 — Budgets frontend en CI
 
-- Statut : **en validation locale**
+- Statut : **en validation humaine — CI distante verte**
 - But : empêcher le retour silencieux des coûts supprimés.
 - Changement livré : `config/frontend-budgets.json` versionne, par parcours, les tailles JavaScript, CSS et i18n brutes et gzip ainsi que quatre profils locaux AVIF/WebP (`640w` / `1280w`). Le contrôle suit l’entrée `app` et celle de la page avec leurs imports **statiques** Vite, dédupliqués ; les imports dynamiques sont volontairement exclus du chargement initial. Les domaines i18n de la locale et du fallback sont comptés séparément des actifs déjà chargés par la route.
 - Parcours protégés : accueil, connexion, dashboard, détail client, planning, boutique publique et vitrine publique (`Public/Showcase`). Les images sont limitées au catalogue versionné `public/images/landing/stock/optimized` : aucune image tenant, upload utilisateur ou CDN n’est mesurée ni présentée comme couverte.
 - Tolérance : baseline initiale mesurée localement, plafond égal à `ceil(baseline × 1,05)` pour chaque métrique ; le rapport JSON rend valeurs mesurées, baseline et plafond visibles. `npm run qa:frontend-budgets:measure` permet de consulter les mesures sans faire échouer le contrôle.
 - CI : le job `quality` teste le garde, construit les actifs, puis exécute `npm run qa:frontend-budgets` avec le SHA de base de la PR ou du push. Toute hausse de baseline/plafond, suppression de profil, changement d’identité de parcours/profil ou changement de version est refusé.
 - Dérogation : elle exige `FRONTEND_BUDGET_EXCEPTION=MLK-DEC-XXX` et une section dans [DECISIONS.md](DECISIONS.md) explicitement **acceptée**, non expirée, dédiée à **P1-005** et aux budgets frontend. Aucune dérogation n’a été utilisée pour l’initialisation.
-- Preuve technique : `VALID-P1-005-LOCAL-2026-08-04`, commit `2ff77eea71b591523cd1f8c4780a2295bd5109ed`.
-- Validation locale : test Node **3/3**, build Vite (2 611 modules) et contrôle réel des sept parcours / quatre profils d’images réussis. Aucune écriture, charge, action staging ou production n’a été réalisée.
-- Validation restante : exécution verte de la CI distante puis acceptation humaine des preuves locales et du rollback avant la clôture de la Phase 1. Le garde ne remplace pas la baseline dynamique P0-006 et ne revendique aucun gain LCP, INP ou CLS.
+- Preuves : `VALID-P1-005-LOCAL-2026-08-04`, commit `2ff77eea71b591523cd1f8c4780a2295bd5109ed` ; `VALID-P1-005-CI-2026-08-04`, exécution GitHub Actions `30964242010` verte (quality, compatibilité MySQL et navigateur).
+- Validation locale : test Node **3/3**, build Vite (2 611 modules), contrôle réel des sept parcours / quatre profils d’images, Playwright complet **16/16** et Pest complet **1 297 tests / 13 270 assertions** réussis. Aucune écriture, charge, action staging ou production n’a été réalisée.
+- CI distante : le test du garde et son exécution après le build ont réussi sous Node 20 dans le job `quality`; les jobs MySQL et navigateur sont aussi verts.
+- Validation restante : acceptation humaine des preuves locales, de la CI et du rollback avant la clôture de la Phase 1. Le garde ne remplace pas la baseline dynamique P0-006 et ne revendique aucun gain LCP, INP ou CLS.
 - Rollback : revert isolé du commit technique ci-dessus ; il retire la configuration, le script et l’étape CI sans migration ni donnée métier persistante.
 
 ## Hors-scope
@@ -130,7 +131,7 @@ Mesurer avant/après sur accueil public, connexion, dashboard, détail client et
 - [ ] Playwright desktop/mobile vert ;
 - [ ] tailles et Web Vitals avant/après consignés ;
 - [ ] aucune clé de traduction ni route manquante ;
-- [ ] budgets CI actifs et contrôle distant vert ;
+- [x] budgets CI actifs et contrôle distant vert (`quality` `30964242010`) ;
 - [ ] rollback de chaque ticket documenté ;
 - [ ] trois priorités de Phase 2 choisies à partir des données.
 

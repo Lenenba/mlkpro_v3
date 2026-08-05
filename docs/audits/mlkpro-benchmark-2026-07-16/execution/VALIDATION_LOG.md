@@ -544,12 +544,13 @@ La vue consolidée des travaux terminés, en cours et planifiés pour les Phases
 - Politique : après le build, la CI compare la configuration au SHA de base de la PR/push. Une hausse de baseline/plafond, une suppression, un changement d’identité ou de version est refusé sans `FRONTEND_BUDGET_EXCEPTION=MLK-DEC-XXX`. Cette décision doit être explicitement acceptée, active, non expirée et dédiée à P1-005 **et** aux budgets frontend. Aucune dérogation n’a été utilisée pour créer cette première baseline.
 - Vérification Node : `node --test tests/Node/P1005FrontendBudgetsTest.mjs` — **3/3 réussis** ; couverture des sept parcours, imports statiques/déduplication, isolation i18n et refus d’une dérogation générique ou expirée.
 - Build et garde : `vite build` — **2 611 modules transformés** ; `node scripts/check-frontend-budgets.mjs --base-ref HEAD` — **réussi** pour les sept parcours et les quatre profils. Le SHA de base ne contenait pas encore de configuration P1-005 : statut attendu `base_config_absent` pour l’initialisation.
-- CI : `.github/workflows/quality.yml` lance le test Node puis, après `npm run qa:build`, `npm run qa:frontend-budgets` avec le SHA de base. La CI distante n’a pas encore été observée dans cette preuve locale.
+- CI : `.github/workflows/quality.yml` lance le test Node puis, après `npm run qa:build`, `npm run qa:frontend-budgets` avec le SHA de base. L’exécution GitHub Actions `30964242010` est **verte** : job `laravel-quality` (format, analyse, Pest, test P1-005, build et garde), compatibilité MySQL et smoke navigateur.
+- Rejeu consolidé au HEAD : Playwright complet — **16/16 scénarios réussis** ; `php -d memory_limit=512M vendor/bin/pest` — **1 297 tests réussis, 13 270 assertions**, 228,30 s.
 - Gate PHP : non applicable ; aucun fichier PHP n’est modifié. `git diff --cached --check` et `git diff --check` réussis.
 - Environnement : validations locales uniquement ; aucune écriture, charge, action staging ou production.
 - Rollback : revert isolé du commit technique ; il retire le garde et son étape CI, sans migration ni donnée métier persistante.
-- Validation restante : CI distante verte, puis acceptation humaine de P1-005 avec P1-003/P1-004 avant clôture de Phase 1. Le garde n’est pas une baseline dynamique et ne démontre aucun LCP, INP ou CLS représentatif avant P0-006.
-- Verdict : **validation technique locale réussie ; P1-005 reste en validation locale jusqu’à la CI distante et l’acceptation humaine.**
+- Validation restante : acceptation humaine de P1-005 avec P1-003/P1-004 avant clôture de Phase 1. Le garde n’est pas une baseline dynamique et ne démontre aucun LCP, INP ou CLS représentatif avant P0-006.
+- Verdict : **validation technique locale et CI distante réussies ; P1-005 reste en validation humaine.**
 
 ## Gate d’entrée Phase 0 — Archive historique non rétroactive
 
@@ -591,7 +592,7 @@ Ce tableau détaille la sortie de la Phase 0. La suite du programme, jusqu’à 
 | 11 | P1-002 — Groupes de routes Ziggy | Terminé | `VALID-P1-002-LOCAL-2026-08-04` et `VALID-P1-002-ACCEPTATION-HUMAINE-2026-08-04` ; commit `4778948`, Feature 6/39, Node 4/4 et Playwright 11/11 verts | Aucun ; P1-003 est ouvert |
 | 12 | P1-003 — Traductions chargées par domaine | En validation locale | `VALID-P1-003-LOCAL-2026-08-04` ; commit `a27fdea4`, Node 4/4, Vite et Playwright 2/2 dans les deux modes | Obtenir l’acceptation humaine de P1-003 avant la clôture de Phase 1 ; P1-004 parallélisable après P1-002 |
 | 13 | P1-004 — Images et polices critiques | En validation locale | `VALID-P1-004-LOCAL-2026-08-04` ; commit `4fa1ac3f`, 100 variantes vérifiées, Node 3/3, Vite, Pest 1 297/13 270 et Playwright 16/16 verts | Obtenir l’acceptation humaine de P1-004 ; baseline dynamique P0-006 toujours reportée |
-| 14 | P1-005 — Budgets frontend CI | En validation locale | `VALID-P1-005-LOCAL-2026-08-04` ; commit `2ff77eea`, sept parcours, quatre profils locaux AVIF/WebP, Node 3/3, Vite et garde réelle verts | Observer la CI distante puis obtenir l’acceptation humaine ; toute dérogation doit être dédiée à P1-005, acceptée et active |
+| 14 | P1-005 — Budgets frontend CI | En validation humaine — CI verte | `VALID-P1-005-LOCAL-2026-08-04` / `VALID-P1-005-CI-2026-08-04` ; commit `2ff77eea`, sept parcours, quatre profils locaux AVIF/WebP, Node 3/3, Vite, Pest 1 297/13 270, Playwright 16/16 et CI `30964242010` verts | Obtenir l’acceptation humaine ; toute dérogation doit être dédiée à P1-005, acceptée et active |
 
 ## Gate de sortie Phase 0 — Matrice factuelle au 2026-08-04
 
