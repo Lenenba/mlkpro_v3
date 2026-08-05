@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { ArrowRight, ChevronDown } from 'lucide-vue-next';
 import { Link } from '@inertiajs/vue3';
+import PublicResponsiveImage from '@/Components/Public/PublicResponsiveImage.vue';
 import { buildBackgroundStyle, resolveBackgroundTone } from '@/utils/backgroundPresets';
 
 const props = defineProps({
@@ -374,14 +375,15 @@ const setAccordionChild = (tab, child) => {
                         :class="{ 'feature-tabs-showcase__media-shell--filled': Boolean(currentPanelImageUrl) }"
                     >
                         <div class="feature-tabs-showcase__media-glow"></div>
-                        <img
+                        <PublicResponsiveImage
                             v-if="currentPanelImageUrl"
                             :src="currentPanelImageUrl"
                             :alt="currentPanelImageAlt"
                             class="feature-tabs-showcase__media"
                             loading="lazy"
                             decoding="async"
-                        >
+                            sizes="(max-width: 1024px) 100vw, 50vw"
+                        />
                         <div v-else class="feature-tabs-showcase__media-fallback">
                             <div class="feature-tabs-showcase__media-mark">
                                 {{ previewTab?.label }}

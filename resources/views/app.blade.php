@@ -18,6 +18,8 @@
         <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}">
         <link rel="manifest" href="{{ asset('site.webmanifest') }}">
         <link rel="shortcut icon" href="{{ asset('favicon.ico') }}">
+        <link rel="preconnect" href="https://fonts.bunny.net" crossorigin>
+        <link rel="stylesheet" href="https://fonts.bunny.net/css?family=Montserrat:400,500,600,700,800&display=swap">
 
         <title inertia>{{ config('app.name', 'Malikia pro') }}</title>
         @php

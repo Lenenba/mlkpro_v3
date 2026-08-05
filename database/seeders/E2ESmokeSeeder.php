@@ -172,6 +172,25 @@ class E2ESmokeSeeder extends Seeder
             'contact_email' => 'convert.lead@example.test',
         ]);
 
+        $serviceCategory = ProductCategory::create([
+            'name' => 'E2E Service Category',
+            'user_id' => $serviceOwner->id,
+            'created_by_user_id' => $serviceOwner->id,
+        ]);
+
+        $publicShowcaseService = Product::create([
+            'user_id' => $serviceOwner->id,
+            'category_id' => $serviceCategory->id,
+            'name' => 'E2E Public Showcase Service',
+            'description' => 'Public service showcase smoke item',
+            'price' => 125,
+            'stock' => 0,
+            'minimum_stock' => 0,
+            'tax_rate' => 0,
+            'item_type' => Product::ITEM_TYPE_SERVICE,
+            'is_active' => true,
+        ]);
+
         $productOwner = User::factory()->create([
             'name' => 'E2E Product Owner',
             'email' => 'e2e.product.owner@example.test',
@@ -312,6 +331,11 @@ class E2ESmokeSeeder extends Seeder
                 'path' => route('public.store.show', $productOwner->company_slug, absolute: false),
                 'companyName' => $productOwner->company_name,
                 'productName' => $publicStoreProduct->name,
+            ],
+            'publicShowcase' => [
+                'path' => route('public.showcase.show', $serviceOwner->company_slug, absolute: false),
+                'companyName' => $serviceOwner->company_name,
+                'serviceName' => $publicShowcaseService->name,
             ],
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }

@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import PublicResponsiveImage from '@/Components/Public/PublicResponsiveImage.vue';
 import PublicSectionsRenderer from '@/Components/Public/PublicSectionsRenderer.vue';
 import Price from '@/Components/Store/Price.vue';
 import {
@@ -309,13 +310,15 @@ onBeforeUnmount(() => {
                     <div class="showcase-hero-image">
                         <Transition name="hero-fade" mode="out-in">
                             <template v-if="heroImage">
-                                <img
+                                <PublicResponsiveImage
                                     :key="heroImage"
                                     :src="heroImage"
                                     :alt="heroService?.name || companyName"
-                                    loading="lazy"
+                                    :loading="heroBackgroundIndex === 0 ? 'eager' : 'lazy'"
+                                    :fetch-priority="heroBackgroundIndex === 0 ? 'high' : null"
                                     decoding="async"
-                                >
+                                    sizes="(max-width: 1024px) 100vw, 48vw"
+                                />
                             </template>
                             <template v-else>
                                 <div class="showcase-hero-placeholder">
@@ -697,7 +700,7 @@ onBeforeUnmount(() => {
     box-shadow: 0 22px 50px rgba(15, 23, 42, 0.35);
 }
 
-.showcase-hero-image img {
+.showcase-hero-image :deep(img) {
     width: 100%;
     height: 100%;
     object-fit: cover;

@@ -10,6 +10,7 @@ import DateTimePicker from '@/Components/DateTimePicker.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
+import PublicResponsiveImage from '@/Components/Public/PublicResponsiveImage.vue';
 import PublicSectionsRenderer from '@/Components/Public/PublicSectionsRenderer.vue';
 import FlashToaster from '@/Components/UI/FlashToaster.vue';
 import Price from '@/Components/Store/Price.vue';
@@ -1170,15 +1171,17 @@ const submitCheckout = async () => {
                     <div class="hero-stage">
                         <div class="hero-stage-main">
                             <Transition name="hero-fade" mode="out-in">
-                                <img
+                                <PublicResponsiveImage
                                     v-if="heroSlides.length"
                                     :key="heroSlides[heroBackgroundIndex]"
                                     :src="heroSlides[heroBackgroundIndex]"
                                     :alt="companyName"
                                     class="hero-stage-image"
-                                    loading="lazy"
+                                    :loading="heroBackgroundIndex === 0 ? 'eager' : 'lazy'"
+                                    :fetch-priority="heroBackgroundIndex === 0 ? 'high' : null"
                                     decoding="async"
-                                >
+                                    sizes="100vw"
+                                />
                             </Transition>
                             <div v-if="!heroSlides.length" class="hero-stage-placeholder">
                                 {{ companyName }}
