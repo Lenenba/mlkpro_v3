@@ -164,6 +164,11 @@ class ReservationQueueItem extends Model
         return $this->hasOne(Payment::class, 'reservation_queue_item_id');
     }
 
+    public function checkoutInvoice(): HasOne
+    {
+        return $this->hasOne(Invoice::class, 'reservation_queue_item_id');
+    }
+
     public function scopeForAccount(Builder $query, int $accountId): Builder
     {
         return $query->where('account_id', $accountId);

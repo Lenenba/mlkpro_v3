@@ -60,6 +60,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PromotionController;
 use App\Http\Controllers\ProspectController;
 use App\Http\Controllers\PublicInvoiceController;
+use App\Http\Controllers\PublicInvoiceReceiptController;
 use App\Http\Controllers\PublicPageController;
 use App\Http\Controllers\PublicQuoteController;
 use App\Http\Controllers\PublicRequestController;
@@ -265,6 +266,7 @@ Route::prefix('/book/{company}/{slug}')
 
 Route::middleware(['signed', 'throttle:public-signed'])->group(function () {
     Route::get('/pay/invoices/{invoice}', [PublicInvoiceController::class, 'show'])->name('public.invoices.show');
+    Route::get('/pay/invoices/{invoice}/receipt', [PublicInvoiceReceiptController::class, 'show'])->name('public.invoices.receipt');
     Route::post('/pay/invoices/{invoice}', [PublicInvoiceController::class, 'storePayment'])->name('public.invoices.pay');
     Route::post('/pay/invoices/{invoice}/stripe', [PublicInvoiceController::class, 'createStripeCheckout'])
         ->name('public.invoices.stripe');
@@ -1176,6 +1178,7 @@ Route::middleware(['auth', EnsureClientUser::class])
         Route::post('/works/{work}/schedule/reject', [PortalWorkController::class, 'rejectSchedule'])->name('works.schedule.reject');
         Route::post('/works/{work}/dispute', [PortalWorkController::class, 'dispute'])->name('works.dispute');
         Route::post('/tasks/{task}/media', [PortalTaskMediaController::class, 'store'])->name('tasks.media.store');
+        Route::get('/invoices', [PortalInvoiceController::class, 'index'])->name('invoices.index');
         Route::get('/invoices/{invoice}', [PortalInvoiceController::class, 'show'])->name('invoices.show');
         Route::post('/invoices/{invoice}/payments', [PortalInvoiceController::class, 'storePayment'])->name('invoices.payments.store');
         Route::post('/invoices/{invoice}/stripe', [PortalInvoiceController::class, 'createStripeCheckout'])

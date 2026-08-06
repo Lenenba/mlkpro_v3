@@ -1,6 +1,10 @@
 {
   "invoices": {
     "title": "Facturas",
+    "history": {
+      "title": "Historial de facturas y pagos",
+      "subtitle": "Consulta tus facturas, pagos y saldos pendientes."
+    },
     "company_fallback": "Empresa",
     "view": {
       "table": "Tabla",

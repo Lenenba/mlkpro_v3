@@ -27,6 +27,75 @@ class PortalInvoiceController extends Controller
         private readonly PortalAccessService $portalAccess
     ) {}
 
+    public function index(Request $request)
+    {
+        $customer = $this->portalAccess->customer($request);
+
+        $invoices = Invoice::query()
+            ->where('customer_id', $customer->id)
+            ->where('user_id', $customer->user_id)
+            ->select([
+                'id',
+                'customer_id',
+                'user_id',
+                'number',
+                'status',
+                'total',
+                'currency_code',
+                'created_at',
+            ])
+            ->with([
+                'payments' => fn ($query) => $query
+                    ->select([
+                        'id',
+                        'invoice_id',
+                        'amount',
+                        'currency_code',
+                        'tip_amount',
+                        'charged_total',
+                        'method',
+                        'provider',
+                        'status',
+                        'reference',
+                        'paid_at',
+                        'created_at',
+                    ])
+                    ->latest('paid_at')
+                    ->latest('id'),
+            ])
+            ->latest('created_at')
+            ->paginate(15)
+            ->through(function (Invoice $invoice): array {
+                return [
+                    'id' => $invoice->id,
+                    'number' => $invoice->number,
+                    'status' => $invoice->status,
+                    'total' => (float) $invoice->total,
+                    'total_paid' => $invoice->amount_paid,
+                    'balance_due' => $invoice->balance_due,
+                    'currency_code' => $invoice->currency_code,
+                    'created_at' => $invoice->created_at,
+                    'payments' => $invoice->payments->map(fn ($payment): array => [
+                        'id' => $payment->id,
+                        'amount' => (float) $payment->amount,
+                        'tip_amount' => (float) ($payment->tip_amount ?? 0),
+                        'charged_total' => $payment->charged_total === null ? null : (float) $payment->charged_total,
+                        'currency_code' => $payment->currency_code,
+                        'method' => $payment->method,
+                        'provider' => $payment->provider,
+                        'status' => $payment->status,
+                        'reference' => $payment->reference,
+                        'paid_at' => $payment->paid_at,
+                        'created_at' => $payment->created_at,
+                    ])->values(),
+                ];
+            });
+
+        return Inertia::render('Portal/InvoicesIndex', [
+            'invoices' => $invoices,
+        ]);
+    }
+
     public function show(Request $request, Invoice $invoice)
     {
         $customer = $this->portalAccess->customer($request);

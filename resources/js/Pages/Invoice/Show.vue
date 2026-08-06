@@ -105,6 +105,7 @@ const submitPayment = () => {
 };
 
 const customer = computed(() => props.invoice.customer || null);
+const customerSnapshot = computed(() => props.invoice.customer_snapshot || {});
 const work = computed(() => props.invoice.work || null);
 const invoiceItems = computed(() => props.invoice.items || []);
 const usesInvoiceItems = computed(() => invoiceItems.value.length > 0);
@@ -120,24 +121,24 @@ const offerPackageOptions = computed(() => (props.offerPackages || []).map((offe
 
 const customerName = computed(() => {
     const data = customer.value;
-    if (!data) {
-        return t('invoices.labels.customer_fallback');
-    }
-    const name = data.company_name || `${data.first_name || ''} ${data.last_name || ''}`.trim();
-    return name || t('invoices.labels.customer_fallback');
+    const name = data?.company_name || `${data?.first_name || ''} ${data?.last_name || ''}`.trim();
+
+    return name
+        || customerSnapshot.value?.name
+        || customerSnapshot.value?.company_name
+        || t('invoices.labels.customer_fallback');
 });
 
 const contactName = computed(() => {
     const data = customer.value;
-    if (!data) {
-        return '-';
-    }
-    const name = `${data.first_name || ''} ${data.last_name || ''}`.trim();
-    return name || data.company_name || '-';
+    const name = `${data?.first_name || ''} ${data?.last_name || ''}`.trim();
+
+    return name || data?.company_name || customerSnapshot.value?.name || '-';
 });
 
-const contactEmail = computed(() => customer.value?.email || '-');
-const contactPhone = computed(() => customer.value?.phone || '-');
+const contactEmail = computed(() => customer.value?.email || customerSnapshot.value?.email || '-');
+const contactPhone = computed(() => customer.value?.phone || customerSnapshot.value?.phone || '-');
+const invoiceContextTitle = computed(() => work.value?.job_title || invoiceItems.value?.[0]?.title || t('invoices.labels.job_fallback'));
 
 const fallbackProperty = computed(() => {
     const properties = customer.value?.properties || [];
@@ -436,7 +437,7 @@ watch(
                                 {{ $t('invoices.show.invoice_for', { customer: customerName }) }}
                             </h1>
                             <p class="text-sm text-stone-600 dark:text-neutral-300">
-                                {{ work?.job_title || $t('invoices.labels.job_fallback') }}
+                                {{ invoiceContextTitle }}
                             </p>
                         </div>
                     </div>
@@ -492,7 +493,7 @@ watch(
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div class="col-span-2 space-x-2">
                         <div class="bg-white rounded-sm border border-stone-100 p-4 mb-4 text-stone-700 dark:bg-neutral-900 dark:border-neutral-800 dark:text-neutral-100">
-                            {{ work?.job_title || $t('invoices.labels.job_fallback') }}
+                            {{ invoiceContextTitle }}
                         </div>
                         <div class="flex flex-row space-x-6">
                             <div class="lg:col-span-3">

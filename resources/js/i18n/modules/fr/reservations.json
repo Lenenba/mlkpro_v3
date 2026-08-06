@@ -178,6 +178,15 @@
         "update_error": "Impossible de mettre a jour l element de file.",
         "call_next_empty": "Aucun element callable n est disponible pour le moment."
       },
+      "availability_confirmation": {
+        "title": "Confirmer la disponibilite",
+        "description": "{teamMember} est marque comme occupe, mais aucun service actif n est detecte.",
+        "hint": "Confirmez sa disponibilite uniquement s il ou elle est bien libre. Le service ou l appel sera ensuite relance.",
+        "still_busy": "Toujours occupe",
+        "available_continue": "Disponible, continuer",
+        "continuing": "Verification...",
+        "fallback_member": "Cet employe"
+      },
       "checkout": {
         "title": "Encaisser le service",
         "subtitle": "Le service est terminé. Enregistrez le règlement pour clôturer le ticket.",
@@ -198,11 +207,20 @@
         "notes": "Note (optionnel)",
         "cancel": "Annuler",
         "submit": "Encaisser et terminer",
+        "submit_card": "Continuer vers Stripe",
         "processing": "Encaissement...",
         "completed": "Paiement enregistre et service termine.",
         "free_completed": "Service termine.",
         "open_error": "Impossible de preparer l encaissement.",
         "submit_error": "Impossible d enregistrer le paiement.",
+        "receipt": {
+          "label": "Envoyer le reçu",
+          "hint": "Le reçu est envoyé après la confirmation du paiement. Le SMS contient un lien sécurisé.",
+          "none": "Ne pas envoyer maintenant",
+          "email": "Par e-mail (PDF)",
+          "sms": "Par SMS (lien sécurisé)",
+          "view": "Ouvrir le reçu"
+        },
         "methods": {
           "cash": "Especes",
           "card": "Carte",

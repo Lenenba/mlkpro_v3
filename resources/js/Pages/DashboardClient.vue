@@ -758,6 +758,13 @@ const submitWorkRating = (workId) => {
                             {{ $t('client_dashboard.welcome', { name: userName }) }}
                         </p>
                     </div>
+                    <Link
+                        v-if="!profileMissing"
+                        :href="route('portal.invoices.index')"
+                        class="inline-flex items-center text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline dark:text-emerald-400 dark:hover:text-emerald-300"
+                    >
+                        {{ $t('client_dashboard.actions.view_invoice_history') }}
+                    </Link>
                 </div>
                 <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
                     <div class="p-4 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">

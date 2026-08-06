@@ -226,13 +226,15 @@
       if (!empty($companyLogo)) {
           $companyLogoUrl = str_starts_with($companyLogo, '/') ? url($companyLogo) : $companyLogo;
       }
+      $customerSnapshot = is_array($invoice->customer_snapshot ?? null) ? $invoice->customer_snapshot : [];
       $customerLabel = $customer?->company_name
         ?: trim(($customer?->first_name ?? '') . ' ' . ($customer?->last_name ?? ''));
+      $customerLabel = $customerLabel ?: ($customerSnapshot['name'] ?? $customerSnapshot['company_name'] ?? null);
       $customerLabel = $customerLabel ?: 'Client';
       $contactName = trim(($customer?->first_name ?? '') . ' ' . ($customer?->last_name ?? ''));
-      $contactName = $contactName ?: ($customer?->company_name ?: '-');
-      $contactEmail = $customer?->email ?: '-';
-      $contactPhone = $customer?->phone ?: '-';
+      $contactName = $contactName ?: ($customer?->company_name ?: ($customerSnapshot['name'] ?? '-'));
+      $contactEmail = $customer?->email ?: ($customerSnapshot['email'] ?? '-');
+      $contactPhone = $customer?->phone ?: ($customerSnapshot['phone'] ?? '-');
       $locale = strtolower((string) config('app.locale', 'fr'));
       $useComma = str_starts_with($locale, 'fr');
       $formatMoney = function ($value) use ($useComma) {
@@ -312,7 +314,7 @@
               $statusClass = 'status-void';
               break;
       }
-      $jobTitle = $work?->job_title ?: 'Job';
+      $jobTitle = $work?->job_title ?: ($productItems->first()['title'] ?? 'Service');
       $property = $work?->quote?->property;
       if (!$property && $customer && $customer->relationLoaded('properties')) {
           $property = $customer->properties->firstWhere('is_default', true) ?? $customer->properties->first();
@@ -541,6 +543,11 @@
                   <div style="font-size: 11px; color: #44403c;">
                     {{ $formatMoney($payment->amount) }} - {{ $payment->method ?: '-' }}
                   </div>
+                  @if((float) ($payment->tip_amount ?? 0) > 0)
+                    <div class="muted">
+                      Pourboire : {{ $formatMoney($payment->tip_amount) }} · Total encaissé : {{ $formatMoney($payment->charged_total ?? ((float) $payment->amount + (float) $payment->tip_amount)) }}
+                    </div>
+                  @endif
                   <div class="muted">{{ $formatRelativeDate($payment->paid_at) }}</div>
                 </td>
                 <td class="right muted">{{ $payment->status ?: '-' }}</td>

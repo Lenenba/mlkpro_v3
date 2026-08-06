@@ -129,6 +129,7 @@ const waitlistUpdatingId = ref(null);
 const queueRows = ref([...(props.queueItems || [])]);
 const queueActionError = ref('');
 const queueActionSuccess = ref('');
+const queueReceiptUrl = ref('');
 const queueUpdatingId = ref(null);
 const queueCallingNext = ref(false);
 const openQueueActionsFor = ref(null);
@@ -144,7 +145,11 @@ const queueCheckoutForm = ref({
     method: '',
     reference: '',
     notes: '',
+    receipt_delivery: '',
 });
+const showQueueAvailabilityConfirmation = ref(false);
+const pendingQueueAvailabilityConfirmation = ref(null);
+const queueAvailabilityConfirmationProcessing = ref(false);
 const queueTipEnabled = ref(false);
 const queueTipMode = ref('percent');
 const queueTipPercent = ref(0);
@@ -166,6 +171,10 @@ const hasWaitlistTab = computed(() => waitlistEnabled.value || waitlistRows.valu
 const activeQueueActionItem = computed(() => queueRows.value.find(
     (item) => Number(item.id) === openQueueActionsFor.value
 ) || null);
+const queueAvailabilityConfirmationMemberName = computed(() => (
+    pendingQueueAvailabilityConfirmation.value?.teamMemberName
+        || t('reservations.queue.availability_confirmation.fallback_member')
+));
 const {
     allowedPaymentMethods,
     defaultPaymentMethod,
@@ -409,6 +418,21 @@ const queuePaymentMethodOptions = computed(() => allowedPaymentMethods.value.map
     value: method,
     label: queuePaymentMethodLabel(method),
 })));
+const queueReceiptDeliveryOptions = computed(() => ([
+    { value: '', label: t('reservations.queue.checkout.receipt.none') },
+    { value: 'email', label: t('reservations.queue.checkout.receipt.email') },
+    { value: 'sms', label: t('reservations.queue.checkout.receipt.sms') },
+]));
+const isQueueCardCheckout = computed(() => queueCheckoutForm.value.method === 'card');
+const queueCheckoutSubmitLabel = computed(() => {
+    if (queueCheckoutProcessing.value) {
+        return t('reservations.queue.checkout.processing');
+    }
+
+    return isQueueCardCheckout.value
+        ? t('reservations.queue.checkout.submit_card')
+        : t('reservations.queue.checkout.submit');
+});
 const canSubmitQueueCheckout = computed(() => (
     Boolean(activeQueueCheckoutItem.value?.id)
     && queueCheckoutBaseAmount.value > 0
@@ -426,6 +450,7 @@ const queueCheckoutPayload = computed(() => ({
         : 0,
     reference: queueCheckoutForm.value.reference || null,
     notes: queueCheckoutForm.value.notes || null,
+    receipt_delivery: queueCheckoutForm.value.receipt_delivery || null,
 }));
 watch(
     () => [allowedPaymentMethods.value, defaultPaymentMethod.value],
@@ -896,6 +921,46 @@ const queueAssignmentPayload = (item) => {
     return payload;
 };
 
+const queueAvailabilityConfirmationFromError = (error) => {
+    const response = error?.response;
+    const confirmation = response?.data?.availability_confirmation;
+
+    if (
+        Number(response?.status) !== 409
+        || response?.data?.code !== 'queue_team_member_availability_confirmation_required'
+        || !confirmation
+    ) {
+        return null;
+    }
+
+    return confirmation;
+};
+
+const openQueueAvailabilityConfirmation = (error, pendingAction) => {
+    const confirmation = queueAvailabilityConfirmationFromError(error);
+    if (!confirmation) {
+        return false;
+    }
+
+    pendingQueueAvailabilityConfirmation.value = {
+        ...pendingAction,
+        teamMemberId: confirmation.team_member_id,
+        teamMemberName: confirmation.team_member_name || '',
+    };
+    showQueueAvailabilityConfirmation.value = true;
+
+    return true;
+};
+
+const closeQueueAvailabilityConfirmation = () => {
+    if (queueAvailabilityConfirmationProcessing.value) {
+        return;
+    }
+
+    showQueueAvailabilityConfirmation.value = false;
+    pendingQueueAvailabilityConfirmation.value = null;
+};
+
 const setQueueActionButtonRef = (itemId, element) => {
     if (element) {
         queueActionButtonRefs.value[itemId] = element;
@@ -993,10 +1058,15 @@ const toggleQueueActions = async (itemId) => {
     }
 };
 
-const updateQueueStatus = async (item, action) => {
+const updateQueueStatus = async (item, action, options = {}) => {
     if (!item?.id || !item?.can_update_status) {
         return;
     }
+
+    const originalPayload = { ...(options.payload || queueAssignmentPayload(item)) };
+    const payload = options.confirmTeamMemberAvailable
+        ? { ...originalPayload, confirm_team_member_available: true }
+        : originalPayload;
 
     closeQueueActions();
     queueActionError.value = '';
@@ -1004,7 +1074,7 @@ const updateQueueStatus = async (item, action) => {
     queueUpdatingId.value = Number(item.id);
 
     try {
-        const response = await axios.patch(route(queueActionRouteName(action), item.id), queueAssignmentPayload(item));
+        const response = await axios.patch(route(queueActionRouteName(action), item.id), payload);
         const updated = response?.data?.queue_item || { ...item };
         queueRows.value = queueRows.value.map((row) => (
             Number(row.id) === Number(item.id) ? { ...row, ...updated } : row
@@ -1012,6 +1082,19 @@ const updateQueueStatus = async (item, action) => {
         queueActionSuccess.value = response?.data?.message || t('reservations.queue.actions.updated');
         refreshList();
     } catch (error) {
+        const requiresAvailabilityConfirmation = !options.confirmTeamMemberAvailable
+            && ['pre-call', 'call'].includes(action)
+            && openQueueAvailabilityConfirmation(error, {
+                type: 'status',
+                item,
+                action,
+                payload: originalPayload,
+            });
+
+        if (requiresAvailabilityConfirmation) {
+            return;
+        }
+
         queueActionError.value = error?.response?.data?.message || t('reservations.queue.actions.update_error');
     } finally {
         queueUpdatingId.value = null;
@@ -1021,10 +1104,12 @@ const updateQueueStatus = async (item, action) => {
 const resetQueueCheckout = (item) => {
     activeQueueCheckoutItem.value = item || null;
     queueCheckoutError.value = '';
+    queueReceiptUrl.value = '';
     queueCheckoutForm.value = {
         method: defaultPaymentMethod.value,
         reference: '',
         notes: '',
+        receipt_delivery: '',
     };
     queueTipEnabled.value = false;
     queueTipMode.value = 'percent';
@@ -1101,10 +1186,16 @@ const submitQueueCheckout = async () => {
             route('reservation.queue.checkout', item.id),
             queueCheckoutPayload.value
         );
+        const checkoutUrl = response?.data?.checkout_url;
+        if (typeof checkoutUrl === 'string' && checkoutUrl) {
+            window.location.assign(checkoutUrl);
+            return;
+        }
         const updated = response?.data?.queue_item || { ...item, status: 'done' };
         queueRows.value = queueRows.value.map((row) => (
             Number(row.id) === Number(item.id) ? { ...row, ...updated } : row
         ));
+        queueReceiptUrl.value = response?.data?.invoice?.receipt_url || '';
         queueActionSuccess.value = response?.data?.message || t('reservations.queue.checkout.completed');
         closeQueueCheckout();
         refreshList();
@@ -1117,21 +1208,29 @@ const submitQueueCheckout = async () => {
     }
 };
 
-const callNextQueueItem = async () => {
+const queueCallNextPayload = () => {
+    const payload = {};
+    if (queueAssignmentMode.value === 'per_staff') {
+        if (ownTeamMemberId.value) {
+            payload.team_member_id = Number(ownTeamMemberId.value);
+        } else if (filterForm.team_member_id) {
+            payload.team_member_id = Number(filterForm.team_member_id);
+        }
+    }
+
+    return payload;
+};
+
+const callNextQueueItem = async (options = {}) => {
     queueActionError.value = '';
     queueActionSuccess.value = '';
     queueCallingNext.value = true;
+    const originalPayload = { ...(options.payload || queueCallNextPayload()) };
+    const payload = options.confirmTeamMemberAvailable
+        ? { ...originalPayload, confirm_team_member_available: true }
+        : originalPayload;
 
     try {
-        const payload = {};
-        if (queueAssignmentMode.value === 'per_staff') {
-            if (ownTeamMemberId.value) {
-                payload.team_member_id = Number(ownTeamMemberId.value);
-            } else if (filterForm.team_member_id) {
-                payload.team_member_id = Number(filterForm.team_member_id);
-            }
-        }
-
         const response = await axios.post(route('reservation.queue.call-next'), payload);
         const updated = response?.data?.queue_item;
         if (updated?.id) {
@@ -1148,9 +1247,54 @@ const callNextQueueItem = async () => {
         queueActionSuccess.value = response?.data?.message || t('reservations.queue.actions.updated');
         refreshList();
     } catch (error) {
+        const requiresAvailabilityConfirmation = !options.confirmTeamMemberAvailable
+            && openQueueAvailabilityConfirmation(error, {
+                type: 'call-next',
+                payload: originalPayload,
+            });
+
+        if (requiresAvailabilityConfirmation) {
+            return;
+        }
+
         queueActionError.value = error?.response?.data?.message || t('reservations.queue.actions.call_next_empty');
     } finally {
         queueCallingNext.value = false;
+    }
+};
+
+const confirmQueueMemberAvailability = async () => {
+    const pendingAction = pendingQueueAvailabilityConfirmation.value;
+    if (!pendingAction || queueAvailabilityConfirmationProcessing.value) {
+        return;
+    }
+
+    queueAvailabilityConfirmationProcessing.value = true;
+
+    try {
+        if (pendingAction.type === 'status') {
+            const payload = pendingAction.teamMemberId && !pendingAction.payload?.team_member_id
+                ? { ...pendingAction.payload, team_member_id: Number(pendingAction.teamMemberId) }
+                : pendingAction.payload;
+            await updateQueueStatus(pendingAction.item, pendingAction.action, {
+                payload,
+                confirmTeamMemberAvailable: true,
+            });
+            return;
+        }
+
+        if (pendingAction.type === 'call-next') {
+            const payload = pendingAction.teamMemberId && !pendingAction.payload?.team_member_id
+                ? { ...pendingAction.payload, team_member_id: Number(pendingAction.teamMemberId) }
+                : pendingAction.payload;
+            await callNextQueueItem({
+                payload,
+                confirmTeamMemberAvailable: true,
+            });
+        }
+    } finally {
+        queueAvailabilityConfirmationProcessing.value = false;
+        closeQueueAvailabilityConfirmation();
     }
 };
 
@@ -1317,8 +1461,17 @@ const removeReservation = (reservation) => {
                 <div v-if="queueActionError" class="mt-3 rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
                     {{ queueActionError }}
                 </div>
-                <div v-if="queueActionSuccess" class="mt-3 rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-                    {{ queueActionSuccess }}
+                <div v-if="queueActionSuccess" class="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                    <span>{{ queueActionSuccess }}</span>
+                    <a
+                        v-if="queueReceiptUrl"
+                        :href="queueReceiptUrl"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="shrink-0 font-semibold text-emerald-800 underline underline-offset-2 hover:text-emerald-950 dark:text-emerald-200 dark:hover:text-white"
+                    >
+                        {{ $t('reservations.queue.checkout.receipt.view') }}
+                    </a>
                 </div>
 
                 <AdminDataTable embedded :rows="queueRows" :show-pagination="false">
@@ -1925,169 +2078,206 @@ const removeReservation = (reservation) => {
             </section>
         </div>
 
-        <Modal :show="showQueueCheckout" maxWidth="lg" @close="closeQueueCheckout">
-            <form v-if="activeQueueCheckoutItem" class="p-5" @submit.prevent="submitQueueCheckout">
-                <div class="flex items-start justify-between gap-4">
-                    <div>
-                        <h2 class="text-base font-semibold text-stone-900 dark:text-neutral-100">
+        <Modal :show="showQueueCheckout" maxWidth="xl" @close="closeQueueCheckout">
+            <form
+                v-if="activeQueueCheckoutItem"
+                class="flex max-h-[calc(100vh-3rem)] flex-col"
+                aria-labelledby="queue-checkout-title"
+                aria-describedby="queue-checkout-description"
+                @submit.prevent="submitQueueCheckout"
+            >
+                <div class="flex items-start justify-between gap-3 border-b border-stone-200 px-4 py-4 dark:border-neutral-700 sm:px-5">
+                    <div class="min-w-0">
+                        <h2 id="queue-checkout-title" class="text-base font-semibold text-stone-900 dark:text-neutral-100">
                             {{ $t('reservations.queue.checkout.title') }}
                         </h2>
-                        <p class="mt-1 text-sm text-stone-500 dark:text-neutral-400">
+                        <p id="queue-checkout-description" class="mt-1 break-words text-sm text-stone-500 dark:text-neutral-400">
                             {{ $t('reservations.queue.checkout.subtitle') }}
                         </p>
                     </div>
-                    <span class="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+                    <span
+                        class="max-w-[45%] shrink-0 truncate whitespace-nowrap rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
+                        :title="activeQueueCheckoutItem.queue_number || `#${activeQueueCheckoutItem.id}`"
+                    >
                         {{ activeQueueCheckoutItem.queue_number || `#${activeQueueCheckoutItem.id}` }}
                     </span>
                 </div>
 
-                <div class="mt-4 grid gap-3 rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <div class="flex items-center justify-between gap-3">
-                        <span class="text-stone-500 dark:text-neutral-400">{{ $t('reservations.table.customer') }}</span>
-                        <span class="text-right font-medium text-stone-800 dark:text-neutral-100">{{ activeQueueCheckoutItem.client_name || $t('reservations.queue.checkout.walk_in_customer') }}</span>
-                    </div>
-                    <div class="flex items-center justify-between gap-3">
-                        <span class="text-stone-500 dark:text-neutral-400">{{ $t('reservations.table.item') }}</span>
-                        <span class="text-right font-medium text-stone-800 dark:text-neutral-100">{{ activeQueueCheckoutItem.checkout?.service_name || activeQueueCheckoutItem.service_name || '-' }}</span>
-                    </div>
-                    <div class="flex items-center justify-between gap-3">
-                        <span class="text-stone-500 dark:text-neutral-400">{{ $t('planning.form.member') }}</span>
-                        <span class="text-right font-medium text-stone-800 dark:text-neutral-100">{{ activeQueueCheckoutItem.team_member_name || '-' }}</span>
-                    </div>
-                </div>
-
-                <div class="mt-4 grid gap-3 sm:grid-cols-2">
-                    <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                        <div class="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                            {{ $t('reservations.queue.checkout.service_total') }}
+                <div class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 py-4 sm:px-5 sm:py-5">
+                    <div class="grid gap-3 rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm dark:border-neutral-700 dark:bg-neutral-800">
+                        <div class="grid grid-cols-[minmax(0,0.42fr)_minmax(0,1fr)] items-start gap-3">
+                            <span class="min-w-0 break-words text-stone-500 dark:text-neutral-400">{{ $t('reservations.table.customer') }}</span>
+                            <span class="min-w-0 break-words text-right font-medium text-stone-800 dark:text-neutral-100">{{ activeQueueCheckoutItem.client_name || $t('reservations.queue.checkout.walk_in_customer') }}</span>
                         </div>
-                        <div class="mt-1 text-lg font-semibold text-stone-900 dark:text-neutral-100">
-                            {{ formatQueueMoney(queueCheckoutBaseAmount, queueCheckoutCurrency) }}
+                        <div class="grid grid-cols-[minmax(0,0.42fr)_minmax(0,1fr)] items-start gap-3">
+                            <span class="min-w-0 break-words text-stone-500 dark:text-neutral-400">{{ $t('reservations.table.item') }}</span>
+                            <span class="min-w-0 break-words text-right font-medium text-stone-800 dark:text-neutral-100">{{ activeQueueCheckoutItem.checkout?.service_name || activeQueueCheckoutItem.service_name || '-' }}</span>
                         </div>
-                    </div>
-                    <div class="rounded-sm border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-500/30 dark:bg-emerald-500/10">
-                        <div class="text-xs font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
-                            {{ $t('reservations.queue.checkout.total_to_collect') }}
+                        <div class="grid grid-cols-[minmax(0,0.42fr)_minmax(0,1fr)] items-start gap-3">
+                            <span class="min-w-0 break-words text-stone-500 dark:text-neutral-400">{{ $t('planning.form.member') }}</span>
+                            <span class="min-w-0 break-words text-right font-medium text-stone-800 dark:text-neutral-100">{{ activeQueueCheckoutItem.team_member_name || '-' }}</span>
                         </div>
-                        <div class="mt-1 text-lg font-semibold text-emerald-800 dark:text-emerald-200">
-                            {{ formatQueueMoney(queueCheckoutChargedTotal, queueCheckoutCurrency) }}
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mt-4">
-                    <FloatingSelect
-                        v-if="hasMultiplePaymentMethods"
-                        v-model="queueCheckoutForm.method"
-                        :options="queuePaymentMethodOptions"
-                        :label="$t('reservations.queue.checkout.payment_method')"
-                    />
-                    <div v-else class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('reservations.queue.checkout.payment_method') }}</div>
-                        <div class="mt-1 font-medium text-stone-800 dark:text-neutral-100">{{ queuePaymentMethodLabel(queueCheckoutForm.method) }}</div>
-                    </div>
-                </div>
-
-                <div class="mt-4 rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                    <div class="flex items-center justify-between gap-3">
-                        <div>
-                            <div class="text-sm font-medium text-stone-800 dark:text-neutral-100">{{ $t('reservations.queue.checkout.tip_title') }}</div>
-                            <div class="mt-0.5 text-xs text-stone-500 dark:text-neutral-400">{{ $t('reservations.queue.checkout.tip_hint') }}</div>
-                        </div>
-                        <button
-                            type="button"
-                            class="rounded-sm px-3 py-1.5 text-xs font-semibold"
-                            :class="queueTipEnabled ? 'bg-emerald-600 text-white' : 'border border-stone-200 text-stone-600 dark:border-neutral-700 dark:text-neutral-300'"
-                            @click="queueTipEnabled = !queueTipEnabled"
-                        >
-                            {{ queueTipEnabled ? $t('reservations.queue.checkout.tip_on') : $t('reservations.queue.checkout.tip_off') }}
-                        </button>
                     </div>
 
-                    <div v-if="queueTipEnabled" class="mt-3 space-y-3">
-                        <div class="inline-flex rounded-sm border border-stone-200 p-0.5 text-xs font-semibold dark:border-neutral-700">
+                    <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                        <div class="min-w-0 rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
+                            <div class="break-words text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                {{ $t('reservations.queue.checkout.service_total') }}
+                            </div>
+                            <div class="mt-1 break-words text-lg font-semibold text-stone-900 dark:text-neutral-100">
+                                {{ formatQueueMoney(queueCheckoutBaseAmount, queueCheckoutCurrency) }}
+                            </div>
+                        </div>
+                        <div class="min-w-0 rounded-sm border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-500/30 dark:bg-emerald-500/10">
+                            <div class="break-words text-xs font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                                {{ $t('reservations.queue.checkout.total_to_collect') }}
+                            </div>
+                            <div class="mt-1 break-words text-lg font-semibold text-emerald-800 dark:text-emerald-200">
+                                {{ formatQueueMoney(queueCheckoutChargedTotal, queueCheckoutCurrency) }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <FloatingSelect
+                            v-if="hasMultiplePaymentMethods"
+                            v-model="queueCheckoutForm.method"
+                            :options="queuePaymentMethodOptions"
+                            :label="$t('reservations.queue.checkout.payment_method')"
+                        />
+                        <div v-else class="min-w-0 rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900">
+                            <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('reservations.queue.checkout.payment_method') }}</div>
+                            <div class="mt-1 break-words font-medium text-stone-800 dark:text-neutral-100">{{ queuePaymentMethodLabel(queueCheckoutForm.method) }}</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <FloatingSelect
+                            v-model="queueCheckoutForm.receipt_delivery"
+                            :options="queueReceiptDeliveryOptions"
+                            :label="$t('reservations.queue.checkout.receipt.label')"
+                        />
+                        <p class="mt-2 break-words text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('reservations.queue.checkout.receipt.hint') }}
+                        </p>
+                    </div>
+
+                    <div class="mt-4 rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div class="min-w-0">
+                                <div class="text-sm font-medium text-stone-800 dark:text-neutral-100">{{ $t('reservations.queue.checkout.tip_title') }}</div>
+                                <div id="queue-checkout-tip-hint" class="mt-0.5 break-words text-xs text-stone-500 dark:text-neutral-400">{{ $t('reservations.queue.checkout.tip_hint') }}</div>
+                            </div>
                             <button
                                 type="button"
-                                class="rounded-sm px-2.5 py-1.5"
-                                :class="queueTipMode === 'percent' ? 'bg-stone-900 text-white dark:bg-white dark:text-stone-900' : 'text-stone-600 dark:text-neutral-300'"
-                                @click="queueTipMode = 'percent'"
+                                class="min-h-9 shrink-0 self-start whitespace-nowrap rounded-sm px-3 py-1.5 text-xs font-semibold"
+                                :class="queueTipEnabled ? 'bg-emerald-600 text-white' : 'border border-stone-200 text-stone-600 dark:border-neutral-700 dark:text-neutral-300'"
+                                :aria-pressed="queueTipEnabled"
+                                aria-describedby="queue-checkout-tip-hint"
+                                @click="queueTipEnabled = !queueTipEnabled"
                             >
-                                {{ $t('reservations.queue.checkout.percent') }}
-                            </button>
-                            <button
-                                type="button"
-                                class="rounded-sm px-2.5 py-1.5"
-                                :class="queueTipMode === 'fixed' ? 'bg-stone-900 text-white dark:bg-white dark:text-stone-900' : 'text-stone-600 dark:text-neutral-300'"
-                                @click="queueTipMode = 'fixed'"
-                            >
-                                {{ $t('reservations.queue.checkout.fixed') }}
+                                {{ queueTipEnabled ? $t('reservations.queue.checkout.tip_on') : $t('reservations.queue.checkout.tip_off') }}
                             </button>
                         </div>
 
-                        <div v-if="queueTipMode === 'percent'" class="flex flex-wrap gap-2">
-                            <button
-                                v-for="percent in queueQuickTipPercents"
-                                :key="`queue-tip-percent-${percent}`"
-                                type="button"
-                                class="rounded-sm border px-2.5 py-1.5 text-xs font-semibold"
-                                :class="Number(queueTipPercent) === Number(percent) ? 'border-emerald-600 bg-emerald-50 text-emerald-700 dark:border-emerald-400 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-stone-200 text-stone-600 dark:border-neutral-700 dark:text-neutral-300'"
-                                @click="queueTipPercent = Number(percent)"
-                            >
-                                {{ percent }}%
-                            </button>
-                            <FloatingInput
-                                v-model="queueTipPercent"
-                                class="min-w-32 flex-1"
-                                type="number"
-                                min="0"
-                                :max="maxQueueTipPercent"
-                                step="0.01"
-                                :label="$t('reservations.queue.checkout.custom_percent')"
-                            />
-                        </div>
-                        <div v-else>
-                            <div class="mb-2 flex flex-wrap gap-2">
+                        <div v-if="queueTipEnabled" class="mt-3 space-y-3">
+                            <div class="flex w-full rounded-sm border border-stone-200 p-0.5 text-xs font-semibold dark:border-neutral-700 sm:inline-flex sm:w-auto" role="group" :aria-label="$t('reservations.queue.checkout.tip_title')">
                                 <button
-                                    v-for="amount in queueQuickTipFixedAmounts"
-                                    :key="`queue-tip-fixed-${amount}`"
                                     type="button"
-                                    class="rounded-sm border px-2.5 py-1.5 text-xs font-semibold"
-                                    :class="Number(queueTipFixedAmount) === Number(amount) ? 'border-emerald-600 bg-emerald-50 text-emerald-700 dark:border-emerald-400 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-stone-200 text-stone-600 dark:border-neutral-700 dark:text-neutral-300'"
-                                    @click="queueTipFixedAmount = Number(amount)"
+                                    class="min-h-9 min-w-0 flex-1 truncate rounded-sm px-2.5 py-1.5 sm:flex-none"
+                                    :class="queueTipMode === 'percent' ? 'bg-stone-900 text-white dark:bg-white dark:text-stone-900' : 'text-stone-600 dark:text-neutral-300'"
+                                    :aria-pressed="queueTipMode === 'percent'"
+                                    @click="queueTipMode = 'percent'"
                                 >
-                                    {{ formatQueueMoney(amount, queueCheckoutCurrency) }}
+                                    {{ $t('reservations.queue.checkout.percent') }}
+                                </button>
+                                <button
+                                    type="button"
+                                    class="min-h-9 min-w-0 flex-1 truncate rounded-sm px-2.5 py-1.5 sm:flex-none"
+                                    :class="queueTipMode === 'fixed' ? 'bg-stone-900 text-white dark:bg-white dark:text-stone-900' : 'text-stone-600 dark:text-neutral-300'"
+                                    :aria-pressed="queueTipMode === 'fixed'"
+                                    @click="queueTipMode = 'fixed'"
+                                >
+                                    {{ $t('reservations.queue.checkout.fixed') }}
                                 </button>
                             </div>
-                            <FloatingInput
-                                v-model="queueTipFixedAmount"
-                                type="number"
-                                min="0"
-                                :max="maxQueueTipFixed"
-                                step="0.01"
-                                :label="$t('reservations.queue.checkout.custom_amount')"
-                            />
-                        </div>
 
-                        <div class="flex items-center justify-between rounded-sm bg-stone-50 px-3 py-2 text-sm dark:bg-neutral-800">
-                            <span class="text-stone-500 dark:text-neutral-400">{{ $t('reservations.queue.checkout.tip_amount') }}</span>
-                            <span class="font-semibold text-stone-800 dark:text-neutral-100">{{ formatQueueMoney(queueCheckoutTipAmount, queueCheckoutCurrency) }}</span>
+                            <div v-if="queueTipMode === 'percent'" class="flex flex-wrap items-start gap-2">
+                                <button
+                                    v-for="percent in queueQuickTipPercents"
+                                    :key="`queue-tip-percent-${percent}`"
+                                    type="button"
+                                    class="min-h-9 shrink-0 rounded-sm border px-2.5 py-1.5 text-xs font-semibold"
+                                    :class="Number(queueTipPercent) === Number(percent) ? 'border-emerald-600 bg-emerald-50 text-emerald-700 dark:border-emerald-400 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-stone-200 text-stone-600 dark:border-neutral-700 dark:text-neutral-300'"
+                                    :aria-pressed="Number(queueTipPercent) === Number(percent)"
+                                    @click="queueTipPercent = Number(percent)"
+                                >
+                                    {{ percent }}%
+                                </button>
+                                <div class="min-w-0 basis-full sm:basis-44 sm:flex-1">
+                                    <FloatingInput
+                                        v-model="queueTipPercent"
+                                        class="w-full"
+                                        type="number"
+                                        min="0"
+                                        :max="maxQueueTipPercent"
+                                        step="0.01"
+                                        :label="$t('reservations.queue.checkout.custom_percent')"
+                                    />
+                                </div>
+                            </div>
+                            <div v-else>
+                                <div class="mb-2 flex flex-wrap gap-2">
+                                    <button
+                                        v-for="amount in queueQuickTipFixedAmounts"
+                                        :key="`queue-tip-fixed-${amount}`"
+                                        type="button"
+                                        class="min-h-9 shrink-0 rounded-sm border px-2.5 py-1.5 text-xs font-semibold"
+                                        :class="Number(queueTipFixedAmount) === Number(amount) ? 'border-emerald-600 bg-emerald-50 text-emerald-700 dark:border-emerald-400 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-stone-200 text-stone-600 dark:border-neutral-700 dark:text-neutral-300'"
+                                        :aria-pressed="Number(queueTipFixedAmount) === Number(amount)"
+                                        @click="queueTipFixedAmount = Number(amount)"
+                                    >
+                                        {{ formatQueueMoney(amount, queueCheckoutCurrency) }}
+                                    </button>
+                                </div>
+                                <div class="min-w-0">
+                                    <FloatingInput
+                                        v-model="queueTipFixedAmount"
+                                        class="w-full"
+                                        type="number"
+                                        min="0"
+                                        :max="maxQueueTipFixed"
+                                        step="0.01"
+                                        :label="$t('reservations.queue.checkout.custom_amount')"
+                                    />
+                                </div>
+                            </div>
+
+                            <div class="flex items-start justify-between gap-3 rounded-sm bg-stone-50 px-3 py-2 text-sm dark:bg-neutral-800" aria-live="polite" aria-atomic="true">
+                                <span class="min-w-0 break-words text-stone-500 dark:text-neutral-400">{{ $t('reservations.queue.checkout.tip_amount') }}</span>
+                                <span class="shrink-0 whitespace-nowrap font-semibold text-stone-800 dark:text-neutral-100">{{ formatQueueMoney(queueCheckoutTipAmount, queueCheckoutCurrency) }}</span>
+                            </div>
                         </div>
+                    </div>
+
+                    <div class="mt-4 grid gap-3 md:grid-cols-2">
+                        <div class="min-w-0">
+                            <FloatingInput v-model="queueCheckoutForm.reference" class="w-full" :label="$t('reservations.queue.checkout.reference')" />
+                        </div>
+                        <div class="min-w-0">
+                            <FloatingTextarea v-model="queueCheckoutForm.notes" class="w-full" :label="$t('reservations.queue.checkout.notes')" />
+                        </div>
+                    </div>
+
+                    <div v-if="queueCheckoutError" class="mt-4 rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200" role="alert">
+                        {{ queueCheckoutError }}
                     </div>
                 </div>
 
-                <div class="mt-4 grid gap-3 sm:grid-cols-2">
-                    <FloatingInput v-model="queueCheckoutForm.reference" :label="$t('reservations.queue.checkout.reference')" />
-                    <FloatingTextarea v-model="queueCheckoutForm.notes" :label="$t('reservations.queue.checkout.notes')" />
-                </div>
-
-                <div v-if="queueCheckoutError" class="mt-4 rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
-                    {{ queueCheckoutError }}
-                </div>
-
-                <div class="mt-5 flex justify-end gap-2">
+                <div class="flex flex-col-reverse gap-2 border-t border-stone-200 px-4 py-3 dark:border-neutral-700 sm:flex-row sm:justify-end sm:px-5">
                     <button
                         type="button"
-                        class="rounded-sm border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-700 dark:border-neutral-700 dark:text-neutral-200"
+                        class="min-h-10 w-full rounded-sm border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-700 dark:border-neutral-700 dark:text-neutral-200 sm:w-auto"
                         :disabled="queueCheckoutProcessing"
                         @click="closeQueueCheckout"
                     >
@@ -2095,13 +2285,53 @@ const removeReservation = (reservation) => {
                     </button>
                     <button
                         type="submit"
-                        class="rounded-sm bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        class="min-h-10 w-full rounded-sm bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                         :disabled="!canSubmitQueueCheckout || queueCheckoutProcessing"
                     >
-                        {{ queueCheckoutProcessing ? $t('reservations.queue.checkout.processing') : $t('reservations.queue.checkout.submit') }}
+                        {{ queueCheckoutSubmitLabel }}
                     </button>
                 </div>
             </form>
+        </Modal>
+
+        <Modal
+            :show="showQueueAvailabilityConfirmation"
+            maxWidth="md"
+            :closeable="!queueAvailabilityConfirmationProcessing"
+            @close="closeQueueAvailabilityConfirmation"
+        >
+            <section class="p-5" aria-labelledby="queue-availability-confirmation-title">
+                <h2 id="queue-availability-confirmation-title" class="text-base font-semibold text-stone-900 dark:text-neutral-100">
+                    {{ $t('reservations.queue.availability_confirmation.title') }}
+                </h2>
+                <p class="mt-2 text-sm text-stone-600 dark:text-neutral-300">
+                    {{ $t('reservations.queue.availability_confirmation.description', { teamMember: queueAvailabilityConfirmationMemberName }) }}
+                </p>
+                <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                    {{ $t('reservations.queue.availability_confirmation.hint') }}
+                </p>
+
+                <div class="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <button
+                        type="button"
+                        class="rounded-sm border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-700 dark:border-neutral-700 dark:text-neutral-200"
+                        :disabled="queueAvailabilityConfirmationProcessing"
+                        @click="closeQueueAvailabilityConfirmation"
+                    >
+                        {{ $t('reservations.queue.availability_confirmation.still_busy') }}
+                    </button>
+                    <button
+                        type="button"
+                        class="rounded-sm bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        :disabled="queueAvailabilityConfirmationProcessing"
+                        @click="confirmQueueMemberAvailability"
+                    >
+                        {{ queueAvailabilityConfirmationProcessing
+                            ? $t('reservations.queue.availability_confirmation.continuing')
+                            : $t('reservations.queue.availability_confirmation.available_continue') }}
+                    </button>
+                </div>
+            </section>
         </Modal>
 
         <Modal :show="showEditor" maxWidth="3xl" @close="showEditor = false">

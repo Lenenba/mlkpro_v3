@@ -1794,6 +1794,291 @@ it('releases staff availability after a queue grace expiry so the ticket can be 
     expect(TeamMemberAttendance::query()->find($attendance->id)?->current_status)->toBe(TeamMemberAttendance::STATUS_AVAILABLE);
 });
 
+it('requires confirmation before pre-calling or calling a stale busy team member, then continues the requested action', function (string $routeName, string $expectedStatus) {
+    $owner = createOwnerWithReservationsEnabled();
+    $member = createTeamMemberForAccount($owner);
+
+    ReservationSetting::query()->updateOrCreate(
+        [
+            'account_id' => $owner->id,
+            'team_member_id' => null,
+        ],
+        [
+            'business_preset' => 'salon',
+            'queue_mode_enabled' => true,
+            'queue_assignment_mode' => 'per_staff',
+            'queue_dispatch_mode' => 'fifo_with_appointment_priority',
+            'queue_grace_minutes' => 5,
+            'queue_no_show_on_grace_expiry' => false,
+        ]
+    );
+
+    createActiveChairForMember($owner, $member);
+    $attendance = checkInTeamMember($owner, $member, TeamMemberAttendance::STATUS_BUSY);
+    $ticket = ReservationQueueItem::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $member->id,
+        'item_type' => ReservationQueueItem::TYPE_TICKET,
+        'source' => 'staff',
+        'queue_number' => 'STALE-BUSY-'.Str::upper(Str::random(6)),
+        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+        'estimated_duration_minutes' => 30,
+        'checked_in_at' => now('UTC'),
+    ]);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->patchJson(route($routeName, $ticket))
+        ->assertStatus(409)
+        ->assertJsonPath('code', 'queue_team_member_availability_confirmation_required')
+        ->assertJsonPath('availability_confirmation.team_member_id', $member->id);
+
+    $this->assertDatabaseHas('reservation_queue_items', [
+        'id' => $ticket->id,
+        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+    ]);
+    expect(TeamMemberAttendance::query()->find($attendance->id)?->current_status)->toBe(TeamMemberAttendance::STATUS_BUSY);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->patchJson(route($routeName, $ticket), [
+            'confirm_team_member_available' => true,
+        ])
+        ->assertOk();
+
+    $this->assertDatabaseHas('reservation_queue_items', [
+        'id' => $ticket->id,
+        'status' => $expectedStatus,
+    ]);
+
+    // The confirmation makes the stale attendance assignable first; the successful
+    // pre-call/call then correctly marks it busy again for this active ticket.
+    expect(TeamMemberAttendance::query()->find($attendance->id)?->current_status)->toBe(TeamMemberAttendance::STATUS_BUSY);
+})->with([
+    'pre-call' => ['reservation.queue.pre-call', ReservationQueueItem::STATUS_PRE_CALLED],
+    'call' => ['reservation.queue.call', ReservationQueueItem::STATUS_CALLED],
+]);
+
+it('requires confirmation before call-next uses a stale busy team member, then calls the next ticket', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $member = createTeamMemberForAccount($owner);
+
+    ReservationSetting::query()->updateOrCreate(
+        [
+            'account_id' => $owner->id,
+            'team_member_id' => null,
+        ],
+        [
+            'business_preset' => 'salon',
+            'queue_mode_enabled' => true,
+            'queue_assignment_mode' => 'per_staff',
+            'queue_dispatch_mode' => 'fifo_with_appointment_priority',
+            'queue_grace_minutes' => 5,
+            'queue_no_show_on_grace_expiry' => false,
+        ]
+    );
+
+    createActiveChairForMember($owner, $member);
+    $attendance = checkInTeamMember($owner, $member, TeamMemberAttendance::STATUS_BUSY);
+    $ticket = ReservationQueueItem::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $member->id,
+        'item_type' => ReservationQueueItem::TYPE_TICKET,
+        'source' => 'staff',
+        'queue_number' => 'STALE-NEXT-'.Str::upper(Str::random(6)),
+        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+        'estimated_duration_minutes' => 30,
+        'checked_in_at' => now('UTC'),
+    ]);
+
+    $payload = ['team_member_id' => $member->id];
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->postJson(route('reservation.queue.call-next'), $payload)
+        ->assertStatus(409)
+        ->assertJsonPath('code', 'queue_team_member_availability_confirmation_required')
+        ->assertJsonPath('availability_confirmation.team_member_id', $member->id);
+
+    $this->assertDatabaseHas('reservation_queue_items', [
+        'id' => $ticket->id,
+        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+    ]);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->postJson(route('reservation.queue.call-next'), [
+            ...$payload,
+            'confirm_team_member_available' => true,
+        ])
+        ->assertOk()
+        ->assertJsonPath('queue_item.id', $ticket->id)
+        ->assertJsonPath('queue_item.status', ReservationQueueItem::STATUS_CALLED);
+
+    expect(TeamMemberAttendance::query()->find($attendance->id)?->current_status)->toBe(TeamMemberAttendance::STATUS_BUSY);
+});
+
+it('offers stale-busy confirmation for a global call-next without an employee preselected', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $member = createTeamMemberForAccount($owner);
+
+    ReservationSetting::query()->updateOrCreate(
+        [
+            'account_id' => $owner->id,
+            'team_member_id' => null,
+        ],
+        [
+            'business_preset' => 'salon',
+            'queue_mode_enabled' => true,
+            'queue_assignment_mode' => 'global_pull',
+            'queue_dispatch_mode' => 'fifo_with_appointment_priority',
+            'queue_grace_minutes' => 5,
+            'queue_no_show_on_grace_expiry' => false,
+        ]
+    );
+
+    createActiveChairForMember($owner, $member);
+    checkInTeamMember($owner, $member, TeamMemberAttendance::STATUS_BUSY);
+    $ticket = ReservationQueueItem::query()->create([
+        'account_id' => $owner->id,
+        'item_type' => ReservationQueueItem::TYPE_TICKET,
+        'source' => 'staff',
+        'queue_number' => 'STALE-GLOBAL-'.Str::upper(Str::random(6)),
+        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+        'estimated_duration_minutes' => 30,
+        'checked_in_at' => now('UTC'),
+    ]);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->postJson(route('reservation.queue.call-next'))
+        ->assertStatus(409)
+        ->assertJsonPath('code', 'queue_team_member_availability_confirmation_required')
+        ->assertJsonPath('availability_confirmation.team_member_id', $member->id);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->postJson(route('reservation.queue.call-next'), [
+            'team_member_id' => $member->id,
+            'confirm_team_member_available' => true,
+        ])
+        ->assertOk()
+        ->assertJsonPath('queue_item.id', $ticket->id)
+        ->assertJsonPath('queue_item.status', ReservationQueueItem::STATUS_CALLED);
+});
+
+it('offers stale-busy confirmation before pre-calling an unassigned global-pull ticket', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $member = createTeamMemberForAccount($owner);
+
+    ReservationSetting::query()->updateOrCreate(
+        [
+            'account_id' => $owner->id,
+            'team_member_id' => null,
+        ],
+        [
+            'business_preset' => 'salon',
+            'queue_mode_enabled' => true,
+            'queue_assignment_mode' => 'global_pull',
+            'queue_dispatch_mode' => 'fifo_with_appointment_priority',
+            'queue_grace_minutes' => 5,
+            'queue_no_show_on_grace_expiry' => false,
+        ]
+    );
+
+    createActiveChairForMember($owner, $member);
+    checkInTeamMember($owner, $member, TeamMemberAttendance::STATUS_BUSY);
+    $ticket = ReservationQueueItem::query()->create([
+        'account_id' => $owner->id,
+        'item_type' => ReservationQueueItem::TYPE_TICKET,
+        'source' => 'staff',
+        'queue_number' => 'STALE-PRECALL-'.Str::upper(Str::random(6)),
+        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+        'estimated_duration_minutes' => 30,
+        'checked_in_at' => now('UTC'),
+    ]);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->patchJson(route('reservation.queue.pre-call', $ticket))
+        ->assertStatus(409)
+        ->assertJsonPath('code', 'queue_team_member_availability_confirmation_required')
+        ->assertJsonPath('availability_confirmation.team_member_id', $member->id);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->patchJson(route('reservation.queue.pre-call', $ticket), [
+            'team_member_id' => $member->id,
+            'confirm_team_member_available' => true,
+        ])
+        ->assertOk()
+        ->assertJsonPath('queue_item.status', ReservationQueueItem::STATUS_PRE_CALLED);
+});
+
+it('does not offer stale-busy confirmation when the team member already has an active queue assignment', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $member = createTeamMemberForAccount($owner);
+
+    ReservationSetting::query()->updateOrCreate(
+        [
+            'account_id' => $owner->id,
+            'team_member_id' => null,
+        ],
+        [
+            'business_preset' => 'salon',
+            'queue_mode_enabled' => true,
+            'queue_assignment_mode' => 'per_staff',
+            'queue_dispatch_mode' => 'fifo_with_appointment_priority',
+            'queue_grace_minutes' => 5,
+            'queue_no_show_on_grace_expiry' => false,
+        ]
+    );
+
+    createActiveChairForMember($owner, $member);
+    $attendance = checkInTeamMember($owner, $member, TeamMemberAttendance::STATUS_BUSY);
+    $activeTicket = ReservationQueueItem::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $member->id,
+        'item_type' => ReservationQueueItem::TYPE_TICKET,
+        'source' => 'staff',
+        'queue_number' => 'ACTIVE-BUSY-'.Str::upper(Str::random(6)),
+        'status' => ReservationQueueItem::STATUS_IN_SERVICE,
+        'estimated_duration_minutes' => 30,
+        'checked_in_at' => now('UTC')->subMinutes(15),
+        'started_at' => now('UTC')->subMinutes(5),
+    ]);
+    $waitingTicket = ReservationQueueItem::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $member->id,
+        'item_type' => ReservationQueueItem::TYPE_TICKET,
+        'source' => 'staff',
+        'queue_number' => 'WAITING-BUSY-'.Str::upper(Str::random(6)),
+        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+        'estimated_duration_minutes' => 30,
+        'checked_in_at' => now('UTC'),
+    ]);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->patchJson(route('reservation.queue.call', $waitingTicket), [
+            'confirm_team_member_available' => true,
+        ])
+        ->assertStatus(422)
+        ->assertJsonMissing([
+            'code' => 'queue_team_member_availability_confirmation_required',
+        ]);
+
+    $this->assertDatabaseHas('reservation_queue_items', [
+        'id' => $activeTicket->id,
+        'status' => ReservationQueueItem::STATUS_IN_SERVICE,
+    ]);
+    $this->assertDatabaseHas('reservation_queue_items', [
+        'id' => $waitingTicket->id,
+        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+    ]);
+    expect(TeamMemberAttendance::query()->find($attendance->id)?->current_status)->toBe(TeamMemberAttendance::STATUS_BUSY);
+});
+
 it('calls next queue item in the staff lane when assignment mode is per_staff', function () {
     $owner = createOwnerWithReservationsEnabled();
     $memberA = createTeamMemberForAccount($owner, [

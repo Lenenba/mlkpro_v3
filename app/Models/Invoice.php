@@ -33,6 +33,7 @@ class Invoice extends Model
     protected $fillable = [
         'work_id',
         'customer_id',
+        'reservation_queue_item_id',
         'user_id',
         'created_by_user_id',
         'approved_by_user_id',
@@ -45,6 +46,10 @@ class Invoice extends Model
         'current_approval_level',
         'total',
         'currency_code',
+        'source',
+        'customer_snapshot',
+        'receipt_delivery',
+        'receipt_delivered_at',
         'approved_at',
         'rejected_at',
         'processed_at',
@@ -54,6 +59,10 @@ class Invoice extends Model
     protected $casts = [
         'total' => 'decimal:2',
         'currency_code' => 'string',
+        'source' => 'string',
+        'customer_snapshot' => 'array',
+        'receipt_delivery' => 'string',
+        'receipt_delivered_at' => 'datetime',
         'current_approval_level' => 'integer',
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
@@ -100,6 +109,11 @@ class Invoice extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function reservationQueueItem(): BelongsTo
+    {
+        return $this->belongsTo(ReservationQueueItem::class);
     }
 
     /**

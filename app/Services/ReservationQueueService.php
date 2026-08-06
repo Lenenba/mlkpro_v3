@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\CurrencyCode;
+use App\Exceptions\QueueTeamMemberAvailabilityConfirmationRequired;
 use App\Models\ActivityLog;
 use App\Models\Product;
 use App\Models\Request as LeadRequest;
@@ -361,7 +362,14 @@ class ReservationQueueService
 
             $targetTeamMemberId = (int) ($payload['team_member_id'] ?? $locked->team_member_id ?? 0);
             $this->releaseStaleBusyAttendanceForSkippedItem($locked, $action, $targetTeamMemberId);
-            $this->ensureQueueActionCanUseChair($locked, $action, $settings, $targetTeamMemberId);
+            $this->ensureQueueActionCanUseChair(
+                $locked,
+                $action,
+                $settings,
+                $targetTeamMemberId,
+                (bool) ($context['confirm_team_member_available'] ?? false),
+                $actor
+            );
 
             $locked->fill($payload)->save();
             $nextStatus = (string) ($payload['status'] ?? $locked->status);
@@ -651,7 +659,8 @@ class ReservationQueueService
         int $accountId,
         array $access,
         array $settings,
-        ?int $requestedTeamMemberId = null
+        ?int $requestedTeamMemberId = null,
+        bool $confirmTeamMemberAvailable = false
     ): ?array {
         if (! $this->isQueueFeatureEnabled($settings)) {
             return null;
@@ -661,8 +670,12 @@ class ReservationQueueService
         $canManage = (bool) ($access['can_manage'] ?? false);
         $ownTeamMemberId = (int) ($access['own_team_member_id'] ?? 0);
         $targetTeamMemberId = $requestedTeamMemberId ? max(0, (int) $requestedTeamMemberId) : 0;
-        if ($targetTeamMemberId === 0 && ! $canManage && $ownTeamMemberId > 0) {
+        if (! $canManage && $ownTeamMemberId > 0) {
             $targetTeamMemberId = $ownTeamMemberId;
+        }
+
+        if ($confirmTeamMemberAvailable && $targetTeamMemberId > 0) {
+            $this->confirmStaleBusyTeamMemberAvailable($accountId, $targetTeamMemberId);
         }
 
         $metrics = $this->refreshMetrics($accountId, $settings);
@@ -747,6 +760,184 @@ class ReservationQueueService
             'item' => $selected,
             'team_member_id' => $resolvedTeamMemberId > 0 ? $resolvedTeamMemberId : null,
         ];
+    }
+
+    /**
+     * @return array{team_member_id: int, team_member_name: string, action: string}|null
+     */
+    public function availabilityConfirmationForTeamMember(
+        int $accountId,
+        int $teamMemberId,
+        string $action
+    ): ?array {
+        if ($teamMemberId <= 0 || ! in_array($action, ['pre_call', 'call'], true)) {
+            return null;
+        }
+
+        $hasActiveChair = ReservationResource::query()
+            ->forAccount($accountId)
+            ->chairs()
+            ->active()
+            ->where('team_member_id', $teamMemberId)
+            ->exists();
+        if (! $hasActiveChair) {
+            return null;
+        }
+
+        $attendance = TeamMemberAttendance::query()
+            ->where('account_id', $accountId)
+            ->where('team_member_id', $teamMemberId)
+            ->whereNull('clock_out_at')
+            ->latest('clock_in_at')
+            ->first();
+        if ((string) ($attendance?->current_status ?? '') !== TeamMemberAttendance::STATUS_BUSY) {
+            return null;
+        }
+
+        if ($this->teamMemberHasActiveQueueAssignment($accountId, $teamMemberId)) {
+            return null;
+        }
+
+        return [
+            'team_member_id' => $teamMemberId,
+            'team_member_name' => $this->teamMemberDisplayName($accountId, $teamMemberId),
+            'action' => $action,
+        ];
+    }
+
+    /**
+     * @return array{team_member_id: int, team_member_name: string, action: string}|null
+     */
+    public function availabilityConfirmationForNextCallable(
+        int $accountId,
+        array $access,
+        array $settings,
+        ?int $requestedTeamMemberId = null
+    ): ?array {
+        if (! $this->isQueueFeatureEnabled($settings)) {
+            return null;
+        }
+
+        $canManage = (bool) ($access['can_manage'] ?? false);
+        $ownTeamMemberId = (int) ($access['own_team_member_id'] ?? 0);
+        if (! $canManage && $ownTeamMemberId <= 0) {
+            return null;
+        }
+
+        $targetTeamMemberIds = $requestedTeamMemberId
+            ? [(int) $requestedTeamMemberId]
+            : ($canManage
+                ? TeamMember::query()
+                    ->forAccount($accountId)
+                    ->active()
+                    ->orderBy('id')
+                    ->pluck('id')
+                    ->map(fn ($id) => (int) $id)
+                    ->all()
+                : [$ownTeamMemberId]);
+        if (! $canManage) {
+            $targetTeamMemberIds = [$ownTeamMemberId];
+        }
+
+        $waitingItems = ReservationQueueItem::query()
+            ->forAccount($accountId)
+            ->whereIn('status', ReservationQueueItem::CALLABLE_STATUSES)
+            ->orderBy('created_at')
+            ->get();
+
+        foreach ($waitingItems as $item) {
+            foreach ($targetTeamMemberIds as $teamMemberId) {
+                if (! $this->queueItemCanBeCalledNextByTeamMember(
+                    $item,
+                    $teamMemberId,
+                    $canManage,
+                    $ownTeamMemberId,
+                    $settings
+                )) {
+                    continue;
+                }
+
+                $confirmation = $this->availabilityConfirmationForTeamMember(
+                    $accountId,
+                    $teamMemberId,
+                    'call'
+                );
+                if ($confirmation) {
+                    return $confirmation;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{team_member_id: int, team_member_name: string, action: string}|null
+     */
+    public function availabilityConfirmationForQueueItem(
+        ReservationQueueItem $item,
+        array $access,
+        array $settings,
+        string $action,
+        ?int $targetTeamMemberId = null
+    ): ?array {
+        if (! in_array($action, ['pre_call', 'call'], true)) {
+            return null;
+        }
+
+        $assignedTeamMemberId = $targetTeamMemberId
+            ? (int) $targetTeamMemberId
+            : (int) ($item->team_member_id ?? 0);
+        if ($assignedTeamMemberId > 0) {
+            return $this->availabilityConfirmationForTeamMember(
+                (int) $item->account_id,
+                $assignedTeamMemberId,
+                $action
+            );
+        }
+
+        if ((string) $item->item_type !== ReservationQueueItem::TYPE_TICKET) {
+            return null;
+        }
+
+        $canManage = (bool) ($access['can_manage'] ?? false);
+        $ownTeamMemberId = (int) ($access['own_team_member_id'] ?? 0);
+        if (! $canManage && $ownTeamMemberId <= 0) {
+            return null;
+        }
+
+        $teamMemberIds = $canManage
+            ? TeamMember::query()
+                ->forAccount((int) $item->account_id)
+                ->active()
+                ->orderBy('id')
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all()
+            : [$ownTeamMemberId];
+
+        foreach ($teamMemberIds as $teamMemberId) {
+            if (! $this->queueItemCanBeCalledNextByTeamMember(
+                $item,
+                $teamMemberId,
+                $canManage,
+                $ownTeamMemberId,
+                $settings
+            )) {
+                continue;
+            }
+
+            $confirmation = $this->availabilityConfirmationForTeamMember(
+                (int) $item->account_id,
+                $teamMemberId,
+                $action
+            );
+            if ($confirmation) {
+                return $confirmation;
+            }
+        }
+
+        return null;
     }
 
     public function clientTickets(int $accountId, int $customerId, int $clientUserId, array $settings, int $limit = 20): array
@@ -1071,7 +1262,9 @@ class ReservationQueueService
         ReservationQueueItem $item,
         string $action,
         array $settings,
-        int $targetTeamMemberId
+        int $targetTeamMemberId,
+        bool $confirmTeamMemberAvailable = false,
+        ?User $actor = null
     ): void {
         if (
             ! ReservationPresetResolver::isSalonPreset((string) ($settings['business_preset'] ?? null))
@@ -1084,6 +1277,16 @@ class ReservationQueueService
             throw ValidationException::withMessages(['team_member_id' => ['A checked-in team member with an available chair is required.']]);
         }
 
+        $hasActiveChair = ReservationResource::query()
+            ->forAccount((int) $item->account_id)
+            ->chairs()
+            ->active()
+            ->where('team_member_id', $targetTeamMemberId)
+            ->exists();
+        if (! $hasActiveChair) {
+            throw ValidationException::withMessages(['team_member_id' => ['Selected team member does not have an available checked-in chair.']]);
+        }
+
         $allowBusyForCurrentItem = (int) ($item->team_member_id ?? 0) === $targetTeamMemberId
             && in_array((string) $item->status, [
                 ReservationQueueItem::STATUS_PRE_CALLED,
@@ -1091,14 +1294,138 @@ class ReservationQueueService
                 ReservationQueueItem::STATUS_IN_SERVICE,
             ], true);
 
-        if (! $this->teamMemberCanReceiveQueueAssignment(
+        $attendance = TeamMemberAttendance::query()
+            ->where('account_id', (int) $item->account_id)
+            ->where('team_member_id', $targetTeamMemberId)
+            ->whereNull('clock_out_at')
+            ->latest('clock_in_at')
+            ->lockForUpdate()
+            ->first();
+        if (! $attendance) {
+            throw ValidationException::withMessages(['team_member_id' => ['Selected team member does not have an available checked-in chair.']]);
+        }
+
+        $hasActiveQueueAssignment = $this->teamMemberHasActiveQueueAssignment(
             (int) $item->account_id,
             $targetTeamMemberId,
             (int) $item->id,
-            $allowBusyForCurrentItem
-        )) {
-            throw ValidationException::withMessages(['team_member_id' => ['Selected team member does not have an available checked-in chair.']]);
+            true
+        );
+        $currentStatus = (string) ($attendance->current_status ?? TeamMemberAttendance::STATUS_AVAILABLE);
+        $isStaleBusyState = $currentStatus === TeamMemberAttendance::STATUS_BUSY
+            && ! $allowBusyForCurrentItem
+            && ! $hasActiveQueueAssignment;
+
+        if ($isStaleBusyState && in_array($action, ['pre_call', 'call'], true)) {
+            if (! $confirmTeamMemberAvailable) {
+                throw new QueueTeamMemberAvailabilityConfirmationRequired(
+                    $targetTeamMemberId,
+                    $this->teamMemberDisplayName((int) $item->account_id, $targetTeamMemberId),
+                    $action
+                );
+            }
+
+            $attendance->update(['current_status' => TeamMemberAttendance::STATUS_AVAILABLE]);
+            $currentStatus = TeamMemberAttendance::STATUS_AVAILABLE;
+            ActivityLog::record($actor, $item, 'queue_team_member_availability_confirmed', [
+                'account_id' => (int) $item->account_id,
+                'team_member_id' => $targetTeamMemberId,
+                'action' => $action,
+                'previous_status' => TeamMemberAttendance::STATUS_BUSY,
+                'new_status' => TeamMemberAttendance::STATUS_AVAILABLE,
+            ], 'Team member availability confirmed before queue action');
         }
+
+        $isPresentAndReady = $currentStatus === TeamMemberAttendance::STATUS_AVAILABLE
+            || ($allowBusyForCurrentItem && $currentStatus === TeamMemberAttendance::STATUS_BUSY);
+        if ($isPresentAndReady && ! $hasActiveQueueAssignment) {
+            return;
+        }
+
+        throw ValidationException::withMessages(['team_member_id' => ['Selected team member does not have an available checked-in chair.']]);
+    }
+
+    private function confirmStaleBusyTeamMemberAvailable(int $accountId, int $teamMemberId): void
+    {
+        DB::transaction(function () use ($accountId, $teamMemberId) {
+            $hasActiveChair = ReservationResource::query()
+                ->forAccount($accountId)
+                ->chairs()
+                ->active()
+                ->where('team_member_id', $teamMemberId)
+                ->exists();
+            if (! $hasActiveChair) {
+                return;
+            }
+
+            $attendance = TeamMemberAttendance::query()
+                ->where('account_id', $accountId)
+                ->where('team_member_id', $teamMemberId)
+                ->whereNull('clock_out_at')
+                ->latest('clock_in_at')
+                ->lockForUpdate()
+                ->first();
+            if ((string) ($attendance?->current_status ?? '') !== TeamMemberAttendance::STATUS_BUSY) {
+                return;
+            }
+
+            if ($this->teamMemberHasActiveQueueAssignment($accountId, $teamMemberId, null, true)) {
+                return;
+            }
+
+            $attendance->update(['current_status' => TeamMemberAttendance::STATUS_AVAILABLE]);
+        });
+    }
+
+    private function queueItemCanBeCalledNextByTeamMember(
+        ReservationQueueItem $item,
+        int $teamMemberId,
+        bool $canManage,
+        int $ownTeamMemberId,
+        array $settings
+    ): bool {
+        $assignedTeamMemberId = (int) ($item->team_member_id ?? 0);
+        $isUnassignedTicket = $assignedTeamMemberId === 0
+            && (string) $item->item_type === ReservationQueueItem::TYPE_TICKET;
+
+        if (! $canManage && ($teamMemberId !== $ownTeamMemberId || ($assignedTeamMemberId !== $ownTeamMemberId && ! $isUnassignedTicket))) {
+            return false;
+        }
+
+        if ($canManage && $assignedTeamMemberId !== $teamMemberId && ! $isUnassignedTicket) {
+            return false;
+        }
+
+        if ($item->item_type !== ReservationQueueItem::TYPE_TICKET) {
+            return true;
+        }
+
+        $nextReservation = Reservation::query()
+            ->forAccount((int) $item->account_id)
+            ->whereIn('status', Reservation::ACTIVE_STATUSES)
+            ->where('team_member_id', $teamMemberId)
+            ->where('starts_at', '>', now('UTC'))
+            ->orderBy('starts_at')
+            ->first(['starts_at']);
+        if (! $nextReservation?->starts_at) {
+            return true;
+        }
+
+        $duration = max(5, (int) ($item->estimated_duration_minutes ?: 60));
+        $buffer = max(0, (int) ($settings['buffer_minutes'] ?? 0));
+
+        return (int) now('UTC')->diffInMinutes($nextReservation->starts_at, false) >= ($duration + $buffer);
+    }
+
+    private function teamMemberDisplayName(int $accountId, int $teamMemberId): string
+    {
+        $teamMember = TeamMember::query()
+            ->forAccount($accountId)
+            ->whereKey($teamMemberId)
+            ->with('user:id,name')
+            ->first();
+
+        return trim((string) ($teamMember?->user?->name ?? '')) ?: 'Selected team member';
     }
 
     private function teamMemberCanReceiveQueueAssignment(
@@ -1224,8 +1551,12 @@ class ReservationQueueService
         $attendance?->update(['current_status' => $status]);
     }
 
-    private function teamMemberHasActiveQueueAssignment(int $accountId, int $teamMemberId, ?int $exceptItemId = null): bool
-    {
+    private function teamMemberHasActiveQueueAssignment(
+        int $accountId,
+        int $teamMemberId,
+        ?int $exceptItemId = null,
+        bool $lockForUpdate = false
+    ): bool {
         $query = ReservationQueueItem::query()
             ->forAccount($accountId)
             ->where('team_member_id', $teamMemberId)
@@ -1237,6 +1568,10 @@ class ReservationQueueService
 
         if ($exceptItemId) {
             $query->whereKeyNot($exceptItemId);
+        }
+
+        if ($lockForUpdate) {
+            $query->lockForUpdate();
         }
 
         return $query->exists();

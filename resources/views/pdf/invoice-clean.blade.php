@@ -249,14 +249,16 @@
           $companyLogoUrl = str_starts_with($companyLogo, '/') ? url($companyLogo) : $companyLogo;
       }
 
+      $customerSnapshot = is_array($invoice->customer_snapshot ?? null) ? $invoice->customer_snapshot : [];
       $customerLabel = $customer?->company_name
         ?: trim(($customer?->first_name ?? '') . ' ' . ($customer?->last_name ?? ''));
+      $customerLabel = $customerLabel ?: ($customerSnapshot['name'] ?? $customerSnapshot['company_name'] ?? null);
       $customerLabel = $customerLabel ?: 'Client';
 
       $contactName = trim(($customer?->first_name ?? '') . ' ' . ($customer?->last_name ?? ''));
-      $contactName = $contactName ?: ($customer?->company_name ?: '-');
-      $contactEmail = $customer?->email ?: '-';
-      $contactPhone = $customer?->phone ?: '-';
+      $contactName = $contactName ?: ($customer?->company_name ?: ($customerSnapshot['name'] ?? '-'));
+      $contactEmail = $customer?->email ?: ($customerSnapshot['email'] ?? '-');
+      $contactPhone = $customer?->phone ?: ($customerSnapshot['phone'] ?? '-');
 
       $companyLocationParts = array_values(array_filter([
           $company?->company_city,
@@ -353,7 +355,7 @@
               break;
       }
 
-      $jobTitle = $work?->job_title ?: 'Intervention';
+      $jobTitle = $work?->job_title ?: ($productItems->first()['title'] ?? 'Service');
       $property = $work?->quote?->property;
       if (! $property && $customer && $customer->relationLoaded('properties')) {
           $property = $customer->properties->firstWhere('is_default', true) ?? $customer->properties->first();
@@ -552,7 +554,12 @@
                   <tbody>
                     @foreach($paymentRows as $payment)
                       <tr>
-                        <td>{{ $formatMoney($payment->amount) }}</td>
+                        <td>
+                          {{ $formatMoney($payment->amount) }}
+                          @if((float) ($payment->tip_amount ?? 0) > 0)
+                            <div class="muted">Tip {{ $formatMoney($payment->tip_amount) }} · Charged {{ $formatMoney($payment->charged_total ?? ((float) $payment->amount + (float) $payment->tip_amount)) }}</div>
+                          @endif
+                        </td>
                         <td>{{ $payment->method ?: '-' }}</td>
                         <td>{{ $formatDate($payment->paid_at) }}</td>
                         <td class="text-right">{{ $payment->status ?: '-' }}</td>

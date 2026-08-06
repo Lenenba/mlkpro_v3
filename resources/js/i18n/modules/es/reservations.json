@@ -178,6 +178,15 @@
         "update_error": "No se puede actualizar el elemento de la cola.",
         "call_next_empty": "No hay ningún elemento de cola invocable disponible en este momento."
       },
+      "availability_confirmation": {
+        "title": "Confirmar disponibilidad",
+        "description": "{teamMember} figura como ocupado, pero no se detectó ningún servicio activo.",
+        "hint": "Confirme la disponibilidad solo si esta persona está realmente libre. Después se volverá a intentar la prellamada o la llamada.",
+        "still_busy": "Sigue ocupado",
+        "available_continue": "Disponible, continuar",
+        "continuing": "Comprobando...",
+        "fallback_member": "Este miembro del equipo"
+      },
       "checkout": {
         "title": "Cobrar el servicio",
         "subtitle": "El servicio ha terminado. Registre el pago para cerrar este ticket.",
@@ -198,11 +207,20 @@
         "notes": "Nota (opcional)",
         "cancel": "Cancelar",
         "submit": "Cobrar y terminar",
+        "submit_card": "Continuar con Stripe",
         "processing": "Cobrando...",
         "completed": "Pago registrado y servicio completado.",
         "free_completed": "Servicio completado.",
         "open_error": "No se puede preparar el cobro.",
         "submit_error": "No se puede registrar el pago.",
+        "receipt": {
+          "label": "Enviar recibo",
+          "hint": "El recibo se envía después de confirmar el pago. El SMS contiene un enlace seguro.",
+          "none": "No enviar ahora",
+          "email": "Por correo (PDF)",
+          "sms": "Por SMS (enlace seguro)",
+          "view": "Abrir recibo"
+        },
         "methods": {
           "cash": "Efectivo",
           "card": "Tarjeta",

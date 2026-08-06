@@ -31,6 +31,7 @@
       "view_proofs": "View proofs",
       "pay_now": "Pay now",
       "pay_with_stripe": "Pay with Stripe",
+      "view_invoice_history": "View invoice history",
       "submit": "Submit",
       "close": "Close",
       "request_changes": "Request changes",

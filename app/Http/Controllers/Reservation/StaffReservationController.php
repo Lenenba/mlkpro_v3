@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Reservation;
 
+use App\Exceptions\QueueTeamMemberAvailabilityConfirmationRequired;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Reservation\SlotRequest;
 use App\Http\Requests\Reservation\StoreReservationRequest;
@@ -497,20 +498,37 @@ class StaffReservationController extends Controller
                     ->where('account_id', $account->id)
                     ->where('is_active', true)),
             ],
+            'confirm_team_member_available' => ['nullable', 'boolean'],
         ]);
 
         $requestedTeamMemberId = ! empty($validated['team_member_id'])
             ? (int) $validated['team_member_id']
             : null;
+        $confirmTeamMemberAvailable = (bool) ($validated['confirm_team_member_available'] ?? false);
 
         $next = $this->queueService->nextCallableForStaff(
             $account->id,
             $access,
             $settings,
-            $requestedTeamMemberId
+            $requestedTeamMemberId,
+            $confirmTeamMemberAvailable
         );
 
         if (! $next || empty($next['item'])) {
+            $availabilityConfirmation = $this->queueService->availabilityConfirmationForNextCallable(
+                $account->id,
+                $access,
+                $settings,
+                $requestedTeamMemberId
+            );
+            if ($availabilityConfirmation) {
+                throw new QueueTeamMemberAvailabilityConfirmationRequired(
+                    $availabilityConfirmation['team_member_id'],
+                    $availabilityConfirmation['team_member_name'],
+                    $availabilityConfirmation['action']
+                );
+            }
+
             return response()->json([
                 'message' => 'No callable queue item is available right now.',
             ], 422);
@@ -521,6 +539,9 @@ class StaffReservationController extends Controller
         $context = [];
         if (! empty($next['team_member_id'])) {
             $context['team_member_id'] = (int) $next['team_member_id'];
+        }
+        if ($confirmTeamMemberAvailable) {
+            $context['confirm_team_member_available'] = true;
         }
 
         $updated = $this->queueService->transition($item, 'call', $user, $settings, $context);
@@ -606,17 +627,23 @@ class StaffReservationController extends Controller
             'tip_amount' => ['nullable', 'numeric', 'min:0'],
             'reference' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'receipt_delivery' => ['nullable', Rule::in(['email', 'sms'])],
         ]);
 
         $checkout = $this->queueCheckoutService->checkout($item, $validated, $user, $settings);
         $updated = $checkout['queue_item'];
         $metrics = $this->queueService->refreshMetrics((int) $account->id, $settings);
         $payment = $checkout['payment'];
+        $invoice = $checkout['invoice'] ?? null;
+        $checkoutUrl = $checkout['checkout_url'] ?? null;
 
         return response()->json([
-            'message' => $checkout['already_paid']
-                ? 'This queue item was already paid and completed.'
-                : 'Payment recorded and service completed.',
+            'message' => $checkoutUrl
+                ? 'Stripe checkout is ready.'
+                : ($checkout['already_paid']
+                    ? 'This queue item was already paid and completed.'
+                    : 'Payment recorded, invoice paid, and service completed.'),
+            'checkout_url' => $checkoutUrl,
             'queue_item' => [
                 'id' => $updated->id,
                 'status' => $updated->status,
@@ -627,7 +654,16 @@ class StaffReservationController extends Controller
                 'checkout' => $this->queueService->checkoutSummary($updated),
                 'can_update_status' => $this->canManageQueueItem($access, $updated, $settings),
             ],
-            'payment' => [
+            'invoice' => $invoice ? [
+                'id' => $invoice->id,
+                'number' => $invoice->number,
+                'status' => $invoice->status,
+                'receipt_delivery' => $invoice->receipt_delivery,
+                'receipt_delivered_at' => $invoice->receipt_delivered_at?->toIso8601String(),
+                'receipt_url' => route('invoice.pdf', $invoice->id),
+            ] : null,
+            'receipt' => $checkout['receipt'] ?? null,
+            'payment' => $payment ? [
                 'id' => $payment->id,
                 'amount' => (float) $payment->amount,
                 'currency_code' => $payment->currency_code,
@@ -636,7 +672,7 @@ class StaffReservationController extends Controller
                 'method' => $payment->method,
                 'status' => $payment->status,
                 'paid_at' => $payment->paid_at?->toIso8601String(),
-            ],
+            ] : null,
         ]);
     }
 
@@ -673,6 +709,7 @@ class StaffReservationController extends Controller
                     ->where('account_id', $account->id)
                     ->where('is_active', true)),
             ],
+            'confirm_team_member_available' => ['nullable', 'boolean'],
         ]);
 
         $context = [];
@@ -680,6 +717,31 @@ class StaffReservationController extends Controller
             $context['team_member_id'] = (int) $validated['team_member_id'];
         } elseif (($access['own_team_member_id'] ?? null) && $item->team_member_id === null) {
             $context['team_member_id'] = (int) $access['own_team_member_id'];
+        }
+        $confirmTeamMemberAvailable = (bool) ($validated['confirm_team_member_available'] ?? false);
+        if ($confirmTeamMemberAvailable) {
+            $context['confirm_team_member_available'] = true;
+        }
+
+        if (
+            ! $confirmTeamMemberAvailable
+            && (string) $item->status !== ReservationQueueItem::STATUS_SKIPPED
+            && in_array($action, ['pre_call', 'call'], true)
+        ) {
+            $availabilityConfirmation = $this->queueService->availabilityConfirmationForQueueItem(
+                $item,
+                $access,
+                $settings,
+                $action,
+                isset($context['team_member_id']) ? (int) $context['team_member_id'] : null
+            );
+            if ($availabilityConfirmation) {
+                throw new QueueTeamMemberAvailabilityConfirmationRequired(
+                    $availabilityConfirmation['team_member_id'],
+                    $availabilityConfirmation['team_member_name'],
+                    $availabilityConfirmation['action']
+                );
+            }
         }
 
         $updated = $this->queueService->transition($item, $action, $user, $settings, $context);

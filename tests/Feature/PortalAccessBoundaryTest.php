@@ -3,6 +3,7 @@
 use App\Http\Middleware\EnsureTwoFactorVerified;
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\Payment;
 use App\Models\Quote;
 use App\Models\Role;
 use App\Models\Sale;
@@ -10,6 +11,7 @@ use App\Models\User;
 use App\Models\Work;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Support\Str;
+use Inertia\Testing\AssertableInertia as Assert;
 
 function phase7PortalRoleId(string $name): int
 {
@@ -139,6 +141,44 @@ it('forbids portal invoice access for an unrelated client', function () {
     $this->actingAs($otherClient)
         ->getJson(route('portal.invoices.show', $invoice))
         ->assertForbidden();
+});
+
+it('shows only the connected customer invoice and payment history', function () {
+    $owner = phase7CreatePortalOwner();
+    $client = phase7CreatePortalClient();
+    $otherClient = phase7CreatePortalClient();
+
+    $customer = phase7CreatePortalCustomer($owner, $client);
+    $otherCustomer = phase7CreatePortalCustomer($owner, $otherClient);
+    $invoice = phase7CreatePortalInvoice($owner, $customer);
+    phase7CreatePortalInvoice($owner, $otherCustomer);
+
+    Payment::query()->create([
+        'invoice_id' => $invoice->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'amount' => 40,
+        'tip_amount' => 5,
+        'charged_total' => 45,
+        'method' => 'cash',
+        'provider' => 'manual',
+        'status' => Payment::STATUS_COMPLETED,
+        'paid_at' => now(),
+    ]);
+
+    $this->actingAs($client)
+        ->get(route('portal.invoices.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Portal/InvoicesIndex')
+            ->has('invoices.data', 1)
+            ->where('invoices.data.0.id', $invoice->id)
+            ->where('invoices.data.0.total_paid', 40)
+            ->where('invoices.data.0.balance_due', 110)
+            ->has('invoices.data.0.payments', 1)
+            ->where('invoices.data.0.payments.0.amount', 40)
+            ->where('invoices.data.0.payments.0.tip_amount', 5)
+        );
 });
 
 it('forbids portal quote actions for an unrelated client', function () {

@@ -136,10 +136,11 @@ class StripeInvoiceService
             }
         }
 
+        $customerEmail = $invoice->customer?->email ?: data_get($invoice->customer_snapshot, 'email');
         if ($invoice->customer?->stripe_customer_id) {
             $payload['customer'] = $invoice->customer->stripe_customer_id;
-        } elseif ($invoice->customer?->email) {
-            $payload['customer_email'] = $invoice->customer->email;
+        } elseif ($customerEmail) {
+            $payload['customer_email'] = $customerEmail;
             if ($shouldSavePaymentMethod) {
                 $payload['customer_creation'] = 'always';
             }
@@ -324,6 +325,10 @@ class StripeInvoiceService
             ->where('provider_reference', $paymentIntentId)
             ->first();
         if ($existing) {
+            if ($existing->invoice) {
+                $this->settleQueueInvoicePayment($existing->invoice, $existing);
+            }
+
             return $existing;
         }
 
@@ -334,7 +339,7 @@ class StripeInvoiceService
         }
 
         $invoice = Invoice::query()->find($invoiceId);
-        if (! $invoice || in_array($invoice->status, ['void', 'draft'], true)) {
+        if (! $invoice || $invoice->status === 'void' || ($invoice->status === 'draft' && ! $this->isReservationQueueInvoice($invoice))) {
             return null;
         }
 
@@ -411,6 +416,10 @@ class StripeInvoiceService
             ->where('provider_reference', $paymentIntentId)
             ->first();
         if ($existing) {
+            if ($existing->invoice) {
+                $this->settleQueueInvoicePayment($existing->invoice, $existing);
+            }
+
             return $existing;
         }
 
@@ -421,7 +430,7 @@ class StripeInvoiceService
         }
 
         $invoice = Invoice::query()->find($invoiceId);
-        if (! $invoice || in_array($invoice->status, ['void', 'draft'], true)) {
+        if (! $invoice || $invoice->status === 'void' || ($invoice->status === 'draft' && ! $this->isReservationQueueInvoice($invoice))) {
             return null;
         }
 
@@ -493,6 +502,9 @@ class StripeInvoiceService
         $tipType = in_array($tipType, ['none', 'percent', 'fixed'], true) ? $tipType : ($tipAmount > 0 ? 'fixed' : 'none');
         $tipBaseAmount = $tipBaseAmount !== null ? max(0, $tipBaseAmount) : $amount;
         $chargedTotal = $chargedTotal !== null ? max(0, $chargedTotal) : round($amount + $tipAmount, 2);
+        $queueItemId = $this->isReservationQueueInvoice($invoice)
+            ? (int) ($invoice->reservation_queue_item_id ?? 0)
+            : 0;
 
         $payment = Payment::firstOrCreate(
             [
@@ -501,6 +513,7 @@ class StripeInvoiceService
             ],
             [
                 'invoice_id' => $invoice->id,
+                'reservation_queue_item_id' => $queueItemId > 0 ? $queueItemId : null,
                 'customer_id' => $invoice->customer_id,
                 'user_id' => $invoice->user_id,
                 'amount' => $amount,
@@ -519,10 +532,15 @@ class StripeInvoiceService
             ]
         );
 
+        if ($queueItemId > 0 && ! $payment->reservation_queue_item_id) {
+            $payment->forceFill(['reservation_queue_item_id' => $queueItemId])->save();
+        }
+
         app(TipAllocationService::class)->syncForPayment($payment);
 
         $previousStatus = $invoice->status;
         $invoice->refreshPaymentStatus();
+        $this->settleQueueInvoicePayment($invoice, $payment);
 
         if ($payment->wasRecentlyCreated) {
             ActivityLog::record(null, $payment, 'created', [
@@ -554,9 +572,63 @@ class StripeInvoiceService
 
         if ($invoice->status === 'paid') {
             app(CustomerPackageService::class)->fulfillPaidInvoice($invoice);
+            app(QueueInvoiceReceiptService::class)->deliver($invoice, $invoice->user);
         }
 
         return $payment;
+    }
+
+    private function isReservationQueueInvoice(Invoice $invoice): bool
+    {
+        return (string) $invoice->source === ReservationQueueInvoiceService::SOURCE_RESERVATION_QUEUE
+            || (int) ($invoice->reservation_queue_item_id ?? 0) > 0;
+    }
+
+    private function settleQueueInvoicePayment(Invoice $invoice, Payment $payment): void
+    {
+        if (! $this->isReservationQueueInvoice($invoice) || (string) $invoice->status !== 'paid') {
+            return;
+        }
+
+        $queueItem = $invoice->reservationQueueItem;
+        if (! $queueItem || (string) $queueItem->status === \App\Models\ReservationQueueItem::STATUS_DONE) {
+            return;
+        }
+
+        if ((string) $queueItem->status !== \App\Models\ReservationQueueItem::STATUS_AWAITING_PAYMENT) {
+            Log::warning('Stripe queue invoice payment could not complete its queue item.', [
+                'invoice_id' => $invoice->id,
+                'payment_id' => $payment->id,
+                'queue_item_id' => $queueItem->id,
+                'queue_status' => $queueItem->status,
+            ]);
+
+            return;
+        }
+
+        $owner = $invoice->user ?: User::query()->find($invoice->user_id);
+        if (! $owner) {
+            Log::warning('Stripe queue invoice payment has no account owner to complete the queue item.', [
+                'invoice_id' => $invoice->id,
+                'payment_id' => $payment->id,
+                'queue_item_id' => $queueItem->id,
+            ]);
+
+            return;
+        }
+
+        try {
+            app(ReservationQueueService::class)->transition($queueItem, 'done', $owner, null, [
+                'checkout_settled' => true,
+            ]);
+        } catch (\Throwable $exception) {
+            Log::warning('Stripe queue invoice payment could not finalize the queue item.', [
+                'invoice_id' => $invoice->id,
+                'payment_id' => $payment->id,
+                'queue_item_id' => $queueItem->id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
     }
 
     private function notifyCompany(Invoice $invoice, Payment $payment): void

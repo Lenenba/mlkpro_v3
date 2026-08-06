@@ -3,12 +3,15 @@
 namespace App\Services;
 
 use App\Models\ActivityLog;
+use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\ReservationQueueItem;
 use App\Models\User;
+use App\Support\TipAssigneeResolver;
 use App\Support\TipCalculator;
 use App\Support\TipSettingsResolver;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\ValidationException;
 
 class ReservationQueueCheckoutService
@@ -16,11 +19,14 @@ class ReservationQueueCheckoutService
     public function __construct(
         private readonly ReservationQueueService $queueService,
         private readonly TenantPaymentMethodGuardService $paymentMethodGuard,
-        private readonly TipAllocationService $tipAllocationService
+        private readonly TipAllocationService $tipAllocationService,
+        private readonly ReservationQueueInvoiceService $queueInvoiceService,
+        private readonly StripeInvoiceService $stripeInvoiceService,
+        private readonly QueueInvoiceReceiptService $receiptService
     ) {}
 
     /**
-     * @return array{queue_item: ReservationQueueItem, payment: Payment, already_paid: bool}
+     * @return array<string, mixed>
      */
     public function checkout(
         ReservationQueueItem $item,
@@ -28,7 +34,7 @@ class ReservationQueueCheckoutService
         User $actor,
         array $settings
     ): array {
-        return DB::transaction(function () use ($item, $attributes, $actor, $settings): array {
+        $result = DB::transaction(function () use ($item, $attributes, $actor, $settings): array {
             $locked = ReservationQueueItem::query()
                 ->with([
                     'service:id,user_id,name,price,currency_code',
@@ -43,6 +49,15 @@ class ReservationQueueCheckoutService
                 ->first();
 
             if ($existingPayment) {
+                $invoice = $existingPayment->invoice ?: $this->queueInvoiceService->findOrCreateForQueueItem($locked);
+                if (! $existingPayment->invoice_id) {
+                    $existingPayment->forceFill([
+                        'invoice_id' => $invoice->id,
+                        'customer_id' => $invoice->customer_id,
+                    ])->save();
+                    $invoice->refreshPaymentStatus();
+                }
+
                 if (! in_array($existingPayment->status, Payment::settledStatuses(), true)) {
                     throw ValidationException::withMessages([
                         'payment' => ['A payment is already awaiting confirmation for this queue item.'],
@@ -58,7 +73,9 @@ class ReservationQueueCheckoutService
                 return [
                     'queue_item' => $queueItem,
                     'payment' => $existingPayment,
+                    'invoice' => $invoice->fresh(['items', 'payments']),
                     'already_paid' => true,
+                    'requires_stripe' => false,
                 ];
             }
 
@@ -92,10 +109,38 @@ class ReservationQueueCheckoutService
                 $attributes,
                 TipSettingsResolver::forAccountId((int) $locked->account_id)
             );
-            $tipAssigneeUserId = (int) ($locked->teamMember?->user_id ?? 0);
+            $invoice = $this->queueInvoiceService->findOrCreateForQueueItem($locked);
+            if (array_key_exists('receipt_delivery', $attributes)) {
+                $invoice->forceFill([
+                    'receipt_delivery' => $this->receiptDelivery($attributes['receipt_delivery'] ?? null),
+                ])->save();
+            }
+
+            $tipAssigneeUserId = TipAssigneeResolver::resolveForInvoice($invoice);
+            $tip['tip_assignee_user_id'] = $tip['tip_amount'] > 0 ? $tipAssigneeUserId : null;
+
+            if (($method['normalized_business_method'] ?? null) === 'stripe') {
+                if (! $this->stripeInvoiceService->isConfigured()) {
+                    throw ValidationException::withMessages([
+                        'method' => ['Stripe is not configured for this account.'],
+                    ]);
+                }
+
+                return [
+                    'queue_item' => $locked,
+                    'payment' => null,
+                    'invoice' => $invoice->fresh(['items', 'payments']),
+                    'already_paid' => false,
+                    'requires_stripe' => true,
+                    'stripe_amount' => $amount,
+                    'stripe_tip' => $tip,
+                ];
+            }
+
             $payment = Payment::query()->create([
+                'invoice_id' => $invoice->id,
                 'reservation_queue_item_id' => $locked->id,
-                'customer_id' => $locked->client_id,
+                'customer_id' => $invoice->customer_id,
                 'user_id' => $locked->account_id,
                 'amount' => $amount,
                 'currency_code' => $checkout['currency_code'],
@@ -104,9 +149,7 @@ class ReservationQueueCheckoutService
                 'tip_percent' => $tip['tip_percent'],
                 'tip_base_amount' => $tip['tip_base_amount'],
                 'charged_total' => $tip['charged_total'],
-                'tip_assignee_user_id' => $tip['tip_amount'] > 0 && $tipAssigneeUserId > 0
-                    ? $tipAssigneeUserId
-                    : null,
+                'tip_assignee_user_id' => $tip['tip_assignee_user_id'],
                 'method' => $method['canonical_method'],
                 'provider' => 'manual',
                 'status' => Payment::STATUS_COMPLETED,
@@ -116,6 +159,8 @@ class ReservationQueueCheckoutService
             ]);
 
             $this->tipAllocationService->syncForPayment($payment);
+            $previousInvoiceStatus = $invoice->status;
+            $invoice->refreshPaymentStatus();
             $queueItem = $this->queueService->transition($locked, 'done', $actor, $settings, [
                 'checkout_settled' => true,
             ]);
@@ -126,6 +171,7 @@ class ReservationQueueCheckoutService
                 'reservation_id' => $locked->reservation_id ? (int) $locked->reservation_id : null,
                 'service_id' => $locked->service_id ? (int) $locked->service_id : null,
                 'queue_number' => $locked->queue_number,
+                'invoice_id' => $invoice->id,
                 'amount' => $payment->amount,
                 'tip_amount' => $payment->tip_amount,
                 'charged_total' => $payment->charged_total,
@@ -135,9 +181,55 @@ class ReservationQueueCheckoutService
             return [
                 'queue_item' => $queueItem,
                 'payment' => $payment,
+                'invoice' => $invoice->fresh(['items', 'payments']),
                 'already_paid' => false,
+                'requires_stripe' => false,
+                'previous_invoice_status' => $previousInvoiceStatus,
             ];
         });
+
+        if (($result['requires_stripe'] ?? false) === true) {
+            $invoice = $result['invoice'];
+            if (! $invoice instanceof Invoice) {
+                throw ValidationException::withMessages([
+                    'payment' => ['Unable to prepare the invoice for Stripe checkout.'],
+                ]);
+            }
+
+            $successUrl = URL::route('reservation.index', [
+                'stripe' => 'success',
+                'queue_checkout' => $item->id,
+            ]);
+            $successUrl .= (str_contains($successUrl, '?') ? '&' : '?').'session_id={CHECKOUT_SESSION_ID}';
+            $cancelUrl = URL::route('reservation.index', [
+                'stripe' => 'cancel',
+                'queue_checkout' => $item->id,
+            ]);
+            $session = $this->stripeInvoiceService->createCheckoutSession(
+                $invoice,
+                $successUrl,
+                $cancelUrl,
+                (float) $result['stripe_amount'],
+                (array) $result['stripe_tip']
+            );
+
+            if (empty($session['url'])) {
+                throw ValidationException::withMessages([
+                    'payment' => ['Unable to start Stripe checkout.'],
+                ]);
+            }
+
+            $result['checkout_url'] = $session['url'];
+
+            return $result;
+        }
+
+        $invoice = $result['invoice'] ?? null;
+        if ($invoice instanceof Invoice) {
+            $result['receipt'] = $this->receiptService->deliver($invoice, $actor);
+        }
+
+        return $result;
     }
 
     private function checkoutNotes(ReservationQueueItem $item, mixed $notes): string
@@ -158,5 +250,14 @@ class ReservationQueueCheckoutService
         $value = trim($value);
 
         return $value !== '' ? $value : null;
+    }
+
+    private function receiptDelivery(mixed $value): ?string
+    {
+        $value = is_string($value) ? strtolower(trim($value)) : '';
+
+        return in_array($value, [QueueInvoiceReceiptService::DELIVERY_EMAIL, QueueInvoiceReceiptService::DELIVERY_SMS], true)
+            ? $value
+            : null;
     }
 }

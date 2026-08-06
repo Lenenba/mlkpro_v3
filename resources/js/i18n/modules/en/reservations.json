@@ -178,6 +178,15 @@
         "update_error": "Unable to update queue item.",
         "call_next_empty": "No callable queue item is available right now."
       },
+      "availability_confirmation": {
+        "title": "Confirm availability",
+        "description": "{teamMember} is marked as busy, but no active service was detected.",
+        "hint": "Confirm availability only if this person is actually free. The pre-call or call will then be retried.",
+        "still_busy": "Still busy",
+        "available_continue": "Available, continue",
+        "continuing": "Checking...",
+        "fallback_member": "This team member"
+      },
       "checkout": {
         "title": "Collect payment",
         "subtitle": "The service is finished. Record the payment to close this ticket.",
@@ -198,11 +207,20 @@
         "notes": "Note (optional)",
         "cancel": "Cancel",
         "submit": "Collect payment and finish",
+        "submit_card": "Continue to Stripe",
         "processing": "Collecting...",
         "completed": "Payment recorded and service completed.",
         "free_completed": "Service completed.",
         "open_error": "Unable to prepare checkout.",
         "submit_error": "Unable to record payment.",
+        "receipt": {
+          "label": "Send receipt",
+          "hint": "The receipt is sent after payment confirmation. SMS contains a secure link.",
+          "none": "Do not send now",
+          "email": "By email (PDF)",
+          "sms": "By SMS (secure link)",
+          "view": "Open receipt"
+        },
         "methods": {
           "cash": "Cash",
           "card": "Card",

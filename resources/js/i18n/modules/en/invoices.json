@@ -1,6 +1,10 @@
 {
   "invoices": {
     "title": "Invoices",
+    "history": {
+      "title": "Invoice and payment history",
+      "subtitle": "Review your invoices, payments, and remaining balances."
+    },
     "company_fallback": "Company",
     "view": {
       "table": "Table",
