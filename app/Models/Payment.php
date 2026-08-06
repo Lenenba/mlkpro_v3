@@ -28,6 +28,7 @@ class Payment extends Model
     protected $fillable = [
         'invoice_id',
         'sale_id',
+        'reservation_queue_item_id',
         'customer_id',
         'user_id',
         'amount',
@@ -99,6 +100,11 @@ class Payment extends Model
     public function sale(): BelongsTo
     {
         return $this->belongsTo(Sale::class);
+    }
+
+    public function reservationQueueItem(): BelongsTo
+    {
+        return $this->belongsTo(ReservationQueueItem::class);
     }
 
     public function customer(): BelongsTo

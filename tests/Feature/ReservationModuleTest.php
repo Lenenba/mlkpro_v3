@@ -1,6 +1,9 @@
 <?php
 
 use App\Models\Customer;
+use App\Models\Payment;
+use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Models\Reservation;
 use App\Models\ReservationQueueItem;
 use App\Models\ReservationResource;
@@ -141,6 +144,171 @@ function checkInTeamMember(User $owner, TeamMember $member, string $status = Tea
         'current_status' => $status,
     ]);
 }
+
+it('requires checkout for a paid queue service and records its payment and tip exactly once', function () {
+    Notification::fake();
+
+    $owner = createOwnerWithReservationsEnabled();
+    $owner->forceFill([
+        'payment_methods' => ['cash'],
+        'default_payment_method' => 'cash',
+        'company_store_settings' => [
+            'tips' => [
+                'max_percent' => 30,
+                'max_fixed_amount' => 200,
+                'default_percent' => 10,
+            ],
+        ],
+    ])->save();
+
+    $teamMember = createTeamMemberForAccount($owner);
+    [$clientUser, $customer] = createClientForAccount($owner, 'Checkout Client', 'checkout.client@example.com');
+
+    ReservationSetting::query()->updateOrCreate(
+        [
+            'account_id' => $owner->id,
+            'team_member_id' => null,
+        ],
+        [
+            'business_preset' => 'salon',
+            'queue_mode_enabled' => true,
+            'queue_assignment_mode' => 'per_staff',
+            'queue_dispatch_mode' => 'fifo_with_appointment_priority',
+            'queue_grace_minutes' => 5,
+            'queue_no_show_on_grace_expiry' => false,
+        ]
+    );
+
+    $category = ProductCategory::query()->create([
+        'name' => 'Checkout services',
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+    ]);
+    $service = Product::query()->create([
+        'name' => 'Signature haircut',
+        'category_id' => $category->id,
+        'user_id' => $owner->id,
+        'stock' => 0,
+        'minimum_stock' => 0,
+        'price' => 45,
+        'currency_code' => 'CAD',
+        'unit' => 'service',
+        'item_type' => Product::ITEM_TYPE_SERVICE,
+        'is_active' => true,
+    ]);
+    $reservation = Reservation::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $teamMember->id,
+        'client_id' => $customer->id,
+        'client_user_id' => $clientUser->id,
+        'service_id' => $service->id,
+        'created_by_user_id' => $owner->id,
+        'status' => Reservation::STATUS_CONFIRMED,
+        'source' => Reservation::SOURCE_STAFF,
+        'timezone' => 'UTC',
+        'starts_at' => now('UTC')->subHour(),
+        'ends_at' => now('UTC')->subMinutes(15),
+        'duration_minutes' => 45,
+        'buffer_minutes' => 0,
+    ]);
+
+    createActiveChairForMember($owner, $teamMember);
+    $attendance = checkInTeamMember($owner, $teamMember);
+    $ticket = ReservationQueueItem::query()->create([
+        'account_id' => $owner->id,
+        'reservation_id' => $reservation->id,
+        'client_id' => $customer->id,
+        'client_user_id' => $clientUser->id,
+        'service_id' => $service->id,
+        'team_member_id' => $teamMember->id,
+        'item_type' => ReservationQueueItem::TYPE_APPOINTMENT,
+        'source' => Reservation::SOURCE_STAFF,
+        'queue_number' => 'CHECKOUT-001',
+        'status' => ReservationQueueItem::STATUS_IN_SERVICE,
+        'estimated_duration_minutes' => 45,
+        'checked_in_at' => now('UTC')->subHour(),
+        'called_at' => now('UTC')->subMinutes(55),
+        'started_at' => now('UTC')->subMinutes(45),
+    ]);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->patchJson(route('reservation.queue.done', $ticket))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('payment');
+
+    $this->assertDatabaseHas('reservation_queue_items', [
+        'id' => $ticket->id,
+        'status' => ReservationQueueItem::STATUS_IN_SERVICE,
+    ]);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->patchJson(route('reservation.queue.finish', $ticket))
+        ->assertOk()
+        ->assertJsonPath('queue_item.status', ReservationQueueItem::STATUS_AWAITING_PAYMENT)
+        ->assertJsonPath('queue_item.checkout.base_amount', 45);
+
+    expect(TeamMemberAttendance::query()->find($attendance->id)?->current_status)
+        ->toBe(TeamMemberAttendance::STATUS_AVAILABLE);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->postJson(route('reservation.queue.checkout', $ticket), [
+            'method' => 'card',
+            'tip_enabled' => true,
+            'tip_mode' => 'percent',
+            'tip_percent' => 20,
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('method');
+
+    $checkoutResponse = $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->postJson(route('reservation.queue.checkout', $ticket), [
+            'method' => 'cash',
+            'amount' => 1,
+            'tip_enabled' => true,
+            'tip_mode' => 'percent',
+            'tip_percent' => 20,
+            'reference' => 'cash-register-001',
+            'notes' => 'Paid at front desk',
+        ])
+        ->assertOk()
+        ->assertJsonPath('queue_item.status', ReservationQueueItem::STATUS_DONE)
+        ->assertJsonPath('payment.amount', 45)
+        ->assertJsonPath('payment.tip_amount', 9)
+        ->assertJsonPath('payment.charged_total', 54);
+
+    $payment = Payment::query()
+        ->where('reservation_queue_item_id', $ticket->id)
+        ->firstOrFail();
+    $teamMemberUserId = (int) $teamMember->user_id;
+
+    expect((float) $payment->amount)->toBe(45.0);
+    expect((float) $payment->tip_amount)->toBe(9.0);
+    expect((float) $payment->charged_total)->toBe(54.0);
+    expect((int) $payment->tip_assignee_user_id)->toBe($teamMemberUserId);
+    $this->assertDatabaseHas('payment_tip_allocations', [
+        'payment_id' => $payment->id,
+        'user_id' => $teamMemberUserId,
+        'amount' => 9,
+    ]);
+    $this->assertDatabaseHas('reservations', [
+        'id' => $reservation->id,
+        'status' => Reservation::STATUS_COMPLETED,
+    ]);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->postJson(route('reservation.queue.checkout', $ticket), [
+            'method' => 'cash',
+        ])
+        ->assertOk()
+        ->assertJsonPath('queue_item.status', ReservationQueueItem::STATUS_DONE);
+
+    expect(Payment::query()->where('reservation_queue_item_id', $ticket->id)->count())->toBe(1);
+});
 
 it('allows a client to book a reservation from available slots', function () {
     $owner = createOwnerWithReservationsEnabled();
@@ -1538,6 +1706,92 @@ it('allows staff to progress queue items through operational states', function (
         'id' => $ticket->id,
         'status' => ReservationQueueItem::STATUS_DONE,
     ]);
+});
+
+it('releases staff availability after a queue grace expiry so the ticket can be recalled', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $member = createTeamMemberForAccount($owner);
+    [$clientUser, $customer] = createClientForAccount($owner, 'Queue Grace Client', 'queue.grace.client@example.com');
+
+    ReservationSetting::query()->updateOrCreate(
+        [
+            'account_id' => $owner->id,
+            'team_member_id' => null,
+        ],
+        [
+            'business_preset' => 'salon',
+            'queue_mode_enabled' => true,
+            'queue_assignment_mode' => 'per_staff',
+            'queue_dispatch_mode' => 'fifo_with_appointment_priority',
+            'queue_grace_minutes' => 5,
+            'queue_no_show_on_grace_expiry' => false,
+        ]
+    );
+
+    createActiveChairForMember($owner, $member);
+    $attendance = checkInTeamMember($owner, $member);
+
+    $ticket = ReservationQueueItem::query()->create([
+        'account_id' => $owner->id,
+        'client_id' => $customer->id,
+        'client_user_id' => $clientUser->id,
+        'team_member_id' => $member->id,
+        'item_type' => ReservationQueueItem::TYPE_TICKET,
+        'source' => 'client',
+        'queue_number' => 'T-GRACE-001',
+        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+        'estimated_duration_minutes' => 30,
+        'checked_in_at' => now('UTC'),
+    ]);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->patchJson(route('reservation.queue.call', $ticket))
+        ->assertOk();
+
+    expect(TeamMemberAttendance::query()->find($attendance->id)?->current_status)->toBe(TeamMemberAttendance::STATUS_BUSY);
+
+    $ticket->update(['call_expires_at' => now('UTC')->subMinute()]);
+
+    $settings = app(ReservationAvailabilityService::class)->resolveSettings($owner->id, null);
+    app(ReservationQueueService::class)->refreshMetrics($owner->id, $settings);
+
+    $this->assertDatabaseHas('reservation_queue_items', [
+        'id' => $ticket->id,
+        'status' => ReservationQueueItem::STATUS_SKIPPED,
+    ]);
+    expect(TeamMemberAttendance::query()->find($attendance->id)?->current_status)->toBe(TeamMemberAttendance::STATUS_AVAILABLE);
+
+    // Simulate an item skipped by the previous grace-expiry implementation.
+    $attendance->update(['current_status' => TeamMemberAttendance::STATUS_BUSY]);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->patchJson(route('reservation.queue.call', $ticket))
+        ->assertOk();
+
+    $this->assertDatabaseHas('reservation_queue_items', [
+        'id' => $ticket->id,
+        'status' => ReservationQueueItem::STATUS_CALLED,
+    ]);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->patchJson(route('reservation.queue.skip', $ticket))
+        ->assertOk();
+
+    $attendance->update(['current_status' => TeamMemberAttendance::STATUS_BUSY]);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->patchJson(route('reservation.queue.done', $ticket))
+        ->assertOk();
+
+    $this->assertDatabaseHas('reservation_queue_items', [
+        'id' => $ticket->id,
+        'status' => ReservationQueueItem::STATUS_DONE,
+    ]);
+    expect(TeamMemberAttendance::query()->find($attendance->id)?->current_status)->toBe(TeamMemberAttendance::STATUS_AVAILABLE);
 });
 
 it('calls next queue item in the staff lane when assignment mode is per_staff', function () {

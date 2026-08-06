@@ -23,8 +23,11 @@ use App\Services\BillingSubscriptionService;
 use App\Services\OfferPackages\CustomerPackageService;
 use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationNotificationService;
+use App\Services\ReservationQueueCheckoutService;
 use App\Services\ReservationQueueService;
 use App\Support\ReservationPresetResolver;
+use App\Support\TenantPaymentMethodsResolver;
+use App\Support\TipSettingsResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -39,6 +42,7 @@ class StaffReservationController extends Controller
         private readonly ReservationAvailabilityService $availabilityService,
         private readonly ReservationNotificationService $notificationService,
         private readonly ReservationQueueService $queueService,
+        private readonly ReservationQueueCheckoutService $queueCheckoutService,
         private readonly CustomerPackageService $customerPackageService
     ) {}
 
@@ -56,6 +60,8 @@ class StaffReservationController extends Controller
         $props = app(BuildStaffReservationIndexData::class)->index($account, $access, $request);
         $props['settings'] = $this->effectiveSettings($account, $props['settings'] ?? []);
         $props['focus_reservation_id'] = (int) $request->query('reservation_id', 0);
+        $props['paymentMethodSettings'] = TenantPaymentMethodsResolver::forAccountId($account->id);
+        $props['tips'] = TipSettingsResolver::forAccountId($account->id);
 
         return $this->inertiaOrJson('Reservation/Index', $props);
     }
@@ -552,6 +558,7 @@ class StaffReservationController extends Controller
                 'recommended_team_member_id' => $metrics[$updated->id]['recommended_team_member_id'] ?? null,
                 'call_expires_at' => $updated->call_expires_at?->toIso8601String(),
                 'can_update_status' => $this->canManageQueueItem($access, $updated, $settings),
+                'checkout' => $this->queueService->checkoutSummary($updated),
             ],
         ]);
     }
@@ -564,6 +571,73 @@ class StaffReservationController extends Controller
     public function queueDone(Request $request, ReservationQueueItem $item)
     {
         return $this->updateQueueAction($request, $item, 'done');
+    }
+
+    public function queueFinish(Request $request, ReservationQueueItem $item)
+    {
+        return $this->updateQueueAction($request, $item, 'finish');
+    }
+
+    public function queueCheckout(Request $request, ReservationQueueItem $item)
+    {
+        $user = $request->user();
+        if (! $user) {
+            abort(401);
+        }
+
+        $this->authorize('viewAny', Reservation::class);
+        $account = $this->resolveAccount($user);
+        if ((int) $item->account_id !== (int) $account->id) {
+            abort(404);
+        }
+
+        $access = $this->resolveTeamAccess($user, $account->id);
+        $settings = $this->effectiveSettings($account);
+        $this->ensureQueueModeEnabled($settings);
+        if (! $this->canManageQueueItem($access, $item, $settings)) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'method' => ['nullable', 'string', 'max:40'],
+            'tip_enabled' => ['nullable', 'boolean'],
+            'tip_mode' => ['nullable', Rule::in(['none', 'percent', 'fixed'])],
+            'tip_percent' => ['nullable', 'numeric', 'min:0'],
+            'tip_amount' => ['nullable', 'numeric', 'min:0'],
+            'reference' => ['nullable', 'string', 'max:255'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $checkout = $this->queueCheckoutService->checkout($item, $validated, $user, $settings);
+        $updated = $checkout['queue_item'];
+        $metrics = $this->queueService->refreshMetrics((int) $account->id, $settings);
+        $payment = $checkout['payment'];
+
+        return response()->json([
+            'message' => $checkout['already_paid']
+                ? 'This queue item was already paid and completed.'
+                : 'Payment recorded and service completed.',
+            'queue_item' => [
+                'id' => $updated->id,
+                'status' => $updated->status,
+                'finished_at' => $updated->finished_at?->toIso8601String(),
+                'position' => $updated->position,
+                'eta_minutes' => $updated->eta_minutes,
+                'callable' => (bool) ($metrics[$updated->id]['callable'] ?? false),
+                'checkout' => $this->queueService->checkoutSummary($updated),
+                'can_update_status' => $this->canManageQueueItem($access, $updated, $settings),
+            ],
+            'payment' => [
+                'id' => $payment->id,
+                'amount' => (float) $payment->amount,
+                'currency_code' => $payment->currency_code,
+                'tip_amount' => (float) $payment->tip_amount,
+                'charged_total' => (float) $payment->charged_total,
+                'method' => $payment->method,
+                'status' => $payment->status,
+                'paid_at' => $payment->paid_at?->toIso8601String(),
+            ],
+        ]);
     }
 
     public function queueSkip(Request $request, ReservationQueueItem $item)
@@ -646,6 +720,7 @@ class StaffReservationController extends Controller
                 'recommended_team_member_id' => $metrics[$updated->id]['recommended_team_member_id'] ?? null,
                 'call_expires_at' => $updated->call_expires_at?->toIso8601String(),
                 'can_update_status' => $this->canManageQueueItem($access, $updated, $settings),
+                'checkout' => $this->queueService->checkoutSummary($updated),
             ],
         ]);
     }

@@ -8,7 +8,7 @@ Ce document est la vue maître pour suivre l’évolution complète du programme
 - Phase active autorisée : **Phase 1 — Gains rapides de performance**.
 - État global : **Phase 0 clôturée sous dérogation MLK-DEC-010 ; Phase 1 ouverte ; Phases 2 à 4 planifiées mais non ouvertes**.
 - Progression des tickets canoniques : **P0-001 à P0-004, P0-007, P1-001 et P1-002 sont terminés ; P0-005/P0-006 restent des preuves opérationnelles reportées sous dérogation ; P1-003/P1-004 sont en validation locale et P1-005 attend son acceptation humaine après CI distante verte**. Cet indicateur ne mesure ni la charge ni un pourcentage d’achèvement produit.
-- Prochaine gate de sortie de phase : **obtenir les acceptations humaines de P1-003 à P1-005, puis choisir les trois priorités P2 sans attribuer de gain à une baseline dynamique absente**.
+- Prochaine gate de sortie de phase : **exécuter le [runbook de validation Phase 1](PHASE_1_VALIDATION_RUNBOOK.md), obtenir les acceptations humaines de P1-003 à P1-005, puis choisir les trois priorités P2 sans attribuer de gain à une baseline dynamique absente**.
 - Règle Git : les travaux et pull requests ciblent `develop` ; `main` reste réservé au propriétaire humain du dépôt.
 
 ## Comment lire les états
@@ -211,7 +211,9 @@ Gate de sortie : segment et proposition validés, chaîne opérations-finance au
 - [Cockpit d’exécution](README.md)
 - [Phase 0 — Sécurité et baseline](PHASE_0_SECURITY_AND_BASELINE.md)
 - [Phase 1 — Gains rapides de performance](PHASE_1_QUICK_PERFORMANCE_WINS.md)
+- [Runbook de validation Phase 1](PHASE_1_VALIDATION_RUNBOOK.md)
 - [Phase 2 — Performance données et runtime](PHASE_2_DATA_AND_RUNTIME_PERFORMANCE.md)
+- [Runbook d’exécution et de validation Phase 2](PHASE_2_EXECUTION_RUNBOOK.md)
 - [Phase 3 — Expérience utilisateur premium](PHASE_3_PREMIUM_USER_EXPERIENCE.md)
 - [Phase 4 — Différenciation produit](PHASE_4_PRODUCT_DIFFERENTIATION.md)
 - [Journal des validations](VALIDATION_LOG.md)

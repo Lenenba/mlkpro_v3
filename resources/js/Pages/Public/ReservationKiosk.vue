@@ -1,6 +1,6 @@
 <script setup>
-import { computed, nextTick, ref } from 'vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { Head, router, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import axios from 'axios';
 import dayjs from 'dayjs';
@@ -59,6 +59,64 @@ const trackError = ref('');
 const trackResult = ref(null);
 const verificationDebugCode = ref('');
 const verifiedCode = ref('');
+
+const KIOSK_REFRESH_INTERVAL_MS = 30_000;
+let kioskRefreshTimer = null;
+let kioskRefreshInFlight = false;
+
+const refreshKioskSummary = () => {
+    if (kioskRefreshInFlight || document.visibilityState === 'hidden') {
+        return;
+    }
+
+    kioskRefreshInFlight = true;
+
+    router.reload({
+        only: ['settings'],
+        preserveState: true,
+        preserveScroll: true,
+        onFinish: () => {
+            kioskRefreshInFlight = false;
+        },
+    });
+};
+
+const stopKioskRefresh = () => {
+    if (!kioskRefreshTimer) {
+        return;
+    }
+
+    window.clearInterval(kioskRefreshTimer);
+    kioskRefreshTimer = null;
+};
+
+const startKioskRefresh = () => {
+    if (kioskRefreshTimer || document.visibilityState === 'hidden') {
+        return;
+    }
+
+    kioskRefreshTimer = window.setInterval(refreshKioskSummary, KIOSK_REFRESH_INTERVAL_MS);
+};
+
+const handleKioskVisibilityChange = () => {
+    if (document.visibilityState === 'hidden') {
+        stopKioskRefresh();
+        return;
+    }
+
+    refreshKioskSummary();
+    startKioskRefresh();
+};
+
+onMounted(() => {
+    document.addEventListener('visibilitychange', handleKioskVisibilityChange);
+    startKioskRefresh();
+});
+
+onBeforeUnmount(() => {
+    stopKioskRefresh();
+    document.removeEventListener('visibilitychange', handleKioskVisibilityChange);
+});
 
 const concreteServiceOptions = computed(() => (props.services || []).map((service) => ({
         value: String(service.id),

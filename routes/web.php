@@ -581,6 +581,10 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('reservation.queue.start');
         Route::patch('/app/reservations/queue/{item}/done', [StaffReservationController::class, 'queueDone'])
             ->name('reservation.queue.done');
+        Route::patch('/app/reservations/queue/{item}/finish', [StaffReservationController::class, 'queueFinish'])
+            ->name('reservation.queue.finish');
+        Route::post('/app/reservations/queue/{item}/checkout', [StaffReservationController::class, 'queueCheckout'])
+            ->name('reservation.queue.checkout');
         Route::patch('/app/reservations/queue/{item}/skip', [StaffReservationController::class, 'queueSkip'])
             ->name('reservation.queue.skip');
         Route::delete('/app/reservations/{reservation}', [StaffReservationController::class, 'destroy'])->name('reservation.destroy');

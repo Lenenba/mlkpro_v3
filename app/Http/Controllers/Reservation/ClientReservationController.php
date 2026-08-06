@@ -733,7 +733,14 @@ class ClientReservationController extends Controller
             'eta_minutes' => $ticket->eta_minutes,
             'call_expires_at' => $ticket->call_expires_at?->toIso8601String(),
             'created_at' => $ticket->created_at?->toIso8601String(),
-            'can_cancel' => in_array($ticket->status, ReservationQueueItem::ACTIVE_STATUSES, true),
+            'can_cancel' => in_array($ticket->status, [
+                ReservationQueueItem::STATUS_NOT_ARRIVED,
+                ReservationQueueItem::STATUS_CHECKED_IN,
+                ReservationQueueItem::STATUS_PRE_CALLED,
+                ReservationQueueItem::STATUS_CALLED,
+                ReservationQueueItem::STATUS_SKIPPED,
+                ReservationQueueItem::STATUS_IN_SERVICE,
+            ], true),
             'can_still_here' => in_array($ticket->status, [
                 ReservationQueueItem::STATUS_CHECKED_IN,
                 ReservationQueueItem::STATUS_PRE_CALLED,

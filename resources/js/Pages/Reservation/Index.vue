@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import axios from 'axios';
 import dayjs from 'dayjs';
@@ -17,6 +17,7 @@ import ReservationCalendarBoard from '@/Components/Reservation/ReservationCalend
 import ReservationStats from '@/Components/Reservation/ReservationStats.vue';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { reservationStatusBadgeClass } from '@/Components/Reservation/status';
+import { paymentMethodLabel as resolvePaymentMethodLabel, useTenantPaymentMethods } from '@/Composables/useTenantPaymentMethods';
 
 const { t, locale } = useI18n();
 const dayjsLocale = computed(() => {
@@ -102,6 +103,14 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    paymentMethodSettings: {
+        type: Object,
+        default: () => ({}),
+    },
+    tips: {
+        type: Object,
+        default: () => ({}),
+    },
     focus_reservation_id: {
         type: [Number, String],
         default: 0,
@@ -122,6 +131,24 @@ const queueActionError = ref('');
 const queueActionSuccess = ref('');
 const queueUpdatingId = ref(null);
 const queueCallingNext = ref(false);
+const openQueueActionsFor = ref(null);
+const queueActionButtonRefs = ref({});
+const queueActionMenuRef = ref(null);
+const queueActionMenuStyle = ref({});
+let queueActionListenersBound = false;
+const showQueueCheckout = ref(false);
+const activeQueueCheckoutItem = ref(null);
+const queueCheckoutProcessing = ref(false);
+const queueCheckoutError = ref('');
+const queueCheckoutForm = ref({
+    method: '',
+    reference: '',
+    notes: '',
+});
+const queueTipEnabled = ref(false);
+const queueTipMode = ref('percent');
+const queueTipPercent = ref(0);
+const queueTipFixedAmount = ref(0);
 const canViewAll = computed(() => Boolean(props.access?.can_view_all));
 const canManage = computed(() => Boolean(props.access?.can_manage));
 const ownerOnlyMode = computed(() => Boolean(props.settings?.owner_only_mode));
@@ -136,6 +163,14 @@ const queueAssignmentMode = computed(() => (
 ));
 const hasQueueTab = computed(() => queueModeEnabled.value || queueRows.value.length > 0);
 const hasWaitlistTab = computed(() => waitlistEnabled.value || waitlistRows.value.length > 0);
+const activeQueueActionItem = computed(() => queueRows.value.find(
+    (item) => Number(item.id) === openQueueActionsFor.value
+) || null);
+const {
+    allowedPaymentMethods,
+    defaultPaymentMethod,
+    hasMultiplePaymentMethods,
+} = useTenantPaymentMethods(computed(() => props.paymentMethodSettings));
 const reservationTabCount = computed(() => Number(props.reservations?.total ?? props.reservations?.data?.length ?? 0));
 const activeDataTab = ref('reservations');
 const ownTeamMemberId = computed(() => {
@@ -304,6 +339,103 @@ const formatMoney = (value) => Number(value || 0).toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
 });
+const roundMoney = (value) => Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
+const queueStatusBadgeClass = (status) => (
+    status === 'awaiting_payment'
+        ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300'
+        : statusBadgeClass(status)
+);
+const queueRowHasActions = (item) => Boolean(item?.can_update_status) && [
+    'not_arrived',
+    'checked_in',
+    'pre_called',
+    'called',
+    'skipped',
+    'in_service',
+    'awaiting_payment',
+].includes(String(item?.status || ''));
+const formatQueueMoney = (value, currencyCode = 'CAD') => {
+    const amount = Number(value || 0);
+    const currency = String(currencyCode || 'CAD').toUpperCase();
+
+    try {
+        return new Intl.NumberFormat(undefined, {
+            style: 'currency',
+            currency,
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }).format(Number.isFinite(amount) ? amount : 0);
+    } catch {
+        return `${formatMoney(amount)} ${currency}`;
+    }
+};
+const queueCheckoutBaseAmount = computed(() => {
+    const value = Number(activeQueueCheckoutItem.value?.checkout?.base_amount || 0);
+
+    return Number.isFinite(value) ? Math.max(0, value) : 0;
+});
+const queueCheckoutCurrency = computed(() => activeQueueCheckoutItem.value?.checkout?.currency_code || 'CAD');
+const maxQueueTipPercent = computed(() => Number(props.tips?.max_percent ?? 30));
+const maxQueueTipFixed = computed(() => Number(props.tips?.max_fixed_amount ?? 200));
+const queueQuickTipPercents = computed(() => props.tips?.quick_percents || [5, 10, 15, 20]);
+const queueQuickTipFixedAmounts = computed(() => props.tips?.quick_fixed_amounts || [2, 5, 10]);
+const normalizedQueueTipPercent = computed(() => Math.max(0, Math.min(
+    Number(queueTipPercent.value || 0) || 0,
+    maxQueueTipPercent.value
+)));
+const normalizedQueueTipFixedAmount = computed(() => Math.max(0, Math.min(
+    Number(queueTipFixedAmount.value || 0) || 0,
+    maxQueueTipFixed.value
+)));
+const queueCheckoutTipAmount = computed(() => {
+    if (!queueTipEnabled.value) {
+        return 0;
+    }
+
+    return queueTipMode.value === 'percent'
+        ? roundMoney(queueCheckoutBaseAmount.value * (normalizedQueueTipPercent.value / 100))
+        : roundMoney(normalizedQueueTipFixedAmount.value);
+});
+const queueCheckoutChargedTotal = computed(() => roundMoney(
+    queueCheckoutBaseAmount.value + queueCheckoutTipAmount.value
+));
+const queuePaymentMethodLabel = (method) => resolvePaymentMethodLabel(method, {
+    cash: t('reservations.queue.checkout.methods.cash'),
+    card: t('reservations.queue.checkout.methods.card'),
+    bankTransfer: t('reservations.queue.checkout.methods.bank_transfer'),
+    check: t('reservations.queue.checkout.methods.check'),
+});
+const queuePaymentMethodOptions = computed(() => allowedPaymentMethods.value.map((method) => ({
+    value: method,
+    label: queuePaymentMethodLabel(method),
+})));
+const canSubmitQueueCheckout = computed(() => (
+    Boolean(activeQueueCheckoutItem.value?.id)
+    && queueCheckoutBaseAmount.value > 0
+    && Boolean(queueCheckoutForm.value.method)
+));
+const queueCheckoutPayload = computed(() => ({
+    method: queueCheckoutForm.value.method,
+    tip_enabled: queueTipEnabled.value,
+    tip_mode: queueTipEnabled.value ? queueTipMode.value : 'none',
+    tip_percent: queueTipEnabled.value && queueTipMode.value === 'percent'
+        ? normalizedQueueTipPercent.value
+        : null,
+    tip_amount: queueTipEnabled.value && queueTipMode.value === 'fixed'
+        ? normalizedQueueTipFixedAmount.value
+        : 0,
+    reference: queueCheckoutForm.value.reference || null,
+    notes: queueCheckoutForm.value.notes || null,
+}));
+watch(
+    () => [allowedPaymentMethods.value, defaultPaymentMethod.value],
+    () => {
+        if (!allowedPaymentMethods.value.includes(queueCheckoutForm.value.method)) {
+            queueCheckoutForm.value.method = defaultPaymentMethod.value;
+        }
+    },
+    { immediate: true }
+);
 const firstValidationMessage = (errors) => {
     if (!errors || typeof errors !== 'object') {
         return '';
@@ -438,6 +570,8 @@ onBeforeUnmount(() => {
     if (filterTimer) {
         clearTimeout(filterTimer);
     }
+
+    teardownQueueActionListeners();
 });
 
 watch(
@@ -745,7 +879,118 @@ const queueActionRouteName = (action) => {
     if (action === 'done') {
         return 'reservation.queue.done';
     }
+    if (action === 'finish') {
+        return 'reservation.queue.finish';
+    }
     return 'reservation.queue.skip';
+};
+
+const queueAssignmentPayload = (item) => {
+    const payload = {};
+    if (!item?.team_member_id && ownTeamMemberId.value) {
+        payload.team_member_id = Number(ownTeamMemberId.value);
+    } else if (!item?.team_member_id && item?.recommended_team_member_id) {
+        payload.team_member_id = Number(item.recommended_team_member_id);
+    }
+
+    return payload;
+};
+
+const setQueueActionButtonRef = (itemId, element) => {
+    if (element) {
+        queueActionButtonRefs.value[itemId] = element;
+        return;
+    }
+
+    delete queueActionButtonRefs.value[itemId];
+};
+
+const updateQueueActionMenuPosition = async () => {
+    if (!openQueueActionsFor.value) {
+        return;
+    }
+
+    await nextTick();
+
+    const button = queueActionButtonRefs.value[openQueueActionsFor.value];
+    const menu = queueActionMenuRef.value;
+    if (!button || !menu) {
+        return;
+    }
+
+    const buttonRect = button.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
+    const padding = 12;
+    const left = Math.max(padding, Math.min(
+        buttonRect.right - menuRect.width,
+        window.innerWidth - menuRect.width - padding
+    ));
+    const belowTop = buttonRect.bottom + 8;
+    const top = belowTop + menuRect.height <= window.innerHeight - padding
+        ? belowTop
+        : Math.max(padding, buttonRect.top - menuRect.height - 8);
+
+    queueActionMenuStyle.value = {
+        left: `${left}px`,
+        top: `${top}px`,
+    };
+};
+
+const teardownQueueActionListeners = () => {
+    if (!queueActionListenersBound) {
+        return;
+    }
+
+    document.removeEventListener('click', handleQueueActionDocumentClick, true);
+    document.removeEventListener('keydown', handleQueueActionKeydown, true);
+    window.removeEventListener('resize', updateQueueActionMenuPosition);
+    window.removeEventListener('scroll', updateQueueActionMenuPosition, true);
+    queueActionListenersBound = false;
+};
+
+const closeQueueActions = () => {
+    openQueueActionsFor.value = null;
+    queueActionMenuStyle.value = {};
+    teardownQueueActionListeners();
+};
+
+const handleQueueActionDocumentClick = (event) => {
+    const button = openQueueActionsFor.value
+        ? queueActionButtonRefs.value[openQueueActionsFor.value]
+        : null;
+
+    if (button?.contains(event.target) || queueActionMenuRef.value?.contains(event.target)) {
+        return;
+    }
+
+    closeQueueActions();
+};
+
+const handleQueueActionKeydown = (event) => {
+    if (event.key === 'Escape') {
+        closeQueueActions();
+    }
+};
+
+const toggleQueueActions = async (itemId) => {
+    const normalizedId = Number(itemId);
+
+    openQueueActionsFor.value = openQueueActionsFor.value === normalizedId ? null : normalizedId;
+
+    if (!openQueueActionsFor.value) {
+        teardownQueueActionListeners();
+        return;
+    }
+
+    await updateQueueActionMenuPosition();
+
+    if (!queueActionListenersBound) {
+        document.addEventListener('click', handleQueueActionDocumentClick, true);
+        document.addEventListener('keydown', handleQueueActionKeydown, true);
+        window.addEventListener('resize', updateQueueActionMenuPosition);
+        window.addEventListener('scroll', updateQueueActionMenuPosition, true);
+        queueActionListenersBound = true;
+    }
 };
 
 const updateQueueStatus = async (item, action) => {
@@ -753,19 +998,13 @@ const updateQueueStatus = async (item, action) => {
         return;
     }
 
+    closeQueueActions();
     queueActionError.value = '';
     queueActionSuccess.value = '';
     queueUpdatingId.value = Number(item.id);
 
     try {
-        const payload = {};
-        if (!item.team_member_id && ownTeamMemberId.value) {
-            payload.team_member_id = Number(ownTeamMemberId.value);
-        } else if (!item.team_member_id && item.recommended_team_member_id) {
-            payload.team_member_id = Number(item.recommended_team_member_id);
-        }
-
-        const response = await axios.patch(route(queueActionRouteName(action), item.id), payload);
+        const response = await axios.patch(route(queueActionRouteName(action), item.id), queueAssignmentPayload(item));
         const updated = response?.data?.queue_item || { ...item };
         queueRows.value = queueRows.value.map((row) => (
             Number(row.id) === Number(item.id) ? { ...row, ...updated } : row
@@ -776,6 +1015,105 @@ const updateQueueStatus = async (item, action) => {
         queueActionError.value = error?.response?.data?.message || t('reservations.queue.actions.update_error');
     } finally {
         queueUpdatingId.value = null;
+    }
+};
+
+const resetQueueCheckout = (item) => {
+    activeQueueCheckoutItem.value = item || null;
+    queueCheckoutError.value = '';
+    queueCheckoutForm.value = {
+        method: defaultPaymentMethod.value,
+        reference: '',
+        notes: '',
+    };
+    queueTipEnabled.value = false;
+    queueTipMode.value = 'percent';
+    queueTipPercent.value = Number(props.tips?.default_percent ?? 10);
+    queueTipFixedAmount.value = 0;
+};
+
+const closeQueueCheckout = () => {
+    showQueueCheckout.value = false;
+    activeQueueCheckoutItem.value = null;
+    queueCheckoutError.value = '';
+};
+
+const openQueueCheckout = async (item) => {
+    if (!item?.id || !item?.can_update_status || queueCheckoutProcessing.value) {
+        return;
+    }
+
+    closeQueueActions();
+    queueActionError.value = '';
+    queueActionSuccess.value = '';
+    queueCheckoutError.value = '';
+    let checkoutItem = item;
+
+    try {
+        if (['called', 'in_service'].includes(String(item.status || ''))) {
+            queueUpdatingId.value = Number(item.id);
+            const response = await axios.patch(
+                route('reservation.queue.finish', item.id),
+                queueAssignmentPayload(item)
+            );
+            const updated = response?.data?.queue_item || { ...item };
+            checkoutItem = { ...item, ...updated };
+            queueRows.value = queueRows.value.map((row) => (
+                Number(row.id) === Number(item.id) ? checkoutItem : row
+            ));
+
+            if (checkoutItem.status === 'done') {
+                queueActionSuccess.value = response?.data?.message || t('reservations.queue.checkout.free_completed');
+                refreshList();
+                return;
+            }
+        }
+
+        if (String(checkoutItem.status || '') !== 'awaiting_payment') {
+            throw new Error('queue_checkout_not_ready');
+        }
+
+        resetQueueCheckout(checkoutItem);
+        showQueueCheckout.value = true;
+        refreshList();
+    } catch (error) {
+        queueActionError.value = error?.response?.data?.message
+            || firstValidationMessage(error?.response?.data?.errors)
+            || t('reservations.queue.checkout.open_error');
+    } finally {
+        queueUpdatingId.value = null;
+    }
+};
+
+const submitQueueCheckout = async () => {
+    const item = activeQueueCheckoutItem.value;
+    if (!canSubmitQueueCheckout.value || !item?.id || queueCheckoutProcessing.value) {
+        return;
+    }
+
+    queueCheckoutProcessing.value = true;
+    queueCheckoutError.value = '';
+    queueActionError.value = '';
+    queueActionSuccess.value = '';
+
+    try {
+        const response = await axios.post(
+            route('reservation.queue.checkout', item.id),
+            queueCheckoutPayload.value
+        );
+        const updated = response?.data?.queue_item || { ...item, status: 'done' };
+        queueRows.value = queueRows.value.map((row) => (
+            Number(row.id) === Number(item.id) ? { ...row, ...updated } : row
+        ));
+        queueActionSuccess.value = response?.data?.message || t('reservations.queue.checkout.completed');
+        closeQueueCheckout();
+        refreshList();
+    } catch (error) {
+        queueCheckoutError.value = error?.response?.data?.message
+            || firstValidationMessage(error?.response?.data?.errors)
+            || t('reservations.queue.checkout.submit_error');
+    } finally {
+        queueCheckoutProcessing.value = false;
     }
 };
 
@@ -1041,22 +1379,21 @@ const removeReservation = (reservation) => {
                                 </div>
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-2">
-                                <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize" :class="statusBadgeClass(item.status)">
+                                <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize" :class="queueStatusBadgeClass(item.status)">
                                     {{ $t(`reservations.queue.status.${item.status}`) || item.status }}
                                 </span>
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-2 text-end align-top">
-                                <div
-                                    v-if="item.can_update_status"
-                                    class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex"
-                                >
+                                <div v-if="queueRowHasActions(item)" class="relative inline-flex">
                                     <button
                                         type="button"
                                         class="size-7 inline-flex items-center justify-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:pointer-events-none disabled:opacity-50 focus:bg-stone-50 focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
                                         aria-haspopup="menu"
-                                        aria-expanded="false"
-                                        aria-label="Dropdown"
+                                        :aria-expanded="openQueueActionsFor === Number(item.id)"
+                                        :aria-label="$t('reservations.table.actions')"
                                         :disabled="queueUpdatingId === Number(item.id)"
+                                        :ref="(element) => setQueueActionButtonRef(item.id, element)"
+                                        @click="toggleQueueActions(item.id)"
                                     >
                                         <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <circle cx="12" cy="12" r="1" />
@@ -1064,62 +1401,6 @@ const removeReservation = (reservation) => {
                                             <circle cx="12" cy="19" r="1" />
                                         </svg>
                                     </button>
-                                    <div
-                                        class="hs-dropdown-menu hs-dropdown-open:opacity-100 hidden w-40 rounded-sm bg-white opacity-0 shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] transition-[opacity,margin] duration dark:bg-neutral-900 dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)]"
-                                        role="menu"
-                                        aria-orientation="vertical"
-                                    >
-                                        <div class="p-1">
-                                            <button
-                                                v-if="item.status === 'not_arrived'"
-                                                type="button"
-                                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-neutral-800"
-                                                @click="updateQueueStatus(item, 'check-in')"
-                                            >
-                                                {{ $t('reservations.queue.actions.check_in') }}
-                                            </button>
-                                            <button
-                                                v-if="['checked_in', 'skipped'].includes(item.status)"
-                                                type="button"
-                                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-neutral-800"
-                                                @click="updateQueueStatus(item, 'pre-call')"
-                                            >
-                                                {{ $t('reservations.queue.actions.pre_call') }}
-                                            </button>
-                                            <button
-                                                v-if="['checked_in', 'pre_called', 'skipped'].includes(item.status)"
-                                                type="button"
-                                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-neutral-800"
-                                                @click="updateQueueStatus(item, 'call')"
-                                            >
-                                                {{ $t('reservations.queue.actions.call') }}
-                                            </button>
-                                            <button
-                                                v-if="['checked_in', 'pre_called', 'called'].includes(item.status)"
-                                                type="button"
-                                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-sky-700 hover:bg-sky-50 dark:text-sky-300 dark:hover:bg-neutral-800"
-                                                @click="updateQueueStatus(item, 'start')"
-                                            >
-                                                {{ $t('reservations.queue.actions.start') }}
-                                            </button>
-                                            <button
-                                                v-if="['in_service', 'called'].includes(item.status)"
-                                                type="button"
-                                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-neutral-800"
-                                                @click="updateQueueStatus(item, 'done')"
-                                            >
-                                                {{ $t('reservations.queue.actions.done') }}
-                                            </button>
-                                            <button
-                                                v-if="['checked_in', 'pre_called', 'called'].includes(item.status)"
-                                                type="button"
-                                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-neutral-800"
-                                                @click="updateQueueStatus(item, 'skip')"
-                                            >
-                                                {{ $t('reservations.queue.actions.skip') }}
-                                            </button>
-                                        </div>
-                                    </div>
                                 </div>
                                 <span v-else class="text-xs text-stone-400 dark:text-neutral-500">-</span>
                             </td>
@@ -1132,6 +1413,82 @@ const removeReservation = (reservation) => {
                         </div>
                     </template>
                 </AdminDataTable>
+
+                <Teleport to="body">
+                    <div
+                        v-if="activeQueueActionItem"
+                        ref="queueActionMenuRef"
+                        class="fixed z-[90] w-40 rounded-sm bg-white p-1 shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:bg-neutral-900 dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)]"
+                        :style="queueActionMenuStyle"
+                        role="menu"
+                        aria-orientation="vertical"
+                    >
+                        <button
+                            v-if="activeQueueActionItem.status === 'not_arrived'"
+                            type="button"
+                            class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-neutral-800"
+                            @click="updateQueueStatus(activeQueueActionItem, 'check-in')"
+                        >
+                            {{ $t('reservations.queue.actions.check_in') }}
+                        </button>
+                        <button
+                            v-if="['checked_in', 'skipped'].includes(activeQueueActionItem.status)"
+                            type="button"
+                            class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-neutral-800"
+                            @click="updateQueueStatus(activeQueueActionItem, 'pre-call')"
+                        >
+                            {{ $t('reservations.queue.actions.pre_call') }}
+                        </button>
+                        <button
+                            v-if="['checked_in', 'pre_called', 'skipped'].includes(activeQueueActionItem.status)"
+                            type="button"
+                            class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-neutral-800"
+                            @click="updateQueueStatus(activeQueueActionItem, 'call')"
+                        >
+                            {{ $t('reservations.queue.actions.call') }}
+                        </button>
+                        <button
+                            v-if="['checked_in', 'pre_called', 'called'].includes(activeQueueActionItem.status)"
+                            type="button"
+                            class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-sky-700 hover:bg-sky-50 dark:text-sky-300 dark:hover:bg-neutral-800"
+                            @click="updateQueueStatus(activeQueueActionItem, 'start')"
+                        >
+                            {{ $t('reservations.queue.actions.start') }}
+                        </button>
+                        <button
+                            v-if="['in_service', 'called'].includes(activeQueueActionItem.status)"
+                            type="button"
+                            class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-neutral-800"
+                            @click="openQueueCheckout(activeQueueActionItem)"
+                        >
+                            {{ $t('reservations.queue.actions.finish_checkout') }}
+                        </button>
+                        <button
+                            v-if="activeQueueActionItem.status === 'awaiting_payment'"
+                            type="button"
+                            class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-neutral-800"
+                            @click="openQueueCheckout(activeQueueActionItem)"
+                        >
+                            {{ $t('reservations.queue.actions.checkout') }}
+                        </button>
+                        <button
+                            v-if="activeQueueActionItem.status === 'skipped'"
+                            type="button"
+                            class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-700 hover:bg-stone-50 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                            @click="updateQueueStatus(activeQueueActionItem, 'done')"
+                        >
+                            {{ $t('reservations.queue.actions.done_without_payment') }}
+                        </button>
+                        <button
+                            v-if="['checked_in', 'pre_called', 'called'].includes(activeQueueActionItem.status)"
+                            type="button"
+                            class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-neutral-800"
+                            @click="updateQueueStatus(activeQueueActionItem, 'skip')"
+                        >
+                            {{ $t('reservations.queue.actions.skip') }}
+                        </button>
+                    </div>
+                </Teleport>
             </section>
 
             <section
@@ -1567,6 +1924,185 @@ const removeReservation = (reservation) => {
                 </AdminDataTable>
             </section>
         </div>
+
+        <Modal :show="showQueueCheckout" maxWidth="lg" @close="closeQueueCheckout">
+            <form v-if="activeQueueCheckoutItem" class="p-5" @submit.prevent="submitQueueCheckout">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h2 class="text-base font-semibold text-stone-900 dark:text-neutral-100">
+                            {{ $t('reservations.queue.checkout.title') }}
+                        </h2>
+                        <p class="mt-1 text-sm text-stone-500 dark:text-neutral-400">
+                            {{ $t('reservations.queue.checkout.subtitle') }}
+                        </p>
+                    </div>
+                    <span class="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+                        {{ activeQueueCheckoutItem.queue_number || `#${activeQueueCheckoutItem.id}` }}
+                    </span>
+                </div>
+
+                <div class="mt-4 grid gap-3 rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm dark:border-neutral-700 dark:bg-neutral-800">
+                    <div class="flex items-center justify-between gap-3">
+                        <span class="text-stone-500 dark:text-neutral-400">{{ $t('reservations.table.customer') }}</span>
+                        <span class="text-right font-medium text-stone-800 dark:text-neutral-100">{{ activeQueueCheckoutItem.client_name || $t('reservations.queue.checkout.walk_in_customer') }}</span>
+                    </div>
+                    <div class="flex items-center justify-between gap-3">
+                        <span class="text-stone-500 dark:text-neutral-400">{{ $t('reservations.table.item') }}</span>
+                        <span class="text-right font-medium text-stone-800 dark:text-neutral-100">{{ activeQueueCheckoutItem.checkout?.service_name || activeQueueCheckoutItem.service_name || '-' }}</span>
+                    </div>
+                    <div class="flex items-center justify-between gap-3">
+                        <span class="text-stone-500 dark:text-neutral-400">{{ $t('planning.form.member') }}</span>
+                        <span class="text-right font-medium text-stone-800 dark:text-neutral-100">{{ activeQueueCheckoutItem.team_member_name || '-' }}</span>
+                    </div>
+                </div>
+
+                <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                    <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
+                        <div class="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                            {{ $t('reservations.queue.checkout.service_total') }}
+                        </div>
+                        <div class="mt-1 text-lg font-semibold text-stone-900 dark:text-neutral-100">
+                            {{ formatQueueMoney(queueCheckoutBaseAmount, queueCheckoutCurrency) }}
+                        </div>
+                    </div>
+                    <div class="rounded-sm border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-500/30 dark:bg-emerald-500/10">
+                        <div class="text-xs font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                            {{ $t('reservations.queue.checkout.total_to_collect') }}
+                        </div>
+                        <div class="mt-1 text-lg font-semibold text-emerald-800 dark:text-emerald-200">
+                            {{ formatQueueMoney(queueCheckoutChargedTotal, queueCheckoutCurrency) }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <FloatingSelect
+                        v-if="hasMultiplePaymentMethods"
+                        v-model="queueCheckoutForm.method"
+                        :options="queuePaymentMethodOptions"
+                        :label="$t('reservations.queue.checkout.payment_method')"
+                    />
+                    <div v-else class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('reservations.queue.checkout.payment_method') }}</div>
+                        <div class="mt-1 font-medium text-stone-800 dark:text-neutral-100">{{ queuePaymentMethodLabel(queueCheckoutForm.method) }}</div>
+                    </div>
+                </div>
+
+                <div class="mt-4 rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <div class="text-sm font-medium text-stone-800 dark:text-neutral-100">{{ $t('reservations.queue.checkout.tip_title') }}</div>
+                            <div class="mt-0.5 text-xs text-stone-500 dark:text-neutral-400">{{ $t('reservations.queue.checkout.tip_hint') }}</div>
+                        </div>
+                        <button
+                            type="button"
+                            class="rounded-sm px-3 py-1.5 text-xs font-semibold"
+                            :class="queueTipEnabled ? 'bg-emerald-600 text-white' : 'border border-stone-200 text-stone-600 dark:border-neutral-700 dark:text-neutral-300'"
+                            @click="queueTipEnabled = !queueTipEnabled"
+                        >
+                            {{ queueTipEnabled ? $t('reservations.queue.checkout.tip_on') : $t('reservations.queue.checkout.tip_off') }}
+                        </button>
+                    </div>
+
+                    <div v-if="queueTipEnabled" class="mt-3 space-y-3">
+                        <div class="inline-flex rounded-sm border border-stone-200 p-0.5 text-xs font-semibold dark:border-neutral-700">
+                            <button
+                                type="button"
+                                class="rounded-sm px-2.5 py-1.5"
+                                :class="queueTipMode === 'percent' ? 'bg-stone-900 text-white dark:bg-white dark:text-stone-900' : 'text-stone-600 dark:text-neutral-300'"
+                                @click="queueTipMode = 'percent'"
+                            >
+                                {{ $t('reservations.queue.checkout.percent') }}
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-sm px-2.5 py-1.5"
+                                :class="queueTipMode === 'fixed' ? 'bg-stone-900 text-white dark:bg-white dark:text-stone-900' : 'text-stone-600 dark:text-neutral-300'"
+                                @click="queueTipMode = 'fixed'"
+                            >
+                                {{ $t('reservations.queue.checkout.fixed') }}
+                            </button>
+                        </div>
+
+                        <div v-if="queueTipMode === 'percent'" class="flex flex-wrap gap-2">
+                            <button
+                                v-for="percent in queueQuickTipPercents"
+                                :key="`queue-tip-percent-${percent}`"
+                                type="button"
+                                class="rounded-sm border px-2.5 py-1.5 text-xs font-semibold"
+                                :class="Number(queueTipPercent) === Number(percent) ? 'border-emerald-600 bg-emerald-50 text-emerald-700 dark:border-emerald-400 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-stone-200 text-stone-600 dark:border-neutral-700 dark:text-neutral-300'"
+                                @click="queueTipPercent = Number(percent)"
+                            >
+                                {{ percent }}%
+                            </button>
+                            <FloatingInput
+                                v-model="queueTipPercent"
+                                class="min-w-32 flex-1"
+                                type="number"
+                                min="0"
+                                :max="maxQueueTipPercent"
+                                step="0.01"
+                                :label="$t('reservations.queue.checkout.custom_percent')"
+                            />
+                        </div>
+                        <div v-else>
+                            <div class="mb-2 flex flex-wrap gap-2">
+                                <button
+                                    v-for="amount in queueQuickTipFixedAmounts"
+                                    :key="`queue-tip-fixed-${amount}`"
+                                    type="button"
+                                    class="rounded-sm border px-2.5 py-1.5 text-xs font-semibold"
+                                    :class="Number(queueTipFixedAmount) === Number(amount) ? 'border-emerald-600 bg-emerald-50 text-emerald-700 dark:border-emerald-400 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-stone-200 text-stone-600 dark:border-neutral-700 dark:text-neutral-300'"
+                                    @click="queueTipFixedAmount = Number(amount)"
+                                >
+                                    {{ formatQueueMoney(amount, queueCheckoutCurrency) }}
+                                </button>
+                            </div>
+                            <FloatingInput
+                                v-model="queueTipFixedAmount"
+                                type="number"
+                                min="0"
+                                :max="maxQueueTipFixed"
+                                step="0.01"
+                                :label="$t('reservations.queue.checkout.custom_amount')"
+                            />
+                        </div>
+
+                        <div class="flex items-center justify-between rounded-sm bg-stone-50 px-3 py-2 text-sm dark:bg-neutral-800">
+                            <span class="text-stone-500 dark:text-neutral-400">{{ $t('reservations.queue.checkout.tip_amount') }}</span>
+                            <span class="font-semibold text-stone-800 dark:text-neutral-100">{{ formatQueueMoney(queueCheckoutTipAmount, queueCheckoutCurrency) }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                    <FloatingInput v-model="queueCheckoutForm.reference" :label="$t('reservations.queue.checkout.reference')" />
+                    <FloatingTextarea v-model="queueCheckoutForm.notes" :label="$t('reservations.queue.checkout.notes')" />
+                </div>
+
+                <div v-if="queueCheckoutError" class="mt-4 rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+                    {{ queueCheckoutError }}
+                </div>
+
+                <div class="mt-5 flex justify-end gap-2">
+                    <button
+                        type="button"
+                        class="rounded-sm border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-700 dark:border-neutral-700 dark:text-neutral-200"
+                        :disabled="queueCheckoutProcessing"
+                        @click="closeQueueCheckout"
+                    >
+                        {{ $t('reservations.queue.checkout.cancel') }}
+                    </button>
+                    <button
+                        type="submit"
+                        class="rounded-sm bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        :disabled="!canSubmitQueueCheckout || queueCheckoutProcessing"
+                    >
+                        {{ queueCheckoutProcessing ? $t('reservations.queue.checkout.processing') : $t('reservations.queue.checkout.submit') }}
+                    </button>
+                </div>
+            </form>
+        </Modal>
 
         <Modal :show="showEditor" maxWidth="3xl" @close="showEditor = false">
             <div class="p-5">

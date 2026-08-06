@@ -30,6 +30,7 @@ class E2ESmokeSeeder extends Seeder
             'company_features' => [
                 'requests' => true,
                 'quotes' => true,
+                'services' => true,
                 'team_members' => true,
                 'tasks' => true,
             ],

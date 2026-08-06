@@ -7,12 +7,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class ReservationQueueItem extends Model
 {
     use HasFactory;
 
     public const TYPE_APPOINTMENT = 'appointment';
+
     public const TYPE_TICKET = 'ticket';
 
     public const TYPES = [
@@ -21,14 +23,25 @@ class ReservationQueueItem extends Model
     ];
 
     public const STATUS_NOT_ARRIVED = 'not_arrived';
+
     public const STATUS_CHECKED_IN = 'checked_in';
+
     public const STATUS_PRE_CALLED = 'pre_called';
+
     public const STATUS_CALLED = 'called';
+
     public const STATUS_SKIPPED = 'skipped';
+
     public const STATUS_IN_SERVICE = 'in_service';
+
+    public const STATUS_AWAITING_PAYMENT = 'awaiting_payment';
+
     public const STATUS_DONE = 'done';
+
     public const STATUS_NO_SHOW = 'no_show';
+
     public const STATUS_CANCELLED = 'cancelled';
+
     public const STATUS_LEFT = 'left';
 
     public const STATUSES = [
@@ -38,6 +51,7 @@ class ReservationQueueItem extends Model
         self::STATUS_CALLED,
         self::STATUS_SKIPPED,
         self::STATUS_IN_SERVICE,
+        self::STATUS_AWAITING_PAYMENT,
         self::STATUS_DONE,
         self::STATUS_NO_SHOW,
         self::STATUS_CANCELLED,
@@ -51,6 +65,7 @@ class ReservationQueueItem extends Model
         self::STATUS_CALLED,
         self::STATUS_SKIPPED,
         self::STATUS_IN_SERVICE,
+        self::STATUS_AWAITING_PAYMENT,
     ];
 
     public const CALLABLE_STATUSES = [
@@ -144,6 +159,11 @@ class ReservationQueueItem extends Model
         return $this->hasMany(ReservationCheckIn::class);
     }
 
+    public function checkoutPayment(): HasOne
+    {
+        return $this->hasOne(Payment::class, 'reservation_queue_item_id');
+    }
+
     public function scopeForAccount(Builder $query, int $accountId): Builder
     {
         return $query->where('account_id', $accountId);
@@ -154,4 +174,3 @@ class ReservationQueueItem extends Model
         return $query->whereIn('status', self::ACTIVE_STATUSES);
     }
 }
-

@@ -1,16 +1,17 @@
 <?php
 
+use App\Http\Middleware\EnsureCompanyFeature;
+use App\Http\Middleware\EnsureDemoSafeMode;
+use App\Http\Middleware\EnsureTwoFactorVerified;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\ReservationQueueItem;
 use App\Models\Role;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\Work;
 use App\Services\TipAllocationService;
-use App\Http\Middleware\EnsureCompanyFeature;
-use App\Http\Middleware\EnsureDemoSafeMode;
-use App\Http\Middleware\EnsureTwoFactorVerified;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
@@ -28,7 +29,7 @@ function createTipsOwner(): User
 
     return User::query()->create([
         'name' => 'Tips Owner',
-        'email' => 'tips-owner-' . uniqid('', true) . '@example.com',
+        'email' => 'tips-owner-'.uniqid('', true).'@example.com',
         'role_id' => $role->id,
         'password' => 'password',
         'company_name' => 'Tips Company',
@@ -48,7 +49,7 @@ function createTipsEmployee(User $owner, string $name): User
 
     $employee = User::query()->create([
         'name' => $name,
-        'email' => 'tips-employee-' . uniqid('', true) . '@example.com',
+        'email' => 'tips-employee-'.uniqid('', true).'@example.com',
         'role_id' => $role->id,
         'password' => 'password',
         'company_type' => 'services',
@@ -125,12 +126,62 @@ test('owner tips dashboard shows filtered tip data and stats', function () {
         ->get(route('payments.tips.index'));
 
     $response->assertOk();
-    $response->assertInertia(fn(Assert $page) => $page
+    $response->assertInertia(fn (Assert $page) => $page
         ->component('Tips/OwnerIndex')
         ->where('stats.total_tips', 15)
         ->where('stats.reservation_count', 2)
         ->has('payments.data', 2)
         ->where('payments.data.0.team_member_name', 'Team Member One')
+    );
+});
+
+test('owner tips dashboard includes a queue checkout without an invoice number fallback', function () {
+    $owner = createTipsOwner();
+    $employee = createTipsEmployee($owner, 'Queue Tip Member');
+    $teamMember = TeamMember::query()
+        ->where('account_id', $owner->id)
+        ->where('user_id', $employee->id)
+        ->firstOrFail();
+    $queueItem = ReservationQueueItem::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $teamMember->id,
+        'item_type' => ReservationQueueItem::TYPE_TICKET,
+        'source' => 'staff',
+        'queue_number' => 'QUEUE-TIP-001',
+        'status' => ReservationQueueItem::STATUS_DONE,
+        'estimated_duration_minutes' => 30,
+        'finished_at' => now(),
+    ]);
+    $payment = Payment::query()->create([
+        'reservation_queue_item_id' => $queueItem->id,
+        'user_id' => $owner->id,
+        'amount' => 45,
+        'currency_code' => 'CAD',
+        'tip_amount' => 9,
+        'tip_type' => 'percent',
+        'tip_percent' => 20,
+        'tip_base_amount' => 45,
+        'charged_total' => 54,
+        'tip_assignee_user_id' => $employee->id,
+        'method' => 'cash',
+        'provider' => 'manual',
+        'status' => Payment::STATUS_COMPLETED,
+        'paid_at' => now(),
+    ]);
+
+    app(TipAllocationService::class)->syncForPayment($payment);
+
+    $response = $this
+        ->actingAs($owner)
+        ->get(route('payments.tips.index'));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->component('Tips/OwnerIndex')
+        ->where('stats.total_tips', 9)
+        ->where('stats.reservation_count', 1)
+        ->where('payments.data.0.invoice_number', 'QUEUE-TIP-001')
+        ->where('payments.data.0.team_member_name', 'Queue Tip Member')
     );
 });
 
@@ -164,7 +215,7 @@ test('team member tips page shows only own tips and supports anonymized customer
         ->get(route('my-earnings.tips.index'));
 
     $response->assertOk();
-    $response->assertInertia(fn(Assert $page) => $page
+    $response->assertInertia(fn (Assert $page) => $page
         ->component('Tips/MemberIndex')
         ->where('stats.period_total', 10)
         ->has('payments.data', 1)
@@ -175,9 +226,9 @@ test('team member tips page shows only own tips and supports anonymized customer
         ->get(route('my-earnings.tips.index', ['anonymize_customers' => 1]));
 
     $anonymized->assertOk();
-    $anonymized->assertInertia(fn(Assert $page) => $page
+    $anonymized->assertInertia(fn (Assert $page) => $page
         ->component('Tips/MemberIndex')
-        ->where('payments.data.0.customer_name', fn($value) => str_starts_with((string) $value, 'Customer #'))
+        ->where('payments.data.0.customer_name', fn ($value) => str_starts_with((string) $value, 'Customer #'))
     );
 });
 
@@ -198,7 +249,7 @@ test('team member tips page uses net allocation after partial reversal', functio
         ->get(route('my-earnings.tips.index'));
 
     $response->assertOk();
-    $response->assertInertia(fn(Assert $page) => $page
+    $response->assertInertia(fn (Assert $page) => $page
         ->component('Tips/MemberIndex')
         ->where('stats.period_total', 6)
         ->where('payments.data.0.status', 'reversed')

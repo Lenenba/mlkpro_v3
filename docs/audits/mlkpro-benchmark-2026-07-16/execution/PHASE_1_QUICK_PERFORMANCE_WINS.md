@@ -142,5 +142,6 @@ La Phase 1 est terminée lorsque les gains sont mesurés sur les parcours pilote
 ## Documents liés
 
 - [Cockpit](README.md)
+- [Runbook de validation Phase 1](PHASE_1_VALIDATION_RUNBOOK.md)
 - [Phase 0](PHASE_0_SECURITY_AND_BASELINE.md)
 - [Journal de validation](VALIDATION_LOG.md)

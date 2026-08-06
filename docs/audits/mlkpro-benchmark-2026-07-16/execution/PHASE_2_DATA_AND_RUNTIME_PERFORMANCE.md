@@ -115,5 +115,6 @@ La Phase 2 est terminée lorsque les écrans à volume sont bornés, les résult
 ## Documents liés
 
 - [Cockpit](README.md)
+- [Runbook d’exécution et de validation Phase 2](PHASE_2_EXECUTION_RUNBOOK.md)
 - [Phase 1](PHASE_1_QUICK_PERFORMANCE_WINS.md)
 - [Journal de validation](VALIDATION_LOG.md)
