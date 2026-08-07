@@ -1262,6 +1262,21 @@ class DemoWorkspaceController extends BaseSuperAdminController
             })
             ->filter()
             ->implode("\n");
+        $clientPortalAccess = collect((array) data_get($workspace->seed_summary, 'client_portal_credentials', []))
+            ->filter(fn (mixed $credential): bool => is_array($credential))
+            ->map(function (array $credential) {
+                $name = trim((string) ($credential['name'] ?? 'Client')) ?: 'Client';
+                $email = trim((string) ($credential['email'] ?? ''));
+                $password = (string) ($credential['password'] ?? '');
+
+                if ($email === '' || $password === '') {
+                    return null;
+                }
+
+                return sprintf('%s: %s / %s', $name, $email, $password);
+            })
+            ->filter()
+            ->implode("\n");
 
         return implode("\n", array_filter([
             'Demo workspace: '.$workspace->company_name,
@@ -1275,6 +1290,7 @@ class DemoWorkspaceController extends BaseSuperAdminController
             $moduleLabels !== '' ? 'Modules: '.$moduleLabels : null,
             $scenarioLabels !== '' ? 'Scenario packs: '.$scenarioLabels : null,
             $extraAccess !== '' ? "Extra role logins:\n".$extraAccess : null,
+            $clientPortalAccess !== '' ? "Client portal login:\n".$clientPortalAccess : null,
             $workspace->suggested_flow ? "Suggested testing path:\n".$workspace->suggested_flow : null,
         ]));
     }

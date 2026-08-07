@@ -73,6 +73,11 @@ const formatDateTime = (value) => value ? new Date(value).toLocaleString() : 'No
 const formatNumber = (value) => new Intl.NumberFormat().format(Number(value || 0));
 
 const selectedModules = computed(() => props.workspace.selected_modules || []);
+const clientPortalCredentials = computed(() => {
+    const credentials = props.workspace.seed_summary?.client_portal_credentials;
+
+    return Array.isArray(credentials) ? credentials : [];
+});
 const showFinanceSnapshot = computed(() => selectedModules.value.includes('expenses') || selectedModules.value.includes('accounting'));
 const financeSnapshotCards = computed(() => {
     const summary = props.workspace.seed_summary || {};
@@ -700,7 +705,7 @@ const copyAccessKit = async () => {
                     </section>
 
                     <section class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <div class="text-xs uppercase tracking-[0.2em] text-stone-500 dark:text-neutral-400">Extra role logins</div>
+                        <div class="text-xs uppercase tracking-[0.2em] text-stone-500 dark:text-neutral-400">Demo logins</div>
                         <div class="mt-3 space-y-3">
                             <div v-for="credential in workspace.extra_access_credentials || []" :key="`${workspace.id}-${credential.role_key}`" class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
                                 <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -747,7 +752,17 @@ const copyAccessKit = async () => {
                                 </div>
                             </div>
 
-                            <div v-if="!(workspace.extra_access_credentials || []).length" class="text-sm text-stone-500 dark:text-neutral-400">
+                            <div v-for="credential in clientPortalCredentials" :key="`${workspace.id}-client-${credential.email}`" class="rounded-sm border border-blue-200 bg-blue-50 p-3 dark:border-blue-900 dark:bg-blue-950/30">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Client portal · {{ credential.name || 'Demo client' }}</div>
+                                    <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-1 text-[11px] font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-200">Active</span>
+                                </div>
+                                <div class="mt-2 text-xs text-stone-600 dark:text-neutral-300">
+                                    {{ credential.email }} · {{ credential.password }}
+                                </div>
+                            </div>
+
+                            <div v-if="!(workspace.extra_access_credentials || []).length && !clientPortalCredentials.length" class="text-sm text-stone-500 dark:text-neutral-400">
                                 No secondary login exposed for this demo.
                             </div>
                         </div>

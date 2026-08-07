@@ -160,7 +160,7 @@ class HandleInertiaRequests extends Middleware
         if ($user && ($user->is_demo || $user->is_demo_user)) {
             $demoWorkspace = DemoWorkspace::query()
                 ->select(['id', 'owner_user_id', 'company_name', 'prospect_name', 'expires_at'])
-                ->where('owner_user_id', $user->accountOwnerId())
+                ->where('owner_user_id', $accountOwner?->id ?? $user->accountOwnerId())
                 ->first();
         }
 

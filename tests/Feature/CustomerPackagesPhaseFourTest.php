@@ -151,6 +151,36 @@ it('consumes a matching customer forfait when a reservation is completed', funct
     Carbon::setTestNow();
 });
 
+it('does not consume a forfait for a reservation using another service', function () {
+    Carbon::setTestNow(Carbon::parse('2026-05-11 12:00:00', 'UTC'));
+
+    $owner = customerPackagesPhaseFourOwner();
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $includedService = customerPackagesPhaseFourProduct($owner);
+    $otherService = customerPackagesPhaseFourProduct($owner, ['name' => 'Another reservation service']);
+    $offer = customerPackagesPhaseFourOffer($owner, $includedService);
+
+    $package = app(CustomerPackageService::class)->assign($owner, $customer, $offer, [
+        'starts_at' => '2026-05-01',
+        'initial_quantity' => 5,
+    ]);
+    $reservation = customerPackagesPhaseFourReservation($owner, $customer, $otherService);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->patchJson(route('reservation.status', $reservation), [
+            'status' => Reservation::STATUS_COMPLETED,
+        ])
+        ->assertOk();
+
+    expect($package->fresh()->remaining_quantity)->toBe(5)
+        ->and(CustomerPackageUsage::query()->active()->count())->toBe(0)
+        ->and(data_get($reservation->fresh()->metadata, 'customer_package.status'))->toBe('skipped')
+        ->and(data_get($reservation->fresh()->metadata, 'customer_package.reason'))->toBe('no_eligible_customer_package');
+
+    Carbon::setTestNow();
+});
+
 it('restores an automatic reservation consumption when completion is reversed', function () {
     Carbon::setTestNow(Carbon::parse('2026-05-11 12:00:00', 'UTC'));
 

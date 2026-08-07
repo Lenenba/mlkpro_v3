@@ -429,6 +429,28 @@ const applyPreset = (preset) => {
     form.demo_workspace_template_id = null;
     form.company_type = preset.company_type;
     form.company_sector = preset.company_sector;
+    for (const field of [
+        'prospect_name',
+        'prospect_email',
+        'prospect_company',
+        'company_name',
+        'seed_profile',
+        'team_size',
+        'locale',
+        'timezone',
+        'desired_outcome',
+        'internal_notes',
+        'prefill_source',
+    ]) {
+        if (preset[field] !== undefined && preset[field] !== null) {
+            form[field] = preset[field];
+        }
+    }
+
+    if (preset.prefill_payload && typeof preset.prefill_payload === 'object') {
+        form.prefill_payload = cloneDeep(preset.prefill_payload);
+    }
+
     form.selected_modules = [...(preset.modules || [])];
     form.scenario_packs = [...(preset.scenario_packs || [])];
     form.extra_access_roles = [...(preset.extra_access_roles || form.extra_access_roles || [])];

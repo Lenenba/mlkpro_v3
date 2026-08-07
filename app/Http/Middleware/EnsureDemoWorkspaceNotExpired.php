@@ -26,9 +26,14 @@ class EnsureDemoWorkspaceNotExpired
             return $next($request);
         }
 
+        $ownerId = $user->accountOwnerId();
+        if ($user->isClient()) {
+            $ownerId = (int) ($user->customerProfile()->value('user_id') ?: $ownerId);
+        }
+
         $workspace = DemoWorkspace::query()
             ->select(['id', 'expires_at'])
-            ->where('owner_user_id', $user->accountOwnerId())
+            ->where('owner_user_id', $ownerId)
             ->first();
 
         if (! $workspace || ! $workspace->isExpired()) {

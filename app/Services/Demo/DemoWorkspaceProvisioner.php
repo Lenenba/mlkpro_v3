@@ -2,6 +2,9 @@
 
 namespace App\Services\Demo;
 
+use App\Enums\PromotionDiscountType;
+use App\Enums\PromotionStatus;
+use App\Enums\PromotionTargetType;
 use App\Models\AccountingEntry;
 use App\Models\AccountingEntryBatch;
 use App\Models\AccountingExport;
@@ -9,6 +12,8 @@ use App\Models\AccountingPeriod;
 use App\Models\AvailabilityException;
 use App\Models\Campaign;
 use App\Models\Customer;
+use App\Models\CustomerPackage;
+use App\Models\CustomerPackageUsage;
 use App\Models\DemoWorkspace;
 use App\Models\Expense;
 use App\Models\ExpenseAttachment;
@@ -16,9 +21,12 @@ use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\LoyaltyProgram;
 use App\Models\MailingList;
+use App\Models\OfferPackage;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\Promotion;
+use App\Models\PublicBookingLink;
 use App\Models\Quote;
 use App\Models\Request as LeadRequest;
 use App\Models\Reservation;
@@ -30,6 +38,7 @@ use App\Models\Role;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\ServiceRequest;
+use App\Models\SocialPost;
 use App\Models\Task;
 use App\Models\TeamMember;
 use App\Models\TeamMemberShift;
@@ -37,10 +46,16 @@ use App\Models\User;
 use App\Models\VipTier;
 use App\Models\WeeklyAvailability;
 use App\Models\Work;
+use App\Modules\AiAssistant\Models\AiAssistantSetting;
+use App\Modules\AiAssistant\Models\AiKnowledgeItem;
 use App\Services\AccountDeletionService;
 use App\Services\Accounting\AccountingPeriodService;
 use App\Services\Accounting\AccountingSyncService;
 use App\Services\Campaigns\MarketingSettingsService;
+use App\Services\OfferPackages\OfferPackageSalesLineBuilder;
+use App\Services\ReservationAvailabilityService;
+use App\Services\ReservationQueueCheckoutService;
+use App\Services\ReservationQueueService;
 use App\Support\CampaignTemplateLanguage;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
@@ -1074,12 +1089,13 @@ class DemoWorkspaceProvisioner
     }
 
     /**
-     * @return array<string, int>
+     * @return array<string, mixed>
      */
     private function seedEnvironment(User $owner, DemoWorkspace $workspace): array
     {
         $selectedModules = $workspace->selected_modules ?? [];
         $counts = $this->catalog->seedCounts($workspace->seed_profile);
+        $isSalonEclat = $this->isSalonEclatWorkspace($workspace);
 
         $teamMembers = $this->createTeamMembers(
             $owner,
@@ -1087,12 +1103,32 @@ class DemoWorkspaceProvisioner
             max(1, (int) $workspace->team_size),
             max(1, (int) ($counts['team'] ?? 1)),
             (string) $workspace->company_sector,
-            $workspace->extra_access_roles ?? []
+            $workspace->extra_access_roles ?? [],
+            $isSalonEclat
         );
-        $catalog = $this->createCatalog($owner, $selectedModules, (int) ($counts['catalog'] ?? 0), (string) $workspace->company_sector);
-        $customers = $this->createCustomers($owner, (int) ($counts['customers'] ?? 0), (string) $workspace->company_sector);
+        $catalog = $this->createCatalog(
+            $owner,
+            $selectedModules,
+            (int) ($counts['catalog'] ?? 0),
+            (string) $workspace->company_sector,
+            $isSalonEclat
+        );
+        $customers = $this->createCustomers(
+            $owner,
+            (int) ($counts['customers'] ?? 0),
+            (string) $workspace->company_sector,
+            $isSalonEclat
+        );
+        $publicBookingLinks = $this->createSalonEclatPublicBookingLink(
+            $owner,
+            $selectedModules,
+            $catalog['services'],
+            $isSalonEclat
+        );
 
-        $loyalty = $this->createLoyaltySetup($owner, $selectedModules, $customers);
+        $loyalty = $this->createLoyaltySetup($owner, $selectedModules, $customers, $isSalonEclat);
+        $offerSummary = $this->createSalonEclatOfferPackages($owner, $catalog['services'], $customers, $isSalonEclat);
+        $promotion = $this->createSalonEclatPromotion($owner, $selectedModules, $catalog['services'], $isSalonEclat);
         $requests = $this->createRequests($owner, $selectedModules, $customers, $teamMembers, (int) ($counts['quotes'] ?? 0), $catalog['services']);
         $quotes = $this->createQuotes($owner, $selectedModules, $customers, $requests, $catalog, (int) ($counts['quotes'] ?? 0));
         $serviceRequests = $this->syncServiceRequestsFromLeads($requests);
@@ -1104,7 +1140,8 @@ class DemoWorkspaceProvisioner
             $customers,
             $works,
             $catalog['services'],
-            $teamMembers
+            $teamMembers,
+            $isSalonEclat
         );
         $reservationSummary = $this->createReservationFlow(
             $owner,
@@ -1114,9 +1151,17 @@ class DemoWorkspaceProvisioner
             $teamMembers,
             (int) ($counts['reservations'] ?? 0),
             (int) ($counts['queue'] ?? 0),
-            (string) $workspace->company_sector
+            (string) $workspace->company_sector,
+            $isSalonEclat
         );
-        $sales = $this->createSales($owner, $selectedModules, $customers, $catalog['products'], (int) ($counts['sales'] ?? 0));
+        $sales = $this->createSales(
+            $owner,
+            $selectedModules,
+            $customers,
+            $catalog['products'],
+            (int) ($counts['sales'] ?? 0),
+            $isSalonEclat
+        );
         $expenses = $this->createExpenses(
             $owner,
             $selectedModules,
@@ -1125,7 +1170,9 @@ class DemoWorkspaceProvisioner
             (int) ($counts['expenses'] ?? 0),
             (string) $workspace->company_sector
         );
-        $marketing = $this->createMarketing($owner, $selectedModules, $customers);
+        $marketing = $this->createMarketing($owner, $selectedModules, $customers, $promotion, $isSalonEclat);
+        $assistantSummary = $this->createSalonEclatAssistant($owner, $selectedModules, $isSalonEclat);
+        $socialPosts = $this->createSalonEclatSocialContent($owner, $selectedModules, $isSalonEclat);
         $accountingSummary = $this->createAccountingSummary($owner, $selectedModules);
 
         return [
@@ -1138,10 +1185,14 @@ class DemoWorkspaceProvisioner
             'quotes' => $quotes->count(),
             'works' => $works->count(),
             'tasks' => $tasks->count(),
-            'invoices' => $invoices->count(),
+            'invoices' => Invoice::query()->where('user_id', $owner->id)->count(),
+            'payments' => Payment::query()->where('user_id', $owner->id)->count(),
             'reservations' => $reservationSummary['reservations'],
             'queue_items' => $reservationSummary['queue_items'],
             'waitlist_entries' => $reservationSummary['waitlist_entries'],
+            'completed_checkouts' => $reservationSummary['completed_checkouts'],
+            'checkout_invoices' => $reservationSummary['checkout_invoices'],
+            'checkout_payments' => $reservationSummary['checkout_payments'],
             'sales' => $sales->count(),
             'expenses' => $expenses->count(),
             'expenses_due' => $expenses->where('status', Expense::STATUS_DUE)->count(),
@@ -1152,8 +1203,67 @@ class DemoWorkspaceProvisioner
             'campaigns' => $marketing['campaigns'],
             'mailing_lists' => $marketing['mailing_lists'],
             'loyalty_program_enabled' => $loyalty ? 1 : 0,
+            'offer_packages' => $offerSummary['offer_packages'],
+            'customer_packages' => $offerSummary['customer_packages'],
+            'package_usages' => $offerSummary['package_usages'],
+            'promotions' => $promotion ? 1 : 0,
+            'assistant_settings' => $assistantSummary['settings'],
+            'assistant_knowledge_items' => $assistantSummary['knowledge_items'],
+            'social_posts' => $socialPosts,
+            'public_booking_links' => $publicBookingLinks,
+            'client_portal_accounts' => $customers->whereNotNull('portal_user_id')->count(),
+            'client_portal_credentials' => $customers
+                ->whereNotNull('portal_user_id')
+                ->map(fn (Customer $customer) => [
+                    'name' => trim($customer->first_name.' '.$customer->last_name),
+                    'email' => $customer->email,
+                    'password' => 'password',
+                    'login_url' => url('/login'),
+                ])
+                ->values()
+                ->all(),
             ...$accountingSummary,
         ];
+    }
+
+    private function isSalonEclatWorkspace(DemoWorkspace $workspace): bool
+    {
+        return (string) $workspace->company_sector === 'salon'
+            && in_array('salon_eclat_complete', $workspace->scenario_packs ?? [], true);
+    }
+
+    /**
+     * @param  array<int, string>  $selectedModules
+     * @param  Collection<int, Product>  $services
+     */
+    private function createSalonEclatPublicBookingLink(
+        User $owner,
+        array $selectedModules,
+        Collection $services,
+        bool $isSalonEclat
+    ): int {
+        if (! $isSalonEclat || ! in_array('reservations', $selectedModules, true) || $services->isEmpty()) {
+            return 0;
+        }
+
+        $link = PublicBookingLink::query()->create([
+            'account_id' => $owner->id,
+            'name' => 'Réserver chez Salon Éclat',
+            'slug' => 'rendez-vous',
+            'description' => 'Réservation publique des coupes, couleurs, soins et services barbier.',
+            'is_active' => true,
+            'requires_manual_confirmation' => false,
+            'requires_deposit' => false,
+            'source' => 'salon_eclat_demo',
+            'campaign' => 'always_on_booking',
+            'metadata' => [
+                'seed_source' => 'salon_eclat_complete',
+                'accent_color' => '#0f766e',
+            ],
+        ]);
+        $link->services()->sync($services->pluck('id')->all());
+
+        return 1;
     }
 
     /**
@@ -1210,7 +1320,8 @@ class DemoWorkspaceProvisioner
         int $requestedTeamSize,
         int $profileTeamSize,
         string $sector,
-        array $requiredAccessRoles = []
+        array $requiredAccessRoles = [],
+        bool $isSalonEclat = false
     ): Collection {
         $needsTeam = collect(['team_members', 'jobs', 'tasks', 'reservations', 'planning'])
             ->intersect($selectedModules)
@@ -1220,13 +1331,15 @@ class DemoWorkspaceProvisioner
             return collect();
         }
 
-        $targetCount = max(
-            1,
-            $requestedTeamSize,
-            min($profileTeamSize, 6),
-            $this->minimumTeamCountForAccessRoles($requiredAccessRoles)
-        );
-        $profiles = $this->teamProfilesForSector($sector);
+        $profiles = $this->teamProfilesForSector($sector, $isSalonEclat);
+        $targetCount = $isSalonEclat
+            ? count($profiles)
+            : max(
+                1,
+                $requestedTeamSize,
+                min($profileTeamSize, 6),
+                $this->minimumTeamCountForAccessRoles($requiredAccessRoles)
+            );
 
         return collect(range(1, $targetCount))->map(function (int $index) use ($owner, $profiles) {
             $profile = $profiles[($index - 1) % count($profiles)];
@@ -1273,27 +1386,46 @@ class DemoWorkspaceProvisioner
      * @param  array<int, string>  $selectedModules
      * @return array{services: Collection<int, Product>, products: Collection<int, Product>}
      */
-    private function createCatalog(User $owner, array $selectedModules, int $catalogCount, string $sector): array
-    {
+    private function createCatalog(
+        User $owner,
+        array $selectedModules,
+        int $catalogCount,
+        string $sector,
+        bool $isSalonEclat = false
+    ): array {
         $services = collect();
         $products = collect();
         $total = max(4, $catalogCount);
 
         if (in_array('services', $selectedModules, true)) {
-            $serviceCategory = ProductCategory::create([
-                'name' => 'Signature services',
-                'user_id' => $owner->id,
-                'created_by_user_id' => $owner->id,
-            ]);
+            $serviceProfiles = collect($this->serviceCatalogForSector($sector, $isSalonEclat));
+            $serviceCategories = $serviceProfiles
+                ->map(fn (array $item) => (string) ($item['category'] ?? 'Signature services'))
+                ->unique()
+                ->mapWithKeys(function (string $category) use ($owner) {
+                    $model = ProductCategory::create([
+                        'name' => $category,
+                        'user_id' => $owner->id,
+                        'created_by_user_id' => $owner->id,
+                    ]);
 
-            $services = collect($this->serviceCatalogForSector($sector))
-                ->take(max(4, (int) ceil($total / 2)))
+                    return [$category => $model];
+                });
+
+            $services = $serviceProfiles
+                ->take($isSalonEclat ? $serviceProfiles->count() : max(4, (int) ceil($total / 2)))
                 ->values()
-                ->map(function (array $item) use ($owner, $serviceCategory) {
+                ->map(function (array $item) use ($owner, $serviceCategories, $isSalonEclat) {
+                    $category = (string) ($item['category'] ?? 'Signature services');
+
                     return Product::create([
                         'name' => $item['name'],
                         'description' => $item['description'],
-                        'category_id' => $serviceCategory->id,
+                        'tags' => array_values(array_filter([
+                            $isSalonEclat ? 'salon-eclat' : null,
+                            isset($item['duration']) ? 'duration-'.$item['duration'].'-minutes' : null,
+                        ])),
+                        'category_id' => $serviceCategories[$category]->id,
                         'stock' => 0,
                         'minimum_stock' => 0,
                         'price' => $item['price'],
@@ -1301,7 +1433,7 @@ class DemoWorkspaceProvisioner
                         'unit' => 'service',
                         'cost_price' => round($item['price'] * 0.35, 2),
                         'margin_percent' => 65,
-                        'tax_rate' => 15,
+                        'tax_rate' => $isSalonEclat ? 14.975 : 15,
                         'is_active' => true,
                         'user_id' => $owner->id,
                         'item_type' => Product::ITEM_TYPE_SERVICE,
@@ -1312,29 +1444,29 @@ class DemoWorkspaceProvisioner
 
         if (in_array('products', $selectedModules, true)) {
             $productCategory = ProductCategory::create([
-                'name' => 'Featured products',
+                'name' => $isSalonEclat ? 'Produits capillaires' : 'Featured products',
                 'user_id' => $owner->id,
                 'created_by_user_id' => $owner->id,
             ]);
 
-            $products = collect($this->productCatalogForSector($sector))
+            $products = collect($this->productCatalogForSector($sector, $isSalonEclat))
                 ->take(max(4, $total))
                 ->values()
-                ->map(function (array $item, int $index) use ($owner, $productCategory) {
+                ->map(function (array $item, int $index) use ($owner, $productCategory, $isSalonEclat) {
                     return Product::create([
                         'name' => $item['name'],
                         'description' => $item['description'],
                         'category_id' => $productCategory->id,
-                        'stock' => 20 + ($index * 3),
-                        'minimum_stock' => 5,
+                        'stock' => (int) ($item['stock'] ?? (20 + ($index * 3))),
+                        'minimum_stock' => (int) ($item['minimum_stock'] ?? 5),
                         'price' => $item['price'],
                         'currency_code' => $owner->businessCurrencyCode(),
                         'sku' => 'DEMO-'.str_pad((string) ($index + 1), 3, '0', STR_PAD_LEFT),
                         'unit' => 'item',
-                        'supplier_name' => 'Demo Supplier Co.',
+                        'supplier_name' => $item['supplier'] ?? 'Demo Supplier Co.',
                         'cost_price' => round($item['price'] * 0.52, 2),
                         'margin_percent' => 48,
-                        'tax_rate' => 15,
+                        'tax_rate' => $isSalonEclat ? 14.975 : 15,
                         'is_active' => true,
                         'user_id' => $owner->id,
                         'item_type' => Product::ITEM_TYPE_PRODUCT,
@@ -1349,74 +1481,360 @@ class DemoWorkspaceProvisioner
         ];
     }
 
-    private function createCustomers(User $owner, int $count, string $sector): Collection
+    private function createCustomers(User $owner, int $count, string $sector, bool $isSalonEclat = false): Collection
     {
-        $profiles = $this->customerProfilesForSector($sector);
-        $target = max(6, $count);
+        $profiles = $this->customerProfilesForSector($sector, $isSalonEclat);
+        $target = $isSalonEclat ? max(count($profiles), $count) : max(6, $count);
 
-        return collect(range(1, $target))->map(function (int $index) use ($owner, $profiles) {
+        return collect(range(1, $target))->map(function (int $index) use ($owner, $profiles, $isSalonEclat) {
             $profile = $profiles[($index - 1) % count($profiles)];
 
-            return Customer::create([
+            $customer = Customer::create([
                 'user_id' => $owner->id,
                 'first_name' => (string) $profile['first_name'],
                 'last_name' => (string) $profile['last_name'],
-                'company_name' => $profile['company_name'],
-                'email' => strtolower($profile['first_name'].'.'.$profile['last_name']).'+'.$owner->id.$index.'@example.test',
+                'company_name' => $profile['company_name'] ?? null,
+                'email' => Str::slug($profile['first_name'].'.'.$profile['last_name'], '.').'+'.$owner->id.$index.'@example.test',
                 'phone' => $this->phoneForIndex($index + 20),
                 'description' => (string) $profile['description'],
                 'tags' => $profile['tags'],
-                'refer_by' => 'Website form',
-                'salutation' => 'Mr',
+                'logo' => $profile['logo'] ?? null,
+                'refer_by' => $profile['refer_by'] ?? 'Website form',
+                'salutation' => $profile['salutation'] ?? 'Mr',
                 'billing_same_as_physical' => true,
-                'discount_rate' => $index % 5 === 0 ? 10 : 0,
+                'discount_rate' => $profile['discount_rate'] ?? ($index % 5 === 0 ? 10 : 0),
                 'is_active' => true,
                 'portal_access' => false,
                 'loyalty_points_balance' => 0,
             ]);
+
+            $customerName = trim($customer->first_name.' '.$customer->last_name);
+            if ($isSalonEclat && $customerName === 'Marie Lefebvre') {
+                $portalEmail = Str::slug($customerName, '.').'.salon-eclat-'.$owner->id.'@example.test';
+                $portalUser = User::query()->create([
+                    'name' => $customerName,
+                    'email' => $portalEmail,
+                    'password' => Hash::make('password'),
+                    'role_id' => $this->resolveRoleId('client', 'Client role'),
+                    'locale' => $owner->locale,
+                    'currency_code' => $owner->businessCurrencyCode(),
+                    'company_name' => $owner->company_name,
+                    'company_type' => $owner->company_type,
+                    'company_sector' => $owner->company_sector,
+                    'company_timezone' => $owner->company_timezone,
+                    'email_verified_at' => now(),
+                    'onboarding_completed_at' => now(),
+                    'is_demo' => true,
+                    'demo_type' => 'custom',
+                    'is_demo_user' => true,
+                    'demo_role' => 'custom_demo_client',
+                ]);
+
+                $customer->forceFill([
+                    'email' => $portalEmail,
+                    'portal_user_id' => $portalUser->id,
+                    'portal_access' => true,
+                ])->save();
+            }
+
+            return $customer;
         })->values();
     }
 
     /**
      * @param  array<int, string>  $selectedModules
      */
-    private function createLoyaltySetup(User $owner, array $selectedModules, Collection $customers): ?LoyaltyProgram
-    {
+    private function createLoyaltySetup(
+        User $owner,
+        array $selectedModules,
+        Collection $customers,
+        bool $isSalonEclat = false
+    ): ?LoyaltyProgram {
         if (! in_array('loyalty', $selectedModules, true)) {
             return null;
         }
 
-        $vipTier = VipTier::create([
-            'user_id' => $owner->id,
-            'created_by_user_id' => $owner->id,
-            'updated_by_user_id' => $owner->id,
-            'code' => 'VIP-GOLD',
-            'name' => 'Gold',
-            'perks' => [
-                'Priority booking',
-                'Early access to launches',
-                'Preferred service slots',
-            ],
-            'is_active' => true,
-        ]);
+        $tierProfiles = $isSalonEclat ? [
+            ['code' => 'VIP-BRONZE', 'name' => 'Bronze', 'perks' => ['Offres membres', 'Rappel prioritaire']],
+            ['code' => 'VIP-ARGENT', 'name' => 'Argent', 'perks' => ['Réservation prioritaire', 'Soin anniversaire']],
+            ['code' => 'VIP-OR', 'name' => 'Or', 'perks' => ['Créneaux privilégiés', 'Avant-premières', 'Diagnostic offert']],
+        ] : [
+            ['code' => 'VIP-GOLD', 'name' => 'Gold', 'perks' => ['Priority booking', 'Early access to launches', 'Preferred service slots']],
+        ];
+        $vipTiers = collect($tierProfiles)->mapWithKeys(function (array $profile) use ($owner) {
+            $tier = VipTier::create([
+                'user_id' => $owner->id,
+                'created_by_user_id' => $owner->id,
+                'updated_by_user_id' => $owner->id,
+                ...$profile,
+                'is_active' => true,
+            ]);
 
-        $customers->take(min(3, $customers->count()))->each(function (Customer $customer) use ($vipTier) {
-            $customer->forceFill([
-                'is_vip' => true,
-                'vip_tier_id' => $vipTier->id,
-                'vip_tier_code' => $vipTier->code,
-                'vip_since_at' => now()->subMonths(4),
-                'loyalty_points_balance' => 1200,
-            ])->save();
+            return [$profile['code'] => $tier];
         });
+
+        if ($isSalonEclat) {
+            $customerTiers = [
+                'Marie Lefebvre' => ['VIP-ARGENT', 1850],
+                'Fatou Camara' => ['VIP-OR', 2450],
+                'Thomas Roy' => ['VIP-BRONZE', 640],
+            ];
+
+            $customers->each(function (Customer $customer) use ($customerTiers, $vipTiers) {
+                $name = trim($customer->first_name.' '.$customer->last_name);
+                [$tierCode, $points] = $customerTiers[$name] ?? [null, null];
+
+                if (! $tierCode || ! isset($vipTiers[$tierCode])) {
+                    return;
+                }
+
+                $tier = $vipTiers[$tierCode];
+                $customer->forceFill([
+                    'is_vip' => true,
+                    'vip_tier_id' => $tier->id,
+                    'vip_tier_code' => $tier->code,
+                    'vip_since_at' => now()->subMonths($tierCode === 'VIP-OR' ? 18 : 8),
+                    'loyalty_points_balance' => $points,
+                ])->save();
+            });
+        } else {
+            $vipTier = $vipTiers->first();
+            $customers->take(min(3, $customers->count()))->each(function (Customer $customer) use ($vipTier) {
+                $customer->forceFill([
+                    'is_vip' => true,
+                    'vip_tier_id' => $vipTier->id,
+                    'vip_tier_code' => $vipTier->code,
+                    'vip_since_at' => now()->subMonths(4),
+                    'loyalty_points_balance' => 1200,
+                ])->save();
+            });
+        }
 
         return LoyaltyProgram::create([
             'user_id' => $owner->id,
             'is_enabled' => true,
             'points_per_currency_unit' => 1,
-            'minimum_spend' => 25,
+            'minimum_spend' => $isSalonEclat ? 20 : 25,
             'rounding_mode' => LoyaltyProgram::ROUND_FLOOR,
-            'points_label' => 'Points',
+            'points_label' => $isSalonEclat ? 'points' : 'Points',
+        ]);
+    }
+
+    /**
+     * @param  Collection<int, Product>  $services
+     * @param  Collection<int, Customer>  $customers
+     * @return array{offer_packages:int, customer_packages:int, package_usages:int}
+     */
+    private function createSalonEclatOfferPackages(
+        User $owner,
+        Collection $services,
+        Collection $customers,
+        bool $isSalonEclat
+    ): array {
+        if (! $isSalonEclat || $services->isEmpty()) {
+            return [
+                'offer_packages' => 0,
+                'customer_packages' => 0,
+                'package_usages' => 0,
+            ];
+        }
+
+        $profiles = [
+            [
+                'name' => 'Carte 10 brushings',
+                'description' => 'Dix séances de brushing à utiliser pendant douze mois.',
+                'price' => 300,
+                'validity_days' => 365,
+                'included_quantity' => 10,
+                'service' => 'Brushing seul',
+                'is_public' => true,
+                'is_recurring' => false,
+            ],
+            [
+                'name' => 'Abonnement Barbe',
+                'description' => 'Deux tailles de barbe par mois avec renouvellement automatique.',
+                'price' => 40,
+                'validity_days' => null,
+                'included_quantity' => 2,
+                'service' => 'Taille de barbe',
+                'is_public' => true,
+                'is_recurring' => true,
+            ],
+            [
+                'name' => 'Forfait Couleur Trimestre',
+                'description' => 'Trois couleurs racines à utiliser sur une période de six mois.',
+                'price' => 255,
+                'validity_days' => 183,
+                'included_quantity' => 3,
+                'service' => 'Couleur racines',
+                'is_public' => false,
+                'is_recurring' => false,
+            ],
+        ];
+
+        $offers = collect($profiles)->mapWithKeys(function (array $profile) use ($owner, $services) {
+            $offer = OfferPackage::query()->create([
+                'user_id' => $owner->id,
+                'name' => $profile['name'],
+                'type' => OfferPackage::TYPE_FORFAIT,
+                'status' => OfferPackage::STATUS_ACTIVE,
+                'description' => $profile['description'],
+                'pricing_mode' => OfferPackage::PRICING_FIXED,
+                'price' => $profile['price'],
+                'currency_code' => $owner->businessCurrencyCode(),
+                'validity_days' => $profile['validity_days'],
+                'included_quantity' => $profile['included_quantity'],
+                'unit_type' => OfferPackage::UNIT_SESSION,
+                'is_public' => $profile['is_public'],
+                'is_recurring' => $profile['is_recurring'],
+                'recurrence_frequency' => $profile['is_recurring'] ? OfferPackage::RECURRENCE_MONTHLY : null,
+                'renewal_notice_days' => $profile['is_recurring'] ? 7 : null,
+                'metadata' => [
+                    'seed_source' => 'salon_eclat_complete',
+                    'recurrence' => [
+                        'carry_over_unused_balance' => false,
+                        'payment_grace_days' => 5,
+                        'payment_reminder_days' => [0, 3],
+                    ],
+                ],
+            ]);
+            $service = $services->firstWhere('name', $profile['service']);
+
+            if ($service) {
+                $offer->items()->create([
+                    'product_id' => $service->id,
+                    'item_type_snapshot' => Product::ITEM_TYPE_SERVICE,
+                    'name_snapshot' => $service->name,
+                    'description_snapshot' => $service->description,
+                    'quantity' => $profile['included_quantity'],
+                    'unit_price' => $service->price,
+                    'included' => true,
+                    'is_optional' => false,
+                    'sort_order' => 0,
+                    'metadata' => ['seed_source' => 'salon_eclat_complete'],
+                ]);
+            }
+
+            return [$offer->name => $offer];
+        });
+
+        $assignments = [
+            'Marie Lefebvre' => ['Carte 10 brushings', 10, 3],
+            'Thomas Roy' => ['Abonnement Barbe', 2, 1],
+            'Fatou Camara' => ['Forfait Couleur Trimestre', 3, 1],
+        ];
+        $customerPackages = collect();
+
+        $customers->each(function (Customer $customer) use ($owner, $offers, $assignments, $customerPackages) {
+            $customerName = trim($customer->first_name.' '.$customer->last_name);
+            [$offerName, $initialQuantity, $consumedQuantity] = $assignments[$customerName] ?? [null, 0, 0];
+            $offer = $offerName ? $offers->get($offerName) : null;
+
+            if (! $offer) {
+                return;
+            }
+
+            $startsAt = $offer->is_recurring
+                ? now()->subWeek()->startOfDay()
+                : now()->subMonths(3)->startOfDay();
+            $periodEnd = $offer->is_recurring ? $startsAt->copy()->addMonth()->subDay() : null;
+            $package = CustomerPackage::query()->create([
+                'user_id' => $owner->id,
+                'customer_id' => $customer->id,
+                'offer_package_id' => $offer->id,
+                'status' => CustomerPackage::STATUS_ACTIVE,
+                'starts_at' => $startsAt->toDateString(),
+                'expires_at' => $offer->validity_days ? $startsAt->copy()->addDays($offer->validity_days)->toDateString() : $periodEnd?->toDateString(),
+                'initial_quantity' => $initialQuantity,
+                'consumed_quantity' => $consumedQuantity,
+                'remaining_quantity' => $initialQuantity - $consumedQuantity,
+                'unit_type' => OfferPackage::UNIT_SESSION,
+                'price_paid' => $offer->price,
+                'currency_code' => $owner->businessCurrencyCode(),
+                'is_recurring' => $offer->is_recurring,
+                'recurrence_frequency' => $offer->recurrence_frequency,
+                'recurrence_status' => $offer->is_recurring ? CustomerPackage::RECURRENCE_ACTIVE : null,
+                'current_period_starts_at' => $offer->is_recurring ? $startsAt->toDateString() : null,
+                'current_period_ends_at' => $periodEnd?->toDateString(),
+                'next_renewal_at' => $offer->is_recurring ? $startsAt->copy()->addMonth()->toDateString() : null,
+                'renewal_count' => $offer->is_recurring ? 1 : 0,
+                'source_details' => array_replace(
+                    app(OfferPackageSalesLineBuilder::class)->sourceDetails($offer),
+                    ['assignment' => ['source' => 'salon_eclat_complete']]
+                ),
+                'metadata' => ['narrative' => $customerName.' — '.$offerName],
+            ]);
+
+            foreach (range(1, $consumedQuantity) as $usageIndex) {
+                CustomerPackageUsage::query()->create([
+                    'customer_package_id' => $package->id,
+                    'user_id' => $owner->id,
+                    'customer_id' => $customer->id,
+                    'product_id' => $offer->items()->value('product_id'),
+                    'created_by_user_id' => $owner->id,
+                    'quantity' => 1,
+                    'used_at' => $offer->is_recurring
+                        ? now()->subDays($usageIndex * 2)
+                        : now()->subWeeks($usageIndex * 2),
+                    'note' => 'Passage Salon Éclat — séance '.$usageIndex,
+                    'metadata' => ['seed_source' => 'salon_eclat_complete'],
+                ]);
+            }
+
+            $customerPackages->push($package);
+        });
+
+        return [
+            'offer_packages' => $offers->count(),
+            'customer_packages' => $customerPackages->count(),
+            'package_usages' => CustomerPackageUsage::query()->where('user_id', $owner->id)->count(),
+        ];
+    }
+
+    /**
+     * @param  array<int, string>  $selectedModules
+     * @param  Collection<int, Product>  $services
+     */
+    private function createSalonEclatPromotion(
+        User $owner,
+        array $selectedModules,
+        Collection $services,
+        bool $isSalonEclat
+    ): ?Promotion {
+        if (! $isSalonEclat || ! in_array('promotions', $selectedModules, true)) {
+            return null;
+        }
+
+        $colorService = $services->firstWhere('name', 'Couleur racines');
+        $startsAt = now()->subDays(7)->startOfDay();
+        $endsAt = now()->addDays(30)->endOfDay();
+
+        if ($colorService) {
+            $colorService->forceFill([
+                'promo_discount_percent' => 20,
+                'promo_start_at' => $startsAt,
+                'promo_end_at' => $endsAt,
+            ])->save();
+        }
+
+        return Promotion::query()->create([
+            'user_id' => $owner->id,
+            'created_by_user_id' => $owner->id,
+            'name' => 'Rentrée couleur — 20 %',
+            'code' => 'RENTREE20',
+            'target_type' => PromotionTargetType::SERVICE->value,
+            'target_id' => $colorService?->id,
+            'discount_type' => PromotionDiscountType::PERCENTAGE->value,
+            'discount_value' => 20,
+            'start_date' => $startsAt->toDateString(),
+            'end_date' => $endsAt->toDateString(),
+            'status' => PromotionStatus::ACTIVE->value,
+            'usage_limit' => 100,
+            'minimum_order_amount' => 75,
+            'rules' => [
+                'seed_source' => 'salon_eclat_complete',
+                'message' => '20 % sur les prestations de coloration admissibles.',
+            ],
         ]);
     }
 
@@ -1744,7 +2162,8 @@ class DemoWorkspaceProvisioner
         Collection $customers,
         Collection $works,
         Collection $services,
-        Collection $teamMembers
+        Collection $teamMembers,
+        bool $isSalonEclat = false
     ): Collection {
         if (! in_array('invoices', $selectedModules, true)) {
             return collect();
@@ -1756,23 +2175,37 @@ class DemoWorkspaceProvisioner
             return collect();
         }
 
-        return $sources->take(min(3, $sources->count()))->values()->map(function (Work|Product $source, int $index) use ($owner, $customers, $teamMembers) {
+        return $sources->take(min(3, $sources->count()))->values()->map(function (Work|Product $source, int $index) use ($owner, $customers, $teamMembers, $isSalonEclat) {
             $customer = $customers[$index % $customers->count()];
             $totals = [180, 325, 490];
             $statuses = ['sent', 'partial', 'paid'];
             $work = $source instanceof Work ? $source : null;
             $service = $source instanceof Product ? $source : null;
-            $total = $work
+            $subtotal = $work
                 ? (float) ($totals[$index % count($totals)] ?? 240)
                 : (float) ($service?->price ?? 0);
+            $taxTotal = $isSalonEclat ? round($subtotal * 0.14975, 2) : 0;
+            $total = round($subtotal + $taxTotal, 2);
+            $status = $isSalonEclat
+                ? ['paid', 'sent', 'paid'][$index % 3]
+                : $statuses[$index % count($statuses)];
 
             $invoice = Invoice::create([
                 'work_id' => $work?->id,
                 'customer_id' => $customer->id,
                 'user_id' => $owner->id,
-                'status' => $statuses[$index % count($statuses)],
+                'created_by_user_id' => $owner->id,
+                'status' => $status,
+                'subtotal' => $subtotal,
+                'tax_total' => $taxTotal,
                 'total' => $total,
                 'currency_code' => $owner->businessCurrencyCode(),
+                'source' => $isSalonEclat ? 'demo_seed' : null,
+                'billing_snapshot' => $isSalonEclat ? [
+                    'seed_source' => 'salon_eclat_complete',
+                    'tax_rate' => 14.975,
+                    'taxes_included' => false,
+                ] : null,
             ]);
 
             InvoiceItem::create([
@@ -1787,23 +2220,35 @@ class DemoWorkspaceProvisioner
                 'assignee_name' => $teamMembers->isNotEmpty() ? $teamMembers[$index % $teamMembers->count()]->user?->name : null,
                 'task_status' => 'completed',
                 'quantity' => 1,
-                'unit_price' => $total,
+                'unit_price' => $subtotal,
                 'currency_code' => $owner->businessCurrencyCode(),
-                'total' => $total,
+                'total' => $subtotal,
                 'meta' => $service ? ['service_id' => $service->id] : null,
             ]);
 
-            if ($index > 0) {
+            $shouldCreatePayment = $isSalonEclat ? in_array($index, [0, 2], true) : $index > 0;
+            if ($shouldCreatePayment) {
+                $paymentAmount = $isSalonEclat ? $total : ($index === 1 ? $total / 2 : $total);
                 Payment::create([
                     'invoice_id' => $invoice->id,
                     'customer_id' => $customer->id,
                     'user_id' => $owner->id,
-                    'amount' => $index === 1 ? $total / 2 : $total,
+                    'amount' => $paymentAmount,
                     'currency_code' => $owner->businessCurrencyCode(),
-                    'method' => 'card',
-                    'provider' => 'demo',
-                    'status' => 'paid',
-                    'reference' => 'DEMO-PAY-'.Str::upper(Str::random(6)),
+                    'tip_amount' => 0,
+                    'tip_type' => 'none',
+                    'tip_percent' => null,
+                    'tip_base_amount' => 0,
+                    'charged_total' => $paymentAmount,
+                    'tip_assignee_user_id' => null,
+                    'method' => $isSalonEclat ? 'cash' : 'card',
+                    'provider' => $isSalonEclat ? 'manual' : 'demo',
+                    'status' => $isSalonEclat ? Payment::STATUS_COMPLETED : Payment::STATUS_PAID,
+                    'reference' => $isSalonEclat
+                        ? 'DEMO-CASH-ECLAT-'.str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT)
+                        : 'DEMO-PAY-'.Str::upper(Str::random(6)),
+                    'provider_reference' => null,
+                    'notes' => $isSalonEclat ? 'Paiement comptant historique de démonstration — aucun débit externe.' : null,
                     'paid_at' => now()->subDay(),
                 ]);
 
@@ -1819,7 +2264,14 @@ class DemoWorkspaceProvisioner
      * @param  Collection<int, Customer>  $customers
      * @param  Collection<int, Product>  $services
      * @param  Collection<int, TeamMember>  $teamMembers
-     * @return array{reservations:int, queue_items:int, waitlist_entries:int}
+     * @return array{
+     *     reservations:int,
+     *     queue_items:int,
+     *     waitlist_entries:int,
+     *     completed_checkouts:int,
+     *     checkout_invoices:int,
+     *     checkout_payments:int
+     * }
      */
     private function createReservationFlow(
         User $owner,
@@ -1829,13 +2281,17 @@ class DemoWorkspaceProvisioner
         Collection $teamMembers,
         int $reservationCount,
         int $queueCount,
-        string $sector
+        string $sector,
+        bool $isSalonEclat = false
     ): array {
         if (! in_array('reservations', $selectedModules, true) || $services->isEmpty() || $teamMembers->isEmpty()) {
             return [
                 'reservations' => 0,
                 'queue_items' => 0,
                 'waitlist_entries' => 0,
+                'completed_checkouts' => 0,
+                'checkout_invoices' => 0,
+                'checkout_payments' => 0,
             ];
         }
 
@@ -1844,69 +2300,71 @@ class DemoWorkspaceProvisioner
             'team_member_id' => null,
             'business_preset' => in_array($sector, ['salon', 'wellness'], true) ? 'salon' : 'service_general',
             'buffer_minutes' => 10,
-            'slot_interval_minutes' => 30,
-            'min_notice_minutes' => 0,
-            'max_advance_days' => 90,
-            'cancellation_cutoff_hours' => 12,
+            'slot_interval_minutes' => $isSalonEclat ? 15 : 30,
+            'min_notice_minutes' => $isSalonEclat ? 60 : 0,
+            'max_advance_days' => $isSalonEclat ? 60 : 90,
+            'cancellation_cutoff_hours' => $isSalonEclat ? 24 : 12,
             'allow_client_cancel' => true,
             'allow_client_reschedule' => true,
-            'late_release_minutes' => 5,
+            'late_release_minutes' => $isSalonEclat ? 10 : 5,
             'waitlist_enabled' => true,
             'queue_mode_enabled' => true,
             'queue_assignment_mode' => 'team_member',
             'queue_dispatch_mode' => 'fifo_with_appointment_priority',
             'queue_grace_minutes' => 5,
             'queue_pre_call_threshold' => 2,
-            'queue_no_show_on_grace_expiry' => false,
-            'deposit_required' => false,
-            'deposit_amount' => 0,
-            'no_show_fee_enabled' => false,
-            'no_show_fee_amount' => 0,
+            'queue_no_show_on_grace_expiry' => $isSalonEclat,
+            'deposit_required' => $isSalonEclat,
+            'deposit_amount' => $isSalonEclat ? 20 : 0,
+            'no_show_fee_enabled' => $isSalonEclat,
+            'no_show_fee_amount' => $isSalonEclat ? 25 : 0,
         ]);
 
-        $teamMembers->each(function (TeamMember $member, int $index) use ($owner) {
+        $teamMembers->each(function (TeamMember $member, int $index) use ($owner, $isSalonEclat) {
+            $isColorist = $member->user?->name === 'Léa Moreau';
             ReservationSetting::create([
                 'account_id' => $owner->id,
                 'team_member_id' => $member->id,
                 'business_preset' => 'salon',
-                'buffer_minutes' => 10,
-                'slot_interval_minutes' => 30,
-                'min_notice_minutes' => 0,
+                'buffer_minutes' => $isColorist ? 15 : 10,
+                'slot_interval_minutes' => $isSalonEclat ? 15 : 30,
+                'min_notice_minutes' => $isSalonEclat ? 60 : 0,
                 'max_advance_days' => 60,
-                'cancellation_cutoff_hours' => 12,
+                'cancellation_cutoff_hours' => $isSalonEclat ? 24 : 12,
                 'allow_client_cancel' => true,
                 'allow_client_reschedule' => true,
-                'late_release_minutes' => 5,
+                'late_release_minutes' => $isSalonEclat ? 10 : 5,
                 'waitlist_enabled' => true,
                 'queue_mode_enabled' => true,
                 'queue_assignment_mode' => 'team_member',
                 'queue_dispatch_mode' => 'fifo_with_appointment_priority',
                 'queue_grace_minutes' => 5,
                 'queue_pre_call_threshold' => 2,
-                'queue_no_show_on_grace_expiry' => false,
-                'deposit_required' => false,
-                'deposit_amount' => 0,
-                'no_show_fee_enabled' => false,
-                'no_show_fee_amount' => 0,
+                'queue_no_show_on_grace_expiry' => $isSalonEclat,
+                'deposit_required' => $isSalonEclat,
+                'deposit_amount' => $isSalonEclat ? 20 : 0,
+                'no_show_fee_enabled' => $isSalonEclat,
+                'no_show_fee_amount' => $isSalonEclat ? 25 : 0,
             ]);
 
             ReservationResource::create([
                 'account_id' => $owner->id,
                 'team_member_id' => $member->id,
-                'name' => 'Chair '.($index + 1),
+                'name' => $isSalonEclat ? 'Fauteuil '.($index + 1) : 'Chair '.($index + 1),
                 'type' => 'chair',
                 'capacity' => 1,
                 'is_active' => true,
-                'metadata' => ['kind' => 'barber_chair'],
+                'metadata' => ['kind' => 'barber_chair', 'seed_source' => $isSalonEclat ? 'salon_eclat_complete' : 'demo_workspace'],
             ]);
 
-            foreach (range(1, 5) as $dayOffset) {
+            $availabilityDays = $isSalonEclat ? range(2, 6) : range(1, 5);
+            foreach ($availabilityDays as $dayOffset) {
                 WeeklyAvailability::create([
                     'account_id' => $owner->id,
                     'team_member_id' => $member->id,
                     'day_of_week' => $dayOffset,
                     'start_time' => '09:00:00',
-                    'end_time' => '17:00:00',
+                    'end_time' => $isSalonEclat && $dayOffset < 6 ? '19:00:00' : '17:00:00',
                     'is_active' => true,
                 ]);
             }
@@ -1919,13 +2377,25 @@ class DemoWorkspaceProvisioner
                 'approved_at' => now()->subDays(2),
                 'kind' => 'shift',
                 'status' => 'approved',
-                'title' => 'Frontline shift',
+                'title' => $isSalonEclat ? 'Quart Salon Éclat' : 'Frontline shift',
                 'shift_date' => now()->toDateString(),
                 'start_time' => '09:00:00',
                 'end_time' => '17:00:00',
                 'break_minutes' => 30,
             ]);
         });
+
+        if ($isSalonEclat) {
+            ReservationResource::query()->create([
+                'account_id' => $owner->id,
+                'team_member_id' => null,
+                'name' => 'Bac 1',
+                'type' => 'wash_basin',
+                'capacity' => 1,
+                'is_active' => true,
+                'metadata' => ['kind' => 'wash_basin', 'seed_source' => 'salon_eclat_complete'],
+            ]);
+        }
 
         AvailabilityException::create([
             'account_id' => $owner->id,
@@ -1937,11 +2407,14 @@ class DemoWorkspaceProvisioner
             'reason' => 'Training block',
         ]);
 
-        $reservations = collect(range(1, max(4, $reservationCount)))->map(function (int $index) use ($owner, $customers, $services, $teamMembers) {
+        $reservations = collect(range(1, max(4, $reservationCount)))->map(function (int $index) use ($owner, $customers, $services, $teamMembers, $isSalonEclat) {
             $member = $teamMembers[$index % $teamMembers->count()];
             $customer = $customers[$index % $customers->count()];
             $service = $services[$index % $services->count()];
-            $startsAt = now()->copy()->startOfDay()->addHours(9 + $index);
+            $startsAt = $isSalonEclat
+                ? $this->salonEclatReservationStart($owner, $index)
+                : now()->copy()->startOfDay()->addHours(9 + $index);
+            $duration = $isSalonEclat ? $this->salonEclatServiceDuration($service) : 60;
             $statuses = [
                 Reservation::STATUS_CONFIRMED,
                 Reservation::STATUS_CONFIRMED,
@@ -1958,16 +2431,18 @@ class DemoWorkspaceProvisioner
                 'source' => Reservation::SOURCE_STAFF,
                 'timezone' => $owner->company_timezone ?: 'UTC',
                 'starts_at' => $startsAt,
-                'ends_at' => $startsAt->copy()->addMinutes(60),
-                'duration_minutes' => 60,
+                'ends_at' => $startsAt->copy()->addMinutes($duration),
+                'duration_minutes' => $duration,
                 'buffer_minutes' => 10,
-                'internal_notes' => 'Demo reservation generated for queue and booking walkthrough.',
+                'internal_notes' => $isSalonEclat
+                    ? 'Rendez-vous narratif Salon Éclat — prêt pour la démonstration.'
+                    : 'Demo reservation generated for queue and booking walkthrough.',
                 'client_notes' => $index % 2 === 0 ? 'Customer prefers the senior stylist.' : null,
                 'created_by_user_id' => $owner->id,
             ]);
         })->values();
 
-        $queueItems = collect(range(1, max(2, $queueCount)))->map(function (int $index) use ($owner, $customers, $services, $teamMembers, $reservations) {
+        $queueItems = collect(range(1, max(2, $queueCount)))->map(function (int $index) use ($owner, $customers, $services, $teamMembers, $reservations, $isSalonEclat) {
             $member = $teamMembers[$index % $teamMembers->count()];
             $customer = $customers[$index % $customers->count()];
             $service = $services[$index % $services->count()];
@@ -1993,7 +2468,7 @@ class DemoWorkspaceProvisioner
                 'queue_number' => 'SAL-'.str_pad((string) (1000 + $index), 4, '0', STR_PAD_LEFT),
                 'status' => $status,
                 'priority' => $status === ReservationQueueItem::STATUS_IN_SERVICE ? 2 : 0,
-                'estimated_duration_minutes' => 45,
+                'estimated_duration_minutes' => $isSalonEclat ? $this->salonEclatServiceDuration($service) : 45,
                 'checked_in_at' => $checkedInAt,
                 'pre_called_at' => in_array($status, [ReservationQueueItem::STATUS_PRE_CALLED, ReservationQueueItem::STATUS_CALLED, ReservationQueueItem::STATUS_IN_SERVICE], true) ? $checkedInAt->copy()->addMinutes(5) : null,
                 'called_at' => in_array($status, [ReservationQueueItem::STATUS_CALLED, ReservationQueueItem::STATUS_IN_SERVICE], true) ? $checkedInAt->copy()->addMinutes(10) : null,
@@ -2003,6 +2478,16 @@ class DemoWorkspaceProvisioner
                 'metadata' => ['label' => $customer->company_name ?: trim($customer->first_name.' '.$customer->last_name)],
             ]);
         })->values();
+
+        $completedCheckout = $this->createSalonEclatCompletedCheckout(
+            $owner,
+            $customers,
+            $services,
+            $teamMembers,
+            $reservations,
+            $queueItems,
+            $isSalonEclat
+        );
 
         $waitlists = collect(range(1, 2))->map(function (int $index) use ($owner, $customers, $services, $teamMembers) {
             $member = $teamMembers[$index % $teamMembers->count()];
@@ -2029,6 +2514,136 @@ class DemoWorkspaceProvisioner
             'reservations' => $reservations->count(),
             'queue_items' => $queueItems->count(),
             'waitlist_entries' => $waitlists->count(),
+            ...$completedCheckout,
+        ];
+    }
+
+    /**
+     * Seed one truthful, fully connected service checkout without simulating an
+     * external card processor. Live Stripe checkout remains an E2E concern.
+     *
+     * @param  Collection<int, Customer>  $customers
+     * @param  Collection<int, Product>  $services
+     * @param  Collection<int, TeamMember>  $teamMembers
+     * @param  Collection<int, Reservation>  $reservations
+     * @param  Collection<int, ReservationQueueItem>  $queueItems
+     * @return array{completed_checkouts:int, checkout_invoices:int, checkout_payments:int}
+     */
+    private function createSalonEclatCompletedCheckout(
+        User $owner,
+        Collection $customers,
+        Collection $services,
+        Collection $teamMembers,
+        Collection $reservations,
+        Collection $queueItems,
+        bool $isSalonEclat
+    ): array {
+        $empty = [
+            'completed_checkouts' => 0,
+            'checkout_invoices' => 0,
+            'checkout_payments' => 0,
+        ];
+
+        if (! $isSalonEclat) {
+            return $empty;
+        }
+
+        $marie = $customers->first(
+            fn (Customer $customer): bool => trim($customer->first_name.' '.$customer->last_name) === 'Marie Lefebvre'
+        );
+        $paidService = $services->firstWhere('name', 'Coupe femme + brushing');
+        $karim = $teamMembers->first(
+            fn (TeamMember $member): bool => $member->user?->name === 'Karim Benali'
+        );
+        $ticket = $queueItems->first(
+            fn (ReservationQueueItem $item): bool => $item->status === ReservationQueueItem::STATUS_IN_SERVICE
+        );
+
+        if (! $marie instanceof Customer
+            || ! $paidService instanceof Product
+            || ! $karim instanceof TeamMember
+            || ! $ticket instanceof ReservationQueueItem) {
+            return $empty;
+        }
+
+        $reservation = $reservations->firstWhere('id', $ticket->reservation_id);
+        if (! $reservation instanceof Reservation) {
+            return $empty;
+        }
+
+        $startsAt = $this->salonEclatCompletedCheckoutStart($owner);
+        $reservation->forceFill([
+            'team_member_id' => $karim->id,
+            'client_id' => $marie->id,
+            'service_id' => $paidService->id,
+            'status' => Reservation::STATUS_CONFIRMED,
+            'source' => Reservation::SOURCE_STAFF,
+            'starts_at' => $startsAt,
+            'ends_at' => $startsAt->copy()->addMinutes(60),
+            'duration_minutes' => 60,
+            'internal_notes' => 'Parcours Salon Éclat payé avec taxes, pourboire et reçu.',
+        ])->save();
+
+        $ticket->forceFill([
+            'reservation_id' => $reservation->id,
+            'client_id' => $marie->id,
+            'service_id' => $paidService->id,
+            'team_member_id' => $karim->id,
+            'queue_number' => 'SAL-ECLAT-PAID-001',
+            'status' => ReservationQueueItem::STATUS_IN_SERVICE,
+            'checked_in_at' => $startsAt->copy()->subMinutes(10),
+            'called_at' => $startsAt->copy()->subMinutes(5),
+            'started_at' => $startsAt,
+            'finished_at' => null,
+            'estimated_duration_minutes' => 60,
+            'metadata' => array_replace((array) $ticket->metadata, [
+                'label' => 'Marie Lefebvre',
+                'seed_scenario' => 'salon_eclat_completed_checkout',
+            ]),
+        ])->save();
+
+        $settings = app(ReservationAvailabilityService::class)
+            ->resolveSettings((int) $owner->id, (int) $karim->id);
+        $settings['business_preset'] = 'salon';
+        $settings['queue_mode_enabled'] = true;
+        $settings['queue_dispatch_mode'] = ReservationQueueService::DISPATCH_MODE_FIFO;
+        $settings['queue_assignment_mode'] = ReservationQueueService::ASSIGNMENT_MODE_PER_STAFF;
+
+        $originalNotifications = $owner->company_notification_settings;
+        $mutedNotifications = is_array($originalNotifications) ? $originalNotifications : [];
+        $mutedNotifications['reservations'] = array_replace(
+            (array) ($mutedNotifications['reservations'] ?? []),
+            ['enabled' => false]
+        );
+        $owner->forceFill(['company_notification_settings' => $mutedNotifications])->saveQuietly();
+
+        try {
+            $awaitingPayment = app(ReservationQueueService::class)->transition(
+                $ticket->fresh(),
+                'finish',
+                $owner,
+                $settings
+            );
+            app(ReservationQueueCheckoutService::class)->checkout(
+                $awaitingPayment,
+                [
+                    'method' => 'cash',
+                    'tip_enabled' => true,
+                    'tip_mode' => 'percent',
+                    'tip_percent' => 18,
+                    'reference' => 'DEMO-ECLAT-CASH-001',
+                ],
+                $owner,
+                $settings
+            );
+        } finally {
+            $owner->forceFill(['company_notification_settings' => $originalNotifications])->saveQuietly();
+        }
+
+        return [
+            'completed_checkouts' => 1,
+            'checkout_invoices' => 1,
+            'checkout_payments' => 1,
         ];
     }
 
@@ -2043,36 +2658,49 @@ class DemoWorkspaceProvisioner
         array $selectedModules,
         Collection $customers,
         Collection $products,
-        int $count
+        int $count,
+        bool $isSalonEclat = false
     ): Collection {
         if (! in_array('sales', $selectedModules, true) || $products->isEmpty()) {
             return collect();
         }
 
-        return collect(range(1, max(2, $count)))->map(function (int $index) use ($owner, $customers, $products) {
+        return collect(range(1, max(2, $count)))->map(function (int $index) use ($owner, $customers, $products, $isSalonEclat) {
             $customer = $customers[$index % $customers->count()];
             $picked = $products->take(min(2, $products->count()));
             $subtotal = (float) $picked->sum('price');
+            $discountRate = $index % 3 === 0 ? 10 : 0;
+            $discountTotal = $discountRate > 0 ? round($subtotal * 0.1, 2) : 0;
+            $taxTotal = $isSalonEclat
+                ? round(($subtotal - $discountTotal) * 0.14975, 2)
+                : round($subtotal * 0.15, 2);
+            $total = $isSalonEclat
+                ? round($subtotal - $discountTotal + $taxTotal, 2)
+                : round($subtotal * 1.15, 2);
+            $isPaid = $index % 2 === 0;
             $sale = Sale::create([
                 'user_id' => $owner->id,
                 'created_by_user_id' => $owner->id,
                 'customer_id' => $customer->id,
-                'status' => $index % 2 === 0 ? Sale::STATUS_PAID : Sale::STATUS_PENDING,
-                'payment_provider' => 'demo',
+                'status' => $isPaid ? Sale::STATUS_PAID : Sale::STATUS_PENDING,
+                'payment_provider' => $isSalonEclat ? 'manual' : 'demo',
                 'subtotal' => $subtotal,
-                'tax_total' => round($subtotal * 0.15, 2),
+                'tax_total' => $taxTotal,
                 'currency_code' => $owner->businessCurrencyCode(),
-                'discount_rate' => $index % 3 === 0 ? 10 : 0,
-                'discount_total' => $index % 3 === 0 ? round($subtotal * 0.1, 2) : 0,
+                'discount_rate' => $discountRate,
+                'discount_total' => $discountTotal,
                 'loyalty_points_redeemed' => 0,
                 'loyalty_discount_total' => 0,
-                'total' => round($subtotal * 1.15, 2),
+                'total' => $total,
                 'delivery_fee' => 0,
-                'fulfillment_method' => $index % 2 === 0 ? 'pickup' : 'delivery',
-                'fulfillment_status' => $index % 2 === 0 ? Sale::FULFILLMENT_READY_FOR_PICKUP : Sale::FULFILLMENT_PENDING,
+                'fulfillment_method' => $isSalonEclat ? 'pickup' : ($isPaid ? 'pickup' : 'delivery'),
+                'fulfillment_status' => $isSalonEclat && $isPaid
+                    ? Sale::FULFILLMENT_COMPLETED
+                    : ($isPaid ? Sale::FULFILLMENT_READY_FOR_PICKUP : Sale::FULFILLMENT_PENDING),
                 'scheduled_for' => now()->addDays($index),
                 'source' => 'pos',
-                'paid_at' => $index % 2 === 0 ? now()->subHours(6) : null,
+                'paid_at' => $isPaid ? now()->subHours($index * 3) : null,
+                'notes' => $isSalonEclat ? 'Vente comptoir Salon Éclat — produits de revente.' : null,
             ]);
 
             foreach ($picked as $product) {
@@ -2085,10 +2713,80 @@ class DemoWorkspaceProvisioner
                     'currency_code' => $owner->businessCurrencyCode(),
                     'total' => $product->price,
                 ]);
+
+                if ($isSalonEclat && $isPaid) {
+                    $product->decrement('stock');
+                }
+            }
+
+            if ($isSalonEclat && $isPaid) {
+                Payment::query()->create([
+                    'sale_id' => $sale->id,
+                    'customer_id' => $customer->id,
+                    'user_id' => $owner->id,
+                    'amount' => $total,
+                    'currency_code' => $owner->businessCurrencyCode(),
+                    'tip_amount' => 0,
+                    'tip_type' => 'none',
+                    'tip_base_amount' => 0,
+                    'charged_total' => $total,
+                    'method' => 'cash',
+                    'provider' => 'manual',
+                    'status' => Payment::STATUS_COMPLETED,
+                    'reference' => 'DEMO-POS-CASH-ECLAT-'.str_pad((string) $index, 3, '0', STR_PAD_LEFT),
+                    'provider_reference' => null,
+                    'paid_at' => $sale->paid_at,
+                ]);
             }
 
             return $sale;
         })->values();
+    }
+
+    private function salonEclatServiceDuration(Product $service): int
+    {
+        return match ((string) $service->name) {
+            'Coupe femme + brushing', 'Chignon / événement' => 60,
+            'Coupe homme', 'Coupe enfant (-12 ans)', 'Brushing seul', 'Rasage traditionnel' => 30,
+            'Couleur racines' => 90,
+            'Balayage complet' => 180,
+            'Soin profond kératine' => 45,
+            'Taille de barbe' => 20,
+            default => 60,
+        };
+    }
+
+    private function salonEclatReservationStart(User $owner, int $index): Carbon
+    {
+        $timezone = $owner->company_timezone ?: (string) config('app.timezone', 'UTC');
+        $date = now($timezone)->startOfDay();
+        $openDaysToAdvance = intdiv(max(0, $index), 3);
+
+        while (true) {
+            if (in_array($date->dayOfWeekIso, range(2, 6), true)) {
+                if ($openDaysToAdvance === 0) {
+                    break;
+                }
+
+                $openDaysToAdvance--;
+            }
+
+            $date->addDay();
+        }
+
+        return $date->setTime(10, 0)->utc();
+    }
+
+    private function salonEclatCompletedCheckoutStart(User $owner): Carbon
+    {
+        $timezone = $owner->company_timezone ?: (string) config('app.timezone', 'UTC');
+        $date = now($timezone)->subDay()->startOfDay();
+
+        while (! in_array($date->dayOfWeekIso, range(2, 6), true)) {
+            $date->subDay();
+        }
+
+        return $date->setTime(14, 0)->utc();
     }
 
     /**
@@ -2235,8 +2933,13 @@ class DemoWorkspaceProvisioner
      * @param  Collection<int, Customer>  $customers
      * @return array{campaigns:int, mailing_lists:int}
      */
-    private function createMarketing(User $owner, array $selectedModules, Collection $customers): array
-    {
+    private function createMarketing(
+        User $owner,
+        array $selectedModules,
+        Collection $customers,
+        ?Promotion $promotion = null,
+        bool $isSalonEclat = false
+    ): array {
         if (! in_array('campaigns', $selectedModules, true)) {
             return [
                 'campaigns' => 0,
@@ -2248,9 +2951,11 @@ class DemoWorkspaceProvisioner
             'user_id' => $owner->id,
             'created_by_user_id' => $owner->id,
             'updated_by_user_id' => $owner->id,
-            'name' => 'VIP repeat customers',
-            'description' => 'Mailing list prepared for a tailored lifecycle campaign demo.',
-            'tags' => ['vip', 'repeat', 'demo'],
+            'name' => $isSalonEclat ? 'Clientes couleur' : 'VIP repeat customers',
+            'description' => $isSalonEclat
+                ? 'Clientes couleur, VIP et contacts à reconquérir pour la campagne Salon Éclat.'
+                : 'Mailing list prepared for a tailored lifecycle campaign demo.',
+            'tags' => $isSalonEclat ? ['couleur', 'vip', 'winback', 'salon-eclat'] : ['vip', 'repeat', 'demo'],
         ]);
 
         $mailingList->customers()->attach(
@@ -2261,35 +2966,159 @@ class DemoWorkspaceProvisioner
                 ],
             ])->all()
         );
+        $publicBookingUrl = $isSalonEclat
+            ? PublicBookingLink::query()
+                ->where('account_id', $owner->id)
+                ->first()
+                ?->publicUrl($owner)
+            : null;
 
-        Campaign::create([
+        $campaign = Campaign::create([
             'user_id' => $owner->id,
             'created_by_user_id' => $owner->id,
             'updated_by_user_id' => $owner->id,
-            'name' => 'Spring retention push',
-            'campaign_type' => Campaign::TYPE_PROMOTION,
+            'name' => $isSalonEclat ? 'WINBACK — Vous nous manquez' : 'Spring retention push',
+            'campaign_type' => $isSalonEclat ? Campaign::TYPE_WINBACK : Campaign::TYPE_PROMOTION,
             'campaign_direction' => Campaign::DIRECTION_CUSTOMER_MARKETING,
             'prospecting_enabled' => false,
             'offer_mode' => $owner->company_type === 'products' ? Campaign::OFFER_MODE_PRODUCTS : Campaign::OFFER_MODE_SERVICES,
             'language_mode' => CampaignTemplateLanguage::defaultModeForLocale($owner->locale),
-            'type' => Campaign::TYPE_PROMOTION,
+            'type' => $isSalonEclat ? Campaign::TYPE_WINBACK : Campaign::TYPE_PROMOTION,
             'status' => Campaign::STATUS_DRAFT,
             'schedule_type' => Campaign::SCHEDULE_SCHEDULED,
-            'scheduled_at' => now()->addDays(5),
+            'scheduled_at' => $isSalonEclat ? now()->next('Tuesday')->setTime(10, 0) : now()->addDays(5),
             'locale' => $owner->locale,
-            'cta_url' => '/pricing',
+            'cta_url' => $publicBookingUrl ?: '/pricing',
             'is_marketing' => true,
             'last_run_at' => null,
             'settings' => [
                 'mailing_lists' => [$mailingList->id],
-                'objective' => 'Retention',
+                'objective' => $isSalonEclat ? 'Winback' : 'Retention',
+                'promotion_id' => $promotion?->id,
+                'promotion_code' => $promotion?->code,
+                'subject' => $isSalonEclat ? 'Claire, votre couleur nous manque ✨' : null,
+                'message' => $isSalonEclat
+                    ? 'Revenez chez Salon Éclat et profitez de 20 % sur votre prochaine coloration avec RENTREE20.'
+                    : null,
+                'seed_source' => $isSalonEclat ? 'salon_eclat_complete' : 'demo_workspace',
             ],
         ]);
+
+        if ($isSalonEclat && $promotion?->target_id) {
+            $campaign->products()->attach($promotion->target_id, [
+                'metadata' => json_encode([
+                    'promotion_code' => $promotion->code,
+                    'seed_source' => 'salon_eclat_complete',
+                ]),
+            ]);
+        }
 
         return [
             'campaigns' => 1,
             'mailing_lists' => 1,
         ];
+    }
+
+    /**
+     * @param  array<int, string>  $selectedModules
+     * @return array{settings:int, knowledge_items:int}
+     */
+    private function createSalonEclatAssistant(User $owner, array $selectedModules, bool $isSalonEclat): array
+    {
+        if (! $isSalonEclat || ! in_array('assistant', $selectedModules, true)) {
+            return ['settings' => 0, 'knowledge_items' => 0];
+        }
+
+        AiAssistantSetting::query()->updateOrCreate(
+            ['tenant_id' => $owner->id],
+            [
+                'assistant_name' => 'Éclat, votre assistante beauté',
+                'enabled' => true,
+                'default_language' => AiAssistantSetting::LANGUAGE_FR,
+                'supported_languages' => [AiAssistantSetting::LANGUAGE_FR, AiAssistantSetting::LANGUAGE_EN],
+                'tone' => AiAssistantSetting::TONE_WARM,
+                'greeting_message' => 'Bonjour et bienvenue chez Salon Éclat ✨ Comment puis-je vous aider à choisir ou réserver une prestation?',
+                'fallback_message' => 'Je transmets votre demande à Sophie, notre responsable de réception.',
+                'allow_create_prospect' => true,
+                'allow_create_client' => true,
+                'allow_create_reservation' => true,
+                'allow_reschedule_reservation' => true,
+                'allow_create_task' => false,
+                'require_human_validation' => true,
+                'enable_proactive_suggestions' => true,
+                'enable_upsell_suggestions' => true,
+                'enable_client_history_recommendations' => true,
+                'max_suggestions_per_response' => 3,
+                'require_confirmation_before_ai_action' => true,
+                'allow_ai_to_choose_earliest_slot' => true,
+                'allow_ai_to_recommend_staff' => true,
+                'allow_ai_to_recommend_services' => true,
+                'business_context' => 'Salon de coiffure et barbier à Montréal. Coupes, couleur, coiffage, soins capillaires et services de barbier.',
+                'working_hours_rules' => [
+                    'monday' => 'closed',
+                    'tuesday_friday' => '09:00-19:00',
+                    'saturday' => '09:00-17:00',
+                    'sunday' => 'closed',
+                    'timezone' => 'America/Toronto',
+                ],
+            ]
+        );
+
+        $knowledgeItems = collect([
+            ['title' => 'Horaires du salon', 'category' => 'horaires', 'content' => 'Salon Éclat est ouvert du mardi au vendredi de 9 h à 19 h et le samedi de 9 h à 17 h. Le salon est fermé le dimanche et le lundi.'],
+            ['title' => 'Prestations vedettes', 'category' => 'services', 'content' => 'Le balayage complet dure environ 180 minutes. La coupe femme avec brushing dure 60 minutes. La coupe homme et le brushing seul durent 30 minutes.'],
+            ['title' => 'Réservation et acompte', 'category' => 'reservations', 'content' => 'Les rendez-vous peuvent être réservés jusqu’à 60 jours à l’avance. Un acompte de 20 $ peut être demandé pour les longues prestations.'],
+            ['title' => 'Annulation et retard', 'category' => 'politiques', 'content' => 'Une annulation est permise jusqu’à 24 heures avant le rendez-vous. Des frais d’absence de 25 $ peuvent s’appliquer.'],
+        ])->map(fn (array $item) => AiKnowledgeItem::query()->create([
+            'tenant_id' => $owner->id,
+            ...$item,
+            'is_active' => true,
+        ]));
+
+        return [
+            'settings' => 1,
+            'knowledge_items' => $knowledgeItems->count(),
+        ];
+    }
+
+    /**
+     * @param  array<int, string>  $selectedModules
+     */
+    private function createSalonEclatSocialContent(User $owner, array $selectedModules, bool $isSalonEclat): int
+    {
+        if (! $isSalonEclat || ! in_array('social', $selectedModules, true)) {
+            return 0;
+        }
+
+        $publicBookingUrl = PublicBookingLink::query()
+            ->where('account_id', $owner->id)
+            ->first()
+            ?->publicUrl($owner);
+
+        SocialPost::query()->create([
+            'user_id' => $owner->id,
+            'created_by_user_id' => $owner->id,
+            'updated_by_user_id' => $owner->id,
+            'source_type' => 'demo_workspace',
+            'content_payload' => [
+                'text' => 'Nouveau balayage chez Salon Éclat ✨ Des reflets lumineux, un résultat sur mesure et des cheveux pleins de vie. Réservez votre diagnostic couleur.',
+                'locale' => 'fr',
+                'hashtags' => ['SalonEclat', 'BalayageMontreal', 'CoiffureMontreal'],
+            ],
+            'media_payload' => [
+                'brief' => 'Avant/après balayage lumineux dans l’univers vert et or de Salon Éclat.',
+            ],
+            'link_url' => $publicBookingUrl ?: url('/'),
+            'status' => SocialPost::STATUS_SCHEDULED,
+            'scheduled_for' => now()->addDays(3)->setTime(18, 30),
+            'metadata' => [
+                'seed_source' => 'salon_eclat_complete',
+                'quality_score' => 92,
+                'approval_ready' => true,
+            ],
+        ]);
+
+        return 1;
     }
 
     /**
@@ -2482,7 +3311,9 @@ class DemoWorkspaceProvisioner
         return match ($roleKey) {
             'manager' => $member->role === 'admin',
             'front_desk' => $member->role === 'sales_manager'
-                || str_contains(strtolower((string) $member->title), 'front desk'),
+                || str_contains(strtolower((string) $member->title), 'front desk')
+                || str_contains(strtolower((string) $member->title), 'reception')
+                || str_contains(strtolower((string) $member->title), 'réception'),
             'staff' => $member->role === 'member',
             default => false,
         };
@@ -2552,8 +3383,16 @@ class DemoWorkspaceProvisioner
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function teamProfilesForSector(string $sector): array
+    private function teamProfilesForSector(string $sector, bool $isSalonEclat = false): array
     {
+        if ($isSalonEclat) {
+            return [
+                ['name' => 'Sophie Tremblay', 'title' => 'Admin — Réception', 'role' => 'admin'],
+                ['name' => 'Karim Benali', 'title' => 'Coiffeur', 'role' => 'member'],
+                ['name' => 'Léa Moreau', 'title' => 'Coloriste', 'role' => 'member'],
+            ];
+        }
+
         return match ($sector) {
             'salon', 'wellness' => [
                 ['name' => 'Maya Brooks', 'title' => 'Senior Stylist', 'role' => 'admin'],
@@ -2589,8 +3428,23 @@ class DemoWorkspaceProvisioner
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function serviceCatalogForSector(string $sector): array
+    private function serviceCatalogForSector(string $sector, bool $isSalonEclat = false): array
     {
+        if ($isSalonEclat) {
+            return [
+                ['category' => 'Coupe', 'name' => 'Coupe femme + brushing', 'description' => 'Consultation, coupe personnalisée et brushing de finition.', 'duration' => 60, 'price' => 65],
+                ['category' => 'Coupe', 'name' => 'Coupe homme', 'description' => 'Coupe homme, contours et coiffage.', 'duration' => 30, 'price' => 35],
+                ['category' => 'Coupe', 'name' => 'Coupe enfant (-12 ans)', 'description' => 'Coupe douce et adaptée aux enfants de moins de douze ans.', 'duration' => 30, 'price' => 25],
+                ['category' => 'Coloration', 'name' => 'Couleur racines', 'description' => 'Coloration des repousses, émulsion et mise en forme.', 'duration' => 90, 'price' => 95],
+                ['category' => 'Coloration', 'name' => 'Balayage complet', 'description' => 'Diagnostic couleur, balayage complet, patine et coiffage.', 'duration' => 180, 'price' => 210],
+                ['category' => 'Coiffage', 'name' => 'Brushing seul', 'description' => 'Shampoing et brushing professionnel.', 'duration' => 30, 'price' => 35],
+                ['category' => 'Coiffage', 'name' => 'Chignon / événement', 'description' => 'Coiffure événementielle personnalisée avec préparation.', 'duration' => 60, 'price' => 85],
+                ['category' => 'Soin capillaire', 'name' => 'Soin profond kératine', 'description' => 'Soin réparateur à la kératine et finition brillante.', 'duration' => 45, 'price' => 75],
+                ['category' => 'Barbier', 'name' => 'Taille de barbe', 'description' => 'Taille, contours et huile de finition.', 'duration' => 20, 'price' => 25],
+                ['category' => 'Barbier', 'name' => 'Rasage traditionnel', 'description' => 'Rasage au blaireau, serviette chaude et soin apaisant.', 'duration' => 30, 'price' => 40],
+            ];
+        }
+
         return match ($sector) {
             'salon', 'wellness' => [
                 ['name' => 'Signature cut', 'description' => 'Haircut with consultation and finish.', 'price' => 55],
@@ -2617,8 +3471,18 @@ class DemoWorkspaceProvisioner
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function productCatalogForSector(string $sector): array
+    private function productCatalogForSector(string $sector, bool $isSalonEclat = false): array
     {
+        if ($isSalonEclat) {
+            return [
+                ['name' => 'Shampoing réparateur 250 ml', 'description' => 'Shampoing professionnel réparateur pour cheveux fragilisés.', 'price' => 28, 'stock' => 24, 'minimum_stock' => 6, 'supplier' => 'Maison Capillaire Montréal'],
+                ['name' => 'Après-shampoing hydratant', 'description' => 'Soin quotidien hydratant et démêlant.', 'price' => 26, 'stock' => 18, 'minimum_stock' => 5, 'supplier' => 'Maison Capillaire Montréal'],
+                ['name' => 'Huile capillaire argan 100 ml', 'description' => 'Huile d’argan légère pour nourrir et faire briller.', 'price' => 34, 'stock' => 12, 'minimum_stock' => 4, 'supplier' => 'Argan Boréal'],
+                ['name' => 'Cire coiffante mate', 'description' => 'Cire mate à tenue souple pour une finition naturelle.', 'price' => 22, 'stock' => 30, 'minimum_stock' => 8, 'supplier' => 'Barbier Urbain'],
+                ['name' => 'Peigne bois artisanal', 'description' => 'Peigne en bois antistatique fabriqué au Québec.', 'price' => 18, 'stock' => 8, 'minimum_stock' => 4, 'supplier' => 'Atelier Bois & Barbe'],
+            ];
+        }
+
         return match ($sector) {
             'salon', 'wellness' => [
                 ['name' => 'Hydration shampoo', 'description' => 'Retail shampoo for dry hair.', 'price' => 28],
@@ -2640,8 +3504,33 @@ class DemoWorkspaceProvisioner
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function customerProfilesForSector(string $sector): array
+    private function customerProfilesForSector(string $sector, bool $isSalonEclat = false): array
     {
+        if ($isSalonEclat) {
+            return [
+                ['first_name' => 'Marie', 'last_name' => 'Lefebvre', 'description' => 'Cliente fidèle, forte en points et détentrice de la Carte 10 brushings avec sept séances restantes.', 'tags' => ['fidèle', 'brushing', 'forfait'], 'salutation' => 'Mme', 'logo' => '/images/presets/avatar-1.svg'],
+                ['first_name' => 'Julie', 'last_name' => 'Nadeau', 'description' => 'Nouvelle cliente arrivée par le lien de réservation public.', 'tags' => ['nouvelle', 'réservation-web'], 'salutation' => 'Mme', 'logo' => '/images/presets/avatar-2.svg'],
+                ['first_name' => 'Fatou', 'last_name' => 'Camara', 'description' => 'Cliente VIP Or avec un panier élevé et des rendez-vous couleur réguliers.', 'tags' => ['vip', 'couleur', 'premium'], 'salutation' => 'Mme', 'logo' => '/images/presets/avatar-3.svg'],
+                ['first_name' => 'Thomas', 'last_name' => 'Roy', 'description' => 'Client barbier avec un abonnement mensuel de deux tailles.', 'tags' => ['barbier', 'abonnement', 'mensuel'], 'salutation' => 'M.', 'logo' => '/images/presets/avatar-4.svg'],
+                ['first_name' => 'Claire', 'last_name' => 'Dubois', 'description' => 'Cliente à reconquérir : dernière visite il y a cinq mois, cible de la campagne WINBACK.', 'tags' => ['winback', 'inactive-150j', 'couleur'], 'salutation' => 'Mme'],
+                ['first_name' => 'Nicolas', 'last_name' => 'Gagnon', 'description' => 'Walk-in converti en client régulier après une coupe homme.', 'tags' => ['walk-in', 'coupe-homme'], 'salutation' => 'M.'],
+                ['first_name' => 'Isabelle', 'last_name' => 'Fortin', 'description' => 'Réserve un balayage avant chaque changement de saison.', 'tags' => ['balayage', 'saisonnier'], 'salutation' => 'Mme'],
+                ['first_name' => 'Élodie', 'last_name' => 'Martel', 'description' => 'Cliente événementiel, intéressée par les chignons et les soins.', 'tags' => ['événement', 'coiffage'], 'salutation' => 'Mme'],
+                ['first_name' => 'Marc', 'last_name' => 'Bouchard', 'description' => 'Client fidèle pour coupe homme et rasage traditionnel.', 'tags' => ['barbier', 'fidèle'], 'salutation' => 'M.'],
+                ['first_name' => 'Sonia', 'last_name' => 'Bélanger', 'description' => 'Achète régulièrement des produits hydratants après ses services.', 'tags' => ['retail', 'hydratation'], 'salutation' => 'Mme'],
+                ['first_name' => 'Camille', 'last_name' => 'Bergeron', 'description' => 'Jeune cliente attirée par les nouveautés couleur sur Instagram.', 'tags' => ['social', 'couleur'], 'salutation' => 'Mme'],
+                ['first_name' => 'Antoine', 'last_name' => 'Mercier', 'description' => 'Client pressé qui privilégie les rendez-vous tôt le matin.', 'tags' => ['matin', 'coupe-homme'], 'salutation' => 'M.'],
+                ['first_name' => 'Nadia', 'last_name' => 'Haddad', 'description' => 'Cliente soin profond avec recommandation produit personnalisée.', 'tags' => ['soin', 'kératine'], 'salutation' => 'Mme'],
+                ['first_name' => 'Gabriel', 'last_name' => 'Lavoie', 'description' => 'Nouveau client référé par Thomas pour les services de barbier.', 'tags' => ['référence', 'barbier'], 'salutation' => 'M.'],
+                ['first_name' => 'Chloé', 'last_name' => 'Pelletier', 'description' => 'Cliente régulière qui réserve et replanifie depuis son portail.', 'tags' => ['portail', 'régulière'], 'salutation' => 'Mme'],
+                ['first_name' => 'Mélanie', 'last_name' => 'Giroux', 'description' => 'Cliente sensible aux promotions saisonnières de coloration.', 'tags' => ['promotion', 'couleur'], 'salutation' => 'Mme'],
+                ['first_name' => 'Jean', 'last_name' => 'Côté', 'description' => 'Client rasage traditionnel avec forte satisfaction.', 'tags' => ['rasage', 'avis-5-étoiles'], 'salutation' => 'M.'],
+                ['first_name' => 'Roxane', 'last_name' => 'Simard', 'description' => 'Cliente balayage à panier élevé et achats produits récurrents.', 'tags' => ['balayage', 'retail', 'premium'], 'salutation' => 'Mme'],
+                ['first_name' => 'Olivier', 'last_name' => 'Nguyen', 'description' => 'Client mensuel, souvent ajouté à la file depuis le kiosque.', 'tags' => ['kiosque', 'mensuel'], 'salutation' => 'M.'],
+                ['first_name' => 'Anaïs', 'last_name' => 'Beaulieu', 'description' => 'Prospect converti par l’assistant grâce à une recommandation de soin.', 'tags' => ['assistant', 'conversion'], 'salutation' => 'Mme'],
+            ];
+        }
+
         return match ($sector) {
             'salon', 'wellness' => [
                 ['first_name' => 'Sarah', 'last_name' => 'Parker', 'company_name' => 'Studio North', 'description' => 'High-value repeat client.', 'tags' => ['vip', 'color']],

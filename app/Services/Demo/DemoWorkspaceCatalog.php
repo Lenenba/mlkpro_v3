@@ -258,6 +258,13 @@ class DemoWorkspaceCatalog
                 'category' => 'Growth',
                 'company_types' => ['services', 'products'],
             ],
+            'social' => [
+                'key' => 'social',
+                'label' => 'Social',
+                'description' => 'Social content planning, approval, and publishing workflows.',
+                'category' => 'Growth',
+                'company_types' => ['services', 'products'],
+            ],
             'loyalty' => [
                 'key' => 'loyalty',
                 'label' => 'Loyalty',
@@ -345,6 +352,29 @@ class DemoWorkspaceCatalog
         $serviceOpsScenarios = $this->defaultScenarioPacks('services', 'field_services', $serviceOpsModules);
         $salonModules = $this->defaultModules('services', 'salon');
         $salonScenarios = $this->defaultScenarioPacks('services', 'salon', $salonModules);
+        $salonEclatModules = [
+            'services',
+            'reservations',
+            'planning',
+            'presence',
+            'invoices',
+            'expenses',
+            'accounting',
+            'team_members',
+            'performance',
+            'products',
+            'sales',
+            'promotions',
+            'loyalty',
+            'campaigns',
+            'assistant',
+            'social',
+        ];
+        $salonEclatScenarios = [
+            'salon_queue',
+            'reservation_to_service',
+            'salon_eclat_complete',
+        ];
         $commerceModules = $this->defaultModules('products', 'retail');
         $commerceScenarios = $this->defaultScenarioPacks('products', 'retail', $commerceModules);
 
@@ -374,6 +404,27 @@ class DemoWorkspaceCatalog
                 'extra_access_roles' => $this->defaultExtraAccessRoles('services', 'salon'),
                 'suggested_flow' => $this->suggestedFlowFromScenarioPacks($salonScenarios)
                     ?: $this->suggestedFlow('services', 'salon', $salonModules),
+            ],
+            [
+                'key' => 'salon_eclat_complete',
+                'label' => 'Salon Éclat - immersive',
+                'description' => 'A complete salon day from booking and service to checkout, retail, loyalty, and marketing.',
+                'company_type' => 'services',
+                'company_sector' => 'salon',
+                'company_name' => 'Salon Éclat',
+                'prospect_name' => 'Amina Diallo',
+                'prospect_email' => 'amina.diallo@example.test',
+                'prospect_company' => 'Salon Éclat',
+                'seed_profile' => 'immersive',
+                'team_size' => 3,
+                'locale' => 'fr',
+                'timezone' => 'America/Toronto',
+                'desired_outcome' => 'Présenter une journée complète au salon, de la réservation au reçu, puis à la fidélisation.',
+                'modules' => $salonEclatModules,
+                'scenario_packs' => $salonEclatScenarios,
+                'branding_profile' => $this->brandingProfileDefaults('services', 'salon', 'Salon Éclat'),
+                'extra_access_roles' => ['front_desk', 'staff'],
+                'suggested_flow' => $this->suggestedFlowFromScenarioPacks($salonEclatScenarios),
             ],
             [
                 'key' => 'commerce',
@@ -534,6 +585,50 @@ class DemoWorkspaceCatalog
                 'company_types' => ['services'],
                 'sectors' => ['salon', 'wellness', 'restaurant'],
                 'required_modules' => ['reservations'],
+            ],
+            [
+                'key' => 'salon_eclat_complete',
+                'label' => 'Salon Éclat complete day',
+                'description' => 'Run an immersive salon journey from booking to checkout and customer retention.',
+                'business_objective' => 'Show how Salon Éclat connects front desk, stylists, checkout, retail, loyalty, and marketing in one customer history.',
+                'ordered_actions' => [
+                    'Open Amina Diallo\'s dashboard and review the Salon Éclat day plan.',
+                    'Confirm a reservation, check the client in, and move the visit through the live queue.',
+                    'Start and complete the assigned service with the stylist.',
+                    'Complete the service checkout with taxes and a tip, then open the generated invoice and receipt.',
+                    'Review a separate retail sale and the promotion prepared for the salon.',
+                    'Review loyalty progress, then open the retention campaign and social content prepared for the salon.',
+                ],
+                'expected_results' => [
+                    'The reservation, service, payment, invoice, taxes, tip, and receipt form one traceable journey.',
+                    'Product sales and promotions remain visible in the customer and revenue history.',
+                    'Loyalty, campaign, assistant, and social screens provide a credible next action after the visit.',
+                ],
+                'key_screens' => [
+                    'Dashboard',
+                    'Reservations board and live queue',
+                    'Service checkout',
+                    'Invoices and payment history',
+                    'Accounting journal and tax summary',
+                    'Point of sale',
+                    'Loyalty',
+                    'Campaigns',
+                    'Social',
+                ],
+                'company_types' => ['services'],
+                'sectors' => ['salon'],
+                'required_modules' => [
+                    'services',
+                    'reservations',
+                    'invoices',
+                    'products',
+                    'sales',
+                    'promotions',
+                    'loyalty',
+                    'campaigns',
+                    'assistant',
+                    'social',
+                ],
             ],
             [
                 'key' => 'service_quote_to_invoice',

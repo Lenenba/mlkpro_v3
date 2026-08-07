@@ -10,7 +10,7 @@ Double usage de ce document :
 > Convention de lecture
 > `🎬` = ce que tu filmes · `🎙️` = ce que tu dis · `📝` = texte à incruster à l'écran · `⏱️` = durée cible · `✅` = point de test à valider
 
-> **Statut de validation : en cours.** Ce document reste la cible métier complète de Salon Éclat. Le preset de démo actuel couvre surtout le provisioning, les réservations et la file ; il ne provisionne pas encore tout ce scénario. Voir l'[audit de couverture Salon Éclat](audits/demo-salon/2026-08-07-salon-eclat-demo-coverage.md).
+> **Statut de validation : en cours.** Le preset `salon_eclat_complete` fournit maintenant le socle immersif de Salon Éclat : identité, équipe, catalogue, POS, fidélité, marketing, réservation publique et une preuve d'encaissement local complète. Le parcours Stripe réel reste volontairement hors seed et doit être validé avec une configuration Stripe de test et un scénario E2E. Voir l'[audit de couverture Salon Éclat](audits/demo-salon/2026-08-07-salon-eclat-demo-coverage.md).
 
 ---
 
@@ -82,16 +82,16 @@ Tu crées le salon en direct devant la caméra. C'est **le meilleur argument de 
 
 ### Option B — Espace de démo pré-rempli *(recommandée pour tester vite)*
 
-Pour tester rapidement le cœur Réservations + File sans saisir toutes les données à la main. Les actes commerciaux et marketing demandent encore un enrichissement manuel.
+Pour parcourir une journée crédible de Salon Éclat sans saisie structurelle préalable. Ce preset fournit les données métier nécessaires aux actes catalogue, réservation, file, encaissement local, fidélisation et marketing.
 
 1. Connecte-toi en `superadmin@example.com` / `password`
    (si le compte n'existe pas : `php artisan app:launch-reset --force`)
 2. Va dans **Super Admin → Demos** (`/super-admin/demo-workspaces`)
-3. **Créer** → choisis le preset **`Salon queue`**
-   Il active d'office : Réservations & file, Planning, Présence, Prestations, Factures, Dépenses, Équipe, Performance.
-   Il ne doit pas activer Devis, Demandes, Scan de plans, Chantiers ou Tâches pour un salon. Produits/POS, promotions, fidélité, campagnes et assistant sont sélectionnables manuellement, mais leurs données Salon Éclat ne sont pas toutes provisionnées. Social n'est pas encore sélectionnable, car il manque au catalogue de démo.
-   Scénarios inclus : *Salon queue walkthrough* + *Reservation to in-service*
-4. Profil de données : **Standard** (12 clients, 5 prestations, réservations, file et dépenses). Le preset salon par défaut crée 0 produit et 0 vente ; active aussi `products` et `sales` si tu dois préparer ces données manuellement.
+3. **Créer** → choisis le preset **`Salon Éclat - immersive`** (`salon_eclat_complete`).
+   Il préremplit **Salon Éclat**, **Amina Diallo**, la langue française, le fuseau `America/Toronto` et le profil de données immersif.
+   Il active : Prestations, Réservations & file, Planning, Présence, Factures, Dépenses, Équipe, Performance, Produits, Ventes/POS, Promotions, Fidélité, Campagnes, Assistant et Social.
+   Il garde Devis, Demandes, Scan de plans, Chantiers et Tâches désactivés, car ces modules ne correspondent pas au parcours normal d'un salon.
+4. Le provisioning crée notamment : les **3 employés** Sophie, Karim et Léa, **10 prestations**, **5 produits**, des ventes POS, **3 forfaits**, l'historique fidélité, `RENTREE20`, la campagne `WINBACK`, du contenu Assistant/Social et un lien public de réservation actif.
 5. Langue : **fr** · Fuseau : **America/Toronto** · Équipe : **3**
 6. Accès supplémentaires : coche **Manager**, **Front desk**, **Staff**
 7. Lance le provisioning → attends la fin (queue worker actif)
@@ -99,7 +99,9 @@ Pour tester rapidement le cœur Réservations + File sans saisir toutes les donn
 
 ### Le combo idéal pour la vidéo
 
-Tourne **l'acte 1 en Option A** (onboarding live, effet « waouh, c'est déjà prêt »), puis utilise l'espace Option B pour les actes Réservations + File. Tant que le preset `salon_eclat_complete` n'existe pas, prépare manuellement les données Produits/POS, forfaits, fidélité, campagnes, social, assistant et encaissement complet avant de filmer les autres actes.
+Tourne **l'acte 1 en Option A** (onboarding live, effet « waouh, c'est déjà prêt »), puis utilise l'espace Option B pour les actes suivants. Le preset immersif évite la saisie manuelle du catalogue, des produits, des forfaits, de la fidélité, de la campagne, du contenu Social/Assistant et de la preuve d'encaissement local.
+
+> **Stripe réel : étape séparée.** Le seed ne crée jamais de fausse session Checkout, de faux PaymentIntent ni de fausse référence Stripe. Pour filmer un paiement par carte, configure Stripe/Stripe Connect en mode test, le webhook et les URL de retour, puis exécute le parcours E2E sur un nouveau ticket. Si Stripe n'est pas configuré, montre la trace locale seedée, pas un paiement carte simulé.
 
 ## 1.3 Les 5 sessions à ouvrir
 
@@ -139,7 +141,7 @@ Le module réservation prend tout son sens quand on voit **plusieurs points de v
 
 # PARTIE 2 — Jeu de données « Salon Éclat »
 
-Saisis-le une fois avant le tournage. Il est calibré pour que chaque écran soit crédible sans être surchargé.
+Le preset `salon_eclat_complete` provisionne ce jeu de données. Il est calibré pour que chaque écran soit crédible sans être surchargé ; complète seulement les éléments externes propres au tournage, comme le logo final, une boîte de réception de test ou Stripe en mode test.
 
 ## 2.1 Entreprise
 
@@ -257,7 +259,7 @@ Cette partie **est** le test de la plateforme. Chaque ligne cochée = une foncti
   - Délai de grâce appel : **5 min**
   - Seuil de pré-appel : **2 personnes devant**
   - Marquer absent si délai dépassé : **activé**
-- [ ] **Acompte** : exiger un acompte de **20 $** (à montrer sur le balayage à 210 $)
+- [x] **Politique d'acompte** : **20 $** dans les réglages du salon. Le lien public immersif ne l'exige pas encore, car aucun acompte ne doit être présenté comme encaissé sans checkout Stripe E2E validé.
 - [ ] **Frais d'absence** : activer, **25 $**
 - [ ] Uploader une **image de kiosque** aux couleurs du salon
 - [ ] **Notifications réservations** : activer email + in-app, cocher création / replanification / annulation / rappel, **rappels à 24 h et 2 h**, demande d'avis après la fin, et les alertes file (pré-appel, appelé, ETA 10 min)
@@ -278,6 +280,8 @@ Cette partie **est** le test de la plateforme. Chaque ligne cochée = une foncti
 - [ ] `/expenses` — créer 3 dépenses (produits fournisseur, loyer, électricité) et tester le **scan IA d'un reçu**
 - [ ] `/expenses` → **Petite caisse** : ouvrir un compte, saisir un mouvement, faire une clôture
 - [ ] `/accounting` — vérifier le journal, passer une période en revue
+
+> **Preuve financière fournie par le preset.** Un ticket de file suit réellement la chaîne `service terminé → encaissement local comptant → facture payée`. La facture conserve le détail des taxes Québec à **14,975 %**, le paiement associé un pourboire de **18 %** attribué au membre, et un reçu consultable. Cette trace valide les calculs et les relations métier ; elle ne prétend pas valider Stripe.
 
 ## 3.5 Croissance
 
@@ -404,14 +408,14 @@ Et le soir, personne ne sait vraiment ce que la journée a rapporté.
 
 ✅ **Test** : crée deux réservations sur le même fauteuil au même horaire → la seconde doit être refusée
 
-### Séquence 2.3 — Acompte et no-show (25 s)
+### Séquence 2.3 — Politique d'acompte et no-show (25 s)
 
-🎬 Plan serré sur *Exiger un acompte* = 20 $ et *Frais d'absence* = 25 $.
+🎬 Plan serré sur la politique *Acompte* = 20 $ et *Frais d'absence* = 25 $. Ne filme pas un encaissement d'acompte tant que le scénario Stripe E2E n'est pas vert.
 
 🎙️
-> « Le balayage à 210 $ qui ne se présente pas, c'est trois heures de fauteuil perdues. Vingt dollars d'acompte à la réservation, vingt-cinq dollars de frais d'absence : le client s'engage vraiment, et vous ne perdez plus votre après-midi. »
+> « Le balayage à 210 $ qui ne se présente pas, c'est trois heures de fauteuil perdues. La politique d'acompte et les frais d'absence sont configurés ici. L'encaissement d'acompte sera montré uniquement après sa validation Stripe de bout en bout. »
 
-📝 `Acompte 20 $ · Frais d'absence 25 $ — annoncés à la réservation`
+📝 `Politique : acompte 20 $ · absence 25 $`
 
 ### Séquence 2.4 — Disponibilités et planning (35 s)
 
@@ -443,19 +447,18 @@ Et le soir, personne ne sait vraiment ce que la journée a rapporté.
 
 ### Séquence 3.2 — Julie réserve (60 s)
 
-🎬 Fenêtre privée, **vue mobile**, sur `/book/salon-eclat/{slug}`. Julie Nadeau :
+🎬 Fenêtre privée, **vue mobile**, sur `/book/salon-eclat/rendez-vous` (ou l'URL copiée depuis les réglages). Julie Nadeau :
 1. Choisit **Balayage complet** — 180 min, 210 $
 2. Choisit **Léa** (ou *N'importe quel membre disponible*)
 3. Le calendrier charge les créneaux → **plan serré** : les jours fermés sont grisés, les créneaux tiennent compte des 3 heures et du buffer
 4. Sélectionne samedi 10h00
-5. Le bandeau **« Acompte de réservation requis : 20 $ »** apparaît
-6. Renseigne nom, email, téléphone, note « Je viens de la part de Marie »
-7. **Confirmer la réservation**
+5. Renseigne nom, email, téléphone, note « Je viens de la part de Marie »
+6. **Confirmer la réservation**
 
 🎙️
-> « Julie choisit sa prestation. Un balayage, trois heures. Elle choisit sa coloriste. Et là, seuls les créneaux réellement disponibles s'affichent : les trois heures sont vérifiées, le buffer est ajouté, le samedi de fermeture n'existe même pas. Elle voit l'acompte avant de valider — aucune mauvaise surprise. Elle confirme. Ça lui a pris quarante secondes, à trois heures du matin s'il le fallait. Et vous, vous n'avez pas décroché. »
+> « Julie choisit sa prestation. Un balayage, trois heures. Elle choisit sa coloriste. Et là, seuls les créneaux réellement disponibles s'affichent : les trois heures sont vérifiées, le buffer est ajouté, le samedi de fermeture n'existe même pas. Elle confirme. Ça lui a pris quarante secondes, à trois heures du matin s'il le fallait. Et vous, vous n'avez pas décroché. »
 
-✅ **Test** : le créneau n'est plus proposé à un second client · la réservation apparaît en **En attente** côté salon · l'acompte figure sur la fiche
+✅ **Test** : le créneau n'est plus proposé à un second client · la réservation apparaît en **En attente** côté salon · aucun acompte n'est annoncé ou débité par ce lien
 
 ### Séquence 3.3 — Côté salon (25 s)
 
@@ -572,6 +575,13 @@ Filme les **trois onglets** :
 
 **Objectif** : montrer que la sortie de caisse capte **tout** le chiffre d'affaires possible.
 
+Le preset contient déjà une transaction locale complète à auditer : ticket de file, facture avec taxes à 14,975 %, paiement comptant, pourboire de 18 %, attribution et reçu. Pour tourner la séquence en direct, crée un nouveau ticket et choisis l'une des deux preuves suivantes :
+
+- **parcours local déterministe** : paiement comptant, puis vérification immédiate de la facture et du reçu ;
+- **parcours carte réel** : Stripe/Stripe Connect configuré en mode test, passage sur Checkout Stripe, retour sur la plateforme, puis vérification de la facture payée et du reçu.
+
+Le second parcours est un test E2E obligatoire avant de le filmer. Aucune session, référence ou réussite Stripe n'est simulée par les données de démo.
+
 ### Séquence 5.1 — Terminer et facturer (30 s)
 
 🎬 `/app/reservations` → la réservation de Marie → **Marquer terminée**. Puis `/invoices` : la facture est là.
@@ -590,7 +600,7 @@ Filme les **trois onglets** :
 
 ### Séquence 5.3 — Le pourboire (30 s) ⭐
 
-🎬 Fenêtre Marie (portail client / lien de paiement). Le bloc **« Ajouter un pourboire ? (optionnel) »** apparaît avec les boutons de pourcentage. Elle choisit **18 %**, puis paie.
+🎬 Fenêtre Marie (portail client / lien de paiement). Le bloc **« Ajouter un pourboire ? (optionnel) »** apparaît avec les boutons de pourcentage. Elle choisit **18 %**, puis paie. Si tu montres la carte, filme aussi Checkout Stripe et le retour vers la plateforme ; sinon sélectionne comptant et présente clairement ce mode.
 
 🎙️
 > « Au moment de payer, Marie se voit proposer un pourboire. Elle choisit dix-huit pour cent. Et ce pourboire va directement à la personne qui l'a coiffée — c'est la plateforme qui fait la répartition, selon la règle que vous avez fixée. »
@@ -602,7 +612,7 @@ Filme les **trois onglets** :
 🎙️
 > « Vous suivez le total et la répartition. Karim, lui, voit ses propres pourboires, en toute transparence. Fini le pot commun et les discussions du vendredi soir. »
 
-✅ **Test** : le pourboire apparaît sur la facture · l'attribution au membre est correcte · l'export CSV fonctionne
+✅ **Test** : taxes à 14,975 % conservées sur la facture · pourboire de 18 % rattaché au paiement et au bon membre · total encaissé cohérent · reçu accessible · l'export CSV fonctionne
 
 ### Séquence 5.4 — Les points de fidélité (20 s)
 
@@ -752,7 +762,7 @@ Démo personnalisée gratuite
 | R6 | Exception de fermeture masque les créneaux | ☐ |
 | R7 | Surcharge par membre (buffer de Léa) appliquée | ☐ |
 | R8 | Lien public actif, créneaux corrects, mobile OK | ☐ |
-| R9 | Acompte affiché avant validation | ☐ |
+| R9 | Aucun acompte annoncé sans checkout Stripe réellement actif | ☐ |
 | R10 | Réservation → statut **En attente** côté salon | ☐ |
 | R11 | Confirmer / Refuser / Terminer / **Marquer absent** | ☐ |
 | R12 | Frais d'absence appliqués sur un no-show | ☐ |
@@ -894,7 +904,7 @@ Démo personnalisée gratuite
 
 1. Le clic sur **secteur = Salon**, suivi des rubriques déjà créées
 2. Le calendrier mobile qui grise les créneaux indisponibles
-3. Le bandeau **acompte de 20 $** avant validation
+3. La facture finale avec **taxes + pourboire + reçu**
 4. Le **kiosque plein écran** avec le temps d'attente
 5. Le split-screen **file / écran TV** qui réagit en direct
 6. Le bloc **pourboire** au moment de payer
@@ -932,7 +942,7 @@ Coupe : Actes 1, 2, 7 — le prospect qui a déjà parlé avec toi n'a plus beso
 | « C'est trop compliqué pour mon équipe » | Sophie ne voit que 4 boutons : Check-in, Appeler, Démarrer, Terminer. | Séquence 4.4 |
 | « Ça va me prendre des semaines à installer » | Le secteur Salon pré-crée vos rubriques. Le salon de la vidéo a été configuré en moins d'une heure. | Acte 1 |
 | « Mes clientes ne réservent pas en ligne » | Elles ne le font pas parce que c'est mal fait. 40 secondes, sur mobile, sans créer de compte. | Séquence 3.2 |
-| « Les no-shows, on n'y peut rien » | Acompte + rappels J-1 et H-2 + frais d'absence + liste d'attente. | Séquences 2.3, 3.3, 3.5 |
+| « Les no-shows, on n'y peut rien » | Rappels J-1 et H-2 + frais d'absence + liste d'attente. La politique d'acompte est prête, mais son encaissement ne sera montré qu'après validation Stripe E2E. | Séquences 2.3, 3.3, 3.5 |
 | « Les pourboires, c'est entre l'équipe et moi » | Justement : la répartition est automatique et transparente. Chacun voit les siens. | Séquence 5.3 |
 | « Combien ça coûte ? » | Un balayage no-show, c'est 210 $. Deux évités par mois paient l'abonnement. | Séquence 2.3 |
 

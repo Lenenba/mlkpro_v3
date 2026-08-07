@@ -114,6 +114,12 @@ class AccountDeletionService
         DB::table('invoices')->where('user_id', $accountId)->delete();
         DB::table('sales')->where('user_id', $accountId)->delete();
         DB::table('plan_scans')->where('user_id', $accountId)->delete();
+        DB::table('offer_package_items')
+            ->whereIn('offer_package_id', function ($query) use ($accountId) {
+                $query->select('id')->from('offer_packages')->where('user_id', $accountId);
+            })
+            ->delete();
+        DB::table('offer_packages')->where('user_id', $accountId)->delete();
         DB::table('products')->where('user_id', $accountId)->delete();
         DB::table('warehouses')->where('user_id', $accountId)->delete();
         DB::table('transactions')

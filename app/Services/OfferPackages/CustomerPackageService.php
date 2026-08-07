@@ -1120,7 +1120,7 @@ class CustomerPackageService
                 $query->whereNull('expires_at')
                     ->orWhereDate('expires_at', '>=', $usedAt->toDateString());
             })
-            ->with('offerPackage')
+            ->with('offerPackage.items')
             ->get();
 
         if ($packages->isEmpty()) {
@@ -1130,6 +1130,32 @@ class CustomerPackageService
         $serviceId = (int) ($reservation->service_id ?? 0);
 
         return $packages
+            ->filter(function (CustomerPackage $package) use ($serviceId): bool {
+                if ($serviceId < 1) {
+                    return true;
+                }
+
+                $snapshotItems = collect((array) data_get(
+                    $package->source_details,
+                    'offer_package_items',
+                    []
+                ));
+                $items = $snapshotItems->isNotEmpty()
+                    ? $snapshotItems
+                    : collect($package->offerPackage?->items ?? []);
+
+                if ($items->isEmpty()) {
+                    return true;
+                }
+
+                return $items->contains(function (mixed $item) use ($serviceId): bool {
+                    $productId = is_array($item)
+                        ? ($item['product_id'] ?? 0)
+                        : data_get($item, 'product_id', 0);
+
+                    return (int) $productId === $serviceId;
+                });
+            })
             ->sortBy(function (CustomerPackage $package) use ($serviceId) {
                 $matchesService = $serviceId > 0 && collect((array) data_get($package->source_details, 'offer_package_items', []))
                     ->contains(fn (array $item): bool => (int) ($item['product_id'] ?? 0) === $serviceId);
