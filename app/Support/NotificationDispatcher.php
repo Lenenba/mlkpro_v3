@@ -5,7 +5,6 @@ namespace App\Support;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification as NotificationFacade;
-use App\Support\EmailMirrorNotifier;
 
 class NotificationDispatcher
 {

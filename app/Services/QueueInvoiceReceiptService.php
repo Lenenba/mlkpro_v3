@@ -300,8 +300,7 @@ class QueueInvoiceReceiptService
         string $channel,
         array $context,
         string $claimToken
-    ): void
-    {
+    ): void {
         $deliveredAt = now('UTC');
         $recorded = Invoice::query()
             ->whereKey($invoice->id)
@@ -339,8 +338,7 @@ class QueueInvoiceReceiptService
         string $reason,
         array $context,
         string $claimToken
-    ): void
-    {
+    ): void {
         $this->recordFailure($invoice, $actor, $channel, $reason, $context, false, $claimToken);
     }
 

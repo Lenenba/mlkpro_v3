@@ -1,16 +1,16 @@
 <?php
 
+use App\Http\Middleware\EnsureCompanyFeature;
+use App\Http\Middleware\EnsureDemoSafeMode;
+use App\Http\Middleware\EnsureTwoFactorVerified;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Work;
-use App\Services\TipAllocationService;
 use App\Services\StripeInvoiceService;
-use App\Http\Middleware\EnsureCompanyFeature;
-use App\Http\Middleware\EnsureDemoSafeMode;
-use App\Http\Middleware\EnsureTwoFactorVerified;
+use App\Services\TipAllocationService;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 
 beforeEach(function () {
@@ -29,7 +29,7 @@ function createOwnerForInvoiceTips(): User
 
     return User::query()->create([
         'name' => 'Invoice Tip Owner',
-        'email' => 'owner-tip-' . uniqid('', true) . '@example.com',
+        'email' => 'owner-tip-'.uniqid('', true).'@example.com',
         'role_id' => $role->id,
         'password' => 'password',
         'company_name' => 'Tip Company',

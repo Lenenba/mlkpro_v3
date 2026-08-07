@@ -81,8 +81,7 @@ test('receipt is marked delivered only after the queued email worker sends it', 
         ->and($invoice->receipt_delivery_status)->toBe(QueueInvoiceReceiptService::STATUS_QUEUED)
         ->and($invoice->receipt_delivery_attempts)->toBe(0);
 
-    Queue::assertPushed(DeliverQueueInvoiceReceipt::class, fn (DeliverQueueInvoiceReceipt $job): bool =>
-        $job->invoiceId === $invoice->id && $job->channel === 'email'
+    Queue::assertPushed(DeliverQueueInvoiceReceipt::class, fn (DeliverQueueInvoiceReceipt $job): bool => $job->invoiceId === $invoice->id && $job->channel === 'email'
     );
 
     app(QueueInvoiceReceiptService::class)->deliverQueued($invoice->id, $owner->id, 'email');
