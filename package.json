@@ -4,6 +4,8 @@
     "scripts": {
         "build": "node --max_old_space_size=1536 ./node_modules/vite/bin/vite.js build",
         "dev": "vite",
+        "docs:index": "node scripts/generate-doc-index.mjs",
+        "docs:index:check": "node scripts/generate-doc-index.mjs --check",
         "qa:build": "npm run build",
         "qa:capacity-runner": "node --test tests/Node/P0006CapacityRunnerTest.mjs",
         "qa:frontend-budgets": "node scripts/check-frontend-budgets.mjs",

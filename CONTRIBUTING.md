@@ -34,6 +34,8 @@ Every change must include tests proportionate to its risk and preserve existing 
 
 Any change to plans, sectors, feature flags, module navigation, shared screens, demos, or module-specific permissions must follow the [module visibility and consistency audit runbook](docs/MODULE_VISIBILITY_AUDIT_RUNBOOK.md). Record dated audit evidence under `docs/audits/module-visibility/` when the change requires a cross-module review.
 
+When documentation is added or its delivery status changes, update `docs/document-status.json`, run `npm run docs:index`, and validate the generated per-folder indexes with `npm run docs:index:check`.
+
 For every PHP addition, edit, or deletion, finish staging the final contents and run `composer qa:format`, then run it again immediately before pushing or handing off the branch. The formatter gate must reject partially staged PHP files and unstaged PHP deletions. A PHP branch is not ready to merge until the `laravel-quality` check is green on that exact commit. If PHP, Composer, or Pint is unavailable locally, report the validation as blocked and wait for the CI result instead of claiming success.
 
 No secret, real authentication token, one-time code, full customer phone number, or direct customer data may be committed or copied into validation evidence.

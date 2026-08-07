@@ -1,0 +1,174 @@
+{
+    "version": 1,
+    "documents": {
+        "docs/DEMO_GUIDE.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "note": "Guide actif du provisioning de demo; le workflow legacy n'est plus recommande."
+        },
+        "docs/DEMO_VIDEO_SALON_COIFFURE.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "created_at": "2026-08-06",
+            "updated_at": "2026-08-07",
+            "note": "Reference metier Salon Eclat; 50 validations restent ouvertes et le preset Salon queue doit etre realigne."
+        },
+        "docs/MOBILE_API_PHASE_0_DISCOVERY_FREEZE.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "note": "Document de decouverte fige; implementation produit encore a planifier."
+        },
+        "docs/MODULE_VISIBILITY_AUDIT_RUNBOOK.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "note": "Procedure durable d'audit des 21 modules."
+        },
+        "docs/PLATFORM_BULK_ACTIONS_USER_STORY.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "note": "Socle partiellement livre; generalisation multi-modules encore incomplete."
+        },
+        "docs/PROSPECTS_MODULE_DEV_BACKLOG_2026-04-24.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "note": "PROSPECT-702 et plusieurs flux de fermeture restent partiels."
+        },
+        "docs/PRICING_STRUCTURE_REDESIGN_USER_STORY.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "note": "Conception figee pour implementation; livraison produit non terminee."
+        },
+        "docs/RESERVATION_KIOSK_QUEUE_USER_STORIES.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "note": "Phase 1 partiellement livree; le parcours complet reste a valider."
+        },
+        "docs/SOLO_PRICING_USER_STORY.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "note": "Phase 1 figee, mais le perimetre d'implementation global reste en cours."
+        },
+        "docs/TRADUCTIONS_STATUS_ET_DEPLOIEMENT_2026-04-11.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "note": "Etat de deploiement documente; backlog de traductions encore ouvert."
+        },
+        "docs/audits/module-visibility/2026-08-07-initial-risk-register.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "note": "Registre actif: 10 risques sont encore a verifier."
+        },
+        "docs/audits/demo-salon/2026-08-07-salon-eclat-demo-coverage.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "created_at": "2026-08-07",
+            "updated_at": "2026-08-07",
+            "note": "Infrastructure robuste, mais couverture metier Salon Eclat encore partielle."
+        },
+        "docs/audits/mlkpro-benchmark-2026-07-16/execution/PHASE_0_SECURITY_AND_BASELINE.md": {
+            "document_status": "complete",
+            "delivery_status": "done",
+            "note": "Phase 0 cloturee sous derogation MLK-DEC-010."
+        },
+        "docs/audits/mlkpro-benchmark-2026-07-16/evidence.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "note": "Dossier de preuves du benchmark."
+        },
+        "docs/audits/mlkpro-benchmark-2026-07-16/execution/PHASE_1_QUICK_PERFORMANCE_WINS.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "note": "Phase 1 ouverte; validations humaines restantes."
+        },
+        "docs/audits/mlkpro-benchmark-2026-07-16/execution/PHASE_1_VALIDATION_RUNBOOK.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "note": "Validation humaine Phase 1 en cours."
+        },
+        "docs/audits/mlkpro-benchmark-2026-07-16/execution/PHASE_2_DATA_AND_RUNTIME_PERFORMANCE.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "note": "Phase 2 planifiee, non ouverte."
+        },
+        "docs/audits/mlkpro-benchmark-2026-07-16/execution/PHASE_2_EXECUTION_RUNBOOK.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "note": "Runbook prepare; Phase 2 non ouverte."
+        },
+        "docs/audits/mlkpro-benchmark-2026-07-16/execution/PHASE_3_PREMIUM_USER_EXPERIENCE.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "note": "Phase 3 en attente."
+        },
+        "docs/audits/mlkpro-benchmark-2026-07-16/execution/PHASE_4_PRODUCT_DIFFERENTIATION.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "note": "Phase 4 en attente."
+        },
+        "docs/audits/mlkpro-benchmark-2026-07-16/execution/README.md": {
+            "document_status": "reference",
+            "delivery_status": "in_progress",
+            "note": "Cockpit actif du programme d'amelioration."
+        },
+        "docs/audits/mlkpro-benchmark-2026-07-16/execution/DECISIONS.md": {
+            "document_status": "reference",
+            "delivery_status": "in_progress",
+            "note": "Journal de decisions actif du programme."
+        },
+        "docs/audits/mlkpro-benchmark-2026-07-16/execution/P0_006_RUNNER.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "note": "Guide de reference du runner de capacite P0-006."
+        },
+        "docs/audits/mlkpro-benchmark-2026-07-16/execution/SUIVI_GLOBAL.md": {
+            "document_status": "reference",
+            "delivery_status": "in_progress",
+            "note": "Vue maitre active: Phase 1 ouverte."
+        },
+        "docs/audits/mlkpro-benchmark-2026-07-16/execution/VALIDATION_LOG.md": {
+            "document_status": "reference",
+            "delivery_status": "in_progress",
+            "note": "Journal de validation actif du programme."
+        },
+        "docs/audits/mlkpro-benchmark-2026-07-16/execution/QUALITY_GATES.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "note": "Referentiel actif des controles qualite."
+        },
+        "docs/demo/module-client-demo-20min.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "note": "Scenario de demonstration actif."
+        },
+        "docs/demo/module-invoices-paiements-demo-20min.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "note": "Scenario de demonstration actif."
+        },
+        "docs/demo/module-jobs-demo-20min.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "note": "Scenario de demonstration actif."
+        },
+        "docs/demo/module-produits-demo-20min.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "note": "Scenario de demonstration actif."
+        },
+        "docs/demo/module-quotes-demo-20min.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "note": "Scenario de demonstration actif."
+        },
+        "docs/demo/module-requests-demo-20min.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "note": "Scenario de demonstration actif."
+        },
+        "docs/superpowers/specs/2026-06-10-social-login-confirm-create-design.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "note": "Design approuve, revue finale encore en attente."
+        }
+    }
+}

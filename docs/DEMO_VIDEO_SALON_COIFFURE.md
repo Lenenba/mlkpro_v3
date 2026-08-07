@@ -1,6 +1,6 @@
 # Démo vidéo — Salon de coiffure / beauté
 
-Dernière mise à jour : 2026-08-06
+Dernière mise à jour : 2026-08-07
 Public visé : propriétaires de salons de coiffure, barbershops, instituts de beauté.
 Double usage de ce document :
 
@@ -9,6 +9,8 @@ Double usage de ce document :
 
 > Convention de lecture
 > `🎬` = ce que tu filmes · `🎙️` = ce que tu dis · `📝` = texte à incruster à l'écran · `⏱️` = durée cible · `✅` = point de test à valider
+
+> **Statut de validation : en cours.** Ce document reste la cible métier complète de Salon Éclat. Le preset de démo actuel couvre surtout le provisioning, les réservations et la file ; il ne provisionne pas encore tout ce scénario. Voir l'[audit de couverture Salon Éclat](audits/demo-salon/2026-08-07-salon-eclat-demo-coverage.md).
 
 ---
 
@@ -80,15 +82,16 @@ Tu crées le salon en direct devant la caméra. C'est **le meilleur argument de 
 
 ### Option B — Espace de démo pré-rempli *(recommandée pour tester vite)*
 
-Pour valider toutes les fonctions sans saisir 40 lignes de données à la main.
+Pour tester rapidement le cœur Réservations + File sans saisir toutes les données à la main. Les actes commerciaux et marketing demandent encore un enrichissement manuel.
 
 1. Connecte-toi en `superadmin@example.com` / `password`
    (si le compte n'existe pas : `php artisan app:launch-reset --force`)
 2. Va dans **Super Admin → Demos** (`/super-admin/demo-workspaces`)
 3. **Créer** → choisis le preset **`Salon queue`**
-   Il active d'office : Réservations & file, Planning, Présence, Prestations, Produits, Devis, Demandes, Chantiers, Tâches, Factures, Dépenses, Équipe, Performance
+   Il active d'office : Réservations & file, Planning, Présence, Prestations, Factures, Dépenses, Équipe, Performance.
+   Il ne doit pas activer Devis, Demandes, Scan de plans, Chantiers ou Tâches pour un salon. Produits/POS, promotions, fidélité, campagnes et assistant sont sélectionnables manuellement, mais leurs données Salon Éclat ne sont pas toutes provisionnées. Social n'est pas encore sélectionnable, car il manque au catalogue de démo.
    Scénarios inclus : *Salon queue walkthrough* + *Reservation to in-service*
-4. Profil de données : **Standard** (12 clients, 10 items catalogue, réservations, file, ventes, dépenses)
+4. Profil de données : **Standard** (12 clients, 5 prestations, réservations, file et dépenses). Le preset salon par défaut crée 0 produit et 0 vente ; active aussi `products` et `sales` si tu dois préparer ces données manuellement.
 5. Langue : **fr** · Fuseau : **America/Toronto** · Équipe : **3**
 6. Accès supplémentaires : coche **Manager**, **Front desk**, **Staff**
 7. Lance le provisioning → attends la fin (queue worker actif)
@@ -96,7 +99,7 @@ Pour valider toutes les fonctions sans saisir 40 lignes de données à la main.
 
 ### Le combo idéal pour la vidéo
 
-Tourne **l'acte 1 en Option A** (onboarding live, effet « waouh, c'est déjà prêt »), puis bascule au montage sur l'espace Option B pour tous les actes suivants (données réalistes, historique crédible, KPI non vides). Personne ne verra la coupe si le nom du salon est identique dans les deux.
+Tourne **l'acte 1 en Option A** (onboarding live, effet « waouh, c'est déjà prêt »), puis utilise l'espace Option B pour les actes Réservations + File. Tant que le preset `salon_eclat_complete` n'existe pas, prépare manuellement les données Produits/POS, forfaits, fidélité, campagnes, social, assistant et encaissement complet avant de filmer les autres actes.
 
 ## 1.3 Les 5 sessions à ouvrir
 

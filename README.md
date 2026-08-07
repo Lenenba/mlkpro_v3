@@ -28,6 +28,10 @@ Git Workflow
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the contributor workflow and [AGENTS.md](AGENTS.md) for the mandatory automation rules.
 
+Documentation
+-------------
+The documentation catalog is maintained in [docs/00_INDEX.md](docs/00_INDEX.md). It lists the newest documents first and separates work in progress, planned work, completed work, active references, archives, and documents still requiring classification.
+
 Improvement Program
 -------------------
 The complete Phase 0–4 roadmap, completed-work recap, current status, blockers, and next actions are maintained in the [global improvement tracker](docs/audits/mlkpro-benchmark-2026-07-16/execution/SUIVI_GLOBAL.md). The [execution cockpit](docs/audits/mlkpro-benchmark-2026-07-16/execution/README.md) and [validation log](docs/audits/mlkpro-benchmark-2026-07-16/execution/VALIDATION_LOG.md) provide the detailed controls and evidence.
