@@ -4,6 +4,8 @@ import { Head } from '@inertiajs/vue3';
 import CustomerStats from '@/Components/UI/CustomerStats.vue';
 import CustomerActivityStat from '@/Components/UI/CustomerActivityStat.vue';
 import CustomerTable from './UI/CustomerTable.vue';
+import { computed } from 'vue';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
 const props = defineProps({
     customers: Object,
@@ -28,6 +30,9 @@ const props = defineProps({
         default: false,
     },
 });
+
+const { hasFeature } = useAccountFeatures();
+const showOperationalActivity = computed(() => hasFeature('quotes') || hasFeature('jobs'));
 </script>
 <template>
 
@@ -35,7 +40,7 @@ const props = defineProps({
     <AuthenticatedLayout>
         <CustomerStats :stats="stats" />
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-2 md:gap-3 lg:gap-5 ">
-            <div class="col-span-1 lg:col-span-3">
+            <div class="col-span-1" :class="showOperationalActivity ? 'lg:col-span-3' : 'lg:col-span-4'">
                 <CustomerTable
                     :customers="customers"
                     :filters="filters"
@@ -46,7 +51,7 @@ const props = defineProps({
                     :can-manage-saved-segments="canManageSavedSegments"
                 />
             </div>
-            <CustomerActivityStat :items="topCustomers" />
+            <CustomerActivityStat v-if="showOperationalActivity" :items="topCustomers" />
         </div>
 
     </AuthenticatedLayout>

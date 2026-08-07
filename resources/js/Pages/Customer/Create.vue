@@ -5,7 +5,12 @@ import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import DropzoneInput from '@/Components/DropzoneInput.vue';
 import InputError from '@/Components/InputError.vue';
-import { companyIconPresets, defaultCompanyIcon } from '@/utils/iconPresets';
+import {
+    avatarIconPresets,
+    companyIconPresets,
+    defaultAvatarIcon,
+    defaultCompanyIcon,
+} from '@/utils/iconPresets';
 import {
     buildCustomerClientTypeOptions,
     CUSTOMER_CLIENT_TYPE_COMPANY,
@@ -13,6 +18,7 @@ import {
     resolveCustomerClientType,
 } from '@/utils/customerClientTypes';
 import { assignGeoapifyAddress, useGeoapifyAddressAutocomplete } from '@/Composables/useGeoapifyAddressAutocomplete';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 import { useForm, Head, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -26,16 +32,40 @@ const { t } = useI18n();
 
 const isCreating = !props.customer?.id;
 const page = usePage();
+const { hasFeature } = useAccountFeatures();
+const quotesFeatureEnabled = computed(() => hasFeature('quotes'));
+const jobsFeatureEnabled = computed(() => hasFeature('jobs'));
+const tasksFeatureEnabled = computed(() => hasFeature('tasks'));
+const invoicesFeatureEnabled = computed(() => hasFeature('invoices'));
+const hasAutoValidationFeatures = computed(() => (
+    quotesFeatureEnabled.value
+    || jobsFeatureEnabled.value
+    || tasksFeatureEnabled.value
+    || invoicesFeatureEnabled.value
+));
 const isGuidedDemo = computed(() => Boolean(page.props.demo?.is_guided));
 const demoPrefilled = ref(false);
 const clientTypeOptions = computed(() => buildCustomerClientTypeOptions(t));
+const initialClientType = resolveCustomerClientType(
+    props.customer,
+    props.customer?.id ? resolveCustomerClientType(props.customer) : CUSTOMER_CLIENT_TYPE_INDIVIDUAL
+);
 
-const billingModes = computed(() => ([
-    { id: 'per_task', name: t('customers.form.billing_modes.per_task') },
-    { id: 'per_segment', name: t('customers.form.billing_modes.per_segment') },
-    { id: 'end_of_job', name: t('customers.form.billing_modes.end_of_job') },
+const billingModes = computed(() => [
+    ...(tasksFeatureEnabled.value
+        ? [{ id: 'per_task', name: t('customers.form.billing_modes.per_task') }]
+        : []),
+    ...(jobsFeatureEnabled.value
+        ? [{ id: 'per_segment', name: t('customers.form.billing_modes.per_segment') }]
+        : []),
+    {
+        id: 'end_of_job',
+        name: t(jobsFeatureEnabled.value
+            ? 'customers.form.billing_modes.end_of_job'
+            : 'customers.form.billing_modes.end_of_service'),
+    },
     { id: 'deferred', name: t('customers.form.billing_modes.deferred') },
-]));
+]);
 
 const billingGroupings = computed(() => ([
     { id: 'single', name: t('customers.form.billing_groupings.single') },
@@ -46,16 +76,41 @@ const billingCycles = computed(() => ([
     { id: 'weekly', name: t('customers.form.billing_cycles.weekly') },
     { id: 'biweekly', name: t('customers.form.billing_cycles.biweekly') },
     { id: 'monthly', name: t('customers.form.billing_cycles.monthly') },
-    { id: 'every_n_tasks', name: t('customers.form.billing_cycles.every_n_tasks') },
+    ...(tasksFeatureEnabled.value
+        ? [{ id: 'every_n_tasks', name: t('customers.form.billing_cycles.every_n_tasks') }]
+        : []),
 ]));
 
-const isCompanyIcon = (value) => companyIconPresets.includes(value);
+const resolveBillingMode = (billingMode) => {
+    if (billingMode === 'per_task' && !tasksFeatureEnabled.value) {
+        return 'end_of_job';
+    }
+
+    if (billingMode === 'per_segment' && !jobsFeatureEnabled.value) {
+        return 'end_of_job';
+    }
+
+    return billingMode || 'end_of_job';
+};
+
+const iconPresetsForClientType = (clientType) => (
+    clientType === CUSTOMER_CLIENT_TYPE_COMPANY ? companyIconPresets : avatarIconPresets
+);
+const defaultIconForClientType = (clientType) => (
+    clientType === CUSTOMER_CLIENT_TYPE_COMPANY ? defaultCompanyIcon : defaultAvatarIcon
+);
+const isPresetIcon = (value) => [...companyIconPresets, ...avatarIconPresets].includes(value);
 const initialLogoPath = props.customer?.logo_url || props.customer?.logo || '';
-const initialLogoIcon = isCompanyIcon(props.customer?.logo)
+const initialLogoIconCandidate = isPresetIcon(props.customer?.logo)
     ? props.customer.logo
-    : (isCompanyIcon(initialLogoPath) ? initialLogoPath : '');
-const defaultLogoIcon = initialLogoIcon || (isCreating ? defaultCompanyIcon : '');
-const initialLogoPreview = defaultLogoIcon ? '' : initialLogoPath;
+    : (isPresetIcon(initialLogoPath) ? initialLogoPath : '');
+const initialLogoIcon = iconPresetsForClientType(initialClientType).includes(initialLogoIconCandidate)
+    ? initialLogoIconCandidate
+    : '';
+const defaultLogoIcon = initialLogoIcon || (
+    isCreating || initialLogoIconCandidate ? defaultIconForClientType(initialClientType) : ''
+);
+const initialLogoPreview = isPresetIcon(initialLogoPath) ? '' : initialLogoPath;
 
 const resolvePrimaryProperty = () => {
     const properties = props.customer?.properties;
@@ -72,11 +127,6 @@ const resolvePrimaryProperty = () => {
         country: primary?.country || '',
     };
 };
-
-const initialClientType = resolveCustomerClientType(
-    props.customer,
-    props.customer?.id ? resolveCustomerClientType(props.customer) : CUSTOMER_CLIENT_TYPE_INDIVIDUAL
-);
 
 // Initialize the form
 const form = useForm({
@@ -96,47 +146,87 @@ const form = useForm({
     salutation: props.customer?.salutation || 'Mr',
     phone: props.customer?.phone || '',
     properties: resolvePrimaryProperty(),
-    billing_mode: props.customer?.billing_mode || 'end_of_job',
+    billing_mode: resolveBillingMode(props.customer?.billing_mode),
     billing_cycle: props.customer?.billing_cycle || '',
     billing_grouping: props.customer?.billing_grouping || 'single',
     billing_delay_days: props.customer?.billing_delay_days ?? '',
     billing_date_rule: props.customer?.billing_date_rule || '',
     discount_rate: props.customer?.discount_rate ?? '',
-    auto_accept_quotes: props.customer?.auto_accept_quotes ?? false,
-    auto_validate_jobs: props.customer?.auto_validate_jobs ?? false,
-    auto_validate_tasks: props.customer?.auto_validate_tasks ?? false,
-    auto_validate_invoices: props.customer?.auto_validate_invoices ?? false,
+    auto_accept_quotes: quotesFeatureEnabled.value && (props.customer?.auto_accept_quotes ?? false),
+    auto_validate_jobs: jobsFeatureEnabled.value && (props.customer?.auto_validate_jobs ?? false),
+    auto_validate_tasks: tasksFeatureEnabled.value && (props.customer?.auto_validate_tasks ?? false),
+    auto_validate_invoices: invoicesFeatureEnabled.value && (props.customer?.auto_validate_invoices ?? false),
 });
 
 const isCompanyClient = computed(() => form.client_type === CUSTOMER_CLIENT_TYPE_COMPANY);
+const logoIconPresets = computed(() => iconPresetsForClientType(form.client_type));
+const currentDefaultLogoIcon = computed(() => defaultIconForClientType(form.client_type));
+const logoFieldLabel = computed(() => (
+    isCompanyClient.value
+        ? t('customers.form.fields.company_logo')
+        : t('customers.form.fields.profile_photo')
+));
+const uploadLogoLabel = computed(() => (
+    isCompanyClient.value
+        ? t('customers.form.fields.upload_company_logo')
+        : t('customers.form.fields.upload_profile_photo')
+));
+const chooseLogoIconLabel = computed(() => (
+    isCompanyClient.value
+        ? t('customers.form.fields.choose_company_icon')
+        : t('customers.form.fields.choose_profile_icon')
+));
+const logoIconAlt = computed(() => (
+    isCompanyClient.value
+        ? t('customers.form.fields.company_icon_alt')
+        : t('customers.form.fields.profile_icon_alt')
+));
 const contactSectionTitle = computed(() => (
     isCompanyClient.value
         ? t('customers.form.sections.main_contact')
         : t('customers.form.sections.contact_details')
 ));
 
-const selectCompanyIcon = (icon) => {
+const selectLogoIcon = (icon) => {
     form.logo_icon = icon;
     form.logo = null;
 };
 
-const clearCompanyIcon = () => {
-    form.logo_icon = '';
+const resetLogoIcon = () => {
+    form.logo = null;
+    form.logo_icon = currentDefaultLogoIcon.value;
 };
 
 watch(() => form.logo, (value) => {
     if (value instanceof File) {
         form.logo_icon = '';
+    } else if (!value && !form.logo_icon) {
+        form.logo_icon = currentDefaultLogoIcon.value;
     }
 });
 
-const submit = () => {
+watch(() => form.client_type, (clientType) => {
+    if (form.logo instanceof File || (typeof form.logo === 'string' && form.logo.trim() !== '')) {
+        form.logo_icon = '';
+        return;
+    }
+
+    if (!iconPresetsForClientType(clientType).includes(form.logo_icon)) {
+        form.logo_icon = defaultIconForClientType(clientType);
+    }
+});
+
+const performSubmit = ({ createAnother = false } = {}) => {
     const routeName = props.customer?.id ? 'customer.update' : 'customer.store';
     const routeParams = props.customer?.id ? props.customer.id : undefined;
 
     form
         .transform((data) => {
             const payload = { ...data };
+            payload.auto_accept_quotes = quotesFeatureEnabled.value && Boolean(data.auto_accept_quotes);
+            payload.auto_validate_jobs = jobsFeatureEnabled.value && Boolean(data.auto_validate_jobs);
+            payload.auto_validate_tasks = tasksFeatureEnabled.value && Boolean(data.auto_validate_tasks);
+            payload.auto_validate_invoices = invoicesFeatureEnabled.value && Boolean(data.auto_validate_invoices);
             if (data.logo instanceof File) {
                 payload.logo = data.logo;
             } else {
@@ -145,16 +235,27 @@ const submit = () => {
             if (!payload.logo_icon) {
                 delete payload.logo_icon;
             }
+            if (isCreating && createAnother) {
+                payload.create_another = true;
+            }
             return payload;
         })
         [props.customer?.id ? 'put' : 'post'](route(routeName, routeParams), {
             onSuccess: () => {
+                if (isCreating && createAnother) {
+                    form.reset();
+                    form.clearErrors();
+                    resetSearch();
+                }
                 if (isCreating && typeof window !== 'undefined') {
                     window.dispatchEvent(new CustomEvent('demo:customer_created'));
                 }
             },
         });
 };
+
+const submit = () => performSubmit();
+const submitAndCreateAnother = () => performSubmit({ createAnother: true });
 
 const isEmpty = (value) => !String(value || '').trim();
 
@@ -218,6 +319,7 @@ const {
     suggestions,
     searchAddress,
     selectAddress,
+    resetSearch,
 } = useGeoapifyAddressAutocomplete({
     onSelect: (details) => {
         assignGeoapifyAddress(form.properties, details);
@@ -295,36 +397,36 @@ const {
                             </div>
                         </div>
 
-                        <div v-if="isCompanyClient" class="mt-4 space-y-2">
-                            <label class="text-sm font-semibold text-stone-800 dark:text-white">{{ $t('customers.form.fields.company_logo') }}</label>
-                            <DropzoneInput v-model="form.logo" :label="$t('customers.form.fields.upload_company_logo')" />
+                        <div class="mt-4 space-y-2">
+                            <label class="text-sm font-semibold text-stone-800 dark:text-white">{{ logoFieldLabel }}</label>
+                            <DropzoneInput v-model="form.logo" :label="uploadLogoLabel" />
                             <InputError class="mt-1" :message="form.errors.logo" />
                             <div class="mt-3 space-y-2">
                                 <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ $t('customers.form.fields.choose_company_icon') }}
+                                    {{ chooseLogoIconLabel }}
                                 </p>
                                 <div class="grid grid-cols-4 gap-2">
                                     <button
-                                        v-for="icon in companyIconPresets"
+                                        v-for="icon in logoIconPresets"
                                         :key="icon"
                                         type="button"
-                                        @click="selectCompanyIcon(icon)"
+                                        @click="selectLogoIcon(icon)"
                                         class="relative flex items-center justify-center rounded-sm border border-stone-200 bg-white p-2 transition hover:border-green-500 dark:border-neutral-700 dark:bg-neutral-900"
                                         :class="form.logo_icon === icon ? 'ring-2 ring-green-500 border-green-500' : ''"
                                     >
-                                        <img :src="icon" :alt="$t('customers.form.fields.company_icon_alt')" class="size-10" loading="lazy" decoding="async" />
+                                        <img :src="icon" :alt="logoIconAlt" class="size-10" loading="lazy" decoding="async" />
                                         <span
-                                            v-if="icon === defaultCompanyIcon"
+                                            v-if="icon === currentDefaultLogoIcon"
                                             class="absolute top-1 right-1 rounded-full bg-green-600 px-1.5 py-0.5 text-[10px] font-semibold text-white"
                                         >
                                             {{ $t('customers.form.fields.default_icon') }}
                                         </span>
                                     </button>
                                 </div>
-                                <div v-if="form.logo_icon" class="flex justify-end">
-                                    <button type="button" @click="clearCompanyIcon"
+                                <div v-if="form.logo_icon && form.logo_icon !== currentDefaultLogoIcon" class="flex justify-end">
+                                    <button type="button" @click="resetLogoIcon"
                                         class="text-xs font-semibold text-stone-600 hover:text-stone-800 dark:text-neutral-400 dark:hover:text-neutral-200">
-                                        {{ $t('customers.form.fields.clear_icon') }}
+                                        {{ $t('customers.form.fields.reset_icon') }}
                                     </button>
                                 </div>
                                 <InputError class="mt-1" :message="form.errors.logo_icon" />
@@ -370,9 +472,11 @@ const {
                                 </label>
                             </div>
                         </div>
-                        <h2 class="pt-4 text-sm  my-2 font-bold text-stone-800 dark:text-white">{{ $t('customers.form.sections.auto_validation') }}</h2>
-                        <div class="-mx-3 flex flex-col gap-y-1">
-                            <label for="customer-auto-accept-quotes"
+                        <h2 v-if="hasAutoValidationFeatures" class="pt-4 text-sm my-2 font-bold text-stone-800 dark:text-white">
+                            {{ $t('customers.form.sections.auto_validation') }}
+                        </h2>
+                        <div v-if="hasAutoValidationFeatures" class="-mx-3 flex flex-col gap-y-1">
+                            <label v-if="quotesFeatureEnabled" for="customer-auto-accept-quotes"
                                 class="py-2 px-3 group flex justify-between items-center gap-x-3 cursor-pointer hover:bg-stone-100 rounded-sm dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                 <span class="grow">
                                     <span class="flex items-center gap-x-3">
@@ -400,7 +504,7 @@ const {
 
                                 before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white">
                             </label>
-                            <label for="customer-auto-validate-jobs"
+                            <label v-if="jobsFeatureEnabled" for="customer-auto-validate-jobs"
                                 class="py-2 px-3 group flex justify-between items-center gap-x-3 cursor-pointer hover:bg-stone-100 rounded-sm dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                 <span class="grow">
                                     <span class="flex items-center gap-x-3">
@@ -427,7 +531,7 @@ const {
 
                                 before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white">
                             </label>
-                            <label for="customer-auto-validate-tasks"
+                            <label v-if="tasksFeatureEnabled" for="customer-auto-validate-tasks"
                                 class="py-2 px-3 group flex justify-between items-center gap-x-3 cursor-pointer hover:bg-stone-100 rounded-sm dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                 <span class="grow">
                                     <span class="flex items-center gap-x-3">
@@ -453,7 +557,7 @@ const {
 
                                 before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white">
                             </label>
-                            <label for="customer-auto-validate-invoices"
+                            <label v-if="invoicesFeatureEnabled" for="customer-auto-validate-invoices"
                                 class="py-2 px-3 group flex justify-between items-center gap-x-3 cursor-pointer hover:bg-stone-100 rounded-sm dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                 <span class="grow">
                                     <span class="flex items-center gap-x-3">
@@ -499,7 +603,7 @@ const {
                                 d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                         </svg>
                         <h3 class="text-lg  ml-2 font-bold text-stone-800 dark:text-white">
-                            {{ $t('customers.properties.title') }}
+                            {{ jobsFeatureEnabled ? $t('customers.properties.title') : $t('customers.form.sections.location') }}
                         </h3>
                     </div>
                     <div class="p-4 md:p-5">
@@ -555,13 +659,15 @@ const {
                         </div>
 
                         <!-- Input Group -->
-                        <div class="flex flex-col sm:flex-row sm:items-center gap-2 mt-4">
+                        <div v-if="invoicesFeatureEnabled" class="flex flex-col sm:flex-row sm:items-center gap-2 mt-4">
                             <div class="flex items-center">
                                 <input type="checkbox" v-model="form.billing_same_as_physical"
                                     class="shrink-0 size-3.5 border-stone-300 rounded text-green-600 focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-600 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-stone-800"
                                     id="hs-pro-danscch">
                                 <label for="hs-pro-danscch" class="text-sm text-stone-500 ms-2 dark:text-neutral-500">
-                                    {{ $t('customers.form.billing.same_as_property') }}
+                                    {{ jobsFeatureEnabled
+                                        ? $t('customers.form.billing.same_as_property')
+                                        : $t('customers.form.billing.same_as_address') }}
                                 </label>
                             </div>
                         </div>
@@ -570,7 +676,8 @@ const {
                 </div>
                 <div></div>
             </div>
-            <div class="grid grid-cols-1 lg:grid-cols-4 gap-1 md:gap-3 lg:gap-1 mt-4">
+            <div v-if="invoicesFeatureEnabled && (jobsFeatureEnabled || tasksFeatureEnabled)"
+                class="grid grid-cols-1 lg:grid-cols-4 gap-1 md:gap-3 lg:gap-1 mt-4">
                 <div></div>
                 <div
                     class="flex flex-col bg-white border shadow-sm rounded-sm dark:bg-neutral-900 dark:border-neutral-700 dark:shadow-neutral-700/70">
@@ -619,11 +726,12 @@ const {
                     </button>
                 </div>
                 <div class="flex justify-end">
-                    <button type="button"
+                    <button v-if="isCreating" type="button" :disabled="form.processing"
+                        @click="submitAndCreateAnother"
                         class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-600 text-green-600 hover:border-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500 action-feedback">
                         {{ $t('customers.form.actions.save_create_another') }}
                     </button>
-                    <button type="submit" data-testid="demo-customer-save"
+                    <button type="submit" data-testid="demo-customer-save" :disabled="form.processing"
                         class="py-1.5 ml-4 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500 action-feedback">
                         {{ isCreating ? $t('customers.form.actions.save_client') : $t('customers.form.actions.update_client') }}
                     </button>

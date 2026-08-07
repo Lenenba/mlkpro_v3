@@ -203,6 +203,29 @@ it('includes expenses in default demo module packs for service and commerce demo
         ->and($catalog->defaultModules('products', 'retail'))->toContain('expenses');
 });
 
+it('keeps field service modules disabled in salon demo defaults', function () {
+    /** @var DemoWorkspaceCatalog $catalog */
+    $catalog = app(DemoWorkspaceCatalog::class);
+    $disabledModules = ['requests', 'quotes', 'plan_scans', 'jobs', 'tasks', 'products'];
+    $modules = $catalog->defaultModules('services', 'salon');
+    $features = $catalog->featureMap($modules);
+    $preset = collect($catalog->presets())->firstWhere('key', 'salon_queue');
+
+    expect($modules)
+        ->toContain('services', 'reservations', 'planning', 'invoices')
+        ->and(array_values(array_intersect($modules, $disabledModules)))->toBe([])
+        ->and($catalog->defaults()['selected_modules'])->toBe($modules)
+        ->and($preset)->not->toBeNull()
+        ->and($preset['modules'] ?? null)->toBe($modules)
+        ->and($catalog->defaultScenarioPacks('services', 'salon', $modules))
+        ->toContain('salon_queue', 'reservation_to_service')
+        ->not->toContain('service_quote_to_invoice');
+
+    foreach ($disabledModules as $module) {
+        expect($features[$module] ?? null)->toBeFalse();
+    }
+});
+
 it('allows platform admins with demo permissions to access a demo workspace details page', function () {
     $admin = demoWorkspacePlatformAdmin([PlatformPermissions::DEMOS_MANAGE]);
 
@@ -277,6 +300,7 @@ it('provisions a realistic service demo workspace from the admin module', functi
     Storage::fake('public');
 
     $admin = demoWorkspacePlatformAdmin([PlatformPermissions::DEMOS_MANAGE]);
+    $disabledSalonModules = ['requests', 'quotes', 'plan_scans', 'jobs', 'tasks', 'products'];
     $payload = demoWorkspacePayload([
         'prefill_source' => 'crm',
         'prefill_payload' => [
@@ -300,6 +324,9 @@ it('provisions a realistic service demo workspace from the admin module', functi
     expect($workspace->owner)->not->toBeNull();
     expect($workspace->owner?->is_demo)->toBeTrue();
     expect($workspace->owner?->demo_type)->toBe('custom');
+    expect($workspace->selected_modules)->not->toContain(...$disabledSalonModules);
+    expect(collect($workspace->owner?->company_features ?? [])->only($disabledSalonModules)->all())
+        ->toBe(array_fill_keys($disabledSalonModules, false));
     expect($workspace->provisioning_status)->toBe('ready');
     expect($workspace->provisioning_progress)->toBe(100);
     expect($workspace->prefill_source)->toBe('crm');
@@ -313,6 +340,11 @@ it('provisions a realistic service demo workspace from the admin module', functi
     expect($workspace->baseline_snapshot)->not->toBeEmpty();
     expect($workspace->baseline_created_at)->not->toBeNull();
     expect($workspace->seed_summary['customers'] ?? 0)->toBeGreaterThan(0);
+    expect($workspace->seed_summary['products'] ?? null)->toBe(0);
+    expect($workspace->seed_summary['requests'] ?? null)->toBe(0);
+    expect($workspace->seed_summary['quotes'] ?? null)->toBe(0);
+    expect($workspace->seed_summary['works'] ?? null)->toBe(0);
+    expect($workspace->seed_summary['tasks'] ?? null)->toBe(0);
     expect($workspace->seed_summary['reservations'] ?? 0)->toBeGreaterThan(0);
     expect($workspace->seed_summary['queue_items'] ?? 0)->toBeGreaterThan(0);
     expect($workspace->seed_summary['invoices'] ?? 0)->toBeGreaterThan(0);

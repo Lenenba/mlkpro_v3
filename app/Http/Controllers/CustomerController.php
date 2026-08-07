@@ -68,25 +68,54 @@ class CustomerController extends Controller
         [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
         $canEdit = $user->id === $accountId;
         $canManageSavedSegments = (int) $user->id === (int) $user->accountOwnerId();
-        $campaignsFeatureEnabled = app(CompanyFeatureService::class)->hasFeature($accountOwner, 'campaigns');
+        $featureService = app(CompanyFeatureService::class);
+        $quotesFeatureEnabled = $featureService->hasFeature($accountOwner, 'quotes');
+        $jobsFeatureEnabled = $featureService->hasFeature($accountOwner, 'jobs');
+        $reservationsFeatureEnabled = $featureService->hasFeature($accountOwner, 'reservations');
+        $campaignsFeatureEnabled = $featureService->hasFeature($accountOwner, 'campaigns');
+
+        if (! $quotesFeatureEnabled) {
+            unset($filters['has_quotes']);
+        }
+        if (! $jobsFeatureEnabled) {
+            unset($filters['has_works']);
+        }
+
+        $allowedSorts = ['company_name', 'first_name', 'created_at'];
+        if ($quotesFeatureEnabled) {
+            $allowedSorts[] = 'quotes_count';
+        }
+        if ($jobsFeatureEnabled) {
+            $allowedSorts[] = 'works_count';
+        }
+
+        if (isset($filters['sort']) && ! in_array($filters['sort'], $allowedSorts, true)) {
+            unset($filters['sort'], $filters['direction']);
+        }
 
         $baseQuery = Customer::query()
             ->filter($filters)
             ->byUser($accountId);
 
-        $sort = in_array($filters['sort'] ?? null, ['company_name', 'first_name', 'created_at', 'quotes_count', 'works_count'], true)
+        $sort = in_array($filters['sort'] ?? null, $allowedSorts, true)
             ? $filters['sort']
             : 'created_at';
         $direction = ($filters['direction'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
 
+        $customerCounts = [
+            'invoices as invoices_count' => fn ($query) => $query->where('user_id', $accountId),
+        ];
+        if ($quotesFeatureEnabled) {
+            $customerCounts['quotes as quotes_count'] = fn ($query) => $query->where('user_id', $accountId);
+        }
+        if ($jobsFeatureEnabled) {
+            $customerCounts['works as works_count'] = fn ($query) => $query->where('user_id', $accountId);
+        }
+
         // Fetch customers with pagination
         $customers = (clone $baseQuery)
             ->with(['properties'])
-            ->withCount([
-                'quotes as quotes_count' => fn ($query) => $query->where('user_id', $accountId),
-                'works as works_count' => fn ($query) => $query->where('user_id', $accountId),
-                'invoices as invoices_count' => fn ($query) => $query->where('user_id', $accountId),
-            ])
+            ->withCount($customerCounts)
             ->orderBy($sort, $direction)
             ->paginate((int) $filters['per_page'])
             ->withQueryString();
@@ -96,23 +125,43 @@ class CustomerController extends Controller
         $newCount = (clone $baseQuery)
             ->whereDate('created_at', '>=', $recentThreshold)
             ->count();
-        $withQuotes = (clone $baseQuery)
-            ->whereHas('quotes', fn ($query) => $query->where('user_id', $accountId))
-            ->count();
-        $withWorks = (clone $baseQuery)
-            ->whereHas('works', fn ($query) => $query->where('user_id', $accountId))
-            ->count();
-        $activeCount = (clone $baseQuery)
-            ->where(function ($query) use ($accountId, $recentThreshold) {
-                $query->whereHas('quotes', function ($sub) use ($accountId, $recentThreshold) {
-                    $sub->where('user_id', $accountId)
-                        ->where('created_at', '>=', $recentThreshold);
-                })->orWhereHas('works', function ($sub) use ($accountId, $recentThreshold) {
-                    $sub->where('user_id', $accountId)
-                        ->where('created_at', '>=', $recentThreshold);
-                });
-            })
-            ->count();
+        $withQuotes = $quotesFeatureEnabled
+            ? (clone $baseQuery)
+                ->whereHas('quotes', fn ($query) => $query->where('user_id', $accountId))
+                ->count()
+            : 0;
+        $withWorks = $jobsFeatureEnabled
+            ? (clone $baseQuery)
+                ->whereHas('works', fn ($query) => $query->where('user_id', $accountId))
+                ->count()
+            : 0;
+        $activeCount = 0;
+        if ($quotesFeatureEnabled || $jobsFeatureEnabled || $reservationsFeatureEnabled) {
+            $activeCount = (clone $baseQuery)
+                ->where(function ($query) use ($accountId, $recentThreshold, $quotesFeatureEnabled, $jobsFeatureEnabled, $reservationsFeatureEnabled) {
+                    if ($quotesFeatureEnabled) {
+                        $query->whereHas('quotes', function ($sub) use ($accountId, $recentThreshold) {
+                            $sub->where('user_id', $accountId)
+                                ->where('created_at', '>=', $recentThreshold);
+                        });
+                    }
+                    if ($jobsFeatureEnabled) {
+                        $method = $quotesFeatureEnabled ? 'orWhereHas' : 'whereHas';
+                        $query->{$method}('works', function ($sub) use ($accountId, $recentThreshold) {
+                            $sub->where('user_id', $accountId)
+                                ->where('created_at', '>=', $recentThreshold);
+                        });
+                    }
+                    if ($reservationsFeatureEnabled) {
+                        $method = ($quotesFeatureEnabled || $jobsFeatureEnabled) ? 'orWhereHas' : 'whereHas';
+                        $query->{$method}('reservations', function ($sub) use ($accountId, $recentThreshold) {
+                            $sub->where('account_id', $accountId)
+                                ->where('created_at', '>=', $recentThreshold);
+                        });
+                    }
+                })
+                ->count();
+        }
 
         $stats = [
             'total' => $totalCount,
@@ -122,16 +171,28 @@ class CustomerController extends Controller
             'active' => $activeCount,
         ];
 
-        $topCustomers = (clone $baseQuery)
-            ->withCount([
-                'quotes as quotes_count' => fn ($query) => $query->where('user_id', $accountId),
-                'works as works_count' => fn ($query) => $query->where('user_id', $accountId),
-                'invoices as invoices_count' => fn ($query) => $query->where('user_id', $accountId),
-            ])
-            ->orderByDesc('quotes_count')
-            ->orderByDesc('works_count')
-            ->limit(5)
-            ->get(['id', 'company_name', 'first_name', 'last_name', 'logo', 'header_image']);
+        $topCustomers = collect();
+        if ($quotesFeatureEnabled || $jobsFeatureEnabled) {
+            $activityCounts = [];
+            if ($quotesFeatureEnabled) {
+                $activityCounts['quotes as quotes_count'] = fn ($query) => $query->where('user_id', $accountId);
+            }
+            if ($jobsFeatureEnabled) {
+                $activityCounts['works as works_count'] = fn ($query) => $query->where('user_id', $accountId);
+            }
+
+            $topCustomersQuery = (clone $baseQuery)->withCount($activityCounts);
+            if ($quotesFeatureEnabled) {
+                $topCustomersQuery->orderByDesc('quotes_count');
+            }
+            if ($jobsFeatureEnabled) {
+                $topCustomersQuery->orderByDesc('works_count');
+            }
+
+            $topCustomers = $topCustomersQuery
+                ->limit(5)
+                ->get(['id', 'company_name', 'first_name', 'last_name', 'logo', 'header_image']);
+        }
 
         $savedSegments = $canManageSavedSegments
             ? SavedSegment::query()
@@ -368,6 +429,11 @@ class CustomerController extends Controller
     public function updateAutoValidation(Request $request, Customer $customer)
     {
         $this->authorize('update', $customer);
+        $user = $request->user();
+        if (! $user) {
+            abort(403);
+        }
+        [$accountOwner] = $this->resolveCustomerAccount($user);
 
         $validated = $request->validate([
             'auto_accept_quotes' => 'nullable|boolean',
@@ -376,12 +442,14 @@ class CustomerController extends Controller
             'auto_validate_invoices' => 'nullable|boolean',
         ]);
 
-        $customer->update([
+        $preferences = $this->enforceAutoValidationFeatures([
             'auto_accept_quotes' => (bool) ($validated['auto_accept_quotes'] ?? $customer->auto_accept_quotes ?? false),
             'auto_validate_jobs' => (bool) ($validated['auto_validate_jobs'] ?? $customer->auto_validate_jobs ?? false),
             'auto_validate_tasks' => (bool) ($validated['auto_validate_tasks'] ?? $customer->auto_validate_tasks ?? false),
             'auto_validate_invoices' => (bool) ($validated['auto_validate_invoices'] ?? $customer->auto_validate_invoices ?? false),
-        ]);
+        ], $accountOwner);
+
+        $customer->update($preferences);
 
         ActivityLog::record($request->user(), $customer, 'auto_validation_updated', [
             'auto_accept_quotes' => $customer->auto_accept_quotes,
@@ -420,8 +488,14 @@ class CustomerController extends Controller
         }
         [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
 
-        $validated = $this->normalizeCustomerPayload($request->validated());
-        $defaultLogo = config('icon_presets.defaults.company', Customer::DEFAULT_LOGO_PATH);
+        $validated = $this->enforceAutoValidationFeatures(
+            $this->normalizeCustomerPayload($request->validated()),
+            $accountOwner
+        );
+        $defaultLogo = Customer::defaultLogoPathFor(
+            $validated['client_type'] ?? null,
+            $validated['company_name'] ?? null
+        );
         $logoPath = FileHandler::handleImageUpload('customers', $request, 'logo', $defaultLogo);
         if (! empty($validated['logo_icon']) && ! $request->hasFile('logo')) {
             $logoPath = $validated['logo_icon'];
@@ -495,11 +569,15 @@ class CustomerController extends Controller
             ], 201);
         }
 
+        $redirectRoute = $request->boolean('create_another')
+            ? 'customer.create'
+            : 'customer.index';
+
         if (! $inviteQueued) {
-            return redirect()->route('customer.index')->with('warning', 'Customer created, but the invite email could not be sent.');
+            return redirect()->route($redirectRoute)->with('warning', 'Customer created, but the invite email could not be sent.');
         }
 
-        return redirect()->route('customer.index')->with('success', 'Customer created successfully.');
+        return redirect()->route($redirectRoute)->with('success', 'Customer created successfully.');
     }
 
     /**
@@ -513,8 +591,14 @@ class CustomerController extends Controller
         }
         [$accountOwner, $accountId] = $this->resolveCustomerAccount($user, true);
 
-        $validated = $this->normalizeCustomerPayload($request->validated());
-        $defaultLogo = config('icon_presets.defaults.company', Customer::DEFAULT_LOGO_PATH);
+        $validated = $this->enforceAutoValidationFeatures(
+            $this->normalizeCustomerPayload($request->validated()),
+            $accountOwner
+        );
+        $defaultLogo = Customer::defaultLogoPathFor(
+            $validated['client_type'] ?? null,
+            $validated['company_name'] ?? null
+        );
         $logoPath = FileHandler::handleImageUpload('customers', $request, 'logo', $defaultLogo);
         if (! empty($validated['logo_icon']) && ! $request->hasFile('logo')) {
             $logoPath = $validated['logo_icon'];
@@ -615,9 +699,20 @@ class CustomerController extends Controller
     public function update(CustomerRequest $request, Customer $customer)
     {
         $this->authorize('update', $customer);
+        $user = $request->user();
+        if (! $user) {
+            abort(403);
+        }
+        [$accountOwner] = $this->resolveCustomerAccount($user);
 
-        $validated = $this->normalizeCustomerPayload($request->validated(), $customer);
-        $defaultLogo = config('icon_presets.defaults.company', Customer::DEFAULT_LOGO_PATH);
+        $validated = $this->enforceAutoValidationFeatures(
+            $this->normalizeCustomerPayload($request->validated(), $customer),
+            $accountOwner
+        );
+        $defaultLogo = Customer::defaultLogoPathFor(
+            $validated['client_type'] ?? null,
+            $validated['company_name'] ?? null
+        );
         $validated['logo'] = FileHandler::handleImageUpload(
             'customers',
             $request,
@@ -698,7 +793,10 @@ class CustomerController extends Controller
     {
         $this->authorize('delete', $customer);
 
-        FileHandler::deleteFile($customer->logo, Customer::DEFAULT_LOGO_PATH);
+        FileHandler::deleteFile(
+            $customer->logo,
+            Customer::defaultLogoPathFor($customer->client_type, $customer->company_name)
+        );
         FileHandler::deleteFile($customer->header_image, 'customers/customer.png');
         ActivityLog::record($request->user(), $customer, 'deleted', [
             'company_name' => $customer->company_name,
@@ -820,7 +918,10 @@ class CustomerController extends Controller
 
         foreach ($customers as $customer) {
             $this->authorize('delete', $customer);
-            FileHandler::deleteFile($customer->logo, Customer::DEFAULT_LOGO_PATH);
+            FileHandler::deleteFile(
+                $customer->logo,
+                Customer::defaultLogoPathFor($customer->client_type, $customer->company_name)
+            );
             FileHandler::deleteFile($customer->header_image, 'customers/customer.png');
             $customer->delete();
         }
@@ -1058,7 +1159,7 @@ class CustomerController extends Controller
         $owner = $ownerId === $user->id
             ? $user
             : User::query()
-                ->select(UserSelects::companySummary())
+                ->select(UserSelects::companyFeatureContext())
                 ->find($ownerId);
 
         if (! $owner) {
@@ -1177,6 +1278,25 @@ class CustomerController extends Controller
             : false;
 
         return $validated;
+    }
+
+    private function enforceAutoValidationFeatures(array $payload, User $accountOwner): array
+    {
+        $featureService = app(CompanyFeatureService::class);
+        $featureFields = [
+            'quotes' => 'auto_accept_quotes',
+            'jobs' => 'auto_validate_jobs',
+            'tasks' => 'auto_validate_tasks',
+            'invoices' => 'auto_validate_invoices',
+        ];
+
+        foreach ($featureFields as $feature => $field) {
+            if (! $featureService->hasFeature($accountOwner, $feature)) {
+                $payload[$field] = false;
+            }
+        }
+
+        return $payload;
     }
 
     private function normalizeCustomerOptionScope(string $scope): string

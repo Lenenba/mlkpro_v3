@@ -1098,7 +1098,14 @@ class DemoWorkspaceProvisioner
         $serviceRequests = $this->syncServiceRequestsFromLeads($requests);
         $works = $this->createWorks($owner, $selectedModules, $customers, $quotes, $catalog, $teamMembers, (int) ($counts['works'] ?? 0));
         $tasks = $this->createTasks($owner, $selectedModules, $customers, $works, $teamMembers, (int) ($counts['tasks'] ?? 0));
-        $invoices = $this->createInvoices($owner, $selectedModules, $customers, $works, $teamMembers);
+        $invoices = $this->createInvoices(
+            $owner,
+            $selectedModules,
+            $customers,
+            $works,
+            $catalog['services'],
+            $teamMembers
+        );
         $reservationSummary = $this->createReservationFlow(
             $owner,
             $selectedModules,
@@ -1727,6 +1734,7 @@ class DemoWorkspaceProvisioner
      * @param  array<int, string>  $selectedModules
      * @param  Collection<int, Customer>  $customers
      * @param  Collection<int, Work>  $works
+     * @param  Collection<int, Product>  $services
      * @param  Collection<int, TeamMember>  $teamMembers
      * @return Collection<int, Invoice>
      */
@@ -1735,20 +1743,31 @@ class DemoWorkspaceProvisioner
         array $selectedModules,
         Collection $customers,
         Collection $works,
+        Collection $services,
         Collection $teamMembers
     ): Collection {
-        if (! in_array('invoices', $selectedModules, true) || $works->isEmpty()) {
+        if (! in_array('invoices', $selectedModules, true)) {
             return collect();
         }
 
-        return $works->take(min(3, $works->count()))->values()->map(function (Work $work, int $index) use ($owner, $customers, $teamMembers) {
+        $sources = $works->isNotEmpty() ? $works : $services;
+
+        if ($sources->isEmpty()) {
+            return collect();
+        }
+
+        return $sources->take(min(3, $sources->count()))->values()->map(function (Work|Product $source, int $index) use ($owner, $customers, $teamMembers) {
             $customer = $customers[$index % $customers->count()];
             $totals = [180, 325, 490];
             $statuses = ['sent', 'partial', 'paid'];
-            $total = (float) ($totals[$index % count($totals)] ?? 240);
+            $work = $source instanceof Work ? $source : null;
+            $service = $source instanceof Product ? $source : null;
+            $total = $work
+                ? (float) ($totals[$index % count($totals)] ?? 240)
+                : (float) ($service?->price ?? 0);
 
             $invoice = Invoice::create([
-                'work_id' => $work->id,
+                'work_id' => $work?->id,
                 'customer_id' => $customer->id,
                 'user_id' => $owner->id,
                 'status' => $statuses[$index % count($statuses)],
@@ -1758,19 +1777,20 @@ class DemoWorkspaceProvisioner
 
             InvoiceItem::create([
                 'invoice_id' => $invoice->id,
-                'work_id' => $work->id,
+                'work_id' => $work?->id,
                 'assigned_team_member_id' => $teamMembers->isNotEmpty() ? $teamMembers[$index % $teamMembers->count()]->id : null,
-                'title' => $work->job_title,
+                'title' => $work?->job_title ?? $service?->name ?? 'Service',
                 'description' => 'Main invoice line created for the demo workspace.',
-                'scheduled_date' => $work->start_date,
-                'start_time' => $work->start_time,
-                'end_time' => $work->end_time,
+                'scheduled_date' => $work?->start_date ?? now()->subDays($index + 1)->toDateString(),
+                'start_time' => $work?->start_time,
+                'end_time' => $work?->end_time,
                 'assignee_name' => $teamMembers->isNotEmpty() ? $teamMembers[$index % $teamMembers->count()]->user?->name : null,
                 'task_status' => 'completed',
                 'quantity' => 1,
                 'unit_price' => $total,
                 'currency_code' => $owner->businessCurrencyCode(),
                 'total' => $total,
+                'meta' => $service ? ['service_id' => $service->id] : null,
             ]);
 
             if ($index > 0) {

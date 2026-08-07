@@ -17,9 +17,12 @@ class FileHandler
     public static function handleImageUpload(string $folderName, $request, ?string $fieldName = null, ?string $defaultImagePath = null, ?string $oldFilename = null): ?string
     {
         if ($request->hasFile($fieldName)) {
-            // Delete old file if uploading a new one
             $path = $request->file($fieldName)->store($folderName, 'public');
             self::resizeImageIfNeeded(Storage::disk('public')->path($path));
+
+            if ($oldFilename && $oldFilename !== $path) {
+                self::deleteFile($oldFilename, $defaultImagePath);
+            }
 
             return $path;
         }

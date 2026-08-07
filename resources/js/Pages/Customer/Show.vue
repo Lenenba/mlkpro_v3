@@ -138,13 +138,74 @@ const tasksFeatureEnabled = computed(() => hasFeature('tasks'));
 const invoicesFeatureEnabled = computed(() => hasFeature('invoices'));
 const campaignsFeatureEnabled = computed(() => Boolean(props.campaignsFeatureEnabled) && hasFeature('campaigns'));
 const loyaltyFeatureEnabled = computed(() => hasFeature('loyalty') && Boolean(loyalty.value));
+const showCustomerOverview = computed(() => (
+    showServiceOps.value
+    && (
+        requestsFeatureEnabled.value
+        || quotesFeatureEnabled.value
+        || jobsFeatureEnabled.value
+        || invoicesFeatureEnabled.value
+    )
+));
+
+const isActivityModuleVisible = (item) => {
+    const subjectType = String(item?.subject_type || '');
+    const action = String(item?.action || '').toLowerCase();
+    const actionTokens = action.split(/[^a-z0-9]+/).filter(Boolean);
+    const actionReferences = (module) => actionTokens.includes(module);
+
+    if ((!quotesFeatureEnabled.value && subjectType.endsWith('Quote'))
+        || (!quotesFeatureEnabled.value && actionReferences('quote'))) {
+        return false;
+    }
+    if (!requestsFeatureEnabled.value
+        && (subjectType.endsWith('Request') || actionReferences('request'))) {
+        return false;
+    }
+    if (!jobsFeatureEnabled.value
+        && (subjectType.endsWith('Work') || actionReferences('work') || actionReferences('job'))) {
+        return false;
+    }
+    if (!tasksFeatureEnabled.value
+        && (subjectType.endsWith('Task') || actionReferences('task'))) {
+        return false;
+    }
+    if (!invoicesFeatureEnabled.value
+        && (subjectType.endsWith('Invoice') || actionReferences('invoice'))) {
+        return false;
+    }
+
+    return true;
+};
+const isQuoteActivityDefinition = (definition) => [
+    definition?.id,
+    definition?.action,
+    definition?.activity_key,
+    definition?.outcome,
+].some((value) => String(value || '').toLowerCase().includes('quote'));
+const visibleActivity = computed(() => (props.activity || []).filter(isActivityModuleVisible));
+const visibleLastInteraction = computed(() => (
+    props.lastInteraction && isActivityModuleVisible(props.lastInteraction)
+        ? props.lastInteraction
+        : (visibleActivity.value[0] || null)
+));
+const visibleSalesActivityQuickActions = computed(() => (
+    quotesFeatureEnabled.value
+        ? (props.salesActivityQuickActions || [])
+        : (props.salesActivityQuickActions || []).filter((definition) => !isQuoteActivityDefinition(definition))
+));
+const visibleSalesActivityManualActions = computed(() => (
+    quotesFeatureEnabled.value
+        ? (props.salesActivityManualActions || [])
+        : (props.salesActivityManualActions || []).filter((definition) => !isQuoteActivityDefinition(definition))
+));
 
 const properties = computed(() => props.customer?.properties || []);
 const tags = computed(() => props.customer?.tags || []);
 const vipTiers = computed(() => props.vipTiers || []);
-const latestQuote = computed(() => (props.customer?.quotes || [])[0] || null);
-const latestWork = computed(() => (props.customer?.works || [])[0] || null);
-const latestInvoice = computed(() => (props.customer?.invoices || [])[0] || null);
+const latestQuote = computed(() => visibleFeaturePayload('quotes', props.customer?.quotes, [])[0] || null);
+const latestWork = computed(() => visibleFeaturePayload('jobs', props.customer?.works, [])[0] || null);
+const latestInvoice = computed(() => visibleFeaturePayload('invoices', props.customer?.invoices, [])[0] || null);
 const showBillingHistory = computed(() => showServiceOps.value && invoicesFeatureEnabled.value);
 
 const formatDate = (value) => humanizeDate(value);
@@ -498,7 +559,7 @@ const submitRenewPackage = () => {
 
 const renewalInvoicePackageId = ref(null);
 const createRenewalInvoice = (customerPackage) => {
-    if (!customerPackage?.id || renewalInvoicePackageId.value) {
+    if (!invoicesFeatureEnabled.value || !customerPackage?.id || renewalInvoicePackageId.value) {
         return;
     }
 
@@ -809,9 +870,16 @@ const submitAutoValidation = () => {
         return;
     }
 
-    autoValidationForm.patch(route('customer.auto-validation.update', props.customer.id), {
-        preserveScroll: true,
-    });
+    autoValidationForm
+        .transform((data) => ({
+            ...(quotesFeatureEnabled.value ? { auto_accept_quotes: Boolean(data.auto_accept_quotes) } : {}),
+            ...(jobsFeatureEnabled.value ? { auto_validate_jobs: Boolean(data.auto_validate_jobs) } : {}),
+            ...(tasksFeatureEnabled.value ? { auto_validate_tasks: Boolean(data.auto_validate_tasks) } : {}),
+            ...(invoicesFeatureEnabled.value ? { auto_validate_invoices: Boolean(data.auto_validate_invoices) } : {}),
+        }))
+        .patch(route('customer.auto-validation.update', props.customer.id), {
+            preserveScroll: true,
+        });
 };
 
 const editingVip = ref(false);
@@ -1055,6 +1123,10 @@ watch(planningTabs, (tabs) => {
 }, { immediate: true });
 
 const activityHref = (log) => {
+    if (!isActivityModuleVisible(log)) {
+        return null;
+    }
+
     const type = log?.subject_type || '';
     const id = log?.subject_id;
 
@@ -1680,7 +1752,7 @@ const deleteProperty = (property) => {
                     </ul>
                 </Card>
 
-                <CardNav v-if="showServiceOps" class="mt-5" :customer="customer" />
+                <CardNav v-if="showCustomerOverview" class="mt-5" :customer="customer" />
 
                 <Card class="mt-5">
                     <template #title>{{ $t('customers.details.workspace.title') }}</template>
@@ -1789,10 +1861,10 @@ const deleteProperty = (property) => {
 
                     <div v-else-if="activeActivityWorkspaceTab === 'crm'">
                         <SalesActivityPanel
-                            :items="activity"
+                            :items="visibleActivity"
                             :can-log="canLogSalesActivity"
-                            :quick-actions="salesActivityQuickActions"
-                            :manual-actions="salesActivityManualActions"
+                            :quick-actions="visibleSalesActivityQuickActions"
+                            :manual-actions="visibleSalesActivityManualActions"
                             :store-route="route('crm.sales-activities.customers.store', customer.id)"
                             :resolve-href="activityHref"
                             :show-subject="true"
@@ -1805,14 +1877,14 @@ const deleteProperty = (property) => {
             </div>
             <div class="rise-stagger">
                 <CustomerPreviewCard
-                    v-if="showServiceOps"
+                    v-if="showCustomerOverview"
                     :stats="stats"
                     :billing="billing"
                     :latest-quote="latestQuote"
                     :latest-work="latestWork"
                     :latest-invoice="latestInvoice"
                 />
-                <Card :class="showServiceOps ? 'mt-5' : ''">
+                <Card :class="showCustomerOverview ? 'mt-5' : ''">
                     <template #title>{{ $t('customers.details.sidebar.title') }}</template>
 
                     <CardTileTabs
@@ -1936,12 +2008,12 @@ const deleteProperty = (property) => {
                                     {{ $t('customers.details.last_interaction.title') }}
                                 </div>
 
-                                <div v-if="lastInteraction" class="mt-3 space-y-1 text-sm">
+                                <div v-if="visibleLastInteraction" class="mt-3 space-y-1 text-sm">
                                     <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">
-                                        {{ lastInteraction.subject }} • {{ formatDate(lastInteraction.created_at) }}
+                                        {{ visibleLastInteraction.subject }} • {{ formatDate(visibleLastInteraction.created_at) }}
                                     </div>
                                     <div class="text-sm text-stone-800 dark:text-neutral-200">
-                                        {{ lastInteraction.description || lastInteraction.action }}
+                                        {{ visibleLastInteraction.description || visibleLastInteraction.action }}
                                     </div>
                                 </div>
                                 <div v-else class="mt-3 text-sm text-stone-500 dark:text-neutral-400">
@@ -2111,7 +2183,7 @@ const deleteProperty = (property) => {
                                         </div>
 
                                         <div
-                                            v-if="customerPackage.renewal_invoice"
+                                            v-if="invoicesFeatureEnabled && customerPackage.renewal_invoice"
                                             class="mt-3 rounded-sm border border-green-100 bg-green-50/70 px-3 py-2 text-sm dark:border-green-500/20 dark:bg-green-500/10"
                                         >
                                             <div class="flex min-w-0 items-center gap-2">
@@ -2376,7 +2448,7 @@ const deleteProperty = (property) => {
 
                                         <div v-else-if="canEdit && customerPackage.status !== 'cancelled'" class="mt-4 flex flex-wrap justify-end gap-2">
                                             <button
-                                                v-if="customerPackage.is_recurring && !customerPackage.renewal_invoice"
+                                                v-if="invoicesFeatureEnabled && customerPackage.is_recurring && !customerPackage.renewal_invoice"
                                                 type="button"
                                                 :disabled="renewalInvoicePackageId === customerPackage.id"
                                                 @click="createRenewalInvoice(customerPackage)"

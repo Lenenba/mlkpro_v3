@@ -2,6 +2,7 @@
 import { Link, router } from '@inertiajs/vue3';
 import dayjs from 'dayjs';
 import { computed, ref } from 'vue';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
 const props = defineProps({
     works: {
@@ -11,6 +12,9 @@ const props = defineProps({
 });
 
 const processingId = ref(null);
+const { hasFeature } = useAccountFeatures();
+const jobsFeatureEnabled = computed(() => hasFeature('jobs'));
+const invoicesFeatureEnabled = computed(() => hasFeature('invoices'));
 const workItems = computed(() => (Array.isArray(props.works) ? props.works : []));
 
 const statusLabels = {
@@ -88,7 +92,7 @@ const nextStatusFor = (status) => {
 const hasInvoice = (work) => Boolean(work?.invoice?.id);
 
 const doAction = (work, callback) => {
-    if (!work?.id || processingId.value) {
+    if (!jobsFeatureEnabled.value || !work?.id || processingId.value) {
         return;
     }
 
@@ -108,6 +112,10 @@ const updateStatus = (work, status) => {
 };
 
 const createInvoice = (work) => {
+    if (!invoicesFeatureEnabled.value) {
+        return;
+    }
+
     doAction(work, (options) => {
         router.post(route('invoice.store-from-work', work.id), {}, options);
     });
@@ -127,7 +135,7 @@ const isProcessing = (work) => processingId.value === work?.id;
 </script>
 
 <template>
-    <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+    <div v-if="jobsFeatureEnabled" class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         <div v-for="work in workItems" :key="work.id"
             class="overflow-hidden rounded-sm border border-stone-200 bg-white shadow-sm dark:bg-neutral-900 dark:border-neutral-700">
             <div class="flex flex-col gap-2 border-b border-stone-200 bg-stone-50/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-neutral-700 dark:bg-neutral-900/40">
@@ -187,7 +195,7 @@ const isProcessing = (work) => processingId.value === work?.id;
                             </Link>
 
                             <Link
-                                v-if="hasInvoice(work)"
+                                v-if="invoicesFeatureEnabled && hasInvoice(work)"
                                 :href="route('invoice.show', work.invoice.id)"
                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] font-normal text-stone-800 hover:bg-stone-100 focus:outline-none focus:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
                             >
@@ -203,7 +211,7 @@ const isProcessing = (work) => processingId.value === work?.id;
                             </Link>
 
                             <button
-                                v-else
+                                v-else-if="invoicesFeatureEnabled"
                                 type="button"
                                 :disabled="isProcessing(work)"
                                 @click="createInvoice(work)"
@@ -319,7 +327,7 @@ const isProcessing = (work) => processingId.value === work?.id;
                             :class="statusPillClass(work.status)">
                             {{ formatStatus(work.status) }}
                         </span>
-                        <span v-if="hasInvoice(work)"
+                        <span v-if="invoicesFeatureEnabled && hasInvoice(work)"
                             class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200">
                             Invoiced
                         </span>

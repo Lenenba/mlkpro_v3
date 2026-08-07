@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
 const props = defineProps({
     items: {
@@ -14,11 +15,28 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+const { hasFeature } = useAccountFeatures();
+const quotesFeatureEnabled = computed(() => hasFeature('quotes'));
+const jobsFeatureEnabled = computed(() => hasFeature('jobs'));
 
 const resolvedTitle = computed(() => props.title || t('customers.activity.title'));
+const resolvedSubtitle = computed(() => {
+    if (quotesFeatureEnabled.value && jobsFeatureEnabled.value) {
+        return t('customers.activity.subtitle');
+    }
+
+    return t(quotesFeatureEnabled.value
+        ? 'customers.activity.subtitle_quotes'
+        : 'customers.activity.subtitle_jobs');
+});
+
+const activityValue = (item) => (
+    (quotesFeatureEnabled.value ? Number(item.quotes_count || 0) : 0)
+    + (jobsFeatureEnabled.value ? Number(item.works_count || 0) : 0)
+);
 
 const total = computed(() =>
-    props.items.reduce((sum, item) => sum + Number(item.quotes_count || 0) + Number(item.works_count || 0), 0)
+    props.items.reduce((sum, item) => sum + activityValue(item), 0)
 );
 
 const formatNumber = (value) =>
@@ -27,7 +45,7 @@ const formatNumber = (value) =>
 const displayName = (item) => item.company_name || `${item.first_name || ''} ${item.last_name || ''}`.trim();
 
 const getPercent = (item) => {
-    const value = Number(item.quotes_count || 0) + Number(item.works_count || 0);
+    const value = activityValue(item);
     if (!total.value) {
         return 0;
     }
@@ -44,7 +62,7 @@ const getPercent = (item) => {
                     {{ resolvedTitle }}
                 </h2>
                 <p class="text-xs text-stone-500 dark:text-neutral-500">
-                    {{ t('customers.activity.subtitle') }}
+                    {{ resolvedSubtitle }}
                 </p>
             </div>
             <div class="text-sm text-stone-500 dark:text-neutral-400">
@@ -92,7 +110,13 @@ const getPercent = (item) => {
                         </div>
                         <div class="text-end">
                             <span class="text-sm text-stone-500 dark:text-neutral-500">
-                                {{ formatNumber(item.quotes_count || 0) }} {{ t('customers.activity.quotes_short') }} / {{ formatNumber(item.works_count || 0) }} {{ t('customers.activity.jobs_short') }}
+                                <template v-if="quotesFeatureEnabled">
+                                    {{ formatNumber(item.quotes_count || 0) }} {{ t('customers.activity.quotes_short') }}
+                                </template>
+                                <span v-if="quotesFeatureEnabled && jobsFeatureEnabled"> / </span>
+                                <template v-if="jobsFeatureEnabled">
+                                    {{ formatNumber(item.works_count || 0) }} {{ t('customers.activity.jobs_short') }}
+                                </template>
                             </span>
                         </div>
                     </li>

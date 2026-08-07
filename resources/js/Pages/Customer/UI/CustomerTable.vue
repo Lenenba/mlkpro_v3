@@ -62,6 +62,16 @@ const props = defineProps({
 
 const { t } = useI18n();
 const { hasFeature } = useAccountFeatures();
+const quotesFeatureEnabled = computed(() => hasFeature('quotes'));
+const jobsFeatureEnabled = computed(() => hasFeature('jobs'));
+
+const featureSortIsAvailable = (sort) => !(
+    (sort === 'quotes_count' && !quotesFeatureEnabled.value)
+    || (sort === 'works_count' && !jobsFeatureEnabled.value)
+);
+const initialSort = featureSortIsAvailable(props.filters?.sort)
+    ? (props.filters?.sort ?? 'created_at')
+    : 'created_at';
 
 const canEdit = computed(() => Boolean(props.canEdit));
 const campaignsFeatureEnabled = computed(() => {
@@ -78,8 +88,8 @@ const filterForm = useForm({
     name: props.filters?.name ?? '',
     city: props.filters?.city ?? '',
     country: props.filters?.country ?? '',
-    has_quotes: props.filters?.has_quotes ?? '',
-    has_works: props.filters?.has_works ?? '',
+    has_quotes: quotesFeatureEnabled.value ? (props.filters?.has_quotes ?? '') : '',
+    has_works: jobsFeatureEnabled.value ? (props.filters?.has_works ?? '') : '',
     status: props.filters?.status ?? '',
     created_from: props.filters?.created_from ?? '',
     created_to: props.filters?.created_to ?? '',
@@ -89,12 +99,15 @@ const filterForm = useForm({
     package_expires_within_days: props.filters?.package_expires_within_days ?? '',
     package_is_recurring: props.filters?.package_is_recurring ?? '',
     package_recurrence_status: props.filters?.package_recurrence_status ?? '',
-    sort: props.filters?.sort ?? 'created_at',
+    sort: initialSort,
     direction: props.filters?.direction ?? 'desc',
 });
 
 const showAdvanced = ref(false);
 const isLoading = ref(false);
+const customerTableColumnCount = computed(() => (
+    7 + Number(quotesFeatureEnabled.value) + Number(jobsFeatureEnabled.value)
+));
 const compactObject = (payload) => Object.fromEntries(
     Object.entries(payload || {}).filter(([, value]) => value !== '' && value !== null && value !== undefined)
 );
@@ -148,8 +161,8 @@ const shouldShowSavedSegments = computed(() =>
 const savedSegmentFilters = computed(() => compactObject({
     city: filterForm.city,
     country: filterForm.country,
-    has_quotes: filterForm.has_quotes,
-    has_works: filterForm.has_works,
+    has_quotes: quotesFeatureEnabled.value ? filterForm.has_quotes : '',
+    has_works: jobsFeatureEnabled.value ? filterForm.has_works : '',
     status: filterForm.status,
     created_from: filterForm.created_from,
     created_to: filterForm.created_to,
@@ -196,8 +209,8 @@ const filterPayload = () => {
         name: filterForm.name,
         city: filterForm.city,
         country: filterForm.country,
-        has_quotes: filterForm.has_quotes,
-        has_works: filterForm.has_works,
+        has_quotes: quotesFeatureEnabled.value ? filterForm.has_quotes : '',
+        has_works: jobsFeatureEnabled.value ? filterForm.has_works : '',
         status: filterForm.status,
         created_from: filterForm.created_from,
         created_to: filterForm.created_to,
@@ -292,8 +305,8 @@ const applySavedSegment = (segment) => {
     filterForm.name = String(segment?.search_term || '');
     filterForm.city = segmentFilterValue(filters.city);
     filterForm.country = segmentFilterValue(filters.country);
-    filterForm.has_quotes = segmentFilterValue(filters.has_quotes);
-    filterForm.has_works = segmentFilterValue(filters.has_works);
+    filterForm.has_quotes = quotesFeatureEnabled.value ? segmentFilterValue(filters.has_quotes) : '';
+    filterForm.has_works = jobsFeatureEnabled.value ? segmentFilterValue(filters.has_works) : '';
     filterForm.status = segmentFilterValue(filters.status);
     filterForm.created_from = segmentFilterValue(filters.created_from);
     filterForm.created_to = segmentFilterValue(filters.created_to);
@@ -303,12 +316,20 @@ const applySavedSegment = (segment) => {
     filterForm.package_expires_within_days = segmentFilterValue(filters.package_expires_within_days);
     filterForm.package_is_recurring = segmentFilterValue(filters.package_is_recurring);
     filterForm.package_recurrence_status = segmentFilterValue(filters.package_recurrence_status);
-    filterForm.sort = segmentFilterValue(sort.sort) || 'created_at';
-    filterForm.direction = segmentFilterValue(sort.direction) || 'desc';
+    const requestedSort = segmentFilterValue(sort.sort) || 'created_at';
+    const requestedSortIsAvailable = featureSortIsAvailable(requestedSort);
+    filterForm.sort = requestedSortIsAvailable ? requestedSort : 'created_at';
+    filterForm.direction = requestedSortIsAvailable
+        ? (segmentFilterValue(sort.direction) || 'desc')
+        : 'desc';
     autoFilter();
 };
 
 const toggleSort = (column) => {
+    if (!featureSortIsAvailable(column)) {
+        return;
+    }
+
     if (filterForm.sort === column) {
         filterForm.direction = filterForm.direction === 'asc' ? 'desc' : 'asc';
         return;
@@ -590,12 +611,14 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                         class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                         :placeholder="$t('customers.filters.country')">
                     <FloatingSelect
+                        v-if="quotesFeatureEnabled"
                         v-model="filterForm.has_quotes"
                         :label="$t('customers.filters.quotes')"
                         :options="quoteFilterOptions"
                         dense
                     />
                     <FloatingSelect
+                        v-if="jobsFeatureEnabled"
                         v-model="filterForm.has_works"
                         :label="$t('customers.filters.jobs')"
                         :options="jobFilterOptions"
@@ -779,7 +802,7 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                                     {{ $t('customers.table.city') }}
                                 </div>
                             </th>
-                            <th scope="col" class="min-w-28">
+                            <th v-if="quotesFeatureEnabled" scope="col" class="min-w-28">
                                 <button type="button" @click="toggleSort('quotes_count')"
                                     class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
                                     {{ $t('customers.table.quotes') }}
@@ -791,7 +814,7 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                                     </svg>
                                 </button>
                             </th>
-                            <th scope="col" class="min-w-28">
+                            <th v-if="jobsFeatureEnabled" scope="col" class="min-w-28">
                                 <button type="button" @click="toggleSort('works_count')"
                                     class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
                                     {{ $t('customers.table.jobs') }}
@@ -821,7 +844,7 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
 
             <template #row="{ row: customer }">
                 <tr v-if="customer.__skeleton">
-                    <td colspan="9" class="px-4 py-3">
+                    <td :colspan="customerTableColumnCount" class="px-4 py-3">
                         <div class="grid grid-cols-7 gap-4 animate-pulse">
                             <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
                             <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
@@ -844,7 +867,8 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                             <td class="size-px whitespace-nowrap px-4 py-2 text-start">
                                 <Link :href="route('customer.show', customer)">
                                     <div class="w-full flex items-center gap-x-3">
-                                        <img class="shrink-0 size-10 rounded-sm" :src="customer.logo_url || customer.logo"
+                                        <img class="shrink-0 size-10 object-cover" :src="customer.logo_url || customer.logo"
+                                            :class="customer.client_type === 'individual' ? 'rounded-full' : 'rounded-sm'"
                                             :alt="$t('customers.labels.logo_alt')" loading="lazy" decoding="async">
                                         <div class="flex flex-col">
                                             <div class="flex items-center gap-2">
@@ -883,13 +907,13 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                                     {{ getCity(customer) || '-' }}
                                 </span>
                             </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2">
+                            <td v-if="quotesFeatureEnabled" class="size-px whitespace-nowrap px-4 py-2">
                                 <span
                                     class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium bg-stone-100 text-stone-800 rounded-full dark:bg-neutral-700 dark:text-neutral-200">
                                     {{ customer.quotes_count ?? 0 }}
                                 </span>
                             </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2">
+                            <td v-if="jobsFeatureEnabled" class="size-px whitespace-nowrap px-4 py-2">
                                 <span
                                     class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium bg-stone-100 text-stone-800 rounded-full dark:bg-neutral-700 dark:text-neutral-200">
                                     {{ customer.works_count ?? 0 }}
@@ -956,7 +980,8 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                             <div class="size-11 rounded-sm border border-stone-200 bg-stone-100 text-stone-600 flex items-center justify-center text-sm font-semibold dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
                                 <img
                                     v-if="hasCustomerLogo(customer)"
-                                    class="size-11 rounded-sm object-cover"
+                                    class="size-11 object-cover"
+                                    :class="customer.client_type === 'individual' ? 'rounded-full' : 'rounded-sm'"
                                     :src="customer.logo_url || customer.logo"
                                     :alt="$t('customers.labels.logo_alt')"
                                     loading="lazy"
@@ -1047,11 +1072,11 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                     </div>
 
                     <div class="mt-4 flex flex-wrap items-center gap-2 text-xs text-stone-500 dark:text-neutral-400">
-                        <span
+                        <span v-if="quotesFeatureEnabled"
                             class="py-1.5 px-2 inline-flex items-center gap-x-1.5 font-medium bg-stone-100 text-stone-800 rounded-full dark:bg-neutral-700 dark:text-neutral-200">
                             {{ $t('customers.labels.quotes') }} {{ customer.quotes_count ?? 0 }}
                         </span>
-                        <span
+                        <span v-if="jobsFeatureEnabled"
                             class="py-1.5 px-2 inline-flex items-center gap-x-1.5 font-medium bg-stone-100 text-stone-800 rounded-full dark:bg-neutral-700 dark:text-neutral-200">
                             {{ $t('customers.labels.jobs') }} {{ customer.works_count ?? 0 }}
                         </span>

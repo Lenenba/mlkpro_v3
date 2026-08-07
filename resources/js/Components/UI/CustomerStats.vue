@@ -1,5 +1,7 @@
 <script setup>
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
 const props = defineProps({
     stats: {
@@ -9,13 +11,25 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+const { hasFeature } = useAccountFeatures();
+const quotesFeatureEnabled = computed(() => hasFeature('quotes'));
+const jobsFeatureEnabled = computed(() => hasFeature('jobs'));
+const statsGridClass = computed(() => {
+    const visibleCards = 3 + Number(quotesFeatureEnabled.value) + Number(jobsFeatureEnabled.value);
+
+    return {
+        'xl:grid-cols-3': visibleCards === 3,
+        'xl:grid-cols-4': visibleCards === 4,
+        'xl:grid-cols-5': visibleCards === 5,
+    };
+});
 
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 </script>
 
 <template>
-    <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2 md:gap-3 lg:gap-5">
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3 lg:gap-5" :class="statsGridClass">
         <div
             class="p-4 sm:p-5 bg-white border border-t-4 border-t-indigo-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
             <div class="sm:flex sm:gap-x-3">
@@ -79,7 +93,7 @@ const formatNumber = (value) =>
             </div>
         </div>
 
-        <div
+        <div v-if="quotesFeatureEnabled"
             class="p-4 sm:p-5 bg-white border border-t-4 border-t-amber-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
             <div class="sm:flex sm:gap-x-3">
                 <svg class="sm:order-2 mb-2 sm:mb-0 shrink-0 size-6 text-stone-400 dark:text-neutral-600"
@@ -99,7 +113,7 @@ const formatNumber = (value) =>
             </div>
         </div>
 
-        <div
+        <div v-if="jobsFeatureEnabled"
             class="p-4 sm:p-5 bg-white border border-t-4 border-t-rose-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
             <div class="sm:flex sm:gap-x-3">
                 <svg class="sm:order-2 mb-2 sm:mb-0 shrink-0 size-6 text-stone-400 dark:text-neutral-600"

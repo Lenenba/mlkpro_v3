@@ -10,6 +10,7 @@ import {
     CUSTOMER_CLIENT_TYPE_INDIVIDUAL,
 } from '@/utils/customerClientTypes';
 import { assignGeoapifyAddress, useGeoapifyAddressAutocomplete } from '@/Composables/useGeoapifyAddressAutocomplete';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -30,6 +31,11 @@ const props = defineProps({
 const emit = defineEmits(['created']);
 
 const { t } = useI18n();
+const { hasFeature } = useAccountFeatures();
+const quotesFeatureEnabled = computed(() => hasFeature('quotes'));
+const jobsFeatureEnabled = computed(() => hasFeature('jobs'));
+const tasksFeatureEnabled = computed(() => hasFeature('tasks'));
+const invoicesFeatureEnabled = computed(() => hasFeature('invoices'));
 
 const form = reactive({
     client_type: CUSTOMER_CLIENT_TYPE_INDIVIDUAL,
@@ -193,12 +199,23 @@ const submit = async () => {
         portal_access: form.portal_access,
         description: form.description,
         refer_by: form.refer_by,
-        billing_same_as_physical: form.billing_same_as_physical,
-        auto_accept_quotes: form.auto_accept_quotes,
-        auto_validate_jobs: form.auto_validate_jobs,
-        auto_validate_tasks: form.auto_validate_tasks,
-        auto_validate_invoices: form.auto_validate_invoices,
     };
+
+    if (invoicesFeatureEnabled.value) {
+        payload.billing_same_as_physical = Boolean(form.billing_same_as_physical);
+    }
+    if (quotesFeatureEnabled.value) {
+        payload.auto_accept_quotes = Boolean(form.auto_accept_quotes);
+    }
+    if (jobsFeatureEnabled.value) {
+        payload.auto_validate_jobs = Boolean(form.auto_validate_jobs);
+    }
+    if (tasksFeatureEnabled.value) {
+        payload.auto_validate_tasks = Boolean(form.auto_validate_tasks);
+    }
+    if (invoicesFeatureEnabled.value) {
+        payload.auto_validate_invoices = Boolean(form.auto_validate_invoices);
+    }
 
     if (hasPropertyInput.value && propertyValid.value) {
         payload.properties = {
@@ -323,35 +340,37 @@ const submit = async () => {
                 <FloatingInput v-model="form.properties.zip" :label="$t('customers.properties.fields.zip')" :readonly="true" />
                 <FloatingInput v-model="form.properties.country" :label="$t('customers.properties.fields.country')" :readonly="true" />
             </div>
-            <div class="mt-3 flex items-center gap-2">
+            <div v-if="invoicesFeatureEnabled" class="mt-3 flex items-center gap-2">
                 <input type="checkbox" v-model="form.billing_same_as_physical"
                     class="size-3.5 rounded border-stone-300 text-green-600 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700">
                 <span class="text-sm text-stone-600 dark:text-neutral-400">
-                    {{ $t('customers.form.billing.same_as_property') }}
+                    {{ jobsFeatureEnabled
+                        ? $t('customers.form.billing.same_as_property')
+                        : $t('customers.form.billing.same_as_address') }}
                 </span>
             </div>
-            <div class="mt-3 flex items-start gap-2">
+            <div v-if="quotesFeatureEnabled" class="mt-3 flex items-start gap-2">
                 <input type="checkbox" v-model="form.auto_accept_quotes"
                     class="mt-0.5 size-3.5 rounded border-stone-300 text-green-600 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700">
                 <span class="text-sm text-stone-600 dark:text-neutral-400">
                     {{ $t('customers.form.auto_accept_quotes') }}
                 </span>
             </div>
-            <div class="mt-2 flex items-start gap-2">
+            <div v-if="jobsFeatureEnabled" class="mt-2 flex items-start gap-2">
                 <input type="checkbox" v-model="form.auto_validate_jobs"
                     class="mt-0.5 size-3.5 rounded border-stone-300 text-green-600 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700">
                 <span class="text-sm text-stone-600 dark:text-neutral-400">
                     {{ $t('customers.details.auto_validation.jobs') }}
                 </span>
             </div>
-            <div class="mt-2 flex items-start gap-2">
+            <div v-if="tasksFeatureEnabled" class="mt-2 flex items-start gap-2">
                 <input type="checkbox" v-model="form.auto_validate_tasks"
                     class="mt-0.5 size-3.5 rounded border-stone-300 text-green-600 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700">
                 <span class="text-sm text-stone-600 dark:text-neutral-400">
                     {{ $t('customers.details.auto_validation.tasks') }}
                 </span>
             </div>
-            <div class="mt-2 flex items-start gap-2">
+            <div v-if="invoicesFeatureEnabled" class="mt-2 flex items-start gap-2">
                 <input type="checkbox" v-model="form.auto_validate_invoices"
                     class="mt-0.5 size-3.5 rounded border-stone-300 text-green-600 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700">
                 <span class="text-sm text-stone-600 dark:text-neutral-400">

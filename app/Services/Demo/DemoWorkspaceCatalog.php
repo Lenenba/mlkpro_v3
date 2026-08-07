@@ -9,6 +9,20 @@ use Illuminate\Support\Arr;
 class DemoWorkspaceCatalog
 {
     /**
+     * Modules that do not belong in the default salon experience.
+     *
+     * @var array<int, string>
+     */
+    private const SALON_DEFAULT_DISABLED_MODULES = [
+        'requests',
+        'quotes',
+        'plan_scans',
+        'jobs',
+        'tasks',
+        'products',
+    ];
+
+    /**
      * @return array<int, array<string, mixed>>
      */
     public function companyTypes(): array
@@ -313,6 +327,10 @@ class DemoWorkspaceCatalog
 
         if ($companyType === 'services') {
             $base[] = 'products';
+        }
+
+        if ($companyType === 'services' && $sector === 'salon') {
+            $base = array_diff($base, self::SALON_DEFAULT_DISABLED_MODULES);
         }
 
         return array_values(array_unique($base));

@@ -1,5 +1,6 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
@@ -13,6 +14,16 @@ const props = defineProps({
 
 const { hasFeature } = useAccountFeatures();
 const { t } = useI18n();
+const customerName = computed(() => (
+    props.customer?.company_name
+    || `${props.customer?.first_name || ''} ${props.customer?.last_name || ''}`.trim()
+    || t('customers.labels.logo_alt')
+));
+const hasCustomerActions = computed(() => (
+    hasFeature('quotes')
+    || hasFeature('requests')
+    || hasFeature('jobs')
+));
 
 const openRequestModal = () => {
     if (!props.customer?.id) {
@@ -40,8 +51,9 @@ const openRequestModal = () => {
             <!-- Heading -->
             <div class="flex items-center gap-x-4">
                 <span class="shrink-0 relative size-14">
-                    <img :src="customer.logo_url || customer.logo" :alt="customer.company_name"
-                        class="absolute inset-0 object-cover w-full h-full rounded-sm"
+                    <img :src="customer.logo_url || customer.logo" :alt="customerName"
+                        class="absolute inset-0 object-cover w-full h-full"
+                        :class="customer.client_type === 'individual' ? 'rounded-full' : 'rounded-sm'"
                         loading="lazy"
                         decoding="async">
                     <span
@@ -89,7 +101,7 @@ const openRequestModal = () => {
                 </Link>
 
                 <!-- Button Group -->
-                <div class="inline-flex items-center">
+                <div v-if="hasCustomerActions" class="inline-flex items-center">
                     <!-- Button -->
                     <!-- End Button -->
 
@@ -162,19 +174,6 @@ const openRequestModal = () => {
                                         {{ t('customers.actions.create_job') }}
                                     </button>
                                 </Link>
-                                <button v-if="hasFeature('invoices')" type="button"
-                                    class="w-full flex items-center gap-x-3 py-2 px-3 rounded-sm text-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                        stroke-linejoin="round" class="lucide lucide-file-text">
-                                        <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-                                        <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-                                        <path d="M10 9H8" />
-                                        <path d="M16 13H8" />
-                                        <path d="M16 17H8" />
-                                    </svg>
-                                    {{ t('customers.actions.create_invoice') }}
-                                </button>
                             </div>
                             <!-- List -->
                         </div>

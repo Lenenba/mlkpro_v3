@@ -7,6 +7,8 @@ use App\Models\Customer;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class CustomerClientRoleTest extends TestCase
@@ -100,6 +102,117 @@ class CustomerClientRoleTest extends TestCase
         $this->assertFalse($customer->auto_validate_jobs);
         $this->assertFalse($customer->auto_validate_tasks);
         $this->assertFalse($customer->auto_validate_invoices);
+    }
+
+    public function test_customer_creation_can_redirect_to_create_another_form()
+    {
+        $this->withoutMiddleware(VerifyCsrfToken::class);
+
+        $ownerRole = Role::firstOrCreate(
+            ['name' => 'owner'],
+            ['description' => 'Account owner access']
+        );
+
+        $owner = User::factory()->withRole($ownerRole->id)->create();
+
+        $payload = [
+            'client_type' => 'individual',
+            'salutation' => 'Mrs',
+            'first_name' => 'Amina',
+            'last_name' => 'Diallo',
+            'email' => 'customer-create-another@example.com',
+            'phone' => '+15145550123',
+            'portal_access' => false,
+            'logo_icon' => Customer::DEFAULT_AVATAR_PATH,
+            'create_another' => true,
+        ];
+
+        $this->actingAs($owner)
+            ->post(route('customer.store'), $payload)
+            ->assertRedirect(route('customer.create'))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('customers', [
+            'email' => 'customer-create-another@example.com',
+            'user_id' => $owner->id,
+            'logo' => Customer::DEFAULT_AVATAR_PATH,
+        ]);
+    }
+
+    public function test_individual_customer_can_upload_a_profile_photo()
+    {
+        Storage::fake('public');
+        $this->withoutMiddleware(VerifyCsrfToken::class);
+
+        $ownerRole = Role::firstOrCreate(
+            ['name' => 'owner'],
+            ['description' => 'Account owner access']
+        );
+
+        $owner = User::factory()->withRole($ownerRole->id)->create();
+
+        $this->actingAs($owner)
+            ->post(route('customer.store'), [
+                'client_type' => 'individual',
+                'salutation' => 'Mrs',
+                'first_name' => 'Amina',
+                'last_name' => 'Diallo',
+                'email' => 'amina-profile-photo@example.com',
+                'phone' => '+15145550124',
+                'portal_access' => false,
+                'logo' => UploadedFile::fake()->image('amina-profile.jpg', 640, 640),
+            ])
+            ->assertRedirect(route('customer.index'));
+
+        $customer = Customer::query()
+            ->where('email', 'amina-profile-photo@example.com')
+            ->firstOrFail();
+
+        $this->assertSame('individual', $customer->client_type);
+        $this->assertStringStartsWith('customers/', $customer->logo);
+        Storage::disk('public')->assertExists($customer->logo);
+        $this->assertSame(Storage::disk('public')->url($customer->logo), $customer->logo_url);
+    }
+
+    public function test_updating_an_individual_profile_photo_removes_the_previous_file()
+    {
+        Storage::fake('public');
+        $this->withoutMiddleware(VerifyCsrfToken::class);
+
+        $ownerRole = Role::firstOrCreate(
+            ['name' => 'owner'],
+            ['description' => 'Account owner access']
+        );
+
+        $owner = User::factory()->withRole($ownerRole->id)->create();
+        $oldLogoPath = 'customers/old-profile-photo.jpg';
+        Storage::disk('public')->put($oldLogoPath, 'old photo');
+
+        $customer = Customer::factory()->create([
+            'user_id' => $owner->id,
+            'client_type' => 'individual',
+            'company_name' => null,
+            'logo' => $oldLogoPath,
+        ]);
+
+        $this->actingAs($owner)
+            ->put(route('customer.update', $customer), [
+                'client_type' => 'individual',
+                'salutation' => $customer->salutation,
+                'first_name' => $customer->first_name,
+                'last_name' => $customer->last_name,
+                'email' => $customer->email,
+                'phone' => $customer->phone,
+                'portal_access' => false,
+                'logo' => UploadedFile::fake()->image('new-profile.jpg', 640, 640),
+            ])
+            ->assertRedirect(route('customer.index'));
+
+        $customer->refresh();
+
+        $this->assertNotSame($oldLogoPath, $customer->logo);
+        Storage::disk('public')->assertMissing($oldLogoPath);
+        Storage::disk('public')->assertExists($customer->logo);
     }
 
     public function test_customer_update_normalizes_empty_optional_billing_fields()

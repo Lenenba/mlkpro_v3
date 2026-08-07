@@ -31,6 +31,9 @@ class CustomerRequest extends FormRequest
             $this->input('client_type'),
             (string) ($this->input('company_name') ?? $customer?->company_name ?? '')
         );
+        $logoIconPresets = $clientType === CustomerClientType::COMPANY
+            ? config('icon_presets.company_icons', [])
+            : config('icon_presets.avatar_icons', []);
         $emailRules = [
             'required',
             'string',
@@ -58,12 +61,12 @@ class CustomerRequest extends FormRequest
             'registration_number' => 'nullable|string|max:255',
             'industry' => 'nullable|string|max:255',
             'description' => 'nullable|string|min:5|max:255',
-            'logo' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            'logo' => 'nullable|image|mimes:jpg,jpeg,png,gif,bmp,webp|max:2048',
             'logo_icon' => [
                 'nullable',
                 'string',
                 'max:255',
-                Rule::in(config('icon_presets.company_icons', [])),
+                Rule::in($logoIconPresets),
             ],
             'header_image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'billing_same_as_physical' => 'nullable|boolean',
