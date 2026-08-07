@@ -56,14 +56,19 @@ const formatDate = (value) => humanizeDate(value) || '-';
 const { formatCurrency } = useCurrencyFormatter();
 
 const paymentTipAmount = (payment) => {
-    const value = Number(payment?.tip_amount || 0);
-    return Number.isFinite(value) ? Math.max(0, value) : 0;
+    const tip = Number(payment?.tip_amount || 0);
+    const reversed = Number(payment?.tip_reversed_amount || 0);
+    return Number.isFinite(tip) && Number.isFinite(reversed)
+        ? Math.max(0, tip - Math.max(0, reversed))
+        : 0;
 };
 
 const paymentChargedTotal = (payment) => {
-    const fallback = Number(payment?.amount || 0) + paymentTipAmount(payment);
+    const originalTip = Math.max(0, Number(payment?.tip_amount || 0));
+    const reversed = Math.min(originalTip, Math.max(0, Number(payment?.tip_reversed_amount || 0)));
+    const fallback = Number(payment?.amount || 0) + originalTip;
     const value = Number(payment?.charged_total ?? fallback);
-    return Number.isFinite(value) ? value : fallback;
+    return Number.isFinite(value) ? Math.max(0, value - reversed) : Math.max(0, fallback - reversed);
 };
 
 const formatShortDate = (value) => {
@@ -92,6 +97,14 @@ const formatTimeRange = (start, end) => {
 };
 
 const invoiceSubtotal = computed(() => {
+    const snapshotSubtotal = invoice.value?.subtotal;
+    if (snapshotSubtotal !== null && snapshotSubtotal !== undefined) {
+        const numericSubtotal = Number(snapshotSubtotal);
+        if (Number.isFinite(numericSubtotal) && numericSubtotal >= 0) {
+            return numericSubtotal;
+        }
+    }
+
     if (isTaskBased.value) {
         return invoiceItems.value.reduce((sum, item) => sum + Number(item.total || 0), 0);
     }
@@ -102,6 +115,32 @@ const invoiceSubtotal = computed(() => {
 
     return Number(invoice.value.total || 0);
 });
+
+const invoiceTaxTotal = computed(() => {
+    const snapshotTax = invoice.value?.tax_total;
+    if (snapshotTax !== null && snapshotTax !== undefined) {
+        const numericTax = Number(snapshotTax);
+        if (Number.isFinite(numericTax) && numericTax >= 0) {
+            return numericTax;
+        }
+    }
+
+    return Math.max(0, Number(invoice.value?.total || 0) - invoiceSubtotal.value);
+});
+
+const settledPayments = computed(() => payments.value.filter((payment) =>
+    ['completed', 'paid'].includes(String(payment?.status || '').toLowerCase())
+));
+
+const totalTipAmount = computed(() => settledPayments.value.reduce(
+    (sum, payment) => sum + paymentTipAmount(payment),
+    0
+));
+
+const totalChargedAmount = computed(() => settledPayments.value.reduce(
+    (sum, payment) => sum + paymentChargedTotal(payment),
+    0
+));
 
 const lineItemColspan = computed(() => (isTaskBased.value ? 5 : 4));
 
@@ -159,10 +198,21 @@ const statusClass = (status) => {
                             </p>
                         </div>
                     </div>
-                    <span class="py-1.5 px-3 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-full"
-                        :class="statusClass(invoice.status)">
-                        {{ statusLabel }}
-                    </span>
+                    <div class="flex items-center gap-2">
+                        <a
+                            v-if="invoice.receipt_url"
+                            :href="invoice.receipt_url"
+                            target="_blank"
+                            rel="noopener"
+                            class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                        >
+                            {{ $t('invoices.show.download_pdf') }}
+                        </a>
+                        <span class="py-1.5 px-3 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-full"
+                            :class="statusClass(invoice.status)">
+                            {{ statusLabel }}
+                        </span>
+                    </div>
                 </div>
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div class="col-span-2 space-x-2">
@@ -272,7 +322,29 @@ const statusClass = (status) => {
 
                     <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
                         <div class="col-span-1">
-                            <p class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('invoices.show.summary.paid') }}:</p>
+                            <p class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('invoices.show.summary.taxes') }}:</p>
+                        </div>
+                        <div class="flex justify-end">
+                            <p class="text-sm text-stone-800 dark:text-neutral-100">
+                                {{ formatCurrency(invoiceTaxTotal) }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
+                        <div class="col-span-1">
+                            <p class="text-sm text-stone-800 font-bold dark:text-neutral-100">{{ $t('invoices.show.summary.invoice_total') }}:</p>
+                        </div>
+                        <div class="flex justify-end">
+                            <p class="text-sm text-stone-800 font-bold dark:text-neutral-100">
+                                {{ formatCurrency(invoice.total) }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
+                        <div class="col-span-1">
+                            <p class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('invoices.show.summary.paid_toward_invoice') }}:</p>
                         </div>
                         <div class="flex justify-end">
                             <p class="text-sm text-stone-800 dark:text-neutral-100">
@@ -281,16 +353,29 @@ const statusClass = (status) => {
                         </div>
                     </div>
 
-                    <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
-                        <div class="col-span-1">
-                            <p class="text-sm text-stone-800 font-bold dark:text-neutral-100">{{ $t('invoices.show.summary.total_amount') }}:</p>
+                    <template v-if="settledPayments.length">
+                        <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
+                            <div class="col-span-1">
+                                <p class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('invoices.show.summary.tips') }}:</p>
+                            </div>
+                            <div class="flex justify-end">
+                                <p class="text-sm text-stone-800 dark:text-neutral-100">
+                                    {{ formatCurrency(totalTipAmount) }}
+                                </p>
+                            </div>
                         </div>
-                        <div class="flex justify-end">
-                            <p class="text-sm text-stone-800 font-bold dark:text-neutral-100">
-                                {{ formatCurrency(invoice.total) }}
-                            </p>
+
+                        <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
+                            <div class="col-span-1">
+                                <p class="text-sm font-bold text-stone-800 dark:text-neutral-100">{{ $t('invoices.show.summary.charged_total') }}:</p>
+                            </div>
+                            <div class="flex justify-end">
+                                <p class="text-sm font-bold text-stone-800 dark:text-neutral-100">
+                                    {{ formatCurrency(totalChargedAmount) }}
+                                </p>
+                            </div>
                         </div>
-                    </div>
+                    </template>
 
                     <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
                         <div class="col-span-1">

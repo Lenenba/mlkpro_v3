@@ -306,7 +306,7 @@ const submitAndCreateAnother = () => performSubmit({ keepOpen: true });
                 </div>
             </div>
             <FloatingSelect v-model="form.unit" :label="$t('services.form.unit')" :options="unitOptions" />
-            <FloatingNumberInput v-model="form.tax_rate" :label="$t('services.form.tax_rate')" :step="0.01" />
+            <FloatingNumberInput v-model="form.tax_rate" :label="$t('services.form.tax_rate')" :step="0.0001" />
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">

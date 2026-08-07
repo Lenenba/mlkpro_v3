@@ -181,6 +181,40 @@ it('shows only the connected customer invoice and payment history', function () 
         );
 });
 
+it('exposes a signed receipt download link for a paid invoice in the client portal', function () {
+    $owner = phase7CreatePortalOwner();
+    $client = phase7CreatePortalClient();
+    $customer = phase7CreatePortalCustomer($owner, $client);
+    $invoice = phase7CreatePortalInvoice($owner, $customer);
+    $invoice->forceFill([
+        'status' => 'paid',
+        'receipt_delivery_status' => 'failed',
+        'receipt_delivery_last_error' => 'provider secret diagnostics',
+    ])->save();
+
+    $this->actingAs($client)
+        ->get(route('portal.invoices.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Portal/InvoicesIndex')
+            ->where('invoices.data.0.receipt_url', fn ($url) => is_string($url)
+                && str_contains($url, '/pay/invoices/'.$invoice->id.'/receipt')
+                && str_contains($url, 'signature='))
+        );
+
+    $this->actingAs($client)
+        ->get(route('portal.invoices.show', $invoice))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Portal/InvoiceShow')
+            ->missing('invoice.receipt_delivery_last_error')
+            ->missing('invoice.receipt_delivery_claim_token')
+            ->where('invoice.receipt_url', fn ($url) => is_string($url)
+                && str_contains($url, '/pay/invoices/'.$invoice->id.'/receipt')
+                && str_contains($url, 'signature='))
+        );
+});
+
 it('forbids portal quote actions for an unrelated client', function () {
     $owner = phase7CreatePortalOwner();
     $allowedClient = phase7CreatePortalClient();

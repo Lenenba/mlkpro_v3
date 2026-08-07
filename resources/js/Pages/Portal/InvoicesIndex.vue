@@ -56,13 +56,20 @@ const paymentStatusClass = (status) => ({
 
 const paymentMethod = (payment) => payment?.method || payment?.provider || t('invoices.labels.method_fallback');
 
+const paymentTipAmount = (payment) => Math.max(
+    0,
+    Number(payment?.tip_amount || 0) - Math.max(0, Number(payment?.tip_reversed_amount || 0)),
+);
+
 const paymentChargedTotal = (payment) => {
+    const originalTip = Math.max(0, Number(payment?.tip_amount || 0));
+    const reversed = Math.min(originalTip, Math.max(0, Number(payment?.tip_reversed_amount || 0)));
     const explicitTotal = Number(payment?.charged_total);
     if (Number.isFinite(explicitTotal) && explicitTotal >= 0) {
-        return explicitTotal;
+        return Math.max(0, explicitTotal - reversed);
     }
 
-    return Number(payment?.amount || 0) + Number(payment?.tip_amount || 0);
+    return Number(payment?.amount || 0) + originalTip - reversed;
 };
 </script>
 
@@ -149,8 +156,8 @@ const paymentChargedTotal = (payment) => {
                                         <div class="font-semibold text-stone-800 dark:text-neutral-100">
                                             {{ formatCurrency(paymentChargedTotal(payment), payment.currency_code || invoice.currency_code) }}
                                         </div>
-                                        <div v-if="Number(payment.tip_amount || 0) > 0" class="text-xs text-stone-500 dark:text-neutral-400">
-                                            {{ $t('invoices.show.payments.tip') }}: {{ formatCurrency(payment.tip_amount, payment.currency_code || invoice.currency_code) }}
+                                        <div v-if="paymentTipAmount(payment) > 0" class="text-xs text-stone-500 dark:text-neutral-400">
+                                            {{ $t('invoices.show.payments.tip') }}: {{ formatCurrency(paymentTipAmount(payment), payment.currency_code || invoice.currency_code) }}
                                         </div>
                                     </div>
                                     <span class="rounded-full px-2 py-1 text-xs font-medium" :class="paymentStatusClass(payment.status)">
@@ -164,13 +171,22 @@ const paymentChargedTotal = (payment) => {
                         </p>
                     </section>
 
-                    <div class="mt-4">
+                    <div class="mt-4 flex flex-wrap gap-2">
                         <Link
                             :href="route('portal.invoices.show', invoice.id)"
                             class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
                         >
                             {{ $t('invoices.actions.view_invoice') }}
                         </Link>
+                        <a
+                            v-if="invoice.receipt_url"
+                            :href="invoice.receipt_url"
+                            target="_blank"
+                            rel="noopener"
+                            class="inline-flex items-center rounded-sm border border-emerald-600 bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700"
+                        >
+                            {{ $t('invoices.show.download_pdf') }}
+                        </a>
                     </div>
                 </article>
             </section>

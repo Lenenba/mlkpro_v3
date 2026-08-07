@@ -448,7 +448,7 @@ const canOpenPulseComposer = computed(() => Boolean(props.pulse?.can_open));
                             </dd>
                             <dt class="text-stone-500 dark:text-neutral-400">{{ $t('products.form.tax_rate') }}</dt>
                             <dd class="text-end text-stone-800 dark:text-neutral-200">
-                                {{ Number(product.tax_rate || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }) }}%
+                                {{ Number(product.tax_rate || 0).toLocaleString(undefined, { maximumFractionDigits: 4 }) }}%
                             </dd>
                         </dl>
                     </Card>

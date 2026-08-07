@@ -192,6 +192,10 @@
         "subtitle": "El servicio ha terminado. Registre el pago para cerrar este ticket.",
         "walk_in_customer": "Cliente sin cita",
         "service_total": "Servicio",
+        "subtotal": "Subtotal del servicio",
+        "taxes": "Impuestos",
+        "taxes_with_rate": "Impuestos ({rate} %)",
+        "invoice_total": "Total de la factura",
         "total_to_collect": "Total a cobrar",
         "payment_method": "Metodo de pago",
         "tip_title": "Propina",
@@ -213,6 +217,12 @@
         "free_completed": "Servicio completado.",
         "open_error": "No se puede preparar el cobro.",
         "submit_error": "No se puede registrar el pago.",
+        "stripe_return": {
+          "success": "Pago de Stripe confirmado. La factura y el recibo están listos.",
+          "pending": "El pago de Stripe aún se está confirmando. Esta cola se actualizará automáticamente.",
+          "cancelled": "El pago de Stripe fue cancelado. El servicio sigue pendiente de cobro.",
+          "error": "No se pudo verificar el retorno de Stripe. No se registró ningún pago."
+        },
         "receipt": {
           "label": "Enviar recibo",
           "hint": "El recibo se envía después de confirmar el pago. El SMS contiene un enlace seguro.",

@@ -79,6 +79,7 @@ use App\Http\Controllers\Reservation\PublicBookingController;
 use App\Http\Controllers\Reservation\PublicBookingConversionController;
 use App\Http\Controllers\Reservation\PublicBookingLinkController;
 use App\Http\Controllers\Reservation\PublicKioskReservationController;
+use App\Http\Controllers\Reservation\ReservationQueueStripeCheckoutController;
 use App\Http\Controllers\Reservation\ReservationSettingsController;
 use App\Http\Controllers\Reservation\StaffReservationController;
 use App\Http\Controllers\SaleController;
@@ -587,6 +588,12 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('reservation.queue.finish');
         Route::post('/app/reservations/queue/{item}/checkout', [StaffReservationController::class, 'queueCheckout'])
             ->name('reservation.queue.checkout');
+        Route::get('/app/reservations/queue/stripe/{attempt}/return', [ReservationQueueStripeCheckoutController::class, 'complete'])
+            ->name('reservation.queue.stripe.return');
+        Route::get('/app/reservations/queue/stripe/{attempt}/status', [ReservationQueueStripeCheckoutController::class, 'status'])
+            ->name('reservation.queue.stripe.status');
+        Route::get('/app/reservations/queue/stripe/{attempt}/cancel', [ReservationQueueStripeCheckoutController::class, 'cancel'])
+            ->name('reservation.queue.stripe.cancel');
         Route::patch('/app/reservations/queue/{item}/skip', [StaffReservationController::class, 'queueSkip'])
             ->name('reservation.queue.skip');
         Route::delete('/app/reservations/{reservation}', [StaffReservationController::class, 'destroy'])->name('reservation.destroy');

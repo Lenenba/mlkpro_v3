@@ -140,6 +140,17 @@ class Payment extends Model
         return max(0, round($tip - $reversed, 2));
     }
 
+    public function getChargedNetAmountAttribute(): float
+    {
+        $tip = (float) ($this->tip_amount ?? 0);
+        $reversed = min($tip, max(0, (float) ($this->tip_reversed_amount ?? 0)));
+        $charged = $this->charged_total === null
+            ? (float) $this->amount + $tip
+            : (float) $this->charged_total;
+
+        return max(0, round($charged - $reversed, 2));
+    }
+
     public static function settledStatuses(): array
     {
         return [

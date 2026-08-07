@@ -378,7 +378,7 @@ const submit = async () => {
             <FloatingSelect v-model="form.unit" :label="$t('products.form.unit')" :options="unitOptions" />
             <FloatingInput v-model="form.supplier_name" :label="$t('products.form.supplier')" />
             <FloatingInput v-model="form.supplier_email" :label="$t('products.form.supplier_email')" />
-            <FloatingNumberInput v-model="form.tax_rate" :label="$t('products.form.tax_rate')" :step="0.01" />
+            <FloatingNumberInput v-model="form.tax_rate" :label="$t('products.form.tax_rate')" :step="0.0001" />
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">

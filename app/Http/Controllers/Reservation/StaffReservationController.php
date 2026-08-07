@@ -644,6 +644,7 @@ class StaffReservationController extends Controller
                     ? 'This queue item was already paid and completed.'
                     : 'Payment recorded, invoice paid, and service completed.'),
             'checkout_url' => $checkoutUrl,
+            'stripe_attempt' => $checkout['stripe_attempt'] ?? null,
             'queue_item' => [
                 'id' => $updated->id,
                 'status' => $updated->status,

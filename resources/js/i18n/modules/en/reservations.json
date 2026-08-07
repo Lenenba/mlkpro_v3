@@ -192,6 +192,10 @@
         "subtitle": "The service is finished. Record the payment to close this ticket.",
         "walk_in_customer": "Walk-in customer",
         "service_total": "Service",
+        "subtotal": "Service subtotal",
+        "taxes": "Taxes",
+        "taxes_with_rate": "Taxes ({rate}%)",
+        "invoice_total": "Invoice total",
         "total_to_collect": "Total to collect",
         "payment_method": "Payment method",
         "tip_title": "Tip",
@@ -213,6 +217,12 @@
         "free_completed": "Service completed.",
         "open_error": "Unable to prepare checkout.",
         "submit_error": "Unable to record payment.",
+        "stripe_return": {
+          "success": "Stripe payment confirmed. The invoice and receipt are ready.",
+          "pending": "The Stripe payment is still being confirmed. This queue will update automatically.",
+          "cancelled": "Stripe payment was cancelled. The service still needs to be collected.",
+          "error": "The Stripe return could not be verified. No payment was recorded."
+        },
         "receipt": {
           "label": "Send receipt",
           "hint": "The receipt is sent after payment confirmation. SMS contains a secure link.",

@@ -52,6 +52,7 @@ class PortalInvoiceController extends Controller
                         'amount',
                         'currency_code',
                         'tip_amount',
+                        'tip_reversed_amount',
                         'charged_total',
                         'method',
                         'provider',
@@ -75,10 +76,18 @@ class PortalInvoiceController extends Controller
                     'balance_due' => $invoice->balance_due,
                     'currency_code' => $invoice->currency_code,
                     'created_at' => $invoice->created_at,
+                    'receipt_url' => (string) $invoice->status === 'paid'
+                        ? URL::temporarySignedRoute(
+                            'public.invoices.receipt',
+                            now()->addDays(90),
+                            ['invoice' => $invoice->id]
+                        )
+                        : null,
                     'payments' => $invoice->payments->map(fn ($payment): array => [
                         'id' => $payment->id,
                         'amount' => (float) $payment->amount,
                         'tip_amount' => (float) ($payment->tip_amount ?? 0),
+                        'tip_reversed_amount' => (float) ($payment->tip_reversed_amount ?? 0),
                         'charged_total' => $payment->charged_total === null ? null : (float) $payment->charged_total,
                         'currency_code' => $payment->currency_code,
                         'method' => $payment->method,
@@ -107,6 +116,21 @@ class PortalInvoiceController extends Controller
             'work.products',
             'work.quote.property',
             'payments.tipAssignee:id,name',
+        ]);
+        if ((string) $invoice->status === 'paid') {
+            $invoice->setAttribute('receipt_url', URL::temporarySignedRoute(
+                'public.invoices.receipt',
+                now()->addDays(90),
+                ['invoice' => $invoice->id]
+            ));
+        }
+        $invoice->makeHidden([
+            'receipt_delivery_status',
+            'receipt_delivery_queued_at',
+            'receipt_delivery_started_at',
+            'receipt_delivery_claim_token',
+            'receipt_delivery_attempts',
+            'receipt_delivery_last_error',
         ]);
 
         $owner = User::find($invoice->user_id);

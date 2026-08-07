@@ -139,12 +139,29 @@ class InvoiceDocumentService
             });
         }
 
-        $subtotal = $isTaskBased
+        $lineSubtotal = $isTaskBased
             ? round($taskItems->sum('total'), 2)
             : round($productItems->sum('total'), 2);
-        $totalPaid = round((float) $invoice->payments
+        $invoiceSubtotal = $invoice->subtotal === null
+            ? $lineSubtotal
+            : max(0, round((float) $invoice->subtotal, 2));
+        $invoiceTotal = max(0, round((float) $invoice->total, 2));
+        if ($invoiceSubtotal <= 0 && $invoiceTotal > 0) {
+            $invoiceSubtotal = $invoiceTotal;
+        }
+        $taxTotal = $invoice->tax_total === null
+            ? max(0, round($invoiceTotal - $invoiceSubtotal, 2))
+            : max(0, round((float) $invoice->tax_total, 2));
+        $paymentRows = $invoice->payments
             ->whereIn('status', Payment::settledStatuses())
-            ->sum('amount'), 2);
+            ->sortByDesc('paid_at');
+        $totalPaid = round((float) $paymentRows->sum('amount'), 2);
+        $tipTotal = round((float) $paymentRows->sum(
+            static fn (Payment $payment): float => $payment->tip_net_amount
+        ), 2);
+        $chargedTotal = round((float) $paymentRows->sum(
+            static fn (Payment $payment): float => $payment->charged_net_amount
+        ), 2);
 
         return [
             'company' => $company ?: $this->resolveCompany($invoice),
@@ -153,9 +170,15 @@ class InvoiceDocumentService
             'invoiceTemplateKey' => $templateKey ?: $this->defaultTemplateKey(),
             'isTaskBased' => $isTaskBased,
             'productItems' => $productItems,
-            'subtotal' => $subtotal,
+            'subtotal' => $lineSubtotal,
+            'invoiceSubtotal' => $invoiceSubtotal,
+            'taxTotal' => $taxTotal,
+            'invoiceTotal' => $invoiceTotal,
             'taskItems' => $taskItems,
             'totalPaid' => $totalPaid,
+            'tipTotal' => $tipTotal,
+            'chargedTotal' => $chargedTotal,
+            'paymentRows' => $paymentRows,
             'work' => $invoice->work,
         ];
     }

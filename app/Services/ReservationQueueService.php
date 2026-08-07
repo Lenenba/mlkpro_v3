@@ -256,7 +256,11 @@ class ReservationQueueService
 
             $now = now('UTC');
             $previousStatus = (string) $locked->status;
-            $checkout = $this->checkoutSummary($locked);
+            // The catalog is authoritative until the service is finished. This prevents
+            // user-supplied queue metadata from changing the amount that gets frozen.
+            $checkout = $action === 'finish'
+                ? $this->buildCheckoutSummary($locked, false)
+                : $this->checkoutSummary($locked);
             if (
                 $action === 'finish'
                 && ! in_array($previousStatus, [
@@ -322,11 +326,17 @@ class ReservationQueueService
                         : ReservationQueueItem::STATUS_DONE,
                     'finished_at' => $now,
                     'call_expires_at' => null,
-                    'metadata' => array_replace_recursive((array) ($locked->metadata ?? []), [
+                    'metadata' => array_replace((array) ($locked->metadata ?? []), [
                         'checkout' => [
+                            'pricing_version' => 1,
                             'service_id' => $locked->service_id ? (int) $locked->service_id : null,
                             'service_name' => $checkout['service_name'] ?? null,
-                            'base_amount' => $checkout['base_amount'] ?? 0,
+                            'base_amount' => $checkout['subtotal'] ?? 0,
+                            'subtotal' => $checkout['subtotal'] ?? 0,
+                            'tax_rate' => $checkout['tax_rate'] ?? 0,
+                            'tax_breakdown' => $checkout['tax_breakdown'] ?? [],
+                            'tax_total' => $checkout['tax_total'] ?? 0,
+                            'invoice_total' => $checkout['invoice_total'] ?? 0,
                             'currency_code' => $checkout['currency_code'] ?? null,
                             'opened_at' => $now->toIso8601String(),
                         ],
@@ -396,7 +406,7 @@ class ReservationQueueService
 
             $updated = $locked->fresh([
                 'teamMember.user:id,name',
-                'service:id,name,price,currency_code',
+                'service:id,name,price,currency_code,tax_rate',
                 'checkoutPayment:id,reservation_queue_item_id,amount,currency_code,tip_amount,charged_total,status,paid_at',
                 'reservation:id,starts_at,status',
                 'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
@@ -430,43 +440,136 @@ class ReservationQueueService
     }
 
     /**
-     * @return array{base_amount: float, currency_code: string, service_name: string|null, requires_payment: bool, payment_id: int|null, payment_status: string|null, paid_at: string|null, charged_total: float|null}
+     * @return array{base_amount: float, subtotal: float, tax_rate: float, tax_breakdown: array<int, array{code: string, name: string, rate: float, taxable_amount: float, amount: float}>, tax_total: float, invoice_total: float, currency_code: string, service_name: string|null, requires_payment: bool, payment_id: int|null, payment_status: string|null, paid_at: string|null, charged_total: float|null}
      */
     public function checkoutSummary(ReservationQueueItem $item): array
     {
+        return $this->buildCheckoutSummary($item, true);
+    }
+
+    /**
+     * @return array{base_amount: float, subtotal: float, tax_rate: float, tax_breakdown: array<int, array{code: string, name: string, rate: float, taxable_amount: float, amount: float}>, tax_total: float, invoice_total: float, currency_code: string, service_name: string|null, requires_payment: bool, payment_id: int|null, payment_status: string|null, paid_at: string|null, charged_total: float|null}
+     */
+    private function buildCheckoutSummary(ReservationQueueItem $item, bool $preferSnapshot): array
+    {
         $checkoutMetadata = (array) data_get($item->metadata, 'checkout', []);
         $service = $item->relationLoaded('service') ? $item->service : null;
-        $hasServicePrice = $service && array_key_exists('price', $service->getAttributes());
+        $requiredServiceAttributes = ['name', 'price', 'currency_code', 'tax_rate'];
+        $hasCompleteService = $service && collect($requiredServiceAttributes)
+            ->every(fn (string $attribute): bool => array_key_exists($attribute, $service->getAttributes()));
 
-        if (! $hasServicePrice && $item->service_id) {
+        if (! $hasCompleteService && $item->service_id) {
             $service = Product::query()
                 ->whereKey($item->service_id)
                 ->where('user_id', $item->account_id)
-                ->first(['id', 'name', 'price', 'currency_code']);
+                ->first(['id', 'name', 'price', 'currency_code', 'tax_rate']);
         }
 
-        $hasSnapshotAmount = array_key_exists('base_amount', $checkoutMetadata)
-            && is_numeric($checkoutMetadata['base_amount']);
-        $baseAmount = $hasSnapshotAmount
-            ? (float) $checkoutMetadata['base_amount']
-            : (float) ($service?->price ?? 0);
+        $mayUseSnapshot = $preferSnapshot && in_array((string) $item->status, [
+            ReservationQueueItem::STATUS_AWAITING_PAYMENT,
+            ReservationQueueItem::STATUS_DONE,
+        ], true);
+        $hasCompleteSnapshot = $mayUseSnapshot
+            && (int) ($checkoutMetadata['pricing_version'] ?? 0) >= 1
+            && is_numeric($checkoutMetadata['subtotal'] ?? null)
+            && is_numeric($checkoutMetadata['tax_total'] ?? null)
+            && is_numeric($checkoutMetadata['invoice_total'] ?? null);
+        $hasLegacySnapshotAmount = $mayUseSnapshot
+            && is_numeric($checkoutMetadata['base_amount'] ?? null);
+
+        $subtotal = $hasCompleteSnapshot
+            ? (float) $checkoutMetadata['subtotal']
+            : ($hasLegacySnapshotAmount
+                ? (float) $checkoutMetadata['base_amount']
+                : (float) ($service?->price ?? 0));
+        $subtotal = round(max(0, $subtotal), 2);
+
+        $taxRate = $hasCompleteSnapshot && is_numeric($checkoutMetadata['tax_rate'] ?? null)
+            ? (float) $checkoutMetadata['tax_rate']
+            : (float) ($service?->tax_rate ?? 0);
+        $taxRate = round(max(0, min(100, $taxRate)), 4);
+        $taxBreakdown = $hasCompleteSnapshot
+            ? $this->normalizeTaxBreakdown($checkoutMetadata['tax_breakdown'] ?? [], $subtotal, $taxRate)
+            : $this->buildTaxBreakdown($subtotal, $taxRate);
+        $taxTotal = $hasCompleteSnapshot
+            ? round(max(0, (float) $checkoutMetadata['tax_total']), 2)
+            : round((float) collect($taxBreakdown)->sum('amount'), 2);
+        $invoiceTotal = $hasCompleteSnapshot
+            ? round(max(0, (float) $checkoutMetadata['invoice_total']), 2)
+            : round($subtotal + $taxTotal, 2);
         $currencyCode = CurrencyCode::tryFromMixed(
-            $checkoutMetadata['currency_code'] ?? $service?->currency_code ?? User::query()
-                ->whereKey($item->account_id)
-                ->value('currency_code')
+            ($mayUseSnapshot ? ($checkoutMetadata['currency_code'] ?? null) : null)
+                ?? $service?->currency_code ?? User::query()
+                    ->whereKey($item->account_id)
+                    ->value('currency_code')
         )?->value ?? CurrencyCode::default()->value;
         $payment = $item->relationLoaded('checkoutPayment') ? $item->checkoutPayment : null;
 
         return [
-            'base_amount' => round(max(0, $baseAmount), 2),
+            'base_amount' => $subtotal,
+            'subtotal' => $subtotal,
+            'tax_rate' => $taxRate,
+            'tax_breakdown' => $taxBreakdown,
+            'tax_total' => $taxTotal,
+            'invoice_total' => $invoiceTotal,
             'currency_code' => $currencyCode,
-            'service_name' => $checkoutMetadata['service_name'] ?? $service?->name,
-            'requires_payment' => round(max(0, $baseAmount), 2) > 0,
+            'service_name' => ($mayUseSnapshot ? ($checkoutMetadata['service_name'] ?? null) : null) ?? $service?->name,
+            'requires_payment' => $invoiceTotal > 0,
             'payment_id' => $payment?->id ? (int) $payment->id : null,
             'payment_status' => $payment?->status,
             'paid_at' => $payment?->paid_at?->toIso8601String(),
             'charged_total' => $payment?->charged_total !== null ? (float) $payment->charged_total : null,
         ];
+    }
+
+    /**
+     * @return array<int, array{code: string, name: string, rate: float, taxable_amount: float, amount: float}>
+     */
+    private function buildTaxBreakdown(float $subtotal, float $taxRate): array
+    {
+        if ($subtotal <= 0 || $taxRate <= 0) {
+            return [];
+        }
+
+        return [[
+            'code' => 'service_tax',
+            'name' => 'Tax',
+            'rate' => $taxRate,
+            'taxable_amount' => $subtotal,
+            'amount' => round($subtotal * ($taxRate / 100), 2),
+        ]];
+    }
+
+    /**
+     * @return array<int, array{code: string, name: string, rate: float, taxable_amount: float, amount: float}>
+     */
+    private function normalizeTaxBreakdown(mixed $breakdown, float $subtotal, float $fallbackRate): array
+    {
+        if (! is_array($breakdown)) {
+            return $this->buildTaxBreakdown($subtotal, $fallbackRate);
+        }
+
+        $normalized = collect($breakdown)
+            ->filter(fn (mixed $line): bool => is_array($line) && is_numeric($line['amount'] ?? null))
+            ->map(function (array $line, int $index) use ($subtotal, $fallbackRate): array {
+                $rate = is_numeric($line['rate'] ?? null)
+                    ? (float) $line['rate']
+                    : $fallbackRate;
+
+                return [
+                    'code' => trim((string) ($line['code'] ?? 'service_tax_'.($index + 1))),
+                    'name' => trim((string) ($line['name'] ?? 'Tax')),
+                    'rate' => round(max(0, min(100, $rate)), 4),
+                    'taxable_amount' => round(max(0, (float) ($line['taxable_amount'] ?? $subtotal)), 2),
+                    'amount' => round(max(0, (float) $line['amount']), 2),
+                ];
+            })
+            ->values()
+            ->all();
+
+        return $normalized !== []
+            ? $normalized
+            : $this->buildTaxBreakdown($subtotal, $fallbackRate);
     }
 
     private function requiresCheckoutForCompletion(array $checkout): bool
@@ -550,7 +653,7 @@ class ReservationQueueService
             ->forAccount($accountId)
             ->with([
                 'teamMember.user:id,name',
-                'service:id,name,price,currency_code',
+                'service:id,name,price,currency_code,tax_rate',
                 'checkoutPayment:id,reservation_queue_item_id,amount,currency_code,tip_amount,charged_total,status,paid_at',
                 'client:id,first_name,last_name,company_name,email',
                 'reservation:id,starts_at,status',

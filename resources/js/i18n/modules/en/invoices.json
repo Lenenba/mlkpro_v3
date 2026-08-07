@@ -129,7 +129,12 @@
       "line_items_empty": "No line items.",
       "summary": {
         "subtotal": "Subtotal",
+        "taxes": "Taxes",
+        "invoice_total": "Invoice total",
         "paid": "Paid",
+        "paid_toward_invoice": "Paid toward invoice",
+        "tips": "Tips",
+        "charged_total": "Charged total",
         "total_amount": "Total amount",
         "balance_due": "Balance due"
       },

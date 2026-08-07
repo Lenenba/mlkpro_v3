@@ -52,6 +52,13 @@ return [
             'description' => 'Amounts owed back to team members for reimbursable expenses.',
         ],
         [
+            'key' => 'tips_payable',
+            'code' => '2310',
+            'name' => 'Tips payable',
+            'type' => 'liability_current',
+            'description' => 'Tips collected from customers that remain payable to the assigned team member.',
+        ],
+        [
             'key' => 'suspense',
             'code' => '9999',
             'name' => 'Suspense and review',

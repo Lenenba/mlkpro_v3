@@ -371,16 +371,14 @@
           }
       }
 
-      $invoiceSubtotal = $subtotal;
-      if (! $isTaskBased && $work && $work->subtotal !== null) {
-          $invoiceSubtotal = (float) $work->subtotal;
-      }
-
-      $invoiceTotal = (float) ($invoice->total ?? 0);
-      $totalPaid = (float) $invoice->amount_paid;
+      $invoiceSubtotal = (float) ($invoiceSubtotal ?? $subtotal);
+      $invoiceTotal = (float) ($invoiceTotal ?? $invoice->total ?? 0);
+      $taxTotal = (float) ($taxTotal ?? max(0, $invoiceTotal - $invoiceSubtotal));
+      $totalPaid = (float) ($totalPaid ?? $invoice->amount_paid);
+      $tipTotal = (float) ($tipTotal ?? 0);
+      $chargedTotal = (float) ($chargedTotal ?? ($totalPaid + $tipTotal));
       $balanceDue = (float) $invoice->balance_due;
-      $taxOrAdjustments = round(max(0, $invoiceTotal - (float) $invoiceSubtotal), 2);
-      $paymentRows = $invoice->payments
+      $paymentRows = $paymentRows ?? $invoice->payments
           ->whereIn('status', \App\Models\Payment::settledStatuses())
           ->sortByDesc('paid_at');
     @endphp
@@ -531,8 +529,8 @@
                       <tr>
                         <td>
                           {{ $formatMoney($payment->amount) }}
-                          @if((float) ($payment->tip_amount ?? 0) > 0)
-                            <div class="muted">Tip {{ $formatMoney($payment->tip_amount) }} · Charged {{ $formatMoney($payment->charged_total ?? ((float) $payment->amount + (float) $payment->tip_amount)) }}</div>
+                          @if($payment->tip_net_amount > 0)
+                            <div class="muted">Tip {{ $formatMoney($payment->tip_net_amount) }} · Charged {{ $formatMoney($payment->charged_net_amount) }}</div>
                           @endif
                         </td>
                         <td>{{ $payment->method ?: '-' }}</td>
@@ -553,20 +551,28 @@
                   <td class="summary-label">Sub total</td>
                   <td class="summary-value">{{ $formatMoney($invoiceSubtotal) }}</td>
                 </tr>
-                @if($taxOrAdjustments > 0)
-                  <tr>
-                    <td class="summary-label">Taxes / adjustments</td>
-                    <td class="summary-value">{{ $formatMoney($taxOrAdjustments) }}</td>
-                  </tr>
-                @endif
                 <tr class="divider">
-                  <td class="summary-label">Paid</td>
-                  <td class="summary-value">{{ $formatMoney($totalPaid) }}</td>
+                  <td class="summary-label">Taxes</td>
+                  <td class="summary-value">{{ $formatMoney($taxTotal) }}</td>
                 </tr>
                 <tr class="divider">
-                  <td class="summary-label">Grand total</td>
+                  <td class="summary-label">Invoice total</td>
                   <td class="summary-value">{{ $formatMoney($invoiceTotal) }}</td>
                 </tr>
+                <tr class="divider">
+                  <td class="summary-label">Paid toward invoice</td>
+                  <td class="summary-value">{{ $formatMoney($totalPaid) }}</td>
+                </tr>
+                @if($paymentRows->isNotEmpty())
+                  <tr class="divider">
+                    <td class="summary-label">Tips</td>
+                    <td class="summary-value">{{ $formatMoney($tipTotal) }}</td>
+                  </tr>
+                  <tr class="divider">
+                    <td class="summary-label">Charged total</td>
+                    <td class="summary-value">{{ $formatMoney($chargedTotal) }}</td>
+                  </tr>
+                @endif
               </table>
 
               <div class="amount-due">

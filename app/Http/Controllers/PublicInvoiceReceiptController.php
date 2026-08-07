@@ -14,8 +14,13 @@ class PublicInvoiceReceiptController extends Controller
 
         $filename = 'receipt-'.($invoice->number ?: $invoice->id).'.pdf';
 
-        return $invoiceDocumentService
+        $response = $invoiceDocumentService
             ->buildPdf($invoice)
             ->download($filename);
+
+        $response->headers->set('Cache-Control', 'private, no-store, max-age=0');
+        $response->headers->set('X-Content-Type-Options', 'nosniff');
+
+        return $response;
     }
 }

@@ -129,7 +129,12 @@
       "line_items_empty": "Aucun element.",
       "summary": {
         "subtotal": "Sous-total",
+        "taxes": "Taxes",
+        "invoice_total": "Total de la facture",
         "paid": "Payee",
+        "paid_toward_invoice": "Payé sur la facture",
+        "tips": "Pourboire",
+        "charged_total": "Total encaissé",
         "total_amount": "Montant total",
         "balance_due": "Solde du"
       },

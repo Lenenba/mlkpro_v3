@@ -347,11 +347,15 @@
               $starHtml .= $i <= $filled ? '&#9733;' : '&#9734;';
           }
       }
-      $invoiceSubtotal = $subtotal;
-      if (!$isTaskBased && $work && $work->subtotal !== null) {
-          $invoiceSubtotal = (float) $work->subtotal;
-      }
-      $totalPaid = (float) $invoice->amount_paid;
+      $invoiceSubtotal = (float) ($invoiceSubtotal ?? $subtotal);
+      $invoiceTotal = (float) ($invoiceTotal ?? $invoice->total ?? 0);
+      $taxTotal = (float) ($taxTotal ?? max(0, $invoiceTotal - $invoiceSubtotal));
+      $totalPaid = (float) ($totalPaid ?? $invoice->amount_paid);
+      $tipTotal = (float) ($tipTotal ?? 0);
+      $chargedTotal = (float) ($chargedTotal ?? ($totalPaid + $tipTotal));
+      $paymentRows = $paymentRows ?? $invoice->payments
+          ->whereIn('status', \App\Models\Payment::settledStatuses())
+          ->sortByDesc('paid_at');
     @endphp
 
     <div class="panel">
@@ -515,15 +519,29 @@
                 <td class="value highlight">{{ $formatMoney($invoiceSubtotal) }}</td>
               </tr>
               <tr class="summary-divider">
-                <td class="label">Payee:</td>
+                <td class="label">Taxes:</td>
+                <td class="value">{{ $formatMoney($taxTotal) }}</td>
+              </tr>
+              <tr class="summary-divider">
+                <td class="label"><strong>Total de la facture:</strong></td>
+                <td class="value"><strong>{{ $formatMoney($invoiceTotal) }}</strong></td>
+              </tr>
+              <tr class="summary-divider">
+                <td class="label">Payé sur la facture:</td>
                 <td class="value">{{ $formatMoney($totalPaid) }}</td>
               </tr>
+              @if($paymentRows->isNotEmpty())
+                <tr class="summary-divider">
+                  <td class="label">Pourboire:</td>
+                  <td class="value">{{ $formatMoney($tipTotal) }}</td>
+                </tr>
+                <tr class="summary-divider">
+                  <td class="label"><strong>Total encaissé:</strong></td>
+                  <td class="value"><strong>{{ $formatMoney($chargedTotal) }}</strong></td>
+                </tr>
+              @endif
               <tr class="summary-divider">
-                <td class="label"><strong>Montant total:</strong></td>
-                <td class="value"><strong>{{ $formatMoney($invoice->total) }}</strong></td>
-              </tr>
-              <tr class="summary-divider">
-                <td class="label">Solde du:</td>
+                <td class="label">Solde dû:</td>
                 <td class="value">{{ $formatMoney($invoice->balance_due) }}</td>
               </tr>
             </table>
@@ -532,10 +550,10 @@
       </table>
     </div>
 
-    @if($invoice->payments->isNotEmpty())
+    @if($paymentRows->isNotEmpty())
       <div class="card section">
         <div class="label" style="font-weight: 600;">Paiements</div>
-        @foreach($invoice->payments as $payment)
+        @foreach($paymentRows as $payment)
           <div class="payment-row">
             <table class="full">
               <tr>
@@ -543,9 +561,9 @@
                   <div style="font-size: 11px; color: #44403c;">
                     {{ $formatMoney($payment->amount) }} - {{ $payment->method ?: '-' }}
                   </div>
-                  @if((float) ($payment->tip_amount ?? 0) > 0)
+                  @if($payment->tip_net_amount > 0)
                     <div class="muted">
-                      Pourboire : {{ $formatMoney($payment->tip_amount) }} · Total encaissé : {{ $formatMoney($payment->charged_total ?? ((float) $payment->amount + (float) $payment->tip_amount)) }}
+                      Pourboire : {{ $formatMoney($payment->tip_net_amount) }} · Total encaissé : {{ $formatMoney($payment->charged_net_amount) }}
                     </div>
                   @endif
                   <div class="muted">{{ $formatRelativeDate($payment->paid_at) }}</div>

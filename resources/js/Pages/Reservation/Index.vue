@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import axios from 'axios';
 import dayjs from 'dayjs';
@@ -20,6 +20,20 @@ import { reservationStatusBadgeClass } from '@/Components/Reservation/status';
 import { paymentMethodLabel as resolvePaymentMethodLabel, useTenantPaymentMethods } from '@/Composables/useTenantPaymentMethods';
 
 const { t, locale } = useI18n();
+const queueStripeReturn = (() => {
+    if (typeof window === 'undefined') {
+        return { status: '', queueItemId: 0, invoiceId: 0, attemptId: '' };
+    }
+
+    const query = new URLSearchParams(window.location.search);
+
+    return {
+        status: String(query.get('stripe') || ''),
+        queueItemId: Number(query.get('queue_checkout') || 0),
+        invoiceId: Number(query.get('invoice_id') || 0),
+        attemptId: String(query.get('stripe_attempt') || ''),
+    };
+})();
 const dayjsLocale = computed(() => {
     const value = String(locale.value || '').toLowerCase();
 
@@ -127,9 +141,24 @@ const waitlistActionError = ref('');
 const waitlistActionSuccess = ref('');
 const waitlistUpdatingId = ref(null);
 const queueRows = ref([...(props.queueItems || [])]);
-const queueActionError = ref('');
-const queueActionSuccess = ref('');
-const queueReceiptUrl = ref('');
+const queueActionError = ref(queueStripeReturn.status === 'error'
+    ? t('reservations.queue.checkout.stripe_return.error')
+    : '');
+const queueActionSuccess = ref(queueStripeReturn.status === 'success'
+    ? t('reservations.queue.checkout.stripe_return.success')
+    : '');
+const queueActionWarning = ref(
+    queueStripeReturn.status === 'pending'
+        ? t('reservations.queue.checkout.stripe_return.pending')
+        : (queueStripeReturn.status === 'cancel'
+            ? t('reservations.queue.checkout.stripe_return.cancelled')
+            : '')
+);
+const queueReceiptUrl = ref(
+    queueStripeReturn.status === 'success' && queueStripeReturn.invoiceId > 0
+        ? route('invoice.pdf', queueStripeReturn.invoiceId)
+        : ''
+);
 const queueUpdatingId = ref(null);
 const queueCallingNext = ref(false);
 const openQueueActionsFor = ref(null);
@@ -137,6 +166,8 @@ const queueActionButtonRefs = ref({});
 const queueActionMenuRef = ref(null);
 const queueActionMenuStyle = ref({});
 let queueActionListenersBound = false;
+let queueStripeStatusTimer = null;
+let queueStripeStatusPolls = 0;
 const showQueueCheckout = ref(false);
 const activeQueueCheckoutItem = ref(null);
 const queueCheckoutProcessing = ref(false);
@@ -181,7 +212,7 @@ const {
     hasMultiplePaymentMethods,
 } = useTenantPaymentMethods(computed(() => props.paymentMethodSettings));
 const reservationTabCount = computed(() => Number(props.reservations?.total ?? props.reservations?.data?.length ?? 0));
-const activeDataTab = ref('reservations');
+const activeDataTab = ref(queueStripeReturn.queueItemId > 0 ? 'queue' : 'reservations');
 const ownTeamMemberId = computed(() => {
     const raw = props.access?.own_team_member_id;
     return raw ? String(raw) : '';
@@ -348,6 +379,10 @@ const formatMoney = (value) => Number(value || 0).toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
 });
+const formatRate = (value) => Number(value || 0).toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 4,
+});
 const roundMoney = (value) => Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
 const queueStatusBadgeClass = (status) => (
     status === 'awaiting_payment'
@@ -379,10 +414,32 @@ const formatQueueMoney = (value, currencyCode = 'CAD') => {
     }
 };
 const queueCheckoutBaseAmount = computed(() => {
-    const value = Number(activeQueueCheckoutItem.value?.checkout?.base_amount || 0);
+    const checkout = activeQueueCheckoutItem.value?.checkout || {};
+    const value = Number(checkout.subtotal ?? checkout.base_amount ?? 0);
 
     return Number.isFinite(value) ? Math.max(0, value) : 0;
 });
+const queueCheckoutTaxTotal = computed(() => {
+    const value = Number(activeQueueCheckoutItem.value?.checkout?.tax_total || 0);
+
+    return Number.isFinite(value) ? Math.max(0, value) : 0;
+});
+const queueCheckoutInvoiceTotal = computed(() => {
+    const checkout = activeQueueCheckoutItem.value?.checkout || {};
+    const value = Number(checkout.invoice_total ?? (queueCheckoutBaseAmount.value + queueCheckoutTaxTotal.value));
+
+    return Number.isFinite(value) ? Math.max(0, value) : 0;
+});
+const queueCheckoutTaxRate = computed(() => {
+    const value = Number(activeQueueCheckoutItem.value?.checkout?.tax_rate || 0);
+
+    return Number.isFinite(value) ? Math.max(0, value) : 0;
+});
+const queueCheckoutTaxLabel = computed(() => (
+    queueCheckoutTaxRate.value > 0
+        ? t('reservations.queue.checkout.taxes_with_rate', { rate: formatRate(queueCheckoutTaxRate.value) })
+        : t('reservations.queue.checkout.taxes')
+));
 const queueCheckoutCurrency = computed(() => activeQueueCheckoutItem.value?.checkout?.currency_code || 'CAD');
 const maxQueueTipPercent = computed(() => Number(props.tips?.max_percent ?? 30));
 const maxQueueTipFixed = computed(() => Number(props.tips?.max_fixed_amount ?? 200));
@@ -406,7 +463,7 @@ const queueCheckoutTipAmount = computed(() => {
         : roundMoney(normalizedQueueTipFixedAmount.value);
 });
 const queueCheckoutChargedTotal = computed(() => roundMoney(
-    queueCheckoutBaseAmount.value + queueCheckoutTipAmount.value
+    queueCheckoutInvoiceTotal.value + queueCheckoutTipAmount.value
 ));
 const queuePaymentMethodLabel = (method) => resolvePaymentMethodLabel(method, {
     cash: t('reservations.queue.checkout.methods.cash'),
@@ -435,7 +492,7 @@ const queueCheckoutSubmitLabel = computed(() => {
 });
 const canSubmitQueueCheckout = computed(() => (
     Boolean(activeQueueCheckoutItem.value?.id)
-    && queueCheckoutBaseAmount.value > 0
+    && queueCheckoutInvoiceTotal.value > 0
     && Boolean(queueCheckoutForm.value.method)
 ));
 const queueCheckoutPayload = computed(() => ({
@@ -570,6 +627,83 @@ const refreshList = () => {
     loadEvents();
 };
 
+const stopQueueStripeStatusPolling = () => {
+    if (queueStripeStatusTimer) {
+        clearTimeout(queueStripeStatusTimer);
+        queueStripeStatusTimer = null;
+    }
+};
+
+const scheduleQueueStripeStatusPoll = (delay = 2500) => {
+    stopQueueStripeStatusPolling();
+
+    if (queueStripeStatusPolls >= 120) {
+        return;
+    }
+
+    queueStripeStatusTimer = setTimeout(pollQueueStripeStatus, Math.max(1500, Number(delay) || 2500));
+};
+
+const pollQueueStripeStatus = async () => {
+    if (!queueStripeReturn.attemptId || queueStripeReturn.status !== 'pending') {
+        return;
+    }
+
+    queueStripeStatusPolls += 1;
+
+    try {
+        const response = await axios.get(route('reservation.queue.stripe.status', queueStripeReturn.attemptId));
+        const payload = response?.data || {};
+
+        if (payload.state === 'success') {
+            queueActionError.value = '';
+            queueActionWarning.value = '';
+            queueActionSuccess.value = t('reservations.queue.checkout.stripe_return.success');
+            queueReceiptUrl.value = payload?.invoice?.receipt_url || '';
+            stopQueueStripeStatusPolling();
+            refreshList();
+            return;
+        }
+
+        if (payload.state === 'cancel') {
+            queueActionError.value = '';
+            queueActionSuccess.value = '';
+            queueActionWarning.value = t('reservations.queue.checkout.stripe_return.cancelled');
+            stopQueueStripeStatusPolling();
+            return;
+        }
+
+        if (payload.state === 'error') {
+            queueActionSuccess.value = '';
+            queueActionWarning.value = '';
+            queueActionError.value = t('reservations.queue.checkout.stripe_return.error');
+            stopQueueStripeStatusPolling();
+            return;
+        }
+
+        queueActionWarning.value = t('reservations.queue.checkout.stripe_return.pending');
+        scheduleQueueStripeStatusPoll(payload.poll_after_ms);
+    } catch (error) {
+        const payload = error?.response?.data || {};
+        if (payload.state === 'pending' || Number(error?.response?.status || 0) >= 500) {
+            queueActionWarning.value = t('reservations.queue.checkout.stripe_return.pending');
+            scheduleQueueStripeStatusPoll(payload.poll_after_ms);
+            return;
+        }
+
+        queueActionSuccess.value = '';
+        queueActionWarning.value = '';
+        queueActionError.value = t('reservations.queue.checkout.stripe_return.error');
+        stopQueueStripeStatusPolling();
+    }
+};
+
+onMounted(() => {
+    if (queueStripeReturn.status === 'pending' && queueStripeReturn.attemptId) {
+        scheduleQueueStripeStatusPoll(500);
+    }
+});
+
 let filterTimer = null;
 watch(
     () => [
@@ -596,6 +730,7 @@ onBeforeUnmount(() => {
         clearTimeout(filterTimer);
     }
 
+    stopQueueStripeStatusPolling();
     teardownQueueActionListeners();
 });
 
@@ -1071,6 +1206,7 @@ const updateQueueStatus = async (item, action, options = {}) => {
     closeQueueActions();
     queueActionError.value = '';
     queueActionSuccess.value = '';
+    queueActionWarning.value = '';
     queueUpdatingId.value = Number(item.id);
 
     try {
@@ -1131,6 +1267,7 @@ const openQueueCheckout = async (item) => {
     closeQueueActions();
     queueActionError.value = '';
     queueActionSuccess.value = '';
+    queueActionWarning.value = '';
     queueCheckoutError.value = '';
     let checkoutItem = item;
 
@@ -1180,6 +1317,7 @@ const submitQueueCheckout = async () => {
     queueCheckoutError.value = '';
     queueActionError.value = '';
     queueActionSuccess.value = '';
+    queueActionWarning.value = '';
 
     try {
         const response = await axios.post(
@@ -1224,6 +1362,7 @@ const queueCallNextPayload = () => {
 const callNextQueueItem = async (options = {}) => {
     queueActionError.value = '';
     queueActionSuccess.value = '';
+    queueActionWarning.value = '';
     queueCallingNext.value = true;
     const originalPayload = { ...(options.payload || queueCallNextPayload()) };
     const payload = options.confirmTeamMemberAvailable
@@ -1460,6 +1599,9 @@ const removeReservation = (reservation) => {
 
                 <div v-if="queueActionError" class="mt-3 rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
                     {{ queueActionError }}
+                </div>
+                <div v-if="queueActionWarning" class="mt-3 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                    {{ queueActionWarning }}
                 </div>
                 <div v-if="queueActionSuccess" class="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
                     <span>{{ queueActionSuccess }}</span>
@@ -2119,23 +2261,25 @@ const removeReservation = (reservation) => {
                         </div>
                     </div>
 
-                    <div class="mt-4 grid gap-3 sm:grid-cols-2">
-                        <div class="min-w-0 rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                            <div class="break-words text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                                {{ $t('reservations.queue.checkout.service_total') }}
+                    <div class="mt-4 overflow-hidden rounded-sm border border-stone-200 dark:border-neutral-700">
+                        <dl class="divide-y divide-stone-200 text-sm dark:divide-neutral-700">
+                            <div class="flex min-w-0 items-start justify-between gap-4 px-3 py-2.5">
+                                <dt class="min-w-0 break-words text-stone-500 dark:text-neutral-400">{{ $t('reservations.queue.checkout.subtotal') }}</dt>
+                                <dd class="shrink-0 whitespace-nowrap font-medium text-stone-800 dark:text-neutral-100">{{ formatQueueMoney(queueCheckoutBaseAmount, queueCheckoutCurrency) }}</dd>
                             </div>
-                            <div class="mt-1 break-words text-lg font-semibold text-stone-900 dark:text-neutral-100">
-                                {{ formatQueueMoney(queueCheckoutBaseAmount, queueCheckoutCurrency) }}
+                            <div class="flex min-w-0 items-start justify-between gap-4 px-3 py-2.5">
+                                <dt class="min-w-0 break-words text-stone-500 dark:text-neutral-400">{{ queueCheckoutTaxLabel }}</dt>
+                                <dd class="shrink-0 whitespace-nowrap font-medium text-stone-800 dark:text-neutral-100">{{ formatQueueMoney(queueCheckoutTaxTotal, queueCheckoutCurrency) }}</dd>
                             </div>
-                        </div>
-                        <div class="min-w-0 rounded-sm border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-500/30 dark:bg-emerald-500/10">
-                            <div class="break-words text-xs font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
-                                {{ $t('reservations.queue.checkout.total_to_collect') }}
+                            <div class="flex min-w-0 items-start justify-between gap-4 bg-stone-50 px-3 py-2.5 dark:bg-neutral-800">
+                                <dt class="min-w-0 break-words font-semibold text-stone-700 dark:text-neutral-200">{{ $t('reservations.queue.checkout.invoice_total') }}</dt>
+                                <dd class="shrink-0 whitespace-nowrap font-semibold text-stone-900 dark:text-white">{{ formatQueueMoney(queueCheckoutInvoiceTotal, queueCheckoutCurrency) }}</dd>
                             </div>
-                            <div class="mt-1 break-words text-lg font-semibold text-emerald-800 dark:text-emerald-200">
-                                {{ formatQueueMoney(queueCheckoutChargedTotal, queueCheckoutCurrency) }}
+                            <div class="flex min-w-0 items-start justify-between gap-4 bg-emerald-50 px-3 py-3 dark:bg-emerald-500/10">
+                                <dt class="min-w-0 break-words font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">{{ $t('reservations.queue.checkout.total_to_collect') }}</dt>
+                                <dd class="shrink-0 whitespace-nowrap text-lg font-semibold text-emerald-800 dark:text-emerald-200">{{ formatQueueMoney(queueCheckoutChargedTotal, queueCheckoutCurrency) }}</dd>
                             </div>
-                        </div>
+                        </dl>
                     </div>
 
                     <div class="mt-4">

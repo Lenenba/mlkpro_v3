@@ -660,7 +660,7 @@ const buttonLabel = computed(() => (props.product
                         <FloatingSelect v-model="form.unit" :label="$t('products.form.unit')" :options="unitOptions" />
                         <FloatingInput v-model="form.supplier_name" :label="$t('products.form.supplier')" />
                         <FloatingInput v-model="form.supplier_email" :label="$t('products.form.supplier_email')" />
-                        <FloatingNumberInput v-model="form.tax_rate" :label="$t('products.form.tax_rate')" :step="0.01" />
+                        <FloatingNumberInput v-model="form.tax_rate" :label="$t('products.form.tax_rate')" :step="0.0001" />
                         <div class="flex items-center gap-x-2">
                             <Checkbox v-model:checked="form.is_active" />
                             <span class="text-sm text-stone-600 dark:text-neutral-400">{{ $t('products.status.active') }}</span>

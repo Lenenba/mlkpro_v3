@@ -192,6 +192,10 @@
         "subtitle": "Le service est terminé. Enregistrez le règlement pour clôturer le ticket.",
         "walk_in_customer": "Client de passage",
         "service_total": "Prestation",
+        "subtotal": "Sous-total de la prestation",
+        "taxes": "Taxes",
+        "taxes_with_rate": "Taxes ({rate} %)",
+        "invoice_total": "Total de la facture",
         "total_to_collect": "Total a encaisser",
         "payment_method": "Mode de paiement",
         "tip_title": "Pourboire",
@@ -213,6 +217,12 @@
         "free_completed": "Service termine.",
         "open_error": "Impossible de preparer l encaissement.",
         "submit_error": "Impossible d enregistrer le paiement.",
+        "stripe_return": {
+          "success": "Paiement Stripe confirmé. La facture et le reçu sont prêts.",
+          "pending": "Le paiement Stripe est encore en cours de confirmation. Cette file sera mise à jour automatiquement.",
+          "cancelled": "Le paiement Stripe a été annulé. Le service reste à encaisser.",
+          "error": "Le retour Stripe n’a pas pu être vérifié. Aucun paiement n’a été enregistré."
+        },
         "receipt": {
           "label": "Envoyer le reçu",
           "hint": "Le reçu est envoyé après la confirmation du paiement. Le SMS contient un lien sécurisé.",

@@ -183,20 +183,12 @@ class PaymentController extends Controller
         );
 
         $newTotalReversed = round((float) ($result['total_reversed'] ?? $alreadyReversed), 2);
-        $isFullReversal = $tipAmount > 0 && $newTotalReversed >= $tipAmount;
-        $nextStatus = $payment->status;
-        if ($isFullReversal) {
-            $nextStatus = Payment::STATUS_REFUNDED;
-        } elseif ($newTotalReversed > 0 && in_array($payment->status, Payment::settledStatuses(), true)) {
-            $nextStatus = Payment::STATUS_REVERSED;
-        }
 
         $payment->forceFill([
             'tip_reversed_amount' => $newTotalReversed,
             'tip_reversed_at' => $newTotalReversed > 0 ? now() : null,
             'tip_reversal_rule' => $rule,
             'tip_reversal_reason' => $validated['reason'] ?? null,
-            'status' => $nextStatus,
         ])->save();
 
         ActivityLog::record($user, $payment, 'tip_reversed', [

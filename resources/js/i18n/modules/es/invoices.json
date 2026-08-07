@@ -129,7 +129,12 @@
       "line_items_empty": "Sin líneas de pedido.",
       "summary": {
         "subtotal": "Subtotal",
+        "taxes": "Impuestos",
+        "invoice_total": "Total de la factura",
         "paid": "Pagado",
+        "paid_toward_invoice": "Pagado en la factura",
+        "tips": "Propina",
+        "charged_total": "Total cobrado",
         "total_amount": "Monto total",
         "balance_due": "Saldo adeudado"
       },

@@ -81,7 +81,7 @@ class Product extends Model
         'promo_discount_percent' => 'decimal:2',
         'cost_price' => 'decimal:2',
         'margin_percent' => 'decimal:2',
-        'tax_rate' => 'decimal:2',
+        'tax_rate' => 'decimal:4',
         'is_active' => 'boolean',
         'promo_start_at' => 'datetime',
         'promo_end_at' => 'datetime',
