@@ -179,6 +179,12 @@ it('provisions the complete narrative Salon Eclat dataset', function () {
     $thomasPackage = CustomerPackage::query()->where('customer_id', $thomas->id)->firstOrFail();
 
     expect(Customer::query()->where('user_id', $owner->id)->count())->toBe(20)
+        ->and(Customer::query()
+            ->where('user_id', $owner->id)
+            ->whereNotIn('salutation', ['Mr', 'Mrs', 'Miss'])
+            ->exists())->toBeFalse()
+        ->and($marie->salutation)->toBe('Mrs')
+        ->and($thomas->salutation)->toBe('Mr')
         ->and($mariePackage->offerPackage?->name)->toBe('Carte 10 brushings')
         ->and($mariePackage->remaining_quantity)->toBe(7)
         ->and($mariePackage->usages()->count())->toBe(3)
