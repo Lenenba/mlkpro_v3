@@ -22,6 +22,55 @@
       "table": "Tabla",
       "cards": "Tarjetas"
     },
+    "appointment": {
+      "search_placeholder": "Buscar por nombre, correo o teléfono",
+      "table": {
+        "client": "Cliente",
+        "status": "Estado",
+        "last_visit": "Última visita",
+        "next_appointment": "Próxima cita",
+        "usual_team_member": "Empleado habitual",
+        "loyalty_package": "Fidelidad / paquete",
+        "customer_value": "Valor del cliente",
+        "actions": "Acciones"
+      },
+      "quick_filters": {
+        "all": "Todos",
+        "vip": "VIP",
+        "new": "Nuevos",
+        "no_next_appointment": "Sin próxima cita",
+        "follow_up_90": "Por contactar (90 días)",
+        "package_low": "Paquete casi agotado",
+        "unpaid": "Saldo pendiente",
+        "birthday_upcoming": "Próximos cumpleaños"
+      },
+      "lifecycle": {
+        "new": "Nuevo",
+        "active": "Activo",
+        "follow_up": "Por contactar",
+        "inactive": "Inactivo"
+      },
+      "labels": {
+        "vip": "VIP",
+        "service_unknown": "Servicio no especificado",
+        "no_visit": "Sin visitas",
+        "unassigned": "Sin asignar",
+        "no_next_appointment": "Sin próxima cita",
+        "no_usual_team_member": "Sin empleado habitual",
+        "loyalty_points": "{count} puntos",
+        "package_remaining": "{count} sesión(es) restante(s)",
+        "total_spent": "Gastado",
+        "tip_total": "Propinas",
+        "unpaid_balance": "Saldo"
+      },
+      "actions": {
+        "book": "Reservar",
+        "billing": "Facturación",
+        "checkout": "Cobrar",
+        "email": "Enviar correo",
+        "call": "Llamar"
+      }
+    },
     "filters": {
       "search_placeholder": "Buscar por nombre, empresa, correo o teléfono",
       "city": "Ciudad",
@@ -633,6 +682,7 @@
         "title": "Título",
         "first_name": "Nombre",
         "last_name": "Apellido",
+        "birth_date": "Fecha de nacimiento",
         "company_name": "Nombre de la empresa",
         "registration_number": "Numero de registro",
         "industry": "Industria",

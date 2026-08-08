@@ -1501,6 +1501,7 @@ class DemoWorkspaceProvisioner
                 'logo' => $profile['logo'] ?? null,
                 'refer_by' => $profile['refer_by'] ?? 'Website form',
                 'salutation' => $profile['salutation'] ?? 'Mr',
+                'birth_date' => $profile['birth_date'] ?? null,
                 'billing_same_as_physical' => true,
                 'discount_rate' => $profile['discount_rate'] ?? ($index % 5 === 0 ? 10 : 0),
                 'is_active' => true,
@@ -3508,11 +3509,11 @@ class DemoWorkspaceProvisioner
     {
         if ($isSalonEclat) {
             return [
-                ['first_name' => 'Marie', 'last_name' => 'Lefebvre', 'description' => 'Cliente fidèle, forte en points et détentrice de la Carte 10 brushings avec sept séances restantes.', 'tags' => ['fidèle', 'brushing', 'forfait'], 'salutation' => 'Mrs', 'logo' => '/images/presets/avatar-1.svg'],
-                ['first_name' => 'Julie', 'last_name' => 'Nadeau', 'description' => 'Nouvelle cliente arrivée par le lien de réservation public.', 'tags' => ['nouvelle', 'réservation-web'], 'salutation' => 'Mrs', 'logo' => '/images/presets/avatar-2.svg'],
-                ['first_name' => 'Fatou', 'last_name' => 'Camara', 'description' => 'Cliente VIP Or avec un panier élevé et des rendez-vous couleur réguliers.', 'tags' => ['vip', 'couleur', 'premium'], 'salutation' => 'Mrs', 'logo' => '/images/presets/avatar-3.svg'],
-                ['first_name' => 'Thomas', 'last_name' => 'Roy', 'description' => 'Client barbier avec un abonnement mensuel de deux tailles.', 'tags' => ['barbier', 'abonnement', 'mensuel'], 'salutation' => 'Mr', 'logo' => '/images/presets/avatar-4.svg'],
-                ['first_name' => 'Claire', 'last_name' => 'Dubois', 'description' => 'Cliente à reconquérir : dernière visite il y a cinq mois, cible de la campagne WINBACK.', 'tags' => ['winback', 'inactive-150j', 'couleur'], 'salutation' => 'Mrs'],
+                ['first_name' => 'Marie', 'last_name' => 'Lefebvre', 'description' => 'Cliente fidèle, forte en points et détentrice de la Carte 10 brushings avec sept séances restantes.', 'tags' => ['fidèle', 'brushing', 'forfait'], 'salutation' => 'Mrs', 'birth_date' => '1988-08-20', 'logo' => '/images/presets/avatar-1.svg'],
+                ['first_name' => 'Julie', 'last_name' => 'Nadeau', 'description' => 'Nouvelle cliente arrivée par le lien de réservation public.', 'tags' => ['nouvelle', 'réservation-web'], 'salutation' => 'Mrs', 'birth_date' => '1996-09-02', 'logo' => '/images/presets/avatar-2.svg'],
+                ['first_name' => 'Fatou', 'last_name' => 'Camara', 'description' => 'Cliente VIP Or avec un panier élevé et des rendez-vous couleur réguliers.', 'tags' => ['vip', 'couleur', 'premium'], 'salutation' => 'Mrs', 'birth_date' => '1991-11-14', 'logo' => '/images/presets/avatar-3.svg'],
+                ['first_name' => 'Thomas', 'last_name' => 'Roy', 'description' => 'Client barbier avec un abonnement mensuel de deux tailles.', 'tags' => ['barbier', 'abonnement', 'mensuel'], 'salutation' => 'Mr', 'birth_date' => '1987-03-08', 'logo' => '/images/presets/avatar-4.svg'],
+                ['first_name' => 'Claire', 'last_name' => 'Dubois', 'description' => 'Cliente à reconquérir : dernière visite il y a cinq mois, cible de la campagne WINBACK.', 'tags' => ['winback', 'inactive-150j', 'couleur'], 'salutation' => 'Mrs', 'birth_date' => '1979-08-29'],
                 ['first_name' => 'Nicolas', 'last_name' => 'Gagnon', 'description' => 'Walk-in converti en client régulier après une coupe homme.', 'tags' => ['walk-in', 'coupe-homme'], 'salutation' => 'Mr'],
                 ['first_name' => 'Isabelle', 'last_name' => 'Fortin', 'description' => 'Réserve un balayage avant chaque changement de saison.', 'tags' => ['balayage', 'saisonnier'], 'salutation' => 'Mrs'],
                 ['first_name' => 'Élodie', 'last_name' => 'Martel', 'description' => 'Cliente événementiel, intéressée par les chignons et les soins.', 'tags' => ['événement', 'coiffage'], 'salutation' => 'Mrs'],

@@ -151,7 +151,7 @@ class CustomerSalonFeatureConsistencyTest extends TestCase
         $this->assertTrue($customer->auto_validate_invoices);
     }
 
-    public function test_salon_team_member_uses_owner_feature_context(): void
+    public function test_salon_team_member_uses_owner_feature_context_and_customer_directory(): void
     {
         $owner = $this->salonOwner();
         $employeeRole = Role::query()->firstOrCreate(
@@ -176,7 +176,11 @@ class CustomerSalonFeatureConsistencyTest extends TestCase
             'permissions' => [],
             'is_active' => true,
         ]);
-        $customer = $this->customer($member, 'salon-team-member-customer@example.com');
+        $owner->forceFill([
+            'company_timezone' => 'America/Vancouver',
+            'currency_code' => 'USD',
+        ])->saveQuietly();
+        $customer = $this->customer($owner, 'salon-team-member-customer@example.com');
 
         $response = $this->actingAs($member)->getJson(route('customer.index', [
             'has_quotes' => '1',
@@ -189,6 +193,9 @@ class CustomerSalonFeatureConsistencyTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'customers.data')
             ->assertJsonPath('customers.data.0.id', $customer->id)
+            ->assertJsonPath('customers.data.0.operational_summary.currency_code', 'USD')
+            ->assertJsonPath('customerIndexContext.actions.can_create_customer', false)
+            ->assertJsonPath('canEdit', false)
             ->assertJsonMissingPath('filters.has_quotes')
             ->assertJsonMissingPath('filters.has_works')
             ->assertJsonMissingPath('filters.sort')
@@ -196,20 +203,18 @@ class CustomerSalonFeatureConsistencyTest extends TestCase
             ->assertJsonMissingPath('customers.data.0.works_count');
 
         $this->actingAs($member)
-            ->patchJson(route('customer.auto-validation.update', $customer), [
-                'auto_accept_quotes' => true,
-                'auto_validate_jobs' => true,
-                'auto_validate_tasks' => true,
-                'auto_validate_invoices' => true,
+            ->postJson(route('customer.store'), [
+                'client_type' => 'individual',
+                'first_name' => 'Unauthorized',
+                'last_name' => 'Creation',
+                'email' => 'unauthorized-salon-creation@example.com',
+                'portal_access' => false,
             ])
-            ->assertOk();
+            ->assertForbidden();
 
-        $customer->refresh();
-
-        $this->assertFalse($customer->auto_accept_quotes);
-        $this->assertFalse($customer->auto_validate_jobs);
-        $this->assertFalse($customer->auto_validate_tasks);
-        $this->assertTrue($customer->auto_validate_invoices);
+        $this->assertDatabaseMissing('customers', [
+            'email' => 'unauthorized-salon-creation@example.com',
+        ]);
     }
 
     private function salonOwner(): User

@@ -183,6 +183,69 @@ it('resolves customer saved segments with customer filters and configured sortin
         ->and($resolved['ids'])->not->toContain($otherTenant->id);
 });
 
+it('neutralizes hidden quote and job filters in customer saved segments', function (
+    string $sector,
+    array $features,
+    string $emailPrefix
+) {
+    $owner = User::factory()->create([
+        'company_type' => 'services',
+        'company_sector' => $sector,
+        'company_features' => $features,
+    ]);
+    $customer = Customer::create([
+        'user_id' => $owner->id,
+        'first_name' => 'Visible',
+        'last_name' => 'Customer',
+        'company_name' => 'Visible Customer',
+        'email' => $emailPrefix.'-customer@example.com',
+        'salutation' => 'Mr',
+        'is_active' => true,
+    ]);
+    $segment = SavedSegment::create([
+        'user_id' => $owner->id,
+        'module' => SavedSegment::MODULE_CUSTOMER,
+        'name' => 'Legacy hidden pipeline filters',
+        'filters' => [
+            'has_quotes' => true,
+            'has_works' => true,
+        ],
+        'sort' => [
+            'column' => 'quotes_count',
+            'direction' => 'asc',
+        ],
+    ]);
+
+    $resolved = app(SegmentResolverRegistry::class)->resolve($segment);
+
+    expect($resolved['ids'])->toBe([$customer->id])
+        ->and($resolved['filters'])->not->toHaveKey('has_quotes')
+        ->and($resolved['filters'])->not->toHaveKey('has_works')
+        ->and($resolved['sort'])->toBe([
+            'column' => 'created_at',
+            'direction' => 'desc',
+        ]);
+})->with([
+    'appointment profile with legacy overrides' => [
+        'salon',
+        [
+            'reservations' => true,
+            'quotes' => true,
+            'jobs' => true,
+        ],
+        'appointment-legacy',
+    ],
+    'generic profile with disabled modules' => [
+        'service_general',
+        [
+            'reservations' => false,
+            'quotes' => false,
+            'jobs' => false,
+        ],
+        'generic-disabled',
+    ],
+]);
+
 it('resolves quote saved segments with phase two recovery queues and configured sorting', function () {
     $owner = User::factory()->create(['company_type' => 'services']);
     $otherOwner = User::factory()->create(['company_type' => 'services']);

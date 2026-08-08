@@ -133,6 +133,7 @@ const form = useForm({
     client_type: initialClientType,
     first_name: props.customer?.first_name || '',
     last_name: props.customer?.last_name || '',
+    birth_date: String(props.customer?.birth_date || '').slice(0, 10),
     email: props.customer?.email || '',
     portal_access: props.customer?.portal_access ?? true,
     company_name: props.customer?.company_name || '',
@@ -159,6 +160,7 @@ const form = useForm({
 });
 
 const isCompanyClient = computed(() => form.client_type === CUSTOMER_CLIENT_TYPE_COMPANY);
+const maxBirthDate = new Date().toISOString().slice(0, 10);
 const logoIconPresets = computed(() => iconPresetsForClientType(form.client_type));
 const currentDefaultLogoIcon = computed(() => defaultIconForClientType(form.client_type));
 const logoFieldLabel = computed(() => (
@@ -223,6 +225,9 @@ const performSubmit = ({ createAnother = false } = {}) => {
     form
         .transform((data) => {
             const payload = { ...data };
+            payload.birth_date = data.client_type === CUSTOMER_CLIENT_TYPE_INDIVIDUAL
+                ? (data.birth_date || null)
+                : null;
             payload.auto_accept_quotes = quotesFeatureEnabled.value && Boolean(data.auto_accept_quotes);
             payload.auto_validate_jobs = jobsFeatureEnabled.value && Boolean(data.auto_validate_jobs);
             payload.auto_validate_tasks = tasksFeatureEnabled.value && Boolean(data.auto_validate_tasks);
@@ -461,6 +466,15 @@ const {
                                     :required="true"
                                 />
                                 <InputError class="mt-1" :message="form.errors.email" />
+                            </div>
+                            <div v-if="!isCompanyClient">
+                                <FloatingInput
+                                    v-model="form.birth_date"
+                                    type="date"
+                                    :max="maxBirthDate"
+                                    :label="$t('customers.form.fields.birth_date')"
+                                />
+                                <InputError class="mt-1" :message="form.errors.birth_date" />
                             </div>
                         </div>
                         <div class="mt-3 flex items-start gap-2">

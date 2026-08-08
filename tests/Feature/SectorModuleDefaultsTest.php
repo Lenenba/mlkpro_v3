@@ -21,7 +21,7 @@ function sectorModuleRoleId(string $name, string $description): int
 function sectorModuleOwner(string $sector, string $email): User
 {
     return User::query()->create([
-        'name' => ucfirst($sector) . ' Owner',
+        'name' => ucfirst($sector).' Owner',
         'email' => $email,
         'password' => 'password',
         'role_id' => sectorModuleRoleId('owner', 'Account owner role'),
@@ -42,11 +42,12 @@ it('disables reservations module by default for non-salon sectors', function () 
         ->assertJsonPath('message', 'Module unavailable for your plan.');
 });
 
-it('enables reservations but disables sales/service pipeline modules by default for salon and restaurant', function () {
+it('enables reservations but disables sales/service pipeline modules by default for salon, wellness, and restaurant', function () {
     $salonOwner = sectorModuleOwner('salon', 'salon-default-owner@example.com');
+    $wellnessOwner = sectorModuleOwner('wellness', 'wellness-default-owner@example.com');
     $restaurantOwner = sectorModuleOwner('restaurant', 'restaurant-default-owner@example.com');
 
-    foreach ([$salonOwner, $restaurantOwner] as $owner) {
+    foreach ([$salonOwner, $wellnessOwner, $restaurantOwner] as $owner) {
         $this->actingAs($owner)
             ->withSession(['two_factor_passed' => true])
             ->getJson(route('reservation.index'))

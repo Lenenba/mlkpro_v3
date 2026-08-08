@@ -13,6 +13,8 @@ final class UserSelects
             'company_sector',
             'company_features',
             'company_logo',
+            'company_timezone',
+            'currency_code',
             'onboarding_completed_at',
             'selected_plan_key',
             'selected_billing_period',

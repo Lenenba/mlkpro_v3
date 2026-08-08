@@ -22,6 +22,55 @@
       "table": "Table",
       "cards": "Cards"
     },
+    "appointment": {
+      "search_placeholder": "Search by name, email, or phone",
+      "table": {
+        "client": "Customer",
+        "status": "Status",
+        "last_visit": "Last visit",
+        "next_appointment": "Next appointment",
+        "usual_team_member": "Usual team member",
+        "loyalty_package": "Loyalty / package",
+        "customer_value": "Customer value",
+        "actions": "Actions"
+      },
+      "quick_filters": {
+        "all": "All",
+        "vip": "VIP",
+        "new": "New",
+        "no_next_appointment": "No next appointment",
+        "follow_up_90": "Follow up (90 days)",
+        "package_low": "Package nearly used",
+        "unpaid": "Unpaid balance",
+        "birthday_upcoming": "Upcoming birthdays"
+      },
+      "lifecycle": {
+        "new": "New",
+        "active": "Active",
+        "follow_up": "Follow up",
+        "inactive": "Inactive"
+      },
+      "labels": {
+        "vip": "VIP",
+        "service_unknown": "Service not specified",
+        "no_visit": "No visit yet",
+        "unassigned": "Unassigned",
+        "no_next_appointment": "No upcoming appointment",
+        "no_usual_team_member": "No usual team member",
+        "loyalty_points": "{count} points",
+        "package_remaining": "{count} session(s) remaining",
+        "total_spent": "Spent",
+        "tip_total": "Tips",
+        "unpaid_balance": "Balance"
+      },
+      "actions": {
+        "book": "Book appointment",
+        "billing": "Billing",
+        "checkout": "Collect payment",
+        "email": "Send email",
+        "call": "Call"
+      }
+    },
     "filters": {
       "search_placeholder": "Search name, company, email, or phone",
       "city": "City",
@@ -633,6 +682,7 @@
         "title": "Title",
         "first_name": "First name",
         "last_name": "Last name",
+        "birth_date": "Date of birth",
         "company_name": "Company name",
         "registration_number": "Registration number",
         "industry": "Industry",

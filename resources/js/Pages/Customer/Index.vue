@@ -29,16 +29,28 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    customerIndexContext: {
+        type: Object,
+        default: () => ({
+            profile: 'generic',
+            sector: null,
+            capabilities: {},
+            actions: {},
+        }),
+    },
 });
 
 const { hasFeature } = useAccountFeatures();
-const showOperationalActivity = computed(() => hasFeature('quotes') || hasFeature('jobs'));
+const showOperationalActivity = computed(() => (
+    props.customerIndexContext?.profile !== 'appointment'
+    && (hasFeature('quotes') || hasFeature('jobs'))
+));
 </script>
 <template>
 
     <Head :title="$t('customers.title')" />
     <AuthenticatedLayout>
-        <CustomerStats :stats="stats" />
+        <CustomerStats :stats="stats" :customer-index-context="customerIndexContext" />
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-2 md:gap-3 lg:gap-5 ">
             <div class="col-span-1" :class="showOperationalActivity ? 'lg:col-span-3' : 'lg:col-span-4'">
                 <CustomerTable
@@ -49,6 +61,7 @@ const showOperationalActivity = computed(() => hasFeature('quotes') || hasFeatur
                     :can-edit="canEdit"
                     :saved-segments="savedSegments"
                     :can-manage-saved-segments="canManageSavedSegments"
+                    :customer-index-context="customerIndexContext"
                 />
             </div>
             <CustomerActivityStat v-if="showOperationalActivity" :items="topCustomers" />

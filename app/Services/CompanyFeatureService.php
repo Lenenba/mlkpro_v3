@@ -150,9 +150,11 @@ class CompanyFeatureService
             ->replace(' ', '_')
             ->toString();
 
-        $salonLike = in_array($normalizedSector, ['salon', 'restaurant'], true);
+        // Appointment-led businesses and restaurants use the reservation stack
+        // by default; owners may still override any feature explicitly.
+        $salonLike = in_array($normalizedSector, ['salon', 'wellness', 'restaurant'], true);
         $defaults = [
-            // Reservations are available by default only for salon/restaurant.
+            // Reservations are available by default for salon/wellness/restaurant.
             'reservations' => $salonLike,
         ];
 

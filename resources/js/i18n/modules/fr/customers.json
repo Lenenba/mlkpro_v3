@@ -22,6 +22,55 @@
       "table": "Table",
       "cards": "Cartes"
     },
+    "appointment": {
+      "search_placeholder": "Rechercher par nom, email ou téléphone",
+      "table": {
+        "client": "Client",
+        "status": "Statut",
+        "last_visit": "Dernière visite",
+        "next_appointment": "Prochain rendez-vous",
+        "usual_team_member": "Employé habituel",
+        "loyalty_package": "Fidélité / forfait",
+        "customer_value": "Valeur client",
+        "actions": "Actions"
+      },
+      "quick_filters": {
+        "all": "Tous",
+        "vip": "VIP",
+        "new": "Nouveaux",
+        "no_next_appointment": "Sans prochain RDV",
+        "follow_up_90": "À relancer (90 j)",
+        "package_low": "Forfait presque épuisé",
+        "unpaid": "Solde impayé",
+        "birthday_upcoming": "Anniversaires à venir"
+      },
+      "lifecycle": {
+        "new": "Nouveau",
+        "active": "Actif",
+        "follow_up": "À relancer",
+        "inactive": "Inactif"
+      },
+      "labels": {
+        "vip": "VIP",
+        "service_unknown": "Service non précisé",
+        "no_visit": "Aucune visite",
+        "unassigned": "Non assigné",
+        "no_next_appointment": "Aucun rendez-vous à venir",
+        "no_usual_team_member": "Aucun employé habituel",
+        "loyalty_points": "{count} points",
+        "package_remaining": "{count} séance(s) restante(s)",
+        "total_spent": "Dépensé",
+        "tip_total": "Pourboires",
+        "unpaid_balance": "Solde"
+      },
+      "actions": {
+        "book": "Réserver",
+        "billing": "Facturation",
+        "checkout": "Encaisser",
+        "email": "Envoyer un email",
+        "call": "Appeler"
+      }
+    },
     "filters": {
       "search_placeholder": "Rechercher nom, societe, email ou telephone",
       "city": "Ville",
@@ -633,6 +682,7 @@
         "title": "Titre",
         "first_name": "Prenom",
         "last_name": "Nom",
+        "birth_date": "Date de naissance",
         "company_name": "Entreprise",
         "registration_number": "Numero d'immatriculation",
         "industry": "Secteur",

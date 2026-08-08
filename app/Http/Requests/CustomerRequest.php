@@ -50,6 +50,7 @@ class CustomerRequest extends FormRequest
             'portal_access' => 'nullable|boolean',
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
+            'birth_date' => ['nullable', 'date', 'before_or_equal:today'],
             'email' => $emailRules,
             'phone' => 'nullable|string|max:25',
             'company_name' => [
@@ -116,14 +117,18 @@ class CustomerRequest extends FormRequest
         $customer = $this->route('customer');
         $email = $this->input('email');
         $companyName = trim((string) ($this->input('company_name') ?? ''));
+        $clientType = CustomerClientType::infer(
+            $this->input('client_type'),
+            $companyName !== '' ? $companyName : ($customer?->company_name ?? null)
+        );
         $salutation = trim((string) ($this->input('salutation') ?? ''))
             ?: (string) ($customer?->salutation ?? 'Mr');
 
         $this->merge([
-            'client_type' => CustomerClientType::infer(
-                $this->input('client_type'),
-                $companyName !== '' ? $companyName : ($customer?->company_name ?? null)
-            )->value,
+            'client_type' => $clientType->value,
+            'birth_date' => $clientType === CustomerClientType::INDIVIDUAL
+                ? $this->input('birth_date')
+                : null,
             'company_name' => $companyName !== '' ? $companyName : null,
             'registration_number' => trim((string) ($this->input('registration_number') ?? '')) ?: null,
             'industry' => trim((string) ($this->input('industry') ?? '')) ?: null,

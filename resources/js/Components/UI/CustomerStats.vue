@@ -8,12 +8,17 @@ const props = defineProps({
         type: Object,
         required: true,
     },
+    customerIndexContext: {
+        type: Object,
+        default: () => ({ profile: 'generic' }),
+    },
 });
 
 const { t } = useI18n();
 const { hasFeature } = useAccountFeatures();
-const quotesFeatureEnabled = computed(() => hasFeature('quotes'));
-const jobsFeatureEnabled = computed(() => hasFeature('jobs'));
+const appointmentProfile = computed(() => props.customerIndexContext?.profile === 'appointment');
+const quotesFeatureEnabled = computed(() => !appointmentProfile.value && hasFeature('quotes'));
+const jobsFeatureEnabled = computed(() => !appointmentProfile.value && hasFeature('jobs'));
 const statsGridClass = computed(() => {
     const visibleCards = 3 + Number(quotesFeatureEnabled.value) + Number(jobsFeatureEnabled.value);
 

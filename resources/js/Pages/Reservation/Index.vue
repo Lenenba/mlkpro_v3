@@ -34,6 +34,18 @@ const queueStripeReturn = (() => {
         attemptId: String(query.get('stripe_attempt') || ''),
     };
 })();
+const reservationCreateRequest = (() => {
+    if (typeof window === 'undefined') {
+        return { shouldOpen: false, customerId: 0 };
+    }
+
+    const query = new URLSearchParams(window.location.search);
+
+    return {
+        shouldOpen: query.get('open_editor') === '1',
+        customerId: Number(query.get('customer_id') || 0),
+    };
+})();
 const dayjsLocale = computed(() => {
     const value = String(locale.value || '').toLowerCase();
 
@@ -701,6 +713,30 @@ const pollQueueStripeStatus = async () => {
 onMounted(() => {
     if (queueStripeReturn.status === 'pending' && queueStripeReturn.attemptId) {
         scheduleQueueStripeStatusPoll(500);
+    }
+
+    const requestedCustomerExists = (props.clients || []).some(
+        (client) => Number(client.id) === reservationCreateRequest.customerId
+    );
+
+    if (reservationCreateRequest.shouldOpen && typeof window !== 'undefined') {
+        const currentUrl = new URL(window.location.href);
+        currentUrl.searchParams.delete('customer_id');
+        currentUrl.searchParams.delete('open_editor');
+        window.history.replaceState(
+            window.history.state,
+            '',
+            `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`
+        );
+    }
+
+    if (reservationCreateRequest.shouldOpen
+        && reservationCreateRequest.customerId > 0
+        && requestedCustomerExists
+        && canManageReservationActions.value) {
+        activeDataTab.value = 'reservations';
+        openCreate();
+        reservationForm.client_id = String(reservationCreateRequest.customerId);
     }
 });
 

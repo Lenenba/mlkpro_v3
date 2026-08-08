@@ -31,6 +31,10 @@ import {
     resolveBulkActionErrorMessage,
 } from '@/utils/bulkActions';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
+import { useCurrencyFormatter } from '@/utils/currency';
+import dayjs from 'dayjs';
+import 'dayjs/locale/fr';
+import 'dayjs/locale/es';
 
 const props = defineProps({
     filters: Object,
@@ -58,12 +62,71 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    customerIndexContext: {
+        type: Object,
+        default: () => ({
+            profile: 'generic',
+            sector: null,
+            capabilities: {},
+            actions: {},
+        }),
+    },
 });
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const { hasFeature } = useAccountFeatures();
-const quotesFeatureEnabled = computed(() => hasFeature('quotes'));
-const jobsFeatureEnabled = computed(() => hasFeature('jobs'));
+const { formatCurrency } = useCurrencyFormatter();
+const appointmentProfile = computed(() => props.customerIndexContext?.profile === 'appointment');
+const contextCapabilities = computed(() => props.customerIndexContext?.capabilities || {});
+const contextActions = computed(() => props.customerIndexContext?.actions || {});
+const quotesFeatureEnabled = computed(() => !appointmentProfile.value && hasFeature('quotes'));
+const jobsFeatureEnabled = computed(() => !appointmentProfile.value && hasFeature('jobs'));
+const customerSearchPlaceholder = computed(() => t(
+    appointmentProfile.value
+        ? 'customers.appointment.search_placeholder'
+        : 'customers.filters.search_placeholder'
+));
+const reservationsCapabilityEnabled = computed(() => (
+    appointmentProfile.value && Boolean(contextCapabilities.value.reservations)
+));
+const teamMembersCapabilityEnabled = computed(() => (
+    appointmentProfile.value && Boolean(contextCapabilities.value.team_members)
+));
+const loyaltyCapabilityEnabled = computed(() => (
+    appointmentProfile.value && Boolean(contextCapabilities.value.loyalty)
+));
+const packagesCapabilityEnabled = computed(() => Boolean(contextCapabilities.value.packages));
+const invoicesCapabilityEnabled = computed(() => (
+    appointmentProfile.value && Boolean(contextCapabilities.value.invoices)
+));
+const salesCapabilityEnabled = computed(() => (
+    appointmentProfile.value && Boolean(contextCapabilities.value.sales)
+));
+const campaignsCapabilityEnabled = computed(() => (
+    appointmentProfile.value && Boolean(contextCapabilities.value.campaigns)
+));
+const birthdaysCapabilityEnabled = computed(() => (
+    appointmentProfile.value && Boolean(contextCapabilities.value.birthdays)
+));
+const loyaltyOrPackagesEnabled = computed(() => (
+    loyaltyCapabilityEnabled.value || packagesCapabilityEnabled.value
+));
+const customerValueCapabilityEnabled = computed(() => (
+    invoicesCapabilityEnabled.value || salesCapabilityEnabled.value
+));
+const dayjsLocale = computed(() => {
+    const value = String(locale.value || '').toLowerCase();
+
+    if (value.startsWith('fr')) {
+        return 'fr';
+    }
+
+    if (value.startsWith('es')) {
+        return 'es';
+    }
+
+    return 'en';
+});
 
 const featureSortIsAvailable = (sort) => !(
     (sort === 'quotes_count' && !quotesFeatureEnabled.value)
@@ -74,6 +137,7 @@ const initialSort = featureSortIsAvailable(props.filters?.sort)
     : 'created_at';
 
 const canEdit = computed(() => Boolean(props.canEdit));
+const canCreateCustomer = computed(() => contextActions.value.can_create_customer !== false);
 const campaignsFeatureEnabled = computed(() => {
     const capability = props.bulkActions?.capabilities?.contact_enabled;
 
@@ -93,21 +157,30 @@ const filterForm = useForm({
     status: props.filters?.status ?? '',
     created_from: props.filters?.created_from ?? '',
     created_to: props.filters?.created_to ?? '',
-    has_active_package: props.filters?.has_active_package ?? '',
-    package_status: props.filters?.package_status ?? '',
-    package_remaining_lte: props.filters?.package_remaining_lte ?? '',
-    package_expires_within_days: props.filters?.package_expires_within_days ?? '',
-    package_is_recurring: props.filters?.package_is_recurring ?? '',
-    package_recurrence_status: props.filters?.package_recurrence_status ?? '',
+    has_active_package: packagesCapabilityEnabled.value ? (props.filters?.has_active_package ?? '') : '',
+    package_status: packagesCapabilityEnabled.value ? (props.filters?.package_status ?? '') : '',
+    package_remaining_lte: packagesCapabilityEnabled.value ? (props.filters?.package_remaining_lte ?? '') : '',
+    package_expires_within_days: packagesCapabilityEnabled.value ? (props.filters?.package_expires_within_days ?? '') : '',
+    package_is_recurring: packagesCapabilityEnabled.value ? (props.filters?.package_is_recurring ?? '') : '',
+    package_recurrence_status: packagesCapabilityEnabled.value ? (props.filters?.package_recurrence_status ?? '') : '',
+    operational_filter: appointmentProfile.value ? (props.filters?.operational_filter ?? '') : '',
     sort: initialSort,
     direction: props.filters?.direction ?? 'desc',
 });
 
 const showAdvanced = ref(false);
 const isLoading = ref(false);
-const customerTableColumnCount = computed(() => (
-    7 + Number(quotesFeatureEnabled.value) + Number(jobsFeatureEnabled.value)
-));
+const customerTableColumnCount = computed(() => {
+    if (!appointmentProfile.value) {
+        return 7 + Number(quotesFeatureEnabled.value) + Number(jobsFeatureEnabled.value);
+    }
+
+    return 4
+        + (reservationsCapabilityEnabled.value ? 2 : 0)
+        + (reservationsCapabilityEnabled.value && teamMembersCapabilityEnabled.value ? 1 : 0)
+        + (loyaltyOrPackagesEnabled.value ? 1 : 0)
+        + (customerValueCapabilityEnabled.value ? 1 : 0);
+});
 const compactObject = (payload) => Object.fromEntries(
     Object.entries(payload || {}).filter(([, value]) => value !== '' && value !== null && value !== undefined)
 );
@@ -151,6 +224,41 @@ const packageRecurrenceStatusOptions = computed(() => ([
     { value: 'suspended', label: t('customers.details.customer_packages.recurrence_statuses.suspended') },
     { value: 'cancelled', label: t('customers.details.customer_packages.recurrence_statuses.cancelled') },
 ]));
+const operationalQuickFilters = computed(() => {
+    if (!appointmentProfile.value) {
+        return [];
+    }
+
+    return [
+        { value: '', label: t('customers.appointment.quick_filters.all') },
+        campaignsCapabilityEnabled.value
+            ? { value: 'vip', label: t('customers.appointment.quick_filters.vip') }
+            : null,
+        { value: 'new', label: t('customers.appointment.quick_filters.new') },
+        reservationsCapabilityEnabled.value
+            ? { value: 'no_next_appointment', label: t('customers.appointment.quick_filters.no_next_appointment') }
+            : null,
+        reservationsCapabilityEnabled.value
+            ? { value: 'follow_up_90', label: t('customers.appointment.quick_filters.follow_up_90') }
+            : null,
+        packagesCapabilityEnabled.value
+            ? { value: 'package_low', label: t('customers.appointment.quick_filters.package_low') }
+            : null,
+        invoicesCapabilityEnabled.value
+            ? { value: 'unpaid', label: t('customers.appointment.quick_filters.unpaid') }
+            : null,
+        birthdaysCapabilityEnabled.value
+            ? { value: 'birthday_upcoming', label: t('customers.appointment.quick_filters.birthday_upcoming') }
+            : null,
+    ].filter(Boolean);
+});
+const normalizeOperationalQuickFilter = (value) => {
+    const normalized = segmentFilterValue(value);
+
+    return operationalQuickFilters.value.some((filter) => filter.value === normalized)
+        ? normalized
+        : '';
+};
 const isViewSwitching = ref(false);
 const allowedViews = ['table', 'cards'];
 const viewMode = ref('table');
@@ -166,12 +274,13 @@ const savedSegmentFilters = computed(() => compactObject({
     status: filterForm.status,
     created_from: filterForm.created_from,
     created_to: filterForm.created_to,
-    has_active_package: filterForm.has_active_package,
-    package_status: filterForm.package_status,
-    package_remaining_lte: filterForm.package_remaining_lte,
-    package_expires_within_days: filterForm.package_expires_within_days,
-    package_is_recurring: filterForm.package_is_recurring,
-    package_recurrence_status: filterForm.package_recurrence_status,
+    has_active_package: packagesCapabilityEnabled.value ? filterForm.has_active_package : '',
+    package_status: packagesCapabilityEnabled.value ? filterForm.package_status : '',
+    package_remaining_lte: packagesCapabilityEnabled.value ? filterForm.package_remaining_lte : '',
+    package_expires_within_days: packagesCapabilityEnabled.value ? filterForm.package_expires_within_days : '',
+    package_is_recurring: packagesCapabilityEnabled.value ? filterForm.package_is_recurring : '',
+    package_recurrence_status: packagesCapabilityEnabled.value ? filterForm.package_recurrence_status : '',
+    operational_filter: appointmentProfile.value ? filterForm.operational_filter : '',
 }));
 const savedSegmentSort = computed(() => compactObject({
     sort: filterForm.sort,
@@ -214,12 +323,13 @@ const filterPayload = () => {
         status: filterForm.status,
         created_from: filterForm.created_from,
         created_to: filterForm.created_to,
-        has_active_package: filterForm.has_active_package,
-        package_status: filterForm.package_status,
-        package_remaining_lte: filterForm.package_remaining_lte,
-        package_expires_within_days: filterForm.package_expires_within_days,
-        package_is_recurring: filterForm.package_is_recurring,
-        package_recurrence_status: filterForm.package_recurrence_status,
+        has_active_package: packagesCapabilityEnabled.value ? filterForm.has_active_package : '',
+        package_status: packagesCapabilityEnabled.value ? filterForm.package_status : '',
+        package_remaining_lte: packagesCapabilityEnabled.value ? filterForm.package_remaining_lte : '',
+        package_expires_within_days: packagesCapabilityEnabled.value ? filterForm.package_expires_within_days : '',
+        package_is_recurring: packagesCapabilityEnabled.value ? filterForm.package_is_recurring : '',
+        package_recurrence_status: packagesCapabilityEnabled.value ? filterForm.package_recurrence_status : '',
+        operational_filter: appointmentProfile.value ? filterForm.operational_filter : '',
         sort: filterForm.sort,
         direction: filterForm.direction,
         per_page: currentPerPage.value,
@@ -272,6 +382,7 @@ watch(() => [
     filterForm.package_expires_within_days,
     filterForm.package_is_recurring,
     filterForm.package_recurrence_status,
+    filterForm.operational_filter,
     filterForm.sort,
     filterForm.direction,
 ], () => {
@@ -293,6 +404,7 @@ const clearFilters = () => {
     filterForm.package_expires_within_days = '';
     filterForm.package_is_recurring = '';
     filterForm.package_recurrence_status = '';
+    filterForm.operational_filter = '';
     filterForm.sort = 'created_at';
     filterForm.direction = 'desc';
     autoFilter();
@@ -310,12 +422,15 @@ const applySavedSegment = (segment) => {
     filterForm.status = segmentFilterValue(filters.status);
     filterForm.created_from = segmentFilterValue(filters.created_from);
     filterForm.created_to = segmentFilterValue(filters.created_to);
-    filterForm.has_active_package = segmentFilterValue(filters.has_active_package);
-    filterForm.package_status = segmentFilterValue(filters.package_status);
-    filterForm.package_remaining_lte = segmentFilterValue(filters.package_remaining_lte);
-    filterForm.package_expires_within_days = segmentFilterValue(filters.package_expires_within_days);
-    filterForm.package_is_recurring = segmentFilterValue(filters.package_is_recurring);
-    filterForm.package_recurrence_status = segmentFilterValue(filters.package_recurrence_status);
+    filterForm.has_active_package = packagesCapabilityEnabled.value ? segmentFilterValue(filters.has_active_package) : '';
+    filterForm.package_status = packagesCapabilityEnabled.value ? segmentFilterValue(filters.package_status) : '';
+    filterForm.package_remaining_lte = packagesCapabilityEnabled.value ? segmentFilterValue(filters.package_remaining_lte) : '';
+    filterForm.package_expires_within_days = packagesCapabilityEnabled.value ? segmentFilterValue(filters.package_expires_within_days) : '';
+    filterForm.package_is_recurring = packagesCapabilityEnabled.value ? segmentFilterValue(filters.package_is_recurring) : '';
+    filterForm.package_recurrence_status = packagesCapabilityEnabled.value ? segmentFilterValue(filters.package_recurrence_status) : '';
+    filterForm.operational_filter = appointmentProfile.value
+        ? normalizeOperationalQuickFilter(filters.operational_filter)
+        : '';
     const requestedSort = segmentFilterValue(sort.sort) || 'created_at';
     const requestedSortIsAvailable = featureSortIsAvailable(requestedSort);
     filterForm.sort = requestedSortIsAvailable ? requestedSort : 'created_at';
@@ -336,6 +451,16 @@ const toggleSort = (column) => {
     }
     filterForm.sort = column;
     filterForm.direction = 'asc';
+};
+
+const operationalQuickFilterClass = (value) => (
+    filterForm.operational_filter === value
+        ? 'border-transparent bg-green-600 text-white dark:bg-green-500 dark:text-white'
+        : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800'
+);
+
+const setOperationalQuickFilter = (value) => {
+    filterForm.operational_filter = value;
 };
 
 const customerRows = computed(() => (Array.isArray(props.customers?.data) ? props.customers.data : []));
@@ -555,6 +680,51 @@ const getCustomerInitials = (customer) => {
     return `${first}${second}`.toUpperCase();
 };
 
+const operationalSummary = (customer) => customer?.operational_summary || {};
+
+const lifecycleStatus = (customer) => {
+    const status = String(operationalSummary(customer).lifecycle_status || '');
+
+    if (['new', 'active', 'follow_up', 'inactive'].includes(status)) {
+        return status;
+    }
+
+    return customer?.is_active ? 'active' : 'inactive';
+};
+
+const lifecycleStatusClass = (customer) => {
+    const classes = {
+        new: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-200',
+        active: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200',
+        follow_up: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200',
+        inactive: 'bg-stone-100 text-stone-600 dark:bg-neutral-700 dark:text-neutral-300',
+    };
+
+    return classes[lifecycleStatus(customer)] || classes.inactive;
+};
+
+const lifecycleStatusLabel = (customer) => t(`customers.appointment.lifecycle.${lifecycleStatus(customer)}`);
+
+const formatOperationalDate = (value) => (
+    value
+        ? dayjs(value).locale(dayjsLocale.value).format('DD MMM YYYY · HH:mm')
+        : ''
+);
+
+const customerCurrency = (customer) => operationalSummary(customer).currency_code || null;
+const formatCustomerCurrency = (customer, value) => formatCurrency(value, customerCurrency(customer));
+const hasNumericSummaryValue = (customer, key) => {
+    const value = operationalSummary(customer)[key];
+
+    return value !== null && value !== undefined && Number.isFinite(Number(value));
+};
+
+const remainingPackageLabel = (customer) => {
+    const remaining = Number(operationalSummary(customer).active_package?.remaining_quantity ?? 0);
+
+    return t('customers.appointment.labels.package_remaining', { count: remaining });
+};
+
 const customerLinks = computed(() => props.customers?.links || []);
 const currentPerPage = computed(() => resolveDataTablePerPage(props.customers?.per_page, props.filters?.per_page));
 const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagination.results')}`);
@@ -599,7 +769,7 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                         </div>
                         <input type="text" v-model="filterForm.name" data-testid="demo-customer-search"
                             class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400 dark:focus:ring-neutral-600"
-                            :placeholder="$t('customers.filters.search_placeholder')">
+                            :placeholder="customerSearchPlaceholder">
                     </div>
                 </template>
 
@@ -631,30 +801,34 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                         dense
                     />
                     <FloatingSelect
+                        v-if="packagesCapabilityEnabled"
                         v-model="filterForm.has_active_package"
                         :label="$t('customers.filters.active_package')"
                         :options="packagePresenceOptions"
                         dense
                     />
                     <FloatingSelect
+                        v-if="packagesCapabilityEnabled"
                         v-model="filterForm.package_status"
                         :label="$t('customers.filters.package_status')"
                         :options="packageStatusOptions"
                         dense
                     />
-                    <input type="number" min="0" step="1" v-model="filterForm.package_remaining_lte"
+                    <input v-if="packagesCapabilityEnabled" type="number" min="0" step="1" v-model="filterForm.package_remaining_lte"
                         class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                         :placeholder="$t('customers.filters.package_remaining_lte')">
-                    <input type="number" min="0" step="1" v-model="filterForm.package_expires_within_days"
+                    <input v-if="packagesCapabilityEnabled" type="number" min="0" step="1" v-model="filterForm.package_expires_within_days"
                         class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                         :placeholder="$t('customers.filters.package_expires_within_days')">
                     <FloatingSelect
+                        v-if="packagesCapabilityEnabled"
                         v-model="filterForm.package_is_recurring"
                         :label="$t('customers.filters.package_recurrence')"
                         :options="packageRecurringOptions"
                         dense
                     />
                     <FloatingSelect
+                        v-if="packagesCapabilityEnabled"
                         v-model="filterForm.package_recurrence_status"
                         :label="$t('customers.filters.package_recurrence_status')"
                         :options="packageRecurrenceStatusOptions"
@@ -693,7 +867,7 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                             {{ $t('customers.view.cards') }}
                         </button>
                     </div>
-                    <Link :href="route('customer.create')" data-testid="demo-add-customer"
+                    <Link v-if="canCreateCustomer" :href="route('customer.create')" data-testid="demo-add-customer"
                         :class="crmButtonClass('primary', 'toolbar')">
                         <svg class="hidden sm:block shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
                             height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -705,6 +879,19 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                     </Link>
                 </template>
             </AdminDataTableToolbar>
+
+            <div v-if="operationalQuickFilters.length" class="flex flex-wrap gap-2" data-testid="customer-operational-filters">
+                <button
+                    v-for="filter in operationalQuickFilters"
+                    :key="filter.value || 'all'"
+                    type="button"
+                    class="inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium transition"
+                    :class="operationalQuickFilterClass(filter.value)"
+                    @click="setOperationalQuickFilter(filter.value)"
+                >
+                    {{ filter.label }}
+                </button>
+            </div>
 
             <AdminDataTableBulkBar
                 v-if="canEdit"
@@ -763,7 +950,46 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
             </template>
 
             <template #head>
-                <tr>
+                <tr v-if="appointmentProfile">
+                    <th scope="col" class="w-10 px-4 py-2">
+                        <input v-if="canEdit" ref="selectAllRef" type="checkbox" :checked="allSelected" @change="toggleAll"
+                            class="rounded border-stone-300 text-green-600 shadow-sm focus:ring-green-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-green-400 dark:focus:ring-green-400" />
+                    </th>
+                    <th scope="col" class="min-w-[290px]">
+                        <button type="button" @click="toggleSort('first_name')"
+                            class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
+                            {{ $t('customers.appointment.table.client') }}
+                            <svg v-if="filterForm.sort === 'first_name'" class="size-3" xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round"
+                                :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                <path d="m6 9 6 6 6-6" />
+                            </svg>
+                        </button>
+                    </th>
+                    <th scope="col" class="min-w-32 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                        {{ $t('customers.appointment.table.status') }}
+                    </th>
+                    <th v-if="reservationsCapabilityEnabled" scope="col" class="min-w-[190px] px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                        {{ $t('customers.appointment.table.last_visit') }}
+                    </th>
+                    <th v-if="reservationsCapabilityEnabled" scope="col" class="min-w-[210px] px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                        {{ $t('customers.appointment.table.next_appointment') }}
+                    </th>
+                    <th v-if="reservationsCapabilityEnabled && teamMembersCapabilityEnabled" scope="col" class="min-w-40 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                        {{ $t('customers.appointment.table.usual_team_member') }}
+                    </th>
+                    <th v-if="loyaltyOrPackagesEnabled" scope="col" class="min-w-[190px] px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                        {{ $t('customers.appointment.table.loyalty_package') }}
+                    </th>
+                    <th v-if="customerValueCapabilityEnabled" scope="col" class="min-w-[180px] px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                        {{ $t('customers.appointment.table.customer_value') }}
+                    </th>
+                    <th scope="col" class="min-w-16 px-5 py-2.5 text-end text-sm font-normal text-stone-500 dark:text-neutral-500">
+                        {{ $t('customers.appointment.table.actions') }}
+                    </th>
+                </tr>
+                <tr v-else-if="!appointmentProfile">
                             <th scope="col" class="w-10 px-4 py-2">
                                 <input v-if="canEdit" ref="selectAllRef" type="checkbox" :checked="allSelected" @change="toggleAll"
                                     class="rounded border-stone-300 text-green-600 shadow-sm focus:ring-green-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-green-400 dark:focus:ring-green-400" />
@@ -856,7 +1082,7 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                         </div>
                     </td>
                 </tr>
-                <tr v-else>
+                <tr v-else-if="!appointmentProfile">
                             <td class="size-px whitespace-nowrap px-4 py-2">
                                 <Checkbox
                                     v-if="canEdit"
@@ -928,11 +1154,145 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                                 <CustomerActionsMenu
                                     :customer="customer"
                                     :can-edit="canEdit"
+                                    :customer-index-context="customerIndexContext"
                                     @toggle-archive="toggleArchive(customer)"
                                     @delete="destroyCustomer(customer)"
                                 />
                             </td>
                         </tr>
+                <tr v-else>
+                    <td class="size-px whitespace-nowrap px-4 py-2">
+                        <Checkbox
+                            v-if="canEdit"
+                            :checked="isSelected(customer)"
+                            @update:checked="toggleSelection(customer.id, $event)"
+                        />
+                    </td>
+                    <td class="px-4 py-3 text-start align-top">
+                        <div class="flex min-w-[260px] items-start gap-x-3">
+                            <div class="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-stone-200 bg-stone-100 text-sm font-semibold text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
+                                <img
+                                    v-if="hasCustomerLogo(customer)"
+                                    class="size-11 rounded-full object-cover"
+                                    :src="customer.logo_url || customer.logo"
+                                    :alt="$t('customers.labels.logo_alt')"
+                                    loading="lazy"
+                                    decoding="async"
+                                >
+                                <span v-else>{{ getCustomerInitials(customer) }}</span>
+                            </div>
+                            <div class="min-w-0">
+                                <Link
+                                    :href="route('customer.show', customer)"
+                                    class="block truncate text-sm font-semibold text-stone-800 hover:text-emerald-700 dark:text-neutral-100 dark:hover:text-emerald-300"
+                                >
+                                    {{ customer.company_name || `${customer.first_name} ${customer.last_name}` }}
+                                </Link>
+                                <div class="mt-0.5 text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ customer.number || $t('customers.labels.customer_fallback') }}
+                                </div>
+                                <a v-if="customer.email" :href="`mailto:${customer.email}`"
+                                    class="mt-1 block max-w-[230px] truncate text-xs text-stone-500 hover:text-emerald-700 dark:text-neutral-400 dark:hover:text-emerald-300">
+                                    {{ customer.email }}
+                                </a>
+                                <a v-if="customer.phone" :href="`tel:${customer.phone}`"
+                                    class="mt-0.5 block text-xs text-stone-500 hover:text-emerald-700 dark:text-neutral-400 dark:hover:text-emerald-300">
+                                    {{ customer.phone }}
+                                </a>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-4 py-3 align-top">
+                        <div class="flex max-w-36 flex-wrap gap-1.5">
+                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                                :class="lifecycleStatusClass(customer)">
+                                {{ lifecycleStatusLabel(customer) }}
+                            </span>
+                            <span v-if="campaignsCapabilityEnabled && customer.is_vip"
+                                class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-500/20 dark:text-amber-200">
+                                {{ $t('customers.appointment.labels.vip') }}
+                            </span>
+                        </div>
+                    </td>
+                    <td v-if="reservationsCapabilityEnabled" class="px-4 py-3 align-top">
+                        <template v-if="operationalSummary(customer).last_visit">
+                            <div class="text-sm font-medium text-stone-700 dark:text-neutral-200">
+                                {{ formatOperationalDate(operationalSummary(customer).last_visit.starts_at) }}
+                            </div>
+                            <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                {{ operationalSummary(customer).last_visit.service_name || $t('customers.appointment.labels.service_unknown') }}
+                            </div>
+                        </template>
+                        <span v-else class="text-xs text-stone-400 dark:text-neutral-500">
+                            {{ $t('customers.appointment.labels.no_visit') }}
+                        </span>
+                    </td>
+                    <td v-if="reservationsCapabilityEnabled" class="px-4 py-3 align-top">
+                        <template v-if="operationalSummary(customer).next_appointment">
+                            <div class="text-sm font-medium text-stone-700 dark:text-neutral-200">
+                                {{ formatOperationalDate(operationalSummary(customer).next_appointment.starts_at) }}
+                            </div>
+                            <div v-if="teamMembersCapabilityEnabled" class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                {{ operationalSummary(customer).next_appointment.team_member_name || $t('customers.appointment.labels.unassigned') }}
+                            </div>
+                        </template>
+                        <span v-else class="text-xs font-medium text-amber-600 dark:text-amber-300">
+                            {{ $t('customers.appointment.labels.no_next_appointment') }}
+                        </span>
+                    </td>
+                    <td v-if="reservationsCapabilityEnabled && teamMembersCapabilityEnabled" class="px-4 py-3 align-top">
+                        <span class="text-sm text-stone-700 dark:text-neutral-200">
+                            {{ operationalSummary(customer).usual_team_member?.name || $t('customers.appointment.labels.no_usual_team_member') }}
+                        </span>
+                    </td>
+                    <td v-if="loyaltyOrPackagesEnabled" class="px-4 py-3 align-top">
+                        <div class="space-y-1.5">
+                            <div v-if="loyaltyCapabilityEnabled && operationalSummary(customer).loyalty_points !== null"
+                                class="text-sm font-medium text-stone-700 dark:text-neutral-200">
+                                {{ $t('customers.appointment.labels.loyalty_points', { count: operationalSummary(customer).loyalty_points }) }}
+                            </div>
+                            <div v-if="packagesCapabilityEnabled && operationalSummary(customer).active_package"
+                                class="text-xs text-stone-500 dark:text-neutral-400">
+                                <div class="font-medium text-stone-700 dark:text-neutral-200">
+                                    {{ operationalSummary(customer).active_package.name }}
+                                </div>
+                                <div>{{ remainingPackageLabel(customer) }}</div>
+                            </div>
+                            <span v-if="(!loyaltyCapabilityEnabled || operationalSummary(customer).loyalty_points === null)
+                                && (!packagesCapabilityEnabled || !operationalSummary(customer).active_package)"
+                                class="text-xs text-stone-400 dark:text-neutral-500">-</span>
+                        </div>
+                    </td>
+                    <td v-if="customerValueCapabilityEnabled" class="px-4 py-3 align-top">
+                        <div class="space-y-1 text-xs">
+                            <div v-if="hasNumericSummaryValue(customer, 'total_spent')" class="text-stone-600 dark:text-neutral-300">
+                                <span class="text-stone-400 dark:text-neutral-500">{{ $t('customers.appointment.labels.total_spent') }}</span>
+                                <span class="ms-1 font-semibold">{{ formatCustomerCurrency(customer, operationalSummary(customer).total_spent) }}</span>
+                            </div>
+                            <div v-if="hasNumericSummaryValue(customer, 'tip_total') && Number(operationalSummary(customer).tip_total) > 0"
+                                class="text-stone-500 dark:text-neutral-400">
+                                {{ $t('customers.appointment.labels.tip_total') }}
+                                {{ formatCustomerCurrency(customer, operationalSummary(customer).tip_total) }}
+                            </div>
+                            <div v-if="invoicesCapabilityEnabled && hasNumericSummaryValue(customer, 'unpaid_balance') && Number(operationalSummary(customer).unpaid_balance) > 0"
+                                class="font-semibold text-rose-600 dark:text-rose-300">
+                                {{ $t('customers.appointment.labels.unpaid_balance') }}
+                                {{ formatCustomerCurrency(customer, operationalSummary(customer).unpaid_balance) }}
+                            </div>
+                            <span v-if="!hasNumericSummaryValue(customer, 'total_spent') && (!invoicesCapabilityEnabled || !hasNumericSummaryValue(customer, 'unpaid_balance'))"
+                                class="text-stone-400 dark:text-neutral-500">-</span>
+                        </div>
+                    </td>
+                    <td class="size-px whitespace-nowrap px-4 py-3 text-end align-top">
+                        <CustomerActionsMenu
+                            :customer="customer"
+                            :can-edit="canEdit"
+                            :customer-index-context="customerIndexContext"
+                            @toggle-archive="toggleArchive(customer)"
+                            @delete="destroyCustomer(customer)"
+                        />
+                    </td>
+                </tr>
             </template>
 
             <template #pagination_prefix>
@@ -975,6 +1335,153 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                     :key="customer.id"
                     class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-neutral-700 dark:bg-neutral-800"
                 >
+                    <template v-if="appointmentProfile">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="flex min-w-0 items-start gap-3">
+                                <div class="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-stone-200 bg-stone-100 text-sm font-semibold text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
+                                    <img
+                                        v-if="hasCustomerLogo(customer)"
+                                        class="size-11 rounded-full object-cover"
+                                        :src="customer.logo_url || customer.logo"
+                                        :alt="$t('customers.labels.logo_alt')"
+                                        loading="lazy"
+                                        decoding="async"
+                                    >
+                                    <span v-else>{{ getCustomerInitials(customer) }}</span>
+                                </div>
+                                <div class="min-w-0">
+                                    <Link
+                                        :href="route('customer.show', customer)"
+                                        class="line-clamp-1 text-sm font-semibold text-stone-800 hover:text-emerald-700 dark:text-neutral-100 dark:hover:text-emerald-300"
+                                    >
+                                        {{ customer.company_name || `${customer.first_name} ${customer.last_name}` }}
+                                    </Link>
+                                    <div class="mt-0.5 text-xs text-stone-500 dark:text-neutral-400">
+                                        {{ customer.number || $t('customers.labels.customer_fallback') }}
+                                    </div>
+                                    <div class="mt-2 flex flex-wrap gap-1.5">
+                                        <span
+                                            class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                                            :class="lifecycleStatusClass(customer)"
+                                        >
+                                            {{ lifecycleStatusLabel(customer) }}
+                                        </span>
+                                        <span
+                                            v-if="campaignsCapabilityEnabled && customer.is_vip"
+                                            class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-500/20 dark:text-amber-200"
+                                        >
+                                            {{ $t('customers.appointment.labels.vip') }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <Checkbox
+                                    v-if="canEdit"
+                                    :checked="isSelected(customer)"
+                                    @update:checked="toggleSelection(customer.id, $event)"
+                                />
+                                <CustomerActionsMenu
+                                    :customer="customer"
+                                    :can-edit="canEdit"
+                                    :customer-index-context="customerIndexContext"
+                                    @toggle-archive="toggleArchive(customer)"
+                                    @delete="destroyCustomer(customer)"
+                                />
+                            </div>
+                        </div>
+
+                        <div v-if="customer.email || customer.phone" class="mt-4 flex flex-wrap gap-x-4 gap-y-1 border-t border-stone-100 pt-3 text-xs dark:border-neutral-700">
+                            <a v-if="customer.email" :href="`mailto:${customer.email}`"
+                                class="max-w-full truncate text-stone-500 hover:text-emerald-700 dark:text-neutral-400 dark:hover:text-emerald-300">
+                                {{ customer.email }}
+                            </a>
+                            <a v-if="customer.phone" :href="`tel:${customer.phone}`"
+                                class="text-stone-500 hover:text-emerald-700 dark:text-neutral-400 dark:hover:text-emerald-300">
+                                {{ customer.phone }}
+                            </a>
+                        </div>
+
+                        <div class="mt-4 grid gap-3 text-xs sm:grid-cols-2">
+                            <div v-if="reservationsCapabilityEnabled" class="rounded-sm bg-stone-50 p-3 dark:bg-neutral-900/60">
+                                <div class="font-medium text-stone-400 dark:text-neutral-500">
+                                    {{ $t('customers.appointment.table.last_visit') }}
+                                </div>
+                                <template v-if="operationalSummary(customer).last_visit">
+                                    <div class="mt-1 font-semibold text-stone-700 dark:text-neutral-200">
+                                        {{ formatOperationalDate(operationalSummary(customer).last_visit.starts_at) }}
+                                    </div>
+                                    <div class="mt-0.5 text-stone-500 dark:text-neutral-400">
+                                        {{ operationalSummary(customer).last_visit.service_name || $t('customers.appointment.labels.service_unknown') }}
+                                    </div>
+                                </template>
+                                <div v-else class="mt-1 text-stone-400 dark:text-neutral-500">
+                                    {{ $t('customers.appointment.labels.no_visit') }}
+                                </div>
+                            </div>
+                            <div v-if="reservationsCapabilityEnabled" class="rounded-sm bg-stone-50 p-3 dark:bg-neutral-900/60">
+                                <div class="font-medium text-stone-400 dark:text-neutral-500">
+                                    {{ $t('customers.appointment.table.next_appointment') }}
+                                </div>
+                                <template v-if="operationalSummary(customer).next_appointment">
+                                    <div class="mt-1 font-semibold text-stone-700 dark:text-neutral-200">
+                                        {{ formatOperationalDate(operationalSummary(customer).next_appointment.starts_at) }}
+                                    </div>
+                                    <div v-if="teamMembersCapabilityEnabled" class="mt-0.5 text-stone-500 dark:text-neutral-400">
+                                        {{ operationalSummary(customer).next_appointment.team_member_name || $t('customers.appointment.labels.unassigned') }}
+                                    </div>
+                                </template>
+                                <div v-else class="mt-1 font-medium text-amber-600 dark:text-amber-300">
+                                    {{ $t('customers.appointment.labels.no_next_appointment') }}
+                                </div>
+                            </div>
+                            <div v-if="reservationsCapabilityEnabled && teamMembersCapabilityEnabled" class="rounded-sm bg-stone-50 p-3 dark:bg-neutral-900/60">
+                                <div class="font-medium text-stone-400 dark:text-neutral-500">
+                                    {{ $t('customers.appointment.table.usual_team_member') }}
+                                </div>
+                                <div class="mt-1 font-semibold text-stone-700 dark:text-neutral-200">
+                                    {{ operationalSummary(customer).usual_team_member?.name || $t('customers.appointment.labels.no_usual_team_member') }}
+                                </div>
+                            </div>
+                            <div v-if="loyaltyOrPackagesEnabled" class="rounded-sm bg-stone-50 p-3 dark:bg-neutral-900/60">
+                                <div class="font-medium text-stone-400 dark:text-neutral-500">
+                                    {{ $t('customers.appointment.table.loyalty_package') }}
+                                </div>
+                                <div v-if="loyaltyCapabilityEnabled && operationalSummary(customer).loyalty_points !== null"
+                                    class="mt-1 font-semibold text-stone-700 dark:text-neutral-200">
+                                    {{ $t('customers.appointment.labels.loyalty_points', { count: operationalSummary(customer).loyalty_points }) }}
+                                </div>
+                                <div v-if="packagesCapabilityEnabled && operationalSummary(customer).active_package" class="mt-1 text-stone-600 dark:text-neutral-300">
+                                    {{ operationalSummary(customer).active_package.name }} · {{ remainingPackageLabel(customer) }}
+                                </div>
+                                <div v-if="(!loyaltyCapabilityEnabled || operationalSummary(customer).loyalty_points === null)
+                                    && (!packagesCapabilityEnabled || !operationalSummary(customer).active_package)"
+                                    class="mt-1 text-stone-400 dark:text-neutral-500">-</div>
+                            </div>
+                            <div v-if="customerValueCapabilityEnabled" class="rounded-sm bg-stone-50 p-3 dark:bg-neutral-900/60">
+                                <div class="font-medium text-stone-400 dark:text-neutral-500">
+                                    {{ $t('customers.appointment.table.customer_value') }}
+                                </div>
+                                <div v-if="hasNumericSummaryValue(customer, 'total_spent')" class="mt-1 font-semibold text-stone-700 dark:text-neutral-200">
+                                    {{ $t('customers.appointment.labels.total_spent') }}
+                                    {{ formatCustomerCurrency(customer, operationalSummary(customer).total_spent) }}
+                                </div>
+                                <div v-if="hasNumericSummaryValue(customer, 'tip_total') && Number(operationalSummary(customer).tip_total) > 0"
+                                    class="mt-0.5 text-stone-500 dark:text-neutral-400">
+                                    {{ $t('customers.appointment.labels.tip_total') }}
+                                    {{ formatCustomerCurrency(customer, operationalSummary(customer).tip_total) }}
+                                </div>
+                                <div v-if="invoicesCapabilityEnabled && hasNumericSummaryValue(customer, 'unpaid_balance') && Number(operationalSummary(customer).unpaid_balance) > 0"
+                                    class="mt-0.5 font-semibold text-rose-600 dark:text-rose-300">
+                                    {{ $t('customers.appointment.labels.unpaid_balance') }}
+                                    {{ formatCustomerCurrency(customer, operationalSummary(customer).unpaid_balance) }}
+                                </div>
+                                <div v-if="!hasNumericSummaryValue(customer, 'total_spent') && (!invoicesCapabilityEnabled || !hasNumericSummaryValue(customer, 'unpaid_balance'))"
+                                    class="mt-1 text-stone-400 dark:text-neutral-500">-</div>
+                            </div>
+                        </div>
+                    </template>
+                    <template v-else>
                     <div class="flex items-start justify-between gap-3">
                         <div class="flex items-start gap-3 min-w-0">
                             <div class="size-11 rounded-sm border border-stone-200 bg-stone-100 text-stone-600 flex items-center justify-center text-sm font-semibold dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
@@ -1023,6 +1530,7 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                             <CustomerActionsMenu
                                 :customer="customer"
                                 :can-edit="canEdit"
+                                :customer-index-context="customerIndexContext"
                                 @toggle-archive="toggleArchive(customer)"
                                 @delete="destroyCustomer(customer)"
                             />
@@ -1084,6 +1592,7 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                             {{ $t('customers.labels.created') }} {{ formatDate(customer.created_at) }}
                         </span>
                     </div>
+                    </template>
                 </div>
             </div>
         </div>

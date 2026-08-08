@@ -6,13 +6,18 @@ use App\Enums\CustomerClientType;
 use App\Http\Requests\CustomerRequest;
 use App\Models\ActivityLog;
 use App\Models\Customer;
+use App\Models\Invoice;
 use App\Models\Product;
+use App\Models\Reservation;
 use App\Models\Role;
 use App\Models\SavedSegment;
 use App\Models\User;
 use App\Notifications\InviteUserNotification;
 use App\Queries\Customers\BuildCustomerDetailViewData;
+use App\Queries\Customers\BuildCustomerOperationalIndexData;
 use App\Queries\Customers\CustomerReadSelects;
+use App\Services\BillingPlanService;
+use App\Services\BillingSubscriptionService;
 use App\Services\CompanyFeatureService;
 use App\Services\Customers\CustomerBulkAudienceBridgeService;
 use App\Services\Customers\CustomerBulkContactService;
@@ -57,6 +62,7 @@ class CustomerController extends Controller
             'package_expires_within_days',
             'package_is_recurring',
             'package_recurrence_status',
+            'operational_filter',
             'sort',
             'direction',
         ]);
@@ -73,19 +79,78 @@ class CustomerController extends Controller
         $jobsFeatureEnabled = $featureService->hasFeature($accountOwner, 'jobs');
         $reservationsFeatureEnabled = $featureService->hasFeature($accountOwner, 'reservations');
         $campaignsFeatureEnabled = $featureService->hasFeature($accountOwner, 'campaigns');
+        $operationalIndexData = app(BuildCustomerOperationalIndexData::class);
+        $customerIndexContext = $operationalIndexData->context($accountOwner);
+        $teamMembership = $user->relationLoaded('teamMembership')
+            ? $user->teamMembership
+            : $user->teamMembership()->first();
+        $canCreateCustomer = $user->id === $accountId
+            || (
+                $teamMembership
+                && (
+                    $accountOwner->company_type === 'products'
+                    || $teamMembership->role === 'admin'
+                    || $teamMembership->hasPermission('customers.create')
+                )
+            );
+        $canBook = $user->can('create', Reservation::class);
+        $canViewBilling = $user->can('viewAny', Invoice::class);
+        $canViewSales = (int) $user->id === (int) $accountOwner->id
+            || ($teamMembership?->hasPermission('sales.manage') ?? false);
+        $planKey = app(BillingSubscriptionService::class)->resolvePlanKey(
+            $accountOwner,
+            config('billing.plans', [])
+        );
+        $ownerOnlyMode = $planKey !== null
+            && app(BillingPlanService::class)->isOwnerOnlyPlan($planKey);
+        $customerIndexContext = $operationalIndexData->restrictCapabilities($customerIndexContext, [
+            'invoices' => $canViewBilling,
+            'sales' => $canViewSales,
+        ]);
+        $customerIndexContext['actions'] = [
+            'can_create_customer' => (bool) $canCreateCustomer,
+            'can_book' => ($customerIndexContext['capabilities']['reservations'] ?? false)
+                && $canBook
+                && ! $ownerOnlyMode,
+            'can_view_billing' => (bool) ($customerIndexContext['capabilities']['invoices'] ?? false),
+        ];
+        $appointmentProfile = ($customerIndexContext['profile'] ?? null) === 'appointment';
+        $showQuoteOperations = $quotesFeatureEnabled && ! $appointmentProfile;
+        $showJobOperations = $jobsFeatureEnabled && ! $appointmentProfile;
+        $invoicesFeatureEnabled = (bool) ($customerIndexContext['capabilities']['invoices'] ?? false);
+        $operationalFilter = $operationalIndexData->normalizeOperationalFilter(
+            $filters['operational_filter'] ?? null,
+            $customerIndexContext
+        );
 
-        if (! $quotesFeatureEnabled) {
+        if ($operationalFilter === null) {
+            unset($filters['operational_filter']);
+        } else {
+            $filters['operational_filter'] = $operationalFilter;
+        }
+
+        if (! $showQuoteOperations) {
             unset($filters['has_quotes']);
         }
-        if (! $jobsFeatureEnabled) {
+        if (! $showJobOperations) {
             unset($filters['has_works']);
+        }
+        if (! ($customerIndexContext['capabilities']['packages'] ?? false)) {
+            unset(
+                $filters['has_active_package'],
+                $filters['package_status'],
+                $filters['package_remaining_lte'],
+                $filters['package_expires_within_days'],
+                $filters['package_is_recurring'],
+                $filters['package_recurrence_status']
+            );
         }
 
         $allowedSorts = ['company_name', 'first_name', 'created_at'];
-        if ($quotesFeatureEnabled) {
+        if ($showQuoteOperations) {
             $allowedSorts[] = 'quotes_count';
         }
-        if ($jobsFeatureEnabled) {
+        if ($showJobOperations) {
             $allowedSorts[] = 'works_count';
         }
 
@@ -96,64 +161,79 @@ class CustomerController extends Controller
         $baseQuery = Customer::query()
             ->filter($filters)
             ->byUser($accountId);
+        $operationalIndexData->applyOperationalFilter(
+            $baseQuery,
+            $operationalFilter,
+            $accountOwner,
+            $customerIndexContext
+        );
 
         $sort = in_array($filters['sort'] ?? null, $allowedSorts, true)
             ? $filters['sort']
             : 'created_at';
         $direction = ($filters['direction'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
 
-        $customerCounts = [
-            'invoices as invoices_count' => fn ($query) => $query->where('user_id', $accountId),
-        ];
-        if ($quotesFeatureEnabled) {
+        $customerCounts = [];
+        if ($invoicesFeatureEnabled) {
+            $customerCounts['invoices as invoices_count'] = fn ($query) => $query->where('user_id', $accountId);
+        }
+        if ($showQuoteOperations) {
             $customerCounts['quotes as quotes_count'] = fn ($query) => $query->where('user_id', $accountId);
         }
-        if ($jobsFeatureEnabled) {
+        if ($showJobOperations) {
             $customerCounts['works as works_count'] = fn ($query) => $query->where('user_id', $accountId);
         }
 
         // Fetch customers with pagination
-        $customers = (clone $baseQuery)
-            ->with(['properties'])
-            ->withCount($customerCounts)
+        $customersQuery = (clone $baseQuery)
+            ->with(['properties']);
+        if ($customerCounts !== []) {
+            $customersQuery->withCount($customerCounts);
+        }
+        $customers = $customersQuery
             ->orderBy($sort, $direction)
             ->paginate((int) $filters['per_page'])
             ->withQueryString();
+        $operationalIndexData->appendOperationalSummaries(
+            $customers->getCollection(),
+            $accountOwner,
+            $customerIndexContext
+        );
 
-        $totalCount = (clone $baseQuery)->count();
+        $totalCount = $customers->total();
         $recentThreshold = now()->subDays(30);
         $newCount = (clone $baseQuery)
             ->whereDate('created_at', '>=', $recentThreshold)
             ->count();
-        $withQuotes = $quotesFeatureEnabled
+        $withQuotes = $showQuoteOperations
             ? (clone $baseQuery)
                 ->whereHas('quotes', fn ($query) => $query->where('user_id', $accountId))
                 ->count()
             : 0;
-        $withWorks = $jobsFeatureEnabled
+        $withWorks = $showJobOperations
             ? (clone $baseQuery)
                 ->whereHas('works', fn ($query) => $query->where('user_id', $accountId))
                 ->count()
             : 0;
         $activeCount = 0;
-        if ($quotesFeatureEnabled || $jobsFeatureEnabled || $reservationsFeatureEnabled) {
+        if ($showQuoteOperations || $showJobOperations || $reservationsFeatureEnabled) {
             $activeCount = (clone $baseQuery)
-                ->where(function ($query) use ($accountId, $recentThreshold, $quotesFeatureEnabled, $jobsFeatureEnabled, $reservationsFeatureEnabled) {
-                    if ($quotesFeatureEnabled) {
+                ->where(function ($query) use ($accountId, $recentThreshold, $reservationsFeatureEnabled, $showJobOperations, $showQuoteOperations) {
+                    if ($showQuoteOperations) {
                         $query->whereHas('quotes', function ($sub) use ($accountId, $recentThreshold) {
                             $sub->where('user_id', $accountId)
                                 ->where('created_at', '>=', $recentThreshold);
                         });
                     }
-                    if ($jobsFeatureEnabled) {
-                        $method = $quotesFeatureEnabled ? 'orWhereHas' : 'whereHas';
+                    if ($showJobOperations) {
+                        $method = $showQuoteOperations ? 'orWhereHas' : 'whereHas';
                         $query->{$method}('works', function ($sub) use ($accountId, $recentThreshold) {
                             $sub->where('user_id', $accountId)
                                 ->where('created_at', '>=', $recentThreshold);
                         });
                     }
                     if ($reservationsFeatureEnabled) {
-                        $method = ($quotesFeatureEnabled || $jobsFeatureEnabled) ? 'orWhereHas' : 'whereHas';
+                        $method = ($showQuoteOperations || $showJobOperations) ? 'orWhereHas' : 'whereHas';
                         $query->{$method}('reservations', function ($sub) use ($accountId, $recentThreshold) {
                             $sub->where('account_id', $accountId)
                                 ->where('created_at', '>=', $recentThreshold);
@@ -172,20 +252,20 @@ class CustomerController extends Controller
         ];
 
         $topCustomers = collect();
-        if ($quotesFeatureEnabled || $jobsFeatureEnabled) {
+        if ($showQuoteOperations || $showJobOperations) {
             $activityCounts = [];
-            if ($quotesFeatureEnabled) {
+            if ($showQuoteOperations) {
                 $activityCounts['quotes as quotes_count'] = fn ($query) => $query->where('user_id', $accountId);
             }
-            if ($jobsFeatureEnabled) {
+            if ($showJobOperations) {
                 $activityCounts['works as works_count'] = fn ($query) => $query->where('user_id', $accountId);
             }
 
             $topCustomersQuery = (clone $baseQuery)->withCount($activityCounts);
-            if ($quotesFeatureEnabled) {
+            if ($showQuoteOperations) {
                 $topCustomersQuery->orderByDesc('quotes_count');
             }
-            if ($jobsFeatureEnabled) {
+            if ($showJobOperations) {
                 $topCustomersQuery->orderByDesc('works_count');
             }
 
@@ -225,6 +305,7 @@ class CustomerController extends Controller
             'canEdit' => $canEdit,
             'savedSegments' => $savedSegments,
             'canManageSavedSegments' => $canManageSavedSegments,
+            'customerIndexContext' => $customerIndexContext,
             'bulkActions' => app(BulkActionRegistry::class)->definitionFor('customer', [
                 'can_edit' => $canEdit,
                 'contact_enabled' => $canEdit && $campaignsFeatureEnabled,
@@ -293,7 +374,7 @@ class CustomerController extends Controller
     {
         $user = Auth::user();
         if ($user) {
-            $this->resolveCustomerAccount($user);
+            $this->resolveCustomerAccount($user, false, true);
         }
 
         return $this->inertiaOrJson('Customer/Create', [
@@ -486,7 +567,7 @@ class CustomerController extends Controller
         if (! $user) {
             abort(403);
         }
-        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
+        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user, false, true);
 
         $validated = $this->enforceAutoValidationFeatures(
             $this->normalizeCustomerPayload($request->validated()),
@@ -589,7 +670,7 @@ class CustomerController extends Controller
         if (! $user) {
             abort(403);
         }
-        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user, true);
+        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user, true, true);
 
         $validated = $this->enforceAutoValidationFeatures(
             $this->normalizeCustomerPayload($request->validated()),
@@ -1153,7 +1234,11 @@ class CustomerController extends Controller
         );
     }
 
-    private function resolveCustomerAccount(User $user, bool $allowPos = false): array
+    private function resolveCustomerAccount(
+        User $user,
+        bool $allowPos = false,
+        bool $requireCustomerCreation = false
+    ): array
     {
         $ownerId = $user->accountOwnerId();
         $owner = $ownerId === $user->id
@@ -1167,14 +1252,37 @@ class CustomerController extends Controller
         }
 
         $accountId = $user->id;
-        if ($owner->company_type === 'products') {
+        $usesSharedCustomerDirectory = $owner->company_type === 'products'
+            || (
+                $owner->company_type === 'services'
+                && in_array(strtolower(trim((string) $owner->company_sector)), ['salon', 'wellness'], true)
+                && app(CompanyFeatureService::class)->hasFeature($owner, 'reservations')
+            );
+
+        if ($usesSharedCustomerDirectory) {
             if ($user->id !== $owner->id) {
                 $membership = $user->relationLoaded('teamMembership')
                     ? $user->teamMembership
                     : $user->teamMembership()->first();
-                $canManage = $membership?->hasPermission('sales.manage') ?? false;
-                $canPos = $allowPos ? ($membership?->hasPermission('sales.pos') ?? false) : false;
-                if (! $membership || (! $canManage && ! $canPos)) {
+                $validMembership = $membership
+                    && (int) $membership->account_id === (int) $owner->id
+                    && $membership->is_active;
+
+                if (! $validMembership) {
+                    abort(403);
+                }
+
+                if ($owner->company_type === 'products') {
+                    $canManage = $membership->hasPermission('sales.manage');
+                    $canPos = $allowPos && $membership->hasPermission('sales.pos');
+                    if (! $canManage && ! $canPos) {
+                        abort(403);
+                    }
+                } elseif (
+                    $requireCustomerCreation
+                    && $membership->role !== 'admin'
+                    && ! $membership->hasPermission('customers.create')
+                ) {
                     abort(403);
                 }
             }
