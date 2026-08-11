@@ -14,6 +14,12 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | 0 | 0 | 0 | 0 | 6 | 0 | 0 | 6 |
 
+## Sous-dossiers
+
+| Dossier | En cours | Bloqués | À faire | Terminés | Références | Archivés | À classer | Total |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| [video-library](video-library/00_INDEX.md) | 33 | 0 | 17 | 0 | 24 | 0 | 0 | 74 |
+
 ## En cours
 
 _Aucun document._

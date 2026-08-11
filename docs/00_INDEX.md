@@ -10,57 +10,57 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 
 | En cours | Bloqués | À faire | Terminés | Références | Archivés | À classer | Total |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 15 | 0 | 6 | 1 | 37 | 0 | 92 | 151 |
+| 48 | 0 | 23 | 1 | 61 | 0 | 92 | 225 |
 
 ## Derniers documents créés
 
 | Créé le | Modifié le | Suivi | Document |
 | --- | --- | --- | --- |
-| 2026-08-07 | 2026-08-07 | En cours | [audits/demo-salon/2026-08-07-salon-eclat-demo-coverage.md](audits/demo-salon/2026-08-07-salon-eclat-demo-coverage.md) |
-| 2026-08-07 | 2026-08-07 | En cours | [audits/module-visibility/2026-08-07-initial-risk-register.md](audits/module-visibility/2026-08-07-initial-risk-register.md) |
-| 2026-08-07 | 2026-08-07 | Références actives | [MODULE_VISIBILITY_AUDIT_RUNBOOK.md](MODULE_VISIBILITY_AUDIT_RUNBOOK.md) |
-| 2026-08-06 | 2026-08-07 | En cours | [DEMO_VIDEO_SALON_COIFFURE.md](DEMO_VIDEO_SALON_COIFFURE.md) |
-| 2026-08-06 | 2026-08-06 | En cours | [audits/mlkpro-benchmark-2026-07-16/execution/PHASE_1_VALIDATION_RUNBOOK.md](audits/mlkpro-benchmark-2026-07-16/execution/PHASE_1_VALIDATION_RUNBOOK.md) |
-| 2026-08-06 | 2026-08-06 | À faire | [audits/mlkpro-benchmark-2026-07-16/execution/PHASE_2_EXECUTION_RUNBOOK.md](audits/mlkpro-benchmark-2026-07-16/execution/PHASE_2_EXECUTION_RUNBOOK.md) |
-| 2026-08-04 | 2026-08-04 | Références actives | [audits/mlkpro-benchmark-2026-07-16/execution/capacity-runner-fixtures.example.json](audits/mlkpro-benchmark-2026-07-16/execution/capacity-runner-fixtures.example.json) |
-| 2026-08-04 | 2026-08-04 | Références actives | [audits/mlkpro-benchmark-2026-07-16/execution/P0_006_RUNNER.md](audits/mlkpro-benchmark-2026-07-16/execution/P0_006_RUNNER.md) |
-| 2026-08-01 | 2026-08-06 | En cours | [audits/mlkpro-benchmark-2026-07-16/execution/SUIVI_GLOBAL.md](audits/mlkpro-benchmark-2026-07-16/execution/SUIVI_GLOBAL.md) |
-| 2026-07-27 | 2026-08-04 | Références actives | [audits/mlkpro-benchmark-2026-07-16/execution/capacity-runner-result.example.json](audits/mlkpro-benchmark-2026-07-16/execution/capacity-runner-result.example.json) |
-| 2026-07-17 | 2026-08-06 | En cours | [audits/mlkpro-benchmark-2026-07-16/execution/PHASE_1_QUICK_PERFORMANCE_WINS.md](audits/mlkpro-benchmark-2026-07-16/execution/PHASE_1_QUICK_PERFORMANCE_WINS.md) |
-| 2026-07-17 | 2026-08-06 | À faire | [audits/mlkpro-benchmark-2026-07-16/execution/PHASE_2_DATA_AND_RUNTIME_PERFORMANCE.md](audits/mlkpro-benchmark-2026-07-16/execution/PHASE_2_DATA_AND_RUNTIME_PERFORMANCE.md) |
-| 2026-07-17 | 2026-08-06 | En cours | [audits/mlkpro-benchmark-2026-07-16/execution/README.md](audits/mlkpro-benchmark-2026-07-16/execution/README.md) |
-| 2026-07-17 | 2026-08-04 | En cours | [audits/mlkpro-benchmark-2026-07-16/execution/DECISIONS.md](audits/mlkpro-benchmark-2026-07-16/execution/DECISIONS.md) |
-| 2026-07-17 | 2026-08-04 | Terminé | [audits/mlkpro-benchmark-2026-07-16/execution/PHASE_0_SECURITY_AND_BASELINE.md](audits/mlkpro-benchmark-2026-07-16/execution/PHASE_0_SECURITY_AND_BASELINE.md) |
-| 2026-07-17 | 2026-08-04 | À faire | [audits/mlkpro-benchmark-2026-07-16/execution/PHASE_3_PREMIUM_USER_EXPERIENCE.md](audits/mlkpro-benchmark-2026-07-16/execution/PHASE_3_PREMIUM_USER_EXPERIENCE.md) |
-| 2026-07-17 | 2026-08-04 | À faire | [audits/mlkpro-benchmark-2026-07-16/execution/PHASE_4_PRODUCT_DIFFERENTIATION.md](audits/mlkpro-benchmark-2026-07-16/execution/PHASE_4_PRODUCT_DIFFERENTIATION.md) |
-| 2026-07-17 | 2026-08-04 | Références actives | [audits/mlkpro-benchmark-2026-07-16/execution/QUALITY_GATES.md](audits/mlkpro-benchmark-2026-07-16/execution/QUALITY_GATES.md) |
-| 2026-07-17 | 2026-08-04 | En cours | [audits/mlkpro-benchmark-2026-07-16/execution/VALIDATION_LOG.md](audits/mlkpro-benchmark-2026-07-16/execution/VALIDATION_LOG.md) |
-| 2026-07-17 | 2026-07-17 | Références actives | [audits/mlkpro-benchmark-2026-07-16/artifact.json](audits/mlkpro-benchmark-2026-07-16/artifact.json) |
+| 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/capture-plan.csv](demo/video-library/capture-plan.csv) |
+| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G01/capture-session.md](demo/video-library/captures/G01/capture-session.md) |
+| 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G01/README.md](demo/video-library/captures/G01/README.md) |
+| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G02/capture-session.md](demo/video-library/captures/G02/capture-session.md) |
+| 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G02/README.md](demo/video-library/captures/G02/README.md) |
+| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G03/capture-session.md](demo/video-library/captures/G03/capture-session.md) |
+| 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G03/README.md](demo/video-library/captures/G03/README.md) |
+| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G04/capture-session.md](demo/video-library/captures/G04/capture-session.md) |
+| 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G04/README.md](demo/video-library/captures/G04/README.md) |
+| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G05/capture-session.md](demo/video-library/captures/G05/capture-session.md) |
+| 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G05/README.md](demo/video-library/captures/G05/README.md) |
+| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G06/capture-session.md](demo/video-library/captures/G06/capture-session.md) |
+| 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G06/README.md](demo/video-library/captures/G06/README.md) |
+| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G07/capture-session.md](demo/video-library/captures/G07/capture-session.md) |
+| 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G07/README.md](demo/video-library/captures/G07/README.md) |
+| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G08/capture-session.md](demo/video-library/captures/G08/capture-session.md) |
+| 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G08/README.md](demo/video-library/captures/G08/README.md) |
+| 2026-08-11 | 2026-08-11 | Références actives | [demo/video-library/captures/README.md](demo/video-library/captures/README.md) |
+| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/episodes/00-intro-fondateur.md](demo/video-library/episodes/00-intro-fondateur.md) |
+| 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/episodes/01-onboarding.md](demo/video-library/episodes/01-onboarding.md) |
 
 ## Derniers documents modifiés
 
 | Modifié le | Créé le | Suivi | Document |
 | --- | --- | --- | --- |
-| 2026-08-07 | 2026-08-07 | En cours | [audits/demo-salon/2026-08-07-salon-eclat-demo-coverage.md](audits/demo-salon/2026-08-07-salon-eclat-demo-coverage.md) |
-| 2026-08-07 | 2026-08-07 | En cours | [audits/module-visibility/2026-08-07-initial-risk-register.md](audits/module-visibility/2026-08-07-initial-risk-register.md) |
-| 2026-08-07 | 2026-08-07 | Références actives | [MODULE_VISIBILITY_AUDIT_RUNBOOK.md](MODULE_VISIBILITY_AUDIT_RUNBOOK.md) |
-| 2026-08-07 | 2026-08-06 | En cours | [DEMO_VIDEO_SALON_COIFFURE.md](DEMO_VIDEO_SALON_COIFFURE.md) |
-| 2026-08-06 | 2026-08-06 | En cours | [audits/mlkpro-benchmark-2026-07-16/execution/PHASE_1_VALIDATION_RUNBOOK.md](audits/mlkpro-benchmark-2026-07-16/execution/PHASE_1_VALIDATION_RUNBOOK.md) |
-| 2026-08-06 | 2026-08-06 | À faire | [audits/mlkpro-benchmark-2026-07-16/execution/PHASE_2_EXECUTION_RUNBOOK.md](audits/mlkpro-benchmark-2026-07-16/execution/PHASE_2_EXECUTION_RUNBOOK.md) |
-| 2026-08-06 | 2026-08-01 | En cours | [audits/mlkpro-benchmark-2026-07-16/execution/SUIVI_GLOBAL.md](audits/mlkpro-benchmark-2026-07-16/execution/SUIVI_GLOBAL.md) |
-| 2026-08-06 | 2026-07-17 | En cours | [audits/mlkpro-benchmark-2026-07-16/execution/PHASE_1_QUICK_PERFORMANCE_WINS.md](audits/mlkpro-benchmark-2026-07-16/execution/PHASE_1_QUICK_PERFORMANCE_WINS.md) |
-| 2026-08-06 | 2026-07-17 | À faire | [audits/mlkpro-benchmark-2026-07-16/execution/PHASE_2_DATA_AND_RUNTIME_PERFORMANCE.md](audits/mlkpro-benchmark-2026-07-16/execution/PHASE_2_DATA_AND_RUNTIME_PERFORMANCE.md) |
-| 2026-08-06 | 2026-07-17 | En cours | [audits/mlkpro-benchmark-2026-07-16/execution/README.md](audits/mlkpro-benchmark-2026-07-16/execution/README.md) |
-| 2026-08-04 | 2026-08-04 | Références actives | [audits/mlkpro-benchmark-2026-07-16/execution/capacity-runner-fixtures.example.json](audits/mlkpro-benchmark-2026-07-16/execution/capacity-runner-fixtures.example.json) |
-| 2026-08-04 | 2026-08-04 | Références actives | [audits/mlkpro-benchmark-2026-07-16/execution/P0_006_RUNNER.md](audits/mlkpro-benchmark-2026-07-16/execution/P0_006_RUNNER.md) |
-| 2026-08-04 | 2026-07-27 | Références actives | [audits/mlkpro-benchmark-2026-07-16/execution/capacity-runner-result.example.json](audits/mlkpro-benchmark-2026-07-16/execution/capacity-runner-result.example.json) |
-| 2026-08-04 | 2026-07-17 | En cours | [audits/mlkpro-benchmark-2026-07-16/execution/DECISIONS.md](audits/mlkpro-benchmark-2026-07-16/execution/DECISIONS.md) |
-| 2026-08-04 | 2026-07-17 | Terminé | [audits/mlkpro-benchmark-2026-07-16/execution/PHASE_0_SECURITY_AND_BASELINE.md](audits/mlkpro-benchmark-2026-07-16/execution/PHASE_0_SECURITY_AND_BASELINE.md) |
-| 2026-08-04 | 2026-07-17 | À faire | [audits/mlkpro-benchmark-2026-07-16/execution/PHASE_3_PREMIUM_USER_EXPERIENCE.md](audits/mlkpro-benchmark-2026-07-16/execution/PHASE_3_PREMIUM_USER_EXPERIENCE.md) |
-| 2026-08-04 | 2026-07-17 | À faire | [audits/mlkpro-benchmark-2026-07-16/execution/PHASE_4_PRODUCT_DIFFERENTIATION.md](audits/mlkpro-benchmark-2026-07-16/execution/PHASE_4_PRODUCT_DIFFERENTIATION.md) |
-| 2026-08-04 | 2026-07-17 | Références actives | [audits/mlkpro-benchmark-2026-07-16/execution/QUALITY_GATES.md](audits/mlkpro-benchmark-2026-07-16/execution/QUALITY_GATES.md) |
-| 2026-08-04 | 2026-07-17 | En cours | [audits/mlkpro-benchmark-2026-07-16/execution/VALIDATION_LOG.md](audits/mlkpro-benchmark-2026-07-16/execution/VALIDATION_LOG.md) |
-| 2026-08-04 | 2026-03-07 | À classer | [PHASE_6_QUEUE_STRATEGY_2026-03-07.md](PHASE_6_QUEUE_STRATEGY_2026-03-07.md) |
+| 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/capture-plan.csv](demo/video-library/capture-plan.csv) |
+| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G01/capture-session.md](demo/video-library/captures/G01/capture-session.md) |
+| 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G01/README.md](demo/video-library/captures/G01/README.md) |
+| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G02/capture-session.md](demo/video-library/captures/G02/capture-session.md) |
+| 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G02/README.md](demo/video-library/captures/G02/README.md) |
+| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G03/capture-session.md](demo/video-library/captures/G03/capture-session.md) |
+| 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G03/README.md](demo/video-library/captures/G03/README.md) |
+| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G04/capture-session.md](demo/video-library/captures/G04/capture-session.md) |
+| 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G04/README.md](demo/video-library/captures/G04/README.md) |
+| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G05/capture-session.md](demo/video-library/captures/G05/capture-session.md) |
+| 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G05/README.md](demo/video-library/captures/G05/README.md) |
+| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G06/capture-session.md](demo/video-library/captures/G06/capture-session.md) |
+| 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G06/README.md](demo/video-library/captures/G06/README.md) |
+| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G07/capture-session.md](demo/video-library/captures/G07/capture-session.md) |
+| 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G07/README.md](demo/video-library/captures/G07/README.md) |
+| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G08/capture-session.md](demo/video-library/captures/G08/capture-session.md) |
+| 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G08/README.md](demo/video-library/captures/G08/README.md) |
+| 2026-08-11 | 2026-08-11 | Références actives | [demo/video-library/captures/README.md](demo/video-library/captures/README.md) |
+| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/episodes/00-intro-fondateur.md](demo/video-library/episodes/00-intro-fondateur.md) |
+| 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/episodes/01-onboarding.md](demo/video-library/episodes/01-onboarding.md) |
 
 ## Sous-dossiers
 
@@ -68,14 +68,14 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | [api](api/00_INDEX.md) | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 2 |
 | [audits](audits/00_INDEX.md) | 8 | 0 | 4 | 1 | 13 | 0 | 0 | 26 |
-| [demo](demo/00_INDEX.md) | 0 | 0 | 0 | 0 | 6 | 0 | 0 | 6 |
+| [demo](demo/00_INDEX.md) | 33 | 0 | 17 | 0 | 30 | 0 | 0 | 80 |
 | [superpowers](superpowers/00_INDEX.md) | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
 
 ## En cours
 
 | Créé le | Modifié le | Document | Titre | État du document | Source | Note |
 | --- | --- | --- | --- | --- | --- | --- |
-| 2026-08-06 | 2026-08-07 | [DEMO_VIDEO_SALON_COIFFURE.md](DEMO_VIDEO_SALON_COIFFURE.md) | Démo vidéo — Salon de coiffure / beauté | Complet | Classement manuel | Reference metier Salon Eclat; 50 validations restent ouvertes et le preset Salon queue doit etre realigne. |
+| 2026-08-06 | 2026-08-11 | [DEMO_VIDEO_SALON_COIFFURE.md](DEMO_VIDEO_SALON_COIFFURE.md) | Démo vidéo — Salon de coiffure / beauté | Complet | Classement manuel | Reference metier Salon Eclat; les validations Stripe et integrations externes restent ouvertes. |
 | 2026-04-24 | 2026-04-25 | [PROSPECTS_MODULE_DEV_BACKLOG_2026-04-24.md](PROSPECTS_MODULE_DEV_BACKLOG_2026-04-24.md) | Module Prospects - plan de dev pas a pas | Complet | Classement manuel | PROSPECT-702 et plusieurs flux de fermeture restent partiels. |
 | 2026-04-13 | 2026-04-13 | [PLATFORM_BULK_ACTIONS_USER_STORY.md](PLATFORM_BULK_ACTIONS_USER_STORY.md) | Platform Bulk Actions - User Story | Complet | Classement manuel | Socle partiellement livre; generalisation multi-modules encore incomplete. |
 | 2026-04-11 | 2026-04-12 | [TRADUCTIONS_STATUS_ET_DEPLOIEMENT_2026-04-11.md](TRADUCTIONS_STATUS_ET_DEPLOIEMENT_2026-04-11.md) | Traductions - status et deploiement restant | Complet | Classement manuel | Etat de deploiement documente; backlog de traductions encore ouvert. |

@@ -1,6 +1,6 @@
 # Démo vidéo — Salon de coiffure / beauté
 
-Dernière mise à jour : 2026-08-07
+Dernière mise à jour : 2026-08-11
 Public visé : propriétaires de salons de coiffure, barbershops, instituts de beauté.
 Double usage de ce document :
 
@@ -11,6 +11,8 @@ Double usage de ce document :
 > `🎬` = ce que tu filmes · `🎙️` = ce que tu dis · `📝` = texte à incruster à l'écran · `⏱️` = durée cible · `✅` = point de test à valider
 
 > **Statut de validation : en cours.** Le preset `salon_eclat_complete` fournit maintenant le socle immersif de Salon Éclat : identité, équipe, catalogue, POS, fidélité, marketing, réservation publique et une preuve d'encaissement local complète. Le parcours Stripe réel reste volontairement hors seed et doit être validé avec une configuration Stripe de test et un scénario E2E. Voir l'[audit de couverture Salon Éclat](audits/demo-salon/2026-08-07-salon-eclat-demo-coverage.md).
+
+> **Capsules réutilisables.** Les explications générales — onboarding, création d'un client, d'une prestation, d'une réservation, d'une promotion, ajout d'un membre et encaissement — sont organisées dans la [bibliothèque vidéo](demo/video-library/README.md). Pendant cette démo métier, cite l'identifiant de la capsule correspondante au lieu de refaire tout son tutoriel.
 
 ---
 
@@ -55,14 +57,14 @@ Chaque acte répond à une douleur réelle de salon :
 ## 1.1 Démarrer l'environnement
 
 ```bash
-# Terminal 1 — l'app est servie par Herd sur https://mlkpro-v3.test
+# Terminal 1 — l'app est servie par Herd sur https://malikia.test
 # Vérifier que la base est à jour
-php artisan migrate
-php artisan storage:link
+herd php artisan migrate
+herd php artisan storage:link
 
 # Terminal 2 — OBLIGATOIRE : le provisioning de démo, les emails et les
 # notifications passent par la file (QUEUE_CONNECTION=database)
-php artisan queue:work
+herd php artisan queue:work
 
 # Terminal 3 — assets
 npm run dev        # tournage en local
@@ -77,7 +79,7 @@ npm run dev        # tournage en local
 
 Tu crées le salon en direct devant la caméra. C'est **le meilleur argument de vente** : le prospect voit qu'en 4 minutes son salon est opérationnel. En choisissant le secteur **Salon**, la plateforme pré-crée automatiquement les rubriques : *Coupe, Coloration, Coiffage, Soin capillaire, Barbier*.
 
-- URL : `https://mlkpro-v3.test/onboarding`
+- URL : `https://malikia.test/onboarding`
 - Étapes : Compte → Entreprise → Type → Secteur → Équipe → Forfait → Sécurité
 
 ### Option B — Espace de démo pré-rempli *(recommandée pour tester vite)*
@@ -85,7 +87,7 @@ Tu crées le salon en direct devant la caméra. C'est **le meilleur argument de 
 Pour parcourir une journée crédible de Salon Éclat sans saisie structurelle préalable. Ce preset fournit les données métier nécessaires aux actes catalogue, réservation, file, encaissement local, fidélisation et marketing.
 
 1. Connecte-toi en `superadmin@example.com` / `password`
-   (si le compte n'existe pas : `php artisan app:launch-reset --force`)
+   (si le compte n'existe pas, un `herd php artisan app:launch-reset --force` peut reconstruire le socle local, mais cette commande est destructive et ne doit être lancée que volontairement)
 2. Va dans **Super Admin → Demos** (`/super-admin/demo-workspaces`)
 3. **Créer** → choisis le preset **`Salon Éclat - immersive`** (`salon_eclat_complete`).
    Il préremplit **Salon Éclat**, **Amina Diallo**, la langue française, le fuseau `America/Toronto` et le profil de données immersif.
@@ -93,9 +95,9 @@ Pour parcourir une journée crédible de Salon Éclat sans saisie structurelle p
    Il garde Devis, Demandes, Scan de plans, Chantiers et Tâches désactivés, car ces modules ne correspondent pas au parcours normal d'un salon.
 4. Le provisioning crée notamment : les **3 employés** Sophie, Karim et Léa, **10 prestations**, **5 produits**, des ventes POS, **3 forfaits**, l'historique fidélité, `RENTREE20`, la campagne `WINBACK`, du contenu Assistant/Social et un lien public de réservation actif.
 5. Langue : **fr** · Fuseau : **America/Toronto** · Équipe : **3**
-6. Accès supplémentaires : coche **Manager**, **Front desk**, **Staff**
+6. Accès supplémentaires : prépare **Front desk** et **Staff**, les deux rôles supplémentaires fournis par ce preset
 7. Lance le provisioning → attends la fin (queue worker actif)
-8. Sur la fiche de l'espace, récupère **l'email + mot de passe owner** et les identifiants des 3 rôles
+8. Sur la fiche de l'espace, récupère **l'email + mot de passe owner** et les identifiants des 2 accès supplémentaires
 
 ### Le combo idéal pour la vidéo
 
@@ -130,7 +132,7 @@ Le module réservation prend tout son sens quand on voit **plusieurs points de v
 
 | Symptôme | Cause | Correctif |
 |---|---|---|
-| Espace de démo bloqué « en attente » | Pas de queue worker | `php artisan queue:work` |
+| Espace de démo bloqué « en attente » | Pas de queue worker | `herd php artisan queue:work` |
 | Pas de bouton « Ouvrir le kiosque » | Mode file hybride désactivé | Paramètres → Réservations → *Activer le mode file hybride* |
 | Aucun créneau proposé au client | Pas de disponibilité hebdo définie | Paramètres → Réservations → Disponibilités hebdomadaires |
 | Menu Réservations absent | Feature `reservations` inactive | Le secteur doit être `salon` (ou activer la feature côté Super Admin → Espaces → Features) |
@@ -213,7 +215,7 @@ Le preset `salon_eclat_complete` provisionne ce jeu de données. Il est calibré
 
 | Code | Offre | Fenêtre |
 |---|---|---|
-| `RENTREE20` | -20 % sur toute coloration | 15 août → 15 septembre |
+| `RENTREE20` | -20 % sur **Couleur racines**, minimum 75 $ | Dates relatives : 7 jours avant → 30 jours après le provisioning |
 
 ---
 
@@ -293,7 +295,7 @@ Cette partie **est** le test de la plateforme. Chaque ligne cochée = une foncti
 - [ ] `/campaign-automations` — créer une règle automatique
 - [ ] `/social` (Malikia Pulse) — parcourir : Comptes, Composer, Calendrier, Voix de marque, Médias, Templates, Autopilot, À valider
 - [ ] Générer un post « Nouveau balayage », le programmer, le passer en approbation
-- [ ] `/settings/assistant` + `/knowledge` — alimenter la base de connaissances, tester l'assistant IA
+- [ ] `/admin/ai-assistant/settings` + `/admin/ai-assistant/knowledge` — alimenter la base de connaissances, tester l'assistant IA
 - [ ] Ouvrir l'assistant IA public `/public/ai-assistant/{salon}` et poser « Vous êtes ouverts samedi ? »
 
 ## 3.6 Vitrine publique
@@ -983,6 +985,9 @@ Coupe : Actes 1, 2, 7 — le prospect qui a déjà parlé avec toi n'a plus beso
 | Paramètres entreprise | `/settings/company` |
 | Rôles & permissions | `/settings/roles-permissions` |
 | Facturation plateforme | `/settings/billing` |
+| Assistant IA — réglages | `/admin/ai-assistant/settings` |
+| Assistant IA — connaissances | `/admin/ai-assistant/knowledge` |
+| Assistant IA — conversations | `/admin/ai-assistant/conversations` |
 | Assistant IA public | `/public/ai-assistant/{entreprise}` |
 | Super Admin — Espaces de démo | `/super-admin/demo-workspaces` |
 
