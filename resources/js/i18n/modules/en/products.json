@@ -359,6 +359,7 @@
       "selected_image": "Selected image"
     },
     "images": {
+      "additional": "Additional images",
       "primary": "Primary",
       "set_primary": "Set as primary"
     },

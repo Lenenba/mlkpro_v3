@@ -12,6 +12,10 @@ const props = defineProps({
     type: String,
     default: 'Upload an image',
   },
+  allowedExtensions: {
+    type: Array,
+    default: () => ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'],
+  },
 });
 
 // Événements
@@ -28,6 +32,12 @@ const progress = ref(0); // Progression fictive (par exemple pour l'upload)
 const errorMessage = ref('');
 const isDragging = ref(false);
 const showProgress = computed(() => file.value instanceof File);
+const normalizedAllowedExtensions = computed(() => (
+  props.allowedExtensions.map((extension) => String(extension).replace(/^\./, '').toLowerCase())
+));
+const acceptedFileTypes = computed(() => (
+  normalizedAllowedExtensions.value.map((extension) => `.${extension}`).join(',')
+));
 
 const previewName = computed(() => {
   if (file.value instanceof File) {
@@ -79,6 +89,14 @@ const processSelectedFile = async (selectedFile, resetInput = null) => {
   const extension = selectedFile.name?.split('.').pop()?.toLowerCase() || '';
   if (extension === 'svg' || mime === 'image/svg' || mime === 'image/svg+xml') {
     errorMessage.value = 'SVG images are not allowed.';
+    if (resetInput) {
+      resetInput.value = '';
+    }
+    return;
+  }
+
+  if (!normalizedAllowedExtensions.value.includes(extension)) {
+    errorMessage.value = `Unsupported image format. Allowed: ${normalizedAllowedExtensions.value.join(', ')}.`;
     if (resetInput) {
       resetInput.value = '';
     }
@@ -285,7 +303,7 @@ watch(
     <!-- Champ caché pour sélectionner le fichier -->
     <input
       type="file"
-      accept="image/jpeg,image/png,image/gif,image/bmp,image/webp"
+      :accept="acceptedFileTypes"
       class="sr-only"
       @change="handleFileChange"
       ref="input"

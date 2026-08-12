@@ -3,13 +3,12 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
-import DropzoneInput from '@/Components/DropzoneInput.vue';
+import CustomerMediaFields from '@/Components/Customer/CustomerMediaFields.vue';
 import InputError from '@/Components/InputError.vue';
 import {
-    avatarIconPresets,
-    companyIconPresets,
-    defaultAvatarIcon,
-    defaultCompanyIcon,
+    customerIconPresetsForType,
+    defaultCustomerIconForType,
+    isCustomerIconPreset,
 } from '@/utils/iconPresets';
 import {
     buildCustomerClientTypeOptions,
@@ -20,7 +19,7 @@ import {
 import { assignGeoapifyAddress, useGeoapifyAddressAutocomplete } from '@/Composables/useGeoapifyAddressAutocomplete';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 import { useForm, Head, usePage } from '@inertiajs/vue3';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 
@@ -93,24 +92,17 @@ const resolveBillingMode = (billingMode) => {
     return billingMode || 'end_of_job';
 };
 
-const iconPresetsForClientType = (clientType) => (
-    clientType === CUSTOMER_CLIENT_TYPE_COMPANY ? companyIconPresets : avatarIconPresets
-);
-const defaultIconForClientType = (clientType) => (
-    clientType === CUSTOMER_CLIENT_TYPE_COMPANY ? defaultCompanyIcon : defaultAvatarIcon
-);
-const isPresetIcon = (value) => [...companyIconPresets, ...avatarIconPresets].includes(value);
 const initialLogoPath = props.customer?.logo_url || props.customer?.logo || '';
-const initialLogoIconCandidate = isPresetIcon(props.customer?.logo)
+const initialLogoIconCandidate = isCustomerIconPreset(props.customer?.logo)
     ? props.customer.logo
-    : (isPresetIcon(initialLogoPath) ? initialLogoPath : '');
-const initialLogoIcon = iconPresetsForClientType(initialClientType).includes(initialLogoIconCandidate)
+    : (isCustomerIconPreset(initialLogoPath) ? initialLogoPath : '');
+const initialLogoIcon = customerIconPresetsForType(initialClientType).includes(initialLogoIconCandidate)
     ? initialLogoIconCandidate
     : '';
 const defaultLogoIcon = initialLogoIcon || (
-    isCreating || initialLogoIconCandidate ? defaultIconForClientType(initialClientType) : ''
+    isCreating || initialLogoIconCandidate ? defaultCustomerIconForType(initialClientType) : ''
 );
-const initialLogoPreview = isPresetIcon(initialLogoPath) ? '' : initialLogoPath;
+const initialLogoPreview = isCustomerIconPreset(initialLogoPath) ? '' : initialLogoPath;
 
 const resolvePrimaryProperty = () => {
     const properties = props.customer?.properties;
@@ -161,62 +153,11 @@ const form = useForm({
 
 const isCompanyClient = computed(() => form.client_type === CUSTOMER_CLIENT_TYPE_COMPANY);
 const maxBirthDate = new Date().toISOString().slice(0, 10);
-const logoIconPresets = computed(() => iconPresetsForClientType(form.client_type));
-const currentDefaultLogoIcon = computed(() => defaultIconForClientType(form.client_type));
-const logoFieldLabel = computed(() => (
-    isCompanyClient.value
-        ? t('customers.form.fields.company_logo')
-        : t('customers.form.fields.profile_photo')
-));
-const uploadLogoLabel = computed(() => (
-    isCompanyClient.value
-        ? t('customers.form.fields.upload_company_logo')
-        : t('customers.form.fields.upload_profile_photo')
-));
-const chooseLogoIconLabel = computed(() => (
-    isCompanyClient.value
-        ? t('customers.form.fields.choose_company_icon')
-        : t('customers.form.fields.choose_profile_icon')
-));
-const logoIconAlt = computed(() => (
-    isCompanyClient.value
-        ? t('customers.form.fields.company_icon_alt')
-        : t('customers.form.fields.profile_icon_alt')
-));
 const contactSectionTitle = computed(() => (
     isCompanyClient.value
         ? t('customers.form.sections.main_contact')
         : t('customers.form.sections.contact_details')
 ));
-
-const selectLogoIcon = (icon) => {
-    form.logo_icon = icon;
-    form.logo = null;
-};
-
-const resetLogoIcon = () => {
-    form.logo = null;
-    form.logo_icon = currentDefaultLogoIcon.value;
-};
-
-watch(() => form.logo, (value) => {
-    if (value instanceof File) {
-        form.logo_icon = '';
-    } else if (!value && !form.logo_icon) {
-        form.logo_icon = currentDefaultLogoIcon.value;
-    }
-});
-
-watch(() => form.client_type, (clientType) => {
-    if (form.logo instanceof File || (typeof form.logo === 'string' && form.logo.trim() !== '')) {
-        form.logo_icon = '';
-        return;
-    }
-
-    if (!iconPresetsForClientType(clientType).includes(form.logo_icon)) {
-        form.logo_icon = defaultIconForClientType(clientType);
-    }
-});
 
 const performSubmit = ({ createAnother = false } = {}) => {
     const routeName = props.customer?.id ? 'customer.update' : 'customer.store';
@@ -402,41 +343,14 @@ const {
                             </div>
                         </div>
 
-                        <div class="mt-4 space-y-2">
-                            <label class="text-sm font-semibold text-stone-800 dark:text-white">{{ logoFieldLabel }}</label>
-                            <DropzoneInput v-model="form.logo" :label="uploadLogoLabel" />
-                            <InputError class="mt-1" :message="form.errors.logo" />
-                            <div class="mt-3 space-y-2">
-                                <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ chooseLogoIconLabel }}
-                                </p>
-                                <div class="grid grid-cols-4 gap-2">
-                                    <button
-                                        v-for="icon in logoIconPresets"
-                                        :key="icon"
-                                        type="button"
-                                        @click="selectLogoIcon(icon)"
-                                        class="relative flex items-center justify-center rounded-sm border border-stone-200 bg-white p-2 transition hover:border-green-500 dark:border-neutral-700 dark:bg-neutral-900"
-                                        :class="form.logo_icon === icon ? 'ring-2 ring-green-500 border-green-500' : ''"
-                                    >
-                                        <img :src="icon" :alt="logoIconAlt" class="size-10" loading="lazy" decoding="async" />
-                                        <span
-                                            v-if="icon === currentDefaultLogoIcon"
-                                            class="absolute top-1 right-1 rounded-full bg-green-600 px-1.5 py-0.5 text-[10px] font-semibold text-white"
-                                        >
-                                            {{ $t('customers.form.fields.default_icon') }}
-                                        </span>
-                                    </button>
-                                </div>
-                                <div v-if="form.logo_icon && form.logo_icon !== currentDefaultLogoIcon" class="flex justify-end">
-                                    <button type="button" @click="resetLogoIcon"
-                                        class="text-xs font-semibold text-stone-600 hover:text-stone-800 dark:text-neutral-400 dark:hover:text-neutral-200">
-                                        {{ $t('customers.form.fields.reset_icon') }}
-                                    </button>
-                                </div>
-                                <InputError class="mt-1" :message="form.errors.logo_icon" />
-                            </div>
-                        </div>
+                        <CustomerMediaFields
+                            v-model:logo="form.logo"
+                            v-model:logoIcon="form.logo_icon"
+                            class="mt-4"
+                            :client-type="form.client_type"
+                            :logo-error="form.errors.logo"
+                            :logo-icon-error="form.errors.logo_icon"
+                        />
                         <h2 class="pt-4 text-sm my-2 font-bold text-stone-800 dark:text-white">{{ contactSectionTitle }}</h2>
                         <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                             <div>

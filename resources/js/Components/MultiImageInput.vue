@@ -31,10 +31,20 @@ const props = defineProps({
         type: String,
         default: 'Set as primary',
     },
+    allowedExtensions: {
+        type: Array,
+        default: () => ['jpg', 'jpeg', 'png', 'webp'],
+    },
 });
 
 const emit = defineEmits(['update:files', 'update:removedIds', 'update:primaryId']);
 const errorMessage = ref('');
+const normalizedAllowedExtensions = computed(() => (
+    props.allowedExtensions.map((extension) => String(extension).replace(/^\./, '').toLowerCase())
+));
+const acceptedFileTypes = computed(() => (
+    normalizedAllowedExtensions.value.map((extension) => `.${extension}`).join(',')
+));
 
 const visibleExisting = computed(() =>
     props.existing.filter((image) => !props.removedIds.includes(image.id)),
@@ -54,6 +64,12 @@ const addFiles = async (event) => {
     errorMessage.value = '';
     const processed = [];
     for (const file of selected) {
+        const extension = file.name?.split('.').pop()?.toLowerCase() || '';
+        if (!normalizedAllowedExtensions.value.includes(extension)) {
+            errorMessage.value = `Unsupported image format. Allowed: ${normalizedAllowedExtensions.value.join(', ')}.`;
+            continue;
+        }
+
         const result = await resizeImageFile(file, {
             maxDimension: MEDIA_LIMITS.maxImageDimension,
             maxBytes: MEDIA_LIMITS.maxImageBytes,
@@ -153,7 +169,7 @@ const previewUrl = (file) => {
                 class="flex items-center justify-center h-24 border border-dashed border-stone-300 rounded-sm text-sm text-stone-500 cursor-pointer hover:border-stone-400 dark:border-neutral-600 dark:text-neutral-400"
             >
                 Add images
-                <input type="file" class="hidden" multiple accept="image/*" @change="addFiles" />
+                <input type="file" class="hidden" multiple :accept="acceptedFileTypes" @change="addFiles" />
             </label>
         </div>
     </div>

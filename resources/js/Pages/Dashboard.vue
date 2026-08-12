@@ -95,6 +95,9 @@ const greeting = computed(() =>
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
 const showServices = computed(() => companyType.value !== 'products');
 const { hasAnyPermission } = usePermissions();
+const teamRole = computed(() => page.props.auth?.account?.team?.role || null);
+const isSeller = computed(() => teamRole.value === 'seller');
+const canSales = computed(() => hasAnyPermission(['sales.manage', 'sales.pos']));
 const canQuotes = computed(() => hasAnyPermission(['quotes.view', 'quotes.edit', 'quotes.send']));
 const canSalesManage = computed(() => hasAnyPermission(['sales.manage']));
 const canJobs = computed(() => hasAnyPermission(['jobs.view', 'jobs.edit']));
@@ -122,6 +125,13 @@ const canCampaigns = computed(() => hasAnyPermission([
 const hasCatalogFeature = computed(() =>
     showServices.value ? hasFeature('services') : hasFeature('products')
 );
+const canQuickCreateCustomer = computed(() => (
+    !isSeller.value
+    && (
+        (isOwner.value && showServices.value)
+        || (companyType.value === 'products' && hasFeature('sales') && canSales.value)
+    )
+));
 const hasPlanScans = computed(() => showServices.value && hasFeature('quotes') && hasFeature('plan_scans'));
 const hasTopAnnouncements = computed(() => (props.announcements || []).length > 0);
 const hasQuickAnnouncements = computed(() => (props.quickAnnouncements || []).length > 0);
@@ -816,15 +826,17 @@ const showPlanScanCta = computed(() => hasPlanScans.value);
 const suggestionActions = computed(() => {
     const actions = [];
 
-    actions.push({
-        key: 'customer',
-        label: t('dashboard.suggestions.create_customer'),
-        type: 'overlay',
-        overlay: '#hs-quick-create-customer',
-        priority: customersEmpty.value ? 1 : 5,
-    });
+    if (canQuickCreateCustomer.value) {
+        actions.push({
+            key: 'customer',
+            label: t('dashboard.suggestions.create_customer'),
+            type: 'overlay',
+            overlay: '#hs-quick-create-customer',
+            priority: customersEmpty.value ? 1 : 5,
+        });
+    }
 
-    if (hasCatalogFeature.value) {
+    if (hasCatalogFeature.value && isOwner.value) {
         actions.push({
             key: 'catalog',
             label: showServices.value

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Product;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -45,7 +46,18 @@ class ServiceRequest extends FormRequest
             'remove_image' => 'nullable|boolean',
             'materials' => 'nullable|array',
             'materials.*.id' => 'nullable|integer',
-            'materials.*.product_id' => 'nullable|integer|exists:products,id',
+            'materials.*.product_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('products', 'id')->where(function ($query) use ($accountId) {
+                    if (! $accountId) {
+                        return;
+                    }
+
+                    $query->where('user_id', $accountId)
+                        ->where('item_type', Product::ITEM_TYPE_PRODUCT);
+                }),
+            ],
             'materials.*.label' => 'nullable|string|max:255',
             'materials.*.description' => 'nullable|string|max:2000',
             'materials.*.unit' => 'nullable|string|max:50',

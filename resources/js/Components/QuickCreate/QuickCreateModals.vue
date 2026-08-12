@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import axios from 'axios';
+import { usePage } from '@inertiajs/vue3';
 import Modal from '@/Components/UI/Modal.vue';
 import ProductQuickForm from '@/Components/QuickCreate/ProductQuickForm.vue';
 import ServiceQuickForm from '@/Components/QuickCreate/ServiceQuickForm.vue';
@@ -11,8 +12,10 @@ import { useI18n } from 'vue-i18n';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
 const { hasFeature } = useAccountFeatures();
-const canProducts = computed(() => hasFeature('products'));
-const canServices = computed(() => hasFeature('services'));
+const page = usePage();
+const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
+const canProducts = computed(() => isOwner.value && hasFeature('products'));
+const canServices = computed(() => isOwner.value && hasFeature('services'));
 const canQuotes = computed(() => hasFeature('quotes'));
 const canRequests = computed(() => hasFeature('requests'));
 const canSales = computed(() => hasFeature('sales'));
@@ -31,18 +34,22 @@ const requestCustomers = ref([]);
 const requestProspects = ref([]);
 const quoteCustomers = ref([]);
 const categories = ref([]);
+const materialProducts = ref([]);
 const loadingRequestCustomers = ref(false);
 const loadingRequestProspects = ref(false);
 const loadingQuoteCustomers = ref(false);
 const loadingCategories = ref(false);
+const loadingServiceOptions = ref(false);
 const requestCustomerError = ref('');
 const requestProspectError = ref('');
 const quoteCustomerError = ref('');
 const categoryError = ref('');
+const serviceOptionsError = ref('');
 const requestCustomersLoaded = ref(false);
 const requestProspectsLoaded = ref(false);
 const quoteCustomersLoaded = ref(false);
 const categoriesLoaded = ref(false);
+const serviceOptionsLoaded = ref(false);
 
 const { t } = useI18n();
 
@@ -129,6 +136,29 @@ const fetchCategories = async () => {
     }
 };
 
+const fetchServiceOptions = async () => {
+    if (loadingServiceOptions.value) {
+        return;
+    }
+
+    loadingServiceOptions.value = true;
+    serviceOptionsError.value = '';
+
+    try {
+        const response = await axios.get(route('service.options'));
+        categories.value = Array.isArray(response.data?.categories) ? response.data.categories : [];
+        materialProducts.value = Array.isArray(response.data?.material_products)
+            ? response.data.material_products
+            : [];
+        categoriesLoaded.value = true;
+        serviceOptionsLoaded.value = true;
+    } catch (error) {
+        serviceOptionsError.value = t('quick_create.errors.load_categories');
+    } finally {
+        loadingServiceOptions.value = false;
+    }
+};
+
 const fetchProspects = async () => {
     if (prospectScopeState.loading.value) {
         return;
@@ -184,6 +214,14 @@ const ensureCategoriesLoaded = async () => {
     }
 
     await fetchCategories();
+};
+
+const ensureServiceOptionsLoaded = async () => {
+    if (serviceOptionsLoaded.value || !canServices.value) {
+        return;
+    }
+
+    await fetchServiceOptions();
 };
 
 const buildRequestCustomer = (payload) => {
@@ -326,16 +364,17 @@ const handleCategoryCreated = (category) => {
         </div>
     </Modal>
 
-    <Modal v-if="canServices" :title="$t('quick_create.new_service')" :id="'hs-quick-create-service'" @open="ensureCategoriesLoaded">
-        <div v-if="loadingCategories" class="text-sm text-stone-500 dark:text-neutral-400">
+    <Modal v-if="canServices" :title="$t('quick_create.new_service')" :id="'hs-quick-create-service'" @open="ensureServiceOptionsLoaded">
+        <div v-if="loadingServiceOptions" class="text-sm text-stone-500 dark:text-neutral-400">
             {{ $t('quick_create.loading_categories') }}
         </div>
-        <div v-else-if="categoryError" class="text-sm text-red-600">
-            {{ categoryError }}
+        <div v-else-if="serviceOptionsError" class="text-sm text-red-600">
+            {{ serviceOptionsError }}
         </div>
         <div v-else>
             <ServiceQuickForm
                 :categories="categories"
+                :material-products="materialProducts"
                 :overlay-id="'#hs-quick-create-service'"
                 @category-created="handleCategoryCreated"
             />

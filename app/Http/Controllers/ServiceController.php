@@ -99,6 +99,11 @@ class ServiceController extends Controller
                 ->active()
                 ->orderBy('name')
                 ->get(['id', 'name']),
+            'material_products' => Product::query()
+                ->products()
+                ->byUser($accountId)
+                ->orderBy('name')
+                ->get(['id', 'name', 'unit', 'price']),
         ]);
     }
 
@@ -264,9 +269,12 @@ class ServiceController extends Controller
         app(UsageLimitService::class)->enforceLimit($request->user(), 'services');
 
         $validated = $request->validated();
+        $materials = $validated['materials'] ?? [];
+        unset($validated['materials'], $validated['remove_image']);
         $validated['item_type'] = Product::ITEM_TYPE_SERVICE;
         $validated['stock'] = 0;
         $validated['minimum_stock'] = 0;
+        $validated['image'] = FileHandler::handleImageUpload('services', $request, 'image');
 
         $service = $request->user()->products()->create($validated);
 
@@ -276,11 +284,17 @@ class ServiceController extends Controller
             report($exception);
         }
 
+        if ($request->has('materials')) {
+            $this->syncServiceMaterials($service, $materials);
+        }
+
         return response()->json([
             'service' => [
                 'id' => $service->id,
                 'name' => $service->name,
                 'price' => $service->price,
+                'image' => $service->image,
+                'image_url' => $service->image_url,
             ],
         ], 201);
     }

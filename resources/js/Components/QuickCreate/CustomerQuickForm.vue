@@ -4,11 +4,14 @@ import axios from 'axios';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
+import CustomerMediaFields from '@/Components/Customer/CustomerMediaFields.vue';
 import {
     buildCustomerClientTypeOptions,
     CUSTOMER_CLIENT_TYPE_COMPANY,
     CUSTOMER_CLIENT_TYPE_INDIVIDUAL,
 } from '@/utils/customerClientTypes';
+import { defaultCustomerIconForType } from '@/utils/iconPresets';
+import { toFormData } from '@/utils/formData';
 import { assignGeoapifyAddress, useGeoapifyAddressAutocomplete } from '@/Composables/useGeoapifyAddressAutocomplete';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 import { useI18n } from 'vue-i18n';
@@ -36,22 +39,57 @@ const quotesFeatureEnabled = computed(() => hasFeature('quotes'));
 const jobsFeatureEnabled = computed(() => hasFeature('jobs'));
 const tasksFeatureEnabled = computed(() => hasFeature('tasks'));
 const invoicesFeatureEnabled = computed(() => hasFeature('invoices'));
+const billingModes = computed(() => [
+    ...(tasksFeatureEnabled.value
+        ? [{ id: 'per_task', name: t('customers.form.billing_modes.per_task') }]
+        : []),
+    ...(jobsFeatureEnabled.value
+        ? [{ id: 'per_segment', name: t('customers.form.billing_modes.per_segment') }]
+        : []),
+    {
+        id: 'end_of_job',
+        name: t(jobsFeatureEnabled.value
+            ? 'customers.form.billing_modes.end_of_job'
+            : 'customers.form.billing_modes.end_of_service'),
+    },
+    { id: 'deferred', name: t('customers.form.billing_modes.deferred') },
+]);
+const billingGroupings = computed(() => ([
+    { id: 'single', name: t('customers.form.billing_groupings.single') },
+    { id: 'periodic', name: t('customers.form.billing_groupings.periodic') },
+]));
+const billingCycles = computed(() => ([
+    { id: 'weekly', name: t('customers.form.billing_cycles.weekly') },
+    { id: 'biweekly', name: t('customers.form.billing_cycles.biweekly') },
+    { id: 'monthly', name: t('customers.form.billing_cycles.monthly') },
+    ...(tasksFeatureEnabled.value
+        ? [{ id: 'every_n_tasks', name: t('customers.form.billing_cycles.every_n_tasks') }]
+        : []),
+]));
 
 const form = reactive({
     client_type: CUSTOMER_CLIENT_TYPE_INDIVIDUAL,
     salutation: 'Mr',
     first_name: '',
     last_name: '',
+    birth_date: '',
     email: '',
     phone: '',
     company_name: '',
     registration_number: '',
     industry: '',
+    logo: null,
+    logo_icon: defaultCustomerIconForType(CUSTOMER_CLIENT_TYPE_INDIVIDUAL),
     discount_rate: '',
     portal_access: true,
     description: '',
     refer_by: '',
-    billing_same_as_physical: true,
+    billing_same_as_physical: false,
+    billing_mode: 'end_of_job',
+    billing_cycle: '',
+    billing_grouping: 'single',
+    billing_delay_days: '',
+    billing_date_rule: '',
     auto_accept_quotes: false,
     auto_validate_jobs: false,
     auto_validate_tasks: false,
@@ -83,6 +121,7 @@ const {
 
 const clientTypeOptions = computed(() => buildCustomerClientTypeOptions(t));
 const isCompanyClient = computed(() => form.client_type === CUSTOMER_CLIENT_TYPE_COMPANY);
+const maxBirthDate = new Date().toISOString().slice(0, 10);
 const contactSectionTitle = computed(() => (
     isCompanyClient.value
         ? t('customers.form.sections.main_contact')
@@ -122,6 +161,8 @@ const errorMessages = computed(() => {
     Object.values(errors.value || {}).forEach((value) => {
         if (Array.isArray(value) && value.length) {
             messages.push(value[0]);
+        } else if (typeof value === 'string' && value.length) {
+            messages.push(value);
         }
     });
     if (formError.value) {
@@ -138,16 +179,24 @@ const resetForm = () => {
     form.salutation = 'Mr';
     form.first_name = '';
     form.last_name = '';
+    form.birth_date = '';
     form.email = '';
     form.phone = '';
     form.company_name = '';
     form.registration_number = '';
     form.industry = '';
+    form.logo = null;
+    form.logo_icon = defaultCustomerIconForType(CUSTOMER_CLIENT_TYPE_INDIVIDUAL);
     form.discount_rate = '';
     form.description = '';
     form.refer_by = '';
     form.portal_access = true;
-    form.billing_same_as_physical = true;
+    form.billing_same_as_physical = false;
+    form.billing_mode = 'end_of_job';
+    form.billing_cycle = '';
+    form.billing_grouping = 'single';
+    form.billing_delay_days = '';
+    form.billing_date_rule = '';
     form.auto_accept_quotes = false;
     form.auto_validate_jobs = false;
     form.auto_validate_tasks = false;
@@ -190,6 +239,7 @@ const submit = async () => {
         salutation: form.salutation,
         first_name: form.first_name,
         last_name: form.last_name,
+        birth_date: isCompanyClient.value ? null : (form.birth_date || null),
         email: form.email,
         phone: form.phone,
         company_name: form.company_name,
@@ -201,8 +251,19 @@ const submit = async () => {
         refer_by: form.refer_by,
     };
 
+    if (typeof File !== 'undefined' && form.logo instanceof File) {
+        payload.logo = form.logo;
+    } else if (form.logo_icon) {
+        payload.logo_icon = form.logo_icon;
+    }
+
     if (invoicesFeatureEnabled.value) {
         payload.billing_same_as_physical = Boolean(form.billing_same_as_physical);
+        payload.billing_mode = form.billing_mode;
+        payload.billing_cycle = form.billing_cycle || null;
+        payload.billing_grouping = form.billing_grouping;
+        payload.billing_delay_days = form.billing_delay_days === '' ? null : Number(form.billing_delay_days);
+        payload.billing_date_rule = form.billing_date_rule || null;
     }
     if (quotesFeatureEnabled.value) {
         payload.auto_accept_quotes = Boolean(form.auto_accept_quotes);
@@ -230,7 +291,9 @@ const submit = async () => {
     }
 
     try {
-        const response = await axios.post(route('customer.quick.store'), payload);
+        const response = await axios.post(route('customer.quick.store'), toFormData(payload), {
+            headers: { Accept: 'application/json' },
+        });
         emit('created', response.data);
         if (props.closeOnSuccess) {
             closeOverlay();
@@ -278,6 +341,14 @@ const submit = async () => {
             </div>
         </div>
 
+        <CustomerMediaFields
+            v-model:logo="form.logo"
+            v-model:logoIcon="form.logo_icon"
+            :client-type="form.client_type"
+            :logo-error="errors.logo"
+            :logo-icon-error="errors.logo_icon"
+        />
+
         <div>
             <div class="mb-2 text-sm font-medium text-stone-700 dark:text-neutral-200">{{ contactSectionTitle }}</div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -285,6 +356,13 @@ const submit = async () => {
                 <FloatingInput v-model="form.last_name" :label="$t('customers.form.fields.last_name')" :required="true" />
                 <FloatingInput v-model="form.email" :label="$t('customers.form.fields.email')" :required="true" />
                 <FloatingInput v-model="form.phone" :label="$t('customers.form.fields.phone')" />
+                <FloatingInput
+                    v-if="!isCompanyClient"
+                    v-model="form.birth_date"
+                    type="date"
+                    :max="maxBirthDate"
+                    :label="$t('customers.form.fields.birth_date')"
+                />
                 <FloatingInput v-model="form.discount_rate" type="number" :label="$t('customers.form.fields.discount_rate')" />
             </div>
         </div>
@@ -333,12 +411,12 @@ const submit = async () => {
                 </div>
             </div>
             <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                <FloatingInput v-model="form.properties.street1" :label="$t('customers.properties.fields.street1')" :readonly="true" />
-                <FloatingInput v-model="form.properties.street2" :label="$t('customers.properties.fields.street2')" :readonly="true" />
-                <FloatingInput v-model="form.properties.city" :label="$t('customers.properties.fields.city')" :readonly="true" />
-                <FloatingInput v-model="form.properties.state" :label="$t('customers.properties.fields.state')" :readonly="true" />
-                <FloatingInput v-model="form.properties.zip" :label="$t('customers.properties.fields.zip')" :readonly="true" />
-                <FloatingInput v-model="form.properties.country" :label="$t('customers.properties.fields.country')" :readonly="true" />
+                <FloatingInput v-model="form.properties.street1" :label="$t('customers.properties.fields.street1')" />
+                <FloatingInput v-model="form.properties.street2" :label="$t('customers.properties.fields.street2')" />
+                <FloatingInput v-model="form.properties.city" :label="$t('customers.properties.fields.city')" />
+                <FloatingInput v-model="form.properties.state" :label="$t('customers.properties.fields.state')" />
+                <FloatingInput v-model="form.properties.zip" :label="$t('customers.properties.fields.zip')" />
+                <FloatingInput v-model="form.properties.country" :label="$t('customers.properties.fields.country')" />
             </div>
             <div v-if="invoicesFeatureEnabled" class="mt-3 flex items-center gap-2">
                 <input type="checkbox" v-model="form.billing_same_as_physical"
@@ -377,6 +455,49 @@ const submit = async () => {
                     {{ $t('customers.details.auto_validation.invoices') }}
                 </span>
             </div>
+        </div>
+
+        <div
+            v-if="invoicesFeatureEnabled && (jobsFeatureEnabled || tasksFeatureEnabled)"
+            class="rounded-sm border border-stone-200 p-4 dark:border-neutral-700"
+        >
+            <div class="text-sm font-medium text-stone-700 dark:text-neutral-200">
+                {{ $t('customers.form.sections.billing_preferences') }}
+            </div>
+            <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                <FloatingSelect
+                    v-model="form.billing_mode"
+                    :label="$t('customers.form.billing.mode')"
+                    :options="billingModes"
+                />
+                <FloatingSelect
+                    v-model="form.billing_grouping"
+                    :label="$t('customers.form.billing.grouping')"
+                    :options="billingGroupings"
+                />
+            </div>
+            <div
+                v-if="form.billing_mode === 'per_segment' || form.billing_grouping === 'periodic' || form.billing_mode === 'deferred'"
+                class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2"
+            >
+                <FloatingSelect
+                    v-model="form.billing_cycle"
+                    :label="$t('customers.form.billing.cycle')"
+                    :options="billingCycles"
+                />
+                <FloatingInput
+                    v-if="form.billing_mode === 'deferred'"
+                    v-model="form.billing_delay_days"
+                    type="number"
+                    :label="$t('customers.form.billing.delay_days')"
+                />
+            </div>
+            <FloatingInput
+                v-if="form.billing_mode === 'deferred'"
+                v-model="form.billing_date_rule"
+                class="mt-3"
+                :label="$t('customers.form.billing.date_rule')"
+            />
         </div>
 
         <div v-if="errorMessages.length" class="rounded-sm border border-red-200 bg-red-50 p-3 text-sm text-red-700">

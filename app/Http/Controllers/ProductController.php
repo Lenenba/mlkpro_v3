@@ -6,6 +6,7 @@ use App\Http\Requests\ProductRequest;
 use App\Models\ActivityLog;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\ProductImage;
 use App\Models\Sale;
 use App\Models\User;
 use App\Models\Warehouse;
@@ -463,6 +464,16 @@ class ProductController extends Controller
                 'name' => $product->name,
                 'price' => $product->price,
                 'stock' => $product->stock,
+                'image' => $product->image,
+                'image_url' => $product->image_url,
+                'images' => $product->images
+                    ->sortByDesc(fn (ProductImage $image): int => (int) $image->is_primary)
+                    ->values()
+                    ->map(fn (ProductImage $image) => [
+                        'id' => $image->id,
+                        'url' => $image->url,
+                        'is_primary' => (bool) $image->is_primary,
+                    ]),
             ],
         ], 201);
     }

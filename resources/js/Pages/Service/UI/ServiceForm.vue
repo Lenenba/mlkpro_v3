@@ -321,7 +321,11 @@ const submitAndCreateAnother = () => performSubmit({ keepOpen: true });
         </div>
 
         <FloatingTextarea v-model="form.description" :label="$t('services.form.description')" />
-        <DropzoneInput v-model="form.image" :label="$t('services.form.image')" />
+        <DropzoneInput
+            v-model="form.image"
+            :label="$t('services.form.image')"
+            :allowed-extensions="['jpg', 'jpeg', 'png', 'webp']"
+        />
 
         <div class="space-y-3">
             <div class="flex items-center justify-between">

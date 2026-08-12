@@ -667,7 +667,11 @@ const buttonLabel = computed(() => (props.product
                         </div>
                     </div>
                     <FloatingTextarea v-model="form.description" :label="$t('products.form.description')" />
-                    <DropzoneInput v-model="form.image" :label="$t('products.form.primary_image')" />
+                    <DropzoneInput
+                        v-model="form.image"
+                        :label="$t('products.form.primary_image')"
+                        :allowed-extensions="['jpg', 'jpeg', 'png', 'webp']"
+                    />
                     <div v-if="aiImageVisible" class="mt-2 rounded-sm border border-dashed border-emerald-200 bg-emerald-50/40 p-3 text-xs text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-200">
                         <div class="flex flex-wrap items-center justify-between gap-2">
                             <span class="font-semibold">{{ $t('products.ai.generate') }}</span>

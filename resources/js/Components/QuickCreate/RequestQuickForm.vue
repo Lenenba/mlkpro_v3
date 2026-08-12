@@ -8,6 +8,7 @@ import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
 import ProspectDuplicateAlert from '@/Components/Prospects/ProspectDuplicateAlert.vue';
 import CustomerQuickForm from '@/Components/QuickCreate/CustomerQuickForm.vue';
+import { assignGeoapifyAddress, useGeoapifyAddressAutocomplete } from '@/Composables/useGeoapifyAddressAutocomplete';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -92,6 +93,25 @@ const form = useForm({
     contact_name: '',
     contact_email: '',
     contact_phone: '',
+    street1: '',
+    street2: '',
+    city: '',
+    state: '',
+    zip: '',
+    country: '',
+});
+
+const {
+    query: addressQuery,
+    suggestions: addressSuggestions,
+    isSearching: isSearchingAddress,
+    searchAddress,
+    selectAddress,
+    resetSearch: resetAddressSearch,
+} = useGeoapifyAddressAutocomplete({
+    onSelect: (details) => {
+        assignGeoapifyAddress(form, details);
+    },
 });
 
 const customers = computed(() => (Array.isArray(props.customers) ? props.customers : []));
@@ -383,6 +403,12 @@ watch(
         form.contact_name,
         form.contact_email,
         form.contact_phone,
+        form.street1,
+        form.street2,
+        form.city,
+        form.state,
+        form.zip,
+        form.country,
         relationMode.value,
     ],
     () => {
@@ -445,6 +471,13 @@ const resetForm = () => {
     form.source = 'manual';
     form.is_serviceable = '';
     form.budget = '';
+    form.street1 = '';
+    form.street2 = '';
+    form.city = '';
+    form.state = '';
+    form.zip = '';
+    form.country = '';
+    resetAddressSearch();
 };
 
 const shouldIgnoreDuplicates = (value) => value === true;
@@ -462,6 +495,12 @@ const buildPayload = (ignoreDuplicates = false) => ({
     contact_name: form.contact_name || null,
     contact_email: form.contact_email || null,
     contact_phone: form.contact_phone || null,
+    street1: form.street1 || null,
+    street2: form.street2 || null,
+    city: form.city || null,
+    state: form.state || null,
+    postal_code: form.zip || null,
+    country: form.country || null,
     ignore_duplicates: shouldIgnoreDuplicates(ignoreDuplicates),
     meta: {
         budget: form.budget === '' ? null : Number(form.budget),
@@ -732,6 +771,91 @@ const submit = async (ignoreDuplicates = false) => {
             </div>
 
             <FloatingInput v-model="form.contact_email" :label="$t('requests.quick_form.contact_email_optional')" />
+
+            <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                    {{ $t('requests.form.address_title') }}
+                </h3>
+
+                <div class="relative mt-3">
+                    <div class="relative">
+                        <div class="pointer-events-none absolute inset-y-0 start-0 z-20 flex items-center ps-3.5">
+                            <svg
+                                class="size-4 shrink-0 text-stone-400 dark:text-white/60"
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="24"
+                                height="24"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            >
+                                <circle cx="11" cy="11" r="8" />
+                                <path d="m21 21-4.3-4.3" />
+                            </svg>
+                        </div>
+                        <input
+                            v-model="addressQuery"
+                            class="block w-full rounded-sm border-stone-200 py-3 pe-4 ps-10 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                            type="text"
+                            role="combobox"
+                            :aria-expanded="addressSuggestions.length > 0"
+                            :placeholder="$t('requests.form.address_search_placeholder')"
+                            @input="searchAddress"
+                        >
+                    </div>
+
+                    <div
+                        v-if="addressSuggestions.length"
+                        class="absolute z-50 w-full rounded-sm bg-white shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:bg-neutral-800"
+                    >
+                        <div class="max-h-[280px] overflow-y-auto p-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-stone-300 [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar]:w-2 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500 dark:[&::-webkit-scrollbar-track]:bg-neutral-700">
+                            <button
+                                v-for="suggestion in addressSuggestions"
+                                :key="suggestion.id"
+                                type="button"
+                                class="block w-full cursor-pointer rounded-sm px-3 py-2 text-left text-sm text-stone-800 hover:bg-stone-100 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                                @click="selectAddress(suggestion.details)"
+                            >
+                                {{ suggestion.label }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="isSearchingAddress" class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                    {{ $t('requests.form.address_searching') }}
+                </div>
+
+                <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                        <FloatingInput v-model="form.street1" :label="$t('requests.customer_conversion.fields.street1')" />
+                        <InputError class="mt-1" :message="form.errors.street1" />
+                    </div>
+                    <div>
+                        <FloatingInput v-model="form.street2" :label="$t('requests.customer_conversion.fields.street2')" />
+                        <InputError class="mt-1" :message="form.errors.street2" />
+                    </div>
+                    <div>
+                        <FloatingInput v-model="form.city" :label="$t('requests.customer_conversion.fields.city')" />
+                        <InputError class="mt-1" :message="form.errors.city" />
+                    </div>
+                    <div>
+                        <FloatingInput v-model="form.state" :label="$t('requests.customer_conversion.fields.state')" />
+                        <InputError class="mt-1" :message="form.errors.state" />
+                    </div>
+                    <div>
+                        <FloatingInput v-model="form.zip" :label="$t('requests.customer_conversion.fields.postal_code')" />
+                        <InputError class="mt-1" :message="form.errors.postal_code" />
+                    </div>
+                    <div>
+                        <FloatingInput v-model="form.country" :label="$t('requests.customer_conversion.fields.country')" />
+                        <InputError class="mt-1" :message="form.errors.country" />
+                    </div>
+                </div>
+            </div>
 
             <div>
                 <FloatingTextarea v-model="form.description" :label="$t('requests.quick_form.description_optional')" />
