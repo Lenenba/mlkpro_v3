@@ -1346,12 +1346,12 @@ watch(activeTab, (value) => {
                     </div>
 
                     <div>
-                        <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                            {{ $t('settings.company.fields.description_optional') }}
-                        </label>
-                        <textarea v-model="form.company_description"
-                            class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                            rows="3" />
+                        <FloatingTextarea
+                            v-model="form.company_description"
+                            :label="$t('settings.company.fields.description_optional')"
+                            rows="3"
+                            maxlength="2000"
+                        />
                         <InputError class="mt-1" :message="form.errors.company_description" />
                     </div>
 
@@ -1396,20 +1396,28 @@ watch(activeTab, (value) => {
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                             <FloatingSelect
+                                id="settings-company-currency"
                                 v-model="form.currency_code"
-                                :label="'Main business currency'"
+                                :label="$t('settings.company.currency.label')"
                                 :options="currencyOptions"
                                 :disabled="!company.can_change_currency"
+                                :aria-invalid="Boolean(form.errors.currency_code)"
+                                :aria-describedby="form.errors.currency_code ? 'settings-company-currency-error' : undefined"
                             />
                             <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
                                 <span v-if="company.can_change_currency">
-                                    New catalog items and Stripe online charges use this currency.
+                                    {{ $t('settings.company.currency.change_hint') }}
                                 </span>
                                 <span v-else>
-                                    Currency changes are locked because business activity already exists.
+                                    {{ $t('settings.company.currency.locked_hint') }}
                                 </span>
                             </p>
-                            <InputError class="mt-1" :message="form.errors.currency_code" />
+                            <InputError
+                                id="settings-company-currency-error"
+                                class="mt-1"
+                                role="alert"
+                                :message="form.errors.currency_code"
+                            />
                         </div>
                         <div>
                             <FloatingSelect

@@ -1,0 +1,20 @@
+{
+  "dropzone": {
+    "upload_image": "Upload an image",
+    "image_preview": "Image preview",
+    "current_image": "Current image",
+    "preview_alt": "Preview",
+    "replace": "Replace",
+    "remove": "Remove",
+    "attached_hint": "This image is already attached. You can replace it or remove it.",
+    "drop_here": "Drop your file here or",
+    "browse": "browse",
+    "optimization_hint": "Large images are optimized automatically.",
+    "errors": {
+      "svg_not_allowed": "SVG images are not allowed.",
+      "unsupported_format": "Unsupported image format. Allowed: {formats}.",
+      "processing_failed": "Image processing failed.",
+      "too_large": "Image too large. Max {size}."
+    }
+  }
+}

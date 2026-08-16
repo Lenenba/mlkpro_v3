@@ -39,6 +39,7 @@ use App\Services\Capacity\CapacityRunContextService;
 use App\Services\Capacity\CapacityRunnerResultService;
 use App\Services\Capacity\CapacityRunnerResultValidationException;
 use App\Services\Capacity\CapacityScenarioCatalog;
+use App\Services\ConfiguredPlanCatalogReconciler;
 use App\Services\DailyAgendaService;
 use App\Services\Demo\DemoWorkspacePurgeService;
 use App\Services\ExpenseRecurringService;
@@ -1224,6 +1225,22 @@ Artisan::command('billing:stripe-sync-env
 
     return 0;
 })->purpose('Read existing Stripe plan prices and sync .env and plan_prices without creating new Stripe prices');
+
+Artisan::command('billing:reconcile-plan-catalog', function (
+    ConfiguredPlanCatalogReconciler $reconciler
+): int {
+    $result = $reconciler->reconcile();
+
+    $this->table(['Action', 'Count'], [
+        ['Plans created', $result['plans_created']],
+        ['Prices created', $result['prices_created']],
+        ['Prices repaired', $result['prices_repaired']],
+        ['Custom prices preserved', $result['custom_prices_preserved']],
+    ]);
+    $this->info('Configured plan catalog reconciled locally without contacting the billing provider.');
+
+    return 0;
+})->purpose('Safely reconcile configured plans and prices without overwriting custom Stripe mappings');
 
 Artisan::command('billing:sync-plan-entitlements
     {--plans= : Optional comma-separated list of plan keys}

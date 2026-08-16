@@ -12,14 +12,14 @@
     },
     "intro": {
       "eyebrow": "Terms and conditions",
-      "title": "Terms of Use for Malikia pro",
-      "updated": "Last update: {date}. This page is a template and should be reviewed before publication.",
+      "title": "Terms of Use for Malikia Pro",
+      "updated": "Last updated: {date}.",
       "legal": "Legal name: Malikia Pro."
     },
     "sections": {
       "scope": {
         "title": "1. Scope",
-        "body": "These terms govern access to Malikia pro, a platform that helps businesses manage customers, quotes, jobs, tasks, invoices, products, and plan scans."
+        "body": "These terms govern access to Malikia Pro, a platform that helps businesses manage customers, quotes, jobs, tasks, invoices, products, and plan scans."
       },
       "accounts": {
         "title": "2. Accounts",
@@ -31,7 +31,7 @@
       },
       "data": {
         "title": "3. Data ownership",
-        "body": "Your company retains ownership of its data. By using Malikia pro, you grant the platform permission to store, process, and display your data as needed to provide the service."
+        "body": "Your company retains ownership of its data. By using Malikia Pro, you grant the platform permission to store, process, and display your data as needed to provide the service."
       },
       "pricing": {
         "title": "4. Quotes and pricing data",
@@ -59,7 +59,7 @@
       },
       "liability": {
         "title": "8. Limitation of liability",
-        "body": "Malikia pro is not liable for indirect damages, lost profits, or data loss beyond the limits required by law. Use the service at your own risk."
+        "body": "Malikia Pro is not liable for indirect damages, lost profits, or data loss beyond the limits required by law. Use the service at your own risk."
       },
       "termination": {
         "title": "9. Termination",

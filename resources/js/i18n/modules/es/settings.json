@@ -1,6 +1,11 @@
 {
   "settings": {
     "company": {
+      "currency": {
+        "label": "Moneda principal de la empresa",
+        "change_hint": "Los nuevos elementos del catálogo y los cobros en línea de Stripe utilizarán esta moneda.",
+        "locked_hint": "La moneda ya no se puede modificar porque la empresa tiene actividad comercial."
+      },
       "finance": {
         "title": "Aprobaciones financieras",
         "description": "Configura quien puede aprobar gastos y facturas en los planes de equipo, con limites por rol.",

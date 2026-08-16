@@ -328,6 +328,11 @@
         "title": "Company profile",
         "description": "Identity, address, and company activity."
       },
+      "currency": {
+        "label": "Main business currency",
+        "change_hint": "New catalog items and Stripe online charges will use this currency.",
+        "locked_hint": "The currency cannot be changed because business activity already exists."
+      },
       "store": {
         "title": "Storefront settings",
         "description": "Customize your public store header and featured product.",

@@ -27,6 +27,7 @@ test('maps known page components to their shell and business domains', () => {
     const authDomains = getDomainsForPage('Auth/Login');
     const customerShowDomains = getDomainsForPage('Customer/Show');
     const dashboardDomains = getDomainsForPage('Dashboard');
+    const onboardingDomains = getDomainsForPage('Onboarding/Index');
 
     assert.equal(quoteDomains.includes('quotes'), true);
     assert.equal(quoteDomains.includes('session'), true);
@@ -42,7 +43,71 @@ test('maps known page components to their shell and business domains', () => {
     assert.equal(getDomainsForPage('SuperAdmin/Announcements/Preview').includes('dashboard'), true);
     assert.equal(dashboardDomains.includes('settings'), true);
     assert.equal(dashboardDomains.includes('workspace_hub'), true);
+    assert.equal(onboardingDomains.includes('onboarding'), true);
+    assert.equal(onboardingDomains.includes('terms'), true);
     assert.deepEqual(getDomainsForPage('Future/Unknown'), [...translationModules]);
+});
+
+test('keeps every terms key used by the onboarding modal available in FR, EN, and ES', () => {
+    const componentSource = readFileSync(resolve('resources/js/Components/Legal/TermsContent.vue'), 'utf8');
+    const referencedKeys = [...componentSource.matchAll(/\$t\('([^']+)'/g)]
+        .map((match) => match[1]);
+
+    assert.ok(referencedKeys.length > 0);
+
+    ['fr', 'en', 'es'].forEach((locale) => {
+        const messages = JSON.parse(readFileSync(resolve(`resources/js/i18n/modules/${locale}/terms.json`), 'utf8'));
+
+        referencedKeys.forEach((key) => {
+            const value = key.split('.').reduce((current, segment) => current?.[segment], messages);
+
+            assert.equal(typeof value, 'string', `${locale}:${key}`);
+            assert.notEqual(value.trim(), '', `${locale}:${key}`);
+        });
+    });
+});
+
+test('keeps the terms heading and brand typography presentation-ready', () => {
+    const frenchMessages = JSON.parse(readFileSync(resolve('resources/js/i18n/modules/fr/terms.json'), 'utf8'));
+
+    assert.equal(frenchMessages.terms.meta.title, "Conditions d'utilisation");
+    assert.equal(frenchMessages.terms.intro.title, "Conditions d'utilisation de Malikia Pro");
+    assert.doesNotMatch(
+        JSON.stringify(frenchMessages.terms),
+        /Malikia pro|d utilisation|d analyser|\bCreer\b/,
+    );
+
+    ['fr', 'en', 'es'].forEach((locale) => {
+        const messages = JSON.parse(readFileSync(resolve(`resources/js/i18n/modules/${locale}/terms.json`), 'utf8'));
+
+        assert.doesNotMatch(JSON.stringify(messages.terms), /Malikia pro/, locale);
+        assert.doesNotMatch(messages.terms.intro.updated, /modèle|template|plantilla/i, locale);
+    });
+
+    const componentSource = readFileSync(resolve('resources/js/Components/Legal/TermsContent.vue'), 'utf8');
+    assert.match(componentSource, /default: null/);
+    assert.match(componentSource, /<p v-if="lastUpdated"/);
+    assert.doesNotMatch(componentSource, /2025-01-01/);
+});
+
+test('loads the onboarding terms domain for the requested locale and the English fallback', async () => {
+    const loader = createDomainMessageLoader({
+        domains: translationModules,
+        loadModule: async (locale, domain) => JSON.parse(
+            readFileSync(resolve(`resources/js/i18n/modules/${locale}/${domain}.json`), 'utf8'),
+        ),
+    });
+    const onboardingDomains = getDomainsForPage('Onboarding/Index');
+
+    await Promise.all([
+        loader.loadLocaleDomains('fr', onboardingDomains),
+        loader.loadLocaleDomains('en', onboardingDomains),
+    ]);
+
+    assert.equal(loader.hasLoadedDomain('fr', 'terms'), true);
+    assert.equal(loader.hasLoadedDomain('en', 'terms'), true);
+    assert.notEqual(loader.messages.fr.terms.intro.title, 'terms.intro.title');
+    assert.notEqual(loader.messages.en.terms.intro.title, 'terms.intro.title');
 });
 
 test('loads each locale domain once, merges messages, and keeps the English fallback independent', async () => {

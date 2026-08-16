@@ -54,12 +54,14 @@ const model = defineModel({
 });
 
 const input = ref(null);
+const generatedId = `floating-select-${Math.random().toString(36).slice(2, 10)}`;
 const filterQuery = ref('');
 const isOpen = ref(false);
 const activeIndex = ref(-1);
 const isFocused = ref(false);
 const isFiltering = ref(false);
 const attrs = useAttrs();
+const controlId = computed(() => attrs.id || generatedId);
 
 const normalizedOptions = computed(() =>
     (props.options || []).map((option, index) => {
@@ -432,10 +434,13 @@ defineExpose({ focus: () => input.value.focus() });
     <div class="relative">
         <input
             v-if="useFilterInput"
+            :id="controlId"
             v-model="filterQuery"
             ref="input"
             v-bind="inputAttrs"
             :class="selectClass"
+            :required="required"
+            :aria-required="required ? 'true' : undefined"
             :placeholder="filterPlaceholder || placeholder || label"
             :aria-label="filterPlaceholder || label"
             autocomplete="off"
@@ -457,13 +462,23 @@ defineExpose({ focus: () => input.value.focus() });
                 <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.104l3.71-3.873a.75.75 0 1 1 1.08 1.04l-4.24 4.43a.75.75 0 0 1-1.08 0L5.21 8.27a.75.75 0 0 1 .02-1.06z" clip-rule="evenodd" />
             </svg>
         </button>
-        <select v-else v-model="model" ref="input" v-bind="selectAttrs" :class="selectClass">
+        <select
+            v-else
+            :id="controlId"
+            v-model="model"
+            ref="input"
+            v-bind="selectAttrs"
+            :class="selectClass"
+            :required="required"
+            :aria-required="required ? 'true' : undefined"
+        >
             <option v-if="placeholder && !isMultiple" value="">{{ placeholder }}</option>
             <option v-for="option in filteredOptions" :key="option.key" :value="option.value" :disabled="option.disabled">
                 {{ option.label }}
             </option>
         </select>
         <label
+            :for="controlId"
             :class="labelClass">
             <span>{{ label }}</span>
             <span v-if="required" class="text-red-500 dark:text-red-400"> *</span>

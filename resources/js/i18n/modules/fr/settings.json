@@ -328,6 +328,11 @@
         "title": "Profil entreprise",
         "description": "Identite, adresse et activite de la societe."
       },
+      "currency": {
+        "label": "Devise principale de l'entreprise",
+        "change_hint": "Les nouveaux éléments du catalogue et les paiements en ligne Stripe utiliseront cette devise.",
+        "locked_hint": "La devise ne peut plus être modifiée, car l'entreprise possède déjà une activité commerciale."
+      },
       "store": {
         "title": "Parametres de la boutique",
         "description": "Personnalisez l en-tete et le produit vedette.",
@@ -384,15 +389,15 @@
       "fields": {
         "name": "Nom de l'entreprise",
         "public_slug": "Slug public (boutique)",
-        "public_slug_hint": "Utilise pour l'URL publique: /{path}/{slug}.",
+        "public_slug_hint": "Utilisé pour l'URL publique : /{path}/{slug}.",
         "logo_optional": "Logo (optionnel)",
-        "logo_upload": "Telecharger votre logo",
-        "description_optional": "Description (optionnel)",
+        "logo_upload": "Téléverser votre logo",
+        "description_optional": "Description (optionnelle)",
         "country_optional": "Pays (optionnel)",
         "country_other": "Pays (autre)",
-        "province_optional": "Province / Etat (optionnel)",
-        "province_other": "Province / Etat (autre)",
-        "city_optional": "Ville (optionnel)",
+        "province_optional": "Province / État (optionnelle)",
+        "province_other": "Province / État (autre)",
+        "city_optional": "Ville (optionnelle)",
         "city_other": "Ville (autre)",
         "timezone": "Fuseau horaire",
         "timezone_placeholder": "Selectionner un fuseau horaire",

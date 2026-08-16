@@ -1,6 +1,9 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { resizeImageFile, MEDIA_LIMITS } from '@/utils/media';
+
+const { t } = useI18n();
 
 // Props
 const props = defineProps({
@@ -10,7 +13,7 @@ const props = defineProps({
   },
   label: {
     type: String,
-    default: 'Upload an image',
+    default: '',
   },
   allowedExtensions: {
     type: Array,
@@ -38,13 +41,14 @@ const normalizedAllowedExtensions = computed(() => (
 const acceptedFileTypes = computed(() => (
   normalizedAllowedExtensions.value.map((extension) => `.${extension}`).join(',')
 ));
+const resolvedLabel = computed(() => props.label || t('dropzone.upload_image'));
 
 const previewName = computed(() => {
   if (file.value instanceof File) {
     return file.value.name;
   }
 
-  return props.label || 'Image preview';
+  return resolvedLabel.value || t('dropzone.image_preview');
 });
 
 const previewMeta = computed(() => {
@@ -53,11 +57,24 @@ const previewMeta = computed(() => {
   }
 
   if (typeof props.modelValue === 'string' && props.modelValue.trim() !== '') {
-    return 'Current image';
+    return t('dropzone.current_image');
   }
 
   return '';
 });
+
+const localizedResizeError = (message) => {
+  if (message === 'Image processing failed.') {
+    return t('dropzone.errors.processing_failed');
+  }
+
+  const tooLargeMatch = String(message || '').match(/^Image too large\. Max (.+)\.$/);
+  if (tooLargeMatch) {
+    return t('dropzone.errors.too_large', { size: tooLargeMatch[1] });
+  }
+
+  return message;
+};
 
 const updatePreview = (value) => {
   if (value instanceof File) {
@@ -88,7 +105,7 @@ const processSelectedFile = async (selectedFile, resetInput = null) => {
   const mime = selectedFile.type?.toLowerCase() || '';
   const extension = selectedFile.name?.split('.').pop()?.toLowerCase() || '';
   if (extension === 'svg' || mime === 'image/svg' || mime === 'image/svg+xml') {
-    errorMessage.value = 'SVG images are not allowed.';
+    errorMessage.value = t('dropzone.errors.svg_not_allowed');
     if (resetInput) {
       resetInput.value = '';
     }
@@ -96,7 +113,9 @@ const processSelectedFile = async (selectedFile, resetInput = null) => {
   }
 
   if (!normalizedAllowedExtensions.value.includes(extension)) {
-    errorMessage.value = `Unsupported image format. Allowed: ${normalizedAllowedExtensions.value.join(', ')}.`;
+    errorMessage.value = t('dropzone.errors.unsupported_format', {
+      formats: normalizedAllowedExtensions.value.join(', '),
+    });
     if (resetInput) {
       resetInput.value = '';
     }
@@ -108,7 +127,7 @@ const processSelectedFile = async (selectedFile, resetInput = null) => {
     maxBytes: MEDIA_LIMITS.maxImageBytes,
   });
   if (result.error) {
-    errorMessage.value = result.error;
+    errorMessage.value = localizedResizeError(result.error);
     if (resetInput) {
       resetInput.value = '';
     }
@@ -201,7 +220,7 @@ watch(
           <div class="flex items-center gap-x-3">
             <img
               :src="preview"
-              alt="Preview"
+              :alt="t('dropzone.preview_alt')"
               class="size-10 rounded-sm border border-stone-200 dark:border-neutral-700"
             />
             <div>
@@ -219,14 +238,14 @@ watch(
               @click="triggerFileInput"
               class="rounded-sm border border-stone-300 bg-white px-2 py-1 text-xs font-semibold text-stone-700 transition hover:bg-stone-50 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
             >
-              Replace
+              {{ t('dropzone.replace') }}
             </button>
             <button
               type="button"
               @click="removeFile"
               class="rounded-sm border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-300 dark:hover:bg-rose-950/50"
             >
-              Remove
+              {{ t('dropzone.remove') }}
             </button>
           </div>
         </div>
@@ -248,7 +267,7 @@ watch(
           </div>
         </div>
         <p v-else class="mt-3 text-xs text-stone-500 dark:text-neutral-400">
-          This image is already attached. You can replace it or remove it.
+          {{ t('dropzone.attached_hint') }}
         </p>
       </div>
     </template>
@@ -288,14 +307,14 @@ watch(
         </span>
         <div class="mt-4 flex flex-wrap justify-center text-sm leading-6 text-stone-600">
           <span class="pe-1 font-medium text-stone-800 dark:text-neutral-200">
-            Drop your file here or
+            {{ t('dropzone.drop_here') }}
           </span>
           <span class="bg-white font-semibold text-blue-600 hover:text-blue-700 dark:bg-neutral-800 dark:text-blue-500">
-            browse
+            {{ t('dropzone.browse') }}
           </span>
         </div>
         <p class="mt-1 text-xs text-stone-400 dark:text-neutral-400">
-          Large images are optimized automatically.
+          {{ t('dropzone.optimization_hint') }}
         </p>
       </div>
     </div>

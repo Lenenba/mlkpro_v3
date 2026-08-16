@@ -1,0 +1,20 @@
+{
+  "dropzone": {
+    "upload_image": "Subir una imagen",
+    "image_preview": "Vista previa de la imagen",
+    "current_image": "Imagen actual",
+    "preview_alt": "Vista previa",
+    "replace": "Reemplazar",
+    "remove": "Eliminar",
+    "attached_hint": "Esta imagen ya está adjunta. Puedes reemplazarla o eliminarla.",
+    "drop_here": "Suelta tu archivo aquí o",
+    "browse": "examinar",
+    "optimization_hint": "Las imágenes grandes se optimizan automáticamente.",
+    "errors": {
+      "svg_not_allowed": "Las imágenes SVG no están permitidas.",
+      "unsupported_format": "Formato de imagen no compatible. Formatos permitidos: {formats}.",
+      "processing_failed": "No se pudo procesar la imagen.",
+      "too_large": "La imagen es demasiado grande. Tamaño máximo: {size}."
+    }
+  }
+}

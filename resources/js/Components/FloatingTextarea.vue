@@ -1,5 +1,7 @@
 <script setup>
-import { onMounted, ref, computed } from 'vue';
+import { computed, onMounted, ref, useAttrs } from 'vue';
+
+defineOptions({ inheritAttrs: false });
 
 const props = defineProps({
     id: {
@@ -28,6 +30,13 @@ const model = defineModel({
 const input = ref(null);
 const generatedId = `floating-textarea-${Math.random().toString(36).slice(2, 10)}`;
 const textareaId = computed(() => props.id || generatedId);
+const attrs = useAttrs();
+const textareaAttrs = computed(() => {
+    const inputAttrs = { ...attrs };
+    delete inputAttrs.class;
+
+    return inputAttrs;
+});
 
 onMounted(() => {
     if (input.value?.hasAttribute('autofocus')) {
@@ -39,13 +48,15 @@ defineExpose({ focus: () => input.value?.focus() });
 </script>
 
 <template>
-    <div class="relative">
+    <div class="relative" :class="attrs.class">
         <textarea
             :id="textareaId"
             :disabled="disabled"
+            :required="required"
             v-model="model"
             ref="input"
-            class="peer p-4 block w-full border-stone-200 rounded-sm text-sm placeholder:text-transparent focus:border-green-500 focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:focus:ring-neutral-600
+            v-bind="textareaAttrs"
+            class="peer p-4 block w-full border-stone-200 rounded-sm text-sm placeholder:text-transparent focus:border-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:focus:ring-neutral-600
                 focus:pt-6
                 focus:pb-2
                 [&:not(:placeholder-shown)]:pt-6
