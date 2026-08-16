@@ -42,4 +42,7 @@ return [
         'checkout_requires_stripe' => 'Onboarding checkout is only available with Stripe.',
         'checkout_start_failed' => 'Unable to start checkout.',
     ],
+    'announcements' => [
+        'media_only_requires_media' => 'Media-only display requires an image or video.',
+    ],
 ];

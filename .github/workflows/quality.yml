@@ -62,11 +62,8 @@ jobs:
       - name: Audit JavaScript dependencies
         run: npm audit --audit-level=high
 
-      - name: Test P0-006 capacity runner
-        run: npm run qa:capacity-runner
-
-      - name: Test P1-005 frontend budget guard
-        run: node --test tests/Node/P1005FrontendBudgetsTest.mjs
+      - name: Run Node test suite
+        run: npm run qa:node
 
       - name: Prepare environment
         run: |

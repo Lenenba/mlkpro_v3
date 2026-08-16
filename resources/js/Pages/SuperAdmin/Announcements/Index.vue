@@ -1,16 +1,25 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import InputError from '@/Components/InputError.vue';
 import Modal from '@/Components/Modal.vue';
-import { prepareMediaFile, MEDIA_LIMITS } from '@/utils/media';
+import { formatBytes, prepareMediaFile, MEDIA_LIMITS } from '@/utils/media';
+import Checkbox from '@/Components/Checkbox.vue';
+import FloatingFileInput from '@/Components/FloatingFileInput.vue';
+import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
+import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import DatePicker from '@/Components/DatePicker.vue';
+import {
+    createAnnouncementTranslations,
+    emptyAnnouncementTranslation,
+    normalizeAnnouncementTranslations,
+} from './announcementForm';
 
 const props = defineProps({
     announcements: {
@@ -41,9 +50,36 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    content_locales: {
+        type: Array,
+        default: () => [],
+    },
 });
 
+const page = usePage();
 const { t } = useI18n();
+
+const localeList = computed(() => {
+    const supported = props.content_locales?.length
+        ? props.content_locales
+        : (Array.isArray(page.props.locales) ? page.props.locales : ['fr', 'en', 'es']);
+    const normalized = supported
+        .map((locale) => String(locale || '').trim().toLowerCase())
+        .filter((locale, index, locales) => locale && locales.indexOf(locale) === index);
+
+    return normalized.length ? normalized : ['fr', 'en', 'es'];
+});
+const defaultContentLocale = computed(() => (
+    localeList.value.includes('fr') ? 'fr' : localeList.value[0]
+));
+const editorLocale = ref(defaultContentLocale.value);
+const createEmptyTranslations = () => createAnnouncementTranslations(localeList.value);
+const normalizeTranslations = (translations = {}, legacy = {}) => normalizeAnnouncementTranslations({
+    locales: localeList.value,
+    defaultLocale: defaultContentLocale.value,
+    translations,
+    legacy,
+});
 
 const showForm = ref(false);
 const showFilters = ref(false);
@@ -125,6 +161,7 @@ const displayStyleOptions = computed(() => {
 const form = useForm({
     title: '',
     body: '',
+    translations: createEmptyTranslations(),
     status: statusOptions.value[0]?.value ?? 'draft',
     audience: audienceOptions.value[0]?.value ?? 'all',
     placement: placementOptions.value[0]?.value ?? 'internal',
@@ -143,8 +180,47 @@ const form = useForm({
     tenant_ids: [],
 });
 
-const handleMediaFile = async (event) => {
-    const file = event.target.files?.[0] || null;
+const localeHasError = (locale) => Object.keys(form.errors).some(
+    (key) => key.startsWith(`translations.${locale}.`),
+);
+const localeOptions = computed(() => localeList.value.map((locale) => ({
+    value: locale,
+    label: localeHasError(locale)
+        ? `${t(`super_admin.announcements.form.locales.${locale}`)} — ${t('super_admin.announcements.form.locale_error')}`
+        : t(`super_admin.announcements.form.locales.${locale}`),
+})));
+const availableMediaTypeOptions = computed(() => (
+    form.display_style === 'media_only'
+        ? mediaTypeOptions.value.filter((option) => option.value === 'image' || option.value === 'video')
+        : mediaTypeOptions.value
+));
+const activeTranslation = computed(() => (
+    form.translations?.[editorLocale.value] || emptyAnnouncementTranslation()
+));
+const translationError = (field) => form.errors[`translations.${editorLocale.value}.${field}`];
+
+const localizedMediaError = (error) => {
+    if (error === 'Image processing failed.') {
+        return t('super_admin.announcements.form.image_processing_error');
+    }
+    if (error?.startsWith('Image too large.')) {
+        return t('super_admin.announcements.form.image_too_large', {
+            size: formatBytes(MEDIA_LIMITS.maxImageBytes),
+        });
+    }
+    if (error?.startsWith('Video too large.')) {
+        return t('super_admin.announcements.form.video_too_large', {
+            size: formatBytes(MEDIA_LIMITS.maxVideoBytes),
+        });
+    }
+    if (error === 'Unsupported file type.') {
+        return t('super_admin.announcements.form.unsupported_file_type');
+    }
+
+    return error;
+};
+
+const handleMediaFile = async (file) => {
     form.clearErrors('media_file');
     if (!file) {
         form.media_file = null;
@@ -155,11 +231,12 @@ const handleMediaFile = async (event) => {
         maxVideoBytes: MEDIA_LIMITS.maxVideoBytes,
     });
     if (result.error) {
-        form.setError('media_file', result.error);
+        form.setError('media_file', localizedMediaError(result.error));
         form.media_file = null;
         return;
     }
     form.media_file = result.file;
+    form.clear_media = false;
 };
 
 const isEditing = computed(() => editingId.value !== null);
@@ -222,7 +299,17 @@ const filteredAnnouncements = computed(() => {
             return false;
         }
         if (searchValue) {
-            const haystack = `${item.title || ''} ${item.body || ''} ${item.link_label || ''}`.toLowerCase();
+            const translatedValues = Object.values(item.translations || {})
+                .flatMap((localized) => Object.values(localized || {}));
+            const haystack = [
+                item.localized_title,
+                item.localized_body,
+                item.localized_link_label,
+                item.title,
+                item.body,
+                item.link_label,
+                ...translatedValues,
+            ].filter(Boolean).join(' ').toLowerCase();
             return haystack.includes(searchValue);
         }
         return true;
@@ -233,10 +320,12 @@ const filteredAnnouncementsResultsLabel = computed(() => t('super_admin.announce
 const resetForm = () => {
     editingId.value = null;
     form.reset();
+    form.translations = createEmptyTranslations();
     form.clearErrors();
     form.tenant_ids = [];
     form.media_file = null;
     form.clear_media = false;
+    editorLocale.value = defaultContentLocale.value;
     fileInputKey.value += 1;
 };
 
@@ -272,6 +361,7 @@ const startEdit = (announcement) => {
     editingId.value = announcement.id;
     form.title = announcement.title || '';
     form.body = announcement.body || '';
+    form.translations = normalizeTranslations(announcement.translations, announcement);
     form.status = announcement.status || statusOptions.value[0]?.value || 'draft';
     form.audience = announcement.audience || audienceOptions.value[0]?.value || 'all';
     form.placement = placementOptions.value.some((option) => option.value === announcement.placement)
@@ -292,6 +382,7 @@ const startEdit = (announcement) => {
     form.tenant_ids = announcement.tenant_ids ? [...announcement.tenant_ids] : [];
     form.clear_media = false;
     form.media_file = null;
+    editorLocale.value = defaultContentLocale.value;
     fileInputKey.value += 1;
 };
 
@@ -305,11 +396,23 @@ const submit = () => {
     const transformPayload = (data) => {
         const payload = { ...data };
 
+        payload.translations = Object.fromEntries(localeList.value.map((locale) => {
+            const localized = data.translations?.[locale] || {};
+
+            return [locale, {
+                title: String(localized.title || '').trim(),
+                body: String(localized.body || '').trim(),
+                link_label: String(localized.link_label || '').trim(),
+            }];
+        }));
+        delete payload.title;
+        delete payload.body;
+        delete payload.link_label;
+
         payload.starts_at = payload.starts_at || null;
         payload.ends_at = payload.ends_at || null;
         payload.new_tenant_days = payload.new_tenant_days || null;
         payload.media_url = payload.media_url || null;
-        payload.link_label = payload.link_label || null;
         payload.link_url = payload.link_url || null;
         payload.display_style = payload.display_style || 'standard';
         payload.background_color = payload.background_color ? payload.background_color.trim() : null;
@@ -357,6 +460,32 @@ watch(
             form.new_tenant_days = '';
         }
     }
+);
+
+watch(
+    () => form.display_style,
+    (value) => {
+        if (value === 'media_only') {
+            form.background_color = '';
+            if (!['image', 'video'].includes(form.media_type)) {
+                form.media_type = 'image';
+            }
+        }
+    }
+);
+
+watch(
+    () => form.errors,
+    (errors) => {
+        const localeWithError = localeList.value.find((locale) => Object.keys(errors).some(
+            (key) => key.startsWith(`translations.${locale}.`),
+        ));
+
+        if (localeWithError) {
+            editorLocale.value = localeWithError;
+        }
+    },
+    { deep: true },
 );
 </script>
 
@@ -521,9 +650,11 @@ watch(
                 <template #row="{ row: announcement }">
                     <tr class="align-top">
                         <td class="px-4 py-3">
-                            <div class="font-medium text-stone-800 dark:text-neutral-100">{{ announcement.title }}</div>
-                            <div v-if="announcement.body" class="max-w-xs truncate text-xs text-stone-500 dark:text-neutral-400">
-                                {{ announcement.body }}
+                            <div class="font-medium text-stone-800 dark:text-neutral-100">
+                                {{ announcement.localized_title || announcement.title }}
+                            </div>
+                            <div v-if="announcement.localized_body || announcement.body" class="max-w-xs truncate text-xs text-stone-500 dark:text-neutral-400">
+                                {{ announcement.localized_body || announcement.body }}
                             </div>
                         </td>
                         <td class="px-4 py-3">
@@ -587,10 +718,10 @@ watch(
             </AdminDataTable>
         </div>
 
-        <Modal :show="showForm" @close="closeForm" maxWidth="2xl">
-            <div class="p-5">
+        <Modal :show="showForm" @close="closeForm" maxWidth="3xl">
+            <div class="p-5 sm:p-6">
                 <div class="flex items-center justify-between">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                    <h2 class="text-base font-semibold text-stone-800 dark:text-neutral-100">
                         {{ isEditing ? $t('super_admin.announcements.form.edit_title') : $t('super_admin.announcements.form.new_title') }}
                     </h2>
                     <button type="button" @click="closeForm" class="text-sm text-stone-500 dark:text-neutral-400">
@@ -598,192 +729,248 @@ watch(
                     </button>
                 </div>
 
-                <form class="mt-4 space-y-4" @submit.prevent="submit">
-                    <div class="grid gap-3 md:grid-cols-2">
-                        <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.announcements.form.title') }}
-                            </label>
-                            <input v-model="form.title" type="text"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
-                            <InputError class="mt-1" :message="form.errors.title" />
+                <form class="mt-5 space-y-5" @submit.prevent="submit">
+                    <section class="space-y-4">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ $t('super_admin.announcements.form.content_section') }}
+                                </h3>
+                                <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.announcements.form.content_hint') }}
+                                </p>
+                            </div>
+                            <div class="w-full sm:w-64">
+                                <FloatingSelect
+                                    v-model="editorLocale"
+                                    :label="$t('super_admin.announcements.form.editing_locale')"
+                                    :options="localeOptions"
+                                />
+                            </div>
                         </div>
+
                         <div>
-                            <FloatingSelect
-                                v-model="form.status"
-                                :label="$t('super_admin.announcements.form.status')"
-                                :options="statusOptions"
+                            <FloatingInput
+                                v-model="activeTranslation.title"
+                                :label="$t('super_admin.announcements.form.title')"
+                                maxlength="255"
                             />
-                            <InputError class="mt-1" :message="form.errors.status" />
+                            <InputError class="mt-1" :message="translationError('title') || form.errors.translations || form.errors.title" />
                         </div>
-                    </div>
 
-                    <div>
-                        <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                            {{ $t('super_admin.announcements.form.message') }}
-                        </label>
-                        <textarea v-model="form.body" rows="3"
-                            class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"></textarea>
-                        <InputError class="mt-1" :message="form.errors.body" />
-                    </div>
-
-                    <div class="grid gap-3 md:grid-cols-2">
-                        <div>
-                            <FloatingSelect
-                                v-model="form.display_style"
-                                :label="$t('super_admin.announcements.form.display_style')"
-                                :options="displayStyleOptions"
+                        <div v-if="form.display_style !== 'media_only'">
+                            <FloatingTextarea
+                                v-model="activeTranslation.body"
+                                :label="$t('super_admin.announcements.form.message')"
                             />
+                            <InputError class="mt-1" :message="translationError('body')" />
+                        </div>
+
+                        <div v-if="form.display_style !== 'media_only'" class="grid gap-4 md:grid-cols-2">
+                            <div>
+                                <FloatingInput
+                                    v-model="activeTranslation.link_label"
+                                    :label="$t('super_admin.announcements.form.link_label')"
+                                    maxlength="120"
+                                />
+                                <InputError class="mt-1" :message="translationError('link_label')" />
+                            </div>
+                            <div>
+                                <FloatingInput
+                                    v-model="form.link_url"
+                                    type="url"
+                                    :label="$t('super_admin.announcements.form.link_url')"
+                                    placeholder="https://"
+                                />
+                                <InputError class="mt-1" :message="form.errors.link_url" />
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="space-y-4 border-t border-stone-200 pt-5 dark:border-neutral-700">
+                        <div>
+                            <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ $t('super_admin.announcements.form.delivery_section') }}
+                            </h3>
+                            <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.announcements.form.delivery_hint') }}
+                            </p>
+                        </div>
+
+                        <div class="grid gap-4 md:grid-cols-2">
+                            <div>
+                                <FloatingSelect
+                                    v-model="form.status"
+                                    :label="$t('super_admin.announcements.form.status')"
+                                    :options="statusOptions"
+                                />
+                                <InputError class="mt-1" :message="form.errors.status" />
+                            </div>
+                            <div>
+                                <FloatingSelect
+                                    v-model="form.display_style"
+                                    :label="$t('super_admin.announcements.form.display_style')"
+                                    :options="displayStyleOptions"
+                                />
+                                <InputError class="mt-1" :message="form.errors.display_style" />
+                            </div>
+                            <div>
+                                <FloatingSelect
+                                    v-model="form.audience"
+                                    :label="$t('super_admin.announcements.form.audience')"
+                                    :options="audienceOptions"
+                                />
+                                <InputError class="mt-1" :message="form.errors.audience" />
+                            </div>
+                            <div>
+                                <FloatingSelect
+                                    v-model="form.placement"
+                                    :label="$t('super_admin.announcements.form.placement')"
+                                    :options="placementOptions"
+                                />
+                                <InputError class="mt-1" :message="form.errors.placement" />
+                            </div>
+                            <div>
+                                <FloatingInput
+                                    v-model="form.priority"
+                                    type="number"
+                                    min="0"
+                                    :label="$t('super_admin.announcements.form.priority')"
+                                />
+                                <InputError class="mt-1" :message="form.errors.priority" />
+                            </div>
+                            <div v-if="form.audience === 'new_tenants'">
+                                <FloatingInput
+                                    v-model="form.new_tenant_days"
+                                    type="number"
+                                    min="1"
+                                    max="365"
+                                    :label="$t('super_admin.announcements.form.new_tenant_window')"
+                                />
+                                <InputError class="mt-1" :message="form.errors.new_tenant_days" />
+                            </div>
+                        </div>
+
+                        <div v-if="form.audience === 'tenants'">
+                            <FloatingSelect
+                                v-model="form.tenant_ids"
+                                :label="$t('super_admin.announcements.form.target_tenants')"
+                                :options="tenantOptions"
+                                multiple
+                            />
+                            <InputError class="mt-1" :message="form.errors.tenant_ids" />
+                        </div>
+
+                        <div class="grid gap-4 md:grid-cols-2">
+                            <div>
+                                <DatePicker v-model="form.starts_at" :label="$t('super_admin.announcements.form.start_date')" />
+                                <InputError class="mt-1" :message="form.errors.starts_at" />
+                            </div>
+                            <div>
+                                <DatePicker v-model="form.ends_at" :label="$t('super_admin.announcements.form.end_date')" />
+                                <InputError class="mt-1" :message="form.errors.ends_at" />
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="space-y-4 border-t border-stone-200 pt-5 dark:border-neutral-700">
+                        <div>
+                            <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ $t('super_admin.announcements.form.media_section') }}
+                            </h3>
                             <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
                                 {{ $t('super_admin.announcements.form.display_style_hint') }}
                             </p>
-                            <InputError class="mt-1" :message="form.errors.display_style" />
                         </div>
-                        <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.announcements.form.card_background') }}
-                            </label>
-                            <div class="mt-1 flex items-center gap-2">
-                                <input v-model="form.background_color" type="text" placeholder="#F8FAFC"
-                                    class="block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
-                                <input type="color" :value="form.background_color || '#ffffff'"
+
+                        <div v-if="form.display_style !== 'media_only'">
+                            <div class="flex items-stretch gap-2">
+                                <div class="min-w-0 flex-1">
+                                    <FloatingInput
+                                        v-model="form.background_color"
+                                        :label="$t('super_admin.announcements.form.card_background')"
+                                        placeholder="#F8FAFC"
+                                    />
+                                </div>
+                                <input
+                                    type="color"
+                                    :value="form.background_color || '#ffffff'"
+                                    :aria-label="$t('super_admin.announcements.form.color_picker')"
+                                    class="h-14 w-14 shrink-0 cursor-pointer rounded-sm border border-stone-200 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-900"
                                     @input="form.background_color = $event.target.value"
-                                    class="h-9 w-10 rounded-sm border border-stone-200 bg-white p-1 dark:bg-neutral-900 dark:border-neutral-700" />
-                                <button type="button" @click="form.background_color = ''"
-                                    class="py-2 px-2.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                                />
+                                <button
+                                    type="button"
+                                    class="h-14 shrink-0 rounded-sm border border-stone-200 bg-white px-3 text-xs font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                    @click="form.background_color = ''"
+                                >
                                     {{ $t('super_admin.common.clear') }}
                                 </button>
                             </div>
                             <InputError class="mt-1" :message="form.errors.background_color" />
                         </div>
-                    </div>
 
-                    <div class="grid gap-3 md:grid-cols-3">
-                        <div>
-                            <FloatingSelect
-                                v-model="form.audience"
-                                :label="$t('super_admin.announcements.form.audience')"
-                                :options="audienceOptions"
-                            />
-                            <InputError class="mt-1" :message="form.errors.audience" />
-                        </div>
-                        <div>
-                            <FloatingSelect
-                                v-model="form.placement"
-                                :label="$t('super_admin.announcements.form.placement')"
-                                :options="placementOptions"
-                            />
-                            <InputError class="mt-1" :message="form.errors.placement" />
-                        </div>
-                        <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.announcements.form.priority') }}
-                            </label>
-                            <input v-model.number="form.priority" type="number" min="0"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
-                            <InputError class="mt-1" :message="form.errors.priority" />
-                        </div>
-                    </div>
-
-                    <div v-if="form.audience === 'tenants'">
-                        <FloatingSelect
-                            v-model="form.tenant_ids"
-                            :label="$t('super_admin.announcements.form.target_tenants')"
-                            :options="tenantOptions"
-                            multiple
-                        />
-                        <InputError class="mt-1" :message="form.errors.tenant_ids" />
-                    </div>
-
-                    <div v-if="form.audience === 'new_tenants'">
-                        <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                            {{ $t('super_admin.announcements.form.new_tenant_window') }}
-                        </label>
-                        <input v-model.number="form.new_tenant_days" type="number" min="1" max="365"
-                            class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
-                        <InputError class="mt-1" :message="form.errors.new_tenant_days" />
-                    </div>
-
-                    <div class="grid gap-3 md:grid-cols-2">
-                        <div>
-                            <DatePicker v-model="form.starts_at" :label="$t('super_admin.announcements.form.start_date')" />
-                            <InputError class="mt-1" :message="form.errors.starts_at" />
-                        </div>
-                        <div>
-                            <DatePicker v-model="form.ends_at" :label="$t('super_admin.announcements.form.end_date')" />
-                            <InputError class="mt-1" :message="form.errors.ends_at" />
-                        </div>
-                    </div>
-
-                    <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                        <div class="text-xs font-semibold text-stone-600 dark:text-neutral-300">
-                            {{ $t('super_admin.announcements.form.media_section') }}
-                        </div>
-                        <div class="mt-3 grid gap-3 md:grid-cols-3">
+                        <div class="grid gap-4 md:grid-cols-2">
                             <div>
                                 <FloatingSelect
                                     v-model="form.media_type"
                                     :label="$t('super_admin.announcements.form.media_type')"
-                                    :options="mediaTypeOptions"
+                                    :options="availableMediaTypeOptions"
                                 />
                                 <InputError class="mt-1" :message="form.errors.media_type" />
                             </div>
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ $t('super_admin.announcements.form.media_url') }}
-                                </label>
-                                <input v-model="form.media_url" type="url" placeholder="https://"
-                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
+                                <FloatingInput
+                                    v-model="form.media_url"
+                                    type="url"
+                                    :label="$t('super_admin.announcements.form.media_url')"
+                                    placeholder="https://"
+                                />
                                 <InputError class="mt-1" :message="form.errors.media_url" />
                             </div>
-                            <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ $t('super_admin.announcements.form.upload_file') }}
-                                </label>
-                                <input :key="fileInputKey" type="file" @change="handleMediaFile"
-                                    class="mt-1 block w-full text-xs text-stone-600 dark:text-neutral-200"
-                                    accept="image/*,video/*" />
-                                <InputError class="mt-1" :message="form.errors.media_file" />
-                            </div>
                         </div>
-                        <label v-if="isEditing && hasExistingMedia" class="mt-3 flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
-                            <input v-model="form.clear_media" type="checkbox" class="rounded-sm border-stone-300 text-green-600 focus:ring-green-600" />
-                            {{ $t('super_admin.announcements.form.remove_media') }}
-                        </label>
-                        <div v-if="isEditing && hasExistingMedia" class="mt-3 rounded-sm border border-stone-200 p-2 dark:border-neutral-700">
-                            <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.announcements.form.current_media') }}
-                            </div>
-                            <div class="mt-2 overflow-hidden rounded-sm border border-stone-200 dark:border-neutral-700">
-                                <img v-if="editingAnnouncement?.media_type === 'image'" :src="editingAnnouncement?.media_url"
-                                    alt="" class="h-32 w-full object-cover" loading="lazy" decoding="async" />
-                                <video v-else-if="editingAnnouncement?.media_type === 'video'" controls class="h-32 w-full">
+
+                        <div>
+                            <FloatingFileInput
+                                :key="fileInputKey"
+                                v-model="form.media_file"
+                                :label="$t('super_admin.announcements.form.upload_file')"
+                                :placeholder="$t('super_admin.announcements.form.upload_placeholder')"
+                                accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm,video/ogg"
+                                @select="handleMediaFile"
+                            />
+                            <InputError class="mt-1" :message="form.errors.media_file" />
+                        </div>
+
+                        <div v-if="isEditing && hasExistingMedia" class="space-y-3">
+                            <label class="flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
+                                <Checkbox v-model:checked="form.clear_media" />
+                                {{ $t('super_admin.announcements.form.remove_media') }}
+                            </label>
+                            <figure v-if="!form.clear_media && !form.media_file" class="overflow-hidden rounded-sm bg-stone-100 dark:bg-neutral-800">
+                                <figcaption class="px-3 py-2 text-xs font-medium text-stone-600 dark:text-neutral-300">
+                                    {{ $t('super_admin.announcements.form.current_media') }}
+                                </figcaption>
+                                <img
+                                    v-if="editingAnnouncement?.media_type === 'image'"
+                                    :src="editingAnnouncement?.media_url"
+                                    alt=""
+                                    class="max-h-56 w-full object-contain"
+                                    loading="lazy"
+                                    decoding="async"
+                                />
+                                <video
+                                    v-else-if="editingAnnouncement?.media_type === 'video'"
+                                    controls
+                                    class="max-h-56 w-full object-contain"
+                                >
                                     <source :src="editingAnnouncement?.media_url" />
                                 </video>
-                            </div>
+                            </figure>
                         </div>
-                    </div>
+                    </section>
 
-                    <div class="grid gap-3 md:grid-cols-2">
-                        <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.announcements.form.link_label') }}
-                            </label>
-                            <input v-model="form.link_label" type="text"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
-                            <InputError class="mt-1" :message="form.errors.link_label" />
-                        </div>
-                        <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.announcements.form.link_url') }}
-                            </label>
-                            <input v-model="form.link_url" type="url" placeholder="https://"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
-                            <InputError class="mt-1" :message="form.errors.link_url" />
-                        </div>
-                    </div>
-
-                    <div class="flex justify-end gap-2">
+                    <div class="flex justify-end gap-2 border-t border-stone-200 pt-5 dark:border-neutral-700">
                         <button type="button" @click="closeForm"
                             class="py-2 px-3 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                             {{ $t('super_admin.common.cancel') }}

@@ -2,21 +2,27 @@
 
 namespace App\Http\Controllers\Api\SuperAdmin;
 
+use App\Http\Controllers\Concerns\HandlesPlatformAnnouncementContent;
 use App\Models\PlatformAnnouncement;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\LocalePreference;
 use App\Support\PlatformPermissions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 
 class AnnouncementController extends BaseController
 {
+    use HandlesPlatformAnnouncementContent;
+
     public function index(Request $request)
     {
         $this->authorizePermission($request, PlatformPermissions::ANNOUNCEMENTS_MANAGE);
 
+        $locale = LocalePreference::forRequest($request);
         $ownerRoleId = Role::query()->where('name', 'owner')->value('id');
         $tenants = User::query()
             ->when($ownerRoleId, fn ($builder) => $builder->where('role_id', $ownerRoleId))
@@ -25,6 +31,7 @@ class AnnouncementController extends BaseController
             ->get(['id', 'name', 'email', 'company_name', 'created_at'])
             ->map(function (User $tenant) {
                 $label = $tenant->company_name ?: $tenant->name ?: $tenant->email;
+
                 return [
                     'id' => $tenant->id,
                     'label' => $label,
@@ -37,12 +44,17 @@ class AnnouncementController extends BaseController
             ->with(['tenants:id,name,email,company_name'])
             ->orderByDesc('created_at')
             ->get()
-            ->map(function (PlatformAnnouncement $announcement) {
+            ->map(function (PlatformAnnouncement $announcement) use ($locale) {
                 $tenantLabels = $announcement->tenants->map(fn (User $tenant) => $tenant->company_name ?: $tenant->name ?: $tenant->email);
+                $localizedContent = $announcement->localizedContent($locale);
+
                 return [
                     'id' => $announcement->id,
                     'title' => $announcement->title,
                     'body' => $announcement->body,
+                    'translations' => $announcement->translations ?? [],
+                    'localized_title' => $localizedContent['title'],
+                    'localized_body' => $localizedContent['body'],
                     'status' => $announcement->status,
                     'audience' => $announcement->audience,
                     'placement' => $announcement->placement,
@@ -54,6 +66,7 @@ class AnnouncementController extends BaseController
                     'media_external_url' => $announcement->getRawOriginal('media_url'),
                     'media_path' => $announcement->media_path,
                     'link_label' => $announcement->link_label,
+                    'localized_link_label' => $localizedContent['link_label'],
                     'link_url' => $announcement->link_url,
                     'priority' => $announcement->priority,
                     'starts_at' => $announcement->starts_at?->toDateString(),
@@ -72,6 +85,7 @@ class AnnouncementController extends BaseController
             'placements' => PlatformAnnouncement::PLACEMENTS,
             'display_styles' => PlatformAnnouncement::DISPLAY_STYLES,
             'media_types' => PlatformAnnouncement::MEDIA_TYPES,
+            'content_locales' => PlatformAnnouncement::CONTENT_LOCALES,
         ]);
     }
 
@@ -82,8 +96,7 @@ class AnnouncementController extends BaseController
         $ownerRoleId = Role::query()->where('name', 'owner')->value('id');
 
         $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'body' => 'nullable|string|max:5000',
+            ...$this->announcementContentRules(),
             'status' => ['required', 'string', Rule::in(PlatformAnnouncement::STATUSES)],
             'audience' => ['required', 'string', Rule::in(PlatformAnnouncement::AUDIENCES)],
             'placement' => ['required', 'string', Rule::in(PlatformAnnouncement::PLACEMENTS)],
@@ -101,7 +114,6 @@ class AnnouncementController extends BaseController
             ],
             'media_type' => ['nullable', 'string', Rule::in(PlatformAnnouncement::MEDIA_TYPES)],
             'media_url' => 'nullable|url|max:2048',
-            'link_label' => 'nullable|string|max:120',
             'link_url' => 'nullable|url|max:2048',
             'tenant_ids' => [
                 'nullable',
@@ -114,23 +126,35 @@ class AnnouncementController extends BaseController
             ],
         ]);
 
+        $content = $this->resolveAnnouncementContent($validated);
+
+        $displayStyle = $validated['display_style'] ?? 'standard';
+        $backgroundColor = ($validated['background_color'] ?? null) ?: null;
+        $mediaUrl = $validated['media_url'] ?? null;
         $mediaType = $validated['media_type'] ?? 'none';
-        if (!$validated['media_url']) {
+        if (! $mediaUrl) {
             $mediaType = 'none';
         }
 
+        $this->ensureMediaOnlyHasUsableMedia($displayStyle, $mediaType, $mediaUrl, null);
+
+        if ($displayStyle === 'media_only') {
+            $backgroundColor = null;
+        }
+
         $announcement = PlatformAnnouncement::create([
-            'title' => $validated['title'],
-            'body' => $validated['body'] ?? null,
+            'title' => $content['title'],
+            'body' => $content['body'],
+            'translations' => $content['translations'],
             'status' => $validated['status'],
             'audience' => $validated['audience'],
             'placement' => $validated['placement'],
-            'display_style' => $validated['display_style'] ?? 'standard',
-            'background_color' => $validated['background_color'] ?? null,
+            'display_style' => $displayStyle,
+            'background_color' => $backgroundColor,
             'new_tenant_days' => $validated['new_tenant_days'] ?? null,
             'media_type' => $mediaType,
-            'media_url' => $validated['media_url'] ?? null,
-            'link_label' => $validated['link_label'] ?? null,
+            'media_url' => $mediaUrl,
+            'link_label' => $content['link_label'],
             'link_url' => $validated['link_url'] ?? null,
             'priority' => $validated['priority'] ?? 0,
             'starts_at' => $validated['starts_at'] ?? null,
@@ -154,8 +178,7 @@ class AnnouncementController extends BaseController
         $ownerRoleId = Role::query()->where('name', 'owner')->value('id');
 
         $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'body' => 'nullable|string|max:5000',
+            ...$this->announcementContentRules(),
             'status' => ['required', 'string', Rule::in(PlatformAnnouncement::STATUSES)],
             'audience' => ['required', 'string', Rule::in(PlatformAnnouncement::AUDIENCES)],
             'placement' => ['required', 'string', Rule::in(PlatformAnnouncement::PLACEMENTS)],
@@ -173,7 +196,6 @@ class AnnouncementController extends BaseController
             ],
             'media_type' => ['nullable', 'string', Rule::in(PlatformAnnouncement::MEDIA_TYPES)],
             'media_url' => 'nullable|url|max:2048',
-            'link_label' => 'nullable|string|max:120',
             'link_url' => 'nullable|url|max:2048',
             'clear_media' => 'nullable|boolean',
             'tenant_ids' => [
@@ -187,31 +209,44 @@ class AnnouncementController extends BaseController
             ],
         ]);
 
+        $content = $this->resolveAnnouncementContent($validated, $announcement);
+
+        $displayStyle = $validated['display_style'] ?? $announcement->display_style ?? 'standard';
+        $backgroundColor = array_key_exists('background_color', $validated)
+            ? ($validated['background_color'] ?: null)
+            : $announcement->background_color;
         $mediaUrl = $validated['media_url'] ?? $announcement->getRawOriginal('media_url');
+        $mediaPath = $announcement->media_path;
+        $originalMediaPath = $mediaPath;
         $mediaType = $validated['media_type'] ?? $announcement->media_type;
         if ((bool) ($validated['clear_media'] ?? false)) {
-            if ($announcement->media_path) {
-                Storage::disk('public')->delete($announcement->media_path);
-            }
-            $announcement->media_path = null;
+            $mediaPath = null;
             $mediaUrl = $validated['media_url'] ?? null;
             $mediaType = $mediaUrl ? ($mediaType === 'video' ? 'video' : 'image') : 'none';
-        } elseif (!$mediaUrl) {
+        } elseif (! $mediaUrl && ! $mediaPath) {
             $mediaType = 'none';
         }
 
+        $this->ensureMediaOnlyHasUsableMedia($displayStyle, $mediaType, $mediaUrl, $mediaPath);
+
+        if ($displayStyle === 'media_only') {
+            $backgroundColor = null;
+        }
+
         $announcement->update([
-            'title' => $validated['title'],
-            'body' => $validated['body'] ?? null,
+            'title' => $content['title'],
+            'body' => $content['body'],
+            'translations' => $content['translations'],
             'status' => $validated['status'],
             'audience' => $validated['audience'],
             'placement' => $validated['placement'],
-            'display_style' => $validated['display_style'] ?? $announcement->display_style,
-            'background_color' => $validated['background_color'] ?? $announcement->background_color,
+            'display_style' => $displayStyle,
+            'background_color' => $backgroundColor,
             'new_tenant_days' => $validated['new_tenant_days'] ?? null,
             'media_type' => $mediaType,
             'media_url' => $mediaUrl,
-            'link_label' => $validated['link_label'] ?? null,
+            'media_path' => $mediaPath,
+            'link_label' => $content['link_label'],
             'link_url' => $validated['link_url'] ?? null,
             'priority' => $validated['priority'] ?? 0,
             'starts_at' => $validated['starts_at'] ?? null,
@@ -225,6 +260,10 @@ class AnnouncementController extends BaseController
         }
 
         $this->logAudit($request, 'platform_announcement.updated', $announcement);
+
+        if ($originalMediaPath && $originalMediaPath !== $mediaPath) {
+            Storage::disk('public')->delete($originalMediaPath);
+        }
 
         return $this->jsonResponse(['message' => 'Announcement updated.']);
     }
@@ -242,5 +281,20 @@ class AnnouncementController extends BaseController
         $this->logAudit($request, 'platform_announcement.deleted', $announcement);
 
         return $this->jsonResponse(['message' => 'Announcement deleted.']);
+    }
+
+    private function ensureMediaOnlyHasUsableMedia(
+        string $displayStyle,
+        ?string $mediaType,
+        ?string $mediaUrl,
+        ?string $mediaPath,
+    ): void {
+        if ($displayStyle !== 'media_only' || PlatformAnnouncement::hasUsableMedia($mediaType, $mediaUrl, $mediaPath)) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'display_style' => __('ui.announcements.media_only_requires_media'),
+        ]);
     }
 }

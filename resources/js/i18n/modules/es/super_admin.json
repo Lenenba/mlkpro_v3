@@ -492,8 +492,8 @@
         "none": "Sin medios"
       },
       "display_style": {
-        "media_only": "Solo medios",
-        "standard": "Tarjeta estándar"
+        "media_only": "Medio a ancho completo",
+        "standard": "Anuncio con contenido"
       },
       "window": {
         "range": "{start} a {end}",
@@ -515,12 +515,23 @@
       "form": {
         "edit_title": "Editar anuncio",
         "new_title": "Nuevo anuncio",
+        "content_section": "Contenido",
+        "content_hint": "Añada al menos un título. Un idioma vacío utilizará automáticamente una versión disponible.",
+        "editing_locale": "Idioma del contenido",
+        "locale_error": "Error por corregir",
+        "locales": {
+          "fr": "Francés",
+          "en": "Inglés",
+          "es": "Español"
+        },
         "title": "Título",
         "status": "Estado",
         "message": "Mensaje",
+        "delivery_section": "Difusión",
+        "delivery_hint": "Defina dónde, cuándo y para quién se mostrará el anuncio.",
         "display_style": "Estilo de visualización",
-        "display_style_hint": "Los medios solo ocultan el título, el mensaje y el enlace.",
-        "card_background": "Fondo de la tarjeta",
+        "display_style_hint": "El modo «Medio a ancho completo» ocupa todo el panel y solo muestra la imagen o el vídeo. El título se conserva para la accesibilidad.",
+        "card_background": "Fondo del anuncio",
         "audience": "Audiencia",
         "placement": "Colocación",
         "priority": "Prioridad",
@@ -532,8 +543,14 @@
         "media_type": "Tipo de medio",
         "media_url": "URL de medios",
         "upload_file": "Subir archivo",
+        "upload_placeholder": "Elegir una imagen o un vídeo",
+        "image_processing_error": "No se pudo procesar esta imagen.",
+        "image_too_large": "La imagen es demasiado grande. Tamaño máximo: {size}.",
+        "video_too_large": "El vídeo es demasiado grande. Tamaño máximo: {size}.",
+        "unsupported_file_type": "Este tipo de archivo no es compatible.",
         "remove_media": "Eliminar medios existentes",
         "current_media": "Medios actuales",
+        "color_picker": "Seleccionar color",
         "link_label": "Etiqueta de enlace",
         "link_url": "URL del enlace"
       }

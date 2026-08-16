@@ -42,4 +42,7 @@ return [
         'checkout_requires_stripe' => 'Le paiement onboarding est disponible uniquement avec Stripe.',
         'checkout_start_failed' => 'Impossible de demarrer le paiement.',
     ],
+    'announcements' => [
+        'media_only_requires_media' => 'Le mode « Média plein cadre » nécessite une image ou une vidéo.',
+    ],
 ];

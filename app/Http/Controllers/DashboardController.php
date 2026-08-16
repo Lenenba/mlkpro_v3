@@ -46,6 +46,7 @@ class DashboardController extends Controller
         }
         $cacheEnabled = empty(request()->query());
         $cacheTtl = now()->addSeconds(30);
+        $dashboardLocale = app()->getLocale();
         $fromCache = function (?string $cacheKey) use ($cacheEnabled) {
             if (! $cacheEnabled || ! $cacheKey) {
                 return null;
@@ -65,7 +66,7 @@ class DashboardController extends Controller
         if ($user && $user->isClient()) {
             $customer = $user->customerProfile;
             if (! $customer) {
-                $cacheKey = $cacheEnabled ? "dashboard:client-missing:{$user->id}" : null;
+                $cacheKey = $cacheEnabled ? "dashboard:client-missing:{$user->id}:{$dashboardLocale}" : null;
                 if ($cached = $fromCache($cacheKey)) {
                     return $this->inertiaOrJson($cached['component'], $cached['props']);
                 }
@@ -101,7 +102,7 @@ class DashboardController extends Controller
 
             $accountOwner = User::query()->select(['id', 'company_type', 'company_name'])->find($customer->user_id);
             if ($accountOwner?->company_type === 'products') {
-                $cacheKey = $cacheEnabled ? "dashboard:client-products:{$user->id}" : null;
+                $cacheKey = $cacheEnabled ? "dashboard:client-products:{$user->id}:{$dashboardLocale}" : null;
                 if ($cached = $fromCache($cacheKey)) {
                     return $this->inertiaOrJson($cached['component'], $cached['props']);
                 }
@@ -226,7 +227,7 @@ class DashboardController extends Controller
             $autoValidateTasks = (bool) ($customer->auto_validate_tasks ?? false);
             $autoValidateInvoices = (bool) ($customer->auto_validate_invoices ?? false);
 
-            $cacheKey = $cacheEnabled ? "dashboard:client:{$user->id}" : null;
+            $cacheKey = $cacheEnabled ? "dashboard:client:{$user->id}:{$dashboardLocale}" : null;
             if ($cached = $fromCache($cacheKey)) {
                 return $this->inertiaOrJson($cached['component'], $cached['props']);
             }
@@ -567,7 +568,7 @@ class DashboardController extends Controller
         }
 
         if ($accountOwner?->company_type === 'products') {
-            $cacheKey = $cacheEnabled ? "dashboard:products:{$accountId}:{$user?->id}" : null;
+            $cacheKey = $cacheEnabled ? "dashboard:products:{$accountId}:{$user?->id}:{$dashboardLocale}" : null;
             if ($cached = $fromCache($cacheKey)) {
                 return $this->inertiaOrJson($cached['component'], $cached['props']);
             }
@@ -626,7 +627,7 @@ class DashboardController extends Controller
 
         if ($membership) {
             if ($membership->role === 'admin') {
-                $cacheKey = $cacheEnabled ? "dashboard:admin:{$accountId}:{$user->id}" : null;
+                $cacheKey = $cacheEnabled ? "dashboard:admin:{$accountId}:{$user->id}:{$dashboardLocale}" : null;
                 if ($cached = $fromCache($cacheKey)) {
                     return $this->inertiaOrJson($cached['component'], $cached['props']);
                 }
@@ -756,7 +757,7 @@ class DashboardController extends Controller
                 return $respond('DashboardAdmin', $props, $cacheKey);
             }
 
-            $cacheKey = $cacheEnabled ? "dashboard:member:{$accountId}:{$user->id}" : null;
+            $cacheKey = $cacheEnabled ? "dashboard:member:{$accountId}:{$user->id}:{$dashboardLocale}" : null;
             if ($cached = $fromCache($cacheKey)) {
                 return $this->inertiaOrJson($cached['component'], $cached['props']);
             }
@@ -885,7 +886,7 @@ class DashboardController extends Controller
             return $respond('DashboardMember', $props, $cacheKey);
         }
 
-        $cacheKey = $cacheEnabled ? "dashboard:owner:{$accountId}:{$user?->id}" : null;
+        $cacheKey = $cacheEnabled ? "dashboard:owner:{$accountId}:{$user?->id}:{$dashboardLocale}" : null;
         if ($cached = $fromCache($cacheKey)) {
             return $this->inertiaOrJson($cached['component'], $cached['props']);
         }
@@ -2197,8 +2198,7 @@ class DashboardController extends Controller
                     })
                     ->orWhere('audience', 'new_tenants');
             })
-            ->orderByDesc('priority')
-            ->orderByDesc('starts_at')
+            ->orderedForDisplay()
             ->limit(6)
             ->get()
             ->filter(function (PlatformAnnouncement $announcement) use ($tenant, $now) {
@@ -2215,15 +2215,17 @@ class DashboardController extends Controller
                 return $tenant->created_at->gte($now->copy()->subDays($days));
             })
             ->map(function (PlatformAnnouncement $announcement) {
+                $content = $announcement->localizedContent();
+
                 return [
                     'id' => $announcement->id,
-                    'title' => $announcement->title,
-                    'body' => $announcement->body,
+                    'title' => $content['title'],
+                    'body' => $content['body'],
                     'display_style' => $announcement->display_style,
                     'background_color' => $announcement->background_color,
                     'media_type' => $announcement->media_type,
                     'media_url' => $announcement->media_url,
-                    'link_label' => $announcement->link_label,
+                    'link_label' => $content['link_label'],
                     'link_url' => $announcement->link_url,
                     'starts_at' => $announcement->starts_at?->toDateString(),
                     'ends_at' => $announcement->ends_at?->toDateString(),
