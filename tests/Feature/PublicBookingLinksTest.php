@@ -124,6 +124,7 @@ function publicBookingLinkFor(User $owner, Product $service): PublicBookingLink
 it('exposes the ai assistant widget on public booking links when enabled', function () {
     $owner = publicBookingOwner([
         'company_logo' => 'https://assets.example.test/public-booking.png',
+        'company_branding_settings' => ['primary_color' => '#123ABC'],
     ]);
     $service = publicBookingService($owner);
     $link = publicBookingLinkFor($owner, $service);
@@ -144,6 +145,9 @@ it('exposes the ai assistant widget on public booking links when enabled', funct
             ->where('company.logo_url', 'https://assets.example.test/public-booking.png')
             ->where('company.custom_logo_url', 'https://assets.example.test/public-booking.png')
             ->where('company.has_custom_logo', true)
+            ->where('company.primary_color', '#123ABC')
+            ->where('company.primary_foreground_color', '#FFFFFF')
+            ->where('company.has_custom_primary_color', true)
             ->where('ai_assistant.enabled', true)
             ->where('ai_assistant.name', 'Reception Booking')
             ->where('ai_assistant.company_slug', $owner->company_slug)

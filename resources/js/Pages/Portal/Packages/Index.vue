@@ -159,8 +159,8 @@ const submitRequest = () => {
                         v-for="item in packageRows"
                         :key="item.id"
                         type="button"
-                        class="w-full rounded-sm border bg-white p-4 text-left shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50/40 dark:bg-neutral-900 dark:hover:border-emerald-500/40 dark:hover:bg-emerald-500/5"
-                        :class="selectedPackage?.id === item.id ? 'border-emerald-500 ring-1 ring-emerald-500/20 dark:border-emerald-500' : 'border-stone-200 dark:border-neutral-700'"
+                        class="w-full rounded-sm border bg-white p-4 text-left shadow-sm transition hover:border-primary-line hover:bg-primary-soft dark:bg-neutral-900 dark:hover:border-primary-line dark:hover:bg-neutral-800"
+                        :class="selectedPackage?.id === item.id ? 'border-primary-line ring-1 ring-primary-line dark:border-primary-line' : 'border-stone-200 dark:border-neutral-700'"
                         @click="selectedPackageId = item.id"
                     >
                         <div class="flex items-start justify-between gap-3">
@@ -260,7 +260,7 @@ const submitRequest = () => {
                             <div class="mt-3 flex flex-wrap gap-2">
                                 <button
                                     type="button"
-                                    class="inline-flex items-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                    class="inline-flex items-center rounded-sm border border-transparent bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
                                     :disabled="!selectedPackage.can_request_renewal"
                                     @click="openRequest('renewal')"
                                 >
@@ -288,7 +288,7 @@ const submitRequest = () => {
                                     <textarea
                                         v-model="requestForm.note"
                                         rows="3"
-                                        class="mt-1 block w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
+                                        class="mt-1 block w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-800 focus:border-primary-line focus:outline-none focus:ring-1 focus:ring-primary-line dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
                                         :placeholder="$t('client_packages.requests.note_placeholder')"
                                     ></textarea>
                                     <p v-if="requestForm.errors.note" class="mt-1 text-xs text-rose-600">{{ requestForm.errors.note }}</p>
@@ -298,7 +298,7 @@ const submitRequest = () => {
                                     <button type="button" class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200" @click="closeRequest">
                                         {{ $t('client_packages.actions.cancel') }}
                                     </button>
-                                    <button type="submit" class="rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50" :disabled="requestForm.processing">
+                                    <button type="submit" class="rounded-sm border border-transparent bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50" :disabled="requestForm.processing">
                                         {{ $t('client_packages.actions.submit_request') }}
                                     </button>
                                 </div>

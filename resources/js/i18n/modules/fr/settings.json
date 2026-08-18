@@ -328,6 +328,17 @@
         "title": "Profil entreprise",
         "description": "Identite, adresse et activite de la societe."
       },
+      "branding": {
+        "primary_color_title": "Couleur principale",
+        "primary_color_hint": "Elle personnalise les boutons, liens actifs et accents visuels de votre espace, du portail client et des pages publiques. Les couleurs de statut restent inchangées.",
+        "primary_color_picker": "Sélecteur de couleur",
+        "primary_color_hex": "Valeur hexadécimale",
+        "primary_color_invalid": "Utilisez une couleur au format #RRGGBB.",
+        "primary_color_reset": "Couleur Malikia",
+        "primary_color_preview": "Aperçu",
+        "primary_color_preview_button": "Bouton principal",
+        "primary_color_preview_link": "Lien actif"
+      },
       "currency": {
         "label": "Devise principale de l'entreprise",
         "change_hint": "Les nouveaux éléments du catalogue et les paiements en ligne Stripe utiliseront cette devise.",

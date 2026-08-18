@@ -1,6 +1,17 @@
 {
   "settings": {
     "company": {
+      "branding": {
+        "primary_color_title": "Color principal",
+        "primary_color_hint": "Personaliza los botones, enlaces activos y detalles visuales del espacio, el portal de clientes y las páginas públicas. Los colores de estado no cambian.",
+        "primary_color_picker": "Selector de color",
+        "primary_color_hex": "Valor hexadecimal",
+        "primary_color_invalid": "Usa un color con el formato #RRGGBB.",
+        "primary_color_reset": "Color de Malikia",
+        "primary_color_preview": "Vista previa",
+        "primary_color_preview_button": "Botón principal",
+        "primary_color_preview_link": "Enlace activo"
+      },
       "currency": {
         "label": "Moneda principal de la empresa",
         "change_hint": "Los nuevos elementos del catálogo y los cobros en línea de Stripe utilizarán esta moneda.",

@@ -65,12 +65,14 @@ test('public store and showcase payloads expose normalized tenant branding witho
         'company_type' => 'products',
         'company_slug' => 'boutique-boreale-branding',
         'company_logo' => 'https://assets.example.test/boutique-boreale.png',
+        'company_branding_settings' => ['primary_color' => '#123ABC'],
     ]);
     $secondStore = tenantBrandingContextOwner([
         'company_name' => 'Marché du Sud',
         'company_type' => 'products',
         'company_slug' => 'marche-du-sud-branding',
         'company_logo' => 'https://assets.example.test/marche-du-sud.png',
+        'company_branding_settings' => ['primary_color' => '#FDE047'],
     ]);
     $showcase = tenantBrandingContextOwner([
         'name' => 'Atelier sans logo',
@@ -88,7 +90,10 @@ test('public store and showcase payloads expose normalized tenant branding witho
             ->where('company.name', 'Boutique Boréale')
             ->where('company.logo_url', 'https://assets.example.test/boutique-boreale.png')
             ->where('company.custom_logo_url', 'https://assets.example.test/boutique-boreale.png')
-            ->where('company.has_custom_logo', true));
+            ->where('company.has_custom_logo', true)
+            ->where('company.primary_color', '#123ABC')
+            ->where('company.primary_foreground_color', '#FFFFFF')
+            ->where('company.has_custom_primary_color', true));
 
     $this->get(route('public.store.show', $secondStore->company_slug))
         ->assertOk()
@@ -97,7 +102,10 @@ test('public store and showcase payloads expose normalized tenant branding witho
             ->where('company.name', 'Marché du Sud')
             ->where('company.logo_url', 'https://assets.example.test/marche-du-sud.png')
             ->where('company.custom_logo_url', 'https://assets.example.test/marche-du-sud.png')
-            ->where('company.has_custom_logo', true));
+            ->where('company.has_custom_logo', true)
+            ->where('company.primary_color', '#FDE047')
+            ->where('company.primary_foreground_color', '#111827')
+            ->where('company.has_custom_primary_color', true));
 
     $this->get(route('public.showcase.show', $showcase->company_slug))
         ->assertOk()
@@ -106,7 +114,9 @@ test('public store and showcase payloads expose normalized tenant branding witho
             ->where('company.name', 'Atelier sans logo')
             ->where('company.logo_url', null)
             ->where('company.custom_logo_url', null)
-            ->where('company.has_custom_logo', false));
+            ->where('company.has_custom_logo', false)
+            ->where('company.primary_color', '#16A34A')
+            ->where('company.has_custom_primary_color', false));
 });
 
 test('portal branding stays isolated to the customer workspace across orders invoices and packages', function () {
@@ -114,12 +124,14 @@ test('portal branding stays isolated to the customer workspace across orders inv
         'company_name' => 'Portail Nord',
         'company_type' => 'products',
         'company_logo' => 'https://assets.example.test/portail-nord.png',
+        'company_branding_settings' => ['primary_color' => '#123ABC'],
         'currency_code' => 'CAD',
     ]);
     $secondOwner = tenantBrandingContextOwner([
         'company_name' => 'Portail Sud',
         'company_type' => 'products',
         'company_logo' => 'https://assets.example.test/portail-sud.png',
+        'company_branding_settings' => ['primary_color' => '#FDE047'],
         'currency_code' => 'USD',
     ]);
     [$firstClient, $firstCustomer] = tenantBrandingContextPortalClient($firstOwner);
@@ -135,6 +147,8 @@ test('portal branding stays isolated to the customer workspace across orders inv
             ->where('company.logo_url', 'https://assets.example.test/portail-nord.png')
             ->where('company.custom_logo_url', 'https://assets.example.test/portail-nord.png')
             ->where('company.has_custom_logo', true)
+            ->where('company.primary_color', '#123ABC')
+            ->where('company.has_custom_primary_color', true)
             ->where('company.currency_code', 'CAD'));
 
     $this->actingAs($secondClient)
@@ -147,6 +161,8 @@ test('portal branding stays isolated to the customer workspace across orders inv
             ->where('company.logo_url', 'https://assets.example.test/portail-sud.png')
             ->where('company.custom_logo_url', 'https://assets.example.test/portail-sud.png')
             ->where('company.has_custom_logo', true)
+            ->where('company.primary_color', '#FDE047')
+            ->where('company.has_custom_primary_color', true)
             ->where('company.currency_code', 'USD'));
 
     $invoice = Invoice::query()->create([
@@ -166,7 +182,8 @@ test('portal branding stays isolated to the customer workspace across orders inv
             ->where('company.name', 'Portail Nord')
             ->where('company.logo_url', 'https://assets.example.test/portail-nord.png')
             ->where('company.custom_logo_url', 'https://assets.example.test/portail-nord.png')
-            ->where('company.has_custom_logo', true));
+            ->where('company.has_custom_logo', true)
+            ->where('company.primary_color', '#123ABC'));
 
     $this->actingAs($firstClient)
         ->get(route('portal.packages.index'))
@@ -176,7 +193,8 @@ test('portal branding stays isolated to the customer workspace across orders inv
             ->where('company.name', 'Portail Nord')
             ->where('company.logo_url', 'https://assets.example.test/portail-nord.png')
             ->where('company.custom_logo_url', 'https://assets.example.test/portail-nord.png')
-            ->where('company.has_custom_logo', true));
+            ->where('company.has_custom_logo', true)
+            ->where('company.primary_color', '#123ABC'));
 
     $sale = Sale::query()->create([
         'user_id' => $firstOwner->id,
@@ -200,6 +218,9 @@ test('portal branding stays isolated to the customer workspace across orders inv
         ->assertJsonPath('company.logo_url', 'https://assets.example.test/portail-nord.png')
         ->assertJsonPath('company.custom_logo_url', 'https://assets.example.test/portail-nord.png')
         ->assertJsonPath('company.has_custom_logo', true)
+        ->assertJsonPath('company.primary_color', '#123ABC')
+        ->assertJsonPath('company.primary_foreground_color', '#FFFFFF')
+        ->assertJsonPath('company.has_custom_primary_color', true)
         ->assertJsonPath('company.currency_code', 'CAD');
 
     Sanctum::actingAs($secondClient);
@@ -291,6 +312,7 @@ test('two factor verification and confirmation use trusted tenant context while 
     $owner = tenantBrandingContextOwner([
         'company_name' => 'Auth Contexte',
         'company_logo' => 'https://assets.example.test/auth-contexte.png',
+        'company_branding_settings' => ['primary_color' => '#123ABC'],
         'two_factor_exempt' => false,
         'two_factor_method' => 'app',
         'two_factor_secret' => 'JBSWY3DPEHPK3PXP',
@@ -303,12 +325,14 @@ test('two factor verification and confirmation use trusted tenant context while 
             ->component('Auth/TwoFactorChallenge')
             ->where('auth.account.company.name', 'Auth Contexte')
             ->where('auth.account.company.logo_url', 'https://assets.example.test/auth-contexte.png')
-            ->where('auth.account.company.has_custom_logo', true));
+            ->where('auth.account.company.has_custom_logo', true)
+            ->where('auth.account.company.primary_color', '#123ABC'));
 
     $employee = User::factory()->unverified()->create([
         'role_id' => tenantBrandingContextRoleId('employee'),
         'company_name' => 'Marque employé incorrecte',
         'company_logo' => 'https://assets.example.test/employee-incorrect.png',
+        'company_branding_settings' => ['primary_color' => '#FDE047'],
     ]);
     TeamMember::factory()->create([
         'account_id' => $owner->id,
@@ -323,7 +347,8 @@ test('two factor verification and confirmation use trusted tenant context while 
             ->component('Auth/VerifyEmail')
             ->where('auth.account.owner_id', $owner->id)
             ->where('auth.account.company.name', 'Auth Contexte')
-            ->where('auth.account.company.logo_url', 'https://assets.example.test/auth-contexte.png'));
+            ->where('auth.account.company.logo_url', 'https://assets.example.test/auth-contexte.png')
+            ->where('auth.account.company.primary_color', '#123ABC'));
 
     [$client] = tenantBrandingContextPortalClient($owner);
 
@@ -334,7 +359,8 @@ test('two factor verification and confirmation use trusted tenant context while 
             ->component('Auth/ConfirmPassword')
             ->where('auth.account.owner_id', $owner->id)
             ->where('auth.account.company.name', 'Auth Contexte')
-            ->where('auth.account.company.logo_url', 'https://assets.example.test/auth-contexte.png'));
+            ->where('auth.account.company.logo_url', 'https://assets.example.test/auth-contexte.png')
+            ->where('auth.account.company.primary_color', '#123ABC'));
 
     auth()->logout();
     $token = Password::broker()->createToken($owner);
@@ -356,16 +382,19 @@ test('impersonation keeps platform context outside the session and shares only t
         'role_id' => tenantBrandingContextRoleId('superadmin'),
         'company_name' => 'Administration plateforme',
         'company_logo' => 'https://assets.example.test/platform-only.png',
+        'company_branding_settings' => ['primary_color' => '#123ABC'],
         'email_verified_at' => now(),
         'onboarding_completed_at' => now(),
     ]);
     $selectedTenant = tenantBrandingContextOwner([
         'company_name' => 'Tenant sélectionné',
         'company_logo' => 'https://assets.example.test/tenant-selected.png',
+        'company_branding_settings' => ['primary_color' => '#FDE047'],
     ]);
     tenantBrandingContextOwner([
         'company_name' => 'Tenant voisin',
         'company_logo' => 'https://assets.example.test/tenant-neighbor.png',
+        'company_branding_settings' => ['primary_color' => '#0F766E'],
     ]);
 
     $this->actingAs($superadmin)
@@ -376,6 +405,7 @@ test('impersonation keeps platform context outside the session and shares only t
             ->where('auth.account.is_superadmin', true)
             ->where('auth.account.is_platform_admin', false)
             ->where('auth.account.company.name', 'Administration plateforme')
+            ->where('auth.account.company.primary_color', '#123ABC')
             ->where('auth.impersonator', null));
 
     $this->actingAs($superadmin)
@@ -396,6 +426,8 @@ test('impersonation keeps platform context outside the session and shares only t
             ->where('auth.account.company.logo_url', 'https://assets.example.test/tenant-selected.png')
             ->where('auth.account.company.custom_logo_url', 'https://assets.example.test/tenant-selected.png')
             ->where('auth.account.company.has_custom_logo', true)
+            ->where('auth.account.company.primary_color', '#FDE047')
+            ->where('auth.account.company.has_custom_primary_color', true)
             ->where('auth.impersonator.id', $superadmin->id)
             ->where('auth.impersonator.name', $superadmin->name)
             ->where('auth.impersonator.email', $superadmin->email));

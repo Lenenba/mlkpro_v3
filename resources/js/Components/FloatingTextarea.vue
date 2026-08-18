@@ -56,7 +56,7 @@ defineExpose({ focus: () => input.value?.focus() });
             v-model="model"
             ref="input"
             v-bind="textareaAttrs"
-            class="peer p-4 block w-full border-stone-200 rounded-sm text-sm placeholder:text-transparent focus:border-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:focus:ring-neutral-600
+            class="peer p-4 block w-full border-stone-200 rounded-sm text-sm placeholder:text-transparent focus:border-primary-line focus:ring-primary-line disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:focus:border-primary-line dark:focus:ring-primary-line
                 focus:pt-6
                 focus:pb-2
                 [&:not(:placeholder-shown)]:pt-6

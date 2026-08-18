@@ -596,7 +596,7 @@ onMounted(() => {
                         <input
                             v-model="addressQuery"
                             @input="handleAddressInput"
-                            class="block w-full rounded-sm border-stone-200 py-3 pe-4 ps-10 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                            class="block w-full rounded-sm border-stone-200 py-3 pe-4 ps-10 text-sm focus:border-primary-line focus:ring-primary-line dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
                             type="text"
                             role="combobox"
                             aria-expanded="false"
@@ -681,12 +681,12 @@ onMounted(() => {
                             v-model="form.suggested_service_ids"
                             :value="service.id"
                             type="checkbox"
-                            class="mt-0.5 h-4 w-4 rounded border-stone-300 text-green-600 focus:ring-green-500 dark:border-neutral-600 dark:bg-neutral-900"
+                            class="mt-0.5 h-4 w-4 rounded border-stone-300 text-primary-checked focus:ring-primary-line dark:border-neutral-600 dark:bg-neutral-900"
                         >
                         <div class="min-w-0 flex-1">
                             <div class="flex items-center justify-between gap-2">
                                 <span class="truncate text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ service.name }}</span>
-                                <span class="text-xs font-semibold text-emerald-700 dark:text-emerald-300">{{ resolveServicePriceLabel(service) }}</span>
+                                <span class="text-xs font-semibold text-primary-readable">{{ resolveServicePriceLabel(service) }}</span>
                             </div>
                             <p v-if="service.description" class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
                                 {{ service.description }}
@@ -703,7 +703,7 @@ onMounted(() => {
 
             <div
                 v-if="selectedServices.length"
-                class="rounded-sm border border-emerald-200 bg-emerald-50/60 p-4 dark:border-emerald-700/50 dark:bg-emerald-900/10"
+                class="rounded-sm border border-primary-line bg-primary-soft p-4 dark:border-primary-line dark:bg-neutral-900"
             >
                 <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
                     {{ $t('requests.form.pricing_preview_title') }}
@@ -715,7 +715,7 @@ onMounted(() => {
                         class="flex items-center justify-between gap-2 text-xs text-stone-700 dark:text-neutral-200"
                     >
                         <span class="min-w-0 flex-1 truncate">{{ service.name }}</span>
-                        <span class="font-semibold text-emerald-700 dark:text-emerald-300">{{ resolveServicePriceLabel(service) }}</span>
+                        <span class="font-semibold text-primary-soft-foreground dark:text-primary-readable">{{ resolveServicePriceLabel(service) }}</span>
                     </div>
                 </div>
 
@@ -744,7 +744,7 @@ onMounted(() => {
                     <button
                         type="submit"
                         :disabled="isSubmitting"
-                        class="inline-flex items-center justify-center rounded-sm bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-60"
+                        class="inline-flex items-center justify-center rounded-sm bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
                     >
                         {{ submitLabel }}
                     </button>

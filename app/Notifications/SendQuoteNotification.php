@@ -78,6 +78,8 @@ class SendQuoteNotification extends Notification implements ShouldQueue
                 'quote' => $this->quote,
                 'companyName' => $companyName,
                 'companyLogo' => $branding['custom_logo_url'],
+                'companyPrimaryColor' => $branding['primary_color'],
+                'companyPrimaryForegroundColor' => $branding['primary_foreground_color'],
                 'actionUrl' => $actionUrl,
                 'actionLabel' => $actionLabel,
                 'actionMessage' => $actionMessage,

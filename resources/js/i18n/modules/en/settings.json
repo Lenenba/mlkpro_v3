@@ -328,6 +328,17 @@
         "title": "Company profile",
         "description": "Identity, address, and company activity."
       },
+      "branding": {
+        "primary_color_title": "Primary color",
+        "primary_color_hint": "It customizes buttons, active links, and visual accents across your workspace, client portal, and public pages. Status colors remain unchanged.",
+        "primary_color_picker": "Color picker",
+        "primary_color_hex": "Hex value",
+        "primary_color_invalid": "Use a color in #RRGGBB format.",
+        "primary_color_reset": "Malikia color",
+        "primary_color_preview": "Preview",
+        "primary_color_preview_button": "Primary button",
+        "primary_color_preview_link": "Active link"
+      },
       "currency": {
         "label": "Main business currency",
         "change_hint": "New catalog items and Stripe online charges will use this currency.",

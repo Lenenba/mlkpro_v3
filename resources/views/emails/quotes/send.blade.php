@@ -12,6 +12,14 @@
         $actionLabel = $actionLabel ?? __('mail.quote.action_open_dashboard');
         $actionMessage = $actionMessage ?? __('mail.quote.action_message_dashboard');
         $itemCount = $quote->products->count();
+        $quotePrimaryColor = strtoupper(trim((string) ($companyPrimaryColor ?? '')));
+        $quotePrimaryForegroundColor = strtoupper(trim((string) ($companyPrimaryForegroundColor ?? '')));
+        $hasQuotePrimaryColor = preg_match('/^#[0-9A-F]{6}$/', $quotePrimaryColor) === 1;
+        $quotePrimaryColor = $hasQuotePrimaryColor ? $quotePrimaryColor : '#16A34A';
+        $quotePrimaryForegroundColor = $hasQuotePrimaryColor
+            && preg_match('/^#[0-9A-F]{6}$/', $quotePrimaryForegroundColor) === 1
+                ? $quotePrimaryForegroundColor
+                : '#111827';
     @endphp
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
         <tr>
@@ -219,8 +227,8 @@
             <td>
                 <table role="presentation" cellpadding="0" cellspacing="0">
                     <tr>
-                        <td bgcolor="#16a34a" style="border-radius:3px;">
-                            <a href="{{ $actionUrl }}" style="display:inline-block; padding:10px 16px; font-size:14px; font-weight:600; color:#ffffff; text-decoration:none;">
+                        <td bgcolor="{{ $quotePrimaryColor }}" style="background-color:{{ $quotePrimaryColor }}; border-radius:3px;">
+                            <a href="{{ $actionUrl }}" style="display:inline-block; padding:10px 16px; font-size:14px; font-weight:600; color:{{ $quotePrimaryForegroundColor }}; text-decoration:none;">
                                 {{ $actionLabel }}
                             </a>
                         </td>

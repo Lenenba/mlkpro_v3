@@ -4,6 +4,16 @@
 @section('preheader', $preheader ?? 'Apercu du post avant validation.')
 
 @section('content')
+    @php
+        $approvalPrimaryColor = strtoupper(trim((string) ($companyPrimaryColor ?? '')));
+        $approvalPrimaryForegroundColor = strtoupper(trim((string) ($companyPrimaryForegroundColor ?? '')));
+        $hasApprovalPrimaryColor = preg_match('/^#[0-9A-F]{6}$/', $approvalPrimaryColor) === 1;
+        $approvalPrimaryColor = $hasApprovalPrimaryColor ? $approvalPrimaryColor : '#16A34A';
+        $approvalPrimaryForegroundColor = $hasApprovalPrimaryColor
+            && preg_match('/^#[0-9A-F]{6}$/', $approvalPrimaryForegroundColor) === 1
+                ? $approvalPrimaryForegroundColor
+                : '#111827';
+    @endphp
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                         <td style="padding:18px 20px; background:#ffffff; border:1px solid #e5e7eb;">
@@ -32,9 +42,15 @@
                                 </tr>
                                 <tr>
                                     <td colspan="2" style="padding-top:14px;">
-                                        <a href="{{ $approvalUrl }}" style="display:inline-block; padding:10px 14px; background:#111827; color:#ffffff; text-decoration:none; font-size:14px; font-weight:700;">
-                                            Ouvrir la validation
-                                        </a>
+                                        <table role="presentation" cellpadding="0" cellspacing="0">
+                                            <tr>
+                                                <td bgcolor="{{ $approvalPrimaryColor }}" style="background-color:{{ $approvalPrimaryColor }};">
+                                                    <a href="{{ $approvalUrl }}" style="display:inline-block; padding:10px 14px; color:{{ $approvalPrimaryForegroundColor }}; text-decoration:none; font-size:14px; font-weight:700;">
+                                                        Ouvrir la validation
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        </table>
                                     </td>
                                 </tr>
                             </table>

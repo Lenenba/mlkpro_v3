@@ -69,6 +69,8 @@ class LeadCallRequestReceivedNotification extends Notification implements Should
                 'note' => $note,
                 'companyName' => $branding['name'],
                 'companyLogo' => $branding['custom_logo_url'],
+                'companyPrimaryColor' => $branding['primary_color'],
+                'companyPrimaryForegroundColor' => $branding['primary_foreground_color'],
             ]);
     }
 }

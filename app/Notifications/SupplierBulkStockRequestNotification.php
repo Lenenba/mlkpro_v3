@@ -79,6 +79,8 @@ class SupplierBulkStockRequestNotification extends Notification implements Shoul
             ->view('emails.notifications.action', [
                 'companyName' => $companyName,
                 'companyLogo' => $branding['custom_logo_url'],
+                'companyPrimaryColor' => $branding['primary_color'],
+                'companyPrimaryForegroundColor' => $branding['primary_foreground_color'],
                 'title' => $subject,
                 'intro' => $isFr
                     ? 'Nous souhaitons reapprovisionner les articles suivants. Pouvez-vous confirmer la disponibilite et le delai de livraison ?'

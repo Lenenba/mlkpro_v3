@@ -13,6 +13,7 @@ test('auth me api returns a stable bootstrap payload for the account owner', fun
         'company_name' => 'Acme Studio',
         'company_type' => 'services',
         'company_logo' => 'https://example.com/logo.png',
+        'company_branding_settings' => ['primary_color' => '#123abc'],
         'company_sector' => 'salon',
         'company_features' => [
             'assistant' => true,
@@ -39,6 +40,11 @@ test('auth me api returns a stable bootstrap payload for the account owner', fun
         ->assertJsonPath('meta.company.logo_url', 'https://example.com/logo.png')
         ->assertJsonPath('meta.company.custom_logo_url', 'https://example.com/logo.png')
         ->assertJsonPath('meta.company.has_custom_logo', true)
+        ->assertJsonPath('meta.company.primary_color', '#123ABC')
+        ->assertJsonPath('meta.company.primary_hover_color', '#1033A5')
+        ->assertJsonPath('meta.company.primary_focus_color', '#0E2D93')
+        ->assertJsonPath('meta.company.primary_foreground_color', '#FFFFFF')
+        ->assertJsonPath('meta.company.has_custom_primary_color', true)
         ->assertJsonPath('meta.features.assistant', true)
         ->assertJsonPath('meta.features.reservations', true)
         ->assertJsonMissingPath('meta.features.campaigns')
@@ -52,6 +58,7 @@ test('auth me api returns the owner context and team membership for an employee'
         'company_name' => 'Northwind Services',
         'company_type' => 'services',
         'company_logo' => 'https://example.com/northwind.png',
+        'company_branding_settings' => ['primary_color' => '#FDE047'],
         'company_features' => [
             'assistant' => true,
         ],
@@ -62,6 +69,7 @@ test('auth me api returns the owner context and team membership for an employee'
         'company_name' => null,
         'company_type' => null,
         'company_logo' => null,
+        'company_branding_settings' => ['primary_color' => '#123ABC'],
     ]);
 
     TeamMember::factory()->create([
@@ -87,6 +95,9 @@ test('auth me api returns the owner context and team membership for an employee'
         ->assertJsonPath('meta.company.logo_url', 'https://example.com/northwind.png')
         ->assertJsonPath('meta.company.custom_logo_url', 'https://example.com/northwind.png')
         ->assertJsonPath('meta.company.has_custom_logo', true)
+        ->assertJsonPath('meta.company.primary_color', '#FDE047')
+        ->assertJsonPath('meta.company.primary_foreground_color', '#111827')
+        ->assertJsonPath('meta.company.has_custom_primary_color', true)
         ->assertJsonPath('meta.features.assistant', true)
         ->assertJsonPath('meta.platform', null)
         ->assertJsonPath('meta.team.role', 'member')
@@ -100,6 +111,7 @@ test('auth me api resolves the owning workspace for a portal client user', funct
         'company_name' => 'Malikia Spa',
         'company_type' => 'services',
         'company_logo' => 'https://example.com/malikia-spa.png',
+        'company_branding_settings' => ['primary_color' => '#123ABC'],
         'company_features' => [
             'reservations' => true,
             'assistant' => true,
@@ -111,6 +123,7 @@ test('auth me api resolves the owning workspace for a portal client user', funct
         'company_name' => null,
         'company_type' => null,
         'company_logo' => null,
+        'company_branding_settings' => ['primary_color' => '#FDE047'],
     ]);
 
     Customer::factory()->create([
@@ -136,6 +149,9 @@ test('auth me api resolves the owning workspace for a portal client user', funct
         ->assertJsonPath('meta.company.logo_url', 'https://example.com/malikia-spa.png')
         ->assertJsonPath('meta.company.custom_logo_url', 'https://example.com/malikia-spa.png')
         ->assertJsonPath('meta.company.has_custom_logo', true)
+        ->assertJsonPath('meta.company.primary_color', '#123ABC')
+        ->assertJsonPath('meta.company.primary_foreground_color', '#FFFFFF')
+        ->assertJsonPath('meta.company.has_custom_primary_color', true)
         ->assertJsonPath('meta.features.assistant', true)
         ->assertJsonPath('meta.features.reservations', true)
         ->assertJsonPath('meta.platform', null)
@@ -195,7 +211,10 @@ test('auth me api distinguishes the legacy company placeholder from a custom log
         ->assertJsonPath('meta.company.name', 'Logo Pending Inc.')
         ->assertJsonPath('meta.company.logo_url', null)
         ->assertJsonPath('meta.company.custom_logo_url', null)
-        ->assertJsonPath('meta.company.has_custom_logo', false);
+        ->assertJsonPath('meta.company.has_custom_logo', false)
+        ->assertJsonPath('meta.company.primary_color', '#16A34A')
+        ->assertJsonPath('meta.company.primary_foreground_color', '#111827')
+        ->assertJsonPath('meta.company.has_custom_primary_color', false);
 });
 
 test('auth me api requires authentication', function () {

@@ -47,6 +47,8 @@ class UpcomingBillingReminderNotification extends Notification implements Should
                 ?? config('app.name'),
             'companyName' => config('app.name'),
             'companyLogo' => null,
+            'companyPrimaryColor' => null,
+            'companyPrimaryForegroundColor' => null,
             'showPoweredBy' => false,
         ]);
 
