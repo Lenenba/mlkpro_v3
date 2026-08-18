@@ -2,7 +2,7 @@
 
 Dernière mise à jour : 2026-08-18
 
-Statut : lots prioritaire et complémentaire implémentés; exécution E2E complémentaire à rejouer
+Statut : lots prioritaire et complémentaire implémentés et validés
 
 Estimation du lot prioritaire : 2 à 3 jours ouvrables pour un développeur
 
@@ -159,11 +159,12 @@ Preuves de validation du lot complémentaire :
 
 - suite PHP consolidée : 105 tests et 1 210 assertions réussis;
 - suite Node complète : 66 tests réussis;
+- suite Playwright complémentaire : 3 scénarios réussis;
 - tests de contexte couvrant deux tenants, l'impersonation réelle, le portail, l'authentification et le PDF de commande;
 - revue croisée backend, frontend et courriels sans défaut applicatif de priorité P0 à P2 restant;
 - `git diff --check` vert pendant les validations intermédiaires.
 
-L'exécution locale des nouveaux scénarios Playwright doit être rejouée : le lancement du navigateur a été refusé après l'atteinte de la limite d'autorisation de la session. Le scénario E2E prioritaire, incluant les contrôles visuels ordinateur et mobile, reste vert lors de sa dernière exécution.
+Les nouveaux scénarios Playwright sont verts avec Chromium et PHP 8.4. Ils couvrent la marque principale dans le workspace, le fallback réel lorsqu'un logo est inaccessible, l'isolation visuelle entre deux tenants et le lien de marque propre à la boutique.
 
 ## 5. Règles d'affichage
 
@@ -518,7 +519,7 @@ Ce lot a été implémenté afin d'uniformiser les surfaces historiques. Il comp
 
 Critère de sortie : aucune surface tenant existante ne dépend encore d'une détection locale ou contradictoire du logo.
 
-État : implémenté. Les exceptions intentionnelles sont les logos clients, les profils de marque des campagnes, les sections CMS, les workspaces de démonstration et les champs d'édition des paramètres. La vue legacy `customer-bulk-outreach.blade.php`, sans consommateur actif identifié, est conservée sans modification. La validation automatisée PHP et Node est verte; seule l'exécution des nouveaux scénarios Playwright reste à rejouer lorsque l'autorisation navigateur sera de nouveau disponible.
+État : implémenté et validé. Les exceptions intentionnelles sont les logos clients, les profils de marque des campagnes, les sections CMS, les workspaces de démonstration et les champs d'édition des paramètres. La vue legacy `customer-bulk-outreach.blade.php`, sans consommateur actif identifié, est conservée sans modification. Les validations automatisées PHP, Node et Playwright sont vertes.
 
 ## 10. Déploiement progressif
 
@@ -565,4 +566,4 @@ Le premier lot est terminé lorsque :
 - aucune modification n'a été faite directement sur `main`;
 - la livraison ou la pull request cible `develop`.
 
-La personnalisation est fonctionnellement implémentée sur les surfaces existantes des lots prioritaire et complémentaire. Elle sera déclarée entièrement validée après l'exécution réussie des nouveaux scénarios Playwright de la section 9.
+La personnalisation est entièrement implémentée et validée sur les surfaces existantes des lots prioritaire et complémentaire.

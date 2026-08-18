@@ -10,13 +10,13 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 
 | En cours | Bloqués | À faire | Terminés | Références | Archivés | À classer | Total |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 49 | 0 | 23 | 1 | 61 | 0 | 92 | 226 |
+| 48 | 0 | 23 | 2 | 61 | 0 | 92 | 226 |
 
 ## Derniers documents créés
 
 | Créé le | Modifié le | Suivi | Document |
 | --- | --- | --- | --- |
-| 2026-08-18 | 2026-08-18 | En cours | [PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md](PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md) |
+| 2026-08-18 | 2026-08-18 | Terminé | [PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md](PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md) |
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/capture-plan.csv](demo/video-library/capture-plan.csv) |
 | 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G01/capture-session.md](demo/video-library/captures/G01/capture-session.md) |
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G01/README.md](demo/video-library/captures/G01/README.md) |
@@ -41,7 +41,7 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 
 | Modifié le | Créé le | Suivi | Document |
 | --- | --- | --- | --- |
-| 2026-08-18 | 2026-08-18 | En cours | [PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md](PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md) |
+| 2026-08-18 | 2026-08-18 | Terminé | [PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md](PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md) |
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/capture-plan.csv](demo/video-library/capture-plan.csv) |
 | 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G01/capture-session.md](demo/video-library/captures/G01/capture-session.md) |
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G01/README.md](demo/video-library/captures/G01/README.md) |
@@ -75,7 +75,6 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 
 | Créé le | Modifié le | Document | Titre | État du document | Source | Note |
 | --- | --- | --- | --- | --- | --- | --- |
-| 2026-08-18 | 2026-08-18 | [PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md](PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md) | Personnalisation de la marque entreprise - plan d'implémentation | Complet | Classement manuel | Lots prioritaire et historique du branding entreprise implémentés; nouveaux scénarios Playwright ajoutés, mais leur exécution locale reste à rejouer. |
 | 2026-08-06 | 2026-08-11 | [DEMO_VIDEO_SALON_COIFFURE.md](DEMO_VIDEO_SALON_COIFFURE.md) | Démo vidéo — Salon de coiffure / beauté | Complet | Classement manuel | Reference metier Salon Eclat; les validations Stripe et integrations externes restent ouvertes. |
 | 2026-04-24 | 2026-04-25 | [PROSPECTS_MODULE_DEV_BACKLOG_2026-04-24.md](PROSPECTS_MODULE_DEV_BACKLOG_2026-04-24.md) | Module Prospects - plan de dev pas a pas | Complet | Classement manuel | PROSPECT-702 et plusieurs flux de fermeture restent partiels. |
 | 2026-04-13 | 2026-04-13 | [PLATFORM_BULK_ACTIONS_USER_STORY.md](PLATFORM_BULK_ACTIONS_USER_STORY.md) | Platform Bulk Actions - User Story | Complet | Classement manuel | Socle partiellement livre; generalisation multi-modules encore incomplete. |
@@ -96,7 +95,9 @@ _Aucun document._
 
 ## Terminé
 
-_Aucun document._
+| Créé le | Modifié le | Document | Titre | État du document | Source | Note |
+| --- | --- | --- | --- | --- | --- | --- |
+| 2026-08-18 | 2026-08-18 | [PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md](PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md) | Personnalisation de la marque entreprise - plan d'implémentation | Complet | Classement manuel | Lots prioritaire et historique du branding entreprise implémentés et validés, y compris les scénarios Playwright complémentaires. |
 
 ## Références actives
 
