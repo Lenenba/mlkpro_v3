@@ -1,19 +1,10 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $subject ?? 'Pulse: post a valider' }}</title>
-</head>
-<body style="margin:0; padding:0; background:#f3f4f6; font-family:Arial, sans-serif; color:#1f2937;">
-    <div style="display:none; max-height:0; overflow:hidden; opacity:0;">
-        {{ $preheader ?? 'Apercu du post avant validation.' }}
-    </div>
+@extends('emails.layouts.base')
 
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;">
-        <tr>
-            <td align="center" style="padding:24px 12px;">
-                <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="width:640px; max-width:100%;">
+@section('title', $subject ?? 'Pulse: post a valider')
+@section('preheader', $preheader ?? 'Apercu du post avant validation.')
+
+@section('content')
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                         <td style="padding:18px 20px; background:#ffffff; border:1px solid #e5e7eb;">
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
@@ -141,9 +132,5 @@
                             </td>
                         </tr>
                     @endforeach
-                </table>
-            </td>
-        </tr>
     </table>
-</body>
-</html>
+@endsection

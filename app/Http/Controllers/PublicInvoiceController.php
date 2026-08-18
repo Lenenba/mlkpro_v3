@@ -7,6 +7,7 @@ use App\Models\Invoice;
 use App\Models\User;
 use App\Notifications\ActionEmailNotification;
 use App\Services\StripeInvoiceService;
+use App\Services\TenantBrandingResolver;
 use App\Services\TenantPaymentMethodGuardService;
 use App\Support\NotificationDispatcher;
 use App\Support\TenantPaymentMethodsResolver;
@@ -48,6 +49,7 @@ class PublicInvoiceController extends Controller
         }
 
         $owner = User::find($invoice->user_id);
+        $tenantBranding = app(TenantBrandingResolver::class)->forAccountOwner($owner);
         $customer = $invoice->customer;
 
         [$canPay, $paymentMessage] = $this->resolvePaymentAvailability($invoice, $customer);
@@ -113,8 +115,10 @@ class PublicInvoiceController extends Controller
                     }),
             ],
             'company' => [
-                'name' => $owner?->company_name ?: config('app.name'),
-                'logo_url' => $owner?->company_logo_url,
+                'name' => $tenantBranding['name'],
+                'logo_url' => $tenantBranding['custom_logo_url'],
+                'custom_logo_url' => $tenantBranding['custom_logo_url'],
+                'has_custom_logo' => $tenantBranding['has_custom_logo'],
                 'currency_code' => $owner?->businessCurrencyCode(),
             ],
             'allowPayment' => $canPay,

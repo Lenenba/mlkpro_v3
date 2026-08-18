@@ -53,10 +53,12 @@
         text-align: right;
       }
       .logo {
-        width: 40px;
-        height: 40px;
-        object-fit: cover;
-        border-radius: var(--malikia-radius);
+        display: block;
+        max-width: 140px;
+        max-height: 48px;
+        width: auto;
+        height: auto;
+        object-fit: contain;
         margin-bottom: 10px;
       }
       .brand-name {
@@ -255,8 +257,9 @@
   </head>
   <body>
     @php
-      $companyName = $company?->company_name ?: config('app.name');
-      $companyLogo = $company?->company_logo_url;
+      $companyBranding = app(\App\Services\TenantBrandingResolver::class)->forAccountOwner($company);
+      $companyName = $companyBranding['name'];
+      $companyLogo = $companyBranding['custom_logo_url'];
       $companyLogoUrl = null;
       if (! empty($companyLogo)) {
           $companyLogoUrl = str_starts_with($companyLogo, '/') ? url($companyLogo) : $companyLogo;
@@ -390,7 +393,7 @@
         <tr>
           <td class="brand-col">
             @if(! empty($companyLogoUrl))
-              <img src="{{ $companyLogoUrl }}" alt="Logo" class="logo">
+              <img src="{{ $companyLogoUrl }}" alt="{{ $companyName }}" class="logo">
             @endif
             <div class="eyebrow">{{ $companyName }}</div>
             <div class="brand-name">Invoice</div>

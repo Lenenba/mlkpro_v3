@@ -21,6 +21,8 @@ function twoFactorServiceSmsUser(): User
 {
     return User::factory()->create([
         'locale' => 'fr',
+        'company_name' => 'Maison Boréale',
+        'company_logo' => 'https://assets.example.test/maison-boreale.png',
         'phone_number' => '+15145550123',
         'two_factor_exempt' => false,
         'two_factor_enabled' => false,
@@ -114,12 +116,15 @@ test('two factor service falls back to email when twilio rejects sms', function 
         $user,
         TwoFactorCodeNotification::class,
         function (TwoFactorCodeNotification $notification, array $channels) use ($user): bool {
-            $code = $notification->toMail($user)->viewData['code'] ?? null;
+            $mail = $notification->toMail($user);
+            $code = $mail->viewData['code'] ?? null;
 
             return $channels === ['mail']
                 && is_string($code)
                 && preg_match('/^\d{6}$/', $code) === 1
-                && Hash::check($code, $user->two_factor_code);
+                && Hash::check($code, $user->two_factor_code)
+                && ($mail->viewData['companyName'] ?? null) === 'Maison Boréale'
+                && ($mail->viewData['companyLogo'] ?? null) === 'https://assets.example.test/maison-boreale.png';
         }
     );
 

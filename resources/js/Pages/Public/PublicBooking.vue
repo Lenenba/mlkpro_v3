@@ -652,22 +652,13 @@ watch(
 </script>
 
 <template>
-    <GuestLayout :show-platform-logo="false" card-class="w-full">
+    <GuestLayout :company="company" logo-href="" card-class="mt-4 w-full">
         <Head :title="link.name" />
 
         <div class="min-h-screen bg-stone-50 text-stone-900">
             <div class="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8">
                 <header class="flex flex-wrap items-center justify-between gap-4 rounded-sm border border-stone-200 bg-white px-4 py-3 shadow-sm">
                     <div class="flex min-w-0 items-center gap-3">
-                        <img
-                            v-if="company.logo_url"
-                            :src="company.logo_url"
-                            :alt="company.name"
-                            class="size-12 rounded-sm object-cover"
-                        >
-                        <div v-else class="flex size-12 items-center justify-center rounded-sm bg-emerald-700 text-base font-semibold text-white">
-                            {{ String(company.name || 'M').slice(0, 1) }}
-                        </div>
                         <div class="min-w-0">
                             <p class="truncate text-xs font-semibold uppercase tracking-wide text-emerald-700">{{ company.name }}</p>
                             <h1 class="truncate text-xl font-semibold text-stone-950 sm:text-2xl">{{ link.name }}</h1>
@@ -1088,7 +1079,6 @@ watch(
                 v-if="aiAssistantEnabled"
                 :company-name="company.name"
                 :company-slug="aiAssistant.company_slug"
-                :company-logo-url="company.logo_url || ''"
                 :assistant-name="aiAssistant.name || 'Malikia AI Assistant'"
                 :endpoints="aiAssistant.endpoints"
                 :initial-metadata="aiReservationContext"

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\Work;
+use App\Services\TenantBrandingResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
@@ -22,7 +23,8 @@ class PublicWorkProofController extends Controller
 
         $customer = $work->customer;
         $owner = User::find($work->user_id);
-        $allowUpload = !(bool) ($customer?->auto_validate_tasks ?? false);
+        $tenantBranding = app(TenantBrandingResolver::class)->forAccountOwner($owner);
+        $allowUpload = ! (bool) ($customer?->auto_validate_tasks ?? false);
 
         $expiresAt = $this->resolveExpiry($request);
 
@@ -107,8 +109,10 @@ class PublicWorkProofController extends Controller
                 'end_date' => $work->end_date,
             ],
             'company' => [
-                'name' => $owner?->company_name ?: config('app.name'),
-                'logo_url' => $owner?->company_logo_url,
+                'name' => $tenantBranding['name'],
+                'logo_url' => $tenantBranding['custom_logo_url'],
+                'custom_logo_url' => $tenantBranding['custom_logo_url'],
+                'has_custom_logo' => $tenantBranding['has_custom_logo'],
             ],
             'customer' => $customer ? [
                 'company_name' => $customer->company_name,

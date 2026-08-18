@@ -50,11 +50,12 @@
         text-align: right;
       }
       .logo {
-        width: 44px;
-        height: 44px;
-        object-fit: cover;
-        border-radius: var(--malikia-radius);
-        border: 1px solid #dcdcdc;
+        display: block;
+        max-width: 140px;
+        max-height: 48px;
+        width: auto;
+        height: auto;
+        object-fit: contain;
       }
       .eyebrow {
         font-size: 10px;
@@ -242,8 +243,9 @@
   </head>
   <body>
     @php
-      $companyName = $company?->company_name ?: config('app.name');
-      $companyLogo = $company?->company_logo_url;
+      $companyBranding = app(\App\Services\TenantBrandingResolver::class)->forAccountOwner($company);
+      $companyName = $companyBranding['name'];
+      $companyLogo = $companyBranding['custom_logo_url'];
       $companyLogoUrl = null;
       if (! empty($companyLogo)) {
           $companyLogoUrl = str_starts_with($companyLogo, '/') ? url($companyLogo) : $companyLogo;
@@ -403,7 +405,7 @@
           <td class="hero-left">
             @if(! empty($companyLogoUrl))
               <div style="margin-bottom: 10px;">
-                <img src="{{ $companyLogoUrl }}" alt="Logo" class="logo">
+                <img src="{{ $companyLogoUrl }}" alt="{{ $companyName }}" class="logo">
               </div>
             @endif
             <div class="eyebrow">{{ $companyName }}</div>

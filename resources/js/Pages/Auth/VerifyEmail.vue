@@ -2,16 +2,26 @@
 import { computed } from 'vue';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import { resolveContextualCompany } from '@/utils/companyBranding';
 
 const props = defineProps({
     status: {
         type: String,
     },
+    company: {
+        type: Object,
+        default: null,
+    },
 });
 
 const { t } = useI18n();
+const page = usePage();
+const contextualCompany = computed(() => resolveContextualCompany(
+    page.props.auth?.account,
+    props.company
+));
 
 const form = useForm({});
 
@@ -25,7 +35,7 @@ const verificationLinkSent = computed(
 </script>
 
 <template>
-    <GuestLayout>
+    <GuestLayout :company="contextualCompany">
         <Head :title="t('auth_pages.verify_email.title')" />
 
         <div class="mb-4 text-sm text-stone-600 dark:text-neutral-400">

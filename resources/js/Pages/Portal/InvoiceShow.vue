@@ -5,6 +5,7 @@ import { Head } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
 import { useCurrencyFormatter } from '@/utils/currency';
+import CompanyBrandLogo from '@/Components/CompanyBrandLogo.vue';
 
 const props = defineProps({
     invoice: Object,
@@ -14,7 +15,6 @@ const props = defineProps({
 const { t } = useI18n();
 const invoice = computed(() => props.invoice || {});
 const companyName = computed(() => props.company?.name || t('invoices.company_fallback'));
-const companyLogo = computed(() => props.company?.logo_url || null);
 
 const customer = computed(() => invoice.value.customer || null);
 const work = computed(() => invoice.value.work || null);
@@ -178,13 +178,13 @@ const statusClass = (status) => {
             <div class="p-5 space-y-3 flex flex-col bg-stone-100 border border-stone-100 rounded-sm shadow-sm dark:bg-neutral-900 dark:border-neutral-800">
                 <div class="flex flex-wrap justify-between items-center gap-3">
                     <div class="flex items-center gap-3">
-                        <img
-                            v-if="companyLogo"
-                            :src="companyLogo"
-                            :alt="companyName"
-                            class="h-12 w-12 rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
+                        <CompanyBrandLogo
+                            :company="company"
+                            :name="companyName"
+                            :show-fallback-name="false"
+                            container-class="h-12 w-12 p-1"
+                            class="shrink-0 shadow-none"
                             loading="lazy"
-                            decoding="async"
                         />
                         <div>
                             <p class="text-xs uppercase text-stone-500 dark:text-neutral-400">

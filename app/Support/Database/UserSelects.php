@@ -24,7 +24,7 @@ final class UserSelects
 
     public static function companySummary(): array
     {
-        return ['id', 'company_type', 'company_name', 'company_logo'];
+        return ['id', 'name', 'company_type', 'company_name', 'company_logo', 'currency_code'];
     }
 
     public static function portalCompanyContext(): array

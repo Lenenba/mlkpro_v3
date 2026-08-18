@@ -7,6 +7,7 @@ import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import CompanyBrandLogo from '@/Components/CompanyBrandLogo.vue';
 import { humanizeDate } from '@/utils/date';
 import { useCurrencyFormatter } from '@/utils/currency';
 
@@ -236,15 +237,6 @@ const submitReceiptConfirm = () => {
     });
 };
 
-const companyInitials = computed(() => {
-    const name = props.company?.name || '';
-    const parts = name.split(' ').filter(Boolean).slice(0, 2);
-    if (!parts.length) {
-        return 'CI';
-    }
-    return parts.map((part) => part[0]).join('').toUpperCase();
-});
-
 const productTabs = computed(() => ([
     {
         id: 'shop',
@@ -459,17 +451,14 @@ const submitProductReview = (productId) => {
                             <div class="flex items-start justify-between gap-4">
                                 <div class="space-y-4">
                                     <div class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]">
-                                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/16">
-                                            <img
-                                                v-if="company?.logo_url"
-                                                :src="company.logo_url"
-                                                :alt="company?.name || t('portal_shop.header.logo_alt')"
-                                                class="h-full w-full rounded-full object-cover"
-                                                loading="lazy"
-                                                decoding="async"
-                                            >
-                                            <span v-else>{{ companyInitials }}</span>
-                                        </span>
+                                        <CompanyBrandLogo
+                                            :company="company"
+                                            :name="companyName"
+                                            :show-fallback-name="false"
+                                            container-class="h-8 w-8 p-0.5"
+                                            class="shrink-0 !rounded-full !border-white/30 shadow-none"
+                                            loading="lazy"
+                                        />
                                         {{ companyName }}
                                     </div>
 

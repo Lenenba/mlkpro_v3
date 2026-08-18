@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import ApplicationLogo from "@/Components/ApplicationLogo.vue";
+import CompanyBrandLogo from '@/Components/CompanyBrandLogo.vue';
 import LinkAncor from "@/Components/UI/LinkAncor.vue";
 import { usePage } from '@inertiajs/vue3';
 import MenuDropdown from "@/Components/UI/LinkAncor2.vue";
@@ -10,6 +11,7 @@ import CategoryIcon from '@/Components/Workspace/CategoryIcon.vue';
 import { buildWorkspaceHubCategories } from '@/utils/workspaceHub';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 import { usePermissions } from '@/Composables/usePermissions';
+import { resolveAccountCompanyBrand } from '@/utils/companyBranding';
 
 const page = usePage()
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
@@ -19,6 +21,11 @@ const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
 const isClient = computed(() => Boolean(page.props.auth?.account?.is_client));
 const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superadmin));
 const isPlatformAdmin = computed(() => Boolean(page.props.auth?.account?.is_platform_admin));
+const isImpersonating = computed(() => Boolean(page.props.auth?.impersonator));
+const tenantBrand = computed(() => resolveAccountCompanyBrand(
+    page.props.auth?.account,
+    { impersonating: isImpersonating.value }
+));
 const platformPermissions = computed(() => page.props.auth?.account?.platform?.permissions || []);
 const { hasPermission, hasAnyPermission } = usePermissions();
 const teamRole = computed(() => page.props.auth?.account?.team?.role || null);
@@ -127,8 +134,20 @@ const isCustomerActive = computed(() => {
             <div class="h-full flex">
                 <div class="relative z-10 w-16 flex flex-col h-full max-h-full pb-5">
                     <header class="w-16 py-2.5 flex justify-center shrink-0">
-                        <a class="flex-none rounded-sm text-xl inline-block font-semibold focus:outline-none focus:opacity-80"
-                            :href="route(homeRoute)" aria-label="Preline">
+                        <CompanyBrandLogo
+                            v-if="tenantBrand"
+                            :company="tenantBrand"
+                            :href="route(homeRoute)"
+                            :link-label="tenantBrand.name || 'Malikia Pro'"
+                            container-class="h-14 w-14 p-1"
+                            class="flex-none focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                        />
+                        <a
+                            v-else
+                            class="flex-none rounded-sm text-xl inline-block font-semibold focus:outline-none focus:opacity-80"
+                            :href="route(homeRoute)"
+                            aria-label="Malikia Pro"
+                        >
                             <ApplicationLogo class="w-[4rem] h-[4rem] p-1" />
                         </a>
                     </header>

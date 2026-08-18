@@ -10,6 +10,7 @@ use App\Modules\AiAssistant\Models\AiConversation;
 use App\Modules\AiAssistant\Models\AiMessage;
 use App\Modules\AiAssistant\Requests\SendAiMessageRequest;
 use App\Modules\AiAssistant\Services\AiAssistantService;
+use App\Services\TenantBrandingResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
@@ -18,7 +19,8 @@ use Inertia\Inertia;
 class AiPublicChatController extends Controller
 {
     public function __construct(
-        private readonly AiAssistantService $assistant
+        private readonly AiAssistantService $assistant,
+        private readonly TenantBrandingResolver $tenantBrandingResolver,
     ) {}
 
     public function page(string $company)
@@ -27,12 +29,15 @@ class AiPublicChatController extends Controller
         $setting = AiAssistantSetting::firstOrCreateForTenant($tenant);
 
         abort_unless($setting->enabled, 404);
+        $tenantBranding = $this->tenantBrandingResolver->forAccountOwner($tenant);
 
         return Inertia::render('Public/AiAssistantChat', [
             'company' => [
-                'name' => $tenant->company_name ?: $tenant->name,
+                'name' => $tenantBranding['name'],
                 'slug' => $tenant->company_slug,
-                'logo_url' => $this->publicLogoUrl($tenant),
+                'logo_url' => $tenantBranding['custom_logo_url'],
+                'custom_logo_url' => $tenantBranding['custom_logo_url'],
+                'has_custom_logo' => $tenantBranding['has_custom_logo'],
             ],
             'assistant' => [
                 'name' => (string) $setting->assistant_name,
@@ -255,11 +260,6 @@ class AiPublicChatController extends Controller
         } catch (\Throwable) {
             return null;
         }
-    }
-
-    private function publicLogoUrl(User $tenant): ?string
-    {
-        return $tenant->company_logo ? $tenant->company_logo_url : null;
     }
 
     /**

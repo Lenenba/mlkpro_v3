@@ -4,6 +4,7 @@ import { Head, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import axios from 'axios';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
+import CompanyBrandLogo from '@/Components/CompanyBrandLogo.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
@@ -35,7 +36,6 @@ const props = defineProps({
 
 const { t } = useI18n();
 const isEmbedded = computed(() => props.embed === true);
-const logoVisible = ref(Boolean(props.company?.logo_url));
 const { formatCurrency } = useCurrencyFormatter();
 
 const contactPhone = computed(() => (props.company?.phone || '').trim());
@@ -111,6 +111,8 @@ const shellProps = computed(() => (
         ? { class: 'min-h-full w-full overflow-hidden bg-white p-4 text-stone-900 sm:p-5' }
         : {
             cardClass: 'mt-6 w-full max-w-2xl rounded-sm border border-stone-200 bg-white px-6 py-6 shadow-md dark:border-neutral-700 dark:bg-neutral-900',
+            company: props.company,
+            logoHref: '',
         }
 ));
 const contentClass = computed(() => (isEmbedded.value ? 'w-full space-y-6' : 'space-y-6'));
@@ -312,13 +314,6 @@ const syncSelectedServiceIds = () => {
 
 watch(catalogServices, syncSelectedServiceIds, { immediate: true });
 watch(
-    () => props.company?.logo_url,
-    (value) => {
-        logoVisible.value = Boolean(value);
-    },
-    { immediate: true }
-);
-watch(
     () => [
         form.contact_name,
         form.contact_email,
@@ -451,10 +446,6 @@ const submit = async (ignoreDuplicates = false) => {
     }
 };
 
-const handleLogoError = () => {
-    logoVisible.value = false;
-};
-
 const postEmbeddedHeight = () => {
     if (!isEmbedded.value || typeof window === 'undefined' || window.parent === window) {
         return;
@@ -513,15 +504,11 @@ onMounted(() => {
 
         <div :class="contentClass">
         <div class="flex flex-col items-center gap-2 text-center">
-            <img
-                v-if="logoVisible && company.logo_url"
-                :src="company.logo_url"
-                :alt="company.name"
-                class="h-12 w-12 rounded-sm object-contain"
-                loading="lazy"
-                decoding="async"
-                @error="handleLogoError"
-            >
+            <CompanyBrandLogo
+                v-if="isEmbedded"
+                :company="company"
+                container-class="h-14 w-44 p-2"
+            />
             <div class="text-sm text-stone-500 dark:text-neutral-400">{{ company.name }}</div>
             <h1 class="text-2xl font-semibold text-stone-800 dark:text-neutral-100">
                 {{ $t('requests.form.title') }}
@@ -764,6 +751,12 @@ onMounted(() => {
                 </div>
             </div>
         </form>
+        <p
+            v-if="isEmbedded"
+            class="text-center text-xs text-stone-500 dark:text-neutral-400"
+        >
+            {{ t('account.branding.powered_by') }}
+        </p>
         </div>
     </component>
 </template>

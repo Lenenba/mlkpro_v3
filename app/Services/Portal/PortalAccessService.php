@@ -59,21 +59,24 @@ class PortalAccessService
 
     public function assertInvoice(Customer $customer, Invoice $invoice): void
     {
-        if ((int) $invoice->customer_id !== (int) $customer->id) {
+        if ((int) $invoice->customer_id !== (int) $customer->id
+            || (int) $invoice->user_id !== (int) $customer->user_id) {
             abort(403);
         }
     }
 
     public function assertQuote(Customer $customer, Quote $quote): void
     {
-        if ((int) $quote->customer_id !== (int) $customer->id) {
+        if ((int) $quote->customer_id !== (int) $customer->id
+            || (int) $quote->user_id !== (int) $customer->user_id) {
             abort(403);
         }
     }
 
     public function assertWork(Customer $customer, Work $work): void
     {
-        if ((int) $work->customer_id !== (int) $customer->id) {
+        if ((int) $work->customer_id !== (int) $customer->id
+            || (int) $work->user_id !== (int) $customer->user_id) {
             abort(403);
         }
     }
@@ -83,7 +86,12 @@ class PortalAccessService
         $task->loadMissing('work');
 
         $workCustomerId = (int) ($task->work?->customer_id ?? 0);
-        if ((int) $task->customer_id !== (int) $customer->id && $workCustomerId !== (int) $customer->id) {
+        $belongsToCustomer = (int) $task->customer_id === (int) $customer->id
+            || $workCustomerId === (int) $customer->id;
+        $belongsToAccount = (int) $task->account_id === (int) $customer->user_id
+            && (! $task->work || (int) $task->work->user_id === (int) $customer->user_id);
+
+        if (! $belongsToCustomer || ! $belongsToAccount) {
             abort(403);
         }
     }

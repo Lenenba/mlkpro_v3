@@ -12,10 +12,6 @@ const props = defineProps({
         type: String,
         required: true,
     },
-    companyLogoUrl: {
-        type: String,
-        default: '',
-    },
     assistantName: {
         type: String,
         default: 'Malikia AI Assistant',
@@ -206,14 +202,8 @@ onMounted(() => {
         >
             <header class="flex items-center justify-between gap-3 border-b border-stone-200 bg-stone-950 px-4 py-3 text-white">
                 <div class="flex min-w-0 items-center gap-3">
-                    <img
-                        v-if="companyLogoUrl"
-                        :src="companyLogoUrl"
-                        :alt="companyName"
-                        class="size-9 rounded-sm object-cover"
-                    >
-                    <span v-else class="flex size-9 items-center justify-center rounded-sm bg-emerald-600 text-sm font-semibold">
-                        {{ String(companyName || 'M').slice(0, 1) }}
+                    <span class="flex size-9 shrink-0 items-center justify-center rounded-sm bg-emerald-600 text-white">
+                        <Bot class="size-5" aria-hidden="true" />
                     </span>
                     <div class="min-w-0">
                         <div class="truncate text-sm font-semibold">{{ assistantName }}</div>

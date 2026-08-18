@@ -5,6 +5,7 @@ import StarRating from '@/Components/UI/StarRating.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import { humanizeDate } from '@/utils/date';
+import CompanyBrandLogo from '@/Components/CompanyBrandLogo.vue';
 
 const props = defineProps({
     work: Object,
@@ -18,7 +19,6 @@ const props = defineProps({
 const page = usePage();
 const { t } = useI18n();
 const companyName = computed(() => page.props.auth?.account?.company?.name || t('jobs.company_fallback'));
-const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
 
 const ratingValue = computed(() => {
     const ratings = props.work?.ratings || [];
@@ -77,12 +77,14 @@ const createInvoice = () => {
             <div class="p-5 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                 <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                     <div class="flex items-center gap-3">
-                        <img v-if="companyLogo"
-                            :src="companyLogo"
-                            :alt="companyName"
-                            class="h-12 w-12 rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
+                        <CompanyBrandLogo
+                            :company="page.props.auth?.account?.company"
+                            :name="companyName"
+                            :show-fallback-name="false"
+                            container-class="h-12 w-12 p-1"
+                            class="shrink-0 shadow-none"
                             loading="lazy"
-                            decoding="async" />
+                        />
                         <div>
                             <p class="text-xs uppercase text-stone-500 dark:text-neutral-400">
                                 {{ companyName }}

@@ -17,6 +17,7 @@ import {
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import InputError from '@/Components/InputError.vue';
+import CompanyBrandLogo from '@/Components/CompanyBrandLogo.vue';
 import { reservationStatusBadgeClass } from '@/Components/Reservation/status';
 import LanguageSwitcherMenu from '@/Components/UI/LanguageSwitcherMenu.vue';
 
@@ -402,7 +403,6 @@ const normalizeKioskPhonePayload = (value) => {
 const kioskTitle = computed(() => t('reservations.kiosk.title'));
 const companyName = computed(() => String(props.company?.name || '').trim() || kioskTitle.value);
 const brandName = computed(() => companyName.value);
-const companyLogoUrl = computed(() => String(props.company?.logo_url || '').trim());
 const defaultPortraitImageUrl = '/images/landing/stock/salon-front-desk.jpg';
 const portraitImageUrl = computed(() => {
     const imageUrl = String(props.settings?.kiosk_image_url || '').trim();
@@ -818,17 +818,13 @@ const formatDateTime = (value) => (value ? dayjs(value).format('DD MMM HH:mm') :
                     </span>
                 </div>
 
-                <div class="flex items-center justify-center md:justify-self-center" :aria-label="brandName">
-                    <img
-                        v-if="companyLogoUrl"
-                        :src="companyLogoUrl"
-                        :alt="brandName"
-                        class="h-11 max-w-[190px] object-contain lg:h-[clamp(34px,5vh,44px)]"
-                    >
-                    <div v-else class="text-center">
-                        <div class="text-[20px] font-extrabold leading-none text-[#0f1720]">{{ brandName }}</div>
-                        <div class="mt-1 h-1 w-full bg-[#0f9a68]" aria-hidden="true" />
-                    </div>
+                <div class="flex items-center justify-center md:justify-self-center">
+                    <CompanyBrandLogo
+                        :company="company"
+                        :name="brandName"
+                        container-class="h-14 w-[190px] p-1.5"
+                        class="shadow-none"
+                    />
                 </div>
 
                 <div class="flex justify-start md:justify-end">
@@ -1188,9 +1184,13 @@ const formatDateTime = (value) => (value ? dayjs(value).format('DD MMM HH:mm') :
                     </div>
                 </section>
 
-                <footer class="py-2 text-center text-[12px] font-medium text-[#475569]">
-                    {{ $t('reservations.kiosk.footer_note') }}
-                    <Heart class="ml-2 inline size-4 fill-[#0f9a68] align-[-2px] text-[#0f9a68]" aria-hidden="true" />
+                <footer class="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 py-2 text-center text-[12px] font-medium text-[#475569]">
+                    <span>
+                        {{ $t('reservations.kiosk.footer_note') }}
+                        <Heart class="ml-2 inline size-4 fill-[#0f9a68] align-[-2px] text-[#0f9a68]" aria-hidden="true" />
+                    </span>
+                    <span aria-hidden="true">·</span>
+                    <span>{{ $t('account.branding.powered_by') }}</span>
                 </footer>
             </div>
         </div>

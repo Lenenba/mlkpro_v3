@@ -40,8 +40,18 @@ class UpcomingBillingReminderNotification extends Notification implements Should
             'date' => (string) ($this->payload['billingDateLabel'] ?? ($this->payload['billingDate'] ?? '-')),
         ], $locale);
 
+        $payload = array_merge($this->payload, [
+            'billingCompanyName' => $this->payload['billingCompanyName']
+                ?? $this->payload['companyName']
+                ?? $this->payload['recipientName']
+                ?? config('app.name'),
+            'companyName' => config('app.name'),
+            'companyLogo' => null,
+            'showPoweredBy' => false,
+        ]);
+
         return (new MailMessage)
             ->subject($subject)
-            ->view('emails.billing.upcoming-reminder', $this->payload);
+            ->view('emails.billing.upcoming-reminder', $payload);
     }
 }

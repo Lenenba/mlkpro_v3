@@ -7,6 +7,7 @@ import ClientPortalTabs from '@/Components/Portal/ClientPortalTabs.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import DateTimePicker from '@/Components/DateTimePicker.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
+import CompanyBrandLogo from '@/Components/CompanyBrandLogo.vue';
 import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
@@ -669,23 +670,15 @@ const startPayment = (type) => {
                             <div class="flex items-start justify-between gap-4">
                                 <div class="space-y-4">
                                     <div class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]">
-                                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/16">
-                                            <img
-                                                v-if="company?.logo_url"
-                                                :src="company.logo_url"
-                                                :alt="company?.name || $t('portal_shop.header.logo_alt')"
-                                                class="h-full w-full rounded-full object-cover"
-                                                loading="lazy"
-                                                decoding="async"
-                                            >
-                                            <svg v-else class="size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M6 6h15l-1.5 9h-12z" />
-                                                <path d="M6 6 4 3H2" />
-                                                <circle cx="9" cy="20" r="1" />
-                                                <circle cx="18" cy="20" r="1" />
-                                            </svg>
-                                        </span>
-                                        {{ $t('portal_shop.header.section') }}
+                                        <CompanyBrandLogo
+                                            :company="company"
+                                            :name="companyName"
+                                            :show-fallback-name="false"
+                                            container-class="h-8 w-8 p-0.5"
+                                            class="shrink-0 !rounded-full !border-white/30 shadow-none"
+                                            loading="lazy"
+                                        />
+                                        {{ companyName }}
                                     </div>
 
                                     <div>

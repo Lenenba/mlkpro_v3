@@ -13,7 +13,9 @@ use App\Models\TeamMemberAttendance;
 use App\Models\User;
 use App\Services\SmsNotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
+use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
 
@@ -177,7 +179,13 @@ it('renders kiosk with active services and company branding', function () {
         ->assertOk()
         ->assertSee('Studio Lumiere')
         ->assertSee('Coupe signature')
-        ->assertSee('studio-lumiere.png');
+        ->assertSee('studio-lumiere.png')
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Public/ReservationKiosk')
+            ->where('company.name', 'Studio Lumiere')
+            ->where('company.logo_url', Storage::disk('public')->url('company/logos/studio-lumiere.png'))
+            ->where('company.custom_logo_url', Storage::disk('public')->url('company/logos/studio-lumiere.png'))
+            ->where('company.has_custom_logo', true));
 });
 
 it('allows creating a public kiosk walk-in guest ticket', function () {

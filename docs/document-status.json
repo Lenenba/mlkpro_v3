@@ -18,6 +18,13 @@
             "delivery_status": "planned",
             "note": "Document de decouverte fige; implementation produit encore a planifier."
         },
+        "docs/PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "created_at": "2026-08-18",
+            "updated_at": "2026-08-18",
+            "note": "Lots prioritaire et historique du branding entreprise implémentés; nouveaux scénarios Playwright ajoutés, mais leur exécution locale reste à rejouer."
+        },
         "docs/MODULE_VISIBILITY_AUDIT_RUNBOOK.md": {
             "document_status": "reference",
             "delivery_status": "not_applicable",

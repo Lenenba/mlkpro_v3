@@ -97,6 +97,12 @@ const shouldShowAutoBreadcrumbs = computed(() => !hasCustomBreadcrumb.value && a
                     :items="autoBreadcrumbItems"
                 />
                 <slot />
+                <p
+                    v-if="isClient"
+                    class="pb-3 text-center text-xs text-stone-500 dark:text-neutral-400"
+                >
+                    {{ t('account.branding.powered_by') }}
+                </p>
             </div>
         </main>
         <!-- ========== END MAIN CONTENT ========== -->

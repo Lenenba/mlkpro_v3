@@ -21,6 +21,7 @@ use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationIntentGuardService;
 use App\Services\ReservationQueueService;
 use App\Services\SmsNotificationService;
+use App\Services\TenantBrandingResolver;
 use App\Support\ReservationPresetResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -45,7 +46,8 @@ class PublicKioskReservationController extends Controller
         private readonly ReservationQueueService $queueService,
         private readonly ReservationIntentGuardService $intentGuard,
         private readonly CompanyFeatureService $featureService,
-        private readonly SmsNotificationService $smsService
+        private readonly SmsNotificationService $smsService,
+        private readonly TenantBrandingResolver $tenantBrandingResolver,
     ) {}
 
     public function show(Request $request)
@@ -85,12 +87,15 @@ class PublicKioskReservationController extends Controller
             ->values()
             ->all();
         $estimatedWait = $this->estimateKioskWait($account, $settings);
+        $tenantBranding = $this->tenantBrandingResolver->forAccountOwner($account);
 
         return Inertia::render('Public/ReservationKiosk', [
             'company' => [
                 'id' => (int) $account->id,
-                'name' => $account->company_name ?: $account->name,
-                'logo_url' => $account->company_logo ? $account->company_logo_url : null,
+                'name' => $tenantBranding['name'],
+                'logo_url' => $tenantBranding['custom_logo_url'],
+                'custom_logo_url' => $tenantBranding['custom_logo_url'],
+                'has_custom_logo' => $tenantBranding['has_custom_logo'],
                 'phone' => $account->phone_number,
                 'country' => $account->company_country,
                 'province' => $account->company_province,

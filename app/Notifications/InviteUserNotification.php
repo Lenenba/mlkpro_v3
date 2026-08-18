@@ -2,6 +2,8 @@
 
 namespace App\Notifications;
 
+use App\Models\User;
+use App\Services\TenantBrandingResolver;
 use App\Support\LocalePreference;
 use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
@@ -21,16 +23,20 @@ class InviteUserNotification extends Notification implements ShouldQueue
 
     private ?string $context;
 
+    private ?int $accountOwnerId = null;
+
     public function __construct(
         string $token,
         ?string $companyName = null,
         ?string $companyLogo = null,
-        ?string $context = null
+        ?string $context = null,
+        ?int $accountOwnerId = null,
     ) {
         $this->token = $token;
         $this->companyName = $companyName;
         $this->companyLogo = $companyLogo;
         $this->context = $context;
+        $this->accountOwnerId = $accountOwnerId;
         $this->onQueue(QueueWorkload::queue('notifications'));
     }
 
@@ -63,13 +69,22 @@ class InviteUserNotification extends Notification implements ShouldQueue
             ? LocalePreference::trans('mail.auth.invite.role_client', locale: $locale)
             : LocalePreference::trans('mail.auth.invite.role_team_member', locale: $locale);
 
-        $companyName = $this->companyName ?: config('app.name');
+        $accountOwner = $this->accountOwnerId
+            ? User::query()->find($this->accountOwnerId)
+            : null;
+        $branding = $accountOwner
+            ? app(TenantBrandingResolver::class)->forAccountOwner($accountOwner)
+            : null;
+        $companyName = $branding['name'] ?? ($this->companyName ?: config('app.name'));
+        $companyLogo = $branding
+            ? $branding['custom_logo_url']
+            : $this->companyLogo;
 
         return (new MailMessage)
             ->subject(LocalePreference::trans('mail.auth.invite.subject', ['company' => $companyName], $locale))
             ->view('emails.auth.invite', [
                 'companyName' => $companyName,
-                'companyLogo' => $this->companyLogo,
+                'companyLogo' => $companyLogo,
                 'actionUrl' => $actionUrl,
                 'expires' => $expires,
                 'roleLabel' => $roleLabel,

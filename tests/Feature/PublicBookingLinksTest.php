@@ -122,7 +122,9 @@ function publicBookingLinkFor(User $owner, Product $service): PublicBookingLink
 }
 
 it('exposes the ai assistant widget on public booking links when enabled', function () {
-    $owner = publicBookingOwner();
+    $owner = publicBookingOwner([
+        'company_logo' => 'https://assets.example.test/public-booking.png',
+    ]);
     $service = publicBookingService($owner);
     $link = publicBookingLinkFor($owner, $service);
 
@@ -139,7 +141,9 @@ it('exposes the ai assistant widget on public booking links when enabled', funct
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Public/PublicBooking')
-            ->where('company.logo_url', null)
+            ->where('company.logo_url', 'https://assets.example.test/public-booking.png')
+            ->where('company.custom_logo_url', 'https://assets.example.test/public-booking.png')
+            ->where('company.has_custom_logo', true)
             ->where('ai_assistant.enabled', true)
             ->where('ai_assistant.name', 'Reception Booking')
             ->where('ai_assistant.company_slug', $owner->company_slug)

@@ -190,6 +190,7 @@ it('lets a publisher submit a pulse post for approval while direct publication s
 it('emails approvers a sober visual preview of the pending pulse post', function () {
     $owner = pulseApprovalOwner([
         'company_name' => 'Studio Pulse',
+        'company_logo' => 'https://assets.example.test/studio-pulse.png',
     ]);
     $publisher = pulseApprovalTeamMember($owner, ['social.publish']);
     $approver = pulseApprovalTeamMember($owner, ['social.approve']);
@@ -220,14 +221,16 @@ it('emails approvers a sober visual preview of the pending pulse post', function
         $owner,
         SocialApprovalRequestedNotification::class,
         function (SocialApprovalRequestedNotification $notification) use ($owner, &$captured): bool {
-            $captured = $notification->toMail($owner);
+            $captured = unserialize(serialize($notification))->toMail($owner);
 
             return true;
         }
     );
 
     expect($captured)->not->toBeNull()
-        ->and($captured->subject)->toContain('Pulse');
+        ->and($captured->subject)->toContain('Pulse')
+        ->and($captured->viewData['companyName'])->toBe('Studio Pulse')
+        ->and($captured->viewData['companyLogo'])->toBe('https://assets.example.test/studio-pulse.png');
 
     $view = is_array($captured->view) ? $captured->view[0] : $captured->view;
     $html = view($view, $captured->viewData)->render();
@@ -237,6 +240,8 @@ it('emails approvers a sober visual preview of the pending pulse post', function
         ->and($html)->toContain('Instagram')
         ->and($html)->toContain('Decouvrez notre soin signature.')
         ->and($html)->toContain('https://example.com/assets/social-preview.jpg')
+        ->and($html)->toContain('https://assets.example.test/studio-pulse.png')
+        ->and(substr_count($html, __('mail.layout.powered_by', ['platform' => 'Malikia Pro'])))->toBe(1)
         ->and($html)->not->toContain('detail_metric')
         ->and($html)->not->toContain('platform_tagline');
 });

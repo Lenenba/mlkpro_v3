@@ -13,6 +13,7 @@ test('public ai assistant page renders the chat shell', function () {
     $owner = User::factory()->create([
         'company_slug' => 'studio-lumiere',
         'company_name' => 'Studio Lumiere',
+        'company_logo' => 'customers/customer.png',
     ]);
     AiAssistantSetting::factory()->create([
         'tenant_id' => $owner->id,
@@ -28,6 +29,8 @@ test('public ai assistant page renders the chat shell', function () {
             ->component('Public/AiAssistantChat')
             ->where('company.slug', 'studio-lumiere')
             ->where('company.logo_url', null)
+            ->where('company.custom_logo_url', null)
+            ->where('company.has_custom_logo', false)
             ->where('assistant.name', 'Reception Lumiere')
             ->where('endpoints.create', route('public.ai-assistant.conversations.store'))
         );

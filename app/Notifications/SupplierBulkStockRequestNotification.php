@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Product;
 use App\Models\User;
+use App\Services\TenantBrandingResolver;
 use App\Support\LocalePreference;
 use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
@@ -39,10 +40,13 @@ class SupplierBulkStockRequestNotification extends Notification implements Shoul
 
     public function toMail(object $notifiable): MailMessage
     {
-        $locale = LocalePreference::forNotifiable($notifiable, $this->owner);
+        $brandingResolver = app(TenantBrandingResolver::class);
+        $accountOwner = $brandingResolver->resolveAccountOwner($this->owner) ?: $this->owner;
+        $branding = $brandingResolver->forAccountOwner($accountOwner);
+        $locale = LocalePreference::forNotifiable($notifiable, $accountOwner);
         $isFr = str_starts_with($locale, 'fr');
         $count = $this->products->count();
-        $companyName = $this->owner->company_name ?: $this->owner->name;
+        $companyName = $branding['name'];
 
         $subject = $isFr
             ? ($count === 1
@@ -74,7 +78,7 @@ class SupplierBulkStockRequestNotification extends Notification implements Shoul
             ->subject($subject)
             ->view('emails.notifications.action', [
                 'companyName' => $companyName,
-                'companyLogo' => null,
+                'companyLogo' => $branding['custom_logo_url'],
                 'title' => $subject,
                 'intro' => $isFr
                     ? 'Nous souhaitons reapprovisionner les articles suivants. Pouvez-vous confirmer la disponibilite et le delai de livraison ?'
@@ -86,8 +90,8 @@ class SupplierBulkStockRequestNotification extends Notification implements Shoul
                 'actionUrl' => null,
             ]);
 
-        if (! empty($this->owner->email)) {
-            $message->replyTo($this->owner->email, $companyName);
+        if (! empty($accountOwner->email)) {
+            $message->replyTo($accountOwner->email, $companyName);
         }
 
         return $message;

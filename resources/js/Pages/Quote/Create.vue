@@ -8,6 +8,7 @@ import ProductTableList from '@/Components/ProductTableList.vue';
 import ValidationSummary from '@/Components/ValidationSummary.vue';
 import { ref, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import CompanyBrandLogo from '@/Components/CompanyBrandLogo.vue';
 
 const props = defineProps({
     customer: {
@@ -39,7 +40,6 @@ const page = usePage();
 const { t } = useI18n();
 
 const companyName = computed(() => page.props.auth?.account?.company?.name || t('quotes.company_fallback'));
-const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
 const isEditing = computed(() => Boolean(props.quote?.id));
 const pageTitle = computed(() => t(isEditing.value ? 'quotes.edit_title' : 'quotes.create_title'));
 const templateDefaults = computed(() => props.templateDefaults || {});
@@ -307,12 +307,14 @@ const submit = () => {
                         <!-- Header -->
                         <div class="flex flex-col gap-3 border-b border-stone-200 pb-4 sm:flex-row sm:items-start sm:justify-between dark:border-neutral-700">
                             <div class="flex items-center gap-3">
-                                <img v-if="companyLogo"
-                                    :src="companyLogo"
-                                    :alt="companyName"
-                                    class="h-12 w-12 rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
+                                <CompanyBrandLogo
+                                    :company="page.props.auth?.account?.company"
+                                    :name="companyName"
+                                    :show-fallback-name="false"
+                                    container-class="h-12 w-12 p-1"
+                                    class="shrink-0 shadow-none"
                                     loading="lazy"
-                                    decoding="async" />
+                                />
                                 <div>
                                     <p class="text-xs uppercase text-stone-500 dark:text-neutral-400">
                                         {{ companyName }}

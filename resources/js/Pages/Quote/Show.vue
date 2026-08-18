@@ -6,6 +6,7 @@ import StarRating from '@/Components/UI/StarRating.vue';
 import SalesActivityPanel from '@/Components/CRM/SalesActivityPanel.vue';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
+import CompanyBrandLogo from '@/Components/CompanyBrandLogo.vue';
 const props = defineProps({
     quote: Object,
     activity: {
@@ -40,7 +41,6 @@ const formatAbsoluteDate = (value) => {
     return date.toLocaleString();
 };
 const companyName = computed(() => page.props.auth?.account?.company?.name || t('quotes.company_fallback'));
-const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
 const prospect = computed(() => props.quote?.prospect || null);
 const showProspectNotice = computed(() => !props.quote?.customer && Boolean(prospect.value?.id));
 const customerLabel = computed(() => {
@@ -189,12 +189,14 @@ const sourceLines = computed(() => {
                     <!-- Header -->
                     <div class="flex flex-col gap-3 border-b border-stone-200 pb-4 sm:flex-row sm:items-start sm:justify-between dark:border-neutral-700">
                         <div class="flex items-center gap-3">
-                            <img v-if="companyLogo"
-                                :src="companyLogo"
-                                :alt="companyName"
-                                class="h-12 w-12 rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
+                            <CompanyBrandLogo
+                                :company="page.props.auth?.account?.company"
+                                :name="companyName"
+                                :show-fallback-name="false"
+                                container-class="h-12 w-12 p-1"
+                                class="shrink-0 shadow-none"
                                 loading="lazy"
-                                decoding="async" />
+                            />
                             <div>
                                 <p class="text-xs uppercase text-stone-500 dark:text-neutral-400">
                                     {{ companyName }}

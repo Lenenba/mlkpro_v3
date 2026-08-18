@@ -46,8 +46,6 @@ const emits = defineEmits(['update:modelValue', 'update:subtotal']);
 
 const page = usePage();
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
-const companyName = computed(() => page.props.auth?.account?.company?.name || 'Entreprise');
-const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
 const allowMixed = computed(() => props.allowMixedTypes || props.itemType === 'mixed');
 const defaultItemType = computed(() => {
   if (props.itemType && props.itemType !== 'mixed') {

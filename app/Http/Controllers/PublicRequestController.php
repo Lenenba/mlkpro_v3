@@ -20,6 +20,7 @@ use App\Services\LeadServiceSuggestionService;
 use App\Services\Prospects\ProspectDuplicateAlertService;
 use App\Services\ProspectStatusHistoryService;
 use App\Services\ServiceRequests\ServiceRequestIntakeService;
+use App\Services\TenantBrandingResolver;
 use App\Services\TrackingService;
 use App\Services\UsageLimitService;
 use App\Support\NotificationDispatcher;
@@ -44,16 +45,20 @@ class PublicRequestController extends Controller
         LeadServiceSuggestionService $suggestionService,
         CampaignLeadAttributionService $leadAttributionService,
     ): Response {
+        $user = $this->resolveAccountOwner($user);
         $this->assertLeadIntakeEnabled($user);
         $leadAttributionService->syncPublicFormAttribution($request, $user);
 
         app(TrackingService::class)->record('lead_form_view', $user->id);
+        $tenantBranding = app(TenantBrandingResolver::class)->forAccountOwner($user);
 
         return Inertia::render('Public/RequestForm', [
             'company' => [
                 'id' => $user->id,
-                'name' => $user->company_name ?: $user->name,
-                'logo_url' => $user->company_logo_url,
+                'name' => $tenantBranding['name'],
+                'logo_url' => $tenantBranding['custom_logo_url'],
+                'custom_logo_url' => $tenantBranding['custom_logo_url'],
+                'has_custom_logo' => $tenantBranding['has_custom_logo'],
                 'currency_code' => $user->businessCurrencyCode(),
                 'phone' => $user->phone_number ?: config('app.support_phone'),
             ],
@@ -69,6 +74,7 @@ class PublicRequestController extends Controller
 
     public function addressSearch(Request $request, User $user)
     {
+        $user = $this->resolveAccountOwner($user);
         $this->assertLeadIntakeEnabled($user);
 
         $validated = $request->validate([
@@ -168,6 +174,7 @@ class PublicRequestController extends Controller
         User $user,
         LeadServiceSuggestionService $suggestionService
     ) {
+        $user = $this->resolveAccountOwner($user);
         $this->assertLeadIntakeEnabled($user);
 
         $validated = $request->validate([
@@ -196,6 +203,7 @@ class PublicRequestController extends Controller
         CampaignLeadAttributionService $leadAttributionService,
         ServiceRequestIntakeService $serviceRequestIntakeService,
     ) {
+        $user = $this->resolveAccountOwner($user);
         $this->assertLeadIntakeEnabled($user);
 
         $validated = $request->validate([
@@ -693,6 +701,17 @@ class PublicRequestController extends Controller
         if (! $hasFeature) {
             abort(404);
         }
+    }
+
+    private function resolveAccountOwner(User $user): User
+    {
+        $owner = app(TenantBrandingResolver::class)->resolveAccountOwner($user);
+
+        if (! $owner) {
+            abort(404);
+        }
+
+        return $owner;
     }
 
     private function createQuoteFromLead(

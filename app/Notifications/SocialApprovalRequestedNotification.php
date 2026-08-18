@@ -6,6 +6,7 @@ use App\Models\SocialApprovalRequest;
 use App\Models\SocialPost;
 use App\Models\User;
 use App\Services\Social\SocialPostVisualPreviewService;
+use App\Services\TenantBrandingResolver;
 use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -55,6 +56,12 @@ class SocialApprovalRequestedNotification extends Notification implements Should
             $recipient,
             $this->approvalRequest
         );
+        $brandingResolver = app(TenantBrandingResolver::class);
+        $accountOwner = $brandingResolver->resolveAccountOwner($owner) ?: $owner;
+        $branding = $brandingResolver->forAccountOwner($accountOwner);
+        $payload['companyName'] = $branding['name'];
+        $payload['companyLogo'] = $branding['custom_logo_url'];
+        $payload['showPoweredBy'] = true;
 
         return (new MailMessage)
             ->subject((string) $payload['subject'])

@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\Auth\SocialAuthProviderRegistry;
 use App\Services\CompanyFeatureService;
 use App\Services\Rbac\PermissionCatalog;
+use App\Services\TenantBrandingResolver;
 use App\Support\Database\UserSelects;
 use App\Support\LocalePreference;
 use App\Support\Notifications\UserNotificationCenter;
@@ -40,31 +41,16 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $user = $request->user();
-        $ownerId = $user?->accountOwnerId();
         $siteUrl = rtrim((string) (config('app.url') ?: $request->getSchemeAndHttpHost()), '/');
         $featureService = app(CompanyFeatureService::class);
+        $brandingResolver = app(TenantBrandingResolver::class);
         $socialAuthProviders = app(SocialAuthProviderRegistry::class);
         $permissionCatalog = app(PermissionCatalog::class);
 
-        $accountOwner = null;
+        $accountOwner = $user ? $brandingResolver->resolveAccountOwner($user) : null;
+        $ownerId = $accountOwner?->id ?? $user?->accountOwnerId();
+        $tenantBranding = $brandingResolver->forAccountOwner($accountOwner);
         $accountFeatures = null;
-        if ($user && $user->isClient()) {
-            $customer = $user->relationLoaded('customerProfile')
-                ? $user->customerProfile
-                : $user->customerProfile()->first();
-            if ($customer) {
-                $accountOwner = User::query()
-                    ->select(UserSelects::companyFeatureContext())
-                    ->find($customer->user_id);
-            }
-        }
-        if (! $accountOwner && $user && $ownerId) {
-            $accountOwner = $ownerId === $user->id
-                ? $user
-                : User::query()
-                    ->select(UserSelects::companyFeatureContext())
-                    ->find($ownerId);
-        }
         if ($user && $accountOwner) {
             $accountFeatures = $featureService->resolveEnabledFeatures($accountOwner);
         }
@@ -176,10 +162,12 @@ class HandleInertiaRequests extends Middleware
                     'is_platform_admin' => $user->isPlatformAdmin(),
                     'currency_code' => $accountOwner?->businessCurrencyCode(),
                     'company' => $accountOwner ? [
-                        'name' => $accountOwner->company_name,
+                        'name' => $tenantBranding['name'],
                         'type' => $accountOwner->company_type,
                         'onboarded' => (bool) $accountOwner->onboarding_completed_at,
-                        'logo_url' => $accountOwner->company_logo_url,
+                        'logo_url' => $tenantBranding['custom_logo_url'],
+                        'custom_logo_url' => $tenantBranding['custom_logo_url'],
+                        'has_custom_logo' => $tenantBranding['has_custom_logo'],
                     ] : null,
                     'features' => $accountFeatures,
                     'permissions' => $companyPermissions,

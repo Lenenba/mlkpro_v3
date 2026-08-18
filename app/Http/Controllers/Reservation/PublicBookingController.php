@@ -9,6 +9,7 @@ use App\Modules\AiAssistant\Models\AiAssistantSetting;
 use App\Services\CompanyPublicSlugService;
 use App\Services\ReservationAvailabilityService;
 use App\Services\Reservations\PublicBookingService;
+use App\Services\TenantBrandingResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
@@ -20,7 +21,8 @@ class PublicBookingController extends Controller
     public function __construct(
         private readonly PublicBookingService $publicBookingService,
         private readonly ReservationAvailabilityService $availabilityService,
-        private readonly CompanyPublicSlugService $companySlugs
+        private readonly CompanyPublicSlugService $companySlugs,
+        private readonly TenantBrandingResolver $tenantBrandingResolver,
     ) {}
 
     public function show(Request $request, string $company, string $slug)
@@ -44,13 +46,16 @@ class PublicBookingController extends Controller
             ->first();
         $assistantCompany = (string) ($account->company_slug ?: '');
         $assistantEnabled = (bool) ($assistantSetting?->enabled) && $assistantCompany !== '';
+        $tenantBranding = $this->tenantBrandingResolver->forAccountOwner($account);
 
         return Inertia::render('Public/PublicBooking', [
             'company' => [
                 'id' => (int) $account->id,
-                'name' => $account->company_name ?: $account->name,
+                'name' => $tenantBranding['name'],
                 'slug' => $account->company_slug,
-                'logo_url' => $account->company_logo ? $account->company_logo_url : null,
+                'logo_url' => $tenantBranding['custom_logo_url'],
+                'custom_logo_url' => $tenantBranding['custom_logo_url'],
+                'has_custom_logo' => $tenantBranding['has_custom_logo'],
                 'phone' => $account->phone_number,
             ],
             'link' => [

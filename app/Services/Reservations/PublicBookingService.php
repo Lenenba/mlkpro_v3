@@ -358,7 +358,8 @@ class PublicBookingService
                 $isFr ? 'Voir la page de reservation' : 'View booking page',
                 $link->requires_manual_confirmation
                     ? ($isFr ? 'Demande de reservation recue' : 'Booking request received')
-                    : ($isFr ? 'Reservation confirmee' : 'Booking confirmed')
+                    : ($isFr ? 'Reservation confirmee' : 'Booking confirmed'),
+                accountOwnerId: $account->id,
             ), [
                 'reservation_id' => $reservation->id,
                 'prospect_id' => $reservation->prospect_id,

@@ -5,6 +5,8 @@ return [
         'preheader' => 'Mise a jour de :company via :platform',
         'platform_tagline' => 'Ventes, operations et experience client.',
         'powered_by' => 'Propulse par :platform',
+        'company_logo_alt' => 'Logo de :company',
+        'platform_logo_alt' => 'Logo de :platform',
         'footer_blurb' => ':company utilise :platform pour aligner les handoffs commerciaux, les operations et l experience client.',
         'pill_sales' => 'Ventes',
         'pill_operations' => 'Operations',

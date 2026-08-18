@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\Work;
 use App\Notifications\ActionEmailNotification;
 use App\Services\TaskBillingService;
+use App\Services\TenantBrandingResolver;
 use App\Services\UsageLimitService;
 use App\Services\WorkBillingService;
 use App\Services\WorkScheduleService;
@@ -33,6 +34,7 @@ class PublicWorkController extends Controller
 
         $customer = $work->customer;
         $owner = User::find($work->user_id);
+        $tenantBranding = app(TenantBrandingResolver::class)->forAccountOwner($owner);
 
         $allowValidation = in_array($work->status, [Work::STATUS_PENDING_REVIEW, Work::STATUS_TECH_COMPLETE], true);
         $allowDispute = in_array($work->status, [Work::STATUS_PENDING_REVIEW, Work::STATUS_TECH_COMPLETE], true);
@@ -98,8 +100,10 @@ class PublicWorkController extends Controller
                 })->values(),
             ],
             'company' => [
-                'name' => $owner?->company_name ?: config('app.name'),
-                'logo_url' => $owner?->company_logo_url,
+                'name' => $tenantBranding['name'],
+                'logo_url' => $tenantBranding['custom_logo_url'],
+                'custom_logo_url' => $tenantBranding['custom_logo_url'],
+                'has_custom_logo' => $tenantBranding['has_custom_logo'],
             ],
             'allow' => [
                 'validate' => $allowValidation,

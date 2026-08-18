@@ -10,6 +10,7 @@ use App\Models\CustomerPackageUsage;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Services\Portal\PortalAccessService;
+use App\Services\TenantBrandingResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -18,7 +19,8 @@ use Illuminate\Validation\ValidationException;
 class PortalCustomerPackageController extends Controller
 {
     public function __construct(
-        private readonly PortalAccessService $portalAccess
+        private readonly PortalAccessService $portalAccess,
+        private readonly TenantBrandingResolver $tenantBrandingResolver,
     ) {}
 
     public function index(Request $request)
@@ -44,6 +46,7 @@ class PortalCustomerPackageController extends Controller
             ->get();
 
         $invoiceMap = $this->relatedInvoices($packages, $accountId, (int) $customer->id);
+        $tenantBranding = $this->tenantBrandingResolver->forAccountOwner($owner);
 
         return $this->inertiaOrJson('Portal/Packages/Index', [
             'customer' => [
@@ -53,8 +56,10 @@ class PortalCustomerPackageController extends Controller
                 'phone' => $customer->phone,
             ],
             'company' => [
-                'name' => $owner->company_name ?: config('app.name'),
-                'logo_url' => $owner->company_logo_url,
+                'name' => $tenantBranding['name'],
+                'logo_url' => $tenantBranding['custom_logo_url'],
+                'custom_logo_url' => $tenantBranding['custom_logo_url'],
+                'has_custom_logo' => $tenantBranding['has_custom_logo'],
                 'currency_code' => $owner->businessCurrencyCode(),
             ],
             'packages' => $packages

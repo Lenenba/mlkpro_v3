@@ -240,8 +240,10 @@ class UpcomingBillingReminderService
             : $billingDate->format('M j, Y');
 
         return [
-            'companyName' => $owner->company_name ?: config('app.name'),
-            'companyLogo' => $owner->company_logo_url,
+            'companyName' => config('app.name'),
+            'companyLogo' => null,
+            'showPoweredBy' => false,
+            'billingCompanyName' => $owner->company_name ?: ($owner->name ?: $owner->email),
             'recipientName' => $owner->name ?: ($owner->company_name ?: 'there'),
             'billingDate' => $billingDate->toDateString(),
             'billingDateLabel' => $billingDateLabel,

@@ -627,7 +627,8 @@ class CustomerController extends Controller
                 $token,
                 $accountOwner?->company_name ?: config('app.name'),
                 $accountOwner?->company_logo_url,
-                'client'
+                'client',
+                $accountOwner?->id,
             ), [
                 'customer_id' => $customer->id,
             ]);
@@ -730,7 +731,8 @@ class CustomerController extends Controller
                 $token,
                 $accountOwner?->company_name ?: config('app.name'),
                 $accountOwner?->company_logo_url,
-                'client'
+                'client',
+                $accountOwner?->id,
             ), [
                 'customer_id' => $customer->id,
             ]);
@@ -1238,8 +1240,7 @@ class CustomerController extends Controller
         User $user,
         bool $allowPos = false,
         bool $requireCustomerCreation = false
-    ): array
-    {
+    ): array {
         $ownerId = $user->accountOwnerId();
         $owner = $ownerId === $user->id
             ? $user

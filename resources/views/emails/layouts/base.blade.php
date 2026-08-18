@@ -6,8 +6,9 @@
     <title>@yield('title', config('app.name'))</title>
 </head>
 @php
-    $companyName = $companyName ?? config('app.name');
-    $companyLogo = $companyLogo ?? null;
+    $companyName = trim((string) ($companyName ?? '')) ?: config('app.name');
+    $companyLogo = is_string($companyLogo ?? null) ? trim($companyLogo) : null;
+    $showPoweredBy = (bool) ($showPoweredBy ?? true);
     $platformName = 'Malikia Pro';
     $resolveEmailImage = static function (?string $path): ?string {
         if (blank($path)) {
@@ -24,10 +25,16 @@
 
         return url($path);
     };
-    $hasCustomCompanyLogo = is_string($companyLogo) && $companyLogo !== '' && ! str_contains($companyLogo, 'customers/customer.png');
+    $hasCustomCompanyLogo = filled($companyLogo) && ! str_contains($companyLogo, 'customers/customer.png');
     $resolvedCompanyLogo = $hasCustomCompanyLogo ? $resolveEmailImage($companyLogo) : null;
-    $platformLogo = $resolveEmailImage('/2.svg');
-    $platformMarkLogo = $resolveEmailImage('/brand/bimi-logo.svg');
+    $platformLogo = $resolveEmailImage('/brand/bimi-logo.svg');
+    $headerLogo = $resolvedCompanyLogo ?: $platformLogo;
+    $headerLogoStyle = $resolvedCompanyLogo
+        ? 'max-height:44px; max-width:180px; width:auto; height:auto;'
+        : 'height:36px; width:36px;';
+    $headerLogoAlt = $resolvedCompanyLogo
+        ? __('mail.layout.company_logo_alt', ['company' => $companyName])
+        : __('mail.layout.platform_logo_alt', ['platform' => $platformName]);
 @endphp
 <body style="margin:0; padding:0; background-color:#f5f5f4;">
     <div style="display:none; max-height:0; overflow:hidden; opacity:0; mso-hide:all;">
@@ -42,34 +49,14 @@
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border:1px solid #e2e8f0; border-radius:3px;">
                                 <tr>
                                     <td style="padding:18px 20px;">
-                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                        <table role="presentation" cellpadding="0" cellspacing="0">
                                             <tr>
-                                                <td valign="middle">
-                                                    @if ($resolvedCompanyLogo)
-                                                        <table role="presentation" cellpadding="0" cellspacing="0">
-                                                            <tr>
-                                                                <td style="padding:0;">
-                                                                    <img src="{{ $resolvedCompanyLogo }}" alt="{{ $companyName }} logo" style="max-height:36px; max-width:160px; width:auto; display:block;">
-                                                                </td>
-                                                            </tr>
-                                                        </table>
-                                                    @else
-                                                        <table role="presentation" cellpadding="0" cellspacing="0">
-                                                            <tr>
-                                                                <td style="padding:0;">
-                                                                    <img src="{{ $platformLogo }}" alt="{{ $platformName }} logo" style="max-height:36px; max-width:160px; width:auto; display:block;">
-                                                                </td>
-                                                            </tr>
-                                                        </table>
-                                                    @endif
+                                                <td valign="middle" style="padding:0 14px 0 0;">
+                                                    <img src="{{ $headerLogo }}" alt="{{ $headerLogoAlt }}" style="{{ $headerLogoStyle }} display:block;">
                                                 </td>
-                                                <td align="right" valign="middle">
-                                                    <img src="{{ $platformMarkLogo }}" alt="{{ $platformName }} mark" style="height:22px; width:22px; display:block; margin-left:auto;">
-                                                    <div style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#78716c;">
-                                                        {{ $platformName }}
-                                                    </div>
-                                                    <div style="margin-top:4px; font-size:12px; line-height:1.5; color:#57534e;">
-                                                        {{ __('mail.layout.platform_tagline') }}
+                                                <td valign="middle">
+                                                    <div style="font-size:18px; font-weight:700; line-height:1.35; color:#292524;">
+                                                        {{ $companyName }}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -89,28 +76,12 @@
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border:1px solid #e2e8f0; border-radius:3px;">
                                 <tr>
                                     <td style="padding:14px 16px 16px;">
-                                        <div style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#78716c;">
-                                            {{ __('mail.layout.powered_by', ['platform' => $platformName]) }}
-                                        </div>
-                                        <div style="margin-top:6px; font-size:12px; line-height:1.6; color:#57534e;">
-                                            {{ __('mail.layout.footer_blurb', ['company' => $companyName, 'platform' => $platformName]) }}
-                                        </div>
-                                        <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:12px;">
-                                            <tr>
-                                                <td style="background-color:#f5f5f4; border:1px solid #e2e8f0; border-radius:3px; padding:5px 8px; font-size:11px; font-weight:600; color:#44403c;">
-                                                    {{ __('mail.layout.pill_sales') }}
-                                                </td>
-                                                <td style="width:6px;">&nbsp;</td>
-                                                <td style="background-color:#f5f5f4; border:1px solid #e2e8f0; border-radius:3px; padding:5px 8px; font-size:11px; font-weight:600; color:#44403c;">
-                                                    {{ __('mail.layout.pill_operations') }}
-                                                </td>
-                                                <td style="width:6px;">&nbsp;</td>
-                                                <td style="background-color:#f5f5f4; border:1px solid #e2e8f0; border-radius:3px; padding:5px 8px; font-size:11px; font-weight:600; color:#44403c;">
-                                                    {{ __('mail.layout.pill_client_experience') }}
-                                                </td>
-                                            </tr>
-                                        </table>
-                                        <div style="margin-top:12px; font-size:12px; color:#78716c;">
+                                        @if ($showPoweredBy)
+                                            <div style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#78716c;">
+                                                {{ __('mail.layout.powered_by', ['platform' => $platformName]) }}
+                                            </div>
+                                        @endif
+                                        <div style="{{ $showPoweredBy ? 'margin-top:6px; ' : '' }}font-size:12px; color:#78716c;">
                                             {{ __('mail.layout.all_rights_reserved', ['company' => $companyName, 'year' => date('Y')]) }}
                                         </div>
                                     </td>

@@ -245,7 +245,8 @@ class PlatformAdminNotifier
                 $payload['actionUrl'] ?? null,
                 $payload['actionLabel'] ?? null,
                 $payload['subject'] ?? null,
-                $payload['note'] ?? null
+                $payload['note'] ?? null,
+                platformBranding: true,
             ), [
                 'user_id' => $recipient->id,
             ]);

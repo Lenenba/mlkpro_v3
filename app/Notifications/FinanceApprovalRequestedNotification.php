@@ -3,7 +3,9 @@
 namespace App\Notifications;
 
 use App\Models\Invoice;
+use App\Models\User;
 use App\Services\NotificationPreferenceService;
+use App\Services\TenantBrandingResolver;
 use App\Support\LocalePreference;
 use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
@@ -57,11 +59,23 @@ class FinanceApprovalRequestedNotification extends Notification implements Shoul
         $cta = $isFrench
             ? 'Ouvrir la facture'
             : ($isSpanish ? 'Abrir factura' : 'Open invoice');
+        $accountOwner = $this->invoice->relationLoaded('user')
+            ? $this->invoice->user
+            : User::query()->find($this->invoice->user_id);
+        $branding = app(TenantBrandingResolver::class)->forAccountOwner($accountOwner);
 
         return (new MailMessage)
             ->subject($subject)
-            ->line($line)
-            ->action($cta, route('invoice.show', $this->invoice));
+            ->view('emails.notifications.action', [
+                'title' => $subject,
+                'intro' => $line,
+                'details' => [],
+                'actionUrl' => route('invoice.show', $this->invoice),
+                'actionLabel' => $cta,
+                'note' => null,
+                'companyName' => $branding['name'],
+                'companyLogo' => $branding['custom_logo_url'],
+            ]);
     }
 
     private function titleFor(object $notifiable): string

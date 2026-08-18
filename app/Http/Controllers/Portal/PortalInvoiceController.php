@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Notifications\ActionEmailNotification;
 use App\Services\Portal\PortalAccessService;
 use App\Services\StripeInvoiceService;
+use App\Services\TenantBrandingResolver;
 use App\Services\TenantPaymentMethodGuardService;
 use App\Support\NotificationDispatcher;
 use App\Support\TenantPaymentMethodsResolver;
@@ -24,7 +25,8 @@ use Inertia\Inertia;
 class PortalInvoiceController extends Controller
 {
     public function __construct(
-        private readonly PortalAccessService $portalAccess
+        private readonly PortalAccessService $portalAccess,
+        private readonly TenantBrandingResolver $tenantBrandingResolver,
     ) {}
 
     public function index(Request $request)
@@ -133,14 +135,17 @@ class PortalInvoiceController extends Controller
             'receipt_delivery_last_error',
         ]);
 
-        $owner = User::find($invoice->user_id);
+        $owner = $this->portalAccess->ownerForCustomer($customer);
+        $tenantBranding = $this->tenantBrandingResolver->forAccountOwner($owner);
 
         return Inertia::render('Portal/InvoiceShow', [
             'invoice' => $invoice,
             'company' => [
-                'name' => $owner?->company_name ?: config('app.name'),
-                'logo_url' => $owner?->company_logo_url,
-                'currency_code' => $owner?->businessCurrencyCode(),
+                'name' => $tenantBranding['name'],
+                'logo_url' => $tenantBranding['custom_logo_url'],
+                'custom_logo_url' => $tenantBranding['custom_logo_url'],
+                'has_custom_logo' => $tenantBranding['has_custom_logo'],
+                'currency_code' => $owner->businessCurrencyCode(),
             ],
             'paymentMethodSettings' => TenantPaymentMethodsResolver::forAccountId((int) $invoice->user_id),
         ]);

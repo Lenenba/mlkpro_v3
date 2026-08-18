@@ -259,7 +259,8 @@ class TeamMemberController extends Controller
             $token,
             $accountOwner->company_name ?: config('app.name'),
             $accountOwner->company_logo_url,
-            'team'
+            'team',
+            $accountOwner->id,
         ), [
             'team_member_id' => $teamMember->id,
         ]);

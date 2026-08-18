@@ -18,6 +18,7 @@ use App\Services\NotificationPreferenceService;
 use App\Services\Portal\PortalAccessService;
 use App\Services\SaleTimelineService;
 use App\Services\StripeSaleService;
+use App\Services\TenantBrandingResolver;
 use App\Services\TenantPaymentMethodGuardService;
 use App\Support\Database\UserSelects;
 use App\Support\TenantPaymentMethodsResolver;
@@ -34,8 +35,26 @@ use Inertia\Inertia;
 class PortalProductOrderController extends Controller
 {
     public function __construct(
-        private readonly PortalAccessService $portalAccess
+        private readonly PortalAccessService $portalAccess,
+        private readonly TenantBrandingResolver $tenantBrandingResolver,
     ) {}
+
+    /**
+     * @return array{id: int, name: string, logo_url: string|null, custom_logo_url: string|null, has_custom_logo: bool, currency_code: string}
+     */
+    private function companyPayload(User $owner): array
+    {
+        $tenantBranding = $this->tenantBrandingResolver->forAccountOwner($owner);
+
+        return [
+            'id' => (int) $owner->id,
+            'name' => $tenantBranding['name'],
+            'logo_url' => $tenantBranding['custom_logo_url'],
+            'custom_logo_url' => $tenantBranding['custom_logo_url'],
+            'has_custom_logo' => $tenantBranding['has_custom_logo'],
+            'currency_code' => $owner->businessCurrencyCode(),
+        ];
+    }
 
     private function resolvePortalCustomer(Request $request): array
     {
@@ -395,12 +414,7 @@ class PortalProductOrderController extends Controller
             ->get(['id', 'name']);
 
         return $this->inertiaOrJson('Portal/Products/Shop', [
-            'company' => [
-                'id' => $owner->id,
-                'name' => $owner->company_name,
-                'logo_url' => $owner->company_logo_url,
-                'currency_code' => $owner->businessCurrencyCode(),
-            ],
+            'company' => $this->companyPayload($owner),
             'customer' => [
                 'id' => $customer->id,
                 'name' => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')),
@@ -492,12 +506,7 @@ class PortalProductOrderController extends Controller
         $reviewsPayload = $this->buildReviewPayload($customer, $sale);
 
         return response()->json([
-            'company' => [
-                'id' => $owner->id,
-                'name' => $owner->company_name,
-                'logo_url' => $owner->company_logo_url,
-                'currency_code' => $owner->businessCurrencyCode(),
-            ],
+            'company' => $this->companyPayload($owner),
             'customer' => [
                 'id' => $customer->id,
                 'name' => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')),
@@ -535,12 +544,7 @@ class PortalProductOrderController extends Controller
         $reviewsPayload = $this->buildReviewPayload($customer, $sale);
 
         return $this->inertiaOrJson('Portal/Products/OrderShow', [
-            'company' => [
-                'id' => $owner->id,
-                'name' => $owner->company_name,
-                'logo_url' => $owner->company_logo_url,
-                'currency_code' => $owner->businessCurrencyCode(),
-            ],
+            'company' => $this->companyPayload($owner),
             'customer' => [
                 'id' => $customer->id,
                 'name' => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')),
@@ -781,12 +785,7 @@ class PortalProductOrderController extends Controller
         $sale->load(['items:id,sale_id,product_id,quantity']);
 
         return $this->inertiaOrJson('Portal/Products/Shop', [
-            'company' => [
-                'id' => $owner->id,
-                'name' => $owner->company_name,
-                'logo_url' => $owner->company_logo_url,
-                'currency_code' => $owner->businessCurrencyCode(),
-            ],
+            'company' => $this->companyPayload($owner),
             'customer' => [
                 'id' => $customer->id,
                 'name' => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')),

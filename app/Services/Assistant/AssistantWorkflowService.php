@@ -1650,7 +1650,8 @@ class AssistantWorkflowService
             $token,
             $user->company_name ?: config('app.name'),
             $user->company_logo_url,
-            'team'
+            'team',
+            $user->id,
         ), [
             'team_member_id' => $teamMember->id,
         ]);

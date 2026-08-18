@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\Quote;
 use App\Models\Request as LeadRequest;
 use App\Services\NotificationPreferenceService;
+use App\Services\TenantBrandingResolver;
 use App\Support\LocalePreference;
 use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
@@ -43,11 +44,14 @@ class LeadFormOwnerNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         $owner = $this->lead->user;
-        $locale = LocalePreference::forNotifiable($notifiable, $owner);
+        $brandingResolver = app(TenantBrandingResolver::class);
+        $accountOwner = $owner
+            ? ($brandingResolver->resolveAccountOwner($owner) ?: $owner)
+            : null;
+        $branding = $brandingResolver->forAccountOwner($accountOwner);
+        $locale = LocalePreference::forNotifiable($notifiable, $accountOwner);
         $isFr = str_starts_with($locale, 'fr');
         $title = $this->title($isFr);
-        $companyName = $owner?->company_name ?: config('app.name');
-        $companyLogo = $owner?->company_logo_url;
 
         return (new MailMessage)
             ->subject($title)
@@ -58,8 +62,8 @@ class LeadFormOwnerNotification extends Notification implements ShouldQueue
                 'actionUrl' => $this->actionUrl(),
                 'actionLabel' => $isFr ? 'Ouvrir le lead' : 'Open lead',
                 'note' => $this->note($isFr),
-                'companyName' => $companyName,
-                'companyLogo' => $companyLogo,
+                'companyName' => $branding['name'],
+                'companyLogo' => $branding['custom_logo_url'],
             ]);
     }
 

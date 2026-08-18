@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import CompanyBrandLogo from '@/Components/CompanyBrandLogo.vue';
 import PublicResponsiveImage from '@/Components/Public/PublicResponsiveImage.vue';
 import PublicSectionsRenderer from '@/Components/Public/PublicSectionsRenderer.vue';
 import Price from '@/Components/Store/Price.vue';
@@ -241,14 +242,14 @@ onBeforeUnmount(() => {
             <nav class="showcase-nav">
                 <div class="showcase-nav-shell">
                     <div class="showcase-nav-brand">
-                        <img
-                            v-if="company?.logo_url"
-                            :src="company.logo_url"
-                            :alt="companyName"
-                            class="showcase-nav-logo"
+                        <CompanyBrandLogo
+                            :company="company"
+                            :name="companyName"
+                            :show-fallback-name="false"
+                            container-class="h-9 w-9 p-0.5"
+                            class="shrink-0 border-white/20 shadow-none"
                             loading="lazy"
-                            decoding="async"
-                        >
+                        />
                         <span class="showcase-nav-name">{{ companyName }}</span>
                     </div>
                     <div class="showcase-nav-links">
@@ -313,7 +314,7 @@ onBeforeUnmount(() => {
                                 <PublicResponsiveImage
                                     :key="heroImage"
                                     :src="heroImage"
-                                    :alt="heroService?.name || companyName"
+                                    :alt="heroService?.name || pageTitle"
                                     :loading="heroBackgroundIndex === 0 ? 'eager' : 'lazy'"
                                     :fetch-priority="heroBackgroundIndex === 0 ? 'high' : null"
                                     decoding="async"
@@ -447,6 +448,10 @@ onBeforeUnmount(() => {
         <div id="contact">
             <PublicSectionsRenderer :content="showcaseEditorialSections.contact" />
         </div>
+
+        <footer class="border-t border-slate-200 bg-white px-6 py-4 text-center text-xs text-slate-500">
+            {{ t('account.branding.powered_by') }}
+        </footer>
     </div>
 </template>
 
@@ -490,14 +495,6 @@ onBeforeUnmount(() => {
     gap: 0.65rem;
     font-weight: 700;
     letter-spacing: 0.01em;
-}
-
-.showcase-nav-logo {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    object-fit: cover;
-    background: rgba(248, 250, 252, 0.08);
 }
 
 .showcase-nav-name {

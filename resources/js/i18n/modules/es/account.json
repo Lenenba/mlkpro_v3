@@ -7,6 +7,9 @@
     "profile": "Mi cuenta",
     "dark_mode": "Modo oscuro",
     "logout": "Cerrar sesion",
-    "language": "Idioma"
+    "language": "Idioma",
+    "branding": {
+      "powered_by": "Con tecnología de Malikia Pro"
+    }
   }
 }

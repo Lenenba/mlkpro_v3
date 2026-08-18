@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Request as LeadRequest;
 use App\Models\User;
+use App\Services\TenantBrandingResolver;
 use App\Support\LocalePreference;
 use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
@@ -34,10 +35,11 @@ class LeadCallRequestReceivedNotification extends Notification implements Should
 
     public function toMail(object $notifiable): MailMessage
     {
-        $locale = LocalePreference::forNotifiable($notifiable, $this->owner);
+        $brandingResolver = app(TenantBrandingResolver::class);
+        $accountOwner = $brandingResolver->resolveAccountOwner($this->owner) ?: $this->owner;
+        $branding = $brandingResolver->forAccountOwner($accountOwner);
+        $locale = LocalePreference::forNotifiable($notifiable, $accountOwner);
         $isFr = str_starts_with($locale, 'fr');
-        $companyName = $this->owner->company_name ?: config('app.name');
-        $companyLogo = $this->owner->company_logo_url;
         $leadLabel = trim((string) ($this->lead->title ?: $this->lead->service_type ?: ('Lead #'.$this->lead->id)));
         if ($leadLabel === '') {
             $leadLabel = 'Lead #'.$this->lead->id;
@@ -65,8 +67,8 @@ class LeadCallRequestReceivedNotification extends Notification implements Should
                 'actionUrl' => null,
                 'actionLabel' => null,
                 'note' => $note,
-                'companyName' => $companyName,
-                'companyLogo' => $companyLogo,
+                'companyName' => $branding['name'],
+                'companyLogo' => $branding['custom_logo_url'],
             ]);
     }
 }

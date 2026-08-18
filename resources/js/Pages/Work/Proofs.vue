@@ -4,6 +4,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
+import CompanyBrandLogo from '@/Components/CompanyBrandLogo.vue';
 
 const props = defineProps({
     viewer: {
@@ -21,7 +22,6 @@ const props = defineProps({
 const page = usePage();
 const { t } = useI18n();
 const companyName = computed(() => page.props.auth?.account?.company?.name || t('jobs.company_fallback'));
-const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
 const isClient = computed(() => props.viewer === 'client');
 
 const formatDate = (value) => humanizeDate(value) || '-';
@@ -93,12 +93,14 @@ const proofType = (type) => {
             <div class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div class="flex items-center gap-3">
-                        <img v-if="companyLogo"
-                            :src="companyLogo"
-                            :alt="companyName"
-                            class="h-12 w-12 rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
+                        <CompanyBrandLogo
+                            :company="page.props.auth?.account?.company"
+                            :name="companyName"
+                            :show-fallback-name="false"
+                            container-class="h-12 w-12 p-1"
+                            class="shrink-0 shadow-none"
                             loading="lazy"
-                            decoding="async" />
+                        />
                         <div>
                             <p class="text-xs uppercase text-stone-500 dark:text-neutral-400">
                                 {{ companyName }}

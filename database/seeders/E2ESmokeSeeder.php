@@ -13,6 +13,7 @@ use App\Models\TeamMember;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\URL;
 
 class E2ESmokeSeeder extends Seeder
 {
@@ -24,6 +25,7 @@ class E2ESmokeSeeder extends Seeder
             'name' => 'E2E Service Owner',
             'email' => 'e2e.service.owner@example.test',
             'company_name' => 'E2E Service Company',
+            'company_logo' => '/images/presets/company-1.svg',
             'company_slug' => 'e2e-service-company',
             'company_type' => 'services',
             'company_sector' => 'construction',
@@ -196,6 +198,7 @@ class E2ESmokeSeeder extends Seeder
             'name' => 'E2E Product Owner',
             'email' => 'e2e.product.owner@example.test',
             'company_name' => 'E2E Product Company',
+            'company_logo' => '/images/presets/company-2.svg',
             'company_slug' => 'e2e-product-company',
             'company_type' => 'products',
             'company_sector' => 'retail',
@@ -331,12 +334,21 @@ class E2ESmokeSeeder extends Seeder
             'publicStore' => [
                 'path' => route('public.store.show', $productOwner->company_slug, absolute: false),
                 'companyName' => $productOwner->company_name,
+                'logoUrl' => $productOwner->company_logo,
                 'productName' => $publicStoreProduct->name,
             ],
             'publicShowcase' => [
                 'path' => route('public.showcase.show', $serviceOwner->company_slug, absolute: false),
                 'companyName' => $serviceOwner->company_name,
+                'logoUrl' => $serviceOwner->company_logo,
                 'serviceName' => $publicShowcaseService->name,
+            ],
+            'tenantBranding' => [
+                'companyName' => $serviceOwner->company_name,
+                'logoUrl' => $serviceOwner->company_logo,
+                'publicRequestPath' => URL::signedRoute('public.requests.form', [
+                    'user' => $serviceOwner->id,
+                ]),
             ],
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }

@@ -39,6 +39,8 @@ test('reset password link request keeps the selected public locale for the notif
 
     $user = User::factory()->create([
         'locale' => null,
+        'company_name' => 'Estudio Norte',
+        'company_logo' => 'https://assets.example.test/estudio-norte.png',
     ]);
 
     $this->withSession(['locale' => 'es'])
@@ -47,8 +49,14 @@ test('reset password link request keeps the selected public locale for the notif
 
     Notification::assertSentTo($user, ResetPasswordLinkNotification::class, function (ResetPasswordLinkNotification $notification) use ($user) {
         $mail = $notification->toMail($user);
+        app()->setLocale('es');
+        $html = view($mail->view, $mail->viewData)->render();
 
-        return str_contains((string) $mail->viewData['resetUrl'], 'locale=es');
+        return str_contains((string) $mail->viewData['resetUrl'], 'locale=es')
+            && ($mail->viewData['companyName'] ?? null) === 'Estudio Norte'
+            && ($mail->viewData['companyLogo'] ?? null) === 'https://assets.example.test/estudio-norte.png'
+            && str_contains($html, 'Logo de Estudio Norte')
+            && substr_count($html, 'Impulsado por Malikia Pro') === 1;
     });
 });
 

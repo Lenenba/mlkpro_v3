@@ -7,6 +7,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\CompanyFeatureService;
 use App\Services\SecurityEventService;
+use App\Services\TenantBrandingResolver;
 use App\Services\TwoFactorService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
@@ -21,21 +22,10 @@ class AuthController extends Controller
 {
     protected function buildMeta(User $user): array
     {
-        $ownerId = $user->accountOwnerId();
-
-        if ($user->isClient()) {
-            $customer = $user->relationLoaded('customerProfile')
-                ? $user->customerProfile
-                : $user->customerProfile()->first();
-
-            if ($customer?->user_id) {
-                $ownerId = $customer->user_id;
-            }
-        }
-
-        $owner = $ownerId === $user->id
-            ? $user
-            : User::query()->find($ownerId);
+        $brandingResolver = app(TenantBrandingResolver::class);
+        $owner = $brandingResolver->resolveAccountOwner($user);
+        $ownerId = $owner?->id ?? $user->accountOwnerId();
+        $tenantBranding = $brandingResolver->forAccountOwner($owner);
 
         $features = $owner ? app(CompanyFeatureService::class)->resolveEnabledFeatures($owner) : [];
 
@@ -61,10 +51,12 @@ class AuthController extends Controller
             'is_superadmin' => $user->isSuperadmin(),
             'is_platform_admin' => $user->isPlatformAdmin(),
             'company' => $owner ? [
-                'name' => $owner->company_name,
+                'name' => $tenantBranding['name'],
                 'type' => $owner->company_type,
                 'onboarded' => (bool) $owner->onboarding_completed_at,
-                'logo_url' => $owner->company_logo_url,
+                'logo_url' => $tenantBranding['custom_logo_url'],
+                'custom_logo_url' => $tenantBranding['custom_logo_url'],
+                'has_custom_logo' => $tenantBranding['has_custom_logo'],
             ] : null,
             'features' => $features,
             'platform' => $platformAdmin ? [

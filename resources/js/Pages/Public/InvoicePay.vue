@@ -257,18 +257,14 @@ const paymentChargedTotal = (payment) => {
 <template>
     <Head :title="headTitle" />
 
-    <GuestLayout :card-class="'mt-6 w-full max-w-3xl rounded-sm border border-stone-200 bg-white px-6 py-6 shadow-md'">
+    <GuestLayout
+        :company="company"
+        logo-href=""
+        :card-class="'mt-6 w-full max-w-3xl rounded-sm border border-stone-200 bg-white px-6 py-6 shadow-md'"
+    >
         <div class="space-y-5">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div class="flex items-center gap-3">
-                    <img
-                        v-if="company?.logo_url"
-                        :src="company.logo_url"
-                        :alt="companyName"
-                        class="h-10 w-10 rounded-sm border border-stone-200 object-cover"
-                        loading="lazy"
-                        decoding="async"
-                    />
                     <div>
                         <div class="text-xs uppercase tracking-wide text-stone-500">{{ t('public_invoice.document') }}</div>
                         <div class="text-lg font-semibold text-stone-800">

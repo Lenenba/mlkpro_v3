@@ -11,6 +11,7 @@ use App\Models\Work;
 use App\Models\WorkChecklistItem;
 use App\Notifications\ActionEmailNotification;
 use App\Services\Prospects\ProspectConversionService;
+use App\Services\TenantBrandingResolver;
 use App\Services\UsageLimitService;
 use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
@@ -35,6 +36,7 @@ class PublicQuoteController extends Controller
 
         $customer = $quote->customer;
         $owner = User::find($quote->user_id);
+        $tenantBranding = app(TenantBrandingResolver::class)->forAccountOwner($owner);
 
         $hasDecision = in_array($quote->status, ['accepted', 'declined'], true);
         $allowAccept = ! $quote->isArchived() && ! $hasDecision;
@@ -110,8 +112,10 @@ class PublicQuoteController extends Controller
                 'taxes' => $taxes,
             ],
             'company' => [
-                'name' => $owner?->company_name ?: config('app.name'),
-                'logo_url' => $owner?->company_logo_url,
+                'name' => $tenantBranding['name'],
+                'logo_url' => $tenantBranding['custom_logo_url'],
+                'custom_logo_url' => $tenantBranding['custom_logo_url'],
+                'has_custom_logo' => $tenantBranding['has_custom_logo'],
                 'currency_code' => $owner?->businessCurrencyCode(),
             ],
             'allowAccept' => $allowAccept,

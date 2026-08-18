@@ -14,6 +14,7 @@ use App\Modules\AiAssistant\Models\AiAssistantSetting;
 use App\Modules\AiAssistant\Models\AiConversation;
 use App\Modules\AiAssistant\Policies\AiAssistantSettingPolicy;
 use App\Modules\AiAssistant\Policies\AiConversationPolicy;
+use App\Notifications\ResetPasswordLinkNotification;
 use App\Observers\PaymentObserver;
 use App\Services\Campaigns\MarketingSettingsService;
 use App\Services\Campaigns\TemplateSeederService;
@@ -29,7 +30,6 @@ use App\Services\Observability\TelemetrySanitizer;
 use App\Services\Observability\TelemetryScope;
 use App\Services\PlatformAdminNotifier;
 use App\Services\Rbac\AccessControl;
-use App\Support\LocalePreference;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -87,24 +87,7 @@ class AppServiceProvider extends ServiceProvider
         Payment::observe(PaymentObserver::class);
 
         ResetPassword::toMailUsing(function ($notifiable, string $token): MailMessage {
-            $locale = LocalePreference::forNotifiable($notifiable);
-            $broker = (string) config('auth.defaults.passwords', 'users');
-            $expires = (int) config("auth.passwords.{$broker}.expire", 60);
-
-            return (new MailMessage)
-                ->subject(LocalePreference::trans('mail.auth.reset_password.subject', locale: $locale))
-                ->view('emails.auth.reset-password', [
-                    'companyName' => config('app.name'),
-                    'companyLogo' => null,
-                    'recipientName' => (string) ($notifiable->name ?? ''),
-                    'resetUrl' => route('password.reset', [
-                        'token' => $token,
-                        'email' => method_exists($notifiable, 'getEmailForPasswordReset')
-                            ? $notifiable->getEmailForPasswordReset()
-                            : (string) ($notifiable->email ?? ''),
-                    ]),
-                    'expiresInMinutes' => $expires,
-                ]);
+            return (new ResetPasswordLinkNotification($token))->toMail($notifiable);
         });
 
         RateLimiter::for('api', function (Request $request) {
