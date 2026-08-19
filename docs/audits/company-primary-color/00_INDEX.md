@@ -1,4 +1,4 @@
-# Index - docs/audits
+# Index - docs/audits/company-primary-color
 
 > Fichier généré par `npm run docs:index`. Modifier les statuts dans `docs/document-status.json`, puis régénérer les index.
 >
@@ -6,26 +6,19 @@
 
 Le suivi et l’état du document sont séparés : un document peut être complet alors que sa livraison reste en cours. Dans chaque section, les documents sont triés par date de création décroissante. `À classer` signifie qu’aucune preuve suffisante ne permet encore de déclarer le travail terminé ou en cours.
 
-[Retour a l index principal](../00_INDEX.md)
+[Retour a l index principal](../../00_INDEX.md)
 
 ## Résumé des fichiers directs
 
 | En cours | Bloqués | À faire | Terminés | Références | Archivés | À classer | Total |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-
-## Sous-dossiers
-
-| Dossier | En cours | Bloqués | À faire | Terminés | Références | Archivés | À classer | Total |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| [company-primary-color](company-primary-color/00_INDEX.md) | 1 | 0 | 0 | 1 | 0 | 0 | 0 | 2 |
-| [demo-salon](demo-salon/00_INDEX.md) | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
-| [mlkpro-benchmark-2026-07-16](mlkpro-benchmark-2026-07-16/00_INDEX.md) | 6 | 0 | 4 | 1 | 13 | 0 | 0 | 24 |
-| [module-visibility](module-visibility/00_INDEX.md) | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
+| 1 | 0 | 0 | 1 | 0 | 0 | 0 | 2 |
 
 ## En cours
 
-_Aucun document._
+| Créé le | Modifié le | Document | Titre | État du document | Source | Note |
+| --- | --- | --- | --- | --- | --- | --- |
+| 2026-08-18 | 2026-08-18 | [2026-08-18-etat-initial.md](2026-08-18-etat-initial.md) | Couleur primaire entreprise — état initial de la couverture | Complet | Classement manuel | Baseline canonique de la dette de couleur; remédiation suivie module par module. |
 
 ## Bloqué
 
@@ -37,7 +30,9 @@ _Aucun document._
 
 ## Terminé
 
-_Aucun document._
+| Créé le | Modifié le | Document | Titre | État du document | Source | Note |
+| --- | --- | --- | --- | --- | --- | --- |
+| 2026-08-18 | 2026-08-18 | [2026-08-18-m00-garde-automatique.md](2026-08-18-m00-garde-automatique.md) | M00 — garde automatique de la couleur primaire | Complet | Classement manuel | M00 conforme : manifeste exhaustif, baseline par fichier, scanner strict, tests Node, scénario Playwright et gate CI. |
 
 ## Références actives
 

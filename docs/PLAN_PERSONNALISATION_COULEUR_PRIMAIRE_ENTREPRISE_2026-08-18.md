@@ -2,7 +2,7 @@
 
 Dernière mise à jour : 2026-08-18
 
-Statut : implémentée et validée sur `develop`
+Statut : socle et surfaces prioritaires implémentés et validés sur `develop`
 
 ## 1. Objectif
 
@@ -113,7 +113,7 @@ La structure JSON permettra ensuite d'ajouter, sans nouvelle colonne par option 
 
 ## 10. Résultat de livraison
 
-Les huit étapes sont réalisées. La couleur est enregistrée de façon isolée par entreprise, propagée aux espaces connectés, pages publiques, portails, courriels transactionnels et cinq modèles PDF, avec contraste automatique et fallback Malikia Pro.
+Les huit étapes du périmètre initial sont réalisées. La couleur est enregistrée de façon isolée par entreprise et propagée aux surfaces prioritaires des espaces connectés, pages publiques, portails, courriels transactionnels et cinq modèles PDF, avec contraste automatique et fallback Malikia Pro.
 
 Contrôles réalisés avant livraison :
 
@@ -125,3 +125,9 @@ Contrôles réalisés avant livraison :
 - génération, rasterisation et inspection visuelle des cinq modèles PDF;
 - gate `composer qa:format` : 63 fichiers PHP contrôlés;
 - contrôle documentaire et vérification des espaces de fin de ligne.
+
+## 11. Extension de couverture exhaustive
+
+La présence de nombreux anciens styles `green-*` et `emerald-*` impose maintenant une certification module par module. Certains sont des couleurs de marque à migrer; d'autres sont des statuts fonctionnels qui doivent rester verts.
+
+Le suivi exhaustif, la taxonomie et les critères de passage entre modules sont définis dans [le plan d'audit de la couleur primaire par module](PLAN_AUDIT_COULEUR_PRIMAIRE_PAR_MODULE_2026-08-18.md).

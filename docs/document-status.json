@@ -30,7 +30,28 @@
             "delivery_status": "done",
             "created_at": "2026-08-18",
             "updated_at": "2026-08-18",
-            "note": "Personnalisation de la couleur primaire entreprise implémentée et validée sur les interfaces, pages publiques, portails, courriels et PDF."
+            "note": "Socle et surfaces prioritaires de la couleur primaire implémentés et validés; la certification exhaustive est suivie dans un plan séparé."
+        },
+        "docs/PLAN_AUDIT_COULEUR_PRIMAIRE_PAR_MODULE_2026-08-18.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "created_at": "2026-08-18",
+            "updated_at": "2026-08-18",
+            "note": "Plan séquentiel actif : aucun module suivant ne démarre avant la conformité et les preuves du module courant."
+        },
+        "docs/audits/company-primary-color/2026-08-18-etat-initial.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "created_at": "2026-08-18",
+            "updated_at": "2026-08-18",
+            "note": "Baseline canonique de la dette de couleur; remédiation suivie module par module."
+        },
+        "docs/audits/company-primary-color/2026-08-18-m00-garde-automatique.md": {
+            "document_status": "complete",
+            "delivery_status": "done",
+            "created_at": "2026-08-18",
+            "updated_at": "2026-08-18",
+            "note": "M00 conforme : manifeste exhaustif, baseline par fichier, scanner strict, tests Node, scénario Playwright et gate CI."
         },
         "docs/MODULE_VISIBILITY_AUDIT_RUNBOOK.md": {
             "document_status": "reference",

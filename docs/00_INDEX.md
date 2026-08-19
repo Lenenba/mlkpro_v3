@@ -10,12 +10,15 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 
 | En cours | Bloqués | À faire | Terminés | Références | Archivés | À classer | Total |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 48 | 0 | 23 | 3 | 61 | 0 | 92 | 227 |
+| 50 | 0 | 23 | 4 | 61 | 0 | 92 | 230 |
 
 ## Derniers documents créés
 
 | Créé le | Modifié le | Suivi | Document |
 | --- | --- | --- | --- |
+| 2026-08-18 | 2026-08-18 | En cours | [audits/company-primary-color/2026-08-18-etat-initial.md](audits/company-primary-color/2026-08-18-etat-initial.md) |
+| 2026-08-18 | 2026-08-18 | Terminé | [audits/company-primary-color/2026-08-18-m00-garde-automatique.md](audits/company-primary-color/2026-08-18-m00-garde-automatique.md) |
+| 2026-08-18 | 2026-08-18 | En cours | [PLAN_AUDIT_COULEUR_PRIMAIRE_PAR_MODULE_2026-08-18.md](PLAN_AUDIT_COULEUR_PRIMAIRE_PAR_MODULE_2026-08-18.md) |
 | 2026-08-18 | 2026-08-18 | Terminé | [PLAN_PERSONNALISATION_COULEUR_PRIMAIRE_ENTREPRISE_2026-08-18.md](PLAN_PERSONNALISATION_COULEUR_PRIMAIRE_ENTREPRISE_2026-08-18.md) |
 | 2026-08-18 | 2026-08-18 | Terminé | [PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md](PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md) |
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/capture-plan.csv](demo/video-library/capture-plan.csv) |
@@ -33,14 +36,14 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G06/README.md](demo/video-library/captures/G06/README.md) |
 | 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G07/capture-session.md](demo/video-library/captures/G07/capture-session.md) |
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G07/README.md](demo/video-library/captures/G07/README.md) |
-| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G08/capture-session.md](demo/video-library/captures/G08/capture-session.md) |
-| 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G08/README.md](demo/video-library/captures/G08/README.md) |
-| 2026-08-11 | 2026-08-11 | Références actives | [demo/video-library/captures/README.md](demo/video-library/captures/README.md) |
 
 ## Derniers documents modifiés
 
 | Modifié le | Créé le | Suivi | Document |
 | --- | --- | --- | --- |
+| 2026-08-18 | 2026-08-18 | En cours | [audits/company-primary-color/2026-08-18-etat-initial.md](audits/company-primary-color/2026-08-18-etat-initial.md) |
+| 2026-08-18 | 2026-08-18 | Terminé | [audits/company-primary-color/2026-08-18-m00-garde-automatique.md](audits/company-primary-color/2026-08-18-m00-garde-automatique.md) |
+| 2026-08-18 | 2026-08-18 | En cours | [PLAN_AUDIT_COULEUR_PRIMAIRE_PAR_MODULE_2026-08-18.md](PLAN_AUDIT_COULEUR_PRIMAIRE_PAR_MODULE_2026-08-18.md) |
 | 2026-08-18 | 2026-08-18 | Terminé | [PLAN_PERSONNALISATION_COULEUR_PRIMAIRE_ENTREPRISE_2026-08-18.md](PLAN_PERSONNALISATION_COULEUR_PRIMAIRE_ENTREPRISE_2026-08-18.md) |
 | 2026-08-18 | 2026-08-18 | Terminé | [PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md](PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md) |
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/capture-plan.csv](demo/video-library/capture-plan.csv) |
@@ -58,16 +61,13 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G06/README.md](demo/video-library/captures/G06/README.md) |
 | 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G07/capture-session.md](demo/video-library/captures/G07/capture-session.md) |
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G07/README.md](demo/video-library/captures/G07/README.md) |
-| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G08/capture-session.md](demo/video-library/captures/G08/capture-session.md) |
-| 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G08/README.md](demo/video-library/captures/G08/README.md) |
-| 2026-08-11 | 2026-08-11 | Références actives | [demo/video-library/captures/README.md](demo/video-library/captures/README.md) |
 
 ## Sous-dossiers
 
 | Dossier | En cours | Bloqués | À faire | Terminés | Références | Archivés | À classer | Total |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | [api](api/00_INDEX.md) | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 2 |
-| [audits](audits/00_INDEX.md) | 8 | 0 | 4 | 1 | 13 | 0 | 0 | 26 |
+| [audits](audits/00_INDEX.md) | 9 | 0 | 4 | 2 | 13 | 0 | 0 | 28 |
 | [demo](demo/00_INDEX.md) | 33 | 0 | 17 | 0 | 30 | 0 | 0 | 80 |
 | [superpowers](superpowers/00_INDEX.md) | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
 
@@ -75,6 +75,7 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 
 | Créé le | Modifié le | Document | Titre | État du document | Source | Note |
 | --- | --- | --- | --- | --- | --- | --- |
+| 2026-08-18 | 2026-08-18 | [PLAN_AUDIT_COULEUR_PRIMAIRE_PAR_MODULE_2026-08-18.md](PLAN_AUDIT_COULEUR_PRIMAIRE_PAR_MODULE_2026-08-18.md) | Audit de la couleur primaire par module | Complet | Classement manuel | Plan séquentiel actif : aucun module suivant ne démarre avant la conformité et les preuves du module courant. |
 | 2026-08-06 | 2026-08-11 | [DEMO_VIDEO_SALON_COIFFURE.md](DEMO_VIDEO_SALON_COIFFURE.md) | Démo vidéo — Salon de coiffure / beauté | Complet | Classement manuel | Reference metier Salon Eclat; les validations Stripe et integrations externes restent ouvertes. |
 | 2026-04-24 | 2026-04-25 | [PROSPECTS_MODULE_DEV_BACKLOG_2026-04-24.md](PROSPECTS_MODULE_DEV_BACKLOG_2026-04-24.md) | Module Prospects - plan de dev pas a pas | Complet | Classement manuel | PROSPECT-702 et plusieurs flux de fermeture restent partiels. |
 | 2026-04-13 | 2026-04-13 | [PLATFORM_BULK_ACTIONS_USER_STORY.md](PLATFORM_BULK_ACTIONS_USER_STORY.md) | Platform Bulk Actions - User Story | Complet | Classement manuel | Socle partiellement livre; generalisation multi-modules encore incomplete. |
@@ -97,7 +98,7 @@ _Aucun document._
 
 | Créé le | Modifié le | Document | Titre | État du document | Source | Note |
 | --- | --- | --- | --- | --- | --- | --- |
-| 2026-08-18 | 2026-08-18 | [PLAN_PERSONNALISATION_COULEUR_PRIMAIRE_ENTREPRISE_2026-08-18.md](PLAN_PERSONNALISATION_COULEUR_PRIMAIRE_ENTREPRISE_2026-08-18.md) | Personnalisation de la couleur principale par entreprise | Complet | Classement manuel | Personnalisation de la couleur primaire entreprise implémentée et validée sur les interfaces, pages publiques, portails, courriels et PDF. |
+| 2026-08-18 | 2026-08-18 | [PLAN_PERSONNALISATION_COULEUR_PRIMAIRE_ENTREPRISE_2026-08-18.md](PLAN_PERSONNALISATION_COULEUR_PRIMAIRE_ENTREPRISE_2026-08-18.md) | Personnalisation de la couleur principale par entreprise | Complet | Classement manuel | Socle et surfaces prioritaires de la couleur primaire implémentés et validés; la certification exhaustive est suivie dans un plan séparé. |
 | 2026-08-18 | 2026-08-18 | [PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md](PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md) | Personnalisation de la marque entreprise - plan d'implémentation | Complet | Classement manuel | Lots prioritaire et historique du branding entreprise implémentés et validés, y compris les scénarios Playwright complémentaires. |
 
 ## Références actives
