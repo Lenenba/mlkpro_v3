@@ -40,6 +40,8 @@ class ResetPasswordLinkNotification extends ResetPassword
             ->view('emails.auth.reset-password', [
                 'companyName' => $branding['name'],
                 'companyLogo' => $branding['custom_logo_url'],
+                'companyPrimaryColor' => $usesTenantBranding ? $branding['primary_color'] : null,
+                'companyPrimaryForegroundColor' => $usesTenantBranding ? $branding['primary_foreground_color'] : null,
                 'showPoweredBy' => $usesTenantBranding,
                 'recipientName' => (string) ($notifiable->name ?? ''),
                 'resetUrl' => route('password.reset', [

@@ -1,3 +1,11 @@
+@php
+  $companyBranding = app(\App\Services\TenantBrandingResolver::class)->forAccountOwner($company);
+  $companyPrimaryColor = $companyBranding['primary_color'] ?? '#16A34A';
+  $companyPrimaryForegroundColor = $companyBranding['primary_foreground_color'] ?? '#111827';
+  $companyPrimaryTextColor = $companyPrimaryForegroundColor === '#FFFFFF'
+    ? $companyPrimaryColor
+    : '#374151';
+@endphp
 <!doctype html>
 <html lang="fr">
   <head>
@@ -27,7 +35,7 @@
       }
       .top-rule {
         height: 8px;
-        background: #00c875;
+        background: {{ $companyPrimaryColor }};
         margin-bottom: 22px;
         border-radius: var(--malikia-radius);
       }
@@ -61,7 +69,7 @@
         font-size: 10px;
         text-transform: uppercase;
         letter-spacing: 0.12em;
-        color: #00c875;
+        color: {{ $companyPrimaryTextColor }};
         margin-bottom: 6px;
       }
       .brand-name {
@@ -108,7 +116,7 @@
         font-weight: 700;
         letter-spacing: 0.1em;
         text-transform: uppercase;
-        color: #00c875;
+        color: {{ $companyPrimaryTextColor }};
         margin-bottom: 8px;
       }
       .box-strong {
@@ -196,7 +204,7 @@
       }
       .totals-card {
         border: 1px solid #dfdfdf;
-        border-top: 4px solid #00c875;
+        border-top: 4px solid {{ $companyPrimaryColor }};
         border-radius: var(--malikia-radius);
         padding: 16px;
         background: #ffffff;
@@ -221,7 +229,7 @@
         border-top: 1px solid #e7e7e7;
       }
       .due-label {
-        color: #00c875;
+        color: {{ $companyPrimaryTextColor }};
         font-size: 10px;
         font-weight: 700;
         letter-spacing: 0.12em;
@@ -243,7 +251,6 @@
   </head>
   <body>
     @php
-      $companyBranding = app(\App\Services\TenantBrandingResolver::class)->forAccountOwner($company);
       $companyName = $companyBranding['name'];
       $companyLogo = $companyBranding['custom_logo_url'];
       $companyLogoUrl = null;

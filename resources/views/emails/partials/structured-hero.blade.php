@@ -28,6 +28,15 @@
 
     $hasHeroSideLogo = is_string($heroSideLogo) && $heroSideLogo !== '' && ! str_contains($heroSideLogo, 'customers/customer.png');
     $resolvedHeroSideLogo = $hasHeroSideLogo ? $resolveEmailImage($heroSideLogo) : null;
+    $rawHeroPrimaryColor = strtoupper(trim((string) ($companyPrimaryColor ?? '')));
+    $rawHeroPrimaryForegroundColor = strtoupper(trim((string) ($companyPrimaryForegroundColor ?? '')));
+    $hasHeroPrimaryColor = preg_match('/^#[0-9A-F]{6}$/', $rawHeroPrimaryColor) === 1;
+    $heroAccentColor = $hasHeroPrimaryColor ? $rawHeroPrimaryColor : '#16A34A';
+    $heroActionColor = $hasHeroPrimaryColor ? $rawHeroPrimaryColor : '#16A34A';
+    $heroActionForegroundColor = $hasHeroPrimaryColor
+        && preg_match('/^#[0-9A-F]{6}$/', $rawHeroPrimaryForegroundColor) === 1
+            ? $rawHeroPrimaryForegroundColor
+            : '#111827';
 @endphp
 
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;">
@@ -41,7 +50,7 @@
             <div style="margin-top:12px; font-size:32px; font-weight:700; line-height:0.96; letter-spacing:-0.04em; color:#f8fafc; max-width:320px;">
                 {{ $heroTitle }}
             </div>
-            <div style="margin-top:14px; width:92px; height:4px; background-color:#2dd4bf;">&nbsp;</div>
+            <div style="margin-top:14px; width:92px; height:4px; background-color:{{ $heroAccentColor }};">&nbsp;</div>
             @if ($heroIntro)
                 <div style="margin-top:14px; font-size:14px; line-height:1.8; color:rgba(236, 253, 245, 0.88);">
                     {{ $heroIntro }}
@@ -50,8 +59,8 @@
             @if ($heroActionUrl && $heroActionLabel)
                 <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:18px;">
                     <tr>
-                        <td bgcolor="#1f2937" style="border-radius:3px;">
-                            <a href="{{ $heroActionUrl }}" style="display:inline-block; padding:10px 16px; font-size:14px; font-weight:700; color:#ffffff; text-decoration:none;">
+                        <td bgcolor="{{ $heroActionColor }}" style="background-color:{{ $heroActionColor }}; border-radius:3px;">
+                            <a href="{{ $heroActionUrl }}" style="display:inline-block; padding:10px 16px; font-size:14px; font-weight:700; color:{{ $heroActionForegroundColor }}; text-decoration:none;">
                                 {{ $heroActionLabel }}
                             </a>
                         </td>

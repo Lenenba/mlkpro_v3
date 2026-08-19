@@ -16,6 +16,7 @@ use App\Services\FinanceApprovalService;
 use App\Services\InvoiceDocumentService;
 use App\Services\PreventUnsafeTenantCurrencyChange;
 use App\Services\SupplierDirectory;
+use App\Services\TenantBrandingResolver;
 use App\Services\UsageLimitService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -59,6 +60,7 @@ class CompanySettingsController extends Controller
         $aiImageUsage = app(AiImageUsageService::class);
         $financeApproval = app(FinanceApprovalService::class);
         $invoiceDocuments = app(InvoiceDocumentService::class);
+        $tenantBranding = app(TenantBrandingResolver::class)->forAccountOwner($user);
         $aiImagePayload = [
             'enabled' => (bool) config('services.openai.key'),
             'generate_url' => route('ai.images.generate'),
@@ -86,6 +88,14 @@ class CompanySettingsController extends Controller
                 'company_name' => $user->company_name,
                 'company_slug' => $user->company_slug,
                 'company_logo' => $companyLogo,
+                'branding_settings' => [
+                    'primary_color' => data_get($user->company_branding_settings, 'primary_color'),
+                    'effective_primary_color' => $tenantBranding['primary_color'],
+                    'primary_hover_color' => $tenantBranding['primary_hover_color'],
+                    'primary_focus_color' => $tenantBranding['primary_focus_color'],
+                    'primary_foreground_color' => $tenantBranding['primary_foreground_color'],
+                    'has_custom_primary_color' => $tenantBranding['has_custom_primary_color'],
+                ],
                 'company_description' => $user->company_description,
                 'company_country' => $user->company_country,
                 'company_province' => $user->company_province,
@@ -153,6 +163,8 @@ class CompanySettingsController extends Controller
             'company_name' => 'required|string|max:255',
             'company_slug' => 'nullable|string|max:120',
             'company_logo' => 'nullable|image|max:2048',
+            'company_branding_settings' => ['nullable', 'array:primary_color'],
+            'company_branding_settings.primary_color' => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'company_description' => 'nullable|string|max:2000',
             'company_country' => 'nullable|string|max:255',
             'company_province' => 'nullable|string|max:255',
@@ -351,6 +363,24 @@ class CompanySettingsController extends Controller
             }
         }
 
+        $companyBrandingSettings = is_array($user->company_branding_settings)
+            ? $user->company_branding_settings
+            : [];
+        if (array_key_exists('company_branding_settings', $validated)) {
+            $brandingInput = $validated['company_branding_settings'];
+            $primaryColor = is_array($brandingInput)
+                ? ($brandingInput['primary_color'] ?? null)
+                : null;
+            $primaryColor = strtoupper(trim((string) ($primaryColor ?? '')));
+
+            if ($primaryColor === '') {
+                $companyBrandingSettings = array_diff_key($companyBrandingSettings, ['primary_color' => true]);
+            } else {
+                $companyBrandingSettings['primary_color'] = $primaryColor;
+            }
+        }
+        $companyBrandingSettings = $companyBrandingSettings ?: null;
+
         $customSuppliers = $this->normalizeCustomSuppliers($validated['custom_suppliers'] ?? [], $supplierCountry);
         $suppliers = $this->mergeSuppliers($suppliers, $customSuppliers);
         $supplierKeys = collect($suppliers)->pluck('key')->filter()->values()->all();
@@ -413,6 +443,7 @@ class CompanySettingsController extends Controller
             'company_name' => $validated['company_name'],
             'company_slug' => $companySlug,
             'company_logo' => $companyLogoPath,
+            'company_branding_settings' => $companyBrandingSettings,
             'company_description' => $validated['company_description'] ?? null,
             'company_country' => $validated['company_country'] ?? null,
             'company_province' => $validated['company_province'] ?? null,

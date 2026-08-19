@@ -113,6 +113,11 @@ class PublicWorkProofController extends Controller
                 'logo_url' => $tenantBranding['custom_logo_url'],
                 'custom_logo_url' => $tenantBranding['custom_logo_url'],
                 'has_custom_logo' => $tenantBranding['has_custom_logo'],
+                'primary_color' => $tenantBranding['primary_color'],
+                'primary_hover_color' => $tenantBranding['primary_hover_color'],
+                'primary_focus_color' => $tenantBranding['primary_focus_color'],
+                'primary_foreground_color' => $tenantBranding['primary_foreground_color'],
+                'has_custom_primary_color' => $tenantBranding['has_custom_primary_color'],
             ],
             'customer' => $customer ? [
                 'company_name' => $customer->company_name,

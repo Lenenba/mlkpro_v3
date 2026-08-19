@@ -21,6 +21,7 @@ test('priority public tenant pages expose a nullable custom logo without the leg
         'company_name' => 'Branding Pending Co.',
         'company_type' => 'services',
         'company_logo' => 'customers/customer.png',
+        'company_branding_settings' => ['primary_color' => '#123ABC'],
         'company_features' => [
             'requests' => true,
         ],
@@ -73,7 +74,12 @@ test('priority public tenant pages expose a nullable custom logo without the leg
                 ->where('company.name', 'Branding Pending Co.')
                 ->where('company.logo_url', null)
                 ->where('company.custom_logo_url', null)
-                ->where('company.has_custom_logo', false));
+                ->where('company.has_custom_logo', false)
+                ->where('company.primary_color', '#123ABC')
+                ->where('company.primary_hover_color', '#1033A5')
+                ->where('company.primary_focus_color', '#0E2D93')
+                ->where('company.primary_foreground_color', '#FFFFFF')
+                ->where('company.has_custom_primary_color', true));
     }
 });
 
@@ -85,6 +91,7 @@ test('public request links always resolve employee context to the account owner'
         )->id,
         'company_name' => 'Owner Request Brand',
         'company_logo' => 'https://assets.example.test/owner-request.png',
+        'company_branding_settings' => ['primary_color' => '#123ABC'],
         'company_type' => 'services',
         'company_features' => ['requests' => true],
         'onboarding_completed_at' => now(),
@@ -96,6 +103,7 @@ test('public request links always resolve employee context to the account owner'
         )->id,
         'company_name' => 'Incorrect Employee Brand',
         'company_logo' => 'https://assets.example.test/employee-request.png',
+        'company_branding_settings' => ['primary_color' => '#FDE047'],
     ]);
     TeamMember::query()->create([
         'account_id' => $owner->id,
@@ -115,7 +123,9 @@ test('public request links always resolve employee context to the account owner'
             ->where('company.id', $owner->id)
             ->where('company.name', 'Owner Request Brand')
             ->where('company.logo_url', 'https://assets.example.test/owner-request.png')
-            ->where('company.has_custom_logo', true));
+            ->where('company.has_custom_logo', true)
+            ->where('company.primary_color', '#123ABC')
+            ->where('company.has_custom_primary_color', true));
 
     expect(app(PublicLeadFormUrlService::class)->resolve($employee->id))->toBe($ownerUrl);
 });

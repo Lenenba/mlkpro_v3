@@ -351,8 +351,8 @@ const isDisabled = computed(() => Boolean(selectAttrs.value?.disabled));
 
 const selectClass = computed(() => {
     const baseClass = props.dense
-        ? 'peer block w-full rounded-sm border-stone-200 bg-white px-2.5 py-2 text-xs leading-4 text-stone-700 focus:border-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:focus:ring-neutral-600 focus:pt-4 focus:pb-1'
-        : 'peer p-4 pe-9 block w-full border-stone-200 rounded-sm text-sm focus:border-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:focus:ring-neutral-600 focus:pt-6 focus:pb-2 autofill:pt-6 autofill:pb-2';
+        ? 'peer block w-full rounded-sm border-stone-200 bg-white px-2.5 py-2 text-xs leading-4 text-stone-700 focus:border-primary-line focus:ring-primary-line disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:focus:border-primary-line dark:focus:ring-primary-line focus:pt-4 focus:pb-1'
+        : 'peer p-4 pe-9 block w-full border-stone-200 rounded-sm text-sm focus:border-primary-line focus:ring-primary-line disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:focus:border-primary-line dark:focus:ring-primary-line focus:pt-6 focus:pb-2 autofill:pt-6 autofill:pb-2';
     const filledClass = hasSelection.value
         ? (props.dense ? 'pt-4 pb-1' : 'pt-6 pb-2')
         : '';

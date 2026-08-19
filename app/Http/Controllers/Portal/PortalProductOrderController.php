@@ -40,7 +40,19 @@ class PortalProductOrderController extends Controller
     ) {}
 
     /**
-     * @return array{id: int, name: string, logo_url: string|null, custom_logo_url: string|null, has_custom_logo: bool, currency_code: string}
+     * @return array{
+     *     id: int,
+     *     name: string,
+     *     logo_url: string|null,
+     *     custom_logo_url: string|null,
+     *     has_custom_logo: bool,
+     *     primary_color: string,
+     *     primary_hover_color: string,
+     *     primary_focus_color: string,
+     *     primary_foreground_color: string,
+     *     has_custom_primary_color: bool,
+     *     currency_code: string
+     * }
      */
     private function companyPayload(User $owner): array
     {
@@ -52,6 +64,11 @@ class PortalProductOrderController extends Controller
             'logo_url' => $tenantBranding['custom_logo_url'],
             'custom_logo_url' => $tenantBranding['custom_logo_url'],
             'has_custom_logo' => $tenantBranding['has_custom_logo'],
+            'primary_color' => $tenantBranding['primary_color'],
+            'primary_hover_color' => $tenantBranding['primary_hover_color'],
+            'primary_focus_color' => $tenantBranding['primary_focus_color'],
+            'primary_foreground_color' => $tenantBranding['primary_foreground_color'],
+            'has_custom_primary_color' => $tenantBranding['has_custom_primary_color'],
             'currency_code' => $owner->businessCurrencyCode(),
         ];
     }

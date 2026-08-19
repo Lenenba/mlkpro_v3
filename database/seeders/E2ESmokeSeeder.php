@@ -26,6 +26,9 @@ class E2ESmokeSeeder extends Seeder
             'email' => 'e2e.service.owner@example.test',
             'company_name' => 'E2E Service Company',
             'company_logo' => '/images/presets/company-1.svg',
+            'company_branding_settings' => [
+                'primary_color' => '#7C3AED',
+            ],
             'company_slug' => 'e2e-service-company',
             'company_type' => 'services',
             'company_sector' => 'construction',
@@ -199,6 +202,9 @@ class E2ESmokeSeeder extends Seeder
             'email' => 'e2e.product.owner@example.test',
             'company_name' => 'E2E Product Company',
             'company_logo' => '/images/presets/company-2.svg',
+            'company_branding_settings' => [
+                'primary_color' => '#D97706',
+            ],
             'company_slug' => 'e2e-product-company',
             'company_type' => 'products',
             'company_sector' => 'retail',
@@ -335,17 +341,20 @@ class E2ESmokeSeeder extends Seeder
                 'path' => route('public.store.show', $productOwner->company_slug, absolute: false),
                 'companyName' => $productOwner->company_name,
                 'logoUrl' => $productOwner->company_logo,
+                'primaryColor' => $productOwner->company_branding_settings['primary_color'],
                 'productName' => $publicStoreProduct->name,
             ],
             'publicShowcase' => [
                 'path' => route('public.showcase.show', $serviceOwner->company_slug, absolute: false),
                 'companyName' => $serviceOwner->company_name,
                 'logoUrl' => $serviceOwner->company_logo,
+                'primaryColor' => $serviceOwner->company_branding_settings['primary_color'],
                 'serviceName' => $publicShowcaseService->name,
             ],
             'tenantBranding' => [
                 'companyName' => $serviceOwner->company_name,
                 'logoUrl' => $serviceOwner->company_logo,
+                'primaryColor' => $serviceOwner->company_branding_settings['primary_color'],
                 'publicRequestPath' => URL::signedRoute('public.requests.form', [
                     'user' => $serviceOwner->id,
                 ]),

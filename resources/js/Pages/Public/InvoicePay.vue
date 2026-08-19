@@ -365,7 +365,7 @@ const paymentChargedTotal = (payment) => {
                                 type="button"
                                 :disabled="!allowPayment"
                                 class="rounded-sm border px-3 py-1.5 text-xs font-medium disabled:opacity-60"
-                                :class="tipEnabled ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-stone-200 bg-white text-stone-700'"
+                                :class="tipEnabled ? 'border-primary-line bg-primary-soft text-primary-soft-foreground' : 'border-stone-200 bg-white text-stone-700'"
                                 @click="tipEnabled = true"
                             >
                                 {{ t('public_invoice.tip.enable') }}
@@ -411,7 +411,7 @@ const paymentChargedTotal = (payment) => {
                                         type="button"
                                         :disabled="!allowPayment"
                                         class="rounded-sm border px-2.5 py-1 text-xs font-medium disabled:opacity-60"
-                                        :class="normalizedTipPercent === value ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-stone-200 bg-white text-stone-700'"
+                                        :class="normalizedTipPercent === value ? 'border-primary-line bg-primary-soft text-primary-soft-foreground' : 'border-stone-200 bg-white text-stone-700'"
                                         @click="tipPercent = value"
                                     >
                                         {{ value }}%
@@ -438,7 +438,7 @@ const paymentChargedTotal = (payment) => {
                                         type="button"
                                         :disabled="!allowPayment"
                                         class="rounded-sm border px-2.5 py-1 text-xs font-medium disabled:opacity-60"
-                                        :class="normalizedTipFixedAmount === value ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-stone-200 bg-white text-stone-700'"
+                                        :class="normalizedTipFixedAmount === value ? 'border-primary-line bg-primary-soft text-primary-soft-foreground' : 'border-stone-200 bg-white text-stone-700'"
                                         @click="tipFixedAmount = value"
                                     >
                                         ${{ value }}
@@ -490,7 +490,7 @@ const paymentChargedTotal = (payment) => {
                         <button
                             type="submit"
                             :disabled="!canSubmitPayment || form.processing"
-                            class="inline-flex w-full items-center justify-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                            class="inline-flex w-full items-center justify-center rounded-sm border border-transparent bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
                         >
                             {{ t('public_invoice.actions.pay_invoice') }}
                         </button>

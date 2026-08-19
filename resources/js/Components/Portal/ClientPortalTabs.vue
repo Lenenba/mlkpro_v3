@@ -58,20 +58,28 @@ const panelTone = (tone, active) => {
         return 'border-indigo-300/60 bg-gradient-to-br from-indigo-600 via-violet-500 to-indigo-400 text-white shadow-[0_20px_48px_-30px_rgba(79,70,229,0.65)]';
     }
 
-    return 'border-emerald-300/60 bg-gradient-to-br from-emerald-600 via-teal-500 to-emerald-400 text-white shadow-[0_20px_48px_-30px_rgba(16,185,129,0.65)]';
+    return 'border-primary-line bg-primary text-primary-foreground shadow-lg';
 };
 
-const badgeTone = (active) => (
-    active
-        ? 'border-white/20 bg-white/15 text-white'
-        : 'border-stone-200 bg-stone-50 text-stone-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-400'
-);
+const usesBrandTone = (tone) => !['orange', 'indigo'].includes(tone);
 
-const descriptionTone = (active) => (
-    active
-        ? 'text-white/80'
-        : 'text-stone-500 dark:text-neutral-400'
-);
+const badgeTone = (active, tone) => {
+    if (!active) {
+        return 'border-stone-200 bg-stone-50 text-stone-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-400';
+    }
+
+    return usesBrandTone(tone)
+        ? 'border-current bg-white/15 text-primary-foreground'
+        : 'border-white/20 bg-white/15 text-white';
+};
+
+const descriptionTone = (active, tone) => {
+    if (!active) {
+        return 'text-stone-500 dark:text-neutral-400';
+    }
+
+    return usesBrandTone(tone) ? 'text-primary-foreground opacity-80' : 'text-white/80';
+};
 
 const handleClick = (tab) => {
     if (tab.href || tab.disabled || tab.id === activeTabId.value) {
@@ -93,7 +101,7 @@ const isActive = (tab) => activeTabId.value === tab.id;
                 :key="tab.id"
                 :href="tab.href && !tab.disabled ? tab.href : null"
                 :type="tab.href ? null : 'button'"
-                class="group rounded-[1.35rem] border px-4 py-3 text-left transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-50 disabled:cursor-not-allowed disabled:opacity-60 dark:focus-visible:ring-offset-neutral-950"
+                class="group rounded-[1.35rem] border px-4 py-3 text-left transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-line focus-visible:ring-offset-2 focus-visible:ring-offset-stone-50 disabled:cursor-not-allowed disabled:opacity-60 dark:focus-visible:ring-offset-neutral-950"
                 :class="panelTone(tab.tone, isActive(tab))"
                 :disabled="tab.disabled && !tab.href"
                 :aria-current="tab.href && isActive(tab) ? 'page' : null"
@@ -107,7 +115,7 @@ const isActive = (tab) => activeTabId.value === tab.id;
                         <p
                             v-if="tab.description"
                             class="mt-1 text-xs leading-5"
-                            :class="descriptionTone(isActive(tab))"
+                            :class="descriptionTone(isActive(tab), tab.tone)"
                         >
                             {{ tab.description }}
                         </p>
@@ -115,7 +123,7 @@ const isActive = (tab) => activeTabId.value === tab.id;
                     <span
                         v-if="tab.badge !== undefined && tab.badge !== null && `${tab.badge}` !== ''"
                         class="shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]"
-                        :class="badgeTone(isActive(tab))"
+                        :class="badgeTone(isActive(tab), tab.tone)"
                     >
                         {{ tab.badge }}
                     </span>

@@ -81,6 +81,8 @@ class InvoiceAvailableNotification extends Notification implements ShouldQueue
                 'note' => $this->note,
                 'companyName' => $branding['name'],
                 'companyLogo' => $branding['custom_logo_url'],
+                'companyPrimaryColor' => $branding['primary_color'],
+                'companyPrimaryForegroundColor' => $branding['primary_foreground_color'],
             ])
             ->attachData(
                 $invoiceDocumentService->renderPdfContent($invoice, $companyUser),

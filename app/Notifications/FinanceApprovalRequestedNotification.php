@@ -75,6 +75,8 @@ class FinanceApprovalRequestedNotification extends Notification implements Shoul
                 'note' => null,
                 'companyName' => $branding['name'],
                 'companyLogo' => $branding['custom_logo_url'],
+                'companyPrimaryColor' => $branding['primary_color'],
+                'companyPrimaryForegroundColor' => $branding['primary_foreground_color'],
             ]);
     }
 

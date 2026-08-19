@@ -532,7 +532,7 @@ const submitProductReview = (productId) => {
                 <button
                     v-if="canPayDeposit"
                     type="button"
-                    class="rounded-sm bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                    class="rounded-sm bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
                     :disabled="paymentProcessing"
                     @click="startPayment('deposit')"
                 >
@@ -541,7 +541,7 @@ const submitProductReview = (productId) => {
                 <button
                     v-if="canPayBalance"
                     type="button"
-                    class="rounded-sm bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                    class="rounded-sm bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
                     :disabled="paymentProcessing"
                     @click="startPayment('balance')"
                 >
@@ -670,7 +670,7 @@ const submitProductReview = (productId) => {
                                 </div>
                                 <button
                                     type="button"
-                                    class="mt-3 rounded-sm bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                                    class="mt-3 rounded-sm bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
                                     :disabled="orderReviewForm.processing"
                                     @click="submitOrderReview"
                                 >
@@ -716,7 +716,7 @@ const submitProductReview = (productId) => {
                                         />
                                         <button
                                             type="button"
-                                            class="rounded-sm bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                                            class="rounded-sm bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
                                             :disabled="productReviewForms[item.product_id].processing"
                                             @click="submitProductReview(item.product_id)"
                                         >
@@ -863,7 +863,7 @@ const submitProductReview = (productId) => {
                             >
                             <button
                                 type="button"
-                                class="rounded-sm bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                                class="rounded-sm bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
                                 :disabled="confirmForm.processing"
                                 @click="submitReceiptConfirm"
                             >

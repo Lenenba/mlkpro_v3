@@ -10,12 +10,13 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 
 | En cours | Bloqués | À faire | Terminés | Références | Archivés | À classer | Total |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 48 | 0 | 23 | 2 | 61 | 0 | 92 | 226 |
+| 48 | 0 | 23 | 3 | 61 | 0 | 92 | 227 |
 
 ## Derniers documents créés
 
 | Créé le | Modifié le | Suivi | Document |
 | --- | --- | --- | --- |
+| 2026-08-18 | 2026-08-18 | Terminé | [PLAN_PERSONNALISATION_COULEUR_PRIMAIRE_ENTREPRISE_2026-08-18.md](PLAN_PERSONNALISATION_COULEUR_PRIMAIRE_ENTREPRISE_2026-08-18.md) |
 | 2026-08-18 | 2026-08-18 | Terminé | [PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md](PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md) |
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/capture-plan.csv](demo/video-library/capture-plan.csv) |
 | 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G01/capture-session.md](demo/video-library/captures/G01/capture-session.md) |
@@ -35,12 +36,12 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 | 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G08/capture-session.md](demo/video-library/captures/G08/capture-session.md) |
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G08/README.md](demo/video-library/captures/G08/README.md) |
 | 2026-08-11 | 2026-08-11 | Références actives | [demo/video-library/captures/README.md](demo/video-library/captures/README.md) |
-| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/episodes/00-intro-fondateur.md](demo/video-library/episodes/00-intro-fondateur.md) |
 
 ## Derniers documents modifiés
 
 | Modifié le | Créé le | Suivi | Document |
 | --- | --- | --- | --- |
+| 2026-08-18 | 2026-08-18 | Terminé | [PLAN_PERSONNALISATION_COULEUR_PRIMAIRE_ENTREPRISE_2026-08-18.md](PLAN_PERSONNALISATION_COULEUR_PRIMAIRE_ENTREPRISE_2026-08-18.md) |
 | 2026-08-18 | 2026-08-18 | Terminé | [PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md](PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md) |
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/capture-plan.csv](demo/video-library/capture-plan.csv) |
 | 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G01/capture-session.md](demo/video-library/captures/G01/capture-session.md) |
@@ -60,7 +61,6 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 | 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G08/capture-session.md](demo/video-library/captures/G08/capture-session.md) |
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G08/README.md](demo/video-library/captures/G08/README.md) |
 | 2026-08-11 | 2026-08-11 | Références actives | [demo/video-library/captures/README.md](demo/video-library/captures/README.md) |
-| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/episodes/00-intro-fondateur.md](demo/video-library/episodes/00-intro-fondateur.md) |
 
 ## Sous-dossiers
 
@@ -97,6 +97,7 @@ _Aucun document._
 
 | Créé le | Modifié le | Document | Titre | État du document | Source | Note |
 | --- | --- | --- | --- | --- | --- | --- |
+| 2026-08-18 | 2026-08-18 | [PLAN_PERSONNALISATION_COULEUR_PRIMAIRE_ENTREPRISE_2026-08-18.md](PLAN_PERSONNALISATION_COULEUR_PRIMAIRE_ENTREPRISE_2026-08-18.md) | Personnalisation de la couleur principale par entreprise | Complet | Classement manuel | Personnalisation de la couleur primaire entreprise implémentée et validée sur les interfaces, pages publiques, portails, courriels et PDF. |
 | 2026-08-18 | 2026-08-18 | [PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md](PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md) | Personnalisation de la marque entreprise - plan d'implémentation | Complet | Classement manuel | Lots prioritaire et historique du branding entreprise implémentés et validés, y compris les scénarios Playwright complémentaires. |
 
 ## Références actives

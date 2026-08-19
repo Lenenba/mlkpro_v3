@@ -56,10 +56,10 @@ class ProspectFollowUpReminderService
                 })
                 ->whereHas('request', fn ($query) => $query->whereNull('archived_at'))
                 ->with([
-                    'account:id,name,email,locale,company_name,company_logo',
+                    'account:id,name,email,locale,company_name,company_logo,company_branding_settings',
                     'assignee.user:id,name,email,locale',
                     'request:id,user_id,assigned_team_member_id,title,contact_name,contact_email,archived_at',
-                    'request.user:id,name,email,locale,company_name,company_logo',
+                    'request.user:id,name,email,locale,company_name,company_logo,company_branding_settings',
                     'request.assignee.user:id,name,email,locale',
                 ])
                 ->orderBy('due_date')

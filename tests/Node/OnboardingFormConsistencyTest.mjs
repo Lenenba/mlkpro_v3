@@ -85,8 +85,8 @@ test('the floating textarea forwards native attributes while preserving layout c
     assert.match(source, /const inputAttrs = \{ \.\.\.attrs \}[\s\S]*?delete inputAttrs\.class/);
     assert.match(source, /<div class="relative" :class="attrs\.class">/);
     assert.match(source, /<textarea[\s\S]*?:required="required"[\s\S]*?v-bind="textareaAttrs"/);
-    assert.match(source, /focus:border-green-600 focus:ring-green-600/);
-    assert.doesNotMatch(source, /focus:border-green-500|focus:ring-green-500/);
+    assert.match(source, /focus:border-primary-line focus:ring-primary-line/);
+    assert.doesNotMatch(source, /focus:border-green-(?:500|600)|focus:ring-green-(?:500|600)/);
 });
 
 test('the floating input forwards its required state to the native control', () => {

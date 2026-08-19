@@ -11,6 +11,7 @@ import {
     buildShowcasePublicSections,
     publicCatalogStockImages,
 } from '@/utils/publicCatalogSections';
+import { DEFAULT_COMPANY_PRIMARY_COLOR } from '@/utils/companyBrandTheme';
 
 const props = defineProps({
     company: { type: Object, default: () => ({}) },
@@ -117,7 +118,11 @@ const heroImage = computed(() => (
     || heroService.value?.image_url
     || null
 ));
-const headerAccent = computed(() => company.value?.store_settings?.header_color || '#0f172a');
+const headerAccent = computed(() => (
+    company.value?.store_settings?.header_color
+    || company.value?.primary_color
+    || DEFAULT_COMPANY_PRIMARY_COLOR
+));
 const contactHref = computed(() => props.request_url || '#contact');
 
 const searchQuery = ref('');
