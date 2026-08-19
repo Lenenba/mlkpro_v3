@@ -1,6 +1,6 @@
 # G03 — Scénario détaillé de tournage
 
-Dernière mise à jour : 2026-08-11<br>
+Dernière mise à jour : 2026-08-19<br>
 Source : [fiche maître G03](../03-creer-client.md)
 
 ## Intention de la prise
@@ -23,7 +23,7 @@ Le master est enregistré une fois, puis sert à produire une version complète 
 | 8 | G03-S08 | Essayer la recherche d'adresse, puis passer en saisie manuelle si nécessaire. | `245 rue Démonstration`. | Suggestions ou champs manuels disponibles. | « La recherche accélère la saisie, mais je peux toujours compléter les champs manuellement. Je n'utilise qu'une adresse fictive. » | Si le service d'autocomplétion ne répond pas, couper l'attente et utiliser directement les champs manuels. |
 | 9 | G03-S09 | Compléter l'adresse, puis cocher `Adresse de facturation identique à l'adresse principale`. | Montréal, Québec, H2X 3K4, Canada ; case Oui. | Adresse complète et indicateur de facturation affichés. | « Le point subtil est la ville : côté application, c'est elle qui permet de créer l'adresse associée au client. Une rue seule ne suffit pas. La case de facturation mémorise ici que cette même adresse doit être utilisée ; elle ne crée pas une deuxième adresse. » | Vérifier que la ville n'a pas été effacée par l'autocomplétion et que la case, désactivée par défaut, est bien cochée. |
 | 10 | G03-S10 | Remplacer temporairement le courriel par le courriel exact d'un client déjà présent, relevé sur le clone; soumettre; montrer l'erreur; restaurer Nora. | Courriel dynamique de Julie relevé en préproduction, puis `nora.bouchard@example.test`. | Erreur d'unicité, puis formulaire corrigé. | « Le courriel ne peut appartenir qu'à une fiche client. Ce contrôle protège les échanges et l'accès portail. Je corrige avec l'adresse de démonstration réservée à Nora. » | Le preset suffixe les courriels. Ne jamais supposer `julie.nadeau@example.test` : relever la valeur réellement affichée sur la fiche Julie du clone. |
-| 11 | G03-S11 | Montrer les deux actions, sans quitter la page. | `Enregistrer et créer un autre`; `Enregistrer client`. | Les deux libellés sont lisibles. | « Le premier bouton convient à une saisie en série et revient au formulaire vide. Le second enregistre Nora et revient à la liste Clients. » | Ne pas annoncer que le bouton Annuler revient à la liste : son comportement doit être validé séparément. |
+| 11 | G03-S11 | Montrer les trois actions, sans quitter la page. | `Annuler`; `Enregistrer et créer un autre`; `Enregistrer client`. | La barre d'actions reste visible et les trois libellés sont lisibles. | « Annuler quitte le formulaire sans enregistrer. Le bouton suivant convient à une saisie en série et revient au formulaire vide. Le dernier enregistre Nora et revient à la liste Clients. » | Ne pas cliquer Annuler pendant la prise principale : cela abandonnerait les valeurs déjà saisies. |
 | 12 | G03-S12 | Cliquer `Enregistrer client`. | Formulaire valide. | Redirection `/customer`, message de succès et ligne Nora. | « La confirmation apparaît dans la liste. C'est la première preuve : l'application ne nous envoie pas directement sur la fiche. » | Si une invitation part, le portail n'a pas été désactivé : la prise n'est pas valide. |
 | 13 | G03-S13 | Rechercher Nora dans la liste et ouvrir la ligne. | Nora Bouchard. | Fiche détail ouverte. | « J'ouvre maintenant la ligne créée pour vérifier que l'identité, les coordonnées et l'adresse correspondent à ce que nous avons saisi. » | Si une valeur manque, ne pas masquer l'écart au montage; corriger le scénario ou refaire la prise. |
 | 14 | G03-S14 | Ouvrir le formulaire d'une nouvelle réservation; rechercher Nora; ne pas enregistrer. | Nora Bouchard sélectionnable. | Nora apparaît dans les résultats. | « La meilleure preuve n'est pas seulement la fiche : Nora est déjà disponible dans le prochain geste métier, la création d'une réservation. » | Fermer la modale sans créer un rendez-vous qui perturberait G05. |
@@ -50,7 +50,7 @@ Le master est enregistré une fois, puis sert à produire une version complète 
 >
 > Avant l'enregistrement final, je montre un cas fréquent : un courriel déjà utilisé. L'application refuse le doublon. Je remets l'adresse example.test réservée à Nora et le formulaire redevient valide.
 >
-> Deux actions sont proposées. Enregistrer et créer un autre convient à une série de saisies et revient sur un formulaire prêt pour la personne suivante. Enregistrer client termine cette fiche et nous ramène à la liste Clients. Je choisis cette deuxième option.
+> Trois actions restent disponibles dans la barre du bas. Annuler quitte sans enregistrer. Enregistrer et créer un autre convient à une série de saisies et revient sur un formulaire prêt pour la personne suivante. Enregistrer client termine cette fiche et nous ramène à la liste Clients. Je choisis cette dernière option.
 >
 > Le message de succès et la ligne Nora Bouchard apparaissent dans la liste. J'ouvre sa fiche pour contrôler les informations. Enfin, j'ouvre une nouvelle réservation et je recherche Nora : elle est déjà disponible dans le sélecteur. C'est la preuve que la création est utilisable dans le flux métier suivant.
 >

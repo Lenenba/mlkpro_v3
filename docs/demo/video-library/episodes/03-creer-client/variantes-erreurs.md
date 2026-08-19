@@ -1,6 +1,6 @@
 # G03 — Variantes, erreurs et décisions
 
-Dernière mise à jour : 2026-08-11
+Dernière mise à jour : 2026-08-19
 
 Ce fichier prépare ce que l'animateur doit expliquer lorsque l'écran ou le besoin diffère du parcours Nora Bouchard.
 
@@ -104,7 +104,7 @@ Une capture issue d'un autre contexte doit toujours porter un cartouche indiquan
 
 ## Anomalies produit à ne pas transformer en instructions
 
-- Le bouton **Annuler** ne possède pas d'action vérifiée dans l'écran actuel.
+- Le bouton **Annuler** quitte maintenant le formulaire sans enregistrer : il revient à la liste en création et à la fiche du client en modification.
 - Une traduction peut afficher du texte anglais dans la zone de téléversement.
 - Le formulaire possède une valeur interne de civilité, mais aucun champ visible ne permet de la choisir.
 

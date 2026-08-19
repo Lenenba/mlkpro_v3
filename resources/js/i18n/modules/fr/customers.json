@@ -663,15 +663,31 @@
         "new": "Nouveau client",
         "edit": "Modifier client"
       },
+      "intro": {
+        "new": "Créez une fiche client complète, prête pour la suite.",
+        "edit": "Mettez à jour les informations, les accès et les préférences de ce client.",
+        "required": "Les champs marqués d’un astérisque sont obligatoires."
+      },
       "sections": {
         "client_details": "Details client",
         "company_details": "Details de l'entreprise",
         "main_contact": "Contact principal",
         "contact_details": "Coordonnees",
+        "profile": "Profil et illustration",
         "auto_validation": "Validation auto client",
         "additional_details": "Details client additionnels",
         "billing_preferences": "Preferences de facturation",
         "location": "Localisation"
+      },
+      "section_help": {
+        "client_details": "Choisissez le type de client et renseignez ses coordonnées principales.",
+        "profile": "Ajoutez une photo, un logo ou choisissez une icône prédéfinie.",
+        "portal_access_create": "L’activation crée un accès portail et peut envoyer une invitation au client.",
+        "portal_access_edit": "Gérez l’accès de ce client à son portail.",
+        "auto_validation": "Choisissez les étapes qui pourront être validées automatiquement pour ce client.",
+        "additional_details": "Ajoutez du contexte interne, la provenance du client et sa remise permanente.",
+        "location": "Recherchez une adresse ou saisissez-la manuellement.",
+        "billing_preferences": "Définissez quand et comment les factures de ce client seront regroupées."
       },
       "client_types": {
         "company": "Entreprise",
@@ -703,7 +719,9 @@
         "description": "Description",
         "referred_by": "Reference par",
         "discount_rate": "Remise fidelite (%)",
+        "discount_rate_hint": "Remise permanente de 0 à 100 % pour ce client.",
         "search_address": "Rechercher une adresse",
+        "manual_address_hint": "Vous pouvez aussi compléter l’adresse manuellement ci-dessous.",
         "notes": "Notes"
       },
       "auto_accept_quotes": "Auto acceptation des devis",
@@ -741,7 +759,13 @@
       "actions": {
         "save_create_another": "Enregistrer et creer un autre",
         "save_client": "Enregistrer client",
-        "update_client": "Mettre a jour client"
+        "update_client": "Mettre a jour client",
+        "saving": "Enregistrement…"
+      },
+      "actions_hint": "Vérifiez les informations avant d’enregistrer.",
+      "states": {
+        "enabled": "Activé",
+        "disabled": "Désactivé"
       },
       "errors": {
         "city_required": "La ville est requise pour enregistrer une localisation.",

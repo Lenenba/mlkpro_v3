@@ -663,15 +663,31 @@
         "new": "Nuevo cliente",
         "edit": "Editar cliente"
       },
+      "intro": {
+        "new": "Crea una ficha de cliente completa y lista para los próximos pasos.",
+        "edit": "Actualiza la información, el acceso y las preferencias de este cliente.",
+        "required": "Los campos marcados con un asterisco son obligatorios."
+      },
       "sections": {
         "client_details": "Detalles del cliente",
         "company_details": "Datos de la empresa",
         "main_contact": "Contacto principal",
         "contact_details": "Detalles de contacto",
+        "profile": "Perfil e imagen",
         "auto_validation": "Validación automática del cliente",
         "additional_details": "Detalle adicional del cliente",
         "billing_preferences": "Preferencias de facturación",
         "location": "Ubicación"
+      },
+      "section_help": {
+        "client_details": "Elige el tipo de cliente e introduce sus datos de contacto principales.",
+        "profile": "Añade una foto o un logotipo, o elige un icono predeterminado.",
+        "portal_access_create": "Al activarlo, se crea un acceso al portal y se puede enviar una invitación al cliente.",
+        "portal_access_edit": "Gestiona el acceso de este cliente a su portal.",
+        "auto_validation": "Elige qué etapas pueden validarse automáticamente para este cliente.",
+        "additional_details": "Añade contexto interno, el origen del cliente y su descuento permanente.",
+        "location": "Busca una dirección o introdúcela manualmente.",
+        "billing_preferences": "Define cuándo y cómo se agruparán las facturas de este cliente."
       },
       "client_types": {
         "company": "Empresa",
@@ -703,7 +719,9 @@
         "description": "Descripción",
         "referred_by": "Referido por",
         "discount_rate": "Descuento de fidelidad (%)",
+        "discount_rate_hint": "Descuento permanente de entre 0 y 100 % para este cliente.",
         "search_address": "Buscar una dirección",
+        "manual_address_hint": "También puedes completar la dirección manualmente a continuación.",
         "notes": "Notas"
       },
       "auto_accept_quotes": "Cotizaciones de aceptación automática",
@@ -741,7 +759,13 @@
       "actions": {
         "save_create_another": "Guardar y crear otro",
         "save_client": "Guardar cliente",
-        "update_client": "Actualizar cliente"
+        "update_client": "Actualizar cliente",
+        "saving": "Guardando…"
+      },
+      "actions_hint": "Revisa la información antes de guardarla.",
+      "states": {
+        "enabled": "Activado",
+        "disabled": "Desactivado"
       },
       "errors": {
         "city_required": "Se requiere ciudad al guardar una ubicación.",

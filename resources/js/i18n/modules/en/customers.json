@@ -663,15 +663,31 @@
         "new": "New client",
         "edit": "Edit client"
       },
+      "intro": {
+        "new": "Create a complete client profile, ready for what comes next.",
+        "edit": "Update this client's information, access, and preferences.",
+        "required": "Fields marked with an asterisk are required."
+      },
       "sections": {
         "client_details": "Client details",
         "company_details": "Company details",
         "main_contact": "Main contact",
         "contact_details": "Contact details",
+        "profile": "Profile and image",
         "auto_validation": "Client auto validation",
         "additional_details": "Additional client detail",
         "billing_preferences": "Billing preferences",
         "location": "Location"
+      },
+      "section_help": {
+        "client_details": "Choose the client type and enter their primary contact details.",
+        "profile": "Add a photo or logo, or choose a preset icon.",
+        "portal_access_create": "Enabling this creates portal access and may send the client an invitation.",
+        "portal_access_edit": "Manage this client's access to their portal.",
+        "auto_validation": "Choose which steps can be validated automatically for this client.",
+        "additional_details": "Add internal context, the referral source, and the client's permanent discount.",
+        "location": "Search for an address or enter it manually.",
+        "billing_preferences": "Choose when and how this client's invoices are grouped."
       },
       "client_types": {
         "company": "Company",
@@ -703,7 +719,9 @@
         "description": "Description",
         "referred_by": "Referred by",
         "discount_rate": "Loyalty discount (%)",
+        "discount_rate_hint": "A permanent discount from 0 to 100% for this client.",
         "search_address": "Search for an address",
+        "manual_address_hint": "You can also complete the address manually below.",
         "notes": "Notes"
       },
       "auto_accept_quotes": "Auto-accept quotes",
@@ -741,7 +759,13 @@
       "actions": {
         "save_create_another": "Save and create another",
         "save_client": "Save client",
-        "update_client": "Update client"
+        "update_client": "Update client",
+        "saving": "Saving…"
+      },
+      "actions_hint": "Review the information before saving.",
+      "states": {
+        "enabled": "Enabled",
+        "disabled": "Disabled"
       },
       "errors": {
         "city_required": "City is required when saving a location.",

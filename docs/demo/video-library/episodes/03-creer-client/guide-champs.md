@@ -1,6 +1,6 @@
 # G03 — Guide des champs du formulaire Client
 
-Dernière mise à jour : 2026-08-11<br>
+Dernière mise à jour : 2026-08-19<br>
 Route auditée : `/customer/create`<br>
 Contexte principal : preset `salon_eclat_complete`
 
@@ -130,7 +130,7 @@ G03-S16 peut illustrer cette carte avec un workspace de référence, à conditio
 
 | Bouton | Comportement vérifié | Formulation sûre dans la narration |
 | --- | --- | --- |
-| Annuler | Aucun gestionnaire d'action dans l'écran actuel | Ne pas le recommander ni annoncer une destination. |
+| Annuler | Revient à `/customer` en création, ou à la fiche du client en modification, sans enregistrer | Permet de quitter le formulaire sans créer ni modifier la fiche. |
 | Enregistrer et créer un autre | Crée le client puis revient à `/customer/create` | Utile pour une saisie en série. |
 | Enregistrer client | Crée le client puis revient à `/customer` | Choix du parcours G03. |
 

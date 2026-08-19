@@ -5,6 +5,7 @@ import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import CustomerMediaFields from '@/Components/Customer/CustomerMediaFields.vue';
 import InputError from '@/Components/InputError.vue';
+import PreferenceToggleRow from '@/Components/PreferenceToggleRow.vue';
 import {
     customerIconPresetsForType,
     defaultCustomerIconForType,
@@ -18,7 +19,7 @@ import {
 } from '@/utils/customerClientTypes';
 import { assignGeoapifyAddress, useGeoapifyAddressAutocomplete } from '@/Composables/useGeoapifyAddressAutocomplete';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
-import { useForm, Head, usePage } from '@inertiajs/vue3';
+import { useForm, Head, Link, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -151,12 +152,69 @@ const form = useForm({
     auto_validate_invoices: invoicesFeatureEnabled.value && (props.customer?.auto_validate_invoices ?? false),
 });
 
+const autoValidationOptions = computed(() => [
+    ...(quotesFeatureEnabled.value
+        ? [{
+            id: 'customer-auto-accept-quotes',
+            formKey: 'auto_accept_quotes',
+            label: t('customers.form.auto_accept_quotes'),
+            description: t(form.auto_accept_quotes
+                ? 'customers.form.states.enabled'
+                : 'customers.form.states.disabled'),
+        }]
+        : []),
+    ...(jobsFeatureEnabled.value
+        ? [{
+            id: 'customer-auto-validate-jobs',
+            formKey: 'auto_validate_jobs',
+            label: t('customers.details.auto_validation.jobs'),
+            description: t(form.auto_validate_jobs
+                ? 'customers.form.states.enabled'
+                : 'customers.form.states.disabled'),
+        }]
+        : []),
+    ...(tasksFeatureEnabled.value
+        ? [{
+            id: 'customer-auto-validate-tasks',
+            formKey: 'auto_validate_tasks',
+            label: t('customers.details.auto_validation.tasks'),
+            description: t(form.auto_validate_tasks
+                ? 'customers.form.states.enabled'
+                : 'customers.form.states.disabled'),
+        }]
+        : []),
+    ...(invoicesFeatureEnabled.value
+        ? [{
+            id: 'customer-auto-validate-invoices',
+            formKey: 'auto_validate_invoices',
+            label: t('customers.details.auto_validation.invoices'),
+            description: t(form.auto_validate_invoices
+                ? 'customers.form.states.enabled'
+                : 'customers.form.states.disabled'),
+        }]
+        : []),
+]);
+
 const isCompanyClient = computed(() => form.client_type === CUSTOMER_CLIENT_TYPE_COMPANY);
 const maxBirthDate = new Date().toISOString().slice(0, 10);
 const contactSectionTitle = computed(() => (
     isCompanyClient.value
         ? t('customers.form.sections.main_contact')
         : t('customers.form.sections.contact_details')
+));
+const pageTitle = computed(() => t(isCreating
+    ? 'customers.form.title.new'
+    : 'customers.form.title.edit'));
+const pageIntro = computed(() => t(isCreating
+    ? 'customers.form.intro.new'
+    : 'customers.form.intro.edit'));
+const portalAccessDescription = computed(() => t(isCreating
+    ? 'customers.form.section_help.portal_access_create'
+    : 'customers.form.section_help.portal_access_edit'));
+const cancelHref = computed(() => (
+    isCreating
+        ? route('customer.index')
+        : route('customer.show', props.customer.id)
 ));
 
 const performSubmit = ({ createAnother = false } = {}) => {
@@ -263,6 +321,7 @@ onMounted(() => {
 const {
     query,
     suggestions,
+    isSearching,
     searchAddress,
     selectAddress,
     resetSearch,
@@ -274,46 +333,117 @@ const {
         console.error('Erreur lors de la recherche d\'adresse :', error);
     },
 });
+
+const addressSearchInput = ref(null);
+const addressSuggestionButtons = ref([]);
+
+const setAddressSuggestionButton = (element, index) => {
+    addressSuggestionButtons.value[index] = element;
+};
+
+const focusAddressSuggestion = (index) => {
+    const suggestionCount = suggestions.value.length;
+    if (!suggestionCount) {
+        return;
+    }
+
+    const nextIndex = (index + suggestionCount) % suggestionCount;
+    addressSuggestionButtons.value[nextIndex]?.focus();
+};
+
+const chooseAddressSuggestion = (details) => {
+    selectAddress(details);
+    addressSearchInput.value?.focus();
+};
+
+const chooseFirstAddressSuggestion = () => {
+    const firstSuggestion = suggestions.value[0];
+    if (firstSuggestion) {
+        chooseAddressSuggestion(firstSuggestion.details);
+    }
+};
+
+const focusAddressSearch = () => {
+    addressSearchInput.value?.focus();
+};
+
+const closeAddressSuggestions = () => {
+    resetSearch(query.value);
+    focusAddressSearch();
+};
+
+const handleCancelClick = (event) => {
+    if (form.processing) {
+        event.preventDefault();
+    }
+};
 </script>
 <template>
 
-    <Head :title="isCreating ? $t('customers.form.title.new') : $t('customers.form.title.edit')" />
+    <Head :title="pageTitle" />
     <AuthenticatedLayout>
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-1 md:gap-3 lg:gap-1 ">
-            <div></div>
-            <div>
-                <h1 class="text-xl font-bold text-stone-800 dark:text-white">
-                    {{ isCreating ? $t('customers.form.title.new') : $t('customers.form.title.edit') }}
-                </h1>
+        <div class="mx-auto mb-6 w-full max-w-6xl">
+            <Link
+                :href="cancelHref"
+                :aria-disabled="form.processing"
+                :class="form.processing ? 'pointer-events-none opacity-50' : ''"
+                class="mb-3 inline-flex items-center gap-2 text-sm font-medium text-stone-500 transition hover:text-stone-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 dark:text-neutral-400 dark:hover:text-white dark:focus-visible:ring-offset-neutral-900"
+                @click="handleCancelClick"
+            >
+                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="m15 18-6-6 6-6" />
+                </svg>
+                {{ $t('customers.actions.cancel') }}
+            </Link>
+            <div class="md:flex md:items-start md:justify-between md:gap-6">
+                <div>
+                    <h1 class="text-2xl font-bold tracking-tight text-stone-900 dark:text-white">
+                        {{ pageTitle }}
+                    </h1>
+                    <p class="mt-1 max-w-2xl text-sm leading-6 text-stone-500 dark:text-neutral-400">
+                        {{ pageIntro }}
+                    </p>
+                </div>
+                <p class="mt-2 shrink-0 text-xs text-stone-500 dark:text-neutral-500 md:mt-1">
+                    {{ $t('customers.form.intro.required') }}
+                </p>
             </div>
-            <div></div>
-            <div></div>
-
         </div>
-        <form @submit.prevent="submit">
-            <div class="grid grid-cols-1 lg:grid-cols-4 gap-1 md:gap-3 lg:gap-1 ">
-                <div></div>
+        <form
+            class="mx-auto w-full max-w-6xl space-y-5 pb-24"
+            :aria-busy="form.processing"
+            @submit.prevent="submit"
+        >
+            <div class="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,.85fr)]">
                 <div
-                    class="flex flex-col bg-white border shadow-sm rounded-sm dark:bg-neutral-900 dark:border-neutral-700 dark:shadow-neutral-700/70">
-                    <div class="flex flex-row  border-b rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
+                    class="flex flex-col overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <div class="flex items-start gap-3 border-b border-stone-200 px-4 py-4 dark:border-neutral-700 md:px-6">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                             class="lucide lucide-user">
                             <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
                             <circle cx="12" cy="7" r="4" />
                         </svg>
-                        <h3 class="text-lg  ml-2 font-bold text-stone-800 dark:text-white">
-                            {{ $t('customers.form.sections.client_details') }}
-                        </h3>
+                        <div>
+                            <h2 class="font-semibold text-stone-900 dark:text-white">
+                                {{ $t('customers.form.sections.client_details') }}
+                            </h2>
+                            <p class="mt-0.5 text-sm leading-5 text-stone-500 dark:text-neutral-400">
+                                {{ $t('customers.form.section_help.client_details') }}
+                            </p>
+                        </div>
                     </div>
-                    <div class="p-4 md:p-5">
+                    <div class="p-4 md:p-6">
                         <FloatingSelect
+                            id="customer-client-type"
                             v-model="form.client_type"
                             :label="$t('customers.form.fields.client_type')"
                             :options="clientTypeOptions"
                             :required="true"
+                            :aria-invalid="Boolean(form.errors.client_type)"
+                            :aria-describedby="form.errors.client_type ? 'customer-client-type-error' : undefined"
                         />
-                        <InputError class="mt-1" :message="form.errors.client_type" />
+                        <InputError id="customer-client-type-error" class="mt-1" :message="form.errors.client_type" />
 
                         <h2 v-if="isCompanyClient" class="pt-4 text-sm my-2 font-bold text-stone-800 dark:text-white">
                             {{ $t('customers.form.sections.company_details') }}
@@ -321,32 +451,50 @@ const {
                         <div v-if="isCompanyClient" class="grid grid-cols-1 gap-3 md:grid-cols-2">
                             <div>
                                 <FloatingInput
+                                    id="customer-company-name"
                                     v-model="form.company_name"
+                                    autocomplete="organization"
                                     :label="$t('customers.form.fields.company_name')"
                                     :required="true"
+                                    :aria-invalid="Boolean(form.errors.company_name)"
+                                    :aria-describedby="form.errors.company_name ? 'customer-company-name-error' : undefined"
                                 />
-                                <InputError class="mt-1" :message="form.errors.company_name" />
+                                <InputError id="customer-company-name-error" class="mt-1" :message="form.errors.company_name" />
                             </div>
                             <div>
                                 <FloatingInput
+                                    id="customer-registration-number"
                                     v-model="form.registration_number"
                                     :label="$t('customers.form.fields.registration_number')"
+                                    :aria-invalid="Boolean(form.errors.registration_number)"
+                                    :aria-describedby="form.errors.registration_number ? 'customer-registration-number-error' : undefined"
                                 />
-                                <InputError class="mt-1" :message="form.errors.registration_number" />
+                                <InputError id="customer-registration-number-error" class="mt-1" :message="form.errors.registration_number" />
                             </div>
                             <div class="md:col-span-2">
                                 <FloatingInput
+                                    id="customer-industry"
                                     v-model="form.industry"
                                     :label="$t('customers.form.fields.industry')"
+                                    :aria-invalid="Boolean(form.errors.industry)"
+                                    :aria-describedby="form.errors.industry ? 'customer-industry-error' : undefined"
                                 />
-                                <InputError class="mt-1" :message="form.errors.industry" />
+                                <InputError id="customer-industry-error" class="mt-1" :message="form.errors.industry" />
                             </div>
                         </div>
 
+                        <div class="mt-5 border-t border-stone-200 pt-5 dark:border-neutral-700">
+                            <h2 class="text-sm font-semibold text-stone-800 dark:text-white">
+                                {{ $t('customers.form.sections.profile') }}
+                            </h2>
+                            <p class="mt-1 text-xs leading-5 text-stone-500 dark:text-neutral-400">
+                                {{ $t('customers.form.section_help.profile') }}
+                            </p>
+                        </div>
                         <CustomerMediaFields
                             v-model:logo="form.logo"
                             v-model:logoIcon="form.logo_icon"
-                            class="mt-4"
+                            class="mt-3"
                             :client-type="form.client_type"
                             :logo-error="form.errors.logo"
                             :logo-icon-error="form.errors.logo_icon"
@@ -355,174 +503,149 @@ const {
                         <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                             <div>
                                 <FloatingInput
+                                    id="customer-first-name"
                                     v-model="form.first_name"
+                                    autocomplete="given-name"
                                     :label="$t('customers.form.fields.first_name')"
                                     :required="true"
+                                    :aria-invalid="Boolean(form.errors.first_name)"
+                                    :aria-describedby="form.errors.first_name ? 'customer-first-name-error' : undefined"
                                 />
-                                <InputError class="mt-1" :message="form.errors.first_name" />
+                                <InputError id="customer-first-name-error" class="mt-1" :message="form.errors.first_name" />
                             </div>
                             <div>
                                 <FloatingInput
+                                    id="customer-last-name"
                                     v-model="form.last_name"
+                                    autocomplete="family-name"
                                     :label="$t('customers.form.fields.last_name')"
                                     :required="true"
+                                    :aria-invalid="Boolean(form.errors.last_name)"
+                                    :aria-describedby="form.errors.last_name ? 'customer-last-name-error' : undefined"
                                 />
-                                <InputError class="mt-1" :message="form.errors.last_name" />
-                            </div>
-                            <div>
-                                <FloatingInput v-model="form.phone" :label="$t('customers.form.fields.phone')" />
-                                <InputError class="mt-1" :message="form.errors.phone" />
+                                <InputError id="customer-last-name-error" class="mt-1" :message="form.errors.last_name" />
                             </div>
                             <div>
                                 <FloatingInput
+                                    id="customer-phone"
+                                    v-model="form.phone"
+                                    type="tel"
+                                    autocomplete="tel"
+                                    :label="$t('customers.form.fields.phone')"
+                                    :aria-invalid="Boolean(form.errors.phone)"
+                                    :aria-describedby="form.errors.phone ? 'customer-phone-error' : undefined"
+                                />
+                                <InputError id="customer-phone-error" class="mt-1" :message="form.errors.phone" />
+                            </div>
+                            <div>
+                                <FloatingInput
+                                    id="customer-email"
                                     v-model="form.email"
+                                    type="email"
+                                    autocomplete="email"
                                     :label="$t('customers.form.fields.email')"
                                     :required="true"
+                                    :aria-invalid="Boolean(form.errors.email)"
+                                    :aria-describedby="form.errors.email ? 'customer-email-error' : undefined"
                                 />
-                                <InputError class="mt-1" :message="form.errors.email" />
+                                <InputError id="customer-email-error" class="mt-1" :message="form.errors.email" />
                             </div>
                             <div v-if="!isCompanyClient">
                                 <FloatingInput
+                                    id="customer-birth-date"
                                     v-model="form.birth_date"
                                     type="date"
+                                    autocomplete="bday"
                                     :max="maxBirthDate"
                                     :label="$t('customers.form.fields.birth_date')"
+                                    :aria-invalid="Boolean(form.errors.birth_date)"
+                                    :aria-describedby="form.errors.birth_date ? 'customer-birth-date-error' : undefined"
                                 />
-                                <InputError class="mt-1" :message="form.errors.birth_date" />
+                                <InputError id="customer-birth-date-error" class="mt-1" :message="form.errors.birth_date" />
                             </div>
                         </div>
-                        <div class="mt-3 flex items-start gap-2">
-                            <input id="customer-portal-access" type="checkbox" v-model="form.portal_access"
-                                class="mt-1 size-4 rounded border-stone-300 text-green-600 focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500" />
+                        <div class="mt-5 border-t border-stone-200 pt-5 dark:border-neutral-700">
+                            <PreferenceToggleRow
+                                id="customer-portal-access"
+                                v-model="form.portal_access"
+                                :label="$t('customers.form.fields.portal_access')"
+                                :description="portalAccessDescription"
+                                :described-by="form.errors.portal_access ? 'customer-portal-access-error' : ''"
+                            />
+                            <InputError id="customer-portal-access-error" class="mt-1" :message="form.errors.portal_access" />
+                        </div>
+                        <div v-if="hasAutoValidationFeatures" class="mt-5 border-t border-stone-200 pt-5 dark:border-neutral-700">
+                            <h2 class="text-sm font-semibold text-stone-800 dark:text-white">
+                                {{ $t('customers.form.sections.auto_validation') }}
+                            </h2>
+                            <p class="mt-1 text-xs leading-5 text-stone-500 dark:text-neutral-400">
+                                {{ $t('customers.form.section_help.auto_validation') }}
+                            </p>
+                        </div>
+                        <div v-if="hasAutoValidationFeatures" class="mt-2 flex flex-col gap-y-2">
+                            <PreferenceToggleRow
+                                v-for="option in autoValidationOptions"
+                                :id="option.id"
+                                :key="option.formKey"
+                                v-model="form[option.formKey]"
+                                :label="option.label"
+                                :description="option.description"
+                            />
+                        </div>
+                        <div class="mt-5 border-t border-stone-200 pt-5 dark:border-neutral-700">
+                            <h2 class="text-sm font-semibold text-stone-800 dark:text-white">
+                                {{ $t('customers.form.sections.additional_details') }}
+                            </h2>
+                            <p class="mt-1 text-xs leading-5 text-stone-500 dark:text-neutral-400">
+                                {{ $t('customers.form.section_help.additional_details') }}
+                            </p>
+                        </div>
+                        <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <div class="md:col-span-2">
+                                <FloatingTextarea
+                                    id="customer-description"
+                                    v-model="form.description"
+                                    :label="$t('customers.form.fields.description')"
+                                    :aria-invalid="Boolean(form.errors.description)"
+                                    :aria-describedby="form.errors.description ? 'customer-description-error' : undefined"
+                                />
+                                <InputError id="customer-description-error" class="mt-1" :message="form.errors.description" />
+                            </div>
                             <div>
-                                <label for="customer-portal-access" class="text-sm text-stone-800 dark:text-neutral-200">
-                                    {{ $t('customers.form.fields.portal_access') }}
-                                </label>
+                                <FloatingInput
+                                    id="customer-referred-by"
+                                    v-model="form.refer_by"
+                                    :label="$t('customers.form.fields.referred_by')"
+                                    :aria-invalid="Boolean(form.errors.refer_by)"
+                                    :aria-describedby="form.errors.refer_by ? 'customer-referred-by-error' : undefined"
+                                />
+                                <InputError id="customer-referred-by-error" class="mt-1" :message="form.errors.refer_by" />
+                            </div>
+                            <div>
+                                <FloatingInput
+                                    id="customer-discount-rate"
+                                    v-model="form.discount_rate"
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    :label="$t('customers.form.fields.discount_rate')"
+                                    :aria-invalid="Boolean(form.errors.discount_rate)"
+                                    :aria-describedby="form.errors.discount_rate
+                                        ? 'customer-discount-rate-hint customer-discount-rate-error'
+                                        : 'customer-discount-rate-hint'"
+                                />
+                                <p id="customer-discount-rate-hint" class="mt-1 text-xs leading-5 text-stone-500 dark:text-neutral-400">
+                                    {{ $t('customers.form.fields.discount_rate_hint') }}
+                                </p>
+                                <InputError id="customer-discount-rate-error" class="mt-1" :message="form.errors.discount_rate" />
                             </div>
                         </div>
-                        <h2 v-if="hasAutoValidationFeatures" class="pt-4 text-sm my-2 font-bold text-stone-800 dark:text-white">
-                            {{ $t('customers.form.sections.auto_validation') }}
-                        </h2>
-                        <div v-if="hasAutoValidationFeatures" class="-mx-3 flex flex-col gap-y-1">
-                            <label v-if="quotesFeatureEnabled" for="customer-auto-accept-quotes"
-                                class="py-2 px-3 group flex justify-between items-center gap-x-3 cursor-pointer hover:bg-stone-100 rounded-sm dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
-                                <span class="grow">
-                                    <span class="flex items-center gap-x-3">
-                                        <span
-                                            class="shrink-0 size-11 inline-flex justify-center items-center bg-stone-100 text-stone-800 rounded-full group-hover:bg-stone-200 group-focus:bg-stone-200 dark:bg-neutral-700 dark:text-neutral-300 dark:bg-neutral-800 dark:group-hover:bg-neutral-700 dark:group-focus:bg-neutral-700">
-                                            <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                                stroke-linecap="round" stroke-linejoin="round">
-                                                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2Z" />
-                                                <path d="M14 2v6h6" />
-                                                <path d="M8 13h8" />
-                                                <path d="M8 17h5" />
-                                            </svg>
-                                        </span>
-                                        <span class="grow">
-                                            <span class="block text-sm text-stone-800 dark:text-neutral-200">
-                                                {{ $t('customers.form.auto_accept_quotes') }}
-                                            </span>
-                                        </span>
-                                    </span>
-                                </span>
-
-                                <input type="checkbox" id="customer-auto-accept-quotes" v-model="form.auto_accept_quotes"
-                                    class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
-
-                                before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white">
-                            </label>
-                            <label v-if="jobsFeatureEnabled" for="customer-auto-validate-jobs"
-                                class="py-2 px-3 group flex justify-between items-center gap-x-3 cursor-pointer hover:bg-stone-100 rounded-sm dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
-                                <span class="grow">
-                                    <span class="flex items-center gap-x-3">
-                                        <span
-                                            class="shrink-0 size-11 inline-flex justify-center items-center bg-stone-100 text-stone-800 rounded-full group-hover:bg-stone-200 group-focus:bg-stone-200 dark:bg-neutral-700 dark:text-neutral-300 dark:bg-neutral-800 dark:group-hover:bg-neutral-700 dark:group-focus:bg-neutral-700">
-                                            <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                                stroke-linecap="round" stroke-linejoin="round">
-                                                <rect width="20" height="14" x="2" y="7" rx="2" />
-                                                <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
-                                                <path d="M2 13h20" />
-                                            </svg>
-                                        </span>
-                                        <span class="grow">
-                                            <span class="block text-sm text-stone-800 dark:text-neutral-200">
-                                                {{ $t('customers.details.auto_validation.jobs') }}
-                                            </span>
-                                        </span>
-                                    </span>
-                                </span>
-
-                                <input type="checkbox" id="customer-auto-validate-jobs" v-model="form.auto_validate_jobs"
-                                    class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
-
-                                before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white">
-                            </label>
-                            <label v-if="tasksFeatureEnabled" for="customer-auto-validate-tasks"
-                                class="py-2 px-3 group flex justify-between items-center gap-x-3 cursor-pointer hover:bg-stone-100 rounded-sm dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
-                                <span class="grow">
-                                    <span class="flex items-center gap-x-3">
-                                        <span
-                                            class="shrink-0 size-11 inline-flex justify-center items-center bg-stone-100 text-stone-800 rounded-full group-hover:bg-stone-200 group-focus:bg-stone-200 dark:bg-neutral-700 dark:text-neutral-300 dark:bg-neutral-800 dark:group-hover:bg-neutral-700 dark:group-focus:bg-neutral-700">
-                                            <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                                stroke-linecap="round" stroke-linejoin="round">
-                                                <path d="M9 11l3 3L22 4" />
-                                                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-                                            </svg>
-                                        </span>
-                                        <span class="grow">
-                                            <span class="block text-sm text-stone-800 dark:text-neutral-200">
-                                                {{ $t('customers.details.auto_validation.tasks') }}
-                                            </span>
-                                        </span>
-                                    </span>
-                                </span>
-
-                                <input type="checkbox" id="customer-auto-validate-tasks" v-model="form.auto_validate_tasks"
-                                    class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
-
-                                before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white">
-                            </label>
-                            <label v-if="invoicesFeatureEnabled" for="customer-auto-validate-invoices"
-                                class="py-2 px-3 group flex justify-between items-center gap-x-3 cursor-pointer hover:bg-stone-100 rounded-sm dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
-                                <span class="grow">
-                                    <span class="flex items-center gap-x-3">
-                                        <span
-                                            class="shrink-0 size-11 inline-flex justify-center items-center bg-stone-100 text-stone-800 rounded-full group-hover:bg-stone-200 group-focus:bg-stone-200 dark:bg-neutral-700 dark:text-neutral-300 dark:bg-neutral-800 dark:group-hover:bg-neutral-700 dark:group-focus:bg-neutral-700">
-                                            <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                                stroke-linecap="round" stroke-linejoin="round">
-                                                <path d="M4 2h16v20l-4-2-4 2-4-2-4 2V2z" />
-                                                <path d="M8 6h8" />
-                                                <path d="M8 10h8" />
-                                                <path d="M8 14h6" />
-                                            </svg>
-                                        </span>
-                                        <span class="grow">
-                                            <span class="block text-sm text-stone-800 dark:text-neutral-200">
-                                                {{ $t('customers.details.auto_validation.invoices') }}
-                                            </span>
-                                        </span>
-                                    </span>
-                                </span>
-
-                                <input type="checkbox" id="customer-auto-validate-invoices" v-model="form.auto_validate_invoices"
-                                    class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
-
-                                before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white">
-                            </label>
-                        </div>
-                        <h2 class="pt-4 text-sm  my-2 font-bold text-stone-800 dark:text-white">{{ $t('customers.form.sections.additional_details') }}</h2>
-                        <FloatingTextarea v-model="form.description" :label="$t('customers.form.fields.description')" />
-                        <FloatingInput v-model="form.refer_by" :label="$t('customers.form.fields.referred_by')" />
-                        <FloatingInput v-model="form.discount_rate" type="number" :label="$t('customers.form.fields.discount_rate')" />
                     </div>
                 </div>
                 <div
-                    class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-900 dark:border-neutral-700 dark:shadow-neutral-700/70">
-                    <div class="flex flex-row border-b rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
+                    class="flex flex-col overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <div class="flex items-start gap-3 border-b border-stone-200 px-4 py-4 dark:border-neutral-700 md:px-5">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                             class="lucide lucide-house">
@@ -530,9 +653,14 @@ const {
                             <path
                                 d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                         </svg>
-                        <h3 class="text-lg  ml-2 font-bold text-stone-800 dark:text-white">
-                            {{ jobsFeatureEnabled ? $t('customers.properties.title') : $t('customers.form.sections.location') }}
-                        </h3>
+                        <div>
+                            <h2 class="font-semibold text-stone-900 dark:text-white">
+                                {{ jobsFeatureEnabled ? $t('customers.properties.title') : $t('customers.form.sections.location') }}
+                            </h2>
+                            <p class="mt-0.5 text-sm leading-5 text-stone-500 dark:text-neutral-400">
+                                {{ $t('customers.form.section_help.location') }}
+                            </p>
+                        </div>
                     </div>
                     <div class="p-4 md:p-5">
 
@@ -551,65 +679,167 @@ const {
                                             <path d="m21 21-4.3-4.3"></path>
                                         </svg>
                                     </div>
-                                    <input v-model="query" @input="searchAddress"
-                                        class="py-3 ps-10 pe-4 block w-full border-stone-200 rounded-sm text-sm focus:border-green-600 focus:ring-green-600"
-                                        type="text" role="combobox" aria-expanded="false"
-                                        :placeholder="$t('customers.form.fields.search_address')" />
+                                    <input
+                                        id="customer-address-search"
+                                        ref="addressSearchInput"
+                                        v-model="query"
+                                        type="search"
+                                        role="combobox"
+                                        autocomplete="off"
+                                        class="block w-full rounded-lg border-stone-200 py-3 pe-10 ps-10 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                                        :aria-label="$t('customers.form.fields.search_address')"
+                                        :aria-expanded="suggestions.length > 0"
+                                        aria-autocomplete="list"
+                                        aria-controls="customer-address-suggestions"
+                                        :placeholder="$t('customers.form.fields.search_address')"
+                                        @input="searchAddress"
+                                        @keydown.down.prevent="focusAddressSuggestion(0)"
+                                        @keydown.enter.prevent="chooseFirstAddressSuggestion"
+                                        @keydown.esc.prevent="closeAddressSuggestions"
+                                    />
+                                    <svg
+                                        v-if="isSearching"
+                                        class="absolute inset-y-0 end-3 my-auto size-4 animate-spin text-green-600"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        aria-hidden="true"
+                                    >
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z" />
+                                    </svg>
                                 </div>
 
+                                <p v-if="isSearching" class="sr-only" role="status" aria-live="polite">
+                                    {{ $t('global_search.loading') }}
+                                </p>
+
                                 <!-- Suggestions Dropdown -->
-                                <div v-if="suggestions.length"
-                                    class="absolute z-50 w-full bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:bg-neutral-800">
+                                <div
+                                    v-if="suggestions.length"
+                                    id="customer-address-suggestions"
+                                    role="listbox"
+                                    class="absolute z-50 mt-1 w-full rounded-lg border border-stone-200 bg-white shadow-xl dark:border-neutral-700 dark:bg-neutral-800"
+                                >
                                     <div
                                         class="max-h-[300px] p-2 overflow-y-auto overflow-hidden [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
-                                        <div v-for="suggestion in suggestions" :key="suggestion.id"
-                                            class="py-2 px-3 flex items-center gap-x-3 hover:bg-stone-100 rounded-sm dark:hover:bg-neutral-700 cursor-pointer"
-                                            @click="selectAddress(suggestion.details)">
-                                            <span class="text-sm text-stone-800 dark:text-neutral-200">{{
-                                                suggestion.label
-                                                }}</span>
-                                        </div>
+                                        <button
+                                            v-for="(suggestion, index) in suggestions"
+                                            :key="suggestion.id"
+                                            :ref="(element) => setAddressSuggestionButton(element, index)"
+                                            type="button"
+                                            role="option"
+                                            :aria-selected="false"
+                                            class="flex w-full items-start rounded-md px-3 py-2 text-left text-sm text-stone-800 transition hover:bg-stone-100 focus:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 dark:text-neutral-200 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                                            @click="chooseAddressSuggestion(suggestion.details)"
+                                            @keydown.down.prevent="focusAddressSuggestion(index + 1)"
+                                            @keydown.up.prevent="index === 0 ? focusAddressSearch() : focusAddressSuggestion(index - 1)"
+                                            @keydown.esc.prevent="closeAddressSuggestions"
+                                        >
+                                            {{ suggestion.label }}
+                                        </button>
                                     </div>
                                 </div>
                                 <!-- End Suggestions Dropdown -->
                             </div>
                             <!-- End SearchBox -->
                         </div>
-                        <FloatingInput v-model="form.properties.street1" :label="$t('customers.properties.fields.street1')" />
-                        <FloatingInput v-model="form.properties.street2" :label="$t('customers.properties.fields.street2')" />
-                        <div class="flex flex-row">
-                            <FloatingInput v-model="form.properties.city" :label="$t('customers.properties.fields.city')" class="w-full" />
-                            <FloatingInput v-model="form.properties.state" :label="$t('customers.properties.fields.state')" class="w-full" />
-                        </div>
-                        <div class="flex flex-row">
-                            <FloatingInput v-model="form.properties.zip" :label="$t('customers.properties.fields.zip')" class="w-full" />
-                            <FloatingInput v-model="form.properties.country" :label="$t('customers.properties.fields.country')" class="w-full" />
+                        <p class="mb-3 text-xs leading-5 text-stone-500 dark:text-neutral-400">
+                            {{ $t('customers.form.fields.manual_address_hint') }}
+                        </p>
+                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <div class="md:col-span-2">
+                                <FloatingInput
+                                    id="customer-street-1"
+                                    v-model="form.properties.street1"
+                                    autocomplete="address-line1"
+                                    :label="$t('customers.properties.fields.street1')"
+                                    :aria-invalid="Boolean(form.errors['properties.street1'])"
+                                    :aria-describedby="form.errors['properties.street1'] ? 'customer-street-1-error' : undefined"
+                                />
+                                <InputError id="customer-street-1-error" class="mt-1" :message="form.errors['properties.street1']" />
+                            </div>
+                            <div class="md:col-span-2">
+                                <FloatingInput
+                                    id="customer-street-2"
+                                    v-model="form.properties.street2"
+                                    autocomplete="address-line2"
+                                    :label="$t('customers.properties.fields.street2')"
+                                    :aria-invalid="Boolean(form.errors['properties.street2'])"
+                                    :aria-describedby="form.errors['properties.street2'] ? 'customer-street-2-error' : undefined"
+                                />
+                                <InputError id="customer-street-2-error" class="mt-1" :message="form.errors['properties.street2']" />
+                            </div>
+                            <div>
+                                <FloatingInput
+                                    id="customer-city"
+                                    v-model="form.properties.city"
+                                    autocomplete="address-level2"
+                                    :label="$t('customers.properties.fields.city')"
+                                    :aria-invalid="Boolean(form.errors['properties.city'])"
+                                    :aria-describedby="form.errors['properties.city'] ? 'customer-city-error' : undefined"
+                                />
+                                <InputError id="customer-city-error" class="mt-1" :message="form.errors['properties.city']" />
+                            </div>
+                            <div>
+                                <FloatingInput
+                                    id="customer-state"
+                                    v-model="form.properties.state"
+                                    autocomplete="address-level1"
+                                    :label="$t('customers.properties.fields.state')"
+                                    :aria-invalid="Boolean(form.errors['properties.state'])"
+                                    :aria-describedby="form.errors['properties.state'] ? 'customer-state-error' : undefined"
+                                />
+                                <InputError id="customer-state-error" class="mt-1" :message="form.errors['properties.state']" />
+                            </div>
+                            <div>
+                                <FloatingInput
+                                    id="customer-zip"
+                                    v-model="form.properties.zip"
+                                    autocomplete="postal-code"
+                                    :label="$t('customers.properties.fields.zip')"
+                                    :aria-invalid="Boolean(form.errors['properties.zip'])"
+                                    :aria-describedby="form.errors['properties.zip'] ? 'customer-zip-error' : undefined"
+                                />
+                                <InputError id="customer-zip-error" class="mt-1" :message="form.errors['properties.zip']" />
+                            </div>
+                            <div>
+                                <FloatingInput
+                                    id="customer-country"
+                                    v-model="form.properties.country"
+                                    autocomplete="country-name"
+                                    :label="$t('customers.properties.fields.country')"
+                                    :aria-invalid="Boolean(form.errors['properties.country'])"
+                                    :aria-describedby="form.errors['properties.country'] ? 'customer-country-error' : undefined"
+                                />
+                                <InputError id="customer-country-error" class="mt-1" :message="form.errors['properties.country']" />
+                            </div>
                         </div>
 
                         <!-- Input Group -->
                         <div v-if="invoicesFeatureEnabled" class="flex flex-col sm:flex-row sm:items-center gap-2 mt-4">
                             <div class="flex items-center">
-                                <input type="checkbox" v-model="form.billing_same_as_physical"
+                                <input id="customer-billing-same-as-physical" v-model="form.billing_same_as_physical" type="checkbox"
                                     class="shrink-0 size-3.5 border-stone-300 rounded text-green-600 focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-600 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-stone-800"
-                                    id="hs-pro-danscch">
-                                <label for="hs-pro-danscch" class="text-sm text-stone-500 ms-2 dark:text-neutral-500">
+                                    :aria-invalid="Boolean(form.errors.billing_same_as_physical)"
+                                    :aria-describedby="form.errors.billing_same_as_physical ? 'customer-billing-same-as-physical-error' : undefined"
+                                >
+                                <label for="customer-billing-same-as-physical" class="text-sm text-stone-500 ms-2 dark:text-neutral-500">
                                     {{ jobsFeatureEnabled
                                         ? $t('customers.form.billing.same_as_property')
                                         : $t('customers.form.billing.same_as_address') }}
                                 </label>
                             </div>
                         </div>
+                        <InputError id="customer-billing-same-as-physical-error" class="mt-1" :message="form.errors.billing_same_as_physical" />
                         <!-- End Input Group -->
                     </div>
                 </div>
-                <div></div>
             </div>
             <div v-if="invoicesFeatureEnabled && (jobsFeatureEnabled || tasksFeatureEnabled)"
-                class="grid grid-cols-1 lg:grid-cols-4 gap-1 md:gap-3 lg:gap-1 mt-4">
-                <div></div>
+                class="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div
-                    class="flex flex-col bg-white border shadow-sm rounded-sm dark:bg-neutral-900 dark:border-neutral-700 dark:shadow-neutral-700/70">
-                    <div class="flex flex-row border-b rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
+                    class="flex flex-col">
+                    <div class="flex items-start gap-3 border-b border-stone-200 px-4 py-4 dark:border-neutral-700 md:px-6">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                             class="lucide lucide-receipt">
@@ -618,54 +848,126 @@ const {
                             <path d="M16 12h-8" />
                             <path d="M10 16h-2" />
                         </svg>
-                        <h3 class="text-lg  ml-2 font-bold text-stone-800 dark:text-white">
-                            {{ $t('customers.form.sections.billing_preferences') }}
-                        </h3>
+                        <div>
+                            <h2 class="font-semibold text-stone-900 dark:text-white">
+                                {{ $t('customers.form.sections.billing_preferences') }}
+                            </h2>
+                            <p class="mt-0.5 text-sm leading-5 text-stone-500 dark:text-neutral-400">
+                                {{ $t('customers.form.section_help.billing_preferences') }}
+                            </p>
+                        </div>
                     </div>
-                    <div class="p-4 md:p-5 space-y-3">
+                    <div class="space-y-3 p-4 md:p-6">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <FloatingSelect v-model="form.billing_mode" :label="$t('customers.form.billing.mode')"
-                                :options="billingModes" />
-                            <FloatingSelect v-model="form.billing_grouping" :label="$t('customers.form.billing.grouping')"
-                                :options="billingGroupings" />
+                            <div>
+                                <FloatingSelect
+                                    id="customer-billing-mode"
+                                    v-model="form.billing_mode"
+                                    :label="$t('customers.form.billing.mode')"
+                                    :options="billingModes"
+                                    :aria-invalid="Boolean(form.errors.billing_mode)"
+                                    :aria-describedby="form.errors.billing_mode ? 'customer-billing-mode-error' : undefined"
+                                />
+                                <InputError id="customer-billing-mode-error" class="mt-1" :message="form.errors.billing_mode" />
+                            </div>
+                            <div>
+                                <FloatingSelect
+                                    id="customer-billing-grouping"
+                                    v-model="form.billing_grouping"
+                                    :label="$t('customers.form.billing.grouping')"
+                                    :options="billingGroupings"
+                                    :aria-invalid="Boolean(form.errors.billing_grouping)"
+                                    :aria-describedby="form.errors.billing_grouping ? 'customer-billing-grouping-error' : undefined"
+                                />
+                                <InputError id="customer-billing-grouping-error" class="mt-1" :message="form.errors.billing_grouping" />
+                            </div>
                         </div>
                         <div v-if="form.billing_mode === 'per_segment' || form.billing_grouping === 'periodic' || form.billing_mode === 'deferred'"
                             class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <FloatingSelect v-model="form.billing_cycle" :label="$t('customers.form.billing.cycle')"
-                                :options="billingCycles" />
-                            <FloatingInput v-if="form.billing_mode === 'deferred'"
-                                v-model="form.billing_delay_days" type="number" :label="$t('customers.form.billing.delay_days')" />
+                            <div>
+                                <FloatingSelect
+                                    id="customer-billing-cycle"
+                                    v-model="form.billing_cycle"
+                                    :label="$t('customers.form.billing.cycle')"
+                                    :options="billingCycles"
+                                    :aria-invalid="Boolean(form.errors.billing_cycle)"
+                                    :aria-describedby="form.errors.billing_cycle ? 'customer-billing-cycle-error' : undefined"
+                                />
+                                <InputError id="customer-billing-cycle-error" class="mt-1" :message="form.errors.billing_cycle" />
+                            </div>
+                            <div v-if="form.billing_mode === 'deferred'">
+                                <FloatingInput
+                                    id="customer-billing-delay-days"
+                                    v-model="form.billing_delay_days"
+                                    type="number"
+                                    min="0"
+                                    max="365"
+                                    step="1"
+                                    :label="$t('customers.form.billing.delay_days')"
+                                    :aria-invalid="Boolean(form.errors.billing_delay_days)"
+                                    :aria-describedby="form.errors.billing_delay_days ? 'customer-billing-delay-days-error' : undefined"
+                                />
+                                <InputError id="customer-billing-delay-days-error" class="mt-1" :message="form.errors.billing_delay_days" />
+                            </div>
                         </div>
                         <div v-if="form.billing_mode === 'deferred'">
-                            <FloatingInput v-model="form.billing_date_rule"
-                                :label="$t('customers.form.billing.date_rule')" />
+                            <FloatingInput
+                                id="customer-billing-date-rule"
+                                v-model="form.billing_date_rule"
+                                :label="$t('customers.form.billing.date_rule')"
+                                :aria-invalid="Boolean(form.errors.billing_date_rule)"
+                                :aria-describedby="form.errors.billing_date_rule ? 'customer-billing-date-rule-error' : undefined"
+                            />
+                            <InputError id="customer-billing-date-rule-error" class="mt-1" :message="form.errors.billing_date_rule" />
                         </div>
                     </div>
                 </div>
-                <div></div>
-                <div></div>
             </div>
-            <div class="grid grid-cols-1 lg:grid-cols-4 gap-1 md:gap-3 lg:gap-1 mt-4">
-                <div></div>
+            <div class="sticky bottom-3 z-30 rounded-xl border border-stone-200 bg-white/95 p-3 shadow-lg backdrop-blur dark:border-neutral-700 dark:bg-neutral-900/95 md:flex md:items-center md:justify-between md:gap-4">
                 <div>
-                    <button type="button"
-                        class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 focus:outline-none focus:bg-stone-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700">
+                    <p class="hidden text-xs text-stone-500 dark:text-neutral-400 md:block">
+                        {{ $t('customers.form.actions_hint') }}
+                    </p>
+                    <Link
+                        :href="cancelHref"
+                        :aria-disabled="form.processing"
+                        :class="form.processing ? 'pointer-events-none opacity-50' : ''"
+                        class="mt-2 inline-flex w-full items-center justify-center rounded-lg border border-stone-300 bg-white px-4 py-2.5 text-sm font-medium text-stone-700 shadow-sm transition hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700 dark:focus-visible:ring-offset-neutral-900 md:mt-0 md:w-auto"
+                        @click="handleCancelClick"
+                    >
                         {{ $t('customers.actions.cancel') }}
-                    </button>
+                    </Link>
                 </div>
-                <div class="flex justify-end">
-                    <button v-if="isCreating" type="button" :disabled="form.processing"
+                <div
+                    class="mt-2 grid grid-cols-1 gap-2 md:mt-0"
+                    :class="isCreating ? 'sm:grid-cols-2' : 'sm:grid-cols-1'"
+                >
+                    <button
+                        v-if="isCreating"
+                        type="button"
+                        :disabled="form.processing"
+                        class="action-feedback inline-flex w-full items-center justify-center rounded-lg border border-green-600 px-4 py-2.5 text-sm font-medium text-green-700 transition hover:border-green-700 hover:bg-green-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 dark:text-green-400 dark:hover:bg-green-500/10 dark:focus-visible:ring-offset-neutral-900"
                         @click="submitAndCreateAnother"
-                        class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-600 text-green-600 hover:border-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500 action-feedback">
+                    >
                         {{ $t('customers.form.actions.save_create_another') }}
                     </button>
-                    <button type="submit" data-testid="demo-customer-save" :disabled="form.processing"
-                        class="py-1.5 ml-4 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500 action-feedback">
-                        {{ isCreating ? $t('customers.form.actions.save_client') : $t('customers.form.actions.update_client') }}
+                    <button
+                        type="submit"
+                        data-testid="demo-customer-save"
+                        :disabled="form.processing"
+                        class="action-feedback inline-flex w-full items-center justify-center gap-2 rounded-lg border border-transparent bg-green-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-60 dark:focus-visible:ring-offset-neutral-900"
+                    >
+                        <svg v-if="form.processing" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z" />
+                        </svg>
+                        {{ form.processing
+                            ? $t('customers.form.actions.saving')
+                            : (isCreating
+                                ? $t('customers.form.actions.save_client')
+                                : $t('customers.form.actions.update_client')) }}
                     </button>
                 </div>
-                <div></div>
-
             </div>
         </form>
     </AuthenticatedLayout>

@@ -1,6 +1,6 @@
 # G03 — Checklist de validation
 
-Dernière mise à jour : 2026-08-11
+Dernière mise à jour : 2026-08-19
 
 Un épisode n'est pas « prêt à publier » parce que son script existe. G03 est validé seulement lorsque les données, les captures, le comportement fonctionnel, la narration et les sous-titres racontent exactement le même parcours.
 
@@ -40,6 +40,7 @@ Un épisode n'est pas « prêt à publier » parce que son script existe. G03 es
 - [ ] L'adresse utilise des données fictives et contient Montréal dans Ville.
 - [ ] La case Adresse de facturation identique, désactivée par défaut, est cochée avant la soumission et son rôle est expliqué sans promettre une deuxième adresse.
 - [ ] L'erreur de courriel est réelle, lisible et corrigée.
+- [ ] La barre d'actions reste visible et le lien Annuler a été vérifié sur une prise d'essai, sans l'utiliser dans le master.
 - [ ] Le bouton final utilisé est Enregistrer client.
 - [ ] La redirection réelle vers `/customer` est visible.
 - [ ] Le message de succès et la ligne Nora sont visibles au moins deux secondes.
