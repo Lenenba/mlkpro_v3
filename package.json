@@ -7,6 +7,7 @@
         "docs:index": "node scripts/generate-doc-index.mjs",
         "docs:index:check": "node scripts/generate-doc-index.mjs --check",
         "qa:build": "npm run build",
+        "qa:branding-colors": "node scripts/check-company-branding-colors.mjs",
         "qa:capacity-runner": "node --test tests/Node/P0006CapacityRunnerTest.mjs",
         "qa:node": "node --test tests/Node/*.mjs",
         "qa:frontend-budgets": "node scripts/check-frontend-budgets.mjs",

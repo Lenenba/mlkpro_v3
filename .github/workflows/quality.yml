@@ -65,6 +65,11 @@ jobs:
       - name: Run Node test suite
         run: npm run qa:node
 
+      - name: Audit tenant branding colors
+        env:
+          BRANDING_COLOR_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: npm run qa:branding-colors -- --strict
+
       - name: Prepare environment
         run: |
           cp .env.example .env

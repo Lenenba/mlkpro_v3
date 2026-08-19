@@ -1,0 +1,1985 @@
+{
+  "version": 1,
+  "scan": {
+    "roots": [
+      "resources/js",
+      "resources/css",
+      "resources/views",
+      "tailwind.config.js"
+    ],
+    "extensions": [
+      ".vue",
+      ".js",
+      ".css",
+      ".php"
+    ],
+    "tokenFamilies": [
+      "green",
+      "emerald",
+      "lime",
+      "teal"
+    ],
+    "brandHexColors": [
+      "#F0FDF4",
+      "#DCFCE7",
+      "#BBF7D0",
+      "#86EFAC",
+      "#4ADE80",
+      "#22C55E",
+      "#16A34A",
+      "#15803D",
+      "#166534",
+      "#14532D",
+      "#052E16",
+      "#ECFDF5",
+      "#D1FAE5",
+      "#A7F3D0",
+      "#6EE7B7",
+      "#34D399",
+      "#10B981",
+      "#059669",
+      "#047857",
+      "#065F46",
+      "#064E3B",
+      "#022C22",
+      "#F7FEE7",
+      "#ECFCCB",
+      "#D9F99D",
+      "#BEF264",
+      "#A3E635",
+      "#84CC16",
+      "#65A30D",
+      "#4D7C0F",
+      "#3F6212",
+      "#365314",
+      "#1A2E05",
+      "#F0FDFA",
+      "#CCFBF1",
+      "#99F6E4",
+      "#5EEAD4",
+      "#2DD4BF",
+      "#14B8A6",
+      "#0D9488",
+      "#0F766E",
+      "#115E59",
+      "#134E4A",
+      "#042F2E"
+    ]
+  },
+  "modules": [
+    {
+      "key": "M00",
+      "label": "Taxonomie et garde automatique",
+      "status": "verified",
+      "includes": [
+        ".github/workflows/quality.yml",
+        "config/company-branding-color-audit.json",
+        "package.json",
+        "scripts/check-company-branding-colors.mjs",
+        "tests/Node/CompanyBrandingColorAuditTest.mjs",
+        "tests/e2e/helpers/companyBranding.mjs",
+        "tests/e2e/tenant-branding-modules.spec.js"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 0,
+        "highRisk": 0,
+        "files": {}
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M01",
+      "label": "Composants partagés",
+      "status": "pending",
+      "includes": [
+        "resources/css/**",
+        "resources/js/app.js",
+        "resources/js/Components/**",
+        "resources/js/utils/**",
+        "tailwind.config.js"
+      ],
+      "excludes": [
+        "resources/js/Components/AiAssistant/**",
+        "resources/js/Components/Assistant/**",
+        "resources/js/Components/AssetPickerModal.vue",
+        "resources/js/Components/Auth/**",
+        "resources/js/Components/Billing/**",
+        "resources/js/Components/CRM/**",
+        "resources/js/Components/Customer/**",
+        "resources/js/Components/Dashboard/**",
+        "resources/js/Components/Demo/**",
+        "resources/js/Components/Legal/**",
+        "resources/js/Components/MegaMenu/**",
+        "resources/js/Components/Portal/**",
+        "resources/js/Components/Prospects/**",
+        "resources/js/Components/Public/**",
+        "resources/js/Components/QuickCreate/CustomerQuickForm.vue",
+        "resources/js/Components/QuickCreate/ProductQuickForm.vue",
+        "resources/js/Components/QuickCreate/QuoteQuickDialog.vue",
+        "resources/js/Components/QuickCreate/RequestQuickForm.vue",
+        "resources/js/Components/QuickCreate/ServiceQuickForm.vue",
+        "resources/js/Components/Reservation/**",
+        "resources/js/Components/Seo/**",
+        "resources/js/Components/Store/**",
+        "resources/js/Components/UI/AppBreadcrumbs.vue",
+        "resources/js/Components/UI/Areachart.vue",
+        "resources/js/Components/UI/Barchart.vue",
+        "resources/js/Components/UI/CookieBanner.vue",
+        "resources/js/Components/UI/CustomerActivityStat.vue",
+        "resources/js/Components/UI/CustomerStats.vue",
+        "resources/js/Components/UI/ExpenseStats.vue",
+        "resources/js/Components/UI/GlobalSearch.vue",
+        "resources/js/Components/UI/InvoiceList.vue",
+        "resources/js/Components/UI/InvoiceStats.vue",
+        "resources/js/Components/UI/LanguageSwitcherMenu.vue",
+        "resources/js/Components/UI/LineChart.vue",
+        "resources/js/Components/UI/NotificationBell.vue",
+        "resources/js/Components/UI/OrdersStats.vue",
+        "resources/js/Components/UI/PlanScanStats.vue",
+        "resources/js/Components/UI/PlatformCardTabs.vue",
+        "resources/js/Components/UI/ProductCard2.vue",
+        "resources/js/Components/UI/ProductStats.vue",
+        "resources/js/Components/UI/ProductUsageStat.vue",
+        "resources/js/Components/UI/QuoteList.vue",
+        "resources/js/Components/UI/QuoteStats.vue",
+        "resources/js/Components/UI/QuoteValueStat.vue",
+        "resources/js/Components/UI/RequestList.vue",
+        "resources/js/Components/UI/RequestStats.vue",
+        "resources/js/Components/UI/SalesStats.vue",
+        "resources/js/Components/UI/ServiceStats.vue",
+        "resources/js/Components/UI/SidebarAccountMenu.vue",
+        "resources/js/Components/UI/SidebarMessagesMenu.vue",
+        "resources/js/Components/UI/TaskStats.vue",
+        "resources/js/Components/UI/TeamStats.vue",
+        "resources/js/Components/UI/TrafficStat.vue",
+        "resources/js/Components/UI/WorkList.vue",
+        "resources/js/Components/UI/WorkStats.vue",
+        "resources/js/Components/Workspace/**",
+        "resources/js/utils/backgroundPresets.js",
+        "resources/js/utils/calendarPalette.js",
+        "resources/js/utils/customerClientTypes.js",
+        "resources/js/utils/featureTabs.js",
+        "resources/js/utils/iconPresets.js",
+        "resources/js/utils/industryGrid.js",
+        "resources/js/utils/kpi.js",
+        "resources/js/utils/leadScore.js",
+        "resources/js/utils/media.js",
+        "resources/js/utils/megaMenuBuilder.js",
+        "resources/js/utils/permissions.js",
+        "resources/js/utils/prospectPresentation.js",
+        "resources/js/utils/publicCatalogCopy.js",
+        "resources/js/utils/publicCatalogSections.js",
+        "resources/js/utils/publicCopy.js",
+        "resources/js/utils/publicPageTemplates.js",
+        "resources/js/utils/publicResponsiveImages.js",
+        "resources/js/utils/publicSectionPresets.js",
+        "resources/js/utils/salesPromotionResolver.js",
+        "resources/js/utils/schedule.js",
+        "resources/js/utils/serviceRequestPresentation.js",
+        "resources/js/utils/storyGrid.js",
+        "resources/js/utils/subscriptionPricing.js",
+        "resources/js/utils/templatePlaceholderHtml.js",
+        "resources/js/utils/testimonialGrid.js",
+        "resources/js/utils/workspaceBreadcrumbs.js",
+        "resources/js/utils/workspaceHub.js"
+      ],
+      "baseline": {
+        "candidates": 221,
+        "highRisk": 135,
+        "files": {
+          "resources/css/app.css": {
+            "candidates": 25,
+            "highRisk": 25
+          },
+          "resources/js/Components/DataTable/AdminDataTable.vue": {
+            "candidates": 2,
+            "highRisk": 2
+          },
+          "resources/js/Components/DataTable/AdminDataTableBulkActionMenu.vue": {
+            "candidates": 11,
+            "highRisk": 7
+          },
+          "resources/js/Components/DataTable/AdminDataTableBulkBar.vue": {
+            "candidates": 19,
+            "highRisk": 0
+          },
+          "resources/js/Components/DataTable/AdminPaginationLinks.vue": {
+            "candidates": 4,
+            "highRisk": 2
+          },
+          "resources/js/Components/FloatingFileInput.vue": {
+            "candidates": 4,
+            "highRisk": 4
+          },
+          "resources/js/Components/ListInput.vue": {
+            "candidates": 24,
+            "highRisk": 24
+          },
+          "resources/js/Components/MultiImageInput.vue": {
+            "candidates": 1,
+            "highRisk": 0
+          },
+          "resources/js/Components/ProductTableList.vue": {
+            "candidates": 23,
+            "highRisk": 11
+          },
+          "resources/js/Components/SelectableItem.vue": {
+            "candidates": 4,
+            "highRisk": 2
+          },
+          "resources/js/Components/TimePicker.vue": {
+            "candidates": 7,
+            "highRisk": 7
+          },
+          "resources/js/Components/UI/CardNavLink.vue": {
+            "candidates": 1,
+            "highRisk": 0
+          },
+          "resources/js/Components/UI/CardTileTabs.vue": {
+            "candidates": 10,
+            "highRisk": 2
+          },
+          "resources/js/Components/UI/FlashToaster.vue": {
+            "candidates": 12,
+            "highRisk": 0
+          },
+          "resources/js/Components/UI/LinkAncor.vue": {
+            "candidates": 38,
+            "highRisk": 20
+          },
+          "resources/js/Components/UI/LinkAncor2.vue": {
+            "candidates": 15,
+            "highRisk": 15
+          },
+          "resources/js/Components/UI/OneGrid.vue": {
+            "candidates": 1,
+            "highRisk": 1
+          },
+          "resources/js/Components/UI/Singlegrid.vue": {
+            "candidates": 1,
+            "highRisk": 1
+          },
+          "resources/js/Components/UI/Stat.vue": {
+            "candidates": 3,
+            "highRisk": 0
+          },
+          "resources/js/Components/UI/StatCard.vue": {
+            "candidates": 3,
+            "highRisk": 0
+          },
+          "resources/js/utils/companyBrandTheme.js": {
+            "candidates": 9,
+            "highRisk": 9
+          },
+          "resources/js/utils/crmButtonStyles.js": {
+            "candidates": 4,
+            "highRisk": 3
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M02",
+      "label": "Shell et navigation",
+      "status": "pending",
+      "includes": [
+        "resources/js/Components/UI/AppBreadcrumbs.vue",
+        "resources/js/Components/UI/GlobalSearch.vue",
+        "resources/js/Components/UI/LanguageSwitcherMenu.vue",
+        "resources/js/Components/UI/NotificationBell.vue",
+        "resources/js/Components/UI/SidebarAccountMenu.vue",
+        "resources/js/Components/UI/SidebarMessagesMenu.vue",
+        "resources/js/Components/Workspace/**",
+        "resources/js/Layouts/AuthenticatedLayout.vue",
+        "resources/js/Layouts/UI/**",
+        "resources/js/Pages/Errors/**",
+        "resources/js/Pages/Notifications/**",
+        "resources/js/Pages/Workspace/**",
+        "resources/js/utils/features.js",
+        "resources/js/utils/permissions.js",
+        "resources/js/utils/workspaceBreadcrumbs.js",
+        "resources/js/utils/workspaceHub.js"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 49,
+        "highRisk": 13,
+        "files": {
+          "resources/js/Components/UI/LanguageSwitcherMenu.vue": {
+            "candidates": 5,
+            "highRisk": 1
+          },
+          "resources/js/Components/UI/NotificationBell.vue": {
+            "candidates": 4,
+            "highRisk": 0
+          },
+          "resources/js/Components/UI/SidebarAccountMenu.vue": {
+            "candidates": 1,
+            "highRisk": 0
+          },
+          "resources/js/Layouts/UI/Sidebar.vue": {
+            "candidates": 2,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Errors/ModuleUnavailable.vue": {
+            "candidates": 3,
+            "highRisk": 2
+          },
+          "resources/js/Pages/Notifications/Index.vue": {
+            "candidates": 4,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Workspace/CategoryHub.vue": {
+            "candidates": 30,
+            "highRisk": 10
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M03",
+      "label": "Tableaux de bord",
+      "status": "pending",
+      "includes": [
+        "resources/js/Components/Dashboard/**",
+        "resources/js/Components/UI/TrafficStat.vue",
+        "resources/js/Pages/Dashboard.vue",
+        "resources/js/Pages/DashboardAdmin.vue",
+        "resources/js/Pages/DashboardClient.vue",
+        "resources/js/Pages/DashboardMember.vue",
+        "resources/js/Pages/DashboardProductsClient.vue",
+        "resources/js/Pages/DashboardProductsOwner.vue",
+        "resources/js/Pages/DashboardProductsTeam.vue",
+        "resources/js/utils/kpi.js"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 290,
+        "highRisk": 48,
+        "files": {
+          "resources/js/Components/Dashboard/AnnouncementsPanel.vue": {
+            "candidates": 4,
+            "highRisk": 2
+          },
+          "resources/js/Components/Dashboard/DashboardCategorySummary.vue": {
+            "candidates": 13,
+            "highRisk": 2
+          },
+          "resources/js/Components/Dashboard/KpiCompositePanel.vue": {
+            "candidates": 3,
+            "highRisk": 0
+          },
+          "resources/js/Components/Dashboard/KpiTrendBadge.vue": {
+            "candidates": 4,
+            "highRisk": 0
+          },
+          "resources/js/Components/UI/TrafficStat.vue": {
+            "candidates": 8,
+            "highRisk": 6
+          },
+          "resources/js/Pages/Dashboard.vue": {
+            "candidates": 64,
+            "highRisk": 10
+          },
+          "resources/js/Pages/DashboardAdmin.vue": {
+            "candidates": 16,
+            "highRisk": 0
+          },
+          "resources/js/Pages/DashboardClient.vue": {
+            "candidates": 46,
+            "highRisk": 19
+          },
+          "resources/js/Pages/DashboardMember.vue": {
+            "candidates": 16,
+            "highRisk": 0
+          },
+          "resources/js/Pages/DashboardProductsClient.vue": {
+            "candidates": 40,
+            "highRisk": 2
+          },
+          "resources/js/Pages/DashboardProductsOwner.vue": {
+            "candidates": 68,
+            "highRisk": 5
+          },
+          "resources/js/Pages/DashboardProductsTeam.vue": {
+            "candidates": 8,
+            "highRisk": 2
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M04",
+      "label": "Clients",
+      "status": "pending",
+      "includes": [
+        "resources/js/Components/Customer/**",
+        "resources/js/Components/QuickCreate/CustomerQuickForm.vue",
+        "resources/js/Components/UI/CustomerActivityStat.vue",
+        "resources/js/Components/UI/CustomerStats.vue",
+        "resources/js/Pages/Customer/**",
+        "resources/js/utils/customerClientTypes.js"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 271,
+        "highRisk": 139,
+        "files": {
+          "resources/js/Components/Customer/CustomerMediaFields.vue": {
+            "candidates": 4,
+            "highRisk": 1
+          },
+          "resources/js/Components/QuickCreate/CustomerQuickForm.vue": {
+            "candidates": 18,
+            "highRisk": 12
+          },
+          "resources/js/Components/UI/CustomerActivityStat.vue": {
+            "candidates": 2,
+            "highRisk": 0
+          },
+          "resources/js/Components/UI/CustomerStats.vue": {
+            "candidates": 1,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Customer/Create.vue": {
+            "candidates": 41,
+            "highRisk": 36
+          },
+          "resources/js/Pages/Customer/Show.vue": {
+            "candidates": 107,
+            "highRisk": 66
+          },
+          "resources/js/Pages/Customer/UI/CustomerBulkContactModal.vue": {
+            "candidates": 40,
+            "highRisk": 6
+          },
+          "resources/js/Pages/Customer/UI/CustomerPreviewCard.vue": {
+            "candidates": 10,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Customer/UI/CustomerTable.vue": {
+            "candidates": 45,
+            "highRisk": 15
+          },
+          "resources/js/Pages/Customer/UI/Header.vue": {
+            "candidates": 3,
+            "highRisk": 3
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M05",
+      "label": "Services et catégories",
+      "status": "pending",
+      "includes": [
+        "resources/js/Components/QuickCreate/ServiceQuickForm.vue",
+        "resources/js/Components/UI/ServiceStats.vue",
+        "resources/js/Pages/Public/Showcase.vue",
+        "resources/js/Pages/Service/**",
+        "resources/js/Pages/Settings/UI/CompanyCategoriesSection.vue"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 46,
+        "highRisk": 25,
+        "files": {
+          "resources/js/Components/QuickCreate/ServiceQuickForm.vue": {
+            "candidates": 7,
+            "highRisk": 4
+          },
+          "resources/js/Components/UI/ServiceStats.vue": {
+            "candidates": 1,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Service/Categories.vue": {
+            "candidates": 10,
+            "highRisk": 4
+          },
+          "resources/js/Pages/Service/UI/ServiceForm.vue": {
+            "candidates": 12,
+            "highRisk": 6
+          },
+          "resources/js/Pages/Service/UI/ServiceTable.vue": {
+            "candidates": 14,
+            "highRisk": 9
+          },
+          "resources/js/Pages/Settings/UI/CompanyCategoriesSection.vue": {
+            "candidates": 2,
+            "highRisk": 2
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M06",
+      "label": "Produits et inventaire",
+      "status": "pending",
+      "includes": [
+        "resources/js/Components/QuickCreate/ProductQuickForm.vue",
+        "resources/js/Components/UI/ProductCard2.vue",
+        "resources/js/Components/UI/ProductStats.vue",
+        "resources/js/Components/UI/ProductUsageStat.vue",
+        "resources/js/Pages/Product/**"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 166,
+        "highRisk": 83,
+        "files": {
+          "resources/js/Components/QuickCreate/ProductQuickForm.vue": {
+            "candidates": 21,
+            "highRisk": 10
+          },
+          "resources/js/Components/UI/ProductStats.vue": {
+            "candidates": 1,
+            "highRisk": 0
+          },
+          "resources/js/Components/UI/ProductUsageStat.vue": {
+            "candidates": 1,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Product/Show.vue": {
+            "candidates": 18,
+            "highRisk": 4
+          },
+          "resources/js/Pages/Product/UI/ProductForm.vue": {
+            "candidates": 39,
+            "highRisk": 13
+          },
+          "resources/js/Pages/Product/UI/ProductTable.vue": {
+            "candidates": 86,
+            "highRisk": 56
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M07",
+      "label": "Prospects et demandes",
+      "status": "pending",
+      "includes": [
+        "resources/js/Components/Prospects/**",
+        "resources/js/Components/QuickCreate/RequestQuickForm.vue",
+        "resources/js/Components/UI/RequestList.vue",
+        "resources/js/Components/UI/RequestStats.vue",
+        "resources/js/Pages/Public/RequestForm.vue",
+        "resources/js/Pages/Request/**",
+        "resources/js/utils/leadScore.js",
+        "resources/js/utils/prospectPresentation.js"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 275,
+        "highRisk": 92,
+        "files": {
+          "resources/js/Components/Prospects/ProspectDuplicateAlert.vue": {
+            "candidates": 2,
+            "highRisk": 0
+          },
+          "resources/js/Components/Prospects/ProspectInteractionTimeline.vue": {
+            "candidates": 8,
+            "highRisk": 0
+          },
+          "resources/js/Components/QuickCreate/RequestQuickForm.vue": {
+            "candidates": 31,
+            "highRisk": 15
+          },
+          "resources/js/Components/UI/RequestList.vue": {
+            "candidates": 10,
+            "highRisk": 0
+          },
+          "resources/js/Components/UI/RequestStats.vue": {
+            "candidates": 1,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Public/RequestForm.vue": {
+            "candidates": 6,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Request/Show.vue": {
+            "candidates": 78,
+            "highRisk": 32
+          },
+          "resources/js/Pages/Request/UI/ProspectCustomerConversionModal.vue": {
+            "candidates": 33,
+            "highRisk": 13
+          },
+          "resources/js/Pages/Request/UI/ProspectDashboardAnalytics.vue": {
+            "candidates": 6,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Request/UI/RequestAnalytics.vue": {
+            "candidates": 6,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Request/UI/RequestBoard.vue": {
+            "candidates": 20,
+            "highRisk": 3
+          },
+          "resources/js/Pages/Request/UI/RequestTable.vue": {
+            "candidates": 62,
+            "highRisk": 27
+          },
+          "resources/js/Pages/Request/UI/RequestTableActionsMenu.vue": {
+            "candidates": 6,
+            "highRisk": 2
+          },
+          "resources/js/utils/leadScore.js": {
+            "candidates": 6,
+            "highRisk": 0
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M08",
+      "label": "Demandes de service, CRM et pipeline",
+      "status": "pending",
+      "includes": [
+        "resources/js/Components/CRM/**",
+        "resources/js/Pages/CRM/**",
+        "resources/js/Pages/Pipeline/**",
+        "resources/js/Pages/ServiceRequests/**",
+        "resources/js/utils/serviceRequestPresentation.js"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 195,
+        "highRisk": 7,
+        "files": {
+          "resources/js/Components/CRM/SalesActivityPanel.vue": {
+            "candidates": 40,
+            "highRisk": 0
+          },
+          "resources/js/Components/CRM/SavedSegmentBar.vue": {
+            "candidates": 38,
+            "highRisk": 0
+          },
+          "resources/js/Pages/CRM/ManagerDashboard.vue": {
+            "candidates": 26,
+            "highRisk": 3
+          },
+          "resources/js/Pages/CRM/MyNextActions.vue": {
+            "candidates": 15,
+            "highRisk": 0
+          },
+          "resources/js/Pages/CRM/SalesInbox.vue": {
+            "candidates": 18,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Pipeline/EntityPipelineTimeline.vue": {
+            "candidates": 28,
+            "highRisk": 2
+          },
+          "resources/js/Pages/ServiceRequests/Index.vue": {
+            "candidates": 20,
+            "highRisk": 2
+          },
+          "resources/js/Pages/ServiceRequests/Show.vue": {
+            "candidates": 6,
+            "highRisk": 0
+          },
+          "resources/js/utils/serviceRequestPresentation.js": {
+            "candidates": 4,
+            "highRisk": 0
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M09",
+      "label": "Forfaits et offres",
+      "status": "pending",
+      "includes": [
+        "resources/js/Pages/OfferPackages/**",
+        "resources/js/Pages/Portal/Packages/**"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 77,
+        "highRisk": 3,
+        "files": {
+          "resources/js/Pages/OfferPackages/Index.vue": {
+            "candidates": 27,
+            "highRisk": 3
+          },
+          "resources/js/Pages/OfferPackages/Show.vue": {
+            "candidates": 26,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Portal/Packages/Index.vue": {
+            "candidates": 24,
+            "highRisk": 0
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M10",
+      "label": "Analyse de plans",
+      "status": "pending",
+      "includes": [
+        "resources/js/Components/UI/PlanScanStats.vue",
+        "resources/js/Pages/PlanScan/**"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 60,
+        "highRisk": 25,
+        "files": {
+          "resources/js/Components/UI/PlanScanStats.vue": {
+            "candidates": 1,
+            "highRisk": 0
+          },
+          "resources/js/Pages/PlanScan/Create.vue": {
+            "candidates": 4,
+            "highRisk": 4
+          },
+          "resources/js/Pages/PlanScan/Show.vue": {
+            "candidates": 49,
+            "highRisk": 19
+          },
+          "resources/js/Pages/PlanScan/UI/PlanScanTable.vue": {
+            "candidates": 6,
+            "highRisk": 2
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M11",
+      "label": "Devis",
+      "status": "pending",
+      "includes": [
+        "resources/js/Components/QuickCreate/QuoteQuickDialog.vue",
+        "resources/js/Components/UI/QuoteList.vue",
+        "resources/js/Components/UI/QuoteStats.vue",
+        "resources/js/Components/UI/QuoteValueStat.vue",
+        "resources/js/Pages/Public/QuoteAction.vue",
+        "resources/js/Pages/Quote/**"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 126,
+        "highRisk": 45,
+        "files": {
+          "resources/js/Components/QuickCreate/QuoteQuickDialog.vue": {
+            "candidates": 14,
+            "highRisk": 7
+          },
+          "resources/js/Components/UI/QuoteList.vue": {
+            "candidates": 7,
+            "highRisk": 3
+          },
+          "resources/js/Components/UI/QuoteStats.vue": {
+            "candidates": 3,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Quote/Create.vue": {
+            "candidates": 29,
+            "highRisk": 14
+          },
+          "resources/js/Pages/Quote/Show.vue": {
+            "candidates": 15,
+            "highRisk": 4
+          },
+          "resources/js/Pages/Quote/UI/QuoteActionsMenu.vue": {
+            "candidates": 9,
+            "highRisk": 3
+          },
+          "resources/js/Pages/Quote/UI/QuoteTable.vue": {
+            "candidates": 49,
+            "highRisk": 14
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M12",
+      "label": "Travaux",
+      "status": "pending",
+      "includes": [
+        "resources/js/Components/UI/WorkList.vue",
+        "resources/js/Components/UI/WorkStats.vue",
+        "resources/js/Pages/Public/WorkAction.vue",
+        "resources/js/Pages/Public/WorkProofs.vue",
+        "resources/js/Pages/Work/**"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 82,
+        "highRisk": 28,
+        "files": {
+          "resources/js/Components/UI/WorkList.vue": {
+            "candidates": 9,
+            "highRisk": 0
+          },
+          "resources/js/Components/UI/WorkStats.vue": {
+            "candidates": 1,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Public/WorkProofs.vue": {
+            "candidates": 2,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Work/Create.vue": {
+            "candidates": 41,
+            "highRisk": 21
+          },
+          "resources/js/Pages/Work/Proofs.vue": {
+            "candidates": 8,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Work/Show.vue": {
+            "candidates": 2,
+            "highRisk": 2
+          },
+          "resources/js/Pages/Work/UI/WorkTable.vue": {
+            "candidates": 19,
+            "highRisk": 5
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M13",
+      "label": "Tâches",
+      "status": "pending",
+      "includes": [
+        "resources/js/Components/UI/TaskStats.vue",
+        "resources/js/Pages/Task/**"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 112,
+        "highRisk": 36,
+        "files": {
+          "resources/js/Components/UI/TaskStats.vue": {
+            "candidates": 1,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Task/Show.vue": {
+            "candidates": 20,
+            "highRisk": 3
+          },
+          "resources/js/Pages/Task/UI/TaskTable.vue": {
+            "candidates": 91,
+            "highRisk": 33
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M14",
+      "label": "Ventes, commandes et boutique",
+      "status": "pending",
+      "includes": [
+        "resources/js/Components/Store/**",
+        "resources/js/Components/UI/OrdersStats.vue",
+        "resources/js/Components/UI/SalesStats.vue",
+        "resources/js/Pages/Orders/**",
+        "resources/js/Pages/Portal/Products/**",
+        "resources/js/Pages/Public/Store.vue",
+        "resources/js/Pages/Sales/**",
+        "resources/js/utils/salesPromotionResolver.js"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 210,
+        "highRisk": 62,
+        "files": {
+          "resources/js/Components/Store/Badge.vue": {
+            "candidates": 3,
+            "highRisk": 0
+          },
+          "resources/js/Components/Store/CategoryChips.vue": {
+            "candidates": 3,
+            "highRisk": 0
+          },
+          "resources/js/Components/Store/ProductCard.vue": {
+            "candidates": 6,
+            "highRisk": 6
+          },
+          "resources/js/Components/Store/SearchInput.vue": {
+            "candidates": 6,
+            "highRisk": 6
+          },
+          "resources/js/Components/Store/SectionHeader.vue": {
+            "candidates": 1,
+            "highRisk": 1
+          },
+          "resources/js/Components/UI/OrdersStats.vue": {
+            "candidates": 1,
+            "highRisk": 0
+          },
+          "resources/js/Components/UI/SalesStats.vue": {
+            "candidates": 2,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Orders/Index.vue": {
+            "candidates": 2,
+            "highRisk": 2
+          },
+          "resources/js/Pages/Portal/Products/OrderShow.vue": {
+            "candidates": 26,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Portal/Products/Shop.vue": {
+            "candidates": 18,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Public/Store.vue": {
+            "candidates": 10,
+            "highRisk": 3
+          },
+          "resources/js/Pages/Sales/Create.vue": {
+            "candidates": 46,
+            "highRisk": 16
+          },
+          "resources/js/Pages/Sales/Edit.vue": {
+            "candidates": 27,
+            "highRisk": 10
+          },
+          "resources/js/Pages/Sales/Index.vue": {
+            "candidates": 2,
+            "highRisk": 2
+          },
+          "resources/js/Pages/Sales/Show.vue": {
+            "candidates": 28,
+            "highRisk": 6
+          },
+          "resources/js/Pages/Sales/UI/SalesTable.vue": {
+            "candidates": 29,
+            "highRisk": 10
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M15",
+      "label": "Réservations",
+      "status": "pending",
+      "includes": [
+        "resources/js/Components/Reservation/**",
+        "resources/js/Pages/Public/PublicBooking.vue",
+        "resources/js/Pages/Public/ReservationKiosk.vue",
+        "resources/js/Pages/Reservation/**",
+        "resources/js/Pages/Settings/Reservations.vue"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 217,
+        "highRisk": 71,
+        "files": {
+          "resources/js/Components/Reservation/ReservationCalendarBoard.vue": {
+            "candidates": 10,
+            "highRisk": 4
+          },
+          "resources/js/Components/Reservation/ReservationStats.vue": {
+            "candidates": 2,
+            "highRisk": 0
+          },
+          "resources/js/Components/Reservation/status.js": {
+            "candidates": 14,
+            "highRisk": 2
+          },
+          "resources/js/Pages/Public/PublicBooking.vue": {
+            "candidates": 4,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Public/ReservationKiosk.vue": {
+            "candidates": 20,
+            "highRisk": 17
+          },
+          "resources/js/Pages/Reservation/ClientBook.vue": {
+            "candidates": 15,
+            "highRisk": 1
+          },
+          "resources/js/Pages/Reservation/ClientIndex.vue": {
+            "candidates": 16,
+            "highRisk": 5
+          },
+          "resources/js/Pages/Reservation/Index.vue": {
+            "candidates": 83,
+            "highRisk": 30
+          },
+          "resources/js/Pages/Reservation/Screen.vue": {
+            "candidates": 18,
+            "highRisk": 1
+          },
+          "resources/js/Pages/Settings/Reservations.vue": {
+            "candidates": 35,
+            "highRisk": 11
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M16",
+      "label": "Planning",
+      "status": "pending",
+      "includes": [
+        "resources/js/Pages/Planning/**",
+        "resources/js/utils/calendarPalette.js",
+        "resources/js/utils/schedule.js"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 39,
+        "highRisk": 19,
+        "files": {
+          "resources/js/Pages/Planning/Index.vue": {
+            "candidates": 29,
+            "highRisk": 17
+          },
+          "resources/js/utils/calendarPalette.js": {
+            "candidates": 10,
+            "highRisk": 2
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M17",
+      "label": "Présences",
+      "status": "pending",
+      "includes": [
+        "resources/js/Pages/Presence/**"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 28,
+        "highRisk": 3,
+        "files": {
+          "resources/js/Pages/Presence/Index.vue": {
+            "candidates": 28,
+            "highRisk": 3
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M18",
+      "label": "Équipe et RH",
+      "status": "pending",
+      "includes": [
+        "resources/js/Components/UI/TeamStats.vue",
+        "resources/js/Pages/Settings/Hr.vue",
+        "resources/js/Pages/Team/**"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 45,
+        "highRisk": 15,
+        "files": {
+          "resources/js/Components/UI/TeamStats.vue": {
+            "candidates": 1,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Settings/Hr.vue": {
+            "candidates": 8,
+            "highRisk": 3
+          },
+          "resources/js/Pages/Team/UI/TeamTable.vue": {
+            "candidates": 36,
+            "highRisk": 12
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M19",
+      "label": "Performance",
+      "status": "pending",
+      "includes": [
+        "resources/js/Pages/Performance/**"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 47,
+        "highRisk": 2,
+        "files": {
+          "resources/js/Pages/Performance/EmployeeShow.vue": {
+            "candidates": 9,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Performance/Index.vue": {
+            "candidates": 38,
+            "highRisk": 2
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M20",
+      "label": "Factures et paiements",
+      "status": "pending",
+      "includes": [
+        "resources/js/Components/UI/InvoiceList.vue",
+        "resources/js/Components/UI/InvoiceStats.vue",
+        "resources/js/Pages/Invoice/**",
+        "resources/js/Pages/Portal/InvoiceShow.vue",
+        "resources/js/Pages/Portal/InvoicesIndex.vue",
+        "resources/js/Pages/Public/InvoicePay.vue"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 75,
+        "highRisk": 17,
+        "files": {
+          "resources/js/Components/UI/InvoiceList.vue": {
+            "candidates": 4,
+            "highRisk": 0
+          },
+          "resources/js/Components/UI/InvoiceStats.vue": {
+            "candidates": 2,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Invoice/Show.vue": {
+            "candidates": 27,
+            "highRisk": 9
+          },
+          "resources/js/Pages/Invoice/UI/InvoiceTable.vue": {
+            "candidates": 17,
+            "highRisk": 8
+          },
+          "resources/js/Pages/Portal/InvoiceShow.vue": {
+            "candidates": 6,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Portal/InvoicesIndex.vue": {
+            "candidates": 17,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Public/InvoicePay.vue": {
+            "candidates": 2,
+            "highRisk": 0
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M21",
+      "label": "Pourboires",
+      "status": "pending",
+      "includes": [
+        "resources/js/Pages/Tips/**"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 18,
+        "highRisk": 5,
+        "files": {
+          "resources/js/Pages/Tips/MemberIndex.vue": {
+            "candidates": 9,
+            "highRisk": 3
+          },
+          "resources/js/Pages/Tips/OwnerIndex.vue": {
+            "candidates": 9,
+            "highRisk": 2
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M22",
+      "label": "Dépenses",
+      "status": "pending",
+      "includes": [
+        "resources/js/Components/UI/ExpenseStats.vue",
+        "resources/js/Pages/Expense/**"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 97,
+        "highRisk": 23,
+        "files": {
+          "resources/js/Components/UI/ExpenseStats.vue": {
+            "candidates": 1,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Expense/Show.vue": {
+            "candidates": 22,
+            "highRisk": 4
+          },
+          "resources/js/Pages/Expense/UI/ExpenseAiScanForm.vue": {
+            "candidates": 6,
+            "highRisk": 1
+          },
+          "resources/js/Pages/Expense/UI/ExpenseForm.vue": {
+            "candidates": 6,
+            "highRisk": 1
+          },
+          "resources/js/Pages/Expense/UI/ExpensePeriodRecap.vue": {
+            "candidates": 3,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Expense/UI/ExpensePettyCashPanel.vue": {
+            "candidates": 49,
+            "highRisk": 17
+          },
+          "resources/js/Pages/Expense/UI/ExpenseTable.vue": {
+            "candidates": 10,
+            "highRisk": 0
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M23",
+      "label": "Approbations financières",
+      "status": "pending",
+      "includes": [
+        "resources/js/Pages/FinanceApprovals/**"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 15,
+        "highRisk": 7,
+        "files": {
+          "resources/js/Pages/FinanceApprovals/Index.vue": {
+            "candidates": 15,
+            "highRisk": 7
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M24",
+      "label": "Comptabilité",
+      "status": "pending",
+      "includes": [
+        "resources/js/Pages/Accounting/**"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 72,
+        "highRisk": 27,
+        "files": {
+          "resources/js/Pages/Accounting/Index.vue": {
+            "candidates": 72,
+            "highRisk": 27
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M25",
+      "label": "Fidélité",
+      "status": "pending",
+      "includes": [
+        "resources/js/Pages/Loyalty/**",
+        "resources/js/Pages/Portal/Loyalty/**",
+        "resources/js/Pages/Settings/Loyalty.vue"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 22,
+        "highRisk": 4,
+        "files": {
+          "resources/js/Pages/Loyalty/Index.vue": {
+            "candidates": 12,
+            "highRisk": 2
+          },
+          "resources/js/Pages/Portal/Loyalty/Index.vue": {
+            "candidates": 8,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Settings/Loyalty.vue": {
+            "candidates": 2,
+            "highRisk": 2
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M26",
+      "label": "Promotions",
+      "status": "pending",
+      "includes": [
+        "resources/js/Pages/Promotions/**"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 12,
+        "highRisk": 2,
+        "files": {
+          "resources/js/Pages/Promotions/Index.vue": {
+            "candidates": 12,
+            "highRisk": 2
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M27",
+      "label": "Campagnes marketing",
+      "status": "pending",
+      "includes": [
+        "resources/js/Pages/Campaigns/**",
+        "resources/js/Pages/Settings/Marketing.vue"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 382,
+        "highRisk": 59,
+        "files": {
+          "resources/js/Pages/Campaigns/Components/CampaignStepHeading.vue": {
+            "candidates": 2,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Campaigns/Components/CampaignStepRail.vue": {
+            "candidates": 28,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Campaigns/Components/EmailBodyEditor.vue": {
+            "candidates": 3,
+            "highRisk": 1
+          },
+          "resources/js/Pages/Campaigns/Components/EmailTemplateBuilder.vue": {
+            "candidates": 2,
+            "highRisk": 2
+          },
+          "resources/js/Pages/Campaigns/Components/MailingListManager.vue": {
+            "candidates": 14,
+            "highRisk": 4
+          },
+          "resources/js/Pages/Campaigns/Components/OfferSelector.vue": {
+            "candidates": 21,
+            "highRisk": 6
+          },
+          "resources/js/Pages/Campaigns/Components/ProspectProviderCard.vue": {
+            "candidates": 6,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Campaigns/Components/ProspectProviderLogo.vue": {
+            "candidates": 1,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Campaigns/Components/ProspectProviderManager.vue": {
+            "candidates": 12,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Campaigns/Components/SegmentManager.vue": {
+            "candidates": 8,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Campaigns/Components/TemplateManager.vue": {
+            "candidates": 23,
+            "highRisk": 3
+          },
+          "resources/js/Pages/Campaigns/Components/VipManager.vue": {
+            "candidates": 12,
+            "highRisk": 1
+          },
+          "resources/js/Pages/Campaigns/Index.vue": {
+            "candidates": 17,
+            "highRisk": 2
+          },
+          "resources/js/Pages/Campaigns/PlaybookRuns.vue": {
+            "candidates": 8,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Campaigns/ProspectBatchWorkspace.vue": {
+            "candidates": 26,
+            "highRisk": 4
+          },
+          "resources/js/Pages/Campaigns/ProspectProviders.vue": {
+            "candidates": 3,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Campaigns/Show.vue": {
+            "candidates": 13,
+            "highRisk": 4
+          },
+          "resources/js/Pages/Campaigns/Templates.vue": {
+            "candidates": 3,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Campaigns/Wizard.vue": {
+            "candidates": 146,
+            "highRisk": 16
+          },
+          "resources/js/Pages/Settings/Marketing.vue": {
+            "candidates": 34,
+            "highRisk": 16
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M28",
+      "label": "Réseaux sociaux",
+      "status": "pending",
+      "includes": [
+        "resources/js/Components/AssetPickerModal.vue",
+        "resources/js/Pages/Social/**"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 138,
+        "highRisk": 14,
+        "files": {
+          "resources/js/Components/AssetPickerModal.vue": {
+            "candidates": 13,
+            "highRisk": 12
+          },
+          "resources/js/Pages/Social/Components/SocialAccountManager.vue": {
+            "candidates": 21,
+            "highRisk": 2
+          },
+          "resources/js/Pages/Social/Components/SocialApprovalInbox.vue": {
+            "candidates": 6,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Social/Components/SocialAutomationManager.vue": {
+            "candidates": 26,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Social/Components/SocialBrandVoiceManager.vue": {
+            "candidates": 6,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Social/Components/SocialCampaignManager.vue": {
+            "candidates": 6,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Social/Components/SocialEditorialCalendar.vue": {
+            "candidates": 12,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Social/Components/SocialMediaLibraryManager.vue": {
+            "candidates": 6,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Social/Components/SocialPostComposer.vue": {
+            "candidates": 12,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Social/Components/SocialPostHistory.vue": {
+            "candidates": 18,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Social/Components/SocialPostQualityPanel.vue": {
+            "candidates": 6,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Social/Components/SocialTemplateManager.vue": {
+            "candidates": 6,
+            "highRisk": 0
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M29",
+      "label": "Assistant IA",
+      "status": "pending",
+      "includes": [
+        "resources/js/Components/AiAssistant/**",
+        "resources/js/Components/Assistant/**",
+        "resources/js/Pages/AiAssistant/**",
+        "resources/js/Pages/Public/AiAssistantChat.vue"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 104,
+        "highRisk": 39,
+        "files": {
+          "resources/js/Components/AiAssistant/PublicChatWidget.vue": {
+            "candidates": 13,
+            "highRisk": 7
+          },
+          "resources/js/Components/Assistant/GlobalAssistant.vue": {
+            "candidates": 22,
+            "highRisk": 10
+          },
+          "resources/js/Pages/AiAssistant/Conversations/Index.vue": {
+            "candidates": 22,
+            "highRisk": 6
+          },
+          "resources/js/Pages/AiAssistant/Conversations/Show.vue": {
+            "candidates": 22,
+            "highRisk": 4
+          },
+          "resources/js/Pages/AiAssistant/Knowledge/Index.vue": {
+            "candidates": 9,
+            "highRisk": 3
+          },
+          "resources/js/Pages/AiAssistant/Settings.vue": {
+            "candidates": 16,
+            "highRisk": 9
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M30",
+      "label": "Paramètres transversaux",
+      "status": "pending",
+      "includes": [
+        "resources/js/Components/Billing/**",
+        "resources/js/Layouts/SettingsLayout.vue",
+        "resources/js/Pages/Profile/**",
+        "resources/js/Pages/Settings/Billing.vue",
+        "resources/js/Pages/Settings/Company.vue",
+        "resources/js/Pages/Settings/Notifications.vue",
+        "resources/js/Pages/Settings/RolesPermissions.vue",
+        "resources/js/Pages/Settings/Security.vue",
+        "resources/js/Pages/Support/**",
+        "resources/js/utils/subscriptionPricing.js"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 257,
+        "highRisk": 134,
+        "files": {
+          "resources/js/Components/Billing/PlanPriceDisplay.vue": {
+            "candidates": 2,
+            "highRisk": 0
+          },
+          "resources/js/Layouts/SettingsLayout.vue": {
+            "candidates": 9,
+            "highRisk": 9
+          },
+          "resources/js/Pages/Profile/Partials/UpdateProfileInformationForm.vue": {
+            "candidates": 5,
+            "highRisk": 1
+          },
+          "resources/js/Pages/Settings/Billing.vue": {
+            "candidates": 91,
+            "highRisk": 58
+          },
+          "resources/js/Pages/Settings/Company.vue": {
+            "candidates": 71,
+            "highRisk": 28
+          },
+          "resources/js/Pages/Settings/Notifications.vue": {
+            "candidates": 18,
+            "highRisk": 7
+          },
+          "resources/js/Pages/Settings/RolesPermissions.vue": {
+            "candidates": 19,
+            "highRisk": 8
+          },
+          "resources/js/Pages/Settings/Security.vue": {
+            "candidates": 15,
+            "highRisk": 6
+          },
+          "resources/js/Pages/Support/Index.vue": {
+            "candidates": 18,
+            "highRisk": 12
+          },
+          "resources/js/Pages/Support/Show.vue": {
+            "candidates": 9,
+            "highRisk": 5
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M31",
+      "label": "Portail client transversal",
+      "status": "pending",
+      "includes": [
+        "resources/js/Components/Portal/**"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 0,
+        "highRisk": 0,
+        "files": {}
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M32",
+      "label": "Onboarding et authentification",
+      "status": "pending",
+      "includes": [
+        "resources/js/Components/Auth/**",
+        "resources/js/Layouts/GuestLayout.vue",
+        "resources/js/Pages/Auth/**",
+        "resources/js/Pages/Onboarding/**"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 58,
+        "highRisk": 17,
+        "files": {
+          "resources/js/Components/Auth/SocialAuthButtons.vue": {
+            "candidates": 2,
+            "highRisk": 2
+          },
+          "resources/js/Pages/Auth/ForgotPassword.vue": {
+            "candidates": 2,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Auth/Login.vue": {
+            "candidates": 2,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Auth/TwoFactorChallenge.vue": {
+            "candidates": 2,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Auth/VerifyEmail.vue": {
+            "candidates": 2,
+            "highRisk": 0
+          },
+          "resources/js/Pages/Onboarding/Index.vue": {
+            "candidates": 46,
+            "highRisk": 13
+          },
+          "resources/js/Pages/Onboarding/PendingOwner.vue": {
+            "candidates": 2,
+            "highRisk": 2
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M33",
+      "label": "Pages publiques génériques",
+      "status": "pending",
+      "includes": [
+        "resources/js/Components/MegaMenu/MegaMenuBlockRenderer.vue",
+        "resources/js/Components/MegaMenu/MegaMenuDisplay.vue",
+        "resources/js/Components/Public/**",
+        "resources/js/Components/Seo/**",
+        "resources/js/Components/UI/CookieBanner.vue",
+        "resources/js/Pages/Public/Page.vue",
+        "resources/js/utils/backgroundPresets.js",
+        "resources/js/utils/featureTabs.js",
+        "resources/js/utils/iconPresets.js",
+        "resources/js/utils/industryGrid.js",
+        "resources/js/utils/media.js",
+        "resources/js/utils/publicCatalogCopy.js",
+        "resources/js/utils/publicCatalogSections.js",
+        "resources/js/utils/publicCopy.js",
+        "resources/js/utils/publicPageTemplates.js",
+        "resources/js/utils/publicResponsiveImages.js",
+        "resources/js/utils/publicSectionPresets.js",
+        "resources/js/utils/storyGrid.js",
+        "resources/js/utils/templatePlaceholderHtml.js",
+        "resources/js/utils/testimonialGrid.js",
+        "resources/views/campaigns/unsubscribed.blade.php"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 101,
+        "highRisk": 99,
+        "files": {
+          "resources/js/Components/MegaMenu/MegaMenuBlockRenderer.vue": {
+            "candidates": 2,
+            "highRisk": 0
+          },
+          "resources/js/Components/MegaMenu/MegaMenuDisplay.vue": {
+            "candidates": 1,
+            "highRisk": 1
+          },
+          "resources/js/Components/Public/FeatureTabsShowcaseSection.vue": {
+            "candidates": 7,
+            "highRisk": 7
+          },
+          "resources/js/Components/Public/PublicFooterMenu.vue": {
+            "candidates": 7,
+            "highRisk": 7
+          },
+          "resources/js/Components/Public/PublicFrontHero.vue": {
+            "candidates": 2,
+            "highRisk": 2
+          },
+          "resources/js/Components/Public/PublicSectionsRenderer.vue": {
+            "candidates": 27,
+            "highRisk": 27
+          },
+          "resources/js/Components/Public/PublicSiteHeader.vue": {
+            "candidates": 8,
+            "highRisk": 8
+          },
+          "resources/js/Components/UI/CookieBanner.vue": {
+            "candidates": 4,
+            "highRisk": 4
+          },
+          "resources/js/Pages/Public/Page.vue": {
+            "candidates": 32,
+            "highRisk": 32
+          },
+          "resources/js/utils/backgroundPresets.js": {
+            "candidates": 10,
+            "highRisk": 10
+          },
+          "resources/js/utils/publicCatalogSections.js": {
+            "candidates": 1,
+            "highRisk": 1
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M34",
+      "label": "Courriels et PDF",
+      "status": "pending",
+      "includes": [
+        "resources/views/campaigns/email-builder/**",
+        "resources/views/emails/**",
+        "resources/views/pdf/**"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 49,
+        "highRisk": 49,
+        "files": {
+          "resources/views/emails/billing/upcoming-reminder.blade.php": {
+            "candidates": 1,
+            "highRisk": 1
+          },
+          "resources/views/emails/demo_workspaces/access.blade.php": {
+            "candidates": 10,
+            "highRisk": 10
+          },
+          "resources/views/emails/layouts/base.blade.php": {
+            "candidates": 1,
+            "highRisk": 1
+          },
+          "resources/views/emails/notifications/action.blade.php": {
+            "candidates": 1,
+            "highRisk": 1
+          },
+          "resources/views/emails/onboarding/welcome.blade.php": {
+            "candidates": 10,
+            "highRisk": 10
+          },
+          "resources/views/emails/partials/structured-hero.blade.php": {
+            "candidates": 9,
+            "highRisk": 9
+          },
+          "resources/views/emails/quotes/send.blade.php": {
+            "candidates": 1,
+            "highRisk": 1
+          },
+          "resources/views/emails/social/approval-requested.blade.php": {
+            "candidates": 1,
+            "highRisk": 1
+          },
+          "resources/views/pdf/invoice-clean.blade.php": {
+            "candidates": 5,
+            "highRisk": 5
+          },
+          "resources/views/pdf/invoice-minimal.blade.php": {
+            "candidates": 1,
+            "highRisk": 1
+          },
+          "resources/views/pdf/invoice.blade.php": {
+            "candidates": 3,
+            "highRisk": 3
+          },
+          "resources/views/pdf/order.blade.php": {
+            "candidates": 3,
+            "highRisk": 3
+          },
+          "resources/views/pdf/sale-receipt.blade.php": {
+            "candidates": 3,
+            "highRisk": 3
+          }
+        }
+      },
+      "exceptions": []
+    },
+    {
+      "key": "M35",
+      "label": "Plateforme, isolation et code dormant",
+      "status": "pending",
+      "includes": [
+        "resources/js/Components/Demo/**",
+        "resources/js/Components/Legal/**",
+        "resources/js/Components/MegaMenu/MegaMenuBlockPayloadEditor.vue",
+        "resources/js/Components/UI/Areachart.vue",
+        "resources/js/Components/UI/Barchart.vue",
+        "resources/js/Components/UI/LineChart.vue",
+        "resources/js/Components/UI/PlatformCardTabs.vue",
+        "resources/js/Pages/Demo/**",
+        "resources/js/Pages/Pricing.vue",
+        "resources/js/Pages/Privacy.vue",
+        "resources/js/Pages/Refund.vue",
+        "resources/js/Pages/SuperAdmin/**",
+        "resources/js/Pages/Terms.vue",
+        "resources/js/Pages/Welcome.vue",
+        "resources/js/utils/megaMenuBuilder.js",
+        "resources/views/app.blade.php",
+        "resources/views/auth/**"
+      ],
+      "excludes": [],
+      "baseline": {
+        "candidates": 1213,
+        "highRisk": 656,
+        "files": {
+          "resources/js/Components/Demo/DemoBanner.vue": {
+            "candidates": 21,
+            "highRisk": 4
+          },
+          "resources/js/Components/Demo/DemoTourProvider.vue": {
+            "candidates": 15,
+            "highRisk": 5
+          },
+          "resources/js/Components/MegaMenu/MegaMenuBlockPayloadEditor.vue": {
+            "candidates": 118,
+            "highRisk": 118
+          },
+          "resources/js/Components/UI/Barchart.vue": {
+            "candidates": 321,
+            "highRisk": 140
+          },
+          "resources/js/Components/UI/LineChart.vue": {
+            "candidates": 321,
+            "highRisk": 140
+          },
+          "resources/js/Components/UI/PlatformCardTabs.vue": {
+            "candidates": 10,
+            "highRisk": 2
+          },
+          "resources/js/Pages/Demo/Checklist.vue": {
+            "candidates": 13,
+            "highRisk": 3
+          },
+          "resources/js/Pages/Demo/Index.vue": {
+            "candidates": 8,
+            "highRisk": 5
+          },
+          "resources/js/Pages/Pricing.vue": {
+            "candidates": 21,
+            "highRisk": 14
+          },
+          "resources/js/Pages/SuperAdmin/Admins/Index.vue": {
+            "candidates": 11,
+            "highRisk": 6
+          },
+          "resources/js/Pages/SuperAdmin/Announcements/Index.vue": {
+            "candidates": 11,
+            "highRisk": 6
+          },
+          "resources/js/Pages/SuperAdmin/Assets/Index.vue": {
+            "candidates": 10,
+            "highRisk": 10
+          },
+          "resources/js/Pages/SuperAdmin/Dashboard.vue": {
+            "candidates": 22,
+            "highRisk": 9
+          },
+          "resources/js/Pages/SuperAdmin/DemoWorkspaces/Create.vue": {
+            "candidates": 50,
+            "highRisk": 20
+          },
+          "resources/js/Pages/SuperAdmin/DemoWorkspaces/Index.vue": {
+            "candidates": 14,
+            "highRisk": 4
+          },
+          "resources/js/Pages/SuperAdmin/DemoWorkspaces/Provisioning.vue": {
+            "candidates": 9,
+            "highRisk": 2
+          },
+          "resources/js/Pages/SuperAdmin/DemoWorkspaces/Show.vue": {
+            "candidates": 25,
+            "highRisk": 11
+          },
+          "resources/js/Pages/SuperAdmin/MegaMenus/Edit.vue": {
+            "candidates": 32,
+            "highRisk": 19
+          },
+          "resources/js/Pages/SuperAdmin/MegaMenus/Index.vue": {
+            "candidates": 19,
+            "highRisk": 12
+          },
+          "resources/js/Pages/SuperAdmin/MegaMenus/Preview.vue": {
+            "candidates": 3,
+            "highRisk": 2
+          },
+          "resources/js/Pages/SuperAdmin/Notifications/Edit.vue": {
+            "candidates": 2,
+            "highRisk": 2
+          },
+          "resources/js/Pages/SuperAdmin/Pages/Edit.vue": {
+            "candidates": 25,
+            "highRisk": 21
+          },
+          "resources/js/Pages/SuperAdmin/Pages/Index.vue": {
+            "candidates": 8,
+            "highRisk": 4
+          },
+          "resources/js/Pages/SuperAdmin/Sections/Edit.vue": {
+            "candidates": 14,
+            "highRisk": 14
+          },
+          "resources/js/Pages/SuperAdmin/Sections/Index.vue": {
+            "candidates": 6,
+            "highRisk": 2
+          },
+          "resources/js/Pages/SuperAdmin/Settings/Edit.vue": {
+            "candidates": 30,
+            "highRisk": 22
+          },
+          "resources/js/Pages/SuperAdmin/Support/Index.vue": {
+            "candidates": 12,
+            "highRisk": 10
+          },
+          "resources/js/Pages/SuperAdmin/Support/Show.vue": {
+            "candidates": 7,
+            "highRisk": 6
+          },
+          "resources/js/Pages/SuperAdmin/Tenants/Index.vue": {
+            "candidates": 7,
+            "highRisk": 2
+          },
+          "resources/js/Pages/SuperAdmin/Tenants/Show.vue": {
+            "candidates": 14,
+            "highRisk": 12
+          },
+          "resources/js/Pages/Welcome.vue": {
+            "candidates": 32,
+            "highRisk": 27
+          },
+          "resources/views/auth/facebook-data-deletion-status.blade.php": {
+            "candidates": 2,
+            "highRisk": 2
+          }
+        }
+      },
+      "exceptions": []
+    }
+  ]
+}
