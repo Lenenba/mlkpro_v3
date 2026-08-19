@@ -660,7 +660,7 @@ watch(
                 <header class="flex flex-wrap items-center justify-between gap-4 rounded-sm border border-stone-200 bg-white px-4 py-3 shadow-sm">
                     <div class="flex min-w-0 items-center gap-3">
                         <div class="min-w-0">
-                            <p class="truncate text-xs font-semibold uppercase tracking-wide text-primary-readable">{{ company.name }}</p>
+                            <p class="truncate text-xs font-semibold uppercase tracking-wide text-emerald-700">{{ company.name }}</p>
                             <h1 class="truncate text-xl font-semibold text-stone-950 sm:text-2xl">{{ link.name }}</h1>
                             <p v-if="link.description" class="mt-1 line-clamp-2 max-w-3xl text-sm text-stone-500">{{ link.description }}</p>
                         </div>
@@ -670,7 +670,7 @@ watch(
                             <Phone class="size-3.5" />
                             {{ company.phone }}
                         </span>
-                        <span class="inline-flex items-center gap-1 rounded-full bg-primary-soft px-3 py-1 text-primary-soft-foreground">
+                        <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">
                             <CalendarDays class="size-3.5" />
                             {{ timezone }}
                         </span>
@@ -688,7 +688,7 @@ watch(
                                 type="button"
                                 class="group flex items-center gap-2 rounded-sm px-2.5 py-2 text-left text-xs font-semibold transition"
                                 :class="index === currentStep
-                                    ? 'bg-primary text-primary-foreground shadow-sm'
+                                    ? 'bg-emerald-700 text-white shadow-sm'
                                     : index <= maxVisitedStep
                                         ? 'text-stone-700 hover:bg-stone-100'
                                         : 'cursor-default text-stone-400'"
@@ -698,9 +698,9 @@ watch(
                                 <span
                                     class="flex size-6 items-center justify-center rounded-full text-[11px]"
                                     :class="index === currentStep
-                                        ? 'bg-white text-primary-readable'
+                                        ? 'bg-white text-emerald-700'
                                         : index < maxVisitedStep || successPayload
-                                            ? 'bg-primary-soft text-primary-soft-foreground'
+                                            ? 'bg-emerald-100 text-emerald-700'
                                             : 'bg-stone-100 text-stone-400'"
                                 >
                                     <CheckCircle2 v-if="index < currentStep || (successPayload && index < steps.length - 1)" class="size-3.5" />
@@ -719,7 +719,7 @@ watch(
                         <section v-if="currentStepKey === 'service'" class="p-4 sm:p-6">
                             <div class="flex items-start justify-between gap-4">
                                 <div>
-                                    <p class="text-xs font-semibold uppercase tracking-wide text-primary-readable">Etape 1</p>
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Etape 1</p>
                                     <h2 class="mt-1 text-xl font-semibold text-stone-950">Choisissez le service</h2>
                                 </div>
                                 <Sparkles class="size-5 text-amber-500" />
@@ -730,9 +730,9 @@ watch(
                                     v-for="service in services"
                                     :key="`public-service-${service.id}`"
                                     type="button"
-                                    class="rounded-sm border p-4 text-left transition hover:border-primary-line hover:bg-primary-soft"
+                                    class="rounded-sm border p-4 text-left transition hover:border-emerald-500 hover:bg-emerald-50/50"
                                     :class="String(service.id) === selectedServiceId
-                                        ? 'border-primary-line bg-primary-soft shadow-sm'
+                                        ? 'border-emerald-600 bg-emerald-50 shadow-sm'
                                         : 'border-stone-200 bg-white'"
                                     @click="selectService(service)"
                                 >
@@ -741,7 +741,7 @@ watch(
                                             <h3 class="text-base font-semibold text-stone-950">{{ service.name }}</h3>
                                             <p class="mt-1 line-clamp-3 text-sm text-stone-500">{{ service.description || 'Service disponible sur reservation.' }}</p>
                                         </div>
-                                        <span class="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-primary-readable shadow-sm">
+                                        <span class="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-emerald-700 shadow-sm">
                                             {{ durationLabel(service.duration_minutes || durationMinutes) }}
                                         </span>
                                     </div>
@@ -765,7 +765,7 @@ watch(
                         <section v-else-if="currentStepKey === 'date'" class="p-4 sm:p-6">
                             <div class="flex flex-wrap items-start justify-between gap-4">
                                 <div>
-                                    <p class="text-xs font-semibold uppercase tracking-wide text-primary-readable">Etape 2</p>
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Etape 2</p>
                                     <h2 class="mt-1 text-xl font-semibold text-stone-950">Choisissez une date disponible</h2>
                                 </div>
                                 <div class="flex items-center gap-2">
@@ -790,10 +790,9 @@ watch(
                                         type="button"
                                         class="relative min-h-20 border-b border-r border-stone-100 p-2 text-left transition last:border-r-0"
                                         :class="[
-                                            day.selected ? 'bg-primary text-primary-foreground' : '',
-                                            !day.selected && day.available && !day.disabled ? 'bg-white hover:bg-primary-soft' : '',
-                                            !day.selected && day.disabled ? 'cursor-not-allowed bg-stone-50 text-stone-300' : '',
-                                            !day.selected && !day.disabled ? 'text-stone-800' : '',
+                                            day.selected ? 'bg-emerald-700 text-white' : '',
+                                            !day.selected && day.available && !day.disabled ? 'bg-white hover:bg-emerald-50' : '',
+                                            !day.selected && day.disabled ? 'cursor-not-allowed bg-stone-50 text-stone-300' : 'text-stone-800',
                                             !day.inCurrentMonth ? 'opacity-40' : '',
                                         ]"
                                         :aria-label="`${formatDateLong(day.key)} - ${day.available && !day.disabled ? 'disponible' : 'indisponible'}`"
@@ -805,9 +804,9 @@ watch(
                                         <span
                                             v-if="day.available && day.inCurrentMonth && !day.disabled"
                                             class="absolute bottom-2 left-2 h-1.5 w-8 rounded-full"
-                                            :class="day.selected ? 'bg-primary-foreground' : 'bg-emerald-500'"
+                                            :class="day.selected ? 'bg-white' : 'bg-emerald-500'"
                                         />
-                                        <span v-if="day.isToday" class="absolute right-2 top-2 size-1.5 rounded-full" :class="day.selected ? 'bg-primary-foreground' : 'bg-amber-500'" />
+                                        <span v-if="day.isToday" class="absolute right-2 top-2 size-1.5 rounded-full" :class="day.selected ? 'bg-white' : 'bg-amber-500'" />
                                     </button>
                                 </div>
                             </div>
@@ -815,14 +814,14 @@ watch(
                             <div class="mt-3 flex flex-wrap items-center gap-3 text-xs text-stone-500">
                                 <span class="inline-flex items-center gap-1"><span class="h-1.5 w-6 rounded-full bg-emerald-500" /> Disponible</span>
                                 <span class="inline-flex items-center gap-1"><span class="h-1.5 w-6 rounded-full bg-stone-300" /> Indisponible</span>
-                                <span v-if="monthLoading" class="inline-flex items-center gap-1 text-primary-readable"><Loader2 class="size-3.5 animate-spin" /> Chargement</span>
+                                <span v-if="monthLoading" class="inline-flex items-center gap-1 text-emerald-700"><Loader2 class="size-3.5 animate-spin" /> Chargement</span>
                             </div>
                         </section>
 
                         <section v-else-if="currentStepKey === 'time'" class="p-4 sm:p-6">
                             <div class="flex flex-wrap items-start justify-between gap-4">
                                 <div>
-                                    <p class="text-xs font-semibold uppercase tracking-wide text-primary-readable">Etape 3</p>
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Etape 3</p>
                                     <h2 class="mt-1 text-xl font-semibold text-stone-950">Choisissez un creneau</h2>
                                     <p class="mt-1 text-sm text-stone-500">{{ formatDateLong(selectedDate) }}</p>
                                 </div>
@@ -830,7 +829,7 @@ watch(
                             </div>
 
                             <div v-if="dayLoading" class="mt-8 flex items-center justify-center gap-2 rounded-sm border border-dashed border-stone-300 bg-stone-50 px-4 py-10 text-sm text-stone-500">
-                                <Loader2 class="size-4 animate-spin text-primary-readable" />
+                                <Loader2 class="size-4 animate-spin text-emerald-700" />
                                 Chargement des creneaux...
                             </div>
 
@@ -845,8 +844,8 @@ watch(
                                     type="button"
                                     class="rounded-sm border px-3 py-3 text-left transition"
                                     :class="selectedTime === option.starts_at
-                                        ? 'border-primary-line bg-primary-soft text-primary-soft-foreground shadow-sm'
-                                        : 'border-stone-200 bg-white text-stone-700 hover:border-primary-line'"
+                                        ? 'border-emerald-600 bg-emerald-50 text-emerald-900 shadow-sm'
+                                        : 'border-stone-200 bg-white text-stone-700 hover:border-emerald-400'"
                                     @click="selectTime(option)"
                                 >
                                     <span class="block text-base font-semibold">{{ option.time }}</span>
@@ -857,7 +856,7 @@ watch(
 
                         <section v-else-if="currentStepKey === 'person'" class="p-4 sm:p-6">
                             <div>
-                                <p class="text-xs font-semibold uppercase tracking-wide text-primary-readable">Etape 4</p>
+                                <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Etape 4</p>
                                 <h2 class="mt-1 text-xl font-semibold text-stone-950">Choisissez la personne</h2>
                                 <p class="mt-1 text-sm text-stone-500">{{ formatDateLong(selectedDate) }} a {{ selectedSlot?.time || '-' }}</p>
                             </div>
@@ -865,12 +864,12 @@ watch(
                             <div class="mt-5 grid gap-3 md:grid-cols-2">
                                 <button
                                     type="button"
-                                    class="rounded-sm border p-4 text-left transition hover:border-primary-line"
-                                    :class="selectedTeamMemberId === 'auto' ? 'border-primary-line bg-primary-soft shadow-sm' : 'border-stone-200 bg-white'"
+                                    class="rounded-sm border p-4 text-left transition hover:border-emerald-500"
+                                    :class="selectedTeamMemberId === 'auto' ? 'border-emerald-600 bg-emerald-50 shadow-sm' : 'border-stone-200 bg-white'"
                                     @click="selectPerson('auto')"
                                 >
                                     <div class="flex items-center gap-3">
-                                        <span class="flex size-10 items-center justify-center rounded-sm bg-primary text-primary-foreground">
+                                        <span class="flex size-10 items-center justify-center rounded-sm bg-emerald-700 text-white">
                                             <Sparkles class="size-5" />
                                         </span>
                                         <div>
@@ -884,8 +883,8 @@ watch(
                                     v-for="person in availablePeopleForSelectedTime"
                                     :key="`person-${person.id}`"
                                     type="button"
-                                    class="rounded-sm border p-4 text-left transition hover:border-primary-line"
-                                    :class="String(person.id) === selectedTeamMemberId ? 'border-primary-line bg-primary-soft shadow-sm' : 'border-stone-200 bg-white'"
+                                    class="rounded-sm border p-4 text-left transition hover:border-emerald-500"
+                                    :class="String(person.id) === selectedTeamMemberId ? 'border-emerald-600 bg-emerald-50 shadow-sm' : 'border-stone-200 bg-white'"
                                     @click="selectPerson(person.id)"
                                 >
                                     <div class="flex items-center gap-3">
@@ -903,7 +902,7 @@ watch(
 
                         <section v-else-if="currentStepKey === 'contact'" class="p-4 sm:p-6">
                             <div>
-                                <p class="text-xs font-semibold uppercase tracking-wide text-primary-readable">Etape 5</p>
+                                <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Etape 5</p>
                                 <h2 class="mt-1 text-xl font-semibold text-stone-950">Vos informations</h2>
                             </div>
 
@@ -935,7 +934,7 @@ watch(
 
                         <section v-else-if="currentStepKey === 'review'" class="p-4 sm:p-6">
                             <div>
-                                <p class="text-xs font-semibold uppercase tracking-wide text-primary-readable">Etape 6</p>
+                                <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Etape 6</p>
                                 <h2 class="mt-1 text-xl font-semibold text-stone-950">Verifiez votre reservation</h2>
                             </div>
 
@@ -1008,7 +1007,7 @@ watch(
                                 </button>
                                 <button
                                     type="button"
-                                    class="inline-flex items-center gap-2 rounded-sm bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
+                                    class="inline-flex items-center gap-2 rounded-sm bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
                                     :disabled="submitting || (currentStepKey === 'service' && !services.length)"
                                     @click="continueStep"
                                 >
@@ -1025,7 +1024,7 @@ watch(
                         <h2 class="text-sm font-semibold text-stone-950">Resume</h2>
                         <div class="mt-4 space-y-3 text-sm">
                             <div class="flex items-start gap-3">
-                                <span class="mt-0.5 flex size-8 items-center justify-center rounded-sm bg-primary-soft text-primary-soft-foreground">
+                                <span class="mt-0.5 flex size-8 items-center justify-center rounded-sm bg-emerald-50 text-emerald-700">
                                     <Sparkles class="size-4" />
                                 </span>
                                 <div class="min-w-0">

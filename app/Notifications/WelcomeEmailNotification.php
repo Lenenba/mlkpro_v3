@@ -63,8 +63,6 @@ class WelcomeEmailNotification extends Notification implements ShouldQueue
             ->view('emails.onboarding.welcome', [
                 'companyName' => $companyName,
                 'companyLogo' => $companyLogo,
-                'companyPrimaryColor' => $branding['primary_color'],
-                'companyPrimaryForegroundColor' => $branding['primary_foreground_color'],
                 'userName' => $userName,
                 'companyTypeLabel' => $companyTypeLabel,
                 'actionUrl' => $actionUrl,

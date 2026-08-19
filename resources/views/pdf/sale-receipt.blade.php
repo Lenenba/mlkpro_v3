@@ -1,7 +1,3 @@
-@php
-  $companyBranding = app(\App\Services\TenantBrandingResolver::class)->forAccountOwner($company);
-  $companyPrimaryColor = $companyBranding['primary_color'] ?? '#16A34A';
-@endphp
 <!doctype html>
 <html lang="fr">
   <head>
@@ -16,17 +12,11 @@
         font-family: DejaVu Sans, sans-serif;
         font-size: 10px;
         color: #1c1917;
-        background: #ffffff;
         margin: 0;
         padding: 0;
       }
       .center {
         text-align: center;
-      }
-      .brand-rule {
-        height: 3px;
-        background: {{ $companyPrimaryColor }};
-        margin-bottom: 8px;
       }
       .muted {
         color: #78716c;
@@ -109,6 +99,7 @@
   </head>
   <body>
     @php
+      $companyBranding = app(\App\Services\TenantBrandingResolver::class)->forAccountOwner($company);
       $companyName = $companyBranding['name'];
       $companyLogo = $companyBranding['custom_logo_url'];
       $companyLogoUrl = null;
@@ -155,7 +146,6 @@
       $balanceDue = max(0, (float) ($sale->total ?? 0) - $totalPaid);
     @endphp
 
-    <div class="brand-rule"></div>
     <div class="center">
       @if(! empty($companyLogoUrl))
         <img src="{{ $companyLogoUrl }}" alt="{{ $companyName }}" class="logo">

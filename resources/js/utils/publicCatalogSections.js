@@ -7,10 +7,6 @@ import {
     buildStoreFulfillmentSummaryCopy,
     buildStorePublicSectionsCopy,
 } from './publicCatalogCopy';
-import {
-    DEFAULT_COMPANY_PRIMARY_COLOR,
-    buildCompanyBrandPalette,
-} from './companyBrandTheme';
 
 const normalizeLocale = (locale = 'fr') => (
     String(locale || 'fr').toLowerCase().startsWith('fr')
@@ -95,14 +91,12 @@ export const publicCatalogStockImages = {
 
 export const buildPublicCatalogTheme = ({ accent, variant = 'store' } = {}) => {
     const isStore = variant === 'store';
-    const palette = buildCompanyBrandPalette({
-        primary_color: String(accent || '').trim() || DEFAULT_COMPANY_PRIMARY_COLOR,
-    }) || buildCompanyBrandPalette({ primary_color: DEFAULT_COMPANY_PRIMARY_COLOR });
+    const primaryColor = String(accent || '').trim() || (isStore ? '#15803d' : '#b45309');
 
     return {
-        primary_color: palette.primary,
-        primary_soft_color: palette.softLight,
-        primary_contrast_color: palette.foreground,
+        primary_color: primaryColor,
+        primary_soft_color: isStore ? '#dcfce7' : '#fef3c7',
+        primary_contrast_color: '#ffffff',
         background_color: '#ffffff',
         background_alt_color: isStore ? '#f5fdf7' : '#fffaf1',
         surface_color: '#ffffff',

@@ -39,15 +39,6 @@
                 'value' => $companyName ?? config('app.name'),
             ];
         }
-
-        $actionPrimaryColor = strtoupper(trim((string) ($companyPrimaryColor ?? '')));
-        $actionPrimaryForegroundColor = strtoupper(trim((string) ($companyPrimaryForegroundColor ?? '')));
-        $hasActionPrimaryColor = preg_match('/^#[0-9A-F]{6}$/', $actionPrimaryColor) === 1;
-        $actionPrimaryColor = $hasActionPrimaryColor ? $actionPrimaryColor : '#16A34A';
-        $actionPrimaryForegroundColor = $hasActionPrimaryColor
-            && preg_match('/^#[0-9A-F]{6}$/', $actionPrimaryForegroundColor) === 1
-                ? $actionPrimaryForegroundColor
-                : '#111827';
     @endphp
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
         <tr>
@@ -118,8 +109,8 @@
                 <td align="left">
                     <table role="presentation" cellpadding="0" cellspacing="0">
                         <tr>
-                            <td bgcolor="{{ $actionPrimaryColor }}" style="background-color:{{ $actionPrimaryColor }}; border-radius:3px;">
-                                <a href="{{ $actionUrl }}" style="display:inline-block; padding:10px 16px; font-size:14px; font-weight:600; color:{{ $actionPrimaryForegroundColor }}; text-decoration:none;">
+                            <td bgcolor="#16a34a" style="border-radius:3px;">
+                                <a href="{{ $actionUrl }}" style="display:inline-block; padding:10px 16px; font-size:14px; font-weight:600; color:#ffffff; text-decoration:none;">
                                     {{ $actionLabel ?? __('mail.action.open_cta') }}
                                 </a>
                             </td>

@@ -68,8 +68,6 @@ class ProspectFollowUpReminderNotification extends Notification implements Shoul
                 'note' => $this->note($isFr),
                 'companyName' => $branding['name'],
                 'companyLogo' => $branding['custom_logo_url'],
-                'companyPrimaryColor' => $branding['primary_color'],
-                'companyPrimaryForegroundColor' => $branding['primary_foreground_color'],
             ]);
     }
 

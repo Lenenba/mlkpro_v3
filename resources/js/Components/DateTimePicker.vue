@@ -85,8 +85,8 @@
                             :class="[
                                 'h-8 w-full rounded-sm text-sm focus:outline-none',
                                 formatDate(new Date(currentYear, currentMonth, day)) === dateValue
-                                    ? 'bg-primary text-primary-foreground'
-                                    : 'text-stone-800 hover:bg-primary-soft dark:text-neutral-200 dark:hover:bg-neutral-800'
+                                    ? 'bg-green-600 text-white'
+                                    : 'text-stone-800 hover:bg-green-100 dark:text-neutral-200 dark:hover:bg-neutral-800'
                             ]"
                         >
                             {{ day }}
@@ -101,7 +101,7 @@
                 <select
                     v-model="timeValue"
                     :disabled="disabled || !dateValue"
-                    class="mt-2 w-full rounded-sm border-stone-200 text-sm focus:border-primary-line focus:ring-primary-line dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:focus:border-primary-line dark:focus:ring-primary-line"
+                    class="mt-2 w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
                 >
                     <option v-if="!timeValue" value="">--:--</option>
                     <option v-for="option in timeOptions" :key="option" :value="option">{{ option }}</option>
@@ -254,8 +254,8 @@ const showClear = computed(() => !props.required && Boolean(dateValue.value || t
 
 const inputClasses = computed(() => ([
     'peer p-4 block w-full border border-stone-300 rounded-sm text-sm text-stone-700 bg-white shadow-sm',
-    'focus:outline-none focus:ring-2 focus:ring-primary-line focus:border-primary-line',
-    'dark:bg-neutral-800 dark:border-neutral-700 dark:text-white dark:focus:ring-primary-line dark:focus:border-primary-line',
+    'focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500',
+    'dark:bg-neutral-800 dark:border-neutral-700 dark:text-white dark:focus:ring-green-500',
     'placeholder-transparent',
     'focus:pt-6 focus:pb-2',
     '[&:not(:placeholder-shown)]:pt-6 [&:not(:placeholder-shown)]:pb-2',

@@ -140,7 +140,7 @@ const isCustomerActive = computed(() => {
                             :href="route(homeRoute)"
                             :link-label="tenantBrand.name || 'Malikia Pro'"
                             container-class="h-14 w-14 p-1"
-                            class="flex-none focus:outline-none focus:ring-2 focus:ring-primary-line focus:ring-offset-2"
+                            class="flex-none focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
                         />
                         <a
                             v-else

@@ -51,30 +51,10 @@ test('transactional email layout keeps tenant text dominant with a localized pla
     'spanish' => ['es', 'Impulsado por Malikia Pro'],
 ]);
 
-test('tenant transactional email uses its primary color for brand accents and readable actions', function () {
-    $html = view('emails.notifications.action', [
-        'companyName' => 'Entreprise Soleil',
-        'companyLogo' => null,
-        'companyPrimaryColor' => '#FACC15',
-        'companyPrimaryForegroundColor' => '#111827',
-        'title' => 'Mise à jour',
-        'intro' => 'Un résumé est disponible.',
-        'details' => [],
-        'actionUrl' => 'https://app.example.test/action',
-        'actionLabel' => 'Continuer',
-    ])->render();
-
-    expect($html)->toContain('border-top:4px solid #FACC15')
-        ->and($html)->toContain('background-color:#FACC15')
-        ->and($html)->toContain('bgcolor="#FACC15"')
-        ->and($html)->toContain('color:#111827');
-});
-
 test('supplier emails use the account owner branding when sent by an employee', function () {
     $owner = User::factory()->create([
         'company_name' => 'Marché Boréal',
         'company_logo' => 'https://assets.example.test/marche-boreal.png',
-        'company_branding_settings' => ['primary_color' => '#FACC15'],
     ]);
     $employeeRole = Role::query()->firstOrCreate(
         ['name' => 'employee'],
@@ -118,8 +98,6 @@ test('supplier emails use the account owner branding when sent by an employee', 
 
         expect($mail->viewData['companyName'])->toBe('Marché Boréal')
             ->and($mail->viewData['companyLogo'])->toBe('https://assets.example.test/marche-boreal.png')
-            ->and($mail->viewData['companyPrimaryColor'])->toBe('#FACC15')
-            ->and($mail->viewData['companyPrimaryForegroundColor'])->toBe('#111827')
             ->and($mail->replyTo)->toBe([[$owner->email, 'Marché Boréal']]);
     }
 });
@@ -128,7 +106,6 @@ test('authentication emails use tenant branding for employees and platform brand
     $owner = User::factory()->create([
         'company_name' => 'Maison Boréale',
         'company_logo' => 'https://assets.example.test/maison-boreale.png',
-        'company_branding_settings' => ['primary_color' => '#2563EB'],
     ]);
     $employeeRole = Role::query()->firstOrCreate(
         ['name' => 'employee'],
@@ -156,9 +133,7 @@ test('authentication emails use tenant branding for employees and platform brand
         $mail = $notification->toMail($employee);
 
         expect($mail->viewData['companyName'])->toBe('Maison Boréale')
-            ->and($mail->viewData['companyLogo'])->toBe('https://assets.example.test/maison-boreale.png')
-            ->and($mail->viewData['companyPrimaryColor'])->toBe('#2563EB')
-            ->and($mail->viewData['companyPrimaryForegroundColor'])->toBe('#FFFFFF');
+            ->and($mail->viewData['companyLogo'])->toBe('https://assets.example.test/maison-boreale.png');
     }
 
     $adminRole = Role::query()->firstOrCreate(
@@ -175,9 +150,7 @@ test('authentication emails use tenant branding for employees and platform brand
         $mail = $notification->toMail($platformAdmin);
 
         expect($mail->viewData['companyName'])->toBe(config('app.name'))
-            ->and($mail->viewData['companyLogo'])->toBeNull()
-            ->and($mail->viewData['companyPrimaryColor'])->toBeNull()
-            ->and($mail->viewData['companyPrimaryForegroundColor'])->toBeNull();
+            ->and($mail->viewData['companyLogo'])->toBeNull();
     }
 });
 
@@ -185,7 +158,6 @@ test('routed action emails and invitations keep explicit account owner branding'
     $owner = User::factory()->create([
         'company_name' => 'Maison des Rendez-vous',
         'company_logo' => 'https://assets.example.test/maison-rendez-vous.png',
-        'company_branding_settings' => ['primary_color' => '#7C3AED'],
     ]);
     $recipient = User::factory()->create();
 
@@ -203,9 +175,7 @@ test('routed action emails and invitations keep explicit account owner branding'
 
     foreach ([$actionMail, $inviteMail] as $mail) {
         expect($mail->viewData['companyName'])->toBe('Maison des Rendez-vous')
-            ->and($mail->viewData['companyLogo'])->toBe('https://assets.example.test/maison-rendez-vous.png')
-            ->and($mail->viewData['companyPrimaryColor'])->toBe('#7C3AED')
-            ->and($mail->viewData['companyPrimaryForegroundColor'])->toBe('#FFFFFF');
+            ->and($mail->viewData['companyLogo'])->toBe('https://assets.example.test/maison-rendez-vous.png');
     }
 });
 
@@ -222,8 +192,6 @@ test('platform emails ignore tenant branding snapshots after queue serialization
     $billingReminder = new UpcomingBillingReminderNotification([
         'companyName' => 'Stale Tenant Snapshot',
         'companyLogo' => $staleTenantLogo,
-        'companyPrimaryColor' => '#EF4444',
-        'companyPrimaryForegroundColor' => '#FFFFFF',
         'recipientName' => $recipient->name,
         'billingDate' => '2026-09-01',
         'billingDateLabel' => 'Sep 1, 2026',
@@ -257,12 +225,9 @@ test('platform emails ignore tenant branding snapshots after queue serialization
 
         expect($mail->viewData['companyName'])->toBe('Malikia Pro')
             ->and($mail->viewData['companyLogo'])->toBeNull()
-            ->and($mail->viewData['companyPrimaryColor'])->toBeNull()
-            ->and($mail->viewData['companyPrimaryForegroundColor'])->toBeNull()
             ->and($mail->viewData['showPoweredBy'])->toBeFalse()
             ->and($html)->toContain('/brand/bimi-logo.svg')
             ->and($html)->not->toContain($staleTenantLogo)
-            ->and($html)->not->toContain('#EF4444')
             ->and(substr_count($html, __('mail.layout.powered_by', ['platform' => 'Malikia Pro'])))->toBe(0);
     }
 
@@ -305,7 +270,6 @@ test('legacy queued action and invitation payloads keep safe branding fallbacks'
     $owner = User::factory()->create([
         'company_name' => 'Legacy Workspace',
         'company_logo' => 'https://assets.example.test/legacy-workspace.png',
-        'company_branding_settings' => ['primary_color' => '#0F766E'],
     ]);
 
     $legacyAction = new ActionEmailNotification(title: 'Legacy action');
@@ -341,11 +305,7 @@ test('legacy queued action and invitation payloads keep safe branding fallbacks'
 
     expect($legacyActionMail->viewData['companyName'])->toBe('Legacy Workspace')
         ->and($legacyActionMail->viewData['companyLogo'])->toBe('https://assets.example.test/legacy-workspace.png')
-        ->and($legacyActionMail->viewData['companyPrimaryColor'])->toBe('#0F766E')
-        ->and($legacyActionMail->viewData['companyPrimaryForegroundColor'])->toBe('#FFFFFF')
         ->and($legacyInviteMail->viewData['companyName'])->toBe('Legacy Invite Workspace')
-        ->and($legacyInviteMail->viewData['companyPrimaryColor'])->toBeNull()
-        ->and($legacyInviteMail->viewData['companyPrimaryForegroundColor'])->toBeNull()
         ->and($inviteHtml)->toContain('/brand/bimi-logo.svg')
         ->and(substr_count($inviteHtml, __('mail.layout.powered_by', ['platform' => 'Malikia Pro'])))->toBe(1);
 });
@@ -354,7 +314,6 @@ test('crm and onboarding notifications retain workspace branding after serializa
     $owner = User::factory()->create([
         'company_name' => 'CRM Atelier',
         'company_logo' => 'https://assets.example.test/crm-atelier.png',
-        'company_branding_settings' => ['primary_color' => '#0F766E'],
     ]);
     $customer = Customer::factory()->create(['user_id' => $owner->id]);
     $lead = LeadRequest::query()->create([
@@ -398,9 +357,7 @@ test('crm and onboarding notifications retain workspace branding after serializa
         $mail = unserialize(serialize($notification))->toMail($owner);
 
         expect($mail->viewData['companyName'])->toBe('CRM Atelier')
-            ->and($mail->viewData['companyLogo'])->toBe('https://assets.example.test/crm-atelier.png')
-            ->and($mail->viewData['companyPrimaryColor'])->toBe('#0F766E')
-            ->and($mail->viewData['companyPrimaryForegroundColor'])->toBe('#FFFFFF');
+            ->and($mail->viewData['companyLogo'])->toBe('https://assets.example.test/crm-atelier.png');
     }
 });
 

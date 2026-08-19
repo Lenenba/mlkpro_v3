@@ -192,7 +192,7 @@ const companyName = computed(() => props.company?.name || t('public_quote.compan
                         <button
                             type="submit"
                             :disabled="!allowAccept || form.processing"
-                            class="inline-flex items-center rounded-sm border border-transparent bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
+                            class="inline-flex items-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
                         >
                             {{ t('public_quote.actions.accept') }}
                         </button>

@@ -10,13 +10,6 @@
     $companyLogo = is_string($companyLogo ?? null) ? trim($companyLogo) : null;
     $showPoweredBy = (bool) ($showPoweredBy ?? true);
     $platformName = 'Malikia Pro';
-    $rawCompanyPrimaryColor = strtoupper(trim((string) ($companyPrimaryColor ?? '')));
-    $rawCompanyPrimaryForegroundColor = strtoupper(trim((string) ($companyPrimaryForegroundColor ?? '')));
-    $hasCompanyPrimaryColor = preg_match('/^#[0-9A-F]{6}$/', $rawCompanyPrimaryColor) === 1;
-    $companyPrimaryColor = $hasCompanyPrimaryColor ? $rawCompanyPrimaryColor : '#16A34A';
-    $companyPrimaryForegroundColor = preg_match('/^#[0-9A-F]{6}$/', $rawCompanyPrimaryForegroundColor) === 1
-        ? $rawCompanyPrimaryForegroundColor
-        : '#111827';
     $resolveEmailImage = static function (?string $path): ?string {
         if (blank($path)) {
             return null;
@@ -53,7 +46,7 @@
                 <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="width:640px; max-width:640px; font-family:Arial, sans-serif; color:#292524;">
                     <tr>
                         <td style="padding-bottom:12px;">
-                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border:1px solid #e2e8f0;{{ $hasCompanyPrimaryColor ? ' border-top:4px solid '.$companyPrimaryColor.';' : '' }} border-radius:3px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border:1px solid #e2e8f0; border-radius:3px;">
                                 <tr>
                                     <td style="padding:18px 20px;">
                                         <table role="presentation" cellpadding="0" cellspacing="0">

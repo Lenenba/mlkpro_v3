@@ -395,7 +395,7 @@ class CustomerPackageAutomationService
             ->whereDate('next_renewal_at', '<=', $today->toDateString())
             ->with([
                 'customer.portalUser:id,role_id,locale,notification_settings',
-                'customer.user:id,locale,company_name,company_logo,company_notification_settings,company_branding_settings',
+                'customer.user:id,locale,company_name,company_logo,company_notification_settings',
                 'customer:id,user_id,portal_user_id,portal_access,first_name,last_name,company_name,email',
                 'user:id,name',
                 'offerPackage:id,name,metadata',
@@ -452,7 +452,7 @@ class CustomerPackageAutomationService
             ->where('recurrence_status', CustomerPackage::RECURRENCE_SUSPENDED)
             ->with([
                 'customer.portalUser:id,role_id,locale,notification_settings',
-                'customer.user:id,locale,company_name,company_logo,company_notification_settings,company_branding_settings',
+                'customer.user:id,locale,company_name,company_logo,company_notification_settings',
                 'customer:id,user_id,portal_user_id,portal_access,first_name,last_name,company_name,email',
                 'user:id,name',
                 'offerPackage:id,name,metadata',

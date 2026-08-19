@@ -307,7 +307,7 @@ const proofType = (type) => {
                 <div>
                     <label class="block text-xs text-stone-500">{{ $t('work_proofs.proof.note_optional') }}</label>
                     <input v-model="form.note" type="text"
-                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-primary-line focus:ring-primary-line" />
+                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-emerald-600 focus:ring-emerald-600" />
                     <div v-if="form.errors.note" class="mt-1 text-xs text-red-600">
                         {{ form.errors.note }}
                     </div>
@@ -319,7 +319,7 @@ const proofType = (type) => {
                         {{ $t('work_proofs.actions.cancel') }}
                     </button>
                     <button type="submit" :disabled="form.processing"
-                        class="py-2 px-3 text-xs font-medium rounded-sm border border-transparent bg-primary text-primary-foreground hover:bg-primary-hover disabled:pointer-events-none disabled:opacity-50">
+                        class="py-2 px-3 text-xs font-medium rounded-sm border border-transparent bg-emerald-600 text-white hover:bg-emerald-700 disabled:pointer-events-none disabled:opacity-50">
                         {{ $t('work_proofs.actions.upload') }}
                     </button>
                 </div>

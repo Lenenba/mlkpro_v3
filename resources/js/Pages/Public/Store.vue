@@ -23,7 +23,6 @@ import {
     buildStorePublicSections,
     publicCatalogStockImages,
 } from '@/utils/publicCatalogSections';
-import { DEFAULT_COMPANY_PRIMARY_COLOR } from '@/utils/companyBrandTheme';
 import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
@@ -610,9 +609,7 @@ const relatedProducts = computed(() => {
 const headerColor = computed(() => company.value?.store_settings?.header_color || '');
 const headerIsCustom = computed(() => Boolean(headerColor.value));
 const headerStyle = computed(() => (headerIsCustom.value ? { backgroundColor: headerColor.value } : {}));
-const storeAccent = computed(() => String(
-    headerColor.value || company.value?.primary_color || DEFAULT_COMPANY_PRIMARY_COLOR,
-).trim() || DEFAULT_COMPANY_PRIMARY_COLOR);
+const storeAccent = computed(() => String(headerColor.value || '#15803d').trim() || '#15803d');
 const heroAccentStyle = computed(() => (
     { '--hero-accent': storeAccent.value }
 ));
@@ -1447,7 +1444,7 @@ const submitCheckout = async () => {
                                         type="button"
                                         class="rounded-sm border px-2.5 py-1 text-xs font-semibold transition"
                                         :class="sortOption === option.value
-                                            ? 'border-primary-line bg-primary-soft text-primary-soft-foreground'
+                                            ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
                                             : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-white'"
                                         @click="sortOption = option.value"
                                     >
@@ -1710,7 +1707,7 @@ const submitCheckout = async () => {
                                     v-if="deliveryEnabled"
                                     type="button"
                                     class="flex w-full items-center justify-between rounded-sm border px-3 py-2 text-left text-sm transition"
-                                    :class="fulfillmentMethod === 'delivery' ? 'border-primary-line bg-primary-soft text-primary-soft-foreground' : 'border-slate-200 text-slate-600 hover:border-slate-300'"
+                                    :class="fulfillmentMethod === 'delivery' ? 'border-emerald-400 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-600 hover:border-slate-300'"
                                     @click="setFulfillmentMethod('delivery')"
                                 >
                                     <span class="flex items-center gap-2">
@@ -1728,7 +1725,7 @@ const submitCheckout = async () => {
                                     v-if="pickupEnabled"
                                     type="button"
                                     class="flex w-full items-center justify-between rounded-sm border px-3 py-2 text-left text-sm transition"
-                                    :class="fulfillmentMethod === 'pickup' ? 'border-primary-line bg-primary-soft text-primary-soft-foreground' : 'border-slate-200 text-slate-600 hover:border-slate-300'"
+                                    :class="fulfillmentMethod === 'pickup' ? 'border-emerald-400 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-600 hover:border-slate-300'"
                                     @click="setFulfillmentMethod('pickup')"
                                 >
                                     <span class="flex items-center gap-2">
@@ -1823,7 +1820,7 @@ const submitCheckout = async () => {
                             :label="t('public_store.notes.customer_notes')"
                         />
                         <label class="flex items-center gap-2 text-xs font-semibold text-slate-600">
-                            <input v-model="checkoutForm.substitution_allowed" type="checkbox" class="rounded border-slate-300 text-primary-checked focus:ring-primary-line">
+                            <input v-model="checkoutForm.substitution_allowed" type="checkbox" class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
                             {{ t('public_store.notes.substitution_allowed') }}
                         </label>
                         <FloatingTextarea
@@ -1833,7 +1830,7 @@ const submitCheckout = async () => {
                     </div>
                     <button
                         type="button"
-                        class="rounded-sm bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+                        class="rounded-sm bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
                         :disabled="checkoutProcessing || isInternalUser || fulfillmentUnavailable"
                         @click="submitCheckout"
                     >
@@ -1890,7 +1887,7 @@ const submitCheckout = async () => {
                             :key="`${image}-${index}`"
                             type="button"
                             class="h-12 w-12 overflow-hidden rounded-sm border border-slate-200"
-                            :class="{ 'ring-2 ring-primary-line': image === activeImageSrc }"
+                            :class="{ 'ring-2 ring-emerald-400': image === activeImageSrc }"
                             @click="setActiveImage(image)"
                         >
                             <img :src="image" :alt="selectedProduct.name" class="h-full w-full object-cover" loading="lazy" decoding="async">
@@ -1964,7 +1961,7 @@ const submitCheckout = async () => {
                         <button
                             v-if="cartQuantity(selectedProduct.id) === 0"
                             type="button"
-                            class="rounded-sm bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-hover"
+                            class="rounded-sm bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
                             :disabled="selectedProduct.stock <= 0"
                             @click="addToCart(selectedProduct)"
                         >

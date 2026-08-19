@@ -49,8 +49,6 @@ class PlatformAdminDigestNotification extends Notification implements ShouldQueu
                 'generatedAt' => now(),
                 'companyName' => config('app.name'),
                 'companyLogo' => null,
-                'companyPrimaryColor' => null,
-                'companyPrimaryForegroundColor' => null,
                 'showPoweredBy' => false,
                 'supportEmail' => config('mail.from.address'),
             ]);

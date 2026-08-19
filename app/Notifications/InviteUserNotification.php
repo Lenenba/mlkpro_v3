@@ -85,8 +85,6 @@ class InviteUserNotification extends Notification implements ShouldQueue
             ->view('emails.auth.invite', [
                 'companyName' => $companyName,
                 'companyLogo' => $companyLogo,
-                'companyPrimaryColor' => $branding['primary_color'] ?? null,
-                'companyPrimaryForegroundColor' => $branding['primary_foreground_color'] ?? null,
                 'actionUrl' => $actionUrl,
                 'expires' => $expires,
                 'roleLabel' => $roleLabel,

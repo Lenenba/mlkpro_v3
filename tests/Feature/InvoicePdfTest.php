@@ -279,7 +279,6 @@ test('all invoice templates render snapshot taxes net tips and net charged total
     $owner = User::factory()->create([
         'company_name' => 'Atelier Boréal',
         'company_logo' => 'https://assets.example.test/atelier-boreal-wide.png',
-        'company_branding_settings' => ['primary_color' => '#1D4ED8'],
     ]);
     $customer = Customer::factory()->create(['user_id' => $owner->id]);
     $work = Work::factory()->create([
@@ -336,7 +335,6 @@ test('all invoice templates render snapshot taxes net tips and net charged total
             ->and($html)->toContain('45.49')
             ->and($html)->toContain('Atelier Boréal')
             ->and($html)->toContain('https://assets.example.test/atelier-boreal-wide.png')
-            ->and($html)->toContain('#1D4ED8')
             ->and($html)->toContain('object-fit: contain')
             ->and($html)->not->toContain('customers/customer.png');
     }

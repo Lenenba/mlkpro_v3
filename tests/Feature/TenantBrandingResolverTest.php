@@ -17,26 +17,6 @@ function tenantBrandingRoleId(string $name): int
     )->id;
 }
 
-/**
- * @return array{
- *     primary_color: string,
- *     primary_hover_color: string,
- *     primary_focus_color: string,
- *     primary_foreground_color: string,
- *     has_custom_primary_color: bool
- * }
- */
-function tenantBrandingDefaultPalette(): array
-{
-    return [
-        'primary_color' => '#16A34A',
-        'primary_hover_color' => '#32AE60',
-        'primary_focus_color' => '#49B772',
-        'primary_foreground_color' => '#111827',
-        'has_custom_primary_color' => false,
-    ];
-}
-
 test('tenant branding exposes only a real custom company logo', function () {
     $owner = User::factory()->create([
         'role_id' => tenantBrandingRoleId('owner'),
@@ -47,11 +27,11 @@ test('tenant branding exposes only a real custom company logo', function () {
 
     $branding = app(TenantBrandingResolver::class)->resolve($owner);
 
-    expect($branding)->toBe(array_merge([
+    expect($branding)->toBe([
         'name' => 'Acme Studio',
         'custom_logo_url' => Storage::disk('public')->url('company/logos/acme.png'),
         'has_custom_logo' => true,
-    ], tenantBrandingDefaultPalette()));
+    ]);
 });
 
 test('tenant branding rejects legacy placeholders and unsafe logo values', function (mixed $logo) {
@@ -63,11 +43,11 @@ test('tenant branding rejects legacy placeholders and unsafe logo values', funct
     ]);
     $owner->company_logo = $logo;
 
-    expect(app(TenantBrandingResolver::class)->resolve($owner))->toBe(array_merge([
+    expect(app(TenantBrandingResolver::class)->resolve($owner))->toBe([
         'name' => 'Fallback Owner',
         'custom_logo_url' => null,
         'has_custom_logo' => false,
-    ], tenantBrandingDefaultPalette()));
+    ]);
 })->with([
     'missing logo' => null,
     'blank logo' => '   ',
@@ -78,54 +58,16 @@ test('tenant branding rejects legacy placeholders and unsafe logo values', funct
     'malformed HTTPS URL' => 'https://',
 ]);
 
-test('tenant branding normalizes a custom primary color and derives an accessible palette', function () {
-    $owner = User::factory()->create([
-        'role_id' => tenantBrandingRoleId('owner'),
-        'company_name' => 'Palette Studio',
-        'company_branding_settings' => [
-            'primary_color' => ' #123abc ',
-        ],
-    ]);
-
-    expect(app(TenantBrandingResolver::class)->resolve($owner))->toMatchArray([
-        'primary_color' => '#123ABC',
-        'primary_hover_color' => '#1033A5',
-        'primary_focus_color' => '#0E2D93',
-        'primary_foreground_color' => '#FFFFFF',
-        'has_custom_primary_color' => true,
-    ]);
-});
-
-test('tenant branding falls back safely when a stored primary color is invalid', function (mixed $primaryColor) {
-    $owner = User::factory()->create([
-        'role_id' => tenantBrandingRoleId('owner'),
-        'company_branding_settings' => [
-            'primary_color' => $primaryColor,
-        ],
-    ]);
-
-    expect(app(TenantBrandingResolver::class)->resolve($owner))->toMatchArray(
-        tenantBrandingDefaultPalette()
-    );
-})->with([
-    'missing value' => null,
-    'short hex' => '#ABC',
-    'named color' => 'red',
-    'css injection' => '#123456; color: red',
-]);
-
 test('tenant branding resolves the account owner for an employee', function () {
     $owner = User::factory()->create([
         'role_id' => tenantBrandingRoleId('owner'),
         'company_name' => 'Northwind Services',
         'company_logo' => 'https://example.com/northwind.png',
-        'company_branding_settings' => ['primary_color' => '#123ABC'],
     ]);
     $employee = User::factory()->create([
         'role_id' => tenantBrandingRoleId('employee'),
         'company_name' => 'Incorrect Employee Brand',
         'company_logo' => 'https://example.com/employee.png',
-        'company_branding_settings' => ['primary_color' => '#FDE047'],
     ]);
     TeamMember::factory()->create([
         'account_id' => $owner->id,
@@ -140,11 +82,6 @@ test('tenant branding resolves the account owner for an employee', function () {
             'name' => 'Northwind Services',
             'custom_logo_url' => 'https://example.com/northwind.png',
             'has_custom_logo' => true,
-            'primary_color' => '#123ABC',
-            'primary_hover_color' => '#1033A5',
-            'primary_focus_color' => '#0E2D93',
-            'primary_foreground_color' => '#FFFFFF',
-            'has_custom_primary_color' => true,
         ]);
 });
 
@@ -153,13 +90,11 @@ test('tenant branding resolves the owning workspace for a portal client', functi
         'role_id' => tenantBrandingRoleId('owner'),
         'company_name' => 'Portal Workspace',
         'company_logo' => 'https://example.com/portal-workspace.png',
-        'company_branding_settings' => ['primary_color' => '#FDE047'],
     ]);
     $client = User::factory()->create([
         'role_id' => tenantBrandingRoleId('client'),
         'company_name' => 'Incorrect Client Brand',
         'company_logo' => 'https://example.com/client.png',
-        'company_branding_settings' => ['primary_color' => '#123ABC'],
     ]);
     Customer::factory()->create([
         'user_id' => $owner->id,
@@ -175,11 +110,6 @@ test('tenant branding resolves the owning workspace for a portal client', functi
             'name' => 'Portal Workspace',
             'custom_logo_url' => 'https://example.com/portal-workspace.png',
             'has_custom_logo' => true,
-            'primary_color' => '#FDE047',
-            'primary_hover_color' => '#FDE45D',
-            'primary_focus_color' => '#FDE76F',
-            'primary_foreground_color' => '#111827',
-            'has_custom_primary_color' => true,
         ]);
 });
 
@@ -190,7 +120,6 @@ test('inertia shares the normalized tenant branding contract', function () {
         'company_type' => 'services',
         'company_sector' => 'field_services',
         'company_logo' => 'customers/customer.png',
-        'company_branding_settings' => ['primary_color' => '#123ABC'],
         'company_features' => [
             'invoices' => true,
         ],
@@ -206,10 +135,5 @@ test('inertia shares the normalized tenant branding contract', function () {
             ->where('auth.account.company.name', 'Shared Branding Co.')
             ->where('auth.account.company.logo_url', null)
             ->where('auth.account.company.custom_logo_url', null)
-            ->where('auth.account.company.has_custom_logo', false)
-            ->where('auth.account.company.primary_color', '#123ABC')
-            ->where('auth.account.company.primary_hover_color', '#1033A5')
-            ->where('auth.account.company.primary_focus_color', '#0E2D93')
-            ->where('auth.account.company.primary_foreground_color', '#FFFFFF')
-            ->where('auth.account.company.has_custom_primary_color', true));
+            ->where('auth.account.company.has_custom_logo', false));
 });

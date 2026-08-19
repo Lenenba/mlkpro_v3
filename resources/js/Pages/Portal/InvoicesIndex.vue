@@ -183,7 +183,7 @@ const paymentChargedTotal = (payment) => {
                             :href="invoice.receipt_url"
                             target="_blank"
                             rel="noopener"
-                            class="inline-flex items-center rounded-sm border border-primary-line bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary-hover"
+                            class="inline-flex items-center rounded-sm border border-emerald-600 bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700"
                         >
                             {{ $t('invoices.show.download_pdf') }}
                         </a>
@@ -203,7 +203,7 @@ const paymentChargedTotal = (payment) => {
                         preserve-scroll
                         class="rounded-sm border px-3 py-2 text-sm"
                         :class="link.active
-                            ? 'border-primary-line bg-primary text-primary-foreground'
+                            ? 'border-emerald-600 bg-emerald-600 text-white'
                             : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800'"
                     >
                         <span v-html="link.label"></span>

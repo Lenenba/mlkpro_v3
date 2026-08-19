@@ -1,8 +1,3 @@
-@php
-  $companyBranding = app(\App\Services\TenantBrandingResolver::class)->forAccountOwner($company);
-  $companyPrimaryColor = $companyBranding['primary_color'] ?? '#16A34A';
-  $companyPrimaryForegroundColor = $companyBranding['primary_foreground_color'] ?? '#111827';
-@endphp
 <!doctype html>
 <html lang="fr">
   <head>
@@ -22,7 +17,6 @@
       }
       .panel {
         border: 1px solid #f5f5f4;
-        border-top: 4px solid {{ $companyPrimaryColor }};
         background: #f5f5f4;
         padding: 16px;
         border-radius: 3px;
@@ -213,8 +207,8 @@
       .btn-primary {
         display: inline-block;
         padding: 6px 10px;
-        background: {{ $companyPrimaryColor }};
-        color: {{ $companyPrimaryForegroundColor }};
+        background: #16a34a;
+        color: #ffffff;
         border-radius: 3px;
         font-size: 10px;
         font-weight: 600;
@@ -227,6 +221,7 @@
   </head>
   <body>
     @php
+      $companyBranding = app(\App\Services\TenantBrandingResolver::class)->forAccountOwner($company);
       $companyName = $companyBranding['name'];
       $companyLogo = $companyBranding['custom_logo_url'];
       $companyLogoUrl = null;

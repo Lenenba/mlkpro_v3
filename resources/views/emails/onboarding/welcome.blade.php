@@ -27,15 +27,6 @@
         $workspaceMode = ($companyTypeLabel ?? 'services') === 'produits'
             ? __('mail.welcome.mode_products')
             : __('mail.welcome.mode_services');
-        $welcomePrimaryColor = strtoupper(trim((string) ($companyPrimaryColor ?? '')));
-        $welcomePrimaryForegroundColor = strtoupper(trim((string) ($companyPrimaryForegroundColor ?? '')));
-        $hasWelcomePrimaryColor = preg_match('/^#[0-9A-F]{6}$/', $welcomePrimaryColor) === 1;
-        $welcomeAccentColor = $hasWelcomePrimaryColor ? $welcomePrimaryColor : '#16A34A';
-        $welcomeActionColor = $hasWelcomePrimaryColor ? $welcomePrimaryColor : '#16A34A';
-        $welcomeActionForegroundColor = $hasWelcomePrimaryColor
-            && preg_match('/^#[0-9A-F]{6}$/', $welcomePrimaryForegroundColor) === 1
-                ? $welcomePrimaryForegroundColor
-                : '#111827';
     @endphp
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
         <tr>
@@ -49,7 +40,7 @@
                             <div style="margin-top:12px; font-size:32px; font-weight:700; line-height:0.96; letter-spacing:-0.04em; color:#f8fafc; max-width:320px;">
                                 {!! nl2br(e(__('mail.welcome.hero_title', ['company' => $companyName ?? config('app.name')]))) !!}
                             </div>
-                            <div style="margin-top:14px; width:92px; height:4px; background-color:{{ $welcomeAccentColor }};">&nbsp;</div>
+                            <div style="margin-top:14px; width:92px; height:4px; background-color:#2dd4bf;">&nbsp;</div>
                             <div style="margin-top:14px; font-size:14px; line-height:1.8; color:rgba(236, 253, 245, 0.88);">
                                 {{ __('mail.welcome.hero_intro', [
                                     'name' => $userName ?? __('mail.common.preview_recipient'),
@@ -64,8 +55,8 @@
                             @if (!empty($actionUrl))
                                 <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:18px;">
                                     <tr>
-                                        <td bgcolor="{{ $welcomeActionColor }}" style="background-color:{{ $welcomeActionColor }}; border-radius:3px;">
-                                            <a href="{{ $actionUrl }}" style="display:inline-block; padding:10px 16px; font-size:14px; font-weight:700; color:{{ $welcomeActionForegroundColor }}; text-decoration:none;">
+                                        <td bgcolor="#1f2937" style="border-radius:3px;">
+                                            <a href="{{ $actionUrl }}" style="display:inline-block; padding:10px 16px; font-size:14px; font-weight:700; color:#ffffff; text-decoration:none;">
                                                 {{ __('mail.welcome.hero_action') }}
                                             </a>
                                         </td>
@@ -200,7 +191,7 @@
                                         </div>
                                         @foreach (($highlights ?? []) as $highlight)
                                             <div style="margin-top:{{ $loop->first ? '12px' : '10px' }}; font-size:13px; color:#57534e; line-height:1.7;">
-                                                <span style="color:{{ $welcomeAccentColor }}; font-weight:700;">&#8226;</span>
+                                                <span style="color:#16a34a; font-weight:700;">&#8226;</span>
                                                 <span style="padding-left:6px;">{{ $highlight }}</span>
                                             </div>
                                         @endforeach
@@ -222,7 +213,7 @@
                                 </tr>
                             </table>
 
-                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:10px; background-color:#f5f5f4; border:1px solid #e7e5e4; border-top:3px solid {{ $welcomeAccentColor }}; border-radius:3px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:10px; background-color:#f5f5f4; border:1px solid #e7e5e4; border-top:3px solid #16a34a; border-radius:3px;">
                                 <tr>
                                     <td style="padding:14px 16px;">
                                         <div style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:#78716c;">

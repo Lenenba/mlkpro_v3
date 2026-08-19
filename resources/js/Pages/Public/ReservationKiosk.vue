@@ -813,7 +813,7 @@ const formatDateTime = (value) => (value ? dayjs(value).format('DD MMM HH:mm') :
                     <h1 class="text-[23px] font-bold leading-none text-[#0f1720] lg:text-[clamp(21px,2.7vh,24px)]">
                         {{ kioskTitle }}
                     </h1>
-                    <span class="inline-flex items-center rounded-sm border border-primary-line bg-primary-soft px-3 py-1.5 text-[12px] font-semibold text-primary-soft-foreground">
+                    <span class="inline-flex items-center rounded-sm border border-[#dcebe3] bg-[#eef7f2] px-3 py-1.5 text-[12px] font-semibold text-[#0b7e55]">
                         {{ $t('reservations.kiosk.category') }}
                     </span>
                 </div>
@@ -842,7 +842,7 @@ const formatDateTime = (value) => (value ? dayjs(value).format('DD MMM HH:mm') :
                             <div>
                                 <h2 class="text-[30px] font-extrabold leading-[1.1] text-[#0f1720] sm:text-[36px] lg:text-[clamp(30px,4.3vh,38px)] 2xl:text-[39px]">
                                     <span class="sm:whitespace-nowrap">{{ $t('reservations.kiosk.hero.welcome') }}</span><br>
-                                    <span class="text-primary-readable sm:whitespace-nowrap">{{ brandName }}</span>
+                                    <span class="text-[#0f9a68] sm:whitespace-nowrap">{{ brandName }}</span>
                                 </h2>
                                 <p class="mt-6 max-w-[430px] text-[15px] font-medium leading-7 text-[#334155] lg:mt-[clamp(16px,2.6vh,24px)] lg:text-[clamp(13px,1.8vh,15px)] 2xl:text-[15px]">
                                     <span class="sm:whitespace-nowrap">{{ $t('reservations.kiosk.hero.line_one') }}</span><br class="hidden sm:block">
@@ -850,14 +850,14 @@ const formatDateTime = (value) => (value ? dayjs(value).format('DD MMM HH:mm') :
                                 </p>
                             </div>
 
-                            <div class="w-full max-w-[318px] rounded-sm border border-primary-line bg-primary-soft p-3.5 shadow-[0_12px_28px_rgba(15,23,32,0.035)] lg:p-[clamp(11px,1.6vh,14px)]">
+                            <div class="w-full max-w-[318px] rounded-sm border border-[#dcebe3] bg-[#f8fbf9] p-3.5 shadow-[0_12px_28px_rgba(15,23,32,0.035)] lg:p-[clamp(11px,1.6vh,14px)]">
                                 <div class="flex gap-3.5">
                                     <div class="flex size-12 shrink-0 items-center justify-center rounded-sm border border-teal-100 bg-teal-50 text-teal-600 shadow-[0_8px_22px_rgba(15,154,104,0.08)] lg:h-[clamp(42px,6.2vh,48px)] lg:w-[clamp(42px,6.2vh,48px)]">
                                         <Clock3 class="size-7 lg:h-[clamp(23px,3.5vh,28px)] lg:w-[clamp(23px,3.5vh,28px)]" aria-hidden="true" />
                                     </div>
                                         <div>
                                             <p class="text-[13px] font-medium text-[#1f2937]">{{ $t('reservations.kiosk.wait.title') }}</p>
-                                            <p class="mt-1.5 text-[24px] font-extrabold leading-none text-primary-soft-foreground lg:text-[clamp(21px,3vh,24px)]">{{ estimatedWaitLabel }}</p>
+                                            <p class="mt-1.5 text-[24px] font-extrabold leading-none text-[#0b7e55] lg:text-[clamp(21px,3vh,24px)]">{{ estimatedWaitLabel }}</p>
                                             <p class="mt-2.5 text-[12px] font-medium text-[#475569]">{{ estimatedWaitHelper }}</p>
                                         </div>
                                 </div>
@@ -884,7 +884,7 @@ const formatDateTime = (value) => (value ? dayjs(value).format('DD MMM HH:mm') :
                                 v-for="item in actionItems"
                                 :key="item.key"
                                 type="button"
-                                class="group flex min-h-[84px] w-full items-center gap-4 rounded-sm border bg-white px-4 text-left transition focus:outline-none focus:ring-2 focus:ring-primary-line lg:min-h-[clamp(68px,9.8vh,84px)]"
+                                class="group flex min-h-[84px] w-full items-center gap-4 rounded-sm border bg-white px-4 text-left transition focus:outline-none focus:ring-2 focus:ring-[#0f9a68]/25 lg:min-h-[clamp(68px,9.8vh,84px)]"
                                 :class="activeMode === item.key ? item.activeClass : item.inactiveClass"
                                 @click="setMode(item.key)"
                             >
@@ -901,7 +901,7 @@ const formatDateTime = (value) => (value ? dayjs(value).format('DD MMM HH:mm') :
 
                         <button
                             type="button"
-                            class="mt-4 flex h-[48px] w-full items-center justify-center rounded-sm bg-primary px-5 text-[15px] font-extrabold text-primary-foreground transition hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-primary-line lg:mt-3 lg:h-[46px]"
+                            class="mt-4 flex h-[48px] w-full items-center justify-center rounded-sm bg-[#0f9a68] px-5 text-[15px] font-extrabold text-white transition hover:bg-[#0b865b] focus:outline-none focus:ring-2 focus:ring-[#0f9a68]/30 lg:mt-3 lg:h-[46px]"
                             @click="continueAction"
                         >
                             <span class="flex-1 text-center">{{ currentPreview.submitLabel }}</span>
@@ -981,7 +981,7 @@ const formatDateTime = (value) => (value ? dayjs(value).format('DD MMM HH:mm') :
                                 </div>
 
                                 <div class="flex items-end">
-                                    <button type="submit" class="h-[52px] rounded-sm bg-primary px-4 text-sm font-extrabold text-primary-foreground transition hover:bg-primary-hover disabled:opacity-60" :disabled="walkInForm.processing">
+                                    <button type="submit" class="h-[52px] rounded-sm bg-[#0f9a68] px-4 text-sm font-extrabold text-white transition hover:bg-[#0b865b] disabled:opacity-60" :disabled="walkInForm.processing">
                                         {{ currentPreview.submitLabel }}
                                     </button>
                                 </div>
@@ -1016,7 +1016,7 @@ const formatDateTime = (value) => (value ? dayjs(value).format('DD MMM HH:mm') :
                                     />
                                 </div>
                                 <div class="flex items-end">
-                                    <button type="submit" class="h-[52px] rounded-sm bg-primary px-4 text-sm font-extrabold text-primary-foreground transition hover:bg-primary-hover disabled:opacity-60" :disabled="lookupForm.processing">
+                                    <button type="submit" class="h-[52px] rounded-sm bg-[#0f9a68] px-4 text-sm font-extrabold text-white transition hover:bg-[#0b865b] disabled:opacity-60" :disabled="lookupForm.processing">
                                         {{ currentPreview.submitLabel }}
                                     </button>
                                 </div>
@@ -1047,14 +1047,14 @@ const formatDateTime = (value) => (value ? dayjs(value).format('DD MMM HH:mm') :
                                     <InputError class="mt-1" :message="trackForm.errors.queue_number" />
                                 </div>
                                 <div class="flex items-end">
-                                    <button type="submit" class="h-[52px] rounded-sm bg-primary px-4 text-sm font-extrabold text-primary-foreground transition hover:bg-primary-hover disabled:opacity-60" :disabled="trackForm.processing">
+                                    <button type="submit" class="h-[52px] rounded-sm bg-[#0f9a68] px-4 text-sm font-extrabold text-white transition hover:bg-[#0b865b] disabled:opacity-60" :disabled="trackForm.processing">
                                         {{ currentPreview.submitLabel }}
                                     </button>
                                 </div>
                             </form>
 
-                            <div class="mt-3 flex items-center gap-3 rounded-sm border border-primary-line bg-primary-soft px-4 py-2 text-[12px] font-medium text-[#334155]">
-                                <ShieldCheck class="size-5 shrink-0 text-primary-soft-foreground" aria-hidden="true" />
+                            <div class="mt-3 flex items-center gap-3 rounded-sm border border-[#dcebe3] bg-[#f4faf6] px-4 py-2 text-[12px] font-medium text-[#334155]">
+                                <ShieldCheck class="size-5 shrink-0 text-[#0f9a68]" aria-hidden="true" />
                                 {{ $t('reservations.kiosk.security_notice') }}
                             </div>
                         </div>
@@ -1106,7 +1106,7 @@ const formatDateTime = (value) => (value ? dayjs(value).format('DD MMM HH:mm') :
                                     {{ formatDateTime(lookupResult.intent.nearby_reservation?.starts_at) }}
                                     · {{ queueStatusLabel(lookupResult.intent.nearby_reservation?.status || 'confirmed') }}
                                 </p>
-                                <button type="button" class="mt-3 rounded-sm bg-primary px-3 py-2 text-xs font-extrabold text-primary-foreground hover:bg-primary-hover disabled:opacity-60" :disabled="lookupForm.processing" @click="checkInReservation">
+                                <button type="button" class="mt-3 rounded-sm bg-[#0f9a68] px-3 py-2 text-xs font-extrabold text-white disabled:opacity-60" :disabled="lookupForm.processing" @click="checkInReservation">
                                     {{ $t('reservations.kiosk.known_client.check_in') }}
                                 </button>
                             </div>
@@ -1145,7 +1145,7 @@ const formatDateTime = (value) => (value ? dayjs(value).format('DD MMM HH:mm') :
                                         option-label="label"
                                         class="h-[52px] border-[#dfe5e1] bg-white text-[#334155]"
                                     />
-                                    <button type="submit" class="h-[52px] rounded-sm bg-primary px-4 text-xs font-extrabold text-primary-foreground hover:bg-primary-hover disabled:opacity-60" :disabled="clientTicketForm.processing">
+                                    <button type="submit" class="h-[52px] rounded-sm bg-[#0f9a68] px-4 text-xs font-extrabold text-white disabled:opacity-60" :disabled="clientTicketForm.processing">
                                         {{ clientTicketForm.processing ? $t('reservations.client.book.actions.submitting') : $t('reservations.kiosk.known_client.create_ticket') }}
                                     </button>
                                 </div>
@@ -1187,7 +1187,7 @@ const formatDateTime = (value) => (value ? dayjs(value).format('DD MMM HH:mm') :
                 <footer class="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 py-2 text-center text-[12px] font-medium text-[#475569]">
                     <span>
                         {{ $t('reservations.kiosk.footer_note') }}
-                        <Heart class="ml-2 inline size-4 fill-primary align-[-2px] text-primary" aria-hidden="true" />
+                        <Heart class="ml-2 inline size-4 fill-[#0f9a68] align-[-2px] text-[#0f9a68]" aria-hidden="true" />
                     </span>
                     <span aria-hidden="true">·</span>
                     <span>{{ $t('account.branding.powered_by') }}</span>

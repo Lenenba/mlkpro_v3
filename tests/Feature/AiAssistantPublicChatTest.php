@@ -14,7 +14,6 @@ test('public ai assistant page renders the chat shell', function () {
         'company_slug' => 'studio-lumiere',
         'company_name' => 'Studio Lumiere',
         'company_logo' => 'customers/customer.png',
-        'company_branding_settings' => ['primary_color' => '#123ABC'],
     ]);
     AiAssistantSetting::factory()->create([
         'tenant_id' => $owner->id,
@@ -32,11 +31,6 @@ test('public ai assistant page renders the chat shell', function () {
             ->where('company.logo_url', null)
             ->where('company.custom_logo_url', null)
             ->where('company.has_custom_logo', false)
-            ->where('company.primary_color', '#123ABC')
-            ->where('company.primary_hover_color', '#1033A5')
-            ->where('company.primary_focus_color', '#0E2D93')
-            ->where('company.primary_foreground_color', '#FFFFFF')
-            ->where('company.has_custom_primary_color', true)
             ->where('assistant.name', 'Reception Lumiere')
             ->where('endpoints.create', route('public.ai-assistant.conversations.store'))
         );

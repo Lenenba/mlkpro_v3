@@ -793,7 +793,7 @@ const startPayment = (type) => {
                         <button
                             v-if="canPayDeposit"
                             type="button"
-                            class="rounded-sm bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
+                            class="rounded-sm bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
                             :disabled="paymentProcessing"
                             @click="startPayment('deposit')"
                         >
@@ -832,7 +832,7 @@ const startPayment = (type) => {
                         >
                         <button
                             type="button"
-                            class="rounded-sm bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
+                            class="rounded-sm bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
                             :disabled="confirmForm.processing"
                             @click="submitReceiptConfirm"
                         >
@@ -885,7 +885,7 @@ const startPayment = (type) => {
                                         type="button"
                                         class="rounded-sm border px-2 py-1.5 font-semibold"
                                         :class="stockFilter === 'all'
-                                            ? 'border-primary-line bg-primary-soft text-primary-soft-foreground'
+                                            ? 'border-green-500 bg-green-50 text-green-700'
                                             : 'border-stone-200 text-stone-600 dark:border-neutral-700 dark:text-neutral-300'"
                                         @click="stockFilter = 'all'"
                                     >
@@ -895,7 +895,7 @@ const startPayment = (type) => {
                                         type="button"
                                         class="rounded-sm border px-2 py-1.5 font-semibold"
                                         :class="stockFilter === 'in'
-                                            ? 'border-primary-line bg-primary-soft text-primary-soft-foreground'
+                                            ? 'border-green-500 bg-green-50 text-green-700'
                                             : 'border-stone-200 text-stone-600 dark:border-neutral-700 dark:text-neutral-300'"
                                         @click="stockFilter = 'in'"
                                     >
@@ -987,7 +987,7 @@ const startPayment = (type) => {
                             <input
                                 v-model="search"
                                 type="text"
-                                class="block w-full rounded-[1.25rem] border border-stone-200 bg-stone-50 py-[11px] ps-10 pe-8 text-sm placeholder:text-stone-500 focus:border-primary-line focus:ring-primary-line dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-200 dark:placeholder:text-neutral-400"
+                                class="block w-full rounded-[1.25rem] border border-stone-200 bg-stone-50 py-[11px] ps-10 pe-8 text-sm placeholder:text-stone-500 focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-200 dark:placeholder:text-neutral-400"
                                 :placeholder="$t('portal_shop.search.placeholder')"
                             >
                         </div>
@@ -1190,7 +1190,7 @@ const startPayment = (type) => {
                             type="button"
                             class="flex items-center justify-between rounded-sm border px-3 py-2 text-sm"
                             :class="form.fulfillment_method === 'delivery'
-                                ? 'border-primary-line bg-primary-soft text-primary-soft-foreground'
+                                ? 'border-green-500 bg-green-50 text-green-700'
                                 : 'border-stone-200 text-stone-700 dark:border-neutral-700 dark:text-neutral-200'"
                             @click="selectMethod('delivery')"
                         >
@@ -1216,7 +1216,7 @@ const startPayment = (type) => {
                             type="button"
                             class="flex items-center justify-between rounded-sm border px-3 py-2 text-sm"
                             :class="form.fulfillment_method === 'pickup'
-                                ? 'border-primary-line bg-primary-soft text-primary-soft-foreground'
+                                ? 'border-green-500 bg-green-50 text-green-700'
                                 : 'border-stone-200 text-stone-700 dark:border-neutral-700 dark:text-neutral-200'"
                             @click="selectMethod('pickup')"
                         >
@@ -1241,14 +1241,14 @@ const startPayment = (type) => {
                     <div v-if="form.fulfillment_method === 'delivery'" class="mt-3 space-y-2 text-sm">
                         <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.fulfillment.delivery_address') }}</label>
                         <textarea v-model="form.delivery_address"
-                            class="block w-full rounded-sm border-stone-200 text-sm focus:border-primary-line focus:ring-primary-line dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                            class="block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                             rows="2" />
                         <div v-if="form.errors.delivery_address" class="text-xs text-red-600">
                             {{ form.errors.delivery_address }}
                         </div>
                         <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.fulfillment.delivery_instructions') }}</label>
                         <textarea v-model="form.delivery_notes"
-                            class="block w-full rounded-sm border-stone-200 text-sm focus:border-primary-line focus:ring-primary-line dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                            class="block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                             rows="2" />
                         <p v-if="fulfillment?.delivery_zone" class="text-xs text-stone-500 dark:text-neutral-400">
                             {{ $t('portal_shop.fulfillment.delivery_zone', { zone: fulfillment.delivery_zone }) }}
@@ -1262,7 +1262,7 @@ const startPayment = (type) => {
                         </p>
                         <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.fulfillment.pickup_notes') }}</label>
                         <textarea v-model="form.pickup_notes"
-                            class="block w-full rounded-sm border-stone-200 text-sm focus:border-primary-line focus:ring-primary-line dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                            class="block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                             rows="2" />
                         <p v-if="fulfillment?.pickup_notes" class="text-xs text-stone-500 dark:text-neutral-400">
                             {{ fulfillment.pickup_notes }}
@@ -1287,7 +1287,7 @@ const startPayment = (type) => {
                                 v-model="form.customer_notes"
                                 rows="2"
                                 :disabled="isLocked"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-primary-line focus:ring-primary-line dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                             />
                         </div>
                         <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
@@ -1300,7 +1300,7 @@ const startPayment = (type) => {
                                 v-model="form.substitution_notes"
                                 rows="2"
                                 :disabled="isLocked"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-primary-line focus:ring-primary-line dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                             />
                         </div>
                     </div>
@@ -1330,7 +1330,7 @@ const startPayment = (type) => {
                         {{ form.errors.items }}
                     </div>
                     <button type="button"
-                        class="mt-4 w-full rounded-sm bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
+                        class="mt-4 w-full rounded-sm bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-60"
                         :disabled="!canCheckout || form.processing || isLocked"
                         @click="submitOrder">
                         {{ isEditing ? $t('portal_shop.summary.checkout_update') : $t('portal_shop.summary.checkout_create') }}
@@ -1455,7 +1455,7 @@ const startPayment = (type) => {
                         </div>
                         <button
                             type="button"
-                            class="mt-3 w-full rounded-sm bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
+                            class="mt-3 w-full rounded-sm bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-60"
                             :disabled="isLocked || availableStock(selectedProduct) <= 0"
                             @click="addToCart(selectedProduct)"
                         >

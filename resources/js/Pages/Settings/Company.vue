@@ -14,11 +14,6 @@ import DatePicker from '@/Components/DatePicker.vue';
 import Modal from '@/Components/UI/Modal.vue';
 import RichTextEditor from '@/Components/RichTextEditor.vue';
 import CompanyCategoriesSection from '@/Pages/Settings/UI/CompanyCategoriesSection.vue';
-import {
-    DEFAULT_COMPANY_PRIMARY_COLOR,
-    buildCompanyBrandPalette,
-    normalizeCompanyPrimaryColor,
-} from '@/utils/companyBrandTheme';
 
 const props = defineProps({
     company: {
@@ -328,17 +323,11 @@ const normalizeHeroImageList = (value) => {
 const normalizeHeroCaptions = (value) => (Array.isArray(value)
     ? value.map((item) => (item === null || item === undefined ? '' : String(item)))
     : []);
-const savedCompanyPrimaryColor = normalizeCompanyPrimaryColor(
-    props.company.branding_settings?.primary_color,
-);
 
 const form = useForm({
     company_name: props.company.company_name || '',
     company_slug: props.company.company_slug || '',
     company_logo: props.company.company_logo || null,
-    company_branding_settings: {
-        primary_color: savedCompanyPrimaryColor,
-    },
     company_description: props.company.company_description || '',
     company_country: '',
     company_country_other: '',
@@ -409,51 +398,6 @@ const form = useForm({
     supplier_preferred: initialPreferredSuppliers,
     custom_suppliers: initialCustomSuppliers,
 });
-
-const primaryColorPickerValue = computed({
-    get: () => normalizeCompanyPrimaryColor(form.company_branding_settings.primary_color)
-        || DEFAULT_COMPANY_PRIMARY_COLOR,
-    set: (value) => {
-        form.company_branding_settings.primary_color = normalizeCompanyPrimaryColor(value) || '';
-        form.clearErrors('company_branding_settings.primary_color');
-    },
-});
-const primaryColorFormatError = computed(() => {
-    const value = String(form.company_branding_settings.primary_color || '').trim();
-
-    return value && !normalizeCompanyPrimaryColor(value)
-        ? t('settings.company.branding.primary_color_invalid')
-        : '';
-});
-const primaryColorPreviewPalette = computed(() => buildCompanyBrandPalette({
-    primary_color: normalizeCompanyPrimaryColor(form.company_branding_settings.primary_color)
-        || DEFAULT_COMPANY_PRIMARY_COLOR,
-}));
-const primaryColorPreviewStyle = computed(() => {
-    const palette = primaryColorPreviewPalette.value;
-
-    return {
-        '--app-primary': palette.primary,
-        '--app-primary-hover': palette.hover,
-        '--app-primary-foreground': palette.foreground,
-        '--app-primary-soft': palette.softLight,
-        '--app-primary-soft-foreground': palette.softForegroundLight,
-        '--app-primary-readable': palette.readableLight,
-        '--app-primary-line': palette.lineLight,
-    };
-});
-const normalizePrimaryColorField = () => {
-    const normalized = normalizeCompanyPrimaryColor(form.company_branding_settings.primary_color);
-
-    if (normalized) {
-        form.company_branding_settings.primary_color = normalized;
-        form.clearErrors('company_branding_settings.primary_color');
-    }
-};
-const resetPrimaryColor = () => {
-    form.company_branding_settings.primary_color = '';
-    form.clearErrors('company_branding_settings.primary_color');
-};
 
 const heroImageUrlList = computed(() => (form.store_hero_images_text || '')
     .split('\n')
@@ -1041,12 +985,6 @@ const dispatchDemoEvent = (eventName) => {
 };
 
 const submit = () => {
-    if (primaryColorFormatError.value) {
-        form.setError('company_branding_settings.primary_color', primaryColorFormatError.value);
-
-        return;
-    }
-
     const normalizeText = (value) => {
         const trimmed = String(value || '').trim();
         return trimmed.length ? trimmed : null;
@@ -1057,13 +995,9 @@ const submit = () => {
             const country = data.company_country === '__other__' ? data.company_country_other : data.company_country;
             const province = data.company_province === '__other__' ? data.company_province_other : data.company_province;
             const city = data.company_city === '__other__' ? data.company_city_other : data.company_city;
-            const primaryColor = normalizeCompanyPrimaryColor(
-                data.company_branding_settings?.primary_color,
-            );
 
             const payload = {
                 ...data,
-                company_branding_settings: primaryColor ? { primary_color: primaryColor } : null,
                 company_country: normalizeText(country),
                 company_province: normalizeText(province),
                 company_city: normalizeText(city),
@@ -1410,75 +1344,6 @@ watch(activeTab, (value) => {
                         <DropzoneInput v-model="form.company_logo" :label="$t('settings.company.fields.logo_upload')" />
                         <InputError class="mt-1" :message="form.errors.company_logo" />
                     </div>
-
-                    <section class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-900">
-                        <div>
-                            <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ $t('settings.company.branding.primary_color_title') }}
-                            </h3>
-                            <p id="company-primary-color-hint" class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('settings.company.branding.primary_color_hint') }}
-                            </p>
-                        </div>
-
-                        <div class="mt-3 grid gap-3 md:grid-cols-[8rem_minmax(0,1fr)_auto] md:items-start">
-                            <label class="space-y-1 text-xs font-medium text-stone-600 dark:text-neutral-300" for="company-primary-color-picker">
-                                <span>{{ $t('settings.company.branding.primary_color_picker') }}</span>
-                                <input
-                                    id="company-primary-color-picker"
-                                    v-model="primaryColorPickerValue"
-                                    type="color"
-                                    class="block h-12 w-full cursor-pointer rounded-sm border border-stone-200 bg-white p-1 focus:outline-none focus:ring-2 focus:ring-primary-line dark:border-neutral-700 dark:bg-neutral-800"
-                                    aria-describedby="company-primary-color-hint"
-                                    data-testid="company-primary-color-picker"
-                                />
-                            </label>
-
-                            <div>
-                                <FloatingInput
-                                    id="company-primary-color"
-                                    v-model="form.company_branding_settings.primary_color"
-                                    :label="$t('settings.company.branding.primary_color_hex')"
-                                    placeholder="#16A34A"
-                                    maxlength="7"
-                                    spellcheck="false"
-                                    aria-describedby="company-primary-color-hint"
-                                    :aria-invalid="Boolean(form.errors['company_branding_settings.primary_color'] || primaryColorFormatError)"
-                                    data-testid="company-primary-color-hex"
-                                    @blur="normalizePrimaryColorField"
-                                />
-                                <InputError
-                                    class="mt-1"
-                                    :message="form.errors['company_branding_settings.primary_color'] || primaryColorFormatError"
-                                />
-                            </div>
-
-                            <button
-                                type="button"
-                                class="inline-flex min-h-12 items-center justify-center rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-primary-line disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
-                                :disabled="!form.company_branding_settings.primary_color"
-                                @click="resetPrimaryColor"
-                            >
-                                {{ $t('settings.company.branding.primary_color_reset') }}
-                            </button>
-                        </div>
-
-                        <div
-                            class="mt-3 flex flex-wrap items-center gap-3 rounded-sm border border-primary-line bg-primary-soft p-3"
-                            :style="primaryColorPreviewStyle"
-                            data-testid="company-primary-color-preview"
-                        >
-                            <span class="text-xs font-semibold text-primary-soft-foreground">
-                                {{ $t('settings.company.branding.primary_color_preview') }}
-                            </span>
-                            <span class="inline-flex items-center rounded-sm bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">
-                                {{ $t('settings.company.branding.primary_color_preview_button') }}
-                            </span>
-                            <span class="text-xs font-semibold text-primary-readable underline underline-offset-2">
-                                {{ $t('settings.company.branding.primary_color_preview_link') }}
-                            </span>
-                        </div>
-                    </section>
 
                     <div>
                         <FloatingTextarea

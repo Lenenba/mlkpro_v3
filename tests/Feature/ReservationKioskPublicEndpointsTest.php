@@ -154,7 +154,6 @@ it('renders kiosk with active services and company branding', function () {
     $owner->update([
         'company_name' => 'Studio Lumiere',
         'company_logo' => 'company/logos/studio-lumiere.png',
-        'company_branding_settings' => ['primary_color' => '#123ABC'],
     ]);
     enableKioskQueue($owner);
 
@@ -186,10 +185,7 @@ it('renders kiosk with active services and company branding', function () {
             ->where('company.name', 'Studio Lumiere')
             ->where('company.logo_url', Storage::disk('public')->url('company/logos/studio-lumiere.png'))
             ->where('company.custom_logo_url', Storage::disk('public')->url('company/logos/studio-lumiere.png'))
-            ->where('company.has_custom_logo', true)
-            ->where('company.primary_color', '#123ABC')
-            ->where('company.primary_foreground_color', '#FFFFFF')
-            ->where('company.has_custom_primary_color', true));
+            ->where('company.has_custom_logo', true));
 });
 
 it('allows creating a public kiosk walk-in guest ticket', function () {

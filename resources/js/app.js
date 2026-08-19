@@ -7,7 +7,6 @@ import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import AppSeo from './Components/Seo/AppSeo.vue';
 import { createI18nInstance, ensureI18nDomains, ensureI18nLocale } from './i18n';
 import { applyAccessibilityPreferences, readAccessibilityPreferences } from './utils/accessibility';
-import { applyCompanyBrandTheme } from './utils/companyBrandTheme';
 import { createPrelineInitializer, refreshPrelineOverlays } from './utils/preline';
 
 let i18nInstance = null;
@@ -351,7 +350,6 @@ createInertiaApp({
     resolve: (name) => resolveInertiaPage(name),
     async setup({ el, App, props, plugin }) {
         const initialLocale = props.initialPage?.props?.locale || 'fr';
-        applyCompanyBrandTheme(props.initialPage);
         i18nInstance = await createI18nInstance(initialLocale, props.initialPage?.component);
         setDocumentLang(initialLocale);
 
@@ -392,8 +390,6 @@ router.on('before', (event) => {
 // Recharger le document aux frontières Ziggy, sinon réinitialiser Preline.js
 // une seule fois après chaque navigation Inertia.
 router.on('navigate', (event) => {
-    applyCompanyBrandTheme(event?.detail?.page);
-
     if (shouldReloadForZiggyPage(event?.detail?.page)) {
         window.location.reload();
 

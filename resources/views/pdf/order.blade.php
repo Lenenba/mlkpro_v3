@@ -1,7 +1,3 @@
-@php
-  $companyBranding = app(\App\Services\TenantBrandingResolver::class)->forAccountOwner($company);
-  $companyPrimaryColor = $companyBranding['primary_color'] ?? '#16A34A';
-@endphp
 <!doctype html>
 <html lang="fr">
   <head>
@@ -18,12 +14,6 @@
       .full {
         width: 100%;
         border-collapse: collapse;
-      }
-      .brand-rule {
-        height: 4px;
-        background: {{ $companyPrimaryColor }};
-        margin-bottom: 8px;
-        border-radius: 3px;
       }
       .panel {
         border: 1px solid #f5f5f4;
@@ -144,6 +134,7 @@
   </head>
   <body>
     @php
+      $companyBranding = app(\App\Services\TenantBrandingResolver::class)->forAccountOwner($company);
       $companyName = $companyBranding['name'];
       $companyLogo = $companyBranding['custom_logo_url'];
       $companyLogoUrl = null;
@@ -210,7 +201,6 @@
       $depositDue = max(0, $depositAmount - $totalPaid);
     @endphp
 
-    <div class="brand-rule"></div>
     <div class="panel">
       <table class="full">
         <tr>

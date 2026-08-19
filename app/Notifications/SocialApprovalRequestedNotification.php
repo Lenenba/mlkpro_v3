@@ -61,8 +61,6 @@ class SocialApprovalRequestedNotification extends Notification implements Should
         $branding = $brandingResolver->forAccountOwner($accountOwner);
         $payload['companyName'] = $branding['name'];
         $payload['companyLogo'] = $branding['custom_logo_url'];
-        $payload['companyPrimaryColor'] = $branding['primary_color'];
-        $payload['companyPrimaryForegroundColor'] = $branding['primary_foreground_color'];
         $payload['showPoweredBy'] = true;
 
         return (new MailMessage)

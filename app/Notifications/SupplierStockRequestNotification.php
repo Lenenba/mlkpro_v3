@@ -49,8 +49,6 @@ class SupplierStockRequestNotification extends Notification implements ShouldQue
             ->view('emails.notifications.action', [
                 'companyName' => $branding['name'],
                 'companyLogo' => $branding['custom_logo_url'],
-                'companyPrimaryColor' => $branding['primary_color'],
-                'companyPrimaryForegroundColor' => $branding['primary_foreground_color'],
                 'title' => $subject,
                 'intro' => $isFr
                     ? "Nous sommes en stock bas pour {$productName}. Pouvez-vous confirmer la disponibilite et le delai de reapprovisionnement ?"

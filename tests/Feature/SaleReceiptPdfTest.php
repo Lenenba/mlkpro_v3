@@ -8,7 +8,6 @@ test('sale receipt and order pdf views display the tenant logo without forcing a
     $owner = User::factory()->create([
         'company_name' => 'Marché Boréal',
         'company_logo' => 'https://assets.example.test/marche-boreal-wide.png',
-        'company_branding_settings' => ['primary_color' => '#7C3AED'],
         'company_type' => 'products',
         'company_features' => ['sales' => true],
     ]);
@@ -52,7 +51,6 @@ test('sale receipt and order pdf views display the tenant logo without forcing a
 
         expect($html)->toContain('Marché Boréal')
             ->and($html)->toContain('https://assets.example.test/marche-boreal-wide.png')
-            ->and($html)->toContain('#7C3AED')
             ->and($html)->toContain('object-fit: contain')
             ->and($html)->not->toContain('customers/customer.png');
     }

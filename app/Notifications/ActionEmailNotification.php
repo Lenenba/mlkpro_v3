@@ -93,8 +93,6 @@ class ActionEmailNotification extends Notification implements ShouldQueue
                 'note' => $this->note,
                 'companyName' => $branding['name'],
                 'companyLogo' => $branding['custom_logo_url'],
-                'companyPrimaryColor' => $companyUser !== null ? $branding['primary_color'] : null,
-                'companyPrimaryForegroundColor' => $companyUser !== null ? $branding['primary_foreground_color'] : null,
                 'showPoweredBy' => $companyUser !== null,
             ]);
     }

@@ -551,8 +551,6 @@ Cette phase pourrait ajouter :
 - un réglage permettant d'afficher ou masquer « Propulsé par Malikia Pro »;
 - un écran de prévisualisation dans les paramètres de l'entreprise.
 
-La première étape de cette évolution est détaillée dans [Personnalisation de la couleur principale par entreprise](PLAN_PERSONNALISATION_COULEUR_PRIMAIRE_ENTREPRISE_2026-08-18.md).
-
 Avec des domaines personnalisés et un expéditeur de courriel vérifié par entreprise, prévoir plutôt 2 à 4 semaines pour la feuille de route complète, selon les fournisseurs et le niveau d'automatisation DNS. Ces fonctions ajoutent des contraintes SSL, délivrabilité, sécurité et support opérationnel.
 
 ## 12. Définition de terminé

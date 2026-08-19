@@ -130,7 +130,7 @@ const customerName = () => {
                         type="button"
                         :disabled="!allow?.validate"
                         @click="validateWork"
-                        class="inline-flex items-center rounded-sm border border-transparent bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
+                        class="inline-flex items-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
                     >
                         {{ t('public_work.actions.validate') }}
                     </button>
@@ -171,7 +171,7 @@ const customerName = () => {
                     <button
                         type="button"
                         @click="confirmSchedule"
-                        class="inline-flex items-center rounded-sm border border-transparent bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary-hover"
+                        class="inline-flex items-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700"
                     >
                         {{ t('public_work.schedule_confirmation.accept') }}
                     </button>

@@ -1,11 +1,3 @@
-@php
-  $companyBranding = app(\App\Services\TenantBrandingResolver::class)->forAccountOwner($company);
-  $companyPrimaryColor = $companyBranding['primary_color'] ?? '#16A34A';
-  $companyPrimaryForegroundColor = $companyBranding['primary_foreground_color'] ?? '#111827';
-  $companyPrimaryTextColor = $companyPrimaryForegroundColor === '#FFFFFF'
-    ? $companyPrimaryColor
-    : '#374151';
-@endphp
 <!doctype html>
 <html lang="fr">
   <head>
@@ -36,7 +28,7 @@
       .accent {
         width: 92px;
         height: 5px;
-        background: {{ $companyPrimaryColor }};
+        background: #00c875;
         margin-bottom: 18px;
         border-radius: var(--malikia-radius);
       }
@@ -85,7 +77,7 @@
         letter-spacing: 0.12em;
         font-size: 9px;
         font-weight: 700;
-        color: {{ $companyPrimaryTextColor }};
+        color: #00c875;
         margin-bottom: 5px;
       }
       .invoice-title {
@@ -128,7 +120,7 @@
         letter-spacing: 0.12em;
         font-size: 9px;
         font-weight: 700;
-        color: {{ $companyPrimaryTextColor }};
+        color: #00c875;
         margin-bottom: 8px;
       }
       .meta-name {
@@ -192,7 +184,7 @@
         text-transform: uppercase;
         letter-spacing: 0.12em;
         font-weight: 700;
-        color: {{ $companyPrimaryTextColor }};
+        color: #00c875;
         margin-bottom: 10px;
       }
       .summary-table td {
@@ -220,7 +212,7 @@
         letter-spacing: 0.12em;
         font-size: 9px;
         font-weight: 700;
-        color: {{ $companyPrimaryTextColor }};
+        color: #00c875;
       }
       .amount-due-value {
         font-size: 27px;
@@ -265,6 +257,7 @@
   </head>
   <body>
     @php
+      $companyBranding = app(\App\Services\TenantBrandingResolver::class)->forAccountOwner($company);
       $companyName = $companyBranding['name'];
       $companyLogo = $companyBranding['custom_logo_url'];
       $companyLogoUrl = null;

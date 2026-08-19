@@ -51,11 +51,11 @@ const isNavigation = computed(() => props.tabs.some((tab) => tab.href));
                 :aria-controls="isNavigation ? null : panelId(tab.id)"
                 :aria-current="isNavigation && modelValue === tab.id ? 'page' : null"
                 :aria-disabled="tab.disabled ? 'true' : null"
-                class="flex min-w-[150px] flex-1 flex-col items-start gap-1 rounded-sm border px-3 py-2 text-left text-xs transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-line focus-visible:ring-offset-1 focus-visible:ring-offset-stone-50 dark:focus-visible:ring-offset-neutral-900"
+                class="flex min-w-[150px] flex-1 flex-col items-start gap-1 rounded-sm border px-3 py-2 text-left text-xs transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1 focus-visible:ring-offset-stone-50 dark:focus-visible:ring-offset-neutral-900"
                 :class="tab.disabled
                     ? 'cursor-not-allowed border-transparent text-stone-400 dark:text-neutral-500'
                     : modelValue === tab.id
-                        ? 'border-primary-line bg-white text-stone-900 shadow-sm dark:border-primary-line dark:bg-neutral-900 dark:text-neutral-100'
+                        ? 'border-emerald-200 bg-white text-stone-900 shadow-sm dark:border-emerald-500/40 dark:bg-neutral-900 dark:text-neutral-100'
                         : 'border-transparent text-stone-600 hover:bg-white/70 hover:text-stone-800 dark:text-neutral-300 dark:hover:bg-neutral-800'"
                 @click="isNavigation ? null : selectTab(tab)"
             >
@@ -68,7 +68,7 @@ const isNavigation = computed(() => props.tabs.some((tab) => tab.href));
                         {{ tab.badge }}
                     </span>
                 </div>
-                <span v-if="tab.description" class="text-[11px]" :class="modelValue === tab.id ? 'text-primary-readable' : 'text-stone-500 dark:text-neutral-400'">
+                <span v-if="tab.description" class="text-[11px]" :class="modelValue === tab.id ? 'text-emerald-700/80 dark:text-emerald-200/70' : 'text-stone-500 dark:text-neutral-400'">
                     {{ tab.description }}
                 </span>
             </component>
