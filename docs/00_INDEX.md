@@ -10,12 +10,13 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 
 | En cours | Bloqués | À faire | Terminés | Références | Archivés | À classer | Total |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 48 | 0 | 23 | 2 | 61 | 0 | 92 | 226 |
+| 48 | 0 | 23 | 3 | 61 | 0 | 92 | 227 |
 
 ## Derniers documents créés
 
 | Créé le | Modifié le | Suivi | Document |
 | --- | --- | --- | --- |
+| 2026-08-20 | 2026-08-20 | Terminé | [demo/scenario-engine.md](demo/scenario-engine.md) |
 | 2026-08-18 | 2026-08-18 | Terminé | [PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md](PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md) |
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/capture-plan.csv](demo/video-library/capture-plan.csv) |
 | 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G01/capture-session.md](demo/video-library/captures/G01/capture-session.md) |
@@ -35,12 +36,16 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 | 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G08/capture-session.md](demo/video-library/captures/G08/capture-session.md) |
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G08/README.md](demo/video-library/captures/G08/README.md) |
 | 2026-08-11 | 2026-08-11 | Références actives | [demo/video-library/captures/README.md](demo/video-library/captures/README.md) |
-| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/episodes/00-intro-fondateur.md](demo/video-library/episodes/00-intro-fondateur.md) |
 
 ## Derniers documents modifiés
 
 | Modifié le | Créé le | Suivi | Document |
 | --- | --- | --- | --- |
+| 2026-08-20 | 2026-08-20 | Terminé | [demo/scenario-engine.md](demo/scenario-engine.md) |
+| 2026-08-20 | 2026-08-07 | Références actives | [MODULE_VISIBILITY_AUDIT_RUNBOOK.md](MODULE_VISIBILITY_AUDIT_RUNBOOK.md) |
+| 2026-08-20 | 2026-04-21 | Références actives | [CRM_PHASE_6_OPPORTUNITY_LAYER_GUIDE_2026-04-21.md](CRM_PHASE_6_OPPORTUNITY_LAYER_GUIDE_2026-04-21.md) |
+| 2026-08-20 | 2026-04-21 | À classer | [PHASE_6_OPPORTUNITY_LAYER_SALES_INBOX_FORECAST_DEV_BACKLOG_2026-04-21.md](PHASE_6_OPPORTUNITY_LAYER_SALES_INBOX_FORECAST_DEV_BACKLOG_2026-04-21.md) |
+| 2026-08-20 | 2026-04-20 | À classer | [CRM_DEV_EXECUTION_PHASES_2026-04-20.md](CRM_DEV_EXECUTION_PHASES_2026-04-20.md) |
 | 2026-08-18 | 2026-08-18 | Terminé | [PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md](PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md) |
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/capture-plan.csv](demo/video-library/capture-plan.csv) |
 | 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G01/capture-session.md](demo/video-library/captures/G01/capture-session.md) |
@@ -56,11 +61,6 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 | 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G06/capture-session.md](demo/video-library/captures/G06/capture-session.md) |
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G06/README.md](demo/video-library/captures/G06/README.md) |
 | 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G07/capture-session.md](demo/video-library/captures/G07/capture-session.md) |
-| 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G07/README.md](demo/video-library/captures/G07/README.md) |
-| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G08/capture-session.md](demo/video-library/captures/G08/capture-session.md) |
-| 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G08/README.md](demo/video-library/captures/G08/README.md) |
-| 2026-08-11 | 2026-08-11 | Références actives | [demo/video-library/captures/README.md](demo/video-library/captures/README.md) |
-| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/episodes/00-intro-fondateur.md](demo/video-library/episodes/00-intro-fondateur.md) |
 
 ## Sous-dossiers
 
@@ -68,7 +68,7 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | [api](api/00_INDEX.md) | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 2 |
 | [audits](audits/00_INDEX.md) | 8 | 0 | 4 | 1 | 13 | 0 | 0 | 26 |
-| [demo](demo/00_INDEX.md) | 33 | 0 | 17 | 0 | 30 | 0 | 0 | 80 |
+| [demo](demo/00_INDEX.md) | 33 | 0 | 17 | 1 | 30 | 0 | 0 | 81 |
 | [superpowers](superpowers/00_INDEX.md) | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
 
 ## En cours
@@ -103,10 +103,10 @@ _Aucun document._
 
 | Créé le | Modifié le | Document | Titre | État du document | Source | Note |
 | --- | --- | --- | --- | --- | --- | --- |
-| 2026-08-07 | 2026-08-07 | [MODULE_VISIBILITY_AUDIT_RUNBOOK.md](MODULE_VISIBILITY_AUDIT_RUNBOOK.md) | Runbook d'audit global - visibilite et coherence des modules | Référence | Classement manuel | Procedure durable d'audit des 21 modules. |
+| 2026-08-07 | 2026-08-20 | [MODULE_VISIBILITY_AUDIT_RUNBOOK.md](MODULE_VISIBILITY_AUDIT_RUNBOOK.md) | Runbook d'audit global - visibilite et coherence des modules | Référence | Classement manuel | Procedure durable d'audit des 21 modules. |
 | 2026-04-26 | 2026-04-26 | [MALIKIA_PULSE_DOCUMENTATION_TECHNIQUE_2026-04-25.md](MALIKIA_PULSE_DOCUMENTATION_TECHNIQUE_2026-04-25.md) | Malikia Pulse - documentation technique detaillee | Référence | Nom du fichier |  |
 | 2026-04-24 | 2026-04-24 | [PROSPECTS_MODULE_CAHIER_DES_CHARGES_2026-04-24.md](PROSPECTS_MODULE_CAHIER_DES_CHARGES_2026-04-24.md) | Module Prospects - Cahier des charges fonctionnel et technique | Référence | Nom du fichier |  |
-| 2026-04-21 | 2026-04-21 | [CRM_PHASE_6_OPPORTUNITY_LAYER_GUIDE_2026-04-21.md](CRM_PHASE_6_OPPORTUNITY_LAYER_GUIDE_2026-04-21.md) | CRM phase 6 opportunity layer guide | Référence | Nom du fichier |  |
+| 2026-04-21 | 2026-08-20 | [CRM_PHASE_6_OPPORTUNITY_LAYER_GUIDE_2026-04-21.md](CRM_PHASE_6_OPPORTUNITY_LAYER_GUIDE_2026-04-21.md) | CRM phase 6 opportunity layer guide | Référence | Nom du fichier |  |
 | 2026-04-21 | 2026-04-21 | [CRM_PHASES_0_TO_6_GUIDE_2026-04-21.md](CRM_PHASES_0_TO_6_GUIDE_2026-04-21.md) | CRM guide global phases 0 a 6 | Référence | Nom du fichier |  |
 | 2026-04-20 | 2026-04-20 | [CRM_ANALYSE_CONCURRENTIELLE_2026-04-20.md](CRM_ANALYSE_CONCURRENTIELLE_2026-04-20.md) | Analyse concurrentielle CRM - Malikia Pro | Référence | Nom du fichier |  |
 | 2026-04-11 | 2026-04-11 | [EMAIL_BIMI_SETUP.md](EMAIL_BIMI_SETUP.md) | Email Sender Logo / BIMI Setup | Référence | Nom du fichier |  |
@@ -140,10 +140,10 @@ _Aucun document._
 | 2026-04-23 | 2026-04-23 | [SOCIAL_AUTH_ONBOARDING_USER_STORY_2026-04-23.md](SOCIAL_AUTH_ONBOARDING_USER_STORY_2026-04-23.md) | Social Auth + Onboarding First User Story | À classer | À qualifier |  |
 | 2026-04-22 | 2026-04-22 | [MALIKIA_PULSE_DEV_BACKLOG_2026-04-22.md](MALIKIA_PULSE_DEV_BACKLOG_2026-04-22.md) | Malikia Pulse dev backlog and implementation tracker | À classer | À qualifier |  |
 | 2026-04-22 | 2026-04-22 | [MALIKIA_PULSE_USER_STORY_2026-04-22.md](MALIKIA_PULSE_USER_STORY_2026-04-22.md) | MALIKIA_PULSE_USER_STORY_2026-04-22.md | À classer | À qualifier |  |
+| 2026-04-21 | 2026-08-20 | [PHASE_6_OPPORTUNITY_LAYER_SALES_INBOX_FORECAST_DEV_BACKLOG_2026-04-21.md](PHASE_6_OPPORTUNITY_LAYER_SALES_INBOX_FORECAST_DEV_BACKLOG_2026-04-21.md) | Phase 6 opportunity layer, sales inbox, forecast dev backlog | À classer | À qualifier |  |
 | 2026-04-21 | 2026-04-21 | [PHASE_4_SALES_ACTIVITY_LAYER_DEV_BACKLOG_2026-04-20.md](PHASE_4_SALES_ACTIVITY_LAYER_DEV_BACKLOG_2026-04-20.md) | Phase 4 sales activity layer dev backlog | À classer | À qualifier |  |
 | 2026-04-21 | 2026-04-21 | [PHASE_5_EMAIL_CALENDAR_FOUNDATIONS_DEV_BACKLOG_2026-04-21.md](PHASE_5_EMAIL_CALENDAR_FOUNDATIONS_DEV_BACKLOG_2026-04-21.md) | Phase 5 email and calendar foundations dev backlog | À classer | À qualifier |  |
-| 2026-04-21 | 2026-04-21 | [PHASE_6_OPPORTUNITY_LAYER_SALES_INBOX_FORECAST_DEV_BACKLOG_2026-04-21.md](PHASE_6_OPPORTUNITY_LAYER_SALES_INBOX_FORECAST_DEV_BACKLOG_2026-04-21.md) | Phase 6 opportunity layer, sales inbox, forecast dev backlog | À classer | À qualifier |  |
-| 2026-04-20 | 2026-04-21 | [CRM_DEV_EXECUTION_PHASES_2026-04-20.md](CRM_DEV_EXECUTION_PHASES_2026-04-20.md) | CRM dev execution phases - step by step delivery plan | À classer | À qualifier |  |
+| 2026-04-20 | 2026-08-20 | [CRM_DEV_EXECUTION_PHASES_2026-04-20.md](CRM_DEV_EXECUTION_PHASES_2026-04-20.md) | CRM dev execution phases - step by step delivery plan | À classer | À qualifier |  |
 | 2026-04-20 | 2026-04-20 | [PHASE_0_CRM_REQUEST_FIRST_CADRAGE_2026-04-20.md](PHASE_0_CRM_REQUEST_FIRST_CADRAGE_2026-04-20.md) | Phase 0 CRM - Request-first cadrage detaille | À classer | À qualifier |  |
 | 2026-04-20 | 2026-04-20 | [PHASE_1_LEAD_SLA_INBOX_SMART_TRIAGE_2026-04-20.md](PHASE_1_LEAD_SLA_INBOX_SMART_TRIAGE_2026-04-20.md) | Phase 1 CRM - Lead SLA Inbox and Smart Triage | À classer | À qualifier |  |
 | 2026-04-20 | 2026-04-20 | [PHASE_1_REQUEST_INBOX_DEV_BACKLOG_2026-04-20.md](PHASE_1_REQUEST_INBOX_DEV_BACKLOG_2026-04-20.md) | Phase 1 request inbox dev backlog | À classer | À qualifier |  |

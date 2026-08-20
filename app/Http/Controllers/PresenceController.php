@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Reservation;
 use App\Models\ReservationResource;
 use App\Models\Task;
 use App\Models\TeamMember;
@@ -9,6 +10,8 @@ use App\Models\TeamMemberAttendance;
 use App\Models\User;
 use App\Models\Work;
 use App\Services\AttendanceService;
+use App\Services\Demo\DemoWorkspaceReferenceClock;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -16,11 +19,14 @@ use Illuminate\Support\Facades\Gate;
 
 class PresenceController extends Controller
 {
+    public function __construct(
+        private readonly DemoWorkspaceReferenceClock $referenceClock,
+    ) {}
+
     public function index(Request $request)
     {
         [$user, $accountOwner, $settings, $membership] = $this->resolveContext($request);
 
-        $isServiceCompany = $accountOwner->company_type !== 'products';
         $canManage = Gate::forUser($user)->allows('company-permission', ['manage_team_presence', $accountOwner->id]);
         $canClock = Gate::forUser($user)->allows('company-permission', ['manage_own_presence', $accountOwner->id]);
 
@@ -31,10 +37,19 @@ class PresenceController extends Controller
             ->orderBy('created_at')
             ->get();
 
-        $serviceWorkload = $isServiceCompany
-            ? $this->buildServiceWorkload($accountOwner->id, $teamMembers)
-            : ['jobs' => [], 'tasks' => []];
-        $people = $this->buildPeoplePayload($accountOwner, $teamMembers, $canManage, $user, $serviceWorkload);
+        $workloadCapabilities = [
+            'reservations' => $accountOwner->hasCompanyFeature('reservations'),
+            'jobs' => $accountOwner->hasCompanyFeature('jobs'),
+            'tasks' => $accountOwner->hasCompanyFeature('tasks'),
+        ];
+        $referenceTime = $this->referenceClock->forOwner($accountOwner);
+        $workload = $this->buildWorkload(
+            $accountOwner->id,
+            $teamMembers,
+            $workloadCapabilities,
+            $referenceTime,
+        );
+        $people = $this->buildPeoplePayload($accountOwner, $teamMembers, $canManage, $user, $workload);
 
         return $this->inertiaOrJson('Presence/Index', [
             'people' => $people->values(),
@@ -48,6 +63,7 @@ class PresenceController extends Controller
                 'type' => $accountOwner->company_type,
                 'timezone' => $accountOwner->company_timezone,
             ],
+            'workload' => $workloadCapabilities,
         ]);
     }
 
@@ -156,7 +172,12 @@ class PresenceController extends Controller
         Collection $teamMembers,
         bool $canManage,
         User $viewer,
-        array $serviceWorkload = ['jobs' => [], 'tasks' => []]
+        array $workload = [
+            'capabilities' => [],
+            'reservations' => [],
+            'jobs' => [],
+            'tasks' => [],
+        ]
     ): Collection {
         $membersByUser = $teamMembers
             ->filter(fn (TeamMember $member) => $member->user)
@@ -179,23 +200,27 @@ class PresenceController extends Controller
             return collect();
         }
 
-        $attendanceByUser = TeamMemberAttendance::query()
-            ->where('account_id', $owner->id)
-            ->whereIn('user_id', $people->pluck('id')->all())
-            ->orderByDesc('clock_in_at')
-            ->get()
+        $attendanceByUser = $this->relevantAttendanceEntries(
+            $owner->id,
+            $people->pluck('id')->map(fn (mixed $id): int => (int) $id)->all(),
+        )
             ->groupBy('user_id');
 
-        return $people->map(function (User $person) use ($membersByUser, $attendanceByUser, $owner, $serviceWorkload) {
+        return $people->map(function (User $person) use ($membersByUser, $attendanceByUser, $owner, $workload) {
             $member = $membersByUser->get($person->id);
             $entries = $attendanceByUser->get($person->id, collect());
 
             $payload = $this->formatPerson($person, $member, $entries, $owner->id);
 
-            if ($owner->company_type !== 'products') {
-                $memberId = $member?->id;
-                $payload['jobs_today'] = (int) ($memberId ? ($serviceWorkload['jobs'][$memberId] ?? 0) : 0);
-                $payload['tasks_today'] = (int) ($memberId ? ($serviceWorkload['tasks'][$memberId] ?? 0) : 0);
+            $memberId = $member?->id;
+            if (($workload['capabilities']['reservations'] ?? false) === true) {
+                $payload['reservations_today'] = (int) ($memberId ? ($workload['reservations'][$memberId] ?? 0) : 0);
+            }
+            if (($workload['capabilities']['jobs'] ?? false) === true) {
+                $payload['jobs_today'] = (int) ($memberId ? ($workload['jobs'][$memberId] ?? 0) : 0);
+            }
+            if (($workload['capabilities']['tasks'] ?? false) === true) {
+                $payload['tasks_today'] = (int) ($memberId ? ($workload['tasks'][$memberId] ?? 0) : 0);
             }
 
             return $payload;
@@ -204,11 +229,7 @@ class PresenceController extends Controller
 
     private function buildPersonPayload(User $user, ?TeamMember $member, int $accountId): array
     {
-        $entries = TeamMemberAttendance::query()
-            ->where('account_id', $accountId)
-            ->where('user_id', $user->id)
-            ->orderByDesc('clock_in_at')
-            ->get();
+        $entries = $this->relevantAttendanceEntries($accountId, [(int) $user->id]);
 
         return $this->formatPerson($user, $member, $entries, $accountId);
     }
@@ -270,37 +291,116 @@ class PresenceController extends Controller
         ];
     }
 
-    private function buildServiceWorkload(int $accountId, Collection $teamMembers): array
+    /**
+     * Load at most the latest open and latest closed entry per person.
+     *
+     * Presence pages only need current state and the last clock-out; loading a
+     * tenant's complete attendance history would grow linearly forever.
+     *
+     * @param  array<int, int>  $userIds
+     */
+    private function relevantAttendanceEntries(int $accountId, array $userIds): Collection
     {
-        $memberIds = $teamMembers->pluck('id')->filter()->values()->all();
-        if (! $memberIds) {
-            return ['jobs' => [], 'tasks' => []];
+        if ($userIds === []) {
+            return collect();
         }
 
-        $today = now()->toDateString();
-        $tasksByMember = Task::query()
-            ->forAccount($accountId)
-            ->whereDate('due_date', $today)
-            ->whereIn('status', ['todo', 'in_progress'])
-            ->whereIn('assigned_team_member_id', $memberIds)
-            ->select('assigned_team_member_id', DB::raw('COUNT(*) as count'))
-            ->groupBy('assigned_team_member_id')
-            ->pluck('count', 'assigned_team_member_id')
-            ->toArray();
+        $baseQuery = fn () => TeamMemberAttendance::query()
+            ->where('account_id', $accountId)
+            ->whereIn('user_id', $userIds);
 
-        $excludedStatuses = array_merge(Work::COMPLETED_STATUSES, [Work::STATUS_CANCELLED]);
-        $jobsByMember = DB::table('work_team_members')
-            ->join('works', 'work_team_members.work_id', '=', 'works.id')
-            ->where('works.user_id', $accountId)
-            ->whereDate('works.start_date', $today)
-            ->whereNotIn('works.status', $excludedStatuses)
-            ->whereIn('work_team_members.team_member_id', $memberIds)
-            ->select('work_team_members.team_member_id', DB::raw('COUNT(*) as count'))
-            ->groupBy('work_team_members.team_member_id')
-            ->pluck('count', 'work_team_members.team_member_id')
-            ->toArray();
+        $openIds = $baseQuery()
+            ->whereNull('clock_out_at')
+            ->selectRaw('MAX(id) as id')
+            ->groupBy('user_id')
+            ->pluck('id');
+        $closedIds = $baseQuery()
+            ->whereNotNull('clock_out_at')
+            ->selectRaw('MAX(id) as id')
+            ->groupBy('user_id')
+            ->pluck('id');
+        $ids = $openIds->merge($closedIds)->filter()->unique()->values();
+
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+
+        return TeamMemberAttendance::query()
+            ->whereIn('id', $ids->all())
+            ->orderByDesc('clock_in_at')
+            ->get();
+    }
+
+    private function buildWorkload(
+        int $accountId,
+        Collection $teamMembers,
+        array $capabilities,
+        CarbonImmutable $referenceTime,
+    ): array {
+        $memberIds = $teamMembers->pluck('id')->filter()->values()->all();
+        if (! $memberIds) {
+            return [
+                'capabilities' => $capabilities,
+                'reservations' => [],
+                'jobs' => [],
+                'tasks' => [],
+            ];
+        }
+
+        $today = $referenceTime->toDateString();
+        $reservationsByMember = [];
+        if (($capabilities['reservations'] ?? false) === true) {
+            $reservationsByMember = Reservation::query()
+                ->forAccount($accountId)
+                ->whereBetween('starts_at', [
+                    $referenceTime->startOfDay()->utc(),
+                    $referenceTime->endOfDay()->utc(),
+                ])
+                ->whereIn('status', [
+                    Reservation::STATUS_PENDING,
+                    Reservation::STATUS_CONFIRMED,
+                    Reservation::STATUS_COMPLETED,
+                    Reservation::STATUS_NO_SHOW,
+                ])
+                ->whereIn('team_member_id', $memberIds)
+                ->select('team_member_id', DB::raw('COUNT(*) as count'))
+                ->groupBy('team_member_id')
+                ->pluck('count', 'team_member_id')
+                ->toArray();
+        }
+
+        $tasksByMember = [];
+        if (($capabilities['tasks'] ?? false) === true) {
+            $tasksByMember = Task::query()
+                ->forAccount($accountId)
+                ->whereDate('due_date', $today)
+                ->whereIn('status', ['todo', 'in_progress'])
+                ->whereIn('assigned_team_member_id', $memberIds)
+                ->select('assigned_team_member_id', DB::raw('COUNT(*) as count'))
+                ->groupBy('assigned_team_member_id')
+                ->pluck('count', 'assigned_team_member_id')
+                ->toArray();
+        }
+
+        $jobsByMember = [];
+        if (($capabilities['jobs'] ?? false) === true) {
+            $excludedStatuses = array_merge(Work::COMPLETED_STATUSES, [Work::STATUS_CANCELLED]);
+            $jobsByMember = DB::table('work_team_members')
+                ->join('works', 'work_team_members.work_id', '=', 'works.id')
+                ->where('works.user_id', $accountId)
+                ->whereNull('works.deleted_at')
+                ->whereDate('works.start_date', $today)
+                ->whereNotIn('works.status', $excludedStatuses)
+                ->whereIn('work_team_members.team_member_id', $memberIds)
+                ->select('work_team_members.team_member_id', DB::raw('COUNT(*) as count'))
+                ->groupBy('work_team_members.team_member_id')
+                ->pluck('count', 'work_team_members.team_member_id')
+                ->toArray();
+        }
 
         return [
+            'capabilities' => $capabilities,
+            'reservations' => $reservationsByMember,
             'jobs' => $jobsByMember,
             'tasks' => $tasksByMember,
         ];

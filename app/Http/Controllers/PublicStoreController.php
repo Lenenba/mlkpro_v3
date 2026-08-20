@@ -34,11 +34,17 @@ class PublicStoreController extends Controller
 
     private function resolveOwner(string $slug): User
     {
-        return User::query()
+        $owner = User::query()
             ->where('company_slug', $slug)
-            ->where('company_type', 'products')
             ->where('is_suspended', false)
             ->firstOrFail();
+
+        abort_unless(
+            $owner->hasCompanyFeature('products') && $owner->hasCompanyFeature('sales'),
+            404
+        );
+
+        return $owner;
     }
 
     private function cartKey(User $owner): string

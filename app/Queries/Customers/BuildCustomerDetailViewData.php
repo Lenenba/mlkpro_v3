@@ -24,6 +24,7 @@ use App\Support\CRM\CrmActivityLinking;
 use App\Support\CRM\MeetingEventTaxonomy;
 use App\Support\CRM\MessageEventTaxonomy;
 use App\Support\CRM\SalesActivityTaxonomy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -41,10 +42,18 @@ class BuildCustomerDetailViewData
         bool $canEdit,
         array $filters
     ): array {
-        $isProductAccount = (bool) ($accountOwner && $accountOwner->company_type === 'products');
+        $hasSalesData = (bool) ($accountOwner && $this->featureService->hasFeature($accountOwner, 'sales'));
+        $hasServiceData = (bool) ($accountOwner && collect([
+            'requests',
+            'quotes',
+            'jobs',
+            'tasks',
+            'invoices',
+            'reservations',
+        ])->contains(fn (string $feature): bool => $this->featureService->hasFeature($accountOwner, $feature)));
 
         $customer->load(['properties', 'vipTier']);
-        if (! $isProductAccount) {
+        if ($hasServiceData) {
             $customer->load([
                 'quotes' => fn ($query) => $query
                     ->without(['products', 'property'])
@@ -108,14 +117,16 @@ class BuildCustomerDetailViewData
             'balance_due' => 0,
         ];
 
-        if ($isProductAccount) {
+        if ($hasSalesData) {
             [
                 'sales' => $sales,
                 'salesSummary' => $salesSummary,
                 'salesInsights' => $salesInsights,
                 'topProducts' => $topProducts,
             ] = $this->buildSalesData($customer, $accountId);
-        } else {
+        }
+
+        if ($hasServiceData) {
             [
                 'stats' => $stats,
                 'tasks' => $tasks,
@@ -125,7 +136,7 @@ class BuildCustomerDetailViewData
             ] = $this->buildServiceData($customer, $accountId);
         }
 
-        $activity = $this->buildActivity($customer, $accountId, $isProductAccount);
+        $activity = $this->buildActivity($customer, $accountId, $hasSalesData, $hasServiceData);
         $customerPackages = $this->buildCustomerPackages($customer, $accountId);
 
         return [
@@ -647,62 +658,43 @@ class BuildCustomerDetailViewData
         ));
     }
 
-    private function buildActivity(Customer $customer, int $accountId, bool $isProductAccount): Collection
-    {
-        if ($isProductAccount) {
-            return ActivityLog::query()
-                ->where('subject_type', Customer::class)
-                ->where('subject_id', $customer->id)
-                ->with('user:id,name')
-                ->latest()
-                ->limit(12)
-                ->get(CustomerReadSelects::detailActivityColumns())
-                ->map(fn ($log) => $this->serializeActivityLog($log, 'Customer'))
-                ->values();
-        }
-
+    private function buildActivity(
+        Customer $customer,
+        int $accountId,
+        bool $hasSalesData,
+        bool $hasServiceData
+    ): Collection {
         $subjectLabels = [
             LeadRequest::class => 'Request',
             Quote::class => 'Quote',
             Work::class => 'Job',
             Invoice::class => 'Invoice',
             Payment::class => 'Payment',
+            Sale::class => 'Sale',
             Customer::class => 'Customer',
         ];
 
-        $requestIds = LeadRequest::query()
-            ->where('customer_id', $customer->id)
-            ->where('user_id', $accountId)
-            ->latest()
-            ->limit(250)
-            ->pluck('id');
-        $quoteIds = Quote::query()
-            ->where('customer_id', $customer->id)
-            ->where('user_id', $accountId)
-            ->latest()
-            ->limit(250)
-            ->pluck('id');
-        $workIds = Work::query()
-            ->where('customer_id', $customer->id)
-            ->where('user_id', $accountId)
-            ->latest()
-            ->limit(250)
-            ->pluck('id');
-        $invoiceIds = Invoice::query()
-            ->where('customer_id', $customer->id)
-            ->where('user_id', $accountId)
-            ->latest()
-            ->limit(250)
-            ->pluck('id');
-        $paymentIds = Payment::query()
-            ->where('customer_id', $customer->id)
-            ->where('user_id', $accountId)
-            ->latest()
-            ->limit(250)
-            ->pluck('id');
+        $requestIds = $hasServiceData
+            ? $this->customerSubjectIds(LeadRequest::query(), $customer, $accountId)
+            : collect();
+        $quoteIds = $hasServiceData
+            ? $this->customerSubjectIds(Quote::query(), $customer, $accountId)
+            : collect();
+        $workIds = $hasServiceData
+            ? $this->customerSubjectIds(Work::query(), $customer, $accountId)
+            : collect();
+        $invoiceIds = $hasServiceData
+            ? $this->customerSubjectIds(Invoice::query(), $customer, $accountId)
+            : collect();
+        $paymentIds = ($hasServiceData || $hasSalesData)
+            ? $this->customerSubjectIds(Payment::query(), $customer, $accountId)
+            : collect();
+        $saleIds = $hasSalesData
+            ? $this->customerSubjectIds(Sale::query(), $customer, $accountId)
+            : collect();
 
         return ActivityLog::query()
-            ->where(function ($query) use ($customer, $requestIds, $quoteIds, $workIds, $invoiceIds, $paymentIds) {
+            ->where(function ($query) use ($customer, $requestIds, $quoteIds, $workIds, $invoiceIds, $paymentIds, $saleIds) {
                 $query->where(function ($sub) use ($customer) {
                     $sub->where('subject_type', Customer::class)
                         ->where('subject_id', $customer->id);
@@ -742,6 +734,13 @@ class BuildCustomerDetailViewData
                             ->whereIn('subject_id', $paymentIds);
                     });
                 }
+
+                if ($saleIds->isNotEmpty()) {
+                    $query->orWhere(function ($sub) use ($saleIds) {
+                        $sub->where('subject_type', Sale::class)
+                            ->whereIn('subject_id', $saleIds);
+                    });
+                }
             })
             ->with('user:id,name')
             ->latest()
@@ -752,6 +751,16 @@ class BuildCustomerDetailViewData
                 $subjectLabels[$log->subject_type] ?? 'Item'
             ))
             ->values();
+    }
+
+    private function customerSubjectIds(Builder $query, Customer $customer, int $accountId): Collection
+    {
+        return $query
+            ->where('customer_id', $customer->id)
+            ->where('user_id', $accountId)
+            ->latest()
+            ->limit(250)
+            ->pluck('id');
     }
 
     /**

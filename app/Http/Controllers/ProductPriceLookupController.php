@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Product;
 use App\Models\User;
 use App\Services\PriceLookupService;
 use App\Services\SupplierDirectory;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class ProductPriceLookupController extends Controller
 {
@@ -20,9 +22,11 @@ class ProductPriceLookupController extends Controller
 
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? 0;
-        if (!$user || !$accountId) {
+        if (! $user || ! $accountId) {
             abort(403);
         }
+
+        Gate::forUser($user)->authorize('viewAny', Product::class);
 
         $owner = $accountId === $user->id ? $user : User::query()->find($accountId);
         $country = $owner?->company_country ?: config('suppliers.default_country', 'Canada');
@@ -60,13 +64,13 @@ class ProductPriceLookupController extends Controller
         $limit = (int) config('suppliers.preferred_limit', 4);
         $keys = collect($suppliers)->pluck('key')->filter()->values()->all();
         $defaultEnabled = collect($suppliers)
-            ->filter(fn (array $supplier) => !empty($supplier['default_enabled']))
+            ->filter(fn (array $supplier) => ! empty($supplier['default_enabled']))
             ->pluck('key')
             ->values()
             ->all();
         $enabled = isset($preferences['enabled']) ? (array) $preferences['enabled'] : ($defaultEnabled ?: $keys);
         $enabled = array_values(array_intersect($keys, (array) $enabled));
-        if (!$enabled) {
+        if (! $enabled) {
             $enabled = $keys;
         }
 
@@ -82,17 +86,17 @@ class ProductPriceLookupController extends Controller
 
     private function resolveCustomSuppliers(?array $preferences): array
     {
-        if (!is_array($preferences)) {
+        if (! is_array($preferences)) {
             return [];
         }
 
         $custom = $preferences['custom_suppliers'] ?? [];
-        if (!is_array($custom)) {
+        if (! is_array($custom)) {
             return [];
         }
 
         return array_values(array_filter($custom, function ($supplier) {
-            return is_array($supplier) && !empty($supplier['key']);
+            return is_array($supplier) && ! empty($supplier['key']);
         }));
     }
 
@@ -100,13 +104,13 @@ class ProductPriceLookupController extends Controller
     {
         $byKey = [];
         foreach ($suppliers as $supplier) {
-            if (is_array($supplier) && !empty($supplier['key'])) {
+            if (is_array($supplier) && ! empty($supplier['key'])) {
                 $byKey[$supplier['key']] = $supplier;
             }
         }
 
         foreach ($customSuppliers as $supplier) {
-            if (is_array($supplier) && !empty($supplier['key'])) {
+            if (is_array($supplier) && ! empty($supplier['key'])) {
                 $byKey[$supplier['key']] = $supplier;
             }
         }

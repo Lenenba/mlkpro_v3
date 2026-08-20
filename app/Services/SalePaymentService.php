@@ -170,7 +170,7 @@ class SalePaymentService
             ! $inventoryAlreadyApplied
             && ($sale->status === Sale::STATUS_PAID || $this->isFulfillmentComplete($sale->fulfillment_status))
         ) {
-            $this->applyInventory($sale);
+            $this->applyInventory($sale, $actor);
         }
 
         $timeline = app(SaleTimelineService::class);
@@ -195,7 +195,7 @@ class SalePaymentService
         }
     }
 
-    private function applyInventory(Sale $sale): void
+    private function applyInventory(Sale $sale, ?User $actor): void
     {
         $items = $sale->relationLoaded('items')
             ? $sale->items
@@ -229,7 +229,8 @@ class SalePaymentService
                 (int) $item->quantity,
                 $inventoryService,
                 $sale,
-                $warehouse
+                $warehouse,
+                $actor,
             );
         }
     }
@@ -295,7 +296,8 @@ class SalePaymentService
         int $quantity,
         InventoryService $inventoryService,
         Sale $sale,
-        ?Warehouse $fallbackWarehouse
+        ?Warehouse $fallbackWarehouse,
+        ?User $actor,
     ): void {
         if ($quantity <= 0) {
             return;
@@ -319,6 +321,7 @@ class SalePaymentService
                     'note' => 'Sale '.$sale->number,
                     'serial_number' => $lot->serial_number,
                     'reference' => $sale,
+                    'actor_id' => $actor?->id ?? $sale->user_id,
                 ]);
             }
 
@@ -349,6 +352,7 @@ class SalePaymentService
                     'note' => 'Sale '.$sale->number,
                     'lot_number' => $lot->lot_number,
                     'reference' => $sale,
+                    'actor_id' => $actor?->id ?? $sale->user_id,
                 ]);
 
                 $remaining -= $useQuantity;
@@ -360,6 +364,7 @@ class SalePaymentService
                     'reason' => 'sale',
                     'note' => 'Sale '.$sale->number,
                     'reference' => $sale,
+                    'actor_id' => $actor?->id ?? $sale->user_id,
                 ]);
             }
 
@@ -371,6 +376,7 @@ class SalePaymentService
             'reason' => 'sale',
             'note' => 'Sale '.$sale->number,
             'reference' => $sale,
+            'actor_id' => $actor?->id ?? $sale->user_id,
         ]);
     }
 

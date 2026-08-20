@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import AnnouncementsPanel from '@/Components/Dashboard/AnnouncementsPanel.vue';
 import KpiCompositePanel from '@/Components/Dashboard/KpiCompositePanel.vue';
+import ScenarioBusinessOverview from '@/Components/Dashboard/ScenarioBusinessOverview.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 import { buildSparklinePoints, buildTrend } from '@/utils/kpi';
@@ -80,6 +81,10 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    scenarioInsights: {
+        type: Object,
+        default: null,
+    },
 });
 
 const page = usePage();
@@ -98,6 +103,16 @@ const { hasAnyPermission } = usePermissions();
 const teamRole = computed(() => page.props.auth?.account?.team?.role || null);
 const isSeller = computed(() => teamRole.value === 'seller');
 const canSales = computed(() => hasAnyPermission(['sales.manage', 'sales.pos']));
+const canProducts = computed(() => hasAnyPermission([
+    'products.view',
+    'products.create',
+    'products.edit',
+    'products.delete',
+    'products.inventory',
+    'products.stock',
+    'sales.manage',
+    'sales.pos',
+]));
 const canQuotes = computed(() => hasAnyPermission(['quotes.view', 'quotes.edit', 'quotes.send']));
 const canSalesManage = computed(() => hasAnyPermission(['sales.manage']));
 const canJobs = computed(() => hasAnyPermission(['jobs.view', 'jobs.edit']));
@@ -523,7 +538,7 @@ const insightItems = computed(() => {
     return items;
 });
 const customersEmpty = computed(() => stat('customers_total') <= 0);
-const catalogEmpty = computed(() => stat('products_total') <= 0);
+const catalogEmpty = computed(() => stat('catalog_total') <= 0);
 const quotesEmpty = computed(() => stat('quotes_total') <= 0);
 const planScansEmpty = computed(() => stat('plan_scans_total') <= 0);
 
@@ -564,12 +579,17 @@ const kpiData = computed(() => {
     return data;
 });
 const financePanelMetrics = computed(() => {
-    if (!hasFeature('invoices') || !canInvoices.value) {
+    const canViewInvoiceFinance = hasFeature('invoices') && canInvoices.value;
+    const canViewPosFinance = hasFeature('sales') && canSales.value;
+
+    if (!canViewInvoiceFinance && !canViewPosFinance) {
         return [];
     }
 
-    const items = [
-        {
+    const items = [];
+
+    if (canViewInvoiceFinance) {
+        items.push({
             key: 'revenue-paid',
             label: t('dashboard.kpi.revenue_paid'),
             value: formatCurrency(stat('revenue_paid')),
@@ -577,8 +597,8 @@ const financePanelMetrics = computed(() => {
             trend: kpiData.value.revenue_paid.trend,
             points: kpiData.value.revenue_paid.points,
             colorClass: 'bg-emerald-500/70 dark:bg-emerald-400/50',
-        },
-        {
+        });
+        items.push({
             key: 'revenue-outstanding',
             label: t('dashboard.kpi.outstanding_balance'),
             value: formatCurrency(stat('revenue_outstanding')),
@@ -586,8 +606,8 @@ const financePanelMetrics = computed(() => {
             trend: kpiData.value.revenue_outstanding.trend,
             points: kpiData.value.revenue_outstanding.points,
             colorClass: 'bg-amber-500/70 dark:bg-amber-400/50',
-        },
-        {
+        });
+        items.push({
             key: 'client-follow-up',
             label: t('dashboard.kpi.client_follow_up'),
             value: formatNumber(financeCount('outstanding_invoices_count')),
@@ -595,8 +615,20 @@ const financePanelMetrics = computed(() => {
                 amount: formatCurrency(stat('revenue_outstanding')),
             }),
             colorClass: 'bg-sky-500/70 dark:bg-sky-400/50',
-        },
-    ];
+        });
+    }
+
+    if (canViewPosFinance) {
+        items.push({
+            key: 'pos-revenue',
+            label: t('dashboard.kpi.pos_revenue'),
+            value: formatCurrency(stat('pos_revenue_paid')),
+            context: t('dashboard.kpi.pos_revenue_month', {
+                amount: formatCurrency(stat('pos_payments_month')),
+            }),
+            colorClass: 'bg-violet-500/70 dark:bg-violet-400/50',
+        });
+    }
 
     if (hasFeature('expenses') && canExpenses.value) {
         items.push({
@@ -652,6 +684,32 @@ const pipelinePanelMetrics = computed(() => {
     }
 
     return items;
+});
+const inventoryPanelMetrics = computed(() => {
+    if (!hasFeature('products') || !canProducts.value) {
+        return [];
+    }
+
+    return [
+        {
+            key: 'inventory-value',
+            label: t('dashboard.kpi.inventory_value'),
+            value: formatCurrency(stat('inventory_value')),
+            context: t('dashboard.kpi.products_total', { count: formatNumber(stat('products_total')) }),
+            trend: kpiData.value.inventory_value.trend,
+            points: kpiData.value.inventory_value.points,
+            colorClass: 'bg-teal-500/70 dark:bg-teal-400/50',
+        },
+        {
+            key: 'low-stock',
+            label: t('dashboard.kpi.low_stock'),
+            value: formatNumber(stat('products_low_stock')),
+            context: t('dashboard.kpi.out_of_stock', { count: formatNumber(stat('products_out')) }),
+            trend: kpiData.value.products_low_stock.trend,
+            points: kpiData.value.products_low_stock.points,
+            colorClass: 'bg-orange-500/70 dark:bg-orange-400/50',
+        },
+    ];
 });
 const pipelinePanelActionHref = computed(() => {
     if (hasFeature('jobs') && canJobs.value) {
@@ -766,8 +824,23 @@ const pipelinePanelSummaryGridClass = computed(() => {
 });
 const hasFinancePanel = computed(() => financePanelMetrics.value.length > 0);
 const hasPipelinePanel = computed(() => pipelinePanelMetrics.value.length > 0);
-const financePanelClass = computed(() => (hasPipelinePanel.value ? 'xl:col-span-6' : 'xl:col-span-12'));
-const pipelinePanelClass = computed(() => (hasFinancePanel.value ? 'xl:col-span-6' : 'xl:col-span-12'));
+const hasInventoryPanel = computed(() => inventoryPanelMetrics.value.length > 0);
+const overviewPanelCount = computed(() => [
+    hasFinancePanel.value,
+    hasPipelinePanel.value,
+    hasInventoryPanel.value,
+].filter(Boolean).length);
+const overviewPanelClass = computed(() => {
+    if (overviewPanelCount.value >= 3) {
+        return 'xl:col-span-4';
+    }
+
+    if (overviewPanelCount.value === 2) {
+        return 'xl:col-span-6';
+    }
+
+    return 'xl:col-span-12';
+});
 
 const displayCustomer = (customer) =>
     customer?.company_name ||
@@ -785,7 +858,7 @@ const onboardingChecklist = computed(() => {
                 ? t('dashboard.onboarding.add_first_service')
                 : t('dashboard.onboarding.add_first_product'),
             route: isServices ? 'service.index' : 'product.index',
-            completed: stat('products_total') > 0,
+            completed: stat('catalog_total') > 0,
         });
     }
 
@@ -956,7 +1029,7 @@ onMounted(() => {
                 <section class="grid grid-cols-1 gap-4 xl:grid-cols-12" data-testid="demo-dashboard-overview">
                     <KpiCompositePanel
                         v-if="financePanelMetrics.length"
-                        :class="financePanelClass"
+                        :class="overviewPanelClass"
                         :title="$t('dashboard.kpi_panels.finance_title')"
                         :subtitle="$t('dashboard.kpi_panels.finance_subtitle')"
                         :metrics="financePanelMetrics"
@@ -970,7 +1043,7 @@ onMounted(() => {
                     />
                     <KpiCompositePanel
                         v-if="pipelinePanelMetrics.length"
-                        :class="pipelinePanelClass"
+                        :class="overviewPanelClass"
                         :title="$t('dashboard.kpi_panels.pipeline_title')"
                         :subtitle="$t('dashboard.kpi_panels.pipeline_subtitle')"
                         :metrics="pipelinePanelMetrics"
@@ -980,6 +1053,18 @@ onMounted(() => {
                         :action-href="pipelinePanelActionHref"
                         :action-label="$t('dashboard.actions.view_all')"
                         accent-class="border-t-blue-600"
+                        compact-metrics
+                    />
+                    <KpiCompositePanel
+                        v-if="inventoryPanelMetrics.length"
+                        :class="overviewPanelClass"
+                        :title="$t('dashboard.kpi_panels.inventory_title')"
+                        :subtitle="$t('dashboard.kpi_panels.inventory_subtitle')"
+                        :metrics="inventoryPanelMetrics"
+                        metrics-grid-class="sm:grid-cols-2"
+                        :action-href="route('product.index')"
+                        :action-label="$t('dashboard.actions.view_all')"
+                        accent-class="border-t-teal-600"
                         compact-metrics
                     />
                 </section>
@@ -992,6 +1077,11 @@ onMounted(() => {
                     :limit="3"
                 />
             </div>
+
+            <ScenarioBusinessOverview
+                v-if="scenarioInsights"
+                :insights="scenarioInsights"
+            />
 
             <section
                 v-if="hasMarketingKpis"

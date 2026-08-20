@@ -31,6 +31,7 @@ return [
                 env('QUEUE_CONNECTION', 'database') === 'sync'
             ),
             'backoff' => [60, 300, 900],
+            'timeout' => 900,
         ],
         'plan_scans' => [
             'queue' => env('ASYNC_QUEUE_PLAN_SCANS', 'plan-scans'),

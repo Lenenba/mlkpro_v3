@@ -12,7 +12,7 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 
 | En cours | Bloqués | À faire | Terminés | Références | Archivés | À classer | Total |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 0 | 0 | 0 | 0 | 6 | 0 | 0 | 6 |
+| 0 | 0 | 0 | 1 | 6 | 0 | 0 | 7 |
 
 ## Sous-dossiers
 
@@ -34,7 +34,9 @@ _Aucun document._
 
 ## Terminé
 
-_Aucun document._
+| Créé le | Modifié le | Document | Titre | État du document | Source | Note |
+| --- | --- | --- | --- | --- | --- | --- |
+| 2026-08-20 | 2026-08-20 | [scenario-engine.md](scenario-engine.md) | Demo scenario engine | Référence | Classement manuel | Architecture et runbook actifs du moteur de scenarios de demonstration reproductibles. |
 
 ## Références actives
 

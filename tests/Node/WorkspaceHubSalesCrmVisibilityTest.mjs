@@ -64,3 +64,113 @@ test('advanced sales CRM routes require both sales and sales_crm', () => {
         /Route::middleware\(\['company\.feature:sales', 'company\.feature:sales_crm'\]\)->group/,
     );
 });
+
+test('sales and orders cards follow the sales capability for service and product tenants', async () => {
+    const { buildWorkspaceHubCategories } = await loadWorkspaceHubBuilder();
+
+    for (const companyType of ['services', 'products']) {
+        const categories = buildWorkspaceHubCategories({
+            account: {
+                is_owner: true,
+                is_client: false,
+                features: { sales: true },
+                permissions: ['sales.manage'],
+                company: { type: companyType },
+                team: { role: null },
+            },
+        });
+        const visibleModules = categories.flatMap((category) => category.modules).map((module) => module.key);
+
+        assert.ok(visibleModules.includes('sales'));
+        assert.ok(visibleModules.includes('orders'));
+    }
+});
+
+test('sales navigation still requires the tenant feature and a member permission', async () => {
+    const { buildWorkspaceHubCategories } = await loadWorkspaceHubBuilder();
+    const visibleModuleKeys = (account) => buildWorkspaceHubCategories({ account })
+        .flatMap((category) => category.modules)
+        .map((module) => module.key);
+    const account = {
+        is_owner: false,
+        is_client: false,
+        features: { sales: true },
+        permissions: [],
+        company: { type: 'services' },
+        team: { role: 'member' },
+    };
+
+    assert.ok(!visibleModuleKeys(account).includes('sales'));
+    assert.ok(!visibleModuleKeys(account).includes('orders'));
+    assert.ok(visibleModuleKeys({ ...account, permissions: ['sales.pos'] }).includes('sales'));
+    assert.ok(visibleModuleKeys({ ...account, permissions: ['sales.pos'] }).includes('orders'));
+    assert.ok(!visibleModuleKeys({ ...account, features: { sales: false }, permissions: ['sales.pos'] }).includes('sales'));
+});
+
+test('sidebar fallback uses the same sales capability contract', () => {
+    const sidebar = read('resources/js/Layouts/UI/Sidebar.vue');
+
+    assert.match(sidebar, /v-if="hasFeature\('sales'\) && canSales"[^>]*nav\.orders/);
+    assert.match(sidebar, /v-if="hasFeature\('sales'\) && canSales"[^>]*nav\.sales/);
+    assert.doesNotMatch(sidebar, /companyType === 'products' && hasFeature\('sales'\) && canSales"[^>]*nav\.(orders|sales)/);
+});
+
+test('operational cards use enabled capabilities instead of company type', async () => {
+    const { buildWorkspaceHubCategories } = await loadWorkspaceHubBuilder();
+    const visibleModuleKeys = (account) => buildWorkspaceHubCategories({ account })
+        .flatMap((category) => category.modules)
+        .map((module) => module.key);
+
+    const productReservations = {
+        is_owner: false,
+        is_client: false,
+        features: { reservations: true, performance: true, planning: true },
+        permissions: ['reservations.view', 'reports.view'],
+        company: { type: 'products' },
+        team: { role: 'member' },
+    };
+    const reservationModules = visibleModuleKeys(productReservations);
+
+    assert.ok(reservationModules.includes('reservations'));
+    assert.ok(reservationModules.includes('performance'));
+    assert.ok(reservationModules.includes('planning'));
+
+    const noSourceModules = visibleModuleKeys({
+        ...productReservations,
+        features: { performance: true, planning: true },
+    });
+    assert.ok(!noSourceModules.includes('performance'));
+    assert.ok(!noSourceModules.includes('planning'));
+
+    const serviceSalesModules = visibleModuleKeys({
+        is_owner: false,
+        is_client: false,
+        features: { sales: true, products: true, performance: true, planning: true },
+        permissions: ['sales.manage'],
+        company: { type: 'services' },
+        team: { role: 'manager' },
+    });
+    assert.ok(serviceSalesModules.includes('customers'));
+    assert.ok(serviceSalesModules.includes('products'));
+    assert.ok(serviceSalesModules.includes('performance'));
+    assert.ok(serviceSalesModules.includes('planning'));
+});
+
+test('product and customer UI gates follow features and permissions', () => {
+    const customerShow = read('resources/js/Pages/Customer/Show.vue');
+    const productTable = read('resources/js/Pages/Product/UI/ProductTable.vue');
+    const globalSearch = read('resources/js/Components/UI/GlobalSearch.vue');
+    const quickMenu = read('resources/js/Components/UI/LinkAncor2.vue');
+    const sidebar = read('resources/js/Layouts/UI/Sidebar.vue');
+    const dashboard = read('resources/js/Pages/Dashboard.vue');
+
+    assert.match(customerShow, /showSales = computed\(\(\) => hasFeature\('sales'\)\)/);
+    assert.doesNotMatch(customerShow, /showServiceOps = computed\(\(\) => companyType/);
+    assert.match(productTable, /hasFeature\('sales'\) && hasAnyPermission\(\['sales\.manage', 'sales\.pos'\]\)/);
+    assert.doesNotMatch(globalSearch, /companyType\.value === 'products' && hasFeature\('sales'\)/);
+    assert.doesNotMatch(quickMenu, /companyType\.value === 'products' && hasFeature\('sales'\)/);
+    assert.match(sidebar, /v-if="hasFeature\('reservations'\) && canReservations/);
+    assert.doesNotMatch(sidebar, /showServices && hasFeature\('reservations'\)/);
+    assert.match(dashboard, /!hasFeature\('products'\) \|\| !canProducts\.value/);
+    assert.match(dashboard, /v-if="inventoryPanelMetrics\.length"/);
+});

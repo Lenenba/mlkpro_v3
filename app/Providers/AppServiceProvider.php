@@ -20,6 +20,7 @@ use App\Services\Campaigns\MarketingSettingsService;
 use App\Services\Campaigns\TemplateSeederService;
 use App\Services\Capacity\CapacityOutcomeClassifier;
 use App\Services\Capacity\CapacityRunContextService;
+use App\Services\Demo\DemoScenarioRegistry;
 use App\Services\Observability\ExceptionStatusCodeResolver;
 use App\Services\Observability\ObservabilityCacheStore;
 use App\Services\Observability\ObservabilityLogService;
@@ -72,6 +73,17 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(SlowQueryService::class);
         $this->app->singleton(CapacityRunContextService::class);
         $this->app->singleton(CapacityOutcomeClassifier::class);
+        $this->app->singleton(
+            DemoScenarioRegistry::class,
+            fn ($app): DemoScenarioRegistry => new DemoScenarioRegistry(
+                collect((array) config('demo_scenarios.scenarios', []))
+                    ->pluck('generator')
+                    ->filter(fn (mixed $class): bool => is_string($class) && class_exists($class))
+                    ->map(fn (string $class) => $app->make($class))
+                    ->values()
+                    ->all()
+            )
+        );
     }
 
     /**

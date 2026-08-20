@@ -47,7 +47,7 @@ const menuItems = computed(() => {
     locale.value;
     const items = [];
 
-    if (!isSeller.value && ((isOwner.value && showServices.value) || (companyType.value === 'products' && hasFeature('sales') && canSales.value))) {
+    if (!isSeller.value && ((isOwner.value && showServices.value) || (hasFeature('sales') && canSales.value))) {
         items.push({
             label: t('quick_create.customer'),
             overlay: '#hs-quick-create-customer',

@@ -2,6 +2,7 @@
 
 namespace App\Services\Demo;
 
+use App\Enums\DemoDataVolume;
 use App\Enums\PromotionDiscountType;
 use App\Enums\PromotionStatus;
 use App\Enums\PromotionTargetType;
@@ -81,6 +82,7 @@ class DemoWorkspaceProvisioner
         private DemoWorkspaceCatalog $catalog,
         private MarketingSettingsService $marketingSettingsService,
         private AccountDeletionService $accountDeletionService,
+        private DemoScenarioManager $scenarioManager,
     ) {}
 
     /**
@@ -107,7 +109,8 @@ class DemoWorkspaceProvisioner
             $summary = $this->seedEnvironment($owner, $workspace);
             $extraAccessCredentials = $this->buildExtraAccessCredentials(
                 $owner,
-                $workspace->extra_access_roles ?? []
+                $workspace->extra_access_roles ?? [],
+                (string) $workspace->access_password,
             );
 
             return $this->finalizeProvisionedWorkspace($workspace, $summary, [
@@ -302,7 +305,8 @@ class DemoWorkspaceProvisioner
             $summary = $this->seedEnvironment($owner, $workspace);
             $extraAccessCredentials = $this->buildExtraAccessCredentials(
                 $owner,
-                $workspace->extra_access_roles ?? []
+                $workspace->extra_access_roles ?? [],
+                (string) $workspace->access_password,
             );
 
             return $this->finalizeProvisionedWorkspace($workspace, $summary, [
@@ -330,29 +334,12 @@ class DemoWorkspaceProvisioner
             ]
         );
 
-        $preferredCredentials = $isReset
-            ? [
-                'email' => (string) ($workspace->access_email ?? ''),
-                'password' => (string) ($workspace->access_password ?? ''),
-            ]
-            : null;
+        if ($isReset) {
+            return $this->provisionQueuedResetWorkspace($workspace, $payload, $admin, $expiresAt);
+        }
 
-        [$workspace, $owner] = DB::transaction(function () use ($workspace, $payload, $admin, $expiresAt, $isReset, $preferredCredentials) {
-            $workingWorkspace = $workspace;
-
-            if ($isReset) {
-                $previousOwner = $workingWorkspace->owner()->first();
-
-                if ($previousOwner) {
-                    $workingWorkspace->forceFill([
-                        'owner_user_id' => null,
-                    ])->save();
-
-                    $this->accountDeletionService->deleteAccount($previousOwner);
-                }
-            }
-
-            $credentials = $this->resolveCredentials($preferredCredentials, (string) $payload['company_name']);
+        [$workspace, $owner] = DB::transaction(function () use ($workspace, $payload, $admin, $expiresAt) {
+            $credentials = $this->resolveCredentials(null, (string) $payload['company_name']);
             $owner = $this->createOwner($payload, $credentials, $expiresAt);
             $workspace = $this->persistWorkspaceRecord(
                 $workspace,
@@ -361,10 +348,10 @@ class DemoWorkspaceProvisioner
                 $owner,
                 $credentials,
                 $expiresAt,
-                ! $isReset
+                true
             );
 
-            return [$workingWorkspace, $owner];
+            return [$workspace, $owner];
         });
 
         $workspace = $this->updateProvisioningState(
@@ -378,7 +365,8 @@ class DemoWorkspaceProvisioner
             $summary = $this->seedEnvironment($owner, $workspace);
             $extraAccessCredentials = $this->buildExtraAccessCredentials(
                 $owner,
-                $workspace->extra_access_roles ?? []
+                $workspace->extra_access_roles ?? [],
+                (string) $workspace->access_password,
             );
 
             return [$summary, $extraAccessCredentials];
@@ -393,9 +381,232 @@ class DemoWorkspaceProvisioner
 
         return $this->finalizeProvisionedWorkspace($workspace, $summary, [
             'extra_access_credentials' => $extraAccessCredentials,
-            'last_reset_at' => $isReset ? now() : $workspace->last_reset_at,
-            'last_reset_by_user_id' => $isReset ? $admin->id : $workspace->last_reset_by_user_id,
+            'last_reset_at' => $workspace->last_reset_at,
+            'last_reset_by_user_id' => $workspace->last_reset_by_user_id,
         ]);
+    }
+
+    /**
+     * Build a queued reset beside the live tenant and expose it only after
+     * generation succeeds. The current owner remains usable on every failure.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private function provisionQueuedResetWorkspace(
+        DemoWorkspace $workspace,
+        array $payload,
+        User $admin,
+        Carbon $expiresAt,
+    ): DemoWorkspace {
+        $previousOwner = $workspace->owner()->first();
+
+        if (! $previousOwner) {
+            throw new \RuntimeException('The demo workspace does not have an owner to reset.');
+        }
+
+        $targetCredentials = $this->resolveCredentials([
+            'email' => (string) ($workspace->access_email ?? ''),
+            'password' => (string) ($workspace->access_password ?? ''),
+        ], (string) $payload['company_name']);
+        $shadowCredentials = $this->generateCredentials((string) $payload['company_name'].' reset');
+        $shadowCredentials['password'] = $targetCredentials['password'];
+        $shadowOwner = null;
+
+        try {
+            $shadowOwner = DB::transaction(function () use ($payload, $shadowCredentials, $expiresAt): User {
+                $owner = $this->createOwner($payload, $shadowCredentials, $expiresAt);
+                $this->applyBrandingProfile($owner, (array) $payload['branding_profile']);
+
+                return $owner;
+            });
+            $shadowWorkspace = $this->shadowWorkspaceForOwner(
+                $workspace,
+                $shadowOwner,
+                $shadowCredentials,
+                $expiresAt,
+            );
+
+            $workspace = $this->updateProvisioningState(
+                $workspace,
+                self::STATUS_PROVISIONING,
+                60,
+                'Generating replacement tenant data'
+            );
+
+            [$summary, $extraAccessCredentials] = DB::transaction(function () use ($shadowOwner, $shadowWorkspace) {
+                $summary = $this->seedEnvironment($shadowOwner, $shadowWorkspace);
+                $extraAccessCredentials = $this->buildExtraAccessCredentials(
+                    $shadowOwner,
+                    $shadowWorkspace->extra_access_roles ?? [],
+                    (string) $shadowWorkspace->access_password,
+                );
+
+                return [$summary, $extraAccessCredentials];
+            });
+            $extraAccessCredentials = $this->replaceCredentialEmail(
+                $extraAccessCredentials,
+                (int) $shadowOwner->id,
+                $targetCredentials['email'],
+            );
+
+            $workspace = $this->updateProvisioningState(
+                $workspace,
+                self::STATUS_PROVISIONING,
+                85,
+                'Activating replacement tenant'
+            );
+
+            $readyWorkspace = DB::transaction(function () use (
+                $workspace,
+                $payload,
+                $admin,
+                $expiresAt,
+                $previousOwner,
+                $shadowOwner,
+                $targetCredentials,
+                $summary,
+                $extraAccessCredentials,
+            ): DemoWorkspace {
+                $lockedWorkspace = DemoWorkspace::query()->lockForUpdate()->findOrFail($workspace->id);
+
+                if ((int) $lockedWorkspace->owner_user_id !== (int) $previousOwner->id) {
+                    throw new \RuntimeException('The demo workspace owner changed while its reset was provisioning.');
+                }
+
+                $lockedPreviousOwner = User::query()->lockForUpdate()->findOrFail($previousOwner->id);
+                $lockedShadowOwner = User::query()->lockForUpdate()->findOrFail($shadowOwner->id);
+                $previousCompanySlug = $lockedPreviousOwner->company_slug;
+                $quarantineCredentials = $this->generateCredentials('retired demo '.$lockedWorkspace->id);
+
+                $this->revokeTenantAccess($lockedPreviousOwner);
+                $lockedPreviousOwner->forceFill([
+                    'email' => $quarantineCredentials['email'],
+                    'company_slug' => null,
+                ])->save();
+                $lockedShadowOwner->forceFill([
+                    'email' => $targetCredentials['email'],
+                    'company_slug' => $previousCompanySlug,
+                ])->save();
+
+                $lockedWorkspace = $this->persistWorkspaceRecord(
+                    $lockedWorkspace,
+                    $payload,
+                    $admin,
+                    $lockedShadowOwner,
+                    $targetCredentials,
+                    $expiresAt,
+                    false,
+                );
+
+                return $this->finalizeProvisionedWorkspace($lockedWorkspace, $summary, [
+                    'extra_access_credentials' => $extraAccessCredentials,
+                    'last_reset_at' => now(),
+                    'last_reset_by_user_id' => $admin->id,
+                ]);
+            });
+        } catch (\Throwable $exception) {
+            if ($shadowOwner) {
+                $this->deleteShadowOwner($shadowOwner);
+            }
+
+            throw $exception;
+        }
+
+        try {
+            $this->accountDeletionService->deleteAccount($previousOwner);
+        } catch (\Throwable $cleanupException) {
+            report($cleanupException);
+        }
+
+        return $readyWorkspace;
+    }
+
+    /**
+     * Return a non-persisted workspace identity for isolated shadow generation.
+     *
+     * @param  array<string, string>  $credentials
+     */
+    private function shadowWorkspaceForOwner(
+        DemoWorkspace $workspace,
+        User $owner,
+        array $credentials,
+        Carbon $expiresAt,
+    ): DemoWorkspace {
+        $shadow = $workspace->replicate();
+        $shadow->setAttribute($workspace->getKeyName(), -((int) $owner->id));
+        $shadow->forceFill([
+            'owner_user_id' => $owner->id,
+            'access_email' => $credentials['email'],
+            'access_password' => $credentials['password'],
+            'expires_at' => $expiresAt,
+        ]);
+        $shadow->setRelation('owner', $owner);
+
+        return $shadow;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $credentials
+     * @return array<int, array<string, mixed>>
+     */
+    private function replaceCredentialEmail(array $credentials, int $userId, string $email): array
+    {
+        return collect($credentials)
+            ->map(function (array $credential) use ($userId, $email): array {
+                if ((int) ($credential['user_id'] ?? 0) === $userId) {
+                    $credential['email'] = $email;
+                }
+
+                return $credential;
+            })
+            ->values()
+            ->all();
+    }
+
+    private function revokeTenantAccess(User $owner): void
+    {
+        $userIds = TeamMember::query()
+            ->where('account_id', $owner->id)
+            ->pluck('user_id')
+            ->merge(Customer::query()
+                ->where('user_id', $owner->id)
+                ->whereNotNull('portal_user_id')
+                ->pluck('portal_user_id'))
+            ->push($owner->id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        User::query()->whereIn('id', $userIds)->update([
+            'password' => Hash::make(Str::random(40)),
+            'remember_token' => Str::random(60),
+            'updated_at' => now(),
+        ]);
+        DB::table('personal_access_tokens')
+            ->where('tokenable_type', User::class)
+            ->whereIn('tokenable_id', $userIds)
+            ->delete();
+    }
+
+    private function deleteShadowOwner(User $owner): void
+    {
+        $persistedOwner = User::query()->find($owner->id);
+
+        if (! $persistedOwner) {
+            return;
+        }
+
+        try {
+            $this->revokeTenantAccess($persistedOwner);
+        } catch (\Throwable $cleanupException) {
+            report($cleanupException);
+        }
+
+        try {
+            $this->accountDeletionService->deleteAccount($persistedOwner);
+        } catch (\Throwable $cleanupException) {
+            report($cleanupException);
+        }
     }
 
     public function markProvisioningFailed(DemoWorkspace $workspace, \Throwable|string $error): DemoWorkspace
@@ -585,8 +796,90 @@ class DemoWorkspaceProvisioner
             $payload['selected_modules'],
             $payload['scenario_packs']
         );
+        $payload = $this->normalizeScenarioMetadata($payload);
 
         return $payload;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function normalizeScenarioMetadata(array $payload): array
+    {
+        $scenarioKey = strtolower(trim((string) ($payload['scenario_key'] ?? '')));
+
+        if ($scenarioKey === '') {
+            return array_replace($payload, [
+                'scenario_key' => null,
+                'data_volume' => null,
+                'reference_date' => null,
+                'random_seed' => null,
+                'scenario_version' => null,
+            ]);
+        }
+
+        $definition = $this->catalog->scenarioDefinition($scenarioKey);
+
+        if (! $definition) {
+            throw new \InvalidArgumentException(sprintf('Unknown demo scenario [%s].', $scenarioKey));
+        }
+
+        $requiredModules = $this->catalog->requiredModulesForScenario($scenarioKey);
+        $missingModules = array_values(array_diff(
+            $requiredModules,
+            array_map('strval', (array) ($payload['selected_modules'] ?? [])),
+        ));
+
+        if ($missingModules !== []) {
+            throw new \InvalidArgumentException(sprintf(
+                'Demo scenario [%s] requires these modules: %s.',
+                $scenarioKey,
+                implode(', ', $missingModules),
+            ));
+        }
+
+        $dataVolume = DemoDataVolume::normalize(
+            $payload['data_volume'] ?? null,
+            DemoDataVolume::normalize((string) ($definition['default_volume'] ?? DemoDataVolume::Medium->value))
+        );
+        $availableVolumes = array_map('strval', (array) ($definition['available_volumes'] ?? []));
+
+        if ($availableVolumes !== [] && ! in_array($dataVolume->value, $availableVolumes, true)) {
+            throw new \InvalidArgumentException(sprintf(
+                'Data volume [%s] is not available for demo scenario [%s].',
+                $dataVolume->value,
+                $scenarioKey
+            ));
+        }
+
+        $timezone = (string) ($payload['timezone'] ?? $definition['reference_timezone'] ?? 'UTC');
+        $referenceDate = filled($payload['reference_date'] ?? null)
+            ? Carbon::parse((string) $payload['reference_date'], $timezone)->toDateString()
+            : now($timezone)->toDateString();
+        $seed = $payload['random_seed'] ?? config('demo_scenarios.default_seed', 26082026);
+
+        if (filter_var($seed, FILTER_VALIDATE_INT) === false || (int) $seed < 0) {
+            throw new \InvalidArgumentException('The demo scenario random seed must be a non-negative integer.');
+        }
+
+        $scenarioVersion = (int) ($definition['version'] ?? 1);
+
+        if (filled($payload['scenario_version'] ?? null) && (int) $payload['scenario_version'] !== $scenarioVersion) {
+            throw new \InvalidArgumentException(sprintf(
+                'Demo scenario [%s] expects version [%d].',
+                $scenarioKey,
+                $scenarioVersion
+            ));
+        }
+
+        return array_replace($payload, [
+            'scenario_key' => $scenarioKey,
+            'data_volume' => $dataVolume->value,
+            'reference_date' => $referenceDate,
+            'random_seed' => (int) $seed,
+            'scenario_version' => $scenarioVersion,
+        ]);
     }
 
     /**
@@ -749,6 +1042,11 @@ class DemoWorkspaceProvisioner
             'company_type' => (string) $payload['company_type'],
             'company_sector' => $payload['company_sector'] ?: null,
             'seed_profile' => (string) $payload['seed_profile'],
+            'scenario_key' => $payload['scenario_key'],
+            'data_volume' => $payload['data_volume'],
+            'reference_date' => $payload['reference_date'],
+            'random_seed' => $payload['random_seed'],
+            'scenario_version' => $payload['scenario_version'],
             'team_size' => (int) $payload['team_size'],
             'locale' => (string) $payload['locale'],
             'timezone' => (string) $payload['timezone'],
@@ -763,6 +1061,13 @@ class DemoWorkspaceProvisioner
             'extra_access_roles' => $payload['extra_access_roles'],
             'configuration' => [
                 'profile_counts' => $this->catalog->seedCounts((string) $payload['seed_profile']),
+                'scenario' => $payload['scenario_key'] ? [
+                    'key' => $payload['scenario_key'],
+                    'version' => $payload['scenario_version'],
+                    'data_volume' => $payload['data_volume'],
+                    'reference_date' => $payload['reference_date'],
+                    'random_seed' => $payload['random_seed'],
+                ] : null,
                 'module_labels' => collect($payload['selected_modules'])
                     ->mapWithKeys(fn (string $key) => [$key => $this->catalog->moduleLabel($key)])
                     ->all(),
@@ -820,6 +1125,11 @@ class DemoWorkspaceProvisioner
             'company_type' => (string) $payload['company_type'],
             'company_sector' => $payload['company_sector'] ?: null,
             'seed_profile' => (string) $payload['seed_profile'],
+            'scenario_key' => $payload['scenario_key'],
+            'data_volume' => $payload['data_volume'],
+            'reference_date' => $payload['reference_date'],
+            'random_seed' => $payload['random_seed'],
+            'scenario_version' => $payload['scenario_version'],
             'team_size' => (int) $payload['team_size'],
             'locale' => (string) $payload['locale'],
             'timezone' => (string) $payload['timezone'],
@@ -870,6 +1180,11 @@ class DemoWorkspaceProvisioner
             'company_type' => (string) $payload['company_type'],
             'company_sector' => $payload['company_sector'] ?: null,
             'seed_profile' => (string) $payload['seed_profile'],
+            'scenario_key' => $payload['scenario_key'],
+            'data_volume' => $payload['data_volume'],
+            'reference_date' => $payload['reference_date'],
+            'random_seed' => $payload['random_seed'],
+            'scenario_version' => $payload['scenario_version'],
             'team_size' => (int) $payload['team_size'],
             'locale' => (string) $payload['locale'],
             'timezone' => (string) $payload['timezone'],
@@ -969,6 +1284,11 @@ class DemoWorkspaceProvisioner
             'company_type',
             'company_sector',
             'seed_profile',
+            'scenario_key',
+            'data_volume',
+            'reference_date',
+            'random_seed',
+            'scenario_version',
             'team_size',
             'locale',
             'timezone',
@@ -999,6 +1319,11 @@ class DemoWorkspaceProvisioner
             'company_type' => $workspace->company_type,
             'company_sector' => $workspace->company_sector,
             'seed_profile' => $workspace->seed_profile,
+            'scenario_key' => $workspace->scenario_key,
+            'data_volume' => $workspace->data_volume?->value,
+            'reference_date' => $workspace->reference_date?->toDateString(),
+            'random_seed' => $workspace->random_seed,
+            'scenario_version' => $workspace->scenario_version,
             'team_size' => $workspace->team_size,
             'locale' => $workspace->locale,
             'timezone' => $workspace->timezone,
@@ -1065,9 +1390,9 @@ class DemoWorkspaceProvisioner
             'email_verified_at' => now(),
             'trial_ends_at' => $expiresAt,
             'is_demo' => true,
-            'demo_type' => 'custom',
+            'demo_type' => $payload['scenario_key'] ?: 'custom',
             'is_demo_user' => true,
-            'demo_role' => 'custom_demo_owner',
+            'demo_role' => $payload['scenario_key'] ? 'scenario_demo_owner' : 'custom_demo_owner',
             'company_features' => $this->catalog->featureMap($payload['selected_modules']),
             'company_limits' => $this->buildLimits((string) $payload['seed_profile']),
             'assistant_credit_balance' => in_array('assistant', $payload['selected_modules'], true) ? 250 : 0,
@@ -1093,6 +1418,31 @@ class DemoWorkspaceProvisioner
      */
     private function seedEnvironment(User $owner, DemoWorkspace $workspace): array
     {
+        if (filled($workspace->scenario_key)) {
+            $scenario = $this->scenarioManager->scenario((string) $workspace->scenario_key);
+            $dataVolume = $workspace->data_volume ?? $scenario->defaultVolume();
+            $referenceDate = $workspace->reference_date?->toDateString()
+                ?? now((string) $workspace->timezone)->toDateString();
+            $randomSeed = $workspace->random_seed ?? (int) config('demo_scenarios.default_seed', 26082026);
+            $context = new DemoScenarioContext(
+                $workspace,
+                $owner,
+                $dataVolume,
+                $referenceDate,
+                $randomSeed,
+                (string) $workspace->timezone
+            );
+            $summary = $this->scenarioManager->generate((string) $workspace->scenario_key, $context);
+
+            return array_replace([
+                'scenario_key' => $scenario->key(),
+                'scenario_version' => $scenario->version(),
+                'data_volume' => $context->dataVolume->value,
+                'reference_date' => $context->referenceDate->toDateString(),
+                'random_seed' => $context->randomSeed,
+            ], $summary);
+        }
+
         $selectedModules = $workspace->selected_modules ?? [];
         $counts = $this->catalog->seedCounts($workspace->seed_profile);
         $isSalonEclat = $this->isSalonEclatWorkspace($workspace);
@@ -3309,6 +3659,10 @@ class DemoWorkspaceProvisioner
 
     private function matchesExtraAccessRole(TeamMember $member, string $roleKey): bool
     {
+        if (data_get($member->planning_rules, 'demo_access_role') === $roleKey) {
+            return true;
+        }
+
         return match ($roleKey) {
             'manager' => $member->role === 'admin',
             'front_desk' => $member->role === 'sales_manager'
@@ -3329,8 +3683,11 @@ class DemoWorkspaceProvisioner
      * @param  array<int, string>  $requestedRoles
      * @return array<int, array<string, mixed>>
      */
-    private function buildExtraAccessCredentials(User $owner, array $requestedRoles): array
-    {
+    private function buildExtraAccessCredentials(
+        User $owner,
+        array $requestedRoles,
+        ?string $ownerPassword = null,
+    ): array {
         if ($requestedRoles === []) {
             return [];
         }
@@ -3371,7 +3728,9 @@ class DemoWorkspaceProvisioner
                 'name' => (string) $member->user->name,
                 'title' => (string) ($member->title ?? $member->role),
                 'email' => (string) $member->user->email,
-                'password' => 'password',
+                'password' => (int) $member->user->id === (int) $owner->id
+                    ? ($ownerPassword ?: 'password')
+                    : 'password',
                 'login_url' => url('/login'),
                 'status' => 'active',
                 'is_active' => true,

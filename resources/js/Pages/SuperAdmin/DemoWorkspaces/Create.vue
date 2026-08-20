@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
@@ -89,6 +89,11 @@ const toWorkspaceFormState = (workspace) => normalizeState({
     company_type: workspace.company_type || props.defaults.company_type,
     company_sector: workspace.company_sector || props.defaults.company_sector,
     seed_profile: workspace.seed_profile || props.defaults.seed_profile,
+    scenario_key: workspace.scenario_key || null,
+    data_volume: workspace.data_volume || props.defaults.data_volume,
+    reference_date: workspace.reference_date || props.defaults.reference_date,
+    random_seed: workspace.random_seed ?? props.defaults.random_seed,
+    scenario_version: workspace.scenario_version || null,
     team_size: workspace.team_size || props.defaults.team_size,
     locale: workspace.locale || props.defaults.locale,
     timezone: workspace.timezone || props.defaults.timezone,
@@ -290,6 +295,26 @@ const selectedModuleLabels = computed(() =>
 const selectedProfile = computed(() =>
     (props.options.seed_profiles || []).find((profile) => profile.value === form.seed_profile) || null,
 );
+const demoScenarioOptions = computed(() => [
+    { key: '', label: 'Legacy profile generator' },
+    ...(props.options.demo_scenarios || []),
+]);
+const selectedDemoScenario = computed(() =>
+    (props.options.demo_scenarios || []).find((scenario) => scenario.key === form.scenario_key) || null,
+);
+const selectedDataVolume = computed(() =>
+    (props.options.data_volumes || []).find((volume) => volume.value === form.data_volume) || null,
+);
+const provisioningPreviewDescription = computed(() => (
+    selectedDemoScenario.value
+        ? `${selectedDemoScenario.value.description} ${selectedDataVolume.value?.description || ''}`.trim()
+        : selectedProfile.value?.description
+));
+const provisioningPreviewCounts = computed(() => (
+    selectedDemoScenario.value
+        ? (selectedDataVolume.value?.counts || {})
+        : (selectedProfile.value?.counts || {})
+));
 
 const scenarioPackMatches = (pack, companyType, companySector, selectedModules) => {
     const packTypes = pack.company_types || [];
@@ -329,6 +354,26 @@ const templateScenarioPacks = computed(() => {
 
 const selectedScenarioPackDetails = computed(() => resolveScenarioPackDetails(form.scenario_packs || []));
 const selectedTemplateScenarioPackDetails = computed(() => resolveScenarioPackDetails(templateForm.scenario_packs || []));
+const scenarioLookup = computed(() =>
+    Object.fromEntries((props.options.demo_scenarios || []).map((scenario) => [scenario.key, scenario])),
+);
+const requiredModulesFor = (scenarioKey) => scenarioLookup.value[scenarioKey]?.required_modules || [];
+const requiredFormModules = computed(() => requiredModulesFor(form.scenario_key));
+const requiredTemplateModules = computed(() => requiredModulesFor(templateForm.scenario_key));
+const isRequiredFormModule = (key) => requiredFormModules.value.includes(key);
+const isRequiredTemplateModule = (key) => requiredTemplateModules.value.includes(key);
+const ensureRequiredModules = (target, scenarioKey) => {
+    const requiredModules = requiredModulesFor(scenarioKey);
+
+    if (!requiredModules.length) {
+        return;
+    }
+
+    target.selected_modules = [...new Set([...(target.selected_modules || []), ...requiredModules])];
+};
+
+watch(() => form.scenario_key, (scenarioKey) => ensureRequiredModules(form, scenarioKey));
+watch(() => templateForm.scenario_key, (scenarioKey) => ensureRequiredModules(templateForm, scenarioKey));
 const selectedExtraAccessRoles = computed(() =>
     (props.options.extra_access_roles || []).filter((role) => form.extra_access_roles.includes(role.key)),
 );
@@ -353,19 +398,33 @@ const stepIsValid = computed(() => {
     }
 
     if (currentStep.value === 2) {
-        return Boolean(form.seed_profile && Number(form.team_size) >= 1 && form.locale && form.timezone);
+        return Boolean(
+            form.seed_profile
+            && Number(form.team_size) >= 1
+            && form.locale
+            && form.timezone
+            && (!form.scenario_key || (form.data_volume && form.reference_date && Number(form.random_seed) >= 0)),
+        );
     }
 
     return Boolean(form.expires_at);
 });
 
 const toggleModule = (key) => {
+    if (isRequiredFormModule(key)) {
+        return;
+    }
+
     form.selected_modules = form.selected_modules.includes(key)
         ? form.selected_modules.filter((item) => item !== key)
         : [...form.selected_modules, key];
 };
 
 const toggleTemplateModule = (key) => {
+    if (isRequiredTemplateModule(key)) {
+        return;
+    }
+
     templateForm.selected_modules = templateForm.selected_modules.includes(key)
         ? templateForm.selected_modules.filter((item) => item !== key)
         : [...templateForm.selected_modules, key];
@@ -435,6 +494,11 @@ const applyPreset = (preset) => {
         'prospect_company',
         'company_name',
         'seed_profile',
+        'scenario_key',
+        'data_volume',
+        'reference_date',
+        'random_seed',
+        'scenario_version',
         'team_size',
         'locale',
         'timezone',
@@ -481,6 +545,11 @@ const applyTemplate = (template) => {
     form.company_type = template.company_type;
     form.company_sector = template.company_sector;
     form.seed_profile = template.seed_profile;
+    form.scenario_key = template.scenario_key || null;
+    form.data_volume = template.data_volume || props.defaults.data_volume;
+    form.reference_date = template.reference_date || props.defaults.reference_date;
+    form.random_seed = template.random_seed ?? props.defaults.random_seed;
+    form.scenario_version = template.scenario_version || null;
     form.team_size = template.team_size;
     form.locale = template.locale;
     form.timezone = template.timezone;
@@ -628,6 +697,11 @@ const seedTemplateFromWorkspace = () => {
         company_type: form.company_type,
         company_sector: form.company_sector,
         seed_profile: form.seed_profile,
+        scenario_key: form.scenario_key,
+        data_volume: form.data_volume,
+        reference_date: form.reference_date,
+        random_seed: form.random_seed,
+        scenario_version: form.scenario_version,
         team_size: form.team_size,
         locale: form.locale,
         timezone: form.timezone,
@@ -649,6 +723,11 @@ const editTemplate = (template) => {
         company_type: template.company_type,
         company_sector: template.company_sector,
         seed_profile: template.seed_profile,
+        scenario_key: template.scenario_key || null,
+        data_volume: template.data_volume || props.template_defaults.data_volume,
+        reference_date: template.reference_date || props.template_defaults.reference_date,
+        random_seed: template.random_seed ?? props.template_defaults.random_seed,
+        scenario_version: template.scenario_version || null,
         team_size: template.team_size,
         locale: template.locale,
         timezone: template.timezone,
@@ -846,6 +925,7 @@ const copyAccessKit = async (workspace) => {
                             <div class="mt-3 space-y-1 text-sm text-stone-600 dark:text-neutral-400">
                                 <div>{{ template.company_type }} / {{ template.company_sector }}</div>
                                 <div>{{ template.seed_profile }} · {{ template.team_size }} seats · {{ template.expiration_days }} days</div>
+                                <div v-if="template.scenario_key" class="font-medium text-violet-700 dark:text-violet-300">{{ template.scenario_label }} · {{ template.data_volume }} · seed {{ template.random_seed }}</div>
                             </div>
                             <div class="mt-3 flex flex-wrap gap-2">
                                 <span v-for="label in template.module_labels" :key="label" class="rounded-full bg-white px-2 py-1 text-[11px] text-stone-700 ring-1 ring-stone-200 dark:bg-neutral-900 dark:text-neutral-200 dark:ring-neutral-700">{{ label }}</span>
@@ -894,6 +974,10 @@ const copyAccessKit = async (workspace) => {
                                 <FloatingSelect v-model="templateForm.company_type" :options="options.company_types" label="Company type" required />
                                 <FloatingSelect v-model="templateForm.company_sector" :options="options.sectors" label="Industry / sector" required />
                                 <FloatingSelect v-model="templateForm.seed_profile" :options="options.seed_profiles" label="Seed profile" required option-value="value" option-label="label" />
+                                <FloatingSelect v-model="templateForm.scenario_key" :options="demoScenarioOptions" label="Narrative scenario" option-value="key" option-label="label" />
+                                <FloatingSelect v-if="templateForm.scenario_key" v-model="templateForm.data_volume" :options="options.data_volumes" label="Scenario volume" option-value="value" option-label="label" />
+                                <FloatingInput v-if="templateForm.scenario_key" v-model="templateForm.reference_date" type="date" label="Reference date" />
+                                <FloatingInput v-if="templateForm.scenario_key" v-model="templateForm.random_seed" type="number" min="0" label="Random seed" />
                                 <FloatingInput v-model="templateForm.team_size" type="number" label="Target staff seats" required />
                                 <FloatingSelect v-model="templateForm.locale" :options="options.locales" label="Workspace language" required />
                                 <FloatingSelect v-model="templateForm.timezone" :options="options.timezones" label="Timezone" required />
@@ -910,9 +994,9 @@ const copyAccessKit = async (workspace) => {
                                 <div v-for="[category, modules] in moduleGroups" :key="`template-${category}`" class="space-y-2">
                                     <div class="text-sm font-medium text-stone-700 dark:text-neutral-200">{{ category }}</div>
                                     <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                                        <button v-for="module in modules" :key="`template-${module.key}`" type="button" class="rounded-sm border p-4 text-left transition" :class="templateForm.selected_modules.includes(module.key) ? 'border-green-600 bg-green-50' : 'border-stone-200 bg-white hover:border-green-300 dark:border-neutral-700 dark:bg-neutral-900'" @click="toggleTemplateModule(module.key)">
+                                        <button v-for="module in modules" :key="`template-${module.key}`" type="button" class="rounded-sm border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-75" :class="templateForm.selected_modules.includes(module.key) ? 'border-green-600 bg-green-50' : 'border-stone-200 bg-white hover:border-green-300 dark:border-neutral-700 dark:bg-neutral-900'" :disabled="isRequiredTemplateModule(module.key)" @click="toggleTemplateModule(module.key)">
                                             <div class="flex items-start justify-between gap-3">
-                                                <div><div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ module.label }}</div><p class="mt-1 text-xs text-stone-600 dark:text-neutral-400">{{ module.description }}</p></div>
+                                                <div><div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ module.label }} <span v-if="isRequiredTemplateModule(module.key)" class="ml-1 text-[10px] font-medium uppercase tracking-wide text-violet-700 dark:text-violet-300">Required</span></div><p class="mt-1 text-xs text-stone-600 dark:text-neutral-400">{{ module.description }}</p></div>
                                                 <span class="inline-flex size-5 items-center justify-center rounded-sm border text-[11px] font-semibold" :class="templateForm.selected_modules.includes(module.key) ? 'border-green-600 bg-green-600 text-white' : 'border-stone-300 text-transparent dark:border-neutral-600'">✓</span>
                                             </div>
                                         </button>
@@ -1049,9 +1133,9 @@ const copyAccessKit = async (workspace) => {
                         <div v-for="[category, modules] in moduleGroups" :key="category" class="space-y-3">
                             <div><h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ category }}</h3></div>
                             <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                                <button v-for="module in modules" :key="module.key" type="button" class="rounded-sm border p-4 text-left transition" :class="form.selected_modules.includes(module.key) ? 'border-green-600 bg-green-50' : 'border-stone-200 bg-white hover:border-green-300 dark:border-neutral-700 dark:bg-neutral-900'" @click="toggleModule(module.key)">
+                                <button v-for="module in modules" :key="module.key" type="button" class="rounded-sm border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-75" :class="form.selected_modules.includes(module.key) ? 'border-green-600 bg-green-50' : 'border-stone-200 bg-white hover:border-green-300 dark:border-neutral-700 dark:bg-neutral-900'" :disabled="isRequiredFormModule(module.key)" @click="toggleModule(module.key)">
                                     <div class="flex items-start justify-between gap-3">
-                                        <div><div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ module.label }}</div><p class="mt-1 text-xs text-stone-600 dark:text-neutral-400">{{ module.description }}</p></div>
+                                        <div><div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ module.label }} <span v-if="isRequiredFormModule(module.key)" class="ml-1 text-[10px] font-medium uppercase tracking-wide text-violet-700 dark:text-violet-300">Required</span></div><p class="mt-1 text-xs text-stone-600 dark:text-neutral-400">{{ module.description }}</p></div>
                                         <span class="inline-flex size-5 items-center justify-center rounded-sm border text-[11px] font-semibold" :class="form.selected_modules.includes(module.key) ? 'border-green-600 bg-green-600 text-white' : 'border-stone-300 text-transparent dark:border-neutral-600'">✓</span>
                                     </div>
                                 </button>
@@ -1088,12 +1172,24 @@ const copyAccessKit = async (workspace) => {
                             <FloatingSelect v-model="form.locale" :options="options.locales" label="Workspace language" required />
                             <FloatingSelect v-model="form.timezone" :options="options.timezones" label="Timezone" required />
                         </div>
+                        <div class="rounded-sm border border-violet-200 bg-violet-50 p-4 dark:border-violet-900/60 dark:bg-violet-950/30">
+                            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                <FloatingSelect v-model="form.scenario_key" :options="demoScenarioOptions" label="Narrative scenario" option-value="key" option-label="label" />
+                                <FloatingSelect v-if="form.scenario_key" v-model="form.data_volume" :options="options.data_volumes" label="Scenario volume" option-value="value" option-label="label" />
+                                <FloatingInput v-if="form.scenario_key" v-model="form.reference_date" type="date" label="Reference date" />
+                                <FloatingInput v-if="form.scenario_key" v-model="form.random_seed" type="number" min="0" label="Random seed" />
+                            </div>
+                            <p class="mt-3 text-xs text-violet-800 dark:text-violet-200">
+                                <template v-if="selectedDemoScenario">{{ selectedDemoScenario.description }} {{ selectedDataVolume?.description }}</template>
+                                <template v-else>The legacy generator keeps the existing compact profile behavior.</template>
+                            </p>
+                        </div>
                         <FloatingTextarea v-model="form.internal_notes" label="Internal admin notes" />
                         <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
                             <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Provisioning preview</div>
-                            <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">{{ selectedProfile?.description }}</p>
+                            <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">{{ provisioningPreviewDescription }}</p>
                             <div class="mt-4 grid gap-2 md:grid-cols-3 xl:grid-cols-5">
-                                <div v-for="(value, key) in selectedProfile?.counts || {}" :key="key" class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
+                                <div v-for="(value, key) in provisioningPreviewCounts" :key="key" class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
                                     <div class="text-[11px] uppercase tracking-[0.2em] text-stone-500 dark:text-neutral-400">{{ key }}</div>
                                     <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ value }}</div>
                                 </div>
@@ -1123,6 +1219,7 @@ const copyAccessKit = async (workspace) => {
                                             <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ form.company_name || '-' }}</div>
                                             <div class="text-sm text-stone-600 dark:text-neutral-400">{{ form.company_type }} / {{ form.company_sector }}</div>
                                             <div class="text-sm text-stone-500 dark:text-neutral-400">{{ form.seed_profile }} · {{ form.team_size }} seats · {{ form.locale }}</div>
+                                            <div v-if="selectedDemoScenario" class="mt-1 text-xs font-medium text-violet-700 dark:text-violet-300">{{ selectedDemoScenario.label }} · {{ form.data_volume }} · {{ form.reference_date }} · seed {{ form.random_seed }}</div>
                                         </div>
                                     </div>
                                     <div class="mt-4">

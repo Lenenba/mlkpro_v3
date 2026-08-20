@@ -13,6 +13,8 @@ use App\Models\Request as LeadRequest;
 use App\Notifications\ActionEmailNotification;
 use App\Notifications\CampaignInAppNotification;
 use App\Notifications\LeadFollowUpNotification;
+use App\Support\QueueWorkload;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 
 uses(Tests\TestCase::class);
 
@@ -63,4 +65,20 @@ test('async workloads expose configured backoff policies', function () {
         ->and((new ReconcileDeliveryReportsJob)->backoff())->toBe([90, 360])
         ->and((new GenerateSocialPostCandidateJob(77))->backoff())->toBe([35, 140, 560])
         ->and((new PublishSocialPostTargetJob(77))->backoff())->toBe([25, 100, 400]);
+});
+
+test('demo provisioning serializes work per workspace and has a bounded runtime', function () {
+    $job = new ProvisionDemoWorkspaceJob(41, 2, true);
+    $middleware = $job->middleware();
+
+    expect($job->tries)->toBe(3)
+        ->and($job->timeout)->toBe(900)
+        ->and(QueueWorkload::timeout('demos'))->toBe(900)
+        ->and($job->failOnTimeout)->toBeTrue()
+        ->and($middleware)->toHaveCount(1)
+        ->and($middleware[0])->toBeInstanceOf(WithoutOverlapping::class)
+        ->and($middleware[0]->key)->toBe('demo-workspace:41')
+        ->and($middleware[0]->releaseAfter)->toBe(30)
+        ->and($middleware[0]->expiresAfter)->toBe(960)
+        ->and($middleware[0]->shareKey)->toBeTrue();
 });

@@ -88,6 +88,40 @@ test('invoice balance logic ignores tip amount and uses payment amount only', fu
     expect($invoice->balance_due)->toBe(10.0);
 });
 
+test('invoice payment status compares currency amounts at cent precision', function () {
+    $user = createOwnerForInvoiceTips();
+    $customer = Customer::factory()->create(['user_id' => $user->id]);
+    $work = Work::factory()->create([
+        'user_id' => $user->id,
+        'customer_id' => $customer->id,
+    ]);
+    $invoice = Invoice::query()->create([
+        'work_id' => $work->id,
+        'customer_id' => $customer->id,
+        'user_id' => $user->id,
+        'status' => 'sent',
+        'total' => 86.23,
+    ]);
+
+    foreach ([43.12, 43.11] as $amount) {
+        Payment::query()->create([
+            'invoice_id' => $invoice->id,
+            'customer_id' => $customer->id,
+            'user_id' => $user->id,
+            'amount' => $amount,
+            'method' => 'card',
+            'status' => Payment::STATUS_COMPLETED,
+            'paid_at' => now(),
+        ]);
+    }
+
+    $invoice->refreshPaymentStatus();
+
+    expect($invoice->fresh()->status)->toBe('paid')
+        ->and($invoice->amount_paid)->toBe(86.23)
+        ->and($invoice->balance_due)->toBe(0.0);
+});
+
 test('stripe invoice sync stores tip amount from checkout metadata', function () {
     $user = createOwnerForInvoiceTips();
     $customer = Customer::factory()->create([

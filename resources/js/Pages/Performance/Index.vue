@@ -19,12 +19,21 @@ const props = defineProps({
         type: String,
         default: 'clients',
     },
+    performanceMode: {
+        type: String,
+        default: null,
+    },
 });
 
 const { t } = useI18n();
 const page = usePage();
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
-const isServiceCompany = computed(() => companyType.value !== 'products');
+const isServiceCompany = computed(() =>
+    props.performanceMode
+        ? props.performanceMode !== 'products'
+        : companyType.value !== 'products'
+);
+const isReservationPerformance = computed(() => props.performanceMode === 'reservations');
 
 const activeTab = ref(props.tab === 'employees' ? 'employees' : 'clients');
 const activePeriod = ref('month');
@@ -123,20 +132,62 @@ const noSellersLabel = computed(() =>
     isServiceCompany.value ? t('performance.employees.no_members') : t('performance.employees.no_sellers')
 );
 const topProductsLabel = computed(() =>
-    isServiceCompany.value ? t('performance.employees.top_jobs') : t('performance.employees.top_products')
+    isReservationPerformance.value
+        ? t('dashboard.scenario.top_services')
+        : (isServiceCompany.value ? t('performance.employees.top_jobs') : t('performance.employees.top_products'))
 );
 const noProductsLabel = computed(() =>
-    isServiceCompany.value ? t('performance.employees.no_jobs') : t('performance.employees.no_products')
+    isReservationPerformance.value
+        ? t('services.empty')
+        : (isServiceCompany.value ? t('performance.employees.no_jobs') : t('performance.employees.no_products'))
 );
-const employeeLineKey = computed(() =>
-    isServiceCompany.value ? 'performance.employees.member_line' : 'performance.employees.seller_line'
-);
-const clientLineKey = computed(() =>
-    isServiceCompany.value ? 'performance.clients.line_services' : 'performance.clients.line'
-);
-const productLineKey = computed(() =>
-    isServiceCompany.value ? 'performance.employees.job_line' : 'performance.employees.product_line'
-);
+
+const reservationLine = (revenue, reservations, services) =>
+    `${formatCurrency(revenue)} · ${formatNumber(reservations)} ${t('nav.reservations')} · ${formatNumber(services)} ${t('nav.services')}`;
+
+const clientLine = (customer) => {
+    if (isReservationPerformance.value) {
+        return reservationLine(customer.revenue, customer.orders, customer.items);
+    }
+
+    return t(
+        isServiceCompany.value ? 'performance.clients.line_services' : 'performance.clients.line',
+        {
+            revenue: formatCurrency(customer.revenue),
+            orders: formatNumber(customer.orders),
+            items: formatNumber(customer.items),
+        },
+    );
+};
+
+const employeeLine = (employee) => {
+    if (isReservationPerformance.value) {
+        return reservationLine(employee.revenue, employee.orders, employee.items);
+    }
+
+    return t(
+        isServiceCompany.value ? 'performance.employees.member_line' : 'performance.employees.seller_line',
+        {
+            revenue: formatCurrency(employee.revenue),
+            orders: formatNumber(employee.orders),
+            items: formatNumber(employee.items),
+        },
+    );
+};
+
+const productLine = (product) => {
+    if (isReservationPerformance.value) {
+        return `${formatCurrency(product.revenue)} · ${formatNumber(product.quantity)} ${t('nav.services')}`;
+    }
+
+    return t(
+        isServiceCompany.value ? 'performance.employees.job_line' : 'performance.employees.product_line',
+        {
+            revenue: formatCurrency(product.revenue),
+            quantity: formatNumber(product.quantity),
+        },
+    );
+};
 
 const highlightThemes = {
     day: {
@@ -360,19 +411,25 @@ const clientKpis = computed(() => buildKpis([
     {
         key: isServiceCompany.value ? 'jobs' : 'orders',
         iconKey: isServiceCompany.value ? 'jobs' : 'orders',
-        label: isServiceCompany.value ? t('performance.kpi.jobs') : t('performance.kpi.orders'),
+        label: isReservationPerformance.value
+            ? t('nav.reservations')
+            : (isServiceCompany.value ? t('performance.kpi.jobs') : t('performance.kpi.orders')),
         value: formatNumber(clientPeriod.value.orders),
     },
     {
         key: isServiceCompany.value ? 'tasks' : 'items_sold',
         iconKey: isServiceCompany.value ? 'tasks' : 'items_sold',
-        label: isServiceCompany.value ? t('performance.kpi.tasks') : t('performance.kpi.items_sold'),
+        label: isReservationPerformance.value
+            ? t('nav.services')
+            : (isServiceCompany.value ? t('performance.kpi.tasks') : t('performance.kpi.items_sold')),
         value: formatNumber(clientPeriod.value.items_sold),
     },
     {
         key: isServiceCompany.value ? 'avg_job' : 'avg_order',
         iconKey: isServiceCompany.value ? 'avg_job' : 'avg_order',
-        label: isServiceCompany.value ? t('performance.kpi.avg_job') : t('performance.kpi.avg_order'),
+        label: isReservationPerformance.value
+            ? t('reservations.performance.avg_service_value')
+            : (isServiceCompany.value ? t('performance.kpi.avg_job') : t('performance.kpi.avg_order')),
         value: formatCurrency(clientPeriod.value.avg_order),
     },
     { key: 'customers', label: t('performance.kpi.customers'), value: formatNumber(clientPeriod.value.customers) },
@@ -384,19 +441,25 @@ const employeeKpis = computed(() => buildKpis([
     {
         key: isServiceCompany.value ? 'jobs' : 'orders',
         iconKey: isServiceCompany.value ? 'jobs' : 'orders',
-        label: isServiceCompany.value ? t('performance.kpi.jobs') : t('performance.kpi.orders'),
+        label: isReservationPerformance.value
+            ? t('nav.reservations')
+            : (isServiceCompany.value ? t('performance.kpi.jobs') : t('performance.kpi.orders')),
         value: formatNumber(employeePeriod.value.orders),
     },
     {
         key: isServiceCompany.value ? 'tasks' : 'items_sold',
         iconKey: isServiceCompany.value ? 'tasks' : 'items_sold',
-        label: isServiceCompany.value ? t('performance.kpi.tasks') : t('performance.kpi.items_sold'),
+        label: isReservationPerformance.value
+            ? t('nav.services')
+            : (isServiceCompany.value ? t('performance.kpi.tasks') : t('performance.kpi.items_sold')),
         value: formatNumber(employeePeriod.value.items_sold),
     },
     {
         key: isServiceCompany.value ? 'avg_job' : 'avg_order',
         iconKey: isServiceCompany.value ? 'avg_job' : 'avg_order',
-        label: isServiceCompany.value ? t('performance.kpi.avg_job') : t('performance.kpi.avg_order'),
+        label: isReservationPerformance.value
+            ? t('reservations.performance.avg_service_value')
+            : (isServiceCompany.value ? t('performance.kpi.avg_job') : t('performance.kpi.avg_order')),
         value: formatCurrency(employeePeriod.value.avg_order),
     },
     { key: 'customers', label: t('performance.kpi.customers'), value: formatNumber(employeePeriod.value.customers) },
@@ -598,11 +661,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                                 <div class="flex-1">
                                     <p class="font-semibold text-stone-800 dark:text-neutral-100">{{ customerDisplayName(customer) }}</p>
                                     <p class="text-xs text-stone-500 dark:text-neutral-400">
-                            {{ t(clientLineKey, {
-                                revenue: formatCurrency(customer.revenue),
-                                orders: formatNumber(customer.orders),
-                                items: formatNumber(customer.items),
-                            }) }}
+                                        {{ clientLine(customer) }}
                                     </p>
                                 </div>
                             </div>
@@ -660,13 +719,9 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                                 </div>
                                 <div>
                                     <p class="text-sm font-semibold">{{ customerDisplayName(customerOfPeriod) }}</p>
-                                    <p class="text-xs" :class="customerHighlightStyles.subtle">
-                                            {{ t(clientLineKey, {
-                                                revenue: formatCurrency(customerOfPeriod.revenue),
-                                                orders: formatNumber(customerOfPeriod.orders),
-                                                items: formatNumber(customerOfPeriod.items),
-                                            }) }}
-                                    </p>
+                                        <p class="text-xs" :class="customerHighlightStyles.subtle">
+                                            {{ clientLine(customerOfPeriod) }}
+                                        </p>
                                 </div>
                             </div>
                             <p v-else class="mt-3 text-sm" :class="customerHighlightStyles.subtle">
@@ -778,11 +833,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                                             </span>
                                         </div>
                                         <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                            {{ t(employeeLineKey, {
-                                                revenue: formatCurrency(seller.revenue),
-                                                orders: formatNumber(seller.orders),
-                                                items: formatNumber(seller.items),
-                                            }) }}
+                                            {{ employeeLine(seller) }}
                                         </p>
                                     </div>
                                     <Link
@@ -836,10 +887,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                                     <div class="flex-1">
                                         <p class="font-semibold text-stone-800 dark:text-neutral-100">{{ product.name }}</p>
                                         <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                            {{ t(productLineKey, {
-                                                revenue: formatCurrency(product.revenue),
-                                                quantity: formatNumber(product.quantity),
-                                            }) }}
+                                            {{ productLine(product) }}
                                         </p>
                                     </div>
                                 </div>
@@ -899,11 +947,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                                 <div>
                                     <p class="text-sm font-semibold">{{ sellerDisplayName(sellerOfPeriod) }}</p>
                                     <p class="text-xs" :class="sellerHighlightStyles.subtle">
-                                        {{ t(employeeLineKey, {
-                                            revenue: formatCurrency(sellerOfPeriod.revenue),
-                                            orders: formatNumber(sellerOfPeriod.orders),
-                                            items: formatNumber(sellerOfPeriod.items),
-                                        }) }}
+                                        {{ employeeLine(sellerOfPeriod) }}
                                     </p>
                                 </div>
                             </div>

@@ -18,8 +18,9 @@ class SaleNotificationService
         }
         $owner = $sale->relationLoaded('user')
             ? $sale->user
-            : $sale->user()->select(['id', 'company_type', 'locale'])->first();
-        $isProductCompany = $owner?->company_type === 'products';
+            : $sale->user()->first();
+        $usesProductSales = $owner?->hasCompanyFeature('products')
+            && $owner->hasCompanyFeature('sales');
         $customerLocale = LocalePreference::forCustomer($customer, $owner);
         $customerIsFr = str_starts_with($customerLocale, 'fr');
 
@@ -141,7 +142,7 @@ class SaleNotificationService
             }
         }
 
-        if (! $isProductCompany) {
+        if (! $usesProductSales) {
             NotificationDispatcher::send($customer, new ActionEmailNotification(
                 $title,
                 $intro,

@@ -668,6 +668,10 @@ const copyAccessKit = async () => {
 
                     <section class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                         <div class="text-xs uppercase tracking-[0.2em] text-stone-500 dark:text-neutral-400">Modules and scenarios</div>
+                        <div v-if="workspace.scenario_key" class="mt-3 rounded-sm border border-violet-200 bg-violet-50 p-3 text-sm text-violet-900 dark:border-violet-900/60 dark:bg-violet-950/30 dark:text-violet-100">
+                            <div class="font-semibold">{{ workspace.scenario_label || workspace.scenario_key }}</div>
+                            <div class="mt-1 text-xs">Version {{ workspace.scenario_version }} · {{ workspace.data_volume }} · reference {{ workspace.reference_date }} · seed {{ workspace.random_seed }}</div>
+                        </div>
                         <div class="mt-3 flex flex-wrap gap-2">
                             <span v-for="label in workspace.module_labels" :key="label" class="rounded-full bg-stone-50 px-3 py-1 text-xs text-stone-700 ring-1 ring-stone-200 dark:bg-neutral-800 dark:text-neutral-200 dark:ring-neutral-700">
                                 {{ label }}

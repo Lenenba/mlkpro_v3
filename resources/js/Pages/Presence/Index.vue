@@ -28,6 +28,10 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    workload: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const { t } = useI18n();
@@ -38,7 +42,10 @@ const processingAction = ref(null);
 const error = ref('');
 
 const manualAllowed = computed(() => Boolean(props.permissions?.can_clock));
-const isServiceCompany = computed(() => props.company?.type && props.company.type !== 'products');
+const showsReservations = computed(() => Boolean(props.workload?.reservations));
+const showsJobs = computed(() => Boolean(props.workload?.jobs));
+const showsTasks = computed(() => Boolean(props.workload?.tasks));
+const showsWorkload = computed(() => showsReservations.value || showsJobs.value || showsTasks.value);
 const selfPerson = computed(() => people.value.find((person) => person.id === props.self_id) || null);
 
 const isClockedIn = (person) => person?.status === 'clocked_in';
@@ -345,13 +352,19 @@ const updateAvailability = async (action) => {
                                 {{ formatMethod(selfPerson.method) }}
                             </span>
                         </div>
-                        <div v-if="isServiceCompany" class="flex items-center justify-between">
+                        <div v-if="showsReservations" class="flex items-center justify-between">
+                            <span>{{ t('presence.labels.reservations_today') }}</span>
+                            <span class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ formatCount(selfPerson.reservations_today) }}
+                            </span>
+                        </div>
+                        <div v-if="showsJobs" class="flex items-center justify-between">
                             <span>{{ t('presence.labels.jobs_today') }}</span>
                             <span class="text-xs text-stone-500 dark:text-neutral-400">
                                 {{ formatCount(selfPerson.jobs_today) }}
                             </span>
                         </div>
-                        <div v-if="isServiceCompany" class="flex items-center justify-between">
+                        <div v-if="showsTasks" class="flex items-center justify-between">
                             <span>{{ t('presence.labels.tasks_today') }}</span>
                             <span class="text-xs text-stone-500 dark:text-neutral-400">
                                 {{ formatCount(selfPerson.tasks_today) }}
@@ -394,11 +407,17 @@ const updateAvailability = async (action) => {
                                     {{ formatRole(person.role) }}
                                     <span v-if="person.title"> · {{ person.title }}</span>
                                 </p>
-                                <div v-if="isServiceCompany" class="mt-1 flex flex-wrap gap-1 text-[11px] text-stone-500 dark:text-neutral-400">
-                                    <span class="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-200">
+                                <div v-if="showsWorkload" class="mt-1 flex flex-wrap gap-1 text-[11px] text-stone-500 dark:text-neutral-400">
+                                    <span
+                                        v-if="showsReservations"
+                                        class="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-200"
+                                    >
+                                        {{ t('presence.labels.reservations_today') }}: {{ formatCount(person.reservations_today) }}
+                                    </span>
+                                    <span v-if="showsJobs" class="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-200">
                                         {{ t('presence.labels.jobs_today') }}: {{ formatCount(person.jobs_today) }}
                                     </span>
-                                    <span class="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-600 dark:bg-rose-500/10 dark:text-rose-200">
+                                    <span v-if="showsTasks" class="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-600 dark:bg-rose-500/10 dark:text-rose-200">
                                         {{ t('presence.labels.tasks_today') }}: {{ formatCount(person.tasks_today) }}
                                     </span>
                                 </div>

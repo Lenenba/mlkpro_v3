@@ -20,12 +20,21 @@ const props = defineProps({
         type: Object,
         default: () => ({ periods: {} }),
     },
+    performanceMode: {
+        type: String,
+        default: null,
+    },
 });
 
 const { t } = useI18n();
 const page = usePage();
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
-const isServiceCompany = computed(() => companyType.value !== 'products');
+const isServiceCompany = computed(() =>
+    props.performanceMode
+        ? props.performanceMode !== 'products'
+        : companyType.value !== 'products'
+);
+const isReservationPerformance = computed(() => props.performanceMode === 'reservations');
 
 const activePeriod = ref('month');
 
@@ -93,17 +102,23 @@ const initials = (label) => {
 const kpiCards = computed(() => ([
     { label: t('performance.kpi.revenue'), value: formatCurrency(periodStats.value.revenue), tone: 'emerald' },
     {
-        label: isServiceCompany.value ? t('performance.kpi.jobs') : t('performance.kpi.orders'),
+        label: isReservationPerformance.value
+            ? t('nav.reservations')
+            : (isServiceCompany.value ? t('performance.kpi.jobs') : t('performance.kpi.orders')),
         value: formatNumber(periodStats.value.orders),
         tone: isServiceCompany.value ? 'indigo' : 'sky',
     },
     {
-        label: isServiceCompany.value ? t('performance.kpi.tasks') : t('performance.kpi.items_sold'),
+        label: isReservationPerformance.value
+            ? t('nav.services')
+            : (isServiceCompany.value ? t('performance.kpi.tasks') : t('performance.kpi.items_sold')),
         value: formatNumber(periodStats.value.items_sold),
         tone: isServiceCompany.value ? 'rose' : 'amber',
     },
     {
-        label: isServiceCompany.value ? t('performance.kpi.avg_job') : t('performance.kpi.avg_order'),
+        label: isReservationPerformance.value
+            ? t('reservations.performance.avg_service_value')
+            : (isServiceCompany.value ? t('performance.kpi.avg_job') : t('performance.kpi.avg_order')),
         value: formatCurrency(periodStats.value.avg_order),
         tone: 'violet',
     },
@@ -169,17 +184,44 @@ const formatTimeOffTime = (entry) => {
 
 const customerDisplayName = (customer) => customer?.name || t('performance.clients.customer_fallback');
 const topProductsLabel = computed(() =>
-    isServiceCompany.value ? t('performance.employee.top_jobs') : t('performance.employee.top_products')
+    isReservationPerformance.value
+        ? t('dashboard.scenario.top_services')
+        : (isServiceCompany.value ? t('performance.employee.top_jobs') : t('performance.employee.top_products'))
 );
 const noProductsLabel = computed(() =>
-    isServiceCompany.value ? t('performance.employee.no_jobs') : t('performance.employee.no_products')
+    isReservationPerformance.value
+        ? t('services.empty')
+        : (isServiceCompany.value ? t('performance.employee.no_jobs') : t('performance.employee.no_products'))
 );
-const productLineKey = computed(() =>
-    isServiceCompany.value ? 'performance.employee.job_line' : 'performance.employee.product_line'
-);
-const customerLineKey = computed(() =>
-    isServiceCompany.value ? 'performance.employee.customer_line_services' : 'performance.employee.customer_line'
-);
+
+const productLine = (product) => {
+    if (isReservationPerformance.value) {
+        return `${formatCurrency(product.revenue)} · ${formatNumber(product.quantity)} ${t('nav.services')}`;
+    }
+
+    return t(
+        isServiceCompany.value ? 'performance.employee.job_line' : 'performance.employee.product_line',
+        {
+            revenue: formatCurrency(product.revenue),
+            quantity: formatNumber(product.quantity),
+        },
+    );
+};
+
+const customerLine = (customer) => {
+    if (isReservationPerformance.value) {
+        return `${formatCurrency(customer.revenue)} · ${formatNumber(customer.orders)} ${t('nav.reservations')} · ${formatNumber(customer.items)} ${t('nav.services')}`;
+    }
+
+    return t(
+        isServiceCompany.value ? 'performance.employee.customer_line_services' : 'performance.employee.customer_line',
+        {
+            revenue: formatCurrency(customer.revenue),
+            orders: formatNumber(customer.orders),
+            items: formatNumber(customer.items),
+        },
+    );
+};
 </script>
 
 <template>
@@ -374,10 +416,7 @@ const customerLineKey = computed(() =>
                             <div class="flex-1">
                                 <p class="font-semibold text-stone-800 dark:text-neutral-100">{{ product.name }}</p>
                                 <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ t(productLineKey, {
-                                        revenue: formatCurrency(product.revenue),
-                                        quantity: formatNumber(product.quantity),
-                                    }) }}
+                                    {{ productLine(product) }}
                                 </p>
                             </div>
                         </div>
@@ -411,11 +450,7 @@ const customerLineKey = computed(() =>
                             <div class="flex-1">
                                 <p class="font-semibold text-stone-800 dark:text-neutral-100">{{ customerDisplayName(customer) }}</p>
                                 <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ t(customerLineKey, {
-                                        revenue: formatCurrency(customer.revenue),
-                                        orders: formatNumber(customer.orders),
-                                        items: formatNumber(customer.items),
-                                    }) }}
+                                    {{ customerLine(customer) }}
                                 </p>
                             </div>
                         </div>

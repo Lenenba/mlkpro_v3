@@ -125,6 +125,8 @@ class DemoWorkspaceController extends BaseSuperAdminController
                 'company_types' => $this->catalog->companyTypes(),
                 'sectors' => $this->catalog->sectors(),
                 'seed_profiles' => $this->catalog->seedProfiles(),
+                'data_volumes' => $this->catalog->dataVolumes(),
+                'demo_scenarios' => $this->catalog->scenarioDefinitions(),
                 'clone_data_modes' => self::CLONE_DATA_MODE_OPTIONS,
                 'timezones' => $this->catalog->timezones(),
                 'locales' => $this->catalog->locales(),
@@ -169,6 +171,8 @@ class DemoWorkspaceController extends BaseSuperAdminController
             ],
             'options' => [
                 'seed_profiles' => $this->catalog->seedProfiles(),
+                'data_volumes' => $this->catalog->dataVolumes(),
+                'demo_scenarios' => $this->catalog->scenarioDefinitions(),
                 'clone_data_modes' => self::CLONE_DATA_MODE_OPTIONS,
                 'sales_statuses' => self::SALES_STATUS_OPTIONS,
             ],
@@ -869,7 +873,7 @@ class DemoWorkspaceController extends BaseSuperAdminController
      */
     private function validatedWorkspacePayload(Request $request): array
     {
-        return $request->validate([
+        return $this->normalizeValidatedScenarioMetadata($request->validate([
             'prospect_name' => ['required', 'string', 'max:120'],
             'prospect_email' => ['nullable', 'email', 'max:190'],
             'prospect_company' => ['nullable', 'string', 'max:160'],
@@ -878,6 +882,11 @@ class DemoWorkspaceController extends BaseSuperAdminController
             'company_type' => ['required', Rule::in(collect($this->catalog->companyTypes())->pluck('value')->all())],
             'company_sector' => ['required', Rule::in(collect($this->catalog->sectors())->pluck('value')->all())],
             'seed_profile' => ['required', Rule::in(collect($this->catalog->seedProfiles())->pluck('value')->all())],
+            'scenario_key' => ['nullable', 'string', Rule::in($this->catalog->scenarioKeys())],
+            'data_volume' => ['nullable', 'string', Rule::in($this->catalog->dataVolumeKeys())],
+            'reference_date' => ['nullable', 'date'],
+            'random_seed' => ['nullable', 'integer', 'min:0', 'max:2147483647'],
+            'scenario_version' => ['nullable', 'integer', 'min:1'],
             'team_size' => ['required', 'integer', 'min:1', 'max:12'],
             'locale' => ['required', Rule::in(collect($this->catalog->locales())->pluck('value')->all())],
             'timezone' => ['required', Rule::in(collect($this->catalog->timezones())->pluck('value')->all())],
@@ -894,7 +903,7 @@ class DemoWorkspaceController extends BaseSuperAdminController
             'prefill_payload' => ['nullable', 'array'],
             ...$this->brandingProfileValidationRules('branding_profile'),
             'expires_at' => ['required', 'date', 'after_or_equal:today'],
-        ]);
+        ]));
     }
 
     /**
@@ -902,12 +911,17 @@ class DemoWorkspaceController extends BaseSuperAdminController
      */
     private function validatedTemplatePayload(Request $request): array
     {
-        return $request->validate([
+        return $this->normalizeValidatedScenarioMetadata($request->validate([
             'name' => ['required', 'string', 'max:120'],
             'description' => ['nullable', 'string', 'max:1000'],
             'company_type' => ['required', Rule::in(collect($this->catalog->companyTypes())->pluck('value')->all())],
             'company_sector' => ['required', Rule::in(collect($this->catalog->sectors())->pluck('value')->all())],
             'seed_profile' => ['required', Rule::in(collect($this->catalog->seedProfiles())->pluck('value')->all())],
+            'scenario_key' => ['nullable', 'string', Rule::in($this->catalog->scenarioKeys())],
+            'data_volume' => ['nullable', 'string', Rule::in($this->catalog->dataVolumeKeys())],
+            'reference_date' => ['nullable', 'date'],
+            'random_seed' => ['nullable', 'integer', 'min:0', 'max:2147483647'],
+            'scenario_version' => ['nullable', 'integer', 'min:1'],
             'team_size' => ['required', 'integer', 'min:1', 'max:12'],
             'locale' => ['required', Rule::in(collect($this->catalog->locales())->pluck('value')->all())],
             'timezone' => ['required', Rule::in(collect($this->catalog->timezones())->pluck('value')->all())],
@@ -920,6 +934,54 @@ class DemoWorkspaceController extends BaseSuperAdminController
             ...$this->brandingProfileValidationRules('branding_profile'),
             'is_default' => ['required', 'boolean'],
             'is_active' => ['required', 'boolean'],
+        ]));
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    private function normalizeValidatedScenarioMetadata(array $validated): array
+    {
+        $scenarioKey = strtolower(trim((string) ($validated['scenario_key'] ?? '')));
+
+        if ($scenarioKey === '') {
+            return array_replace($validated, [
+                'scenario_key' => null,
+                'data_volume' => null,
+                'reference_date' => null,
+                'random_seed' => null,
+                'scenario_version' => null,
+            ]);
+        }
+
+        $definition = $this->catalog->scenarioDefinition($scenarioKey);
+        $requiredModules = $this->catalog->requiredModulesForScenario($scenarioKey);
+        $missingModules = array_values(array_diff(
+            $requiredModules,
+            array_map('strval', (array) ($validated['selected_modules'] ?? [])),
+        ));
+
+        if ($missingModules !== []) {
+            throw ValidationException::withMessages([
+                'selected_modules' => [sprintf(
+                    'The %s scenario requires these modules: %s.',
+                    (string) ($definition['label'] ?? $scenarioKey),
+                    implode(', ', $missingModules),
+                )],
+            ]);
+        }
+
+        $timezone = (string) ($validated['timezone'] ?? $definition['reference_timezone'] ?? config('app.timezone', 'UTC'));
+
+        return array_replace($validated, [
+            'scenario_key' => $scenarioKey,
+            'data_volume' => (string) ($validated['data_volume'] ?? $definition['default_volume'] ?? 'medium'),
+            'reference_date' => filled($validated['reference_date'] ?? null)
+                ? Carbon::parse((string) $validated['reference_date'], $timezone)->toDateString()
+                : now($timezone)->toDateString(),
+            'random_seed' => (int) ($validated['random_seed'] ?? config('demo_scenarios.default_seed', 26082026)),
+            'scenario_version' => (int) ($definition['version'] ?? 1),
         ]);
     }
 
@@ -1091,6 +1153,11 @@ class DemoWorkspaceController extends BaseSuperAdminController
             'company_type' => $defaults['company_type'],
             'company_sector' => $defaults['company_sector'],
             'seed_profile' => $defaults['seed_profile'],
+            'scenario_key' => $defaults['scenario_key'],
+            'data_volume' => $defaults['data_volume'],
+            'reference_date' => $defaults['reference_date'],
+            'random_seed' => $defaults['random_seed'],
+            'scenario_version' => $defaults['scenario_version'],
             'team_size' => $defaults['team_size'],
             'locale' => $defaults['locale'],
             'timezone' => $defaults['timezone'],
@@ -1123,6 +1190,12 @@ class DemoWorkspaceController extends BaseSuperAdminController
             'company_type' => $workspace->company_type,
             'company_sector' => $workspace->company_sector,
             'seed_profile' => $workspace->seed_profile,
+            'scenario_key' => $workspace->scenario_key,
+            'scenario_label' => $this->scenarioLabel($workspace->scenario_key),
+            'data_volume' => $workspace->data_volume?->value,
+            'reference_date' => $workspace->reference_date?->toDateString(),
+            'random_seed' => $workspace->random_seed,
+            'scenario_version' => $workspace->scenario_version,
             'team_size' => $workspace->team_size,
             'locale' => $workspace->locale,
             'timezone' => $workspace->timezone,
@@ -1209,6 +1282,12 @@ class DemoWorkspaceController extends BaseSuperAdminController
             'company_type' => $template->company_type,
             'company_sector' => $template->company_sector,
             'seed_profile' => $template->seed_profile,
+            'scenario_key' => $template->scenario_key,
+            'scenario_label' => $this->scenarioLabel($template->scenario_key),
+            'data_volume' => $template->data_volume?->value,
+            'reference_date' => $template->reference_date?->toDateString(),
+            'random_seed' => $template->random_seed,
+            'scenario_version' => $template->scenario_version,
             'team_size' => $template->team_size,
             'locale' => $template->locale,
             'timezone' => $template->timezone,
@@ -1234,6 +1313,13 @@ class DemoWorkspaceController extends BaseSuperAdminController
                 'name' => $template->creator->name,
             ] : null,
         ];
+    }
+
+    private function scenarioLabel(?string $scenarioKey): ?string
+    {
+        $definition = $this->catalog->scenarioDefinition($scenarioKey);
+
+        return $definition ? (string) ($definition['label'] ?? $scenarioKey) : null;
     }
 
     /**
@@ -1287,6 +1373,14 @@ class DemoWorkspaceController extends BaseSuperAdminController
             $workspace->access_password ? 'Password: '.$workspace->access_password : null,
             $workspace->expires_at ? 'Expires: '.$workspace->expires_at->toFormattedDateString() : null,
             $workspace->template?->name ? 'Template: '.$workspace->template->name : null,
+            $workspace->scenario_key ? sprintf(
+                'Narrative scenario: %s (v%d, %s, reference %s, seed %d)',
+                $this->scenarioLabel($workspace->scenario_key) ?? $workspace->scenario_key,
+                (int) $workspace->scenario_version,
+                $workspace->data_volume?->value ?? 'medium',
+                $workspace->reference_date?->toDateString() ?? 'not set',
+                (int) $workspace->random_seed
+            ) : null,
             $moduleLabels !== '' ? 'Modules: '.$moduleLabels : null,
             $scenarioLabels !== '' ? 'Scenario packs: '.$scenarioLabels : null,
             $extraAccess !== '' ? "Extra role logins:\n".$extraAccess : null,
