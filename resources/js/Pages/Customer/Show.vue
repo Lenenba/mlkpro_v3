@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import axios from 'axios';
 import Header from './UI/Header.vue';
@@ -125,17 +125,23 @@ const props = defineProps({
 
 const { t } = useI18n();
 
-const page = usePage();
 const { visibleFeaturePayload, hasFeature } = useAccountFeatures();
-const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
-const showSales = computed(() => companyType.value === 'products');
-const showServiceOps = computed(() => companyType.value !== 'products');
+const showSales = computed(() => hasFeature('sales'));
 const loyalty = computed(() => visibleFeaturePayload('loyalty', props.loyalty));
 const quotesFeatureEnabled = computed(() => hasFeature('quotes'));
 const requestsFeatureEnabled = computed(() => hasFeature('requests'));
 const jobsFeatureEnabled = computed(() => hasFeature('jobs'));
 const tasksFeatureEnabled = computed(() => hasFeature('tasks'));
 const invoicesFeatureEnabled = computed(() => hasFeature('invoices'));
+const reservationsFeatureEnabled = computed(() => hasFeature('reservations'));
+const showServiceOps = computed(() => (
+    requestsFeatureEnabled.value
+    || quotesFeatureEnabled.value
+    || jobsFeatureEnabled.value
+    || tasksFeatureEnabled.value
+    || invoicesFeatureEnabled.value
+    || reservationsFeatureEnabled.value
+));
 const campaignsFeatureEnabled = computed(() => Boolean(props.campaignsFeatureEnabled) && hasFeature('campaigns'));
 const loyaltyFeatureEnabled = computed(() => hasFeature('loyalty') && Boolean(loyalty.value));
 const showCustomerOverview = computed(() => (

@@ -17,6 +17,16 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
 
     const canSales = hasAnyAccountPermission(account, ['sales.manage', 'sales.pos']);
     const canSalesManage = hasAccountPermission(account, 'sales.manage');
+    const canProducts = hasAnyAccountPermission(account, [
+        'products.view',
+        'products.create',
+        'products.edit',
+        'products.delete',
+        'products.inventory',
+        'products.stock',
+        'sales.manage',
+        'sales.pos',
+    ]);
     const canJobs = hasAnyAccountPermission(account, ['jobs.view', 'jobs.edit']);
     const canTasks = hasAnyAccountPermission(account, ['tasks.view', 'tasks.create', 'tasks.edit', 'tasks.delete']);
     const canService = hasAnyAccountPermission(account, ['jobs.view', 'tasks.view', 'jobs.edit', 'tasks.edit']);
@@ -24,7 +34,6 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
     const canLoyaltyManage = isOwner || canSalesManage || canServiceManage;
     const canCampaigns = hasAnyAccountPermission(account, ['campaigns.view', 'campaigns.manage', 'campaigns.send']);
     const canReservations = hasAnyAccountPermission(account, ['reservations.view', 'reservations.queue', 'reservations.manage']);
-    const hasServiceOps = showServices && (hasFeature('jobs') || hasFeature('tasks'));
     const canQuotes = hasAnyAccountPermission(account, ['quotes.view', 'quotes.edit']);
     const canManageCatalogOffers = isOwner || canSalesManage || hasAnyAccountPermission(account, [
         'quotes.edit',
@@ -73,11 +82,18 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
     const canPresence = hasAccountPermission(account, 'view_presence');
     const canViewTeam = hasAccountPermission(account, 'team.view');
     const canManageRoles = hasAccountPermission(account, 'manage_roles_permissions');
-    const canTeamReports = hasAnyAccountPermission(account, ['reports.team', 'view_team_reports', 'view_reports']);
+    const canTeamReports = hasAnyAccountPermission(account, ['reports.view', 'reports.team', 'view_team_reports', 'view_reports']);
     const canViewTeamPerformance = isOwner
         || teamRole === 'admin'
         || canTeamReports
-        || (companyType === 'products' && canSalesManage);
+        || canSalesManage;
+    const hasPerformanceSource = hasFeature('reservations')
+        || hasFeature('jobs')
+        || hasFeature('tasks')
+        || hasFeature('sales');
+    const canUsePlanning = (hasFeature('reservations') && canReservations)
+        || ((hasFeature('jobs') || hasFeature('tasks')) && canService)
+        || (hasFeature('sales') && canSales);
     const hasFinanceApprovalSources = hasFeature('expenses') || hasFeature('invoices');
 
     const unavailableCategory = (category) => ({
@@ -152,7 +168,7 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             descriptionKey: 'workspace_hub.modules.customers',
             routeName: 'customer.index',
             tone: 'customers',
-            visible: ((showServices && isOwner) || (companyType === 'products' && hasFeature('sales') && canSales)) && !isSeller,
+            visible: ((showServices && isOwner) || (hasFeature('sales') && canSales)) && !isSeller,
         },
         prospects: {
             key: 'prospects',
@@ -208,7 +224,7 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             descriptionKey: 'workspace_hub.modules.orders',
             routeName: 'orders.index',
             tone: 'orders',
-            visible: companyType === 'products' && hasFeature('sales') && canSales,
+            visible: hasFeature('sales') && canSales,
         },
         sales: {
             key: 'sales',
@@ -216,7 +232,7 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             descriptionKey: 'workspace_hub.modules.sales',
             routeName: isSeller ? 'sales.create' : 'sales.index',
             tone: 'sales',
-            visible: companyType === 'products' && hasFeature('sales') && canSales,
+            visible: hasFeature('sales') && canSales,
         },
         promotions: {
             key: 'promotions',
@@ -256,7 +272,7 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             descriptionKey: 'workspace_hub.modules.performance',
             routeName: 'performance.index',
             tone: 'performance',
-            visible: (((companyType === 'products' && hasFeature('sales')) || hasServiceOps)
+            visible: (hasPerformanceSource
                 && hasFeature('performance')
                 && canViewTeamPerformance),
         },
@@ -282,7 +298,7 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             descriptionKey: 'workspace_hub.modules.reservations',
             routeName: 'reservation.index',
             tone: 'reservations',
-            visible: showServices && hasFeature('reservations') && canReservations && !isClient && !isSeller,
+            visible: hasFeature('reservations') && canReservations && !isClient && !isSeller,
         },
         planning: {
             key: 'planning',
@@ -290,8 +306,7 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             descriptionKey: 'workspace_hub.modules.planning',
             routeName: 'planning.index',
             tone: 'planning',
-            visible: ((companyType === 'products' && hasFeature('sales') && hasFeature('planning') && (canSales || isTeamMember))
-                || (hasServiceOps && hasFeature('planning') && (canService || isTeamMember))),
+            visible: hasFeature('planning') && canUsePlanning,
             badge: planningPendingCount > 0 ? {
                 value: planningPendingCount,
                 labelKey: 'workspace_hub.badges.pending',
@@ -384,7 +399,7 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             descriptionKey: 'workspace_hub.modules.products',
             routeName: 'product.index',
             tone: 'products',
-            visible: showProducts && hasFeature('products') && (isOwner || canSales) && !isSeller,
+            visible: showProducts && hasFeature('products') && canProducts && !isSeller,
         },
         offer_packages: {
             key: 'offer_packages',

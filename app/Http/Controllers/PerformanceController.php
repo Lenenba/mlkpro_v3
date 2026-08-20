@@ -11,27 +11,41 @@ use App\Models\TeamMember;
 use App\Models\TeamMemberShift;
 use App\Models\User;
 use App\Models\Work;
+use App\Queries\Performance\ReservationPerformanceQuery;
+use App\Services\Demo\DemoWorkspaceReferenceClock;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class PerformanceController extends Controller
 {
-    public function index(Request $request)
-    {
+    public function index(
+        Request $request,
+        ReservationPerformanceQuery $reservationPerformance,
+        DemoWorkspaceReferenceClock $referenceClock,
+    ) {
         $user = $request->user();
         if (! $user) {
             abort(401);
         }
 
-        [$accountOwner, $isServiceCompany, , $canViewTeamPerformance] = $this->resolvePerformanceContext($user);
+        [
+            $accountOwner,
+            ,
+            $canViewTeamPerformance,
+            $performanceMode,
+        ] = $this->resolvePerformanceContext($user);
         if (! $canViewTeamPerformance) {
             abort(403);
         }
 
-        $now = now();
+        $now = Carbon::instance($referenceClock->forOwner($accountOwner));
 
-        if ($isServiceCompany) {
+        if ($performanceMode === 'reservations') {
+            $summary = $reservationPerformance->summary($accountOwner, $now, 12, 6, 10);
+            $employeePerformance = $summary['employeePerformance'];
+            $clientPerformance = $summary['clientPerformance'];
+        } elseif ($performanceMode === 'services') {
             $employeePerformance = $this->buildServiceTeamPerformance($accountOwner->id, $now, 12, 6);
             $clientPerformance = $this->buildServiceClientPerformance($accountOwner->id, $now, 10);
         } else {
@@ -43,17 +57,27 @@ class PerformanceController extends Controller
             'employeePerformance' => $employeePerformance,
             'clientPerformance' => $clientPerformance,
             'tab' => $request->query('tab', 'clients'),
+            'performanceMode' => $performanceMode,
         ]);
     }
 
-    public function employee(Request $request, User $employee)
-    {
+    public function employee(
+        Request $request,
+        User $employee,
+        ReservationPerformanceQuery $reservationPerformance,
+        DemoWorkspaceReferenceClock $referenceClock,
+    ) {
         $user = $request->user();
         if (! $user) {
             abort(401);
         }
 
-        [$accountOwner, $isServiceCompany, , $canViewTeamPerformance] = $this->resolvePerformanceContext($user);
+        [
+            $accountOwner,
+            ,
+            $canViewTeamPerformance,
+            $performanceMode,
+        ] = $this->resolvePerformanceContext($user);
         $accountId = $accountOwner->id;
 
         $membership = null;
@@ -84,35 +108,45 @@ class PerformanceController extends Controller
             'joined_at' => $membership?->created_at?->toDateString() ?? $employee->created_at?->toDateString(),
         ];
 
-        $performance = $isServiceCompany
-            ? $this->buildServiceMemberDetailPerformance(
+        $teamMemberId = $membership?->id ?? TeamMember::query()
+            ->where('account_id', $accountId)
+            ->where('user_id', $employee->id)
+            ->value('id');
+        $now = Carbon::instance($referenceClock->forOwner($accountOwner));
+
+        if ($performanceMode === 'reservations') {
+            $performance = $teamMemberId
+                ? $reservationPerformance->member($accountOwner, (int) $teamMemberId, $now, 6, 6)
+                : ['periods' => []];
+        } elseif ($performanceMode === 'services') {
+            $performance = $this->buildServiceMemberDetailPerformance(
                 $accountId,
-                $membership?->id ?? TeamMember::query()
-                    ->where('account_id', $accountId)
-                    ->where('user_id', $employee->id)
-                    ->value('id'),
-                now(),
+                $teamMemberId,
+                $now,
                 6,
                 6
-            )
-            : $this->buildSellerDetailPerformance($accountId, $employee->id, now(), 6, 6);
+            );
+        } else {
+            $performance = $this->buildSellerDetailPerformance($accountId, $employee->id, $now, 6, 6);
+        }
 
         $timeOffSummary = $this->buildTimeOffSummary(
             $accountId,
-            $membership?->id ?? TeamMember::query()
-                ->where('account_id', $accountId)
-                ->where('user_id', $employee->id)
-                ->value('id'),
-            now()
+            $teamMemberId,
+            $now,
         );
 
         return $this->inertiaOrJson('Performance/EmployeeShow', [
             'employee' => $employeePayload,
             'performance' => $performance,
             'timeOff' => $timeOffSummary,
+            'performanceMode' => $performanceMode,
         ]);
     }
 
+    /**
+     * @return array{0: User, 1: ?TeamMember, 2: bool, 3: string}
+     */
     private function resolvePerformanceContext(User $user): array
     {
         $ownerId = $user->accountOwnerId();
@@ -124,14 +158,7 @@ class PerformanceController extends Controller
             abort(403);
         }
 
-        $isServiceCompany = $owner->company_type !== 'products';
-        if ($isServiceCompany) {
-            if (! $owner->hasCompanyFeature('jobs') && ! $owner->hasCompanyFeature('tasks')) {
-                abort(403);
-            }
-        } elseif (! $owner->hasCompanyFeature('sales')) {
-            abort(403);
-        }
+        $performanceMode = $this->resolvePerformanceMode($owner);
 
         $membership = null;
         $canViewTeamPerformance = $user->id === $owner->id;
@@ -145,36 +172,68 @@ class PerformanceController extends Controller
                 abort(403);
             }
 
-            $canViewTeamPerformance = $this->canViewTeamPerformance($membership, $isServiceCompany);
-            $canViewOwnPerformance = $canViewTeamPerformance || $this->canViewOwnPerformance($membership, $isServiceCompany);
+            $canViewTeamPerformance = $this->canViewTeamPerformance(
+                $membership,
+                $performanceMode,
+            );
+            $canViewOwnPerformance = $canViewTeamPerformance
+                || $this->canViewOwnPerformance($membership, $performanceMode);
 
             if (! $canViewOwnPerformance) {
                 abort(403);
             }
         }
 
-        return [$owner, $isServiceCompany, $membership, $canViewTeamPerformance];
+        return [$owner, $membership, $canViewTeamPerformance, $performanceMode];
     }
 
-    private function canViewTeamPerformance(TeamMember $membership, bool $isServiceCompany): bool
+    private function resolvePerformanceMode(User $owner): string
     {
+        if ($owner->hasCompanyFeature('reservations')) {
+            return 'reservations';
+        }
+
+        if ($owner->hasCompanyFeature('jobs') || $owner->hasCompanyFeature('tasks')) {
+            return 'services';
+        }
+
+        if ($owner->hasCompanyFeature('sales')) {
+            return 'products';
+        }
+
+        abort(403);
+    }
+
+    private function canViewTeamPerformance(
+        TeamMember $membership,
+        string $performanceMode,
+    ): bool {
         if ($membership->role === 'admin') {
             return true;
         }
 
         if ($membership->hasPermission('reports.team')
+            || $membership->hasPermission('reports.view')
             || $membership->hasPermission('view_team_reports')
             || $membership->hasPermission('view_reports')) {
             return true;
         }
 
-        return ! $isServiceCompany
+        return $performanceMode === 'products'
             && ($membership->hasPermission('sales.manage') || $membership->hasPermission('view_sales_reports'));
     }
 
-    private function canViewOwnPerformance(TeamMember $membership, bool $isServiceCompany): bool
-    {
-        if ($isServiceCompany) {
+    private function canViewOwnPerformance(
+        TeamMember $membership,
+        string $performanceMode,
+    ): bool {
+        if ($performanceMode === 'reservations') {
+            return $membership->hasPermission('reservations.view')
+                || $membership->hasPermission('reservations.queue')
+                || $membership->hasPermission('reservations.manage');
+        }
+
+        if ($performanceMode === 'services') {
             return $membership->hasPermission('jobs.view')
                 || $membership->hasPermission('jobs.edit')
                 || $membership->hasPermission('tasks.view')

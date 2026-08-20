@@ -37,3 +37,46 @@ test('small and large demo volumes bracket the medium operating volume', functio
         ->and($volumes['medium']['services'])->toBe(28)
         ->and($volumes['large']['products'])->toBe(18);
 });
+
+test('engagement targets scale while preserving complete lifecycle contracts', function () {
+    $configuration = require dirname(__DIR__, 2).'/config/demo_scenarios.php';
+    $volumes = $configuration['volumes'];
+    $requiredModules = $configuration['scenarios'][StudioNayaBlueprint::KEY]['required_modules'];
+    $scalingMetrics = [
+        'mailing_lists',
+        'campaigns',
+        'campaign_recipients',
+        'campaign_events',
+        'promotions',
+        'promotion_usages',
+        'assistant_knowledge_items',
+        'assistant_conversations',
+        'assistant_messages',
+        'social_templates',
+        'social_posts',
+    ];
+
+    expect($requiredModules)->toContain('campaigns', 'promotions', 'assistant', 'social')
+        ->and($volumes['small']['campaigns'])->toBe(3)
+        ->and($volumes['medium']['campaigns'])->toBe(6)
+        ->and($volumes['large']['campaigns'])->toBe(9)
+        ->and($volumes['small']['campaign_events'])->toBe(54)
+        ->and($volumes['medium']['campaign_events'])->toBe(270)
+        ->and($volumes['large']['campaign_events'])->toBe(810);
+
+    foreach ($scalingMetrics as $metric) {
+        expect($volumes['small'][$metric])->toBeLessThan($volumes['medium'][$metric])
+            ->and($volumes['medium'][$metric])->toBeLessThan($volumes['large'][$metric]);
+    }
+
+    foreach (['small', 'medium', 'large'] as $volume) {
+        expect($volumes[$volume]['assistant_settings'])->toBe(1)
+            ->and($volumes[$volume]['social_accounts'])->toBe(1)
+            ->and($volumes[$volume]['assistant_messages'])
+            ->toBe($volumes[$volume]['assistant_conversations'] * 3)
+            ->and($volumes[$volume]['campaign_messages'])
+            ->toBe($volumes[$volume]['campaign_recipients'])
+            ->and($volumes[$volume]['social_targets'])
+            ->toBe($volumes[$volume]['social_posts']);
+    }
+});

@@ -135,6 +135,8 @@
     "kpi": {
       "revenue_paid": "Revenu encaissé",
       "revenue_billed": "Facturé {amount}",
+      "pos_revenue": "Ventes POS encaissées",
+      "pos_revenue_month": "{amount} encaissés ce mois-ci",
       "outstanding_balance": "Solde en attente",
       "partial_invoices": "{count} factures partielles",
       "client_follow_up": "Relances clients",
@@ -166,6 +168,8 @@
       "pending_actions_label": "Actions finance",
       "pipeline_title": "Pipeline",
       "pipeline_subtitle": "Suivi des devis et des chantiers en cours.",
+      "inventory_title": "Produits et stock",
+      "inventory_subtitle": "Valeur du stock physique et articles à réapprovisionner.",
       "accepted_label": "Acceptés",
       "scheduled_label": "Planifiés",
       "completed_label": "Terminés",

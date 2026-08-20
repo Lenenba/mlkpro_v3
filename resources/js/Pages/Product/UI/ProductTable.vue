@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
-import { Link, router, useForm, usePage } from '@inertiajs/vue3';
+import { Link, router, useForm } from '@inertiajs/vue3';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminDataTableBulkBar from '@/Components/DataTable/AdminDataTableBulkBar.vue';
 import AdminDataTableBulkActionMenu from '@/Components/DataTable/AdminDataTableBulkActionMenu.vue';
@@ -16,6 +16,8 @@ import DatePicker from '@/Components/DatePicker.vue';
 import axios from 'axios';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { useDataTableSelection } from '@/Composables/useDataTableSelection';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
+import { usePermissions } from '@/Composables/usePermissions';
 import { useCurrencyFormatter } from '@/utils/currency';
 import {
     createBulkActionFailureResult,
@@ -105,12 +107,14 @@ const filterForm = useForm({
 });
 
 const { t } = useI18n();
-const page = usePage();
+const { hasFeature } = useAccountFeatures();
+const { hasAnyPermission } = usePermissions();
 
 const canEdit = computed(() => Boolean(props.canEdit));
 const canOpenPulseComposer = computed(() => Boolean(props.pulse?.can_open));
-const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
-const canCreateBulkOrder = computed(() => companyType.value === 'products');
+const canCreateBulkOrder = computed(() =>
+    hasFeature('sales') && hasAnyPermission(['sales.manage', 'sales.pos'])
+);
 const aiImage = computed(() => (props.aiImage && typeof props.aiImage === 'object' ? props.aiImage : {}));
 const aiImageEnabled = computed(() => Boolean(aiImage.value.enabled) && Boolean(aiImage.value.generate_url));
 const aiImageLimit = computed(() => Number(aiImage.value.daily_limit ?? 1));

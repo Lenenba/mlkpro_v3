@@ -79,6 +79,7 @@ class CustomerController extends Controller
         $jobsFeatureEnabled = $featureService->hasFeature($accountOwner, 'jobs');
         $reservationsFeatureEnabled = $featureService->hasFeature($accountOwner, 'reservations');
         $campaignsFeatureEnabled = $featureService->hasFeature($accountOwner, 'campaigns');
+        $salesFeatureEnabled = $featureService->hasFeature($accountOwner, 'sales');
         $operationalIndexData = app(BuildCustomerOperationalIndexData::class);
         $customerIndexContext = $operationalIndexData->context($accountOwner);
         $teamMembership = $user->relationLoaded('teamMembership')
@@ -88,15 +89,19 @@ class CustomerController extends Controller
             || (
                 $teamMembership
                 && (
-                    $accountOwner->company_type === 'products'
+                    ($salesFeatureEnabled && $teamMembership->hasPermission('sales.manage'))
                     || $teamMembership->role === 'admin'
                     || $teamMembership->hasPermission('customers.create')
                 )
             );
         $canBook = $user->can('create', Reservation::class);
         $canViewBilling = $user->can('viewAny', Invoice::class);
-        $canViewSales = (int) $user->id === (int) $accountOwner->id
-            || ($teamMembership?->hasPermission('sales.manage') ?? false);
+        $canViewSales = $salesFeatureEnabled
+            && (
+                (int) $user->id === (int) $accountOwner->id
+                || ($teamMembership?->hasPermission('sales.manage') ?? false)
+                || ($teamMembership?->hasPermission('sales.pos') ?? false)
+            );
         $planKey = app(BillingSubscriptionService::class)->resolvePlanKey(
             $accountOwner,
             config('billing.plans', [])
@@ -1253,12 +1258,10 @@ class CustomerController extends Controller
         }
 
         $accountId = $user->id;
-        $usesSharedCustomerDirectory = $owner->company_type === 'products'
-            || (
-                $owner->company_type === 'services'
-                && in_array(strtolower(trim((string) $owner->company_sector)), ['salon', 'wellness'], true)
-                && app(CompanyFeatureService::class)->hasFeature($owner, 'reservations')
-            );
+        $featureService = app(CompanyFeatureService::class);
+        $usesSalesDirectory = $featureService->hasFeature($owner, 'sales');
+        $usesReservationDirectory = $featureService->hasFeature($owner, 'reservations');
+        $usesSharedCustomerDirectory = $usesSalesDirectory || $usesReservationDirectory;
 
         if ($usesSharedCustomerDirectory) {
             if ($user->id !== $owner->id) {
@@ -1273,17 +1276,18 @@ class CustomerController extends Controller
                     abort(403);
                 }
 
-                if ($owner->company_type === 'products') {
-                    $canManage = $membership->hasPermission('sales.manage');
-                    $canPos = $allowPos && $membership->hasPermission('sales.pos');
-                    if (! $canManage && ! $canPos) {
-                        abort(403);
-                    }
-                } elseif (
-                    $requireCustomerCreation
-                    && $membership->role !== 'admin'
-                    && ! $membership->hasPermission('customers.create')
-                ) {
+                $canUseSalesDirectory = $usesSalesDirectory
+                    && (
+                        $membership->hasPermission('sales.manage')
+                        || ($allowPos && $membership->hasPermission('sales.pos'))
+                    );
+                $canUseReservationDirectory = $usesReservationDirectory
+                    && (
+                        ! $requireCustomerCreation
+                        || $membership->role === 'admin'
+                        || $membership->hasPermission('customers.create')
+                    );
+                if (! $canUseSalesDirectory && ! $canUseReservationDirectory) {
                     abort(403);
                 }
             }

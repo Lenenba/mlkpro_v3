@@ -84,9 +84,11 @@ final class DemoReservationGenerator
         foreach ($selected as $index => $slot) {
             $startsAt = $slot['starts_at'];
             $isPast = $startsAt->lt($context->referenceDate->startOfDay());
-            $status = $isPast
-                ? $this->pastStatus($index)
-                : ($index % 4 === 0 ? Reservation::STATUS_PENDING : Reservation::STATUS_CONFIRMED);
+            $status = isset($slot['forced_status'])
+                ? (string) $slot['forced_status']
+                : ($isPast
+                    ? $this->pastStatus($index)
+                    : ($index % 4 === 0 ? Reservation::STATUS_PENDING : Reservation::STATUS_CONFIRMED));
             $createdAt = $isPast
                 ? $startsAt->subDays(3 + ($index % 42))
                 : $context->referenceDate->subDays(1 + ($index % 21));
@@ -273,8 +275,10 @@ final class DemoReservationGenerator
     }
 
     /**
-     * Keep enough future appointments for every employee narrative, then fill
-     * the remaining capacity using the deterministic seasonality score.
+     * Keep enough future appointments for every employee and one completed
+     * appointment per employee in the reference month, then fill the remaining
+     * capacity using the deterministic seasonality score. The current-month
+     * sample makes reservation-backed reports useful at every data volume.
      *
      * @param  Collection<int, array<string, mixed>>  $candidates
      * @return Collection<int, array<string, mixed>>
@@ -302,13 +306,28 @@ final class DemoReservationGenerator
                 return $today->concat($remaining);
             })
             ->values();
-        $reservedKeys = $requiredFuture->pluck('candidate_key')->flip();
+        $requiredCurrentMonth = $candidates
+            ->filter(fn (array $slot): bool => $slot['starts_at']->gte($context->referenceDate->startOfMonth())
+                && $slot['ends_at']->lt($context->referenceDate->startOfDay()))
+            ->groupBy('member_key')
+            ->map(function (Collection $slots): array {
+                $slot = $slots->sortByDesc('starts_at')->first();
+                $slot['forced_status'] = Reservation::STATUS_COMPLETED;
+
+                return $slot;
+            })
+            ->values();
+        $required = $requiredFuture
+            ->concat($requiredCurrentMonth)
+            ->unique('candidate_key')
+            ->values();
+        $reservedKeys = $required->pluck('candidate_key')->flip();
         $remaining = $candidates
             ->reject(fn (array $slot): bool => $reservedKeys->has($slot['candidate_key']))
             ->sortByDesc('score')
-            ->take(max(0, $target - $requiredFuture->count()));
+            ->take(max(0, $target - $required->count()));
 
-        return $requiredFuture
+        return $required
             ->concat($remaining)
             ->take($target)
             ->sortBy('starts_at')

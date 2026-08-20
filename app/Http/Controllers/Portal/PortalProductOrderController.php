@@ -20,7 +20,6 @@ use App\Services\SaleTimelineService;
 use App\Services\StripeSaleService;
 use App\Services\TenantBrandingResolver;
 use App\Services\TenantPaymentMethodGuardService;
-use App\Support\Database\UserSelects;
 use App\Support\TenantPaymentMethodsResolver;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
@@ -58,11 +57,14 @@ class PortalProductOrderController extends Controller
 
     private function resolvePortalCustomer(Request $request): array
     {
-        return $this->portalAccess->customerContext(
+        [$customer, $owner] = $this->portalAccess->customerContext(
             $request,
-            'products',
-            UserSelects::portalCompanyContext()
+            null,
         );
+
+        $this->ensureProductCommerceEnabled($owner);
+
+        return [$customer, $owner];
     }
 
     private function normalizeFulfillment(?array $settings, User $owner): array
@@ -104,11 +106,22 @@ class PortalProductOrderController extends Controller
 
     private function resolvePortalSale(Request $request, Sale $sale): array
     {
-        return $this->portalAccess->saleContext(
+        [$customer, $owner, $resolvedSale] = $this->portalAccess->saleContext(
             $request,
             $sale,
-            'products',
-            UserSelects::portalCompanyContext()
+            null,
+        );
+
+        $this->ensureProductCommerceEnabled($owner);
+
+        return [$customer, $owner, $resolvedSale];
+    }
+
+    private function ensureProductCommerceEnabled(User $owner): void
+    {
+        abort_unless(
+            $owner->hasCompanyFeature('products') && $owner->hasCompanyFeature('sales'),
+            403,
         );
     }
 

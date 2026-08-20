@@ -93,7 +93,7 @@ class SalePaymentController extends Controller
             ? $user
             : User::query()->find($ownerId);
 
-        if (! $owner || $owner->company_type !== 'products') {
+        if (! $owner || ! $owner->hasCompanyFeature('sales')) {
             abort(403);
         }
 
@@ -104,6 +104,9 @@ class SalePaymentController extends Controller
             $membership = $user->relationLoaded('teamMembership')
                 ? $user->teamMembership
                 : $user->teamMembership()->first();
+            if (! $membership?->is_active) {
+                abort(403);
+            }
             $canManage = $membership?->hasPermission('sales.manage') ?? false;
             $canPos = $membership?->hasPermission('sales.pos') ?? false;
             if (! $canManage && ! $canPos) {

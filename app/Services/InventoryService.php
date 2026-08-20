@@ -9,9 +9,8 @@ use App\Models\ProductStockMovement;
 use App\Models\Sale;
 use App\Models\TeamMember;
 use App\Models\User;
-use App\Notifications\LowStockNotification;
 use App\Models\Warehouse;
-use App\Services\NotificationPreferenceService;
+use App\Notifications\LowStockNotification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -32,6 +31,7 @@ class InventoryService
         $fallback = Warehouse::query()->forAccount($accountId)->first();
         if ($fallback) {
             $fallback->update(['is_default' => true]);
+
             return $fallback;
         }
 
@@ -117,7 +117,7 @@ class InventoryService
                 'meta' => $meta ?: null,
             ]);
 
-            if (!($context['skip_sync'] ?? false)) {
+            if (! ($context['skip_sync'] ?? false)) {
                 $this->syncProductStock($product->fresh());
             }
 
@@ -165,7 +165,7 @@ class InventoryService
             $inventory->reserved = $next;
             $inventory->save();
 
-            if (!($context['skip_sync'] ?? false)) {
+            if (! ($context['skip_sync'] ?? false)) {
                 $this->syncProductStock($product->fresh());
             }
         });
@@ -317,11 +317,11 @@ class InventoryService
         $lotNumber = $context['lot_number'] ?? null;
         $serialNumber = $context['serial_number'] ?? null;
 
-        if ($trackingType === 'serial' && !$serialNumber) {
+        if ($trackingType === 'serial' && ! $serialNumber) {
             return null;
         }
 
-        if ($trackingType === 'lot' && !$lotNumber) {
+        if ($trackingType === 'lot' && ! $lotNumber) {
             return null;
         }
 
@@ -338,7 +338,7 @@ class InventoryService
         $lot = $query->first();
         $shouldCreate = $delta > 0;
 
-        if (!$lot && $shouldCreate) {
+        if (! $lot && $shouldCreate) {
             $lot = ProductLot::create([
                 'product_id' => $product->id,
                 'warehouse_id' => $warehouse->id,
@@ -392,9 +392,8 @@ class InventoryService
     private function sendLowStockAlert(Product $product, int $currentStock, int $minimumStock): void
     {
         $owner = User::query()
-            ->select(['id', 'company_type'])
             ->find($product->user_id);
-        if (!$owner || $owner->company_type !== 'products') {
+        if (! $owner || ! $owner->hasCompanyFeature('products')) {
             return;
         }
 
@@ -404,7 +403,13 @@ class InventoryService
             ->get(['user_id', 'permissions']);
 
         $userIds = $teamMembers
-            ->filter(fn (TeamMember $member) => $member->hasPermission('sales.manage') || $member->hasPermission('sales.pos'))
+            ->filter(fn (TeamMember $member) => collect([
+                'products.edit',
+                'products.inventory',
+                'products.stock',
+                'sales.manage',
+                'sales.pos',
+            ])->contains(fn (string $permission): bool => $member->hasPermission($permission)))
             ->pluck('user_id')
             ->push($owner->id)
             ->unique()

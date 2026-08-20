@@ -17,6 +17,7 @@
       "last_in": "Dernier pointage entree",
       "last_out": "Dernier pointage sortie",
       "method": "Mode",
+      "reservations_today": "Rendez-vous du jour",
       "jobs_today": "Interventions du jour",
       "tasks_today": "Taches du jour",
       "availability": "Disponibilite",

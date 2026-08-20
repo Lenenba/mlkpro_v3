@@ -717,7 +717,7 @@ final class DemoCommerceGenerator
                 0 => 'accepted',
                 1 => 'sent',
                 2 => 'draft',
-                3 => 'rejected',
+                3 => 'declined',
                 default => 'sent',
             };
             $quantity = $index === 0 ? 3 : 1;

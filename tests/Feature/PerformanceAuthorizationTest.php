@@ -24,7 +24,7 @@ function performanceAuthOwner(string $companyType = 'services'): User
         'password' => 'password',
         'role_id' => performanceAuthRoleId('owner'),
         'company_type' => $companyType,
-        'company_sector' => $companyType === 'products' ? 'retail' : 'salon',
+        'company_sector' => $companyType === 'products' ? 'retail' : 'field_services',
         'onboarding_completed_at' => now(),
         'company_features' => [
             'team_members' => true,
@@ -95,10 +95,14 @@ it('allows admins and report viewers to see team performance', function () {
         'role' => 'admin',
         'permissions' => [],
     ]);
+    $reportViewer = performanceAuthMember($owner, [
+        'permissions' => ['reports.view'],
+    ]);
     $otherMember = performanceAuthMember($owner);
 
     $leadUser = $lead->user()->firstOrFail();
     $adminUser = $admin->user()->firstOrFail();
+    $reportViewerUser = $reportViewer->user()->firstOrFail();
     $otherUser = $otherMember->user()->firstOrFail();
 
     $this->actingAs($leadUser)
@@ -113,6 +117,11 @@ it('allows admins and report viewers to see team performance', function () {
         ->assertJsonPath('employee.id', $otherUser->id);
 
     $this->actingAs($adminUser)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('performance.index'))
+        ->assertOk();
+
+    $this->actingAs($reportViewerUser)
         ->withSession(['two_factor_passed' => true])
         ->getJson(route('performance.index'))
         ->assertOk();

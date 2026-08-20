@@ -135,6 +135,8 @@
     "kpi": {
       "revenue_paid": "Ingresos pagados",
       "revenue_billed": "Facturado {amount}",
+      "pos_revenue": "Ventas POS cobradas",
+      "pos_revenue_month": "{amount} cobrados este mes",
       "outstanding_balance": "Saldo pendiente",
       "partial_invoices": "{count} facturas parciales",
       "client_follow_up": "Seguimiento clientes",
@@ -166,6 +168,8 @@
       "pending_actions_label": "Acciones finanzas",
       "pipeline_title": "Pipeline",
       "pipeline_subtitle": "Sigue cotizaciones abiertas y trabajos activos en un solo bloque.",
+      "inventory_title": "Productos e inventario",
+      "inventory_subtitle": "Valor del inventario físico y artículos por reponer.",
       "accepted_label": "Aceptadas",
       "scheduled_label": "Programados",
       "completed_label": "Completados",

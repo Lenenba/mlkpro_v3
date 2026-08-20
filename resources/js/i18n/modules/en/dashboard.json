@@ -135,6 +135,8 @@
     "kpi": {
       "revenue_paid": "Revenue paid",
       "revenue_billed": "Billed {amount}",
+      "pos_revenue": "POS sales collected",
+      "pos_revenue_month": "{amount} collected this month",
       "outstanding_balance": "Outstanding balance",
       "partial_invoices": "{count} partial invoices",
       "client_follow_up": "Client follow-up",
@@ -166,6 +168,8 @@
       "pending_actions_label": "Finance actions",
       "pipeline_title": "Pipeline",
       "pipeline_subtitle": "Track open quotes and active jobs in one view.",
+      "inventory_title": "Products and inventory",
+      "inventory_subtitle": "Physical inventory value and items to restock.",
       "accepted_label": "Accepted",
       "scheduled_label": "Scheduled",
       "completed_label": "Completed",

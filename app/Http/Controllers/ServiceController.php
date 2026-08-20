@@ -383,7 +383,7 @@ class ServiceController extends Controller
             abort(403);
         }
 
-        if ($user->company_type === 'products') {
+        if (! $user->hasCompanyFeature('services')) {
             abort(404);
         }
     }

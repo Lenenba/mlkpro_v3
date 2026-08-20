@@ -897,7 +897,8 @@ class DashboardController extends Controller
         $recentSince = $now->copy()->subDays(30);
 
         $customersQuery = Customer::byUser($userId);
-        $productsQuery = Product::byUser($userId);
+        $catalogQuery = Product::byUser($userId);
+        $productsQuery = Product::query()->products()->byUser($userId);
         $quotesQuery = Quote::byUser($userId);
         $worksQuery = Work::byUser($userId);
         $invoicesQuery = Invoice::byUser($userId);
@@ -920,6 +921,7 @@ class DashboardController extends Controller
         $stats = [
             'customers_total' => (clone $customersQuery)->count(),
             'customers_new' => (clone $customersQuery)->whereDate('created_at', '>=', $recentSince)->count(),
+            'catalog_total' => (clone $catalogQuery)->count(),
             'products_total' => (clone $productsQuery)->count(),
             'products_low_stock' => (clone $productsQuery)
                 ->whereColumn('stock', '<=', 'minimum_stock')
@@ -942,12 +944,27 @@ class DashboardController extends Controller
             'plan_scans_total' => PlanScan::query()->where('user_id', $userId)->count(),
         ];
 
+        $invoicePaymentsQuery = Payment::query()
+            ->where('user_id', $userId)
+            ->whereNotNull('invoice_id')
+            ->whereNull('sale_id')
+            ->settled();
+        $posPaymentsQuery = Payment::query()
+            ->where('user_id', $userId)
+            ->whereNotNull('sale_id')
+            ->whereNull('invoice_id')
+            ->settled();
+
         $revenueBilled = (clone $invoicesQuery)->sum('total');
-        $revenuePaid = Payment::where('user_id', $userId)->sum('amount');
+        $revenuePaid = (float) (clone $invoicePaymentsQuery)->sum('amount');
         $stats['revenue_billed'] = $revenueBilled;
         $stats['revenue_paid'] = $revenuePaid;
         $stats['revenue_outstanding'] = max(0, $revenueBilled - $revenuePaid);
-        $stats['payments_month'] = Payment::where('user_id', $userId)
+        $stats['payments_month'] = (float) (clone $invoicePaymentsQuery)
+            ->whereDate('paid_at', '>=', $startOfMonth)
+            ->sum('amount');
+        $stats['pos_revenue_paid'] = (float) (clone $posPaymentsQuery)->sum('amount');
+        $stats['pos_payments_month'] = (float) (clone $posPaymentsQuery)
             ->whereDate('paid_at', '>=', $startOfMonth)
             ->sum('amount');
 
@@ -1175,7 +1192,11 @@ class DashboardController extends Controller
             )->endOfDay()
             : $now;
         $revenueSeries = $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($userId) {
-            return (float) Payment::where('user_id', $userId)
+            return (float) Payment::query()
+                ->where('user_id', $userId)
+                ->whereNotNull('invoice_id')
+                ->whereNull('sale_id')
+                ->settled()
                 ->whereBetween('paid_at', [$start, $end])
                 ->sum('amount');
         });

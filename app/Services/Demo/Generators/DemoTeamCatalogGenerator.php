@@ -10,6 +10,7 @@ use App\Models\ReservationSetting;
 use App\Models\Role;
 use App\Models\ServiceMaterial;
 use App\Models\TeamMember;
+use App\Models\TeamMemberAttendance;
 use App\Models\TeamMemberShift;
 use App\Models\User;
 use App\Models\WeeklyAvailability;
@@ -209,6 +210,13 @@ final class DemoTeamCatalogGenerator
 
             $this->createAbsences($context, $member, (array) $profile['absence_templates'], $key);
             $this->createUpcomingShifts($context, $member, (array) $profile['schedule']);
+            $this->createAttendanceHistory(
+                $context,
+                $member,
+                $user,
+                (array) $profile['schedule'],
+                $index,
+            );
 
             ReservationResource::query()->create([
                 'account_id' => $owner->id,
@@ -302,6 +310,80 @@ final class DemoTeamCatalogGenerator
             ]);
             $created++;
         }
+    }
+
+    /**
+     * Seed a compact attendance history plus one current presence state.
+     *
+     * Keeping this history bounded makes the scenario useful without tying
+     * attendance volume to the much larger reservation volume.
+     *
+     * @param  array<int, array{starts_at:string, ends_at:string}>  $schedule
+     */
+    private function createAttendanceHistory(
+        DemoScenarioContext $context,
+        TeamMember $member,
+        User $user,
+        array $schedule,
+        int $memberIndex,
+    ): void {
+        $date = $context->referenceDate;
+        $created = 0;
+        $daysScanned = 0;
+
+        while ($created < 12 && $daysScanned < 90) {
+            $date = $date->subDay();
+            $daysScanned++;
+            $hours = $schedule[$date->dayOfWeekIso] ?? null;
+            if (! is_array($hours)) {
+                continue;
+            }
+
+            $clockIn = $date
+                ->setTimeFromTimeString((string) $hours['starts_at'])
+                ->addMinutes(($memberIndex * 3 + $created) % 9)
+                ->utc();
+            $clockOut = $date
+                ->setTimeFromTimeString((string) $hours['ends_at'])
+                ->subMinutes(($memberIndex + $created) % 11)
+                ->utc();
+
+            TeamMemberAttendance::query()->create([
+                'account_id' => $context->owner->id,
+                'user_id' => $user->id,
+                'team_member_id' => $member->id,
+                'clock_in_at' => $clockIn,
+                'clock_out_at' => $clockOut,
+                'method' => 'demo',
+                'clock_out_method' => 'demo',
+                'current_status' => TeamMemberAttendance::STATUS_OFFLINE,
+            ]);
+            $created++;
+        }
+
+        $todayHours = $schedule[$context->referenceDate->dayOfWeekIso] ?? [
+            'starts_at' => '09:00',
+            'ends_at' => '17:00',
+        ];
+        $currentStatuses = [
+            TeamMemberAttendance::STATUS_AVAILABLE,
+            TeamMemberAttendance::STATUS_BUSY,
+            TeamMemberAttendance::STATUS_BREAK,
+        ];
+
+        TeamMemberAttendance::query()->create([
+            'account_id' => $context->owner->id,
+            'user_id' => $user->id,
+            'team_member_id' => $member->id,
+            'clock_in_at' => $context->referenceDate
+                ->setTimeFromTimeString((string) $todayHours['starts_at'])
+                ->addMinutes($memberIndex * 4)
+                ->utc(),
+            'clock_out_at' => null,
+            'method' => 'demo',
+            'clock_out_method' => null,
+            'current_status' => $currentStatuses[$memberIndex % count($currentStatuses)],
+        ]);
     }
 
     /**

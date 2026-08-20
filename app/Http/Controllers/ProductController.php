@@ -191,8 +191,16 @@ class ProductController extends Controller
                 ->select('product_works.product_id', DB::raw('SUM(product_works.quantity) as quantity'))
                 ->groupBy('product_works.product_id');
 
+            $saleUsage = DB::table('sale_items')
+                ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
+                ->where('sales.user_id', $accountId)
+                ->where('sales.status', Sale::STATUS_PAID)
+                ->whereIn('sale_items.product_id', $productIds)
+                ->select('sale_items.product_id', DB::raw('SUM(sale_items.quantity) as quantity'))
+                ->groupBy('sale_items.product_id');
+
             $usageTotals = DB::query()
-                ->fromSub($quoteUsage->unionAll($workUsage), 'usage')
+                ->fromSub($quoteUsage->unionAll($workUsage)->unionAll($saleUsage), 'usage')
                 ->select('product_id', DB::raw('SUM(quantity) as total_quantity'))
                 ->groupBy('product_id')
                 ->orderByDesc('total_quantity')
@@ -499,8 +507,7 @@ class ProductController extends Controller
             'source_details' => 'nullable',
         ]);
 
-        $itemType = $validated['item_type']
-            ?? ($user->company_type === 'products' ? Product::ITEM_TYPE_PRODUCT : Product::ITEM_TYPE_SERVICE);
+        $itemType = $validated['item_type'] ?? Product::ITEM_TYPE_PRODUCT;
         $limitKey = $itemType === Product::ITEM_TYPE_SERVICE ? 'services' : 'products';
         app(UsageLimitService::class)->enforceLimit($user, $limitKey);
 
@@ -1124,9 +1131,14 @@ class ProductController extends Controller
     public function export(Request $request)
     {
         $user = $request->user();
+        if (! $user) {
+            abort(403);
+        }
         if ($user && $user->currentAccessToken() && ! $user->tokenCan('exports:read')) {
             abort(403);
         }
+
+        [, $accountId] = $this->resolveProductAccount($user);
 
         $filters = $request->only([
             'name',
@@ -1153,7 +1165,7 @@ class ProductController extends Controller
         $query = Product::query()
             ->products()
             ->filter($filters)
-            ->byUser(Auth::id())
+            ->byUser($accountId)
             ->with('category')
             ->withSum('inventories as on_hand_total', 'on_hand')
             ->withSum('inventories as reserved_total', 'reserved')
@@ -1742,21 +1754,40 @@ class ProductController extends Controller
             abort(403);
         }
 
-        $canEdit = $user->id === $owner->id;
-        $accountId = $user->id;
-        if ($owner->company_type === 'products') {
-            if (! $canEdit) {
-                $membership = $user->relationLoaded('teamMembership')
-                    ? $user->teamMembership
-                    : $user->teamMembership()->first();
-                if (! $membership || ! $membership->hasPermission('sales.manage')) {
-                    abort(403);
-                }
-            }
-            $accountId = $owner->id;
+        if (! $owner->hasCompanyFeature('products')) {
+            abort(403);
         }
 
-        return [$owner, $accountId, $canEdit];
+        $canEdit = (int) $user->id === (int) $owner->id;
+        if (! $canEdit) {
+            $membership = $user->relationLoaded('teamMembership')
+                ? $user->teamMembership
+                : $user->teamMembership()->first();
+            $validMembership = $membership
+                && $membership->is_active
+                && (int) $membership->account_id === (int) $owner->id;
+            if (! $validMembership) {
+                abort(403);
+            }
+
+            $canView = collect([
+                'products.view',
+                'products.create',
+                'products.edit',
+                'products.delete',
+                'products.inventory',
+                'products.stock',
+                'sales.manage',
+                'sales.pos',
+            ])->contains(fn (string $permission): bool => $membership->hasPermission($permission));
+            if (! $canView) {
+                abort(403);
+            }
+
+            $canEdit = $membership->hasPermission('products.edit');
+        }
+
+        return [$owner, $owner->id, $canEdit];
     }
 
     private function ensureProductOwner(User $user): int

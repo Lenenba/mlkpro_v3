@@ -17,12 +17,14 @@ use App\Models\User;
 use App\Queries\Demo\DemoScenarioDashboardQuery;
 use App\Services\Demo\Contracts\DemoScenario;
 use App\Services\Demo\DemoScenarioContext;
+use App\Services\Demo\DemoScenarioModuleEvidence;
 use App\Services\Demo\DemoScenarioRegistry;
 use App\Services\Demo\DemoWorkspaceCatalog;
 use App\Services\Demo\DemoWorkspaceProvisioner;
 use App\Services\Demo\DemoWorkspaceTimelineService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Route;
 use Inertia\Testing\AssertableInertia as Assert;
 
 function demoScenarioIntegrationAdmin(): User
@@ -171,7 +173,6 @@ it('persists scenario metadata and dispatches only opted-in workspaces through t
         ->sort()
         ->values()
         ->all();
-
     expect($workspace->scenario_key)->toBe('studio_naya_coiffure')
         ->and($workspace->data_volume)->toBe(DemoDataVolume::Small)
         ->and($workspace->reference_date?->toDateString())->toBe('2026-08-20')
@@ -375,6 +376,8 @@ it('provisions and reproducibly resets the real small Studio Naya scenario', fun
         ->sort()
         ->values()
         ->all();
+    $moduleEvidence = (array) data_get($workspace->seed_summary, 'module_evidence', []);
+    $moduleRoutes = app(DemoScenarioModuleEvidence::class)->routeNames($selectedModules);
     $activeCredentials = collect($workspace->extra_access_credentials)
         ->where('is_active', true)
         ->values();
@@ -421,6 +424,10 @@ it('provisions and reproducibly resets the real small Studio Naya scenario', fun
         ->where('customer_id', $samantha?->id)
         ->where('job_title', 'like', '%mariage%')
         ->firstOrFail();
+    $quoteStatuses = Quote::query()
+        ->where('user_id', $workspace->owner_user_id)
+        ->distinct()
+        ->pluck('status');
     $weddingDeposit = Transaction::query()
         ->where('quote_id', $weddingQuote->id)
         ->where('type', 'deposit')
@@ -484,6 +491,12 @@ it('provisions and reproducibly resets the real small Studio Naya scenario', fun
         ->and(data_get($workspace->seed_summary, 'tasks'))->toBe(1)
         ->and(data_get($workspace->seed_summary, 'transactions'))->toBe(1)
         ->and(data_get($workspace->seed_summary, 'invariant_report.violation_count'))->toBe(0)
+        ->and(collect($moduleEvidence)->keys()->sort()->values()->all())->toBe($selectedModules)
+        ->and(collect($moduleEvidence)->every(
+            fn (array $evidence): bool => ($evidence['demonstrable'] ?? false) === true
+                && (int) ($evidence['records'] ?? 0) > 0,
+        ))->toBeTrue()
+        ->and(collect($moduleRoutes)->filter(fn (?string $routeName): bool => blank($routeName))->all())->toBe([])
         ->and(data_get($workspace->seed_summary, 'dataset_fingerprint'))->toBeString()->not->toBeEmpty()
         ->and($enabledFeatures)->toBe($selectedModules)
         ->and(array_diff(
@@ -512,6 +525,9 @@ it('provisions and reproducibly resets the real small Studio Naya scenario', fun
             'Nadia Pierre',
             'Samantha Joseph',
         ])
+        ->and($quoteStatuses->diff(['draft', 'sent', 'accepted', 'declined'])->values()->all())->toBe([])
+        ->and($quoteStatuses->contains('declined'))->toBeTrue()
+        ->and($quoteStatuses->contains('rejected'))->toBeFalse()
         ->and($weddingQuote->status)->toBe('accepted')
         ->and($weddingQuote->created_at?->setTimezone($workspace->timezone)->toDateString())
         ->toBe(CarbonImmutable::parse('2026-08-20', $workspace->timezone)->subDays(84)->toDateString())
@@ -560,7 +576,39 @@ it('provisions and reproducibly resets the real small Studio Naya scenario', fun
             ->has('scenarioInsights.monthly.reservations', 12)
             ->has('scenarioInsights.top_services')
             ->has('scenarioInsights.top_employees')
-            ->has('scenarioInsights.top_products'));
+            ->has('scenarioInsights.top_products')
+            ->where('stats.catalog_total', 46)
+            ->where('stats.products_total', 18)
+            ->where('stats.inventory_value', fn (mixed $value): bool => (float) $value > 0)
+            ->where('stats.pos_revenue_paid', fn (mixed $value): bool => (float) $value > 0));
+
+    $performancePayload = $this->actingAs($workspace->owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('performance.index'))
+        ->assertOk()
+        ->json();
+    $presencePayload = $this->actingAs($workspace->owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('presence.index'))
+        ->assertOk()
+        ->json();
+
+    expect(data_get($performancePayload, 'performanceMode'))->toBe('reservations')
+        ->and((int) data_get($performancePayload, 'clientPerformance.periods.month.orders'))->toBeGreaterThan(0)
+        ->and((float) data_get($performancePayload, 'clientPerformance.periods.month.revenue'))->toBeGreaterThan(0)
+        ->and(data_get($performancePayload, 'clientPerformance.periods.month.top_customers'))->not->toBeEmpty()
+        ->and(data_get($performancePayload, 'employeePerformance.periods.month.top_sellers'))->not->toBeEmpty()
+        ->and(collect(data_get($presencePayload, 'people', []))->sum('reservations_today'))->toBeGreaterThan(0)
+        ->and(collect(data_get($presencePayload, 'people', []))->whereNotNull('current_status'))->toHaveCount(5);
+
+    foreach ($moduleRoutes as $module => $routeName) {
+        expect(Route::has((string) $routeName))->toBeTrue("Missing representative route for module [{$module}].");
+
+        $this->actingAs($workspace->owner)
+            ->withSession(['two_factor_passed' => true])
+            ->get(route((string) $routeName))
+            ->assertOk();
+    }
 
     $queuedReset = $provisioner->queueResetToBaseline($workspace, $admin);
     (new ProvisionDemoWorkspaceJob($queuedReset->id, $admin->id, true))->handle(

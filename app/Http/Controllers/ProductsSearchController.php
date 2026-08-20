@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class ProductsSearchController extends Controller
 {
@@ -17,6 +18,14 @@ class ProductsSearchController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? 0;
 
+        if ($request->routeIs('product.search')) {
+            if (! $user) {
+                abort(403);
+            }
+
+            Gate::forUser($user)->authorize('viewAny', Product::class);
+        }
+
         $accountCompanyType = null;
         if ($user && $accountId) {
             $accountCompanyType = $accountId === $user->id
@@ -24,9 +33,11 @@ class ProductsSearchController extends Controller
                 : User::query()->whereKey($accountId)->value('company_type');
         }
 
-        $defaultItemType = $accountCompanyType === 'products'
+        $defaultItemType = $request->routeIs('product.search')
             ? Product::ITEM_TYPE_PRODUCT
-            : Product::ITEM_TYPE_SERVICE;
+            : ($accountCompanyType === 'products'
+                ? Product::ITEM_TYPE_PRODUCT
+                : Product::ITEM_TYPE_SERVICE);
 
         $requestedItemType = $request->input('item_type');
         $allowedItemTypes = [Product::ITEM_TYPE_PRODUCT, Product::ITEM_TYPE_SERVICE, 'all'];

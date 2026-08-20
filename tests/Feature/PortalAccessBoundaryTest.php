@@ -258,3 +258,43 @@ it('hides portal orders for an unrelated client', function () {
         ->getJson(route('portal.orders.show', $sale))
         ->assertNotFound();
 });
+
+it('opens portal product orders for any tenant with product and sales capabilities', function () {
+    $owner = phase7CreatePortalOwner([
+        'company_type' => 'services',
+        'company_features' => [
+            'products' => true,
+            'sales' => true,
+        ],
+    ]);
+    $client = phase7CreatePortalClient();
+    $customer = phase7CreatePortalCustomer($owner, $client);
+    $sale = phase7CreatePortalSale($owner, $customer);
+
+    $this->actingAs($client)
+        ->getJson(route('portal.orders.index'))
+        ->assertOk()
+        ->assertJsonPath('company.id', $owner->id)
+        ->assertJsonPath('customer.id', $customer->id);
+
+    $this->actingAs($client)
+        ->getJson(route('portal.orders.show', $sale))
+        ->assertOk()
+        ->assertJsonPath('order.id', $sale->id);
+});
+
+it('keeps portal product orders closed when either required capability is disabled', function () {
+    $owner = phase7CreatePortalOwner([
+        'company_type' => 'services',
+        'company_features' => [
+            'products' => false,
+            'sales' => true,
+        ],
+    ]);
+    $client = phase7CreatePortalClient();
+    phase7CreatePortalCustomer($owner, $client);
+
+    $this->actingAs($client)
+        ->getJson(route('portal.orders.index'))
+        ->assertForbidden();
+});

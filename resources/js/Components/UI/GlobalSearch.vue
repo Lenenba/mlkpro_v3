@@ -46,7 +46,7 @@ const quickActions = computed(() => {
         }
     };
 
-    if (!isSeller.value && ((isOwner.value && showServices.value) || (companyType.value === 'products' && hasFeature('sales') && canSales.value))) {
+    if (!isSeller.value && ((isOwner.value && showServices.value) || (hasFeature('sales') && canSales.value))) {
         actions.push({
             id: 'customer',
             label: t('quick_create.customer'),
