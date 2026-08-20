@@ -142,26 +142,64 @@ const performanceCards = computed(() => {
 });
 
 const hasPerformance = computed(() => performanceCards.value.length > 0);
+
+const compactLayoutClass = computed(() => {
+    if (performanceCards.value.length >= 7) {
+        return 'xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]';
+    }
+    if (performanceCards.value.length === 6) {
+        return 'xl:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]';
+    }
+
+    return 'xl:grid-cols-2';
+});
+
+const compactPerformanceGridClass = computed(() => {
+    if (performanceCards.value.length >= 7) {
+        return 'xl:grid-cols-7';
+    }
+    if (performanceCards.value.length === 6) {
+        return 'xl:grid-cols-6';
+    }
+
+    return 'xl:grid-cols-5';
+});
 </script>
 
 <template>
-    <div :class="compact ? 'space-y-2' : 'space-y-3'">
-        <div
-            class="grid"
-            :class="compact ? 'gap-2' : 'grid-cols-2 gap-2 md:grid-cols-5 md:gap-3 lg:gap-5'"
-            :style="compact ? { gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr))' } : undefined"
+    <div
+        :class="compact
+            ? ['grid grid-cols-1 items-start gap-3', hasPerformance ? compactLayoutClass : '']
+            : 'space-y-3'"
+    >
+        <section
+            :class="compact
+                ? 'min-w-0 rounded-sm border border-stone-200 bg-stone-50/50 p-2.5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900'
+                : ''"
         >
             <div
-                v-for="card in cards"
-                :key="`reservation-stat-${card.key}`"
-                class="rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
-                :class="[
-                    card.border,
-                    compact ? 'border-t-2 px-2.5 py-2' : 'border-t-4 p-4',
-                ]"
+                v-if="compact"
+                class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400"
             >
-                <div class="flex items-start justify-between gap-2">
-                    <div :class="compact ? 'text-[11px]' : 'text-xs'" class="text-stone-500 dark:text-neutral-400">{{ $t(card.label) }}</div>
+                {{ $t('reservations.title') }}
+            </div>
+            <div
+                class="grid"
+                :class="compact
+                    ? 'grid-cols-[repeat(auto-fill,minmax(6.25rem,1fr))] gap-2 xl:grid-cols-5'
+                    : 'grid-cols-2 gap-2 md:grid-cols-5 md:gap-3 lg:gap-5'"
+            >
+                <div
+                    v-for="card in cards"
+                    :key="`reservation-stat-${card.key}`"
+                    class="rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
+                    :class="[
+                        card.border,
+                        compact ? 'relative flex aspect-square min-w-0 flex-col justify-between border-t-2 p-2.5' : 'border-t-4 p-4',
+                    ]"
+                >
+                    <div class="flex items-start justify-between gap-2">
+                        <div :class="compact ? 'pe-4 text-[10px] leading-tight' : 'text-xs'" class="text-stone-500 dark:text-neutral-400">{{ $t(card.label) }}</div>
                     <svg
                         v-if="card.icon === 'layout-grid'"
                         class="text-stone-400 dark:text-neutral-500"
@@ -232,44 +270,56 @@ const hasPerformance = computed(() => performanceCards.value.length > 0);
                         <rect x="3" y="4" width="18" height="18" rx="2" />
                         <path d="M3 10h18" />
                     </svg>
-                </div>
-                <div
-                    class="font-semibold text-stone-800 dark:text-neutral-100"
-                    :class="compact ? 'mt-0.5 text-base leading-tight' : 'mt-1 text-lg'"
-                >
-                    {{ normalize(stats[card.key]) }}
+                    </div>
+                    <div
+                        class="font-semibold text-stone-800 dark:text-neutral-100"
+                        :class="compact ? 'mt-auto text-lg leading-none' : 'mt-1 text-lg'"
+                    >
+                        {{ normalize(stats[card.key]) }}
+                    </div>
                 </div>
             </div>
-        </div>
+        </section>
+
+        <section
+            v-if="compact && hasPerformance"
+            class="min-w-0 rounded-sm border border-stone-200 bg-stone-50/50 p-2.5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+        >
+            <div class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                {{ $t('reservations.performance.title', { days: performance.window_days || 30 }) }}
+            </div>
+            <div
+                class="grid grid-cols-[repeat(auto-fill,minmax(6.25rem,1fr))] gap-2"
+                :class="compactPerformanceGridClass"
+            >
+                <div
+                    v-for="card in performanceCards"
+                    :key="`reservation-performance-${card.key}`"
+                    class="flex aspect-square min-w-0 flex-col justify-between rounded-sm border border-t-2 border-stone-200 bg-white p-2.5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
+                    :class="card.border"
+                >
+                    <div class="line-clamp-3 text-[10px] uppercase leading-tight tracking-wide text-stone-500 dark:text-neutral-400">
+                        {{ $t(card.label) }}
+                    </div>
+                    <div class="mt-auto text-sm font-semibold leading-none text-stone-800 dark:text-neutral-100">
+                        {{ normalizeMetric(performance[card.key], card.format) }}
+                    </div>
+                </div>
+            </div>
+        </section>
 
         <details
-            v-if="hasPerformance"
-            class="group rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
-            :class="compact ? 'px-3 py-2' : 'p-3'"
-            :open="!compact"
+            v-else-if="hasPerformance"
+            class="group rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+            open
         >
             <summary
-                class="flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-semibold uppercase tracking-wide text-stone-500 marker:hidden dark:text-neutral-400"
-                :class="compact ? 'group-open:mb-2' : 'mb-2 cursor-default'"
+                class="mb-2 flex cursor-default list-none items-center justify-between gap-2 text-xs font-semibold uppercase tracking-wide text-stone-500 marker:hidden dark:text-neutral-400"
             >
                 <span>{{ $t('reservations.performance.title', { days: performance.window_days || 30 }) }}</span>
-                <svg
-                    v-if="compact"
-                    class="size-3.5 shrink-0 transition-transform group-open:rotate-180"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    aria-hidden="true"
-                >
-                    <path d="m6 9 6 6 6-6" />
-                </svg>
             </summary>
             <div
-                class="grid"
-                :class="compact ? 'gap-1.5' : 'grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-6'"
-                :style="compact ? { gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 7.5rem), 1fr))' } : undefined"
+                class="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-6"
             >
                 <div
                     v-for="card in performanceCards"
@@ -277,13 +327,13 @@ const hasPerformance = computed(() => performanceCards.value.length > 0);
                     class="rounded-sm border border-stone-200 bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800"
                     :class="[
                         card.border,
-                        compact ? 'border-t-2 px-2 py-1.5' : 'border-t-4 p-3',
+                        'border-t-4 p-3',
                     ]"
                 >
-                    <div class="uppercase tracking-wide text-stone-500 dark:text-neutral-400" :class="compact ? 'text-[10px]' : 'text-[11px]'">
+                    <div class="text-[11px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">
                         {{ $t(card.label) }}
                     </div>
-                    <div class="font-semibold text-stone-800 dark:text-neutral-100" :class="compact ? 'mt-0.5 text-sm' : 'mt-1 text-base'">
+                    <div class="mt-1 text-base font-semibold text-stone-800 dark:text-neutral-100">
                         {{ normalizeMetric(performance[card.key], card.format) }}
                     </div>
                 </div>

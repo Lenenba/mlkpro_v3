@@ -49,15 +49,23 @@ test('the month grid remains chronological from its first Monday', () => {
     });
 });
 
-test('the staff page alone enables the compact reservation metrics variant', () => {
+test('the staff page uses square metrics in two responsive compact groups', () => {
     const stats = source('resources/js/Components/Reservation/ReservationStats.vue');
     const staffPage = source('resources/js/Pages/Reservation/Index.vue');
     const clientPage = source('resources/js/Pages/Reservation/ClientIndex.vue');
     const calendar = source('resources/js/Components/Reservation/ReservationCalendarBoard.vue');
 
     assert.match(stats, /compact:\s*\{[\s\S]*?type:\s*Boolean[\s\S]*?default:\s*false/);
-    assert.match(stats, /repeat\(auto-fit, minmax\(min\(100%, 8\.5rem\), 1fr\)\)/);
-    assert.match(stats, /<details[\s\S]*?:open="!compact"/);
+    assert.match(stats, /grid-cols-\[repeat\(auto-fill,minmax\(6\.25rem,1fr\)\)\]/);
+    assert.match(stats, /aspect-square/);
+    assert.match(stats, /xl:grid-cols-\[minmax\(0,5fr\)_minmax\(0,6fr\)\]/);
+    assert.match(stats, /xl:grid-cols-\[minmax\(0,5fr\)_minmax\(0,7fr\)\]/);
+    assert.match(stats, /return 'xl:grid-cols-2'/);
+    assert.match(stats, /return 'xl:grid-cols-5'/);
+    assert.match(stats, /return 'xl:grid-cols-6'/);
+    assert.match(stats, /return 'xl:grid-cols-7'/);
+    assert.match(stats, /<section[\s\S]*?v-if="compact && hasPerformance"/);
+    assert.match(stats, /<details[\s\S]*?v-else-if="hasPerformance"/);
     assert.match(staffPage, /<ReservationStats\s+:stats="stats"\s+:performance="performance"\s+compact\s*\/>/);
     assert.doesNotMatch(clientPage, /<ReservationStats[^>]*\scompact(?:\s|\/|>)/);
     assert.match(calendar, /anchorDate\.value = currentReservationDay\(\)/);
