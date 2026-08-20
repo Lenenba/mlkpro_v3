@@ -6,6 +6,13 @@
             "delivery_status": "not_applicable",
             "note": "Guide actif du provisioning de demo; le workflow legacy n'est plus recommande."
         },
+        "docs/demo/scenario-engine.md": {
+            "document_status": "reference",
+            "delivery_status": "done",
+            "created_at": "2026-08-20",
+            "updated_at": "2026-08-20",
+            "note": "Architecture et runbook actifs du moteur de scenarios de demonstration reproductibles."
+        },
         "docs/DEMO_VIDEO_SALON_COIFFURE.md": {
             "document_status": "complete",
             "delivery_status": "in_progress",

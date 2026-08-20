@@ -1,0 +1,85 @@
+<?php
+
+use App\Services\Demo\Scenarios\StudioNaya\StudioNayaBlueprint;
+use App\Services\Demo\Scenarios\StudioNaya\StudioNayaScenario;
+
+return [
+    'default_scenario' => env('DEMO_SCENARIO_DEFAULT', StudioNayaBlueprint::KEY),
+    'default_volume' => env('DEMO_SCENARIO_VOLUME', StudioNayaBlueprint::DEFAULT_VOLUME),
+    'reference_timezone' => env('DEMO_SCENARIO_TIMEZONE', 'America/Toronto'),
+    'default_seed' => (int) env('DEMO_SCENARIO_SEED', 26082026),
+
+    'volumes' => [
+        'small' => [
+            'employees' => 5,
+            'services' => 28,
+            'products' => 18,
+            'customers' => 40,
+            'reservations' => 180,
+            'invoices' => 110,
+            'payments' => 145,
+            'quotes' => 10,
+            'sales' => 35,
+            'expenses' => 54,
+            'inventory_movements' => 160,
+            'notifications' => 12,
+        ],
+        'medium' => [
+            'employees' => 5,
+            'services' => 28,
+            'products' => 18,
+            'customers' => 300,
+            'reservations' => 1800,
+            'invoices' => 1100,
+            'payments' => 1450,
+            'quotes' => 55,
+            'sales' => 300,
+            'expenses' => 216,
+            'inventory_movements' => 2400,
+            'notifications' => 36,
+        ],
+        'large' => [
+            'employees' => 5,
+            'services' => 28,
+            'products' => 18,
+            'customers' => 750,
+            'reservations' => 6000,
+            'invoices' => 3900,
+            'payments' => 5000,
+            'quotes' => 180,
+            'sales' => 1100,
+            'expenses' => 480,
+            'inventory_movements' => 8000,
+            'notifications' => 100,
+        ],
+    ],
+
+    'scenarios' => [
+        StudioNayaBlueprint::KEY => [
+            'blueprint' => StudioNayaBlueprint::class,
+            'generator' => StudioNayaScenario::class,
+            'default_volume' => StudioNayaBlueprint::DEFAULT_VOLUME,
+            'available_volumes' => ['small', 'medium', 'large'],
+            'required_modules' => [
+                'services',
+                'reservations',
+                'planning',
+                'presence',
+                'invoices',
+                'expenses',
+                'accounting',
+                'team_members',
+                'performance',
+                'products',
+                'sales',
+                'quotes',
+                'tasks',
+                'loyalty',
+                'campaigns',
+            ],
+            'history_months' => 18,
+            'future_weeks' => 6,
+            'reference_timezone' => 'America/Toronto',
+        ],
+    ],
+];

@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import AnnouncementsPanel from '@/Components/Dashboard/AnnouncementsPanel.vue';
 import KpiCompositePanel from '@/Components/Dashboard/KpiCompositePanel.vue';
+import ScenarioBusinessOverview from '@/Components/Dashboard/ScenarioBusinessOverview.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 import { buildSparklinePoints, buildTrend } from '@/utils/kpi';
@@ -79,6 +80,10 @@ const props = defineProps({
     financeSummary: {
         type: Object,
         default: () => ({}),
+    },
+    scenarioInsights: {
+        type: Object,
+        default: null,
     },
 });
 
@@ -992,6 +997,11 @@ onMounted(() => {
                     :limit="3"
                 />
             </div>
+
+            <ScenarioBusinessOverview
+                v-if="scenarioInsights"
+                :insights="scenarioInsights"
+            />
 
             <section
                 v-if="hasMarketingKpis"

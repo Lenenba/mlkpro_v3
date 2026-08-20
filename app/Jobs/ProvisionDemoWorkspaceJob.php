@@ -11,13 +11,19 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
+use Throwable;
 
 class ProvisionDemoWorkspaceJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 1;
+    public int $tries = 3;
+
+    public int $timeout = 900;
+
+    public bool $failOnTimeout = true;
 
     public function __construct(
         public int $workspaceId,
@@ -25,6 +31,19 @@ class ProvisionDemoWorkspaceJob implements ShouldQueue
         public bool $isReset = false
     ) {
         $this->onQueue(QueueWorkload::queue('demos'));
+    }
+
+    /**
+     * @return array<int, object>
+     */
+    public function middleware(): array
+    {
+        return [
+            (new WithoutOverlapping('demo-workspace:'.$this->workspaceId))
+                ->releaseAfter(30)
+                ->expireAfter($this->timeout + 60)
+                ->shared(),
+        ];
     }
 
     public function handle(
@@ -35,6 +54,10 @@ class ProvisionDemoWorkspaceJob implements ShouldQueue
         $actor = User::query()->find($this->actorUserId);
 
         if (! $workspace || ! $actor) {
+            return;
+        }
+
+        if ($workspace->provisioning_status !== DemoWorkspaceProvisioner::STATUS_QUEUED) {
             return;
         }
 
@@ -81,6 +104,33 @@ class ProvisionDemoWorkspaceJob implements ShouldQueue
             $this->isReset
                 ? 'Workspace reset completed from baseline.'
                 : 'Demo workspace provisioning completed.'
+        );
+    }
+
+    public function failed(?Throwable $exception): void
+    {
+        $workspace = DemoWorkspace::query()->find($this->workspaceId);
+
+        if (! $workspace || $workspace->provisioning_status === DemoWorkspaceProvisioner::STATUS_READY) {
+            return;
+        }
+
+        $actor = User::query()->find($this->actorUserId);
+        $message = $exception?->getMessage() ?: 'Demo provisioning job failed unexpectedly.';
+        $workspace = app(DemoWorkspaceProvisioner::class)->markProvisioningFailed($workspace, $message);
+
+        app(DemoWorkspaceTimelineService::class)->record(
+            $workspace,
+            'demo_workspace.failed',
+            $actor,
+            [
+                'is_reset' => $this->isReset,
+                'error' => $workspace->provisioning_error,
+                'job_failed' => true,
+            ],
+            $this->isReset
+                ? 'Baseline reset job failed before activation.'
+                : 'Demo provisioning job failed.'
         );
     }
 }

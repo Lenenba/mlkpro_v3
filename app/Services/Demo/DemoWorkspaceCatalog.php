@@ -2,7 +2,9 @@
 
 namespace App\Services\Demo;
 
+use App\Enums\DemoDataVolume;
 use App\Models\MarketingSetting;
+use App\Services\Demo\Scenarios\StudioNaya\StudioNayaBlueprint;
 use App\Support\LocalePreference;
 use Illuminate\Support\Arr;
 
@@ -108,6 +110,124 @@ class DemoWorkspaceCatalog
                 ],
             ],
         ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function dataVolumes(): array
+    {
+        return [
+            [
+                'value' => DemoDataVolume::Small->value,
+                'label' => 'Small',
+                'description' => 'A fast, compact dataset for smoke tests and short walkthroughs.',
+                'counts' => (array) config('demo_scenarios.volumes.small', []),
+            ],
+            [
+                'value' => DemoDataVolume::Medium->value,
+                'label' => 'Medium',
+                'description' => 'The standard narrative dataset with enough history for reporting.',
+                'counts' => (array) config('demo_scenarios.volumes.medium', []),
+            ],
+            [
+                'value' => DemoDataVolume::Large->value,
+                'label' => 'Large',
+                'description' => 'A high-volume dataset intended for advanced demos and performance checks.',
+                'counts' => (array) config('demo_scenarios.volumes.large', []),
+            ],
+        ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function dataVolumeKeys(): array
+    {
+        return array_column($this->dataVolumes(), 'value');
+    }
+
+    /**
+     * Scenario engines are intentionally distinct from the lightweight walkthrough packs.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function scenarioDefinitions(): array
+    {
+        return collect((array) config('demo_scenarios.scenarios', []))
+            ->map(function (mixed $configuration, string $key): ?array {
+                $configuration = is_array($configuration) ? $configuration : [];
+                $blueprintClass = $configuration['blueprint'] ?? null;
+
+                if (! is_string($blueprintClass)
+                    || ! class_exists($blueprintClass)
+                    || ! method_exists($blueprintClass, 'definition')) {
+                    return null;
+                }
+
+                $definition = (array) $blueprintClass::definition();
+                $identity = (array) ($definition['identity'] ?? []);
+                $scenarioKey = strtolower(trim((string) ($definition['key'] ?? $key)));
+
+                if ($scenarioKey === '') {
+                    return null;
+                }
+
+                return [
+                    'key' => $scenarioKey,
+                    'label' => (string) ($configuration['label'] ?? $identity['name'] ?? $scenarioKey),
+                    'description' => (string) ($configuration['description']
+                        ?? ($scenarioKey === StudioNayaBlueprint::KEY
+                            ? 'An 18-month Montreal salon story with linked appointments, billing, inventory, expenses, and notifications.'
+                            : 'A deterministic, resettable business narrative.')),
+                    'version' => (int) ($definition['version'] ?? 1),
+                    'default_volume' => (string) ($configuration['default_volume'] ?? $definition['default_volume'] ?? DemoDataVolume::Medium->value),
+                    'available_volumes' => array_values((array) ($configuration['available_volumes'] ?? $this->dataVolumeKeys())),
+                    'required_modules' => array_values(array_unique(array_map(
+                        'strval',
+                        (array) ($configuration['required_modules'] ?? $definition['required_modules'] ?? [])
+                    ))),
+                    'reference_timezone' => (string) ($configuration['reference_timezone'] ?? $identity['timezone'] ?? 'UTC'),
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function scenarioKeys(): array
+    {
+        return array_column($this->scenarioDefinitions(), 'key');
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function scenarioDefinition(?string $key): ?array
+    {
+        $key = strtolower(trim((string) $key));
+
+        if ($key === '') {
+            return null;
+        }
+
+        return collect($this->scenarioDefinitions())->firstWhere('key', $key);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function requiredModulesForScenario(?string $key): array
+    {
+        $definition = $this->scenarioDefinition($key);
+
+        return array_values(array_intersect(
+            array_map('strval', (array) ($definition['required_modules'] ?? [])),
+            $this->moduleKeys(),
+        ));
     }
 
     /**
@@ -383,6 +503,17 @@ class DemoWorkspaceCatalog
             'reservation_to_service',
             'salon_eclat_complete',
         ];
+        $studioNayaModules = array_values(array_unique([
+            ...$this->requiredModulesForScenario(StudioNayaBlueprint::KEY),
+            'promotions',
+            'assistant',
+            'social',
+        ]));
+        $studioNayaScenarios = [
+            'salon_queue',
+            'reservation_to_service',
+            'studio_naya_complete',
+        ];
         $commerceModules = $this->defaultModules('products', 'retail');
         $commerceScenarios = $this->defaultScenarioPacks('products', 'retail', $commerceModules);
 
@@ -435,6 +566,50 @@ class DemoWorkspaceCatalog
                 'suggested_flow' => $this->suggestedFlowFromScenarioPacks($salonEclatScenarios),
             ],
             [
+                'key' => 'studio_naya_coiffure',
+                'label' => 'Studio Naya - narrative scenario',
+                'description' => 'A deterministic, resettable salon workspace with 18 months of connected operating history.',
+                'company_type' => 'services',
+                'company_sector' => 'salon',
+                'company_name' => 'Studio Naya Coiffure',
+                'prospect_name' => 'Maya Koné',
+                'prospect_email' => 'maya.kone@studio-naya.example.test',
+                'prospect_company' => 'Studio Naya Coiffure',
+                'seed_profile' => 'immersive',
+                'scenario_key' => StudioNayaBlueprint::KEY,
+                'data_volume' => StudioNayaBlueprint::DEFAULT_VOLUME,
+                'reference_date' => now('America/Toronto')->toDateString(),
+                'random_seed' => (int) config('demo_scenarios.default_seed', 26082026),
+                'scenario_version' => 1,
+                'team_size' => 5,
+                'locale' => 'fr',
+                'timezone' => 'America/Toronto',
+                'desired_outcome' => 'Présenter une entreprise de coiffure crédible à travers ses opérations, ses finances et ses relations clientes sur 18 mois.',
+                'modules' => $studioNayaModules,
+                'scenario_packs' => $studioNayaScenarios,
+                'branding_profile' => array_replace(
+                    $this->brandingProfileDefaults('services', 'salon', 'Studio Naya Coiffure'),
+                    [
+                        'name' => 'Studio Naya Coiffure',
+                        'tagline' => 'Textures, couleurs et soins sur mesure.',
+                        'description' => 'Salon de quartier montréalais spécialisé en cheveux texturés, coloration et soins.',
+                        'contact_email' => 'bonjour@studio-naya.example',
+                        'phone' => '+1 514 555 0148',
+                        'address_line_1' => '4827, rue de l’Aurore',
+                        'city' => 'Montréal',
+                        'province' => 'QC',
+                        'country' => 'Canada',
+                        'postal_code' => 'H2T 2M4',
+                        'primary_color' => '#5B3A70',
+                        'secondary_color' => '#2F2535',
+                        'accent_color' => '#D89B6B',
+                        'surface_color' => '#FFF8F0',
+                    ],
+                ),
+                'extra_access_roles' => ['manager', 'front_desk', 'staff'],
+                'suggested_flow' => $this->suggestedFlowFromScenarioPacks($studioNayaScenarios),
+            ],
+            [
                 'key' => 'commerce',
                 'label' => 'Commerce',
                 'description' => 'Catalog, sales, invoices, campaigns, and loyalty.',
@@ -476,6 +651,11 @@ class DemoWorkspaceCatalog
             'suggested_flow' => $this->suggestedFlowFromScenarioPacks($scenarioPacks)
                 ?: $this->suggestedFlow($companyType, $sector, $selectedModules),
             'seed_profile' => 'standard',
+            'scenario_key' => null,
+            'data_volume' => DemoDataVolume::Medium->value,
+            'reference_date' => now('America/Toronto')->toDateString(),
+            'random_seed' => (int) config('demo_scenarios.default_seed', 26082026),
+            'scenario_version' => null,
             'team_size' => 3,
             'selected_modules' => $selectedModules,
             'scenario_packs' => $scenarioPacks,
@@ -636,6 +816,44 @@ class DemoWorkspaceCatalog
                     'campaigns',
                     'assistant',
                     'social',
+                ],
+            ],
+            [
+                'key' => 'studio_naya_complete',
+                'label' => 'Studio Naya complete story',
+                'description' => 'Explore 18 months of connected salon activity and several named customer journeys.',
+                'business_objective' => 'Demonstrate that daily salon operations, customer history, revenue, stock, and management signals tell one coherent story.',
+                'ordered_actions' => [
+                    'Review the twelve-month dashboard and current salon alerts.',
+                    'Open a named customer and follow appointments, invoices, payments, notes, and preferences.',
+                    'Move to the reservation calendar and compare team schedules and service demand.',
+                    'Review retail stock movements, operating expenses, and accounting results.',
+                    'Reset the workspace and verify that the same reference scenario is restored.',
+                ],
+                'expected_results' => [
+                    'Operational and financial screens are populated from linked records.',
+                    'Named customer journeys remain coherent across the application.',
+                    'The saved seed, volume, and reference date reproduce the same business story.',
+                ],
+                'key_screens' => [
+                    'Dashboard',
+                    'Customer profile',
+                    'Reservation calendar',
+                    'Invoices and payments',
+                    'Inventory and expenses',
+                ],
+                'company_types' => ['services'],
+                'sectors' => ['salon'],
+                'required_modules' => [
+                    'services',
+                    'reservations',
+                    'planning',
+                    'invoices',
+                    'products',
+                    'sales',
+                    'expenses',
+                    'team_members',
+                    'performance',
                 ],
             ],
             [

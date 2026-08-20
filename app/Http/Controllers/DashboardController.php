@@ -21,6 +21,7 @@ use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\Work;
 use App\Queries\Dashboard\DashboardProductsOverviewQuery;
+use App\Queries\Demo\DemoScenarioDashboardQuery;
 use App\Services\BillingPlanService;
 use App\Services\BillingSubscriptionService;
 use App\Services\Campaigns\DashboardKpiService;
@@ -1163,14 +1164,23 @@ class DashboardController extends Controller
                 ];
             });
 
-        $seriesMonths = 6;
-        $revenueSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($userId) {
+        $scenarioInsights = $accountOwner
+            ? app(DemoScenarioDashboardQuery::class)->execute($accountOwner)
+            : null;
+        $seriesMonths = $scenarioInsights ? 12 : 6;
+        $seriesAnchor = $scenarioInsights
+            ? Carbon::parse(
+                (string) $scenarioInsights['reference_date'],
+                (string) $scenarioInsights['timezone'],
+            )->endOfDay()
+            : $now;
+        $revenueSeries = $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($userId) {
             return (float) Payment::where('user_id', $userId)
                 ->whereBetween('paid_at', [$start, $end])
                 ->sum('amount');
         });
         $expenseSeries = $accountOwner?->hasCompanyFeature('expenses')
-            ? $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($userId) {
+            ? $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($userId) {
                 return (float) Expense::query()
                     ->byAccount($userId)
                     ->whereIn('status', [Expense::STATUS_PAID, Expense::STATUS_REIMBURSED])
@@ -1178,49 +1188,49 @@ class DashboardController extends Controller
                     ->sum('total');
             })
             : ['values' => []];
-        $revenueOutstandingSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($invoicesQuery) {
+        $revenueOutstandingSeries = $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($invoicesQuery) {
             return (float) (clone $invoicesQuery)
                 ->whereNotIn('status', ['paid', 'void'])
                 ->whereBetween('created_at', [$start, $end])
                 ->sum('total');
         });
-        $quotesOpenSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($quotesQuery) {
+        $quotesOpenSeries = $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($quotesQuery) {
             return (clone $quotesQuery)
                 ->whereIn('status', ['draft', 'sent'])
                 ->whereBetween('created_at', [$start, $end])
                 ->count();
         });
-        $worksInProgressSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($worksQuery, $inProgressStatuses) {
+        $worksInProgressSeries = $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($worksQuery, $inProgressStatuses) {
             return (clone $worksQuery)
                 ->whereIn('status', $inProgressStatuses)
                 ->whereBetween('created_at', [$start, $end])
                 ->count();
         });
-        $worksScheduledSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($worksQuery, $scheduledStatuses) {
+        $worksScheduledSeries = $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($worksQuery, $scheduledStatuses) {
             return (clone $worksQuery)
                 ->whereIn('status', $scheduledStatuses)
                 ->whereBetween('created_at', [$start, $end])
                 ->count();
         });
-        $customersSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($customersQuery) {
+        $customersSeries = $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($customersQuery) {
             return (clone $customersQuery)
                 ->whereBetween('created_at', [$start, $end])
                 ->count();
         });
-        $lowStockSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($productsQuery) {
+        $lowStockSeries = $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($productsQuery) {
             return (clone $productsQuery)
                 ->whereColumn('stock', '<=', 'minimum_stock')
                 ->where('stock', '>', 0)
                 ->whereBetween('updated_at', [$start, $end])
                 ->count();
         });
-        $invoicesPaidSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($invoicesQuery) {
+        $invoicesPaidSeries = $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($invoicesQuery) {
             return (clone $invoicesQuery)
                 ->where('status', 'paid')
                 ->whereBetween('updated_at', [$start, $end])
                 ->count();
         });
-        $inventorySeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($productsQuery) {
+        $inventorySeries = $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($productsQuery) {
             return (float) (clone $productsQuery)
                 ->whereBetween('created_at', [$start, $end])
                 ->select(DB::raw('COALESCE(SUM(stock * COALESCE(NULLIF(cost_price, 0), price)), 0) as value'))
@@ -1277,6 +1287,7 @@ class DashboardController extends Controller
             'quickAnnouncements' => $quickAnnouncements,
             'financeSummary' => $accountOwner ? $this->buildDashboardFinanceSummary($accountOwner) : [],
             'marketingKpis' => $marketingKpis,
+            'scenarioInsights' => $scenarioInsights,
             'usage_limits' => $usageLimits,
             'billing' => [
                 'plans' => $plans,

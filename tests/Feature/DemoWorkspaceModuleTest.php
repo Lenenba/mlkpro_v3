@@ -186,8 +186,11 @@ it('allows platform admins with demo permissions to access the demo builder page
             ->where('options.modules', fn ($modules) => collect($modules)->pluck('key')->contains('expenses')
                 && collect($modules)->pluck('key')->contains('accounting'))
             ->has('options.scenario_packs')
+            ->has('options.data_volumes', 3)
+            ->where('options.demo_scenarios', fn ($scenarios) => collect($scenarios)->pluck('key')->contains('studio_naya_coiffure'))
             ->has('options.extra_access_roles')
             ->has('defaults.selected_modules')
+            ->where('defaults.scenario_key', null)
             ->has('template_defaults.selected_modules')
         );
 });
@@ -293,6 +296,53 @@ it('can create, duplicate and archive demo templates', function () {
 
     expect($template->fresh()->is_active)->toBeFalse();
     expect($template->fresh()->is_default)->toBeFalse();
+});
+
+it('persists canonical narrative scenario inputs on demo templates', function () {
+    $admin = demoWorkspacePlatformAdmin([PlatformPermissions::DEMOS_MANAGE]);
+    $catalog = app(DemoWorkspaceCatalog::class);
+    $preset = collect($catalog->presets())->firstWhere('key', 'studio_naya_coiffure');
+    $payload = demoWorkspaceTemplatePayload([
+        'scenario_key' => 'studio_naya_coiffure',
+        'data_volume' => 'small',
+        'reference_date' => '2026-08-20',
+        'random_seed' => 12345,
+        'scenario_version' => 99,
+    ]);
+    $payload['selected_modules'] = $preset['modules'];
+    $payload['scenario_packs'] = $preset['scenario_packs'];
+
+    $this->actingAs($admin)
+        ->post(route('superadmin.demo-workspaces.templates.store'), $payload)
+        ->assertRedirect(route('superadmin.demo-workspaces.create'))
+        ->assertSessionHas('success');
+
+    $template = DemoWorkspaceTemplate::query()->firstOrFail();
+
+    expect($template->scenario_key)->toBe('studio_naya_coiffure')
+        ->and($template->data_volume?->value)->toBe('small')
+        ->and($template->reference_date?->toDateString())->toBe('2026-08-20')
+        ->and($template->random_seed)->toBe(12345)
+        ->and($template->scenario_version)->toBe(1);
+});
+
+it('rejects a narrative scenario request with missing required modules', function () {
+    $admin = demoWorkspacePlatformAdmin([PlatformPermissions::DEMOS_MANAGE]);
+    $catalog = app(DemoWorkspaceCatalog::class);
+    $preset = collect($catalog->presets())->firstWhere('key', 'studio_naya_coiffure');
+    $payload = demoWorkspacePayload();
+    $payload['scenario_key'] = $preset['scenario_key'];
+    $payload['data_volume'] = 'small';
+    $payload['reference_date'] = '2026-08-20';
+    $payload['random_seed'] = 12345;
+    $payload['selected_modules'] = array_values(array_diff($preset['modules'], ['services']));
+    $payload['scenario_packs'] = $preset['scenario_packs'];
+
+    $this->actingAs($admin)
+        ->post(route('superadmin.demo-workspaces.store'), $payload)
+        ->assertSessionHasErrors('selected_modules');
+
+    expect(DemoWorkspace::query()->count())->toBe(0);
 });
 
 it('provisions a realistic service demo workspace from the admin module', function () {

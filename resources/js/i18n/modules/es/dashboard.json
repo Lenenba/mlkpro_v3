@@ -258,6 +258,39 @@
         "void": "Anulada"
       }
     },
+    "scenario": {
+      "eyebrow": "Escenario de demostración",
+      "title": "Situación operativa real",
+      "subtitle": "Métricas calculadas al {date} durante los últimos {months} meses.",
+      "history_title": "Ingresos y gastos de 12 meses",
+      "revenue": "Ingresos",
+      "expenses": "Gastos",
+      "top_services": "Servicios más solicitados",
+      "top_employees": "Empleados más ocupados",
+      "top_products": "Productos más vendidos",
+      "recent_payments": "Pagos recientes",
+      "no_recent_payments": "No hay pagos recientes.",
+      "metrics": {
+        "revenue_month": "Ingresos del mes",
+        "no_comparison": "No hay comparación disponible",
+        "vs_previous": "{value} frente al mes anterior",
+        "reservations_today": "Citas de hoy",
+        "upcoming": "{count} próximas",
+        "occupancy": "Tasa de ocupación",
+        "trailing_days": "Durante los últimos {count} días",
+        "new_customers": "Clientes nuevos",
+        "recurring": "{count} clientes recurrentes",
+        "average_ticket": "Ticket medio de servicio",
+        "completed_services": "Servicios completados este mes",
+        "outstanding": "Facturas pendientes",
+        "invoice_count": "{count} factura(s) abierta(s)",
+        "invoice_and_future": "{count} factura(s) · {future} de ingresos futuros comprometidos",
+        "service_exceptions": "Tasa de ausencias",
+        "cancellations": "Cancelaciones: {value}",
+        "actions": "Acciones por revisar",
+        "action_breakdown": "{quotes} presupuestos · {tasks} tareas · {stock} stock · {notifications} alertas"
+      }
+    },
     "marketing_panel": {
       "title": "KPI de marketing",
       "show": "Mostrar panel",

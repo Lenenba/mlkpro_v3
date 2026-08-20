@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\DemoDataVolume;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -19,6 +20,11 @@ class DemoWorkspaceTemplate extends Model
         'company_type',
         'company_sector',
         'seed_profile',
+        'scenario_key',
+        'data_volume',
+        'reference_date',
+        'random_seed',
+        'scenario_version',
         'team_size',
         'locale',
         'timezone',
@@ -37,6 +43,10 @@ class DemoWorkspaceTemplate extends Model
             'selected_modules' => 'array',
             'scenario_packs' => 'array',
             'branding_profile' => 'array',
+            'data_volume' => DemoDataVolume::class,
+            'reference_date' => 'immutable_date',
+            'random_seed' => 'integer',
+            'scenario_version' => 'integer',
             'team_size' => 'integer',
             'expiration_days' => 'integer',
             'is_active' => 'boolean',

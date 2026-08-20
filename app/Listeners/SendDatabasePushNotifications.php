@@ -4,6 +4,7 @@ namespace App\Listeners;
 
 use App\Models\Customer;
 use App\Models\User;
+use App\Notifications\DemoActionNotification;
 use App\Notifications\EmailMirrorNotification;
 use App\Notifications\OrderStatusNotification;
 use App\Services\NotificationPreferenceService;
@@ -17,8 +18,7 @@ class SendDatabasePushNotifications
     public function __construct(
         private PushNotificationService $push,
         private NotificationPreferenceService $preferences
-    ) {
-    }
+    ) {}
 
     public function handle(NotificationSent $event): void
     {
@@ -26,7 +26,10 @@ class SendDatabasePushNotifications
             return;
         }
 
-        if ($event->notification instanceof EmailMirrorNotification) {
+        if (
+            $event->notification instanceof EmailMirrorNotification
+            || $event->notification instanceof DemoActionNotification
+        ) {
             return;
         }
 
@@ -45,7 +48,7 @@ class SendDatabasePushNotifications
         }
 
         $payload = $this->resolvePayload($event, $notifiable);
-        if (!$payload) {
+        if (! $payload) {
             return;
         }
 
@@ -61,7 +64,7 @@ class SendDatabasePushNotifications
         }
 
         $userIds = $eligible->pluck('id')->unique()->values()->all();
-        if (!$userIds) {
+        if (! $userIds) {
             return;
         }
 
@@ -98,11 +101,11 @@ class SendDatabasePushNotifications
             $data = $event->response->data;
         }
 
-        if (!$data && method_exists($event->notification, 'toArray')) {
+        if (! $data && method_exists($event->notification, 'toArray')) {
             $data = $event->notification->toArray($notifiable);
         }
 
-        if (!is_array($data)) {
+        if (! is_array($data)) {
             return null;
         }
 

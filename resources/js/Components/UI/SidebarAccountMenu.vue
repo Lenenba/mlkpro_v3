@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, nextTick, watch } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import { defaultAvatarIcon } from '@/utils/iconPresets';
@@ -37,6 +37,19 @@ const avatarInitial = computed(() => {
 const closeAfterAction = () => {
     closeMenu();
 };
+
+watch(isOpen, async (open) => {
+    if (!open || typeof window === 'undefined') {
+        return;
+    }
+
+    await nextTick();
+    if (!isOpen.value) {
+        return;
+    }
+
+    window.HSThemeSwitch?.autoInit?.();
+});
 </script>
 
 <template>
@@ -44,6 +57,7 @@ const closeAfterAction = () => {
         <button
             ref="toggleRef"
             type="button"
+            data-testid="account-menu-trigger"
             class="relative inline-flex size-9 items-center justify-center rounded-full transition hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-stone-300 dark:hover:bg-neutral-800 dark:focus:ring-neutral-600"
             :aria-expanded="isOpen ? 'true' : 'false'"
             :aria-label="userName || 'Account menu'"
@@ -68,6 +82,7 @@ const closeAfterAction = () => {
             <div
                 v-if="isOpen"
                 ref="menuRef"
+                data-testid="account-menu"
                 class="fixed z-[90] w-56 rounded-sm border border-stone-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-900"
                 :style="menuStyle"
             >
@@ -122,6 +137,7 @@ const closeAfterAction = () => {
                             class="text-sm text-stone-700 dark:text-neutral-300">{{ t('account.dark_mode') }}</label>
                         <div class="relative inline-block">
                             <input data-hs-theme-switch type="checkbox" id="hs-topbar-dark-mode"
+                                data-testid="dark-mode-switch"
                                 class="relative h-6 w-11 cursor-pointer rounded-full border-transparent bg-stone-100 p-px text-transparent transition-colors duration-200 ease-in-out before:inline-block before:size-5 before:translate-x-0 before:transform before:rounded-full before:bg-white before:shadow before:ring-0 before:transition before:duration-200 before:ease-in-out checked:border-blue-600 checked:bg-none checked:text-blue-600 checked:before:translate-x-full checked:before:bg-white focus:ring-blue-600 focus:checked:border-blue-600 disabled:pointer-events-none disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800 dark:checked:border-blue-500 dark:checked:bg-blue-500 dark:checked:before:bg-white dark:focus:ring-offset-neutral-900 dark:before:bg-neutral-400">
                         </div>
                     </div>

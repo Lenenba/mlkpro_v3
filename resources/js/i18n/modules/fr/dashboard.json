@@ -258,6 +258,39 @@
         "void": "Annulee"
       }
     },
+    "scenario": {
+      "eyebrow": "Scénario de démonstration",
+      "title": "Situation opérationnelle réelle",
+      "subtitle": "Données calculées au {date} sur les {months} derniers mois.",
+      "history_title": "Revenus et dépenses sur 12 mois",
+      "revenue": "Revenus",
+      "expenses": "Dépenses",
+      "top_services": "Services les plus demandés",
+      "top_employees": "Employés les plus occupés",
+      "top_products": "Produits les plus vendus",
+      "recent_payments": "Paiements récents",
+      "no_recent_payments": "Aucun paiement récent.",
+      "metrics": {
+        "revenue_month": "Revenus du mois",
+        "no_comparison": "Aucune comparaison disponible",
+        "vs_previous": "{value} par rapport au mois précédent",
+        "reservations_today": "Rendez-vous aujourd’hui",
+        "upcoming": "{count} à venir",
+        "occupancy": "Taux d’occupation",
+        "trailing_days": "Sur les {count} derniers jours",
+        "new_customers": "Nouveaux clients",
+        "recurring": "{count} clients récurrents",
+        "average_ticket": "Panier service moyen",
+        "completed_services": "Services terminés ce mois-ci",
+        "outstanding": "Factures à recevoir",
+        "invoice_count": "{count} facture(s) ouverte(s)",
+        "invoice_and_future": "{count} facture(s) · {future} de revenu futur engagé",
+        "service_exceptions": "Absences sans préavis",
+        "cancellations": "Annulations : {value}",
+        "actions": "Actions à traiter",
+        "action_breakdown": "{quotes} devis · {tasks} tâches · {stock} stock · {notifications} alertes"
+      }
+    },
     "marketing_panel": {
       "title": "KPI marketing",
       "show": "Afficher le panneau",

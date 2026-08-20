@@ -239,24 +239,24 @@ class Invoice extends Model
     public function getAmountPaidAttribute(): float
     {
         if (array_key_exists('payments_sum_amount', $this->attributes)) {
-            return (float) $this->attributes['payments_sum_amount'];
+            return round((float) $this->attributes['payments_sum_amount'], 2);
         }
 
         if ($this->relationLoaded('payments')) {
-            return (float) $this->payments
+            return round((float) $this->payments
                 ->whereIn('status', Payment::settledStatuses())
-                ->sum('amount');
+                ->sum('amount'), 2);
         }
 
-        return (float) $this->payments()
+        return round((float) $this->payments()
             ->whereIn('status', Payment::settledStatuses())
-            ->sum('amount');
+            ->sum('amount'), 2);
     }
 
     public function getBalanceDueAttribute(): float
     {
-        $total = (float) $this->total;
-        $paid = $this->amount_paid;
+        $total = round((float) $this->total, 2);
+        $paid = round($this->amount_paid, 2);
 
         return max(0, round($total - $paid, 2));
     }
@@ -267,8 +267,8 @@ class Invoice extends Model
             return;
         }
 
-        $total = (float) $this->total;
-        $paid = $this->amount_paid;
+        $total = round((float) $this->total, 2);
+        $paid = round($this->amount_paid, 2);
 
         if ($total <= 0 && $paid <= 0) {
             return;

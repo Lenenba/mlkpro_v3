@@ -1,11 +1,13 @@
 <?php
 
 use App\Jobs\ComputeInterestScoresJob;
+use App\Jobs\ProvisionDemoWorkspaceJob;
 use App\Jobs\QueueTopologyCanaryJob;
 use App\Jobs\ReconcileDeliveryReportsJob;
 use App\Mail\DemoWorkspaceAccessMail;
 use App\Models\ActivityLog;
 use App\Models\Customer;
+use App\Models\DemoWorkspace;
 use App\Models\PlatformSupportTicket;
 use App\Models\Product;
 use App\Models\Property;
@@ -41,6 +43,10 @@ use App\Services\Capacity\CapacityRunnerResultValidationException;
 use App\Services\Capacity\CapacityScenarioCatalog;
 use App\Services\ConfiguredPlanCatalogReconciler;
 use App\Services\DailyAgendaService;
+use App\Services\Demo\DemoScenarioFingerprint;
+use App\Services\Demo\DemoScenarioInvariantValidator;
+use App\Services\Demo\DemoWorkspaceCatalog;
+use App\Services\Demo\DemoWorkspaceProvisioner;
 use App\Services\Demo\DemoWorkspacePurgeService;
 use App\Services\ExpenseRecurringService;
 use App\Services\Observability\ObservabilityReportService;
@@ -73,6 +79,7 @@ use App\Services\WhatsappNotificationService;
 use App\Services\WorkBillingService;
 use App\Support\LocalePreference;
 use App\Support\NotificationDispatcher;
+use App\Support\PlatformPermissions;
 use App\Support\QueueCanary;
 use App\Support\QueueWorkload;
 use App\Support\SchemaAudit\ManualSelectContractAudit;
@@ -80,6 +87,7 @@ use Database\Seeders\LaunchResetSeeder;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Foundation\Inspiring;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -2192,6 +2200,393 @@ Artisan::command('campaigns:reconcile-delivery', function (): int {
 
     return 0;
 })->purpose('Queue campaign delivery status reconciliation');
+
+/**
+ * Resolve an actor allowed to manage demo workspaces without guessing between
+ * multiple privileged accounts.
+ *
+ * @return array{0: User|null, 1: string|null}
+ */
+$resolveDemoScenarioActor = static function (?string $email): array {
+    $email = trim((string) $email);
+
+    if ($email !== '') {
+        $actor = User::query()
+            ->with(['role', 'platformAdmin'])
+            ->where('email', $email)
+            ->first();
+
+        if (! $actor) {
+            return [null, "No user exists with the email [{$email}]."];
+        }
+
+        if ($actor->is_suspended) {
+            return [null, "User [{$email}] is suspended and cannot manage demo workspaces."];
+        }
+
+        if (! $actor->isSuperadmin() && ! $actor->hasPlatformPermission(PlatformPermissions::DEMOS_MANAGE)) {
+            return [null, "User [{$email}] is not allowed to manage demo workspaces."];
+        }
+
+        return [$actor, null];
+    }
+
+    $superadmins = User::query()
+        ->with('role')
+        ->where('is_suspended', false)
+        ->whereHas('role', fn ($query) => $query->where('name', 'superadmin'))
+        ->orderBy('id')
+        ->get();
+
+    if ($superadmins->count() === 1) {
+        return [$superadmins->first(), null];
+    }
+
+    if ($superadmins->count() > 1) {
+        return [null, 'More than one superadmin exists. Use --admin=<email> to select the actor explicitly.'];
+    }
+
+    $platformAdmins = User::query()
+        ->with(['role', 'platformAdmin'])
+        ->where('is_suspended', false)
+        ->whereHas('role', fn ($query) => $query->where('name', 'admin'))
+        ->orderBy('id')
+        ->get()
+        ->filter(fn (User $user): bool => $user->hasPlatformPermission(PlatformPermissions::DEMOS_MANAGE))
+        ->values();
+
+    if ($platformAdmins->count() === 1) {
+        return [$platformAdmins->first(), null];
+    }
+
+    if ($platformAdmins->count() > 1) {
+        return [null, 'More than one platform admin can manage demos. Use --admin=<email> to select the actor explicitly.'];
+    }
+
+    return [null, 'No superadmin or platform admin with demo management permission was found.'];
+};
+
+/**
+ * Return a safety error for scenario commands, or null when execution is allowed.
+ */
+$demoScenarioSafetyError = static function (bool $requiresReset): ?string {
+    if (app()->environment('production')) {
+        return 'Demo scenario commands are disabled in production.';
+    }
+
+    if (! (bool) config('demo.enabled')) {
+        return 'Demo mode is disabled. Set DEMO_ENABLED=true outside production before using scenario commands.';
+    }
+
+    if ($requiresReset && ! (bool) config('demo.allow_reset')) {
+        return 'Demo reset is disabled. Set DEMO_ALLOW_RESET=true outside production before resetting a scenario.';
+    }
+
+    return null;
+};
+
+Artisan::command(
+    'demo:scenario:create
+        {scenario? : Registered demo scenario key}
+        {--volume= : Data volume: small, medium, or large}
+        {--reference-date= : Scenario reference date in YYYY-MM-DD format}
+        {--seed= : Non-negative deterministic random seed}
+        {--admin= : Email of the authorized platform actor}
+        {--queue : Queue provisioning instead of running it in this process}',
+    function (
+        DemoWorkspaceCatalog $catalog,
+        DemoWorkspaceProvisioner $provisioner
+    ) use ($demoScenarioSafetyError, $resolveDemoScenarioActor): int {
+        if ($error = $demoScenarioSafetyError(false)) {
+            $this->error($error);
+
+            return 1;
+        }
+
+        $scenarioKey = strtolower(trim((string) ($this->argument('scenario')
+            ?: config('demo_scenarios.default_scenario', 'studio_naya_coiffure'))));
+        $definition = $catalog->scenarioDefinition($scenarioKey);
+
+        if (! $definition) {
+            $this->error("Unknown demo scenario [{$scenarioKey}].");
+            $this->line('Available scenarios: '.implode(', ', $catalog->scenarioKeys()));
+
+            return 1;
+        }
+
+        $preset = collect($catalog->presets())
+            ->first(fn (array $candidate): bool => ($candidate['scenario_key'] ?? null) === $scenarioKey);
+
+        if (! is_array($preset)) {
+            $this->error("Scenario [{$scenarioKey}] does not have a provisioning preset.");
+
+            return 1;
+        }
+
+        [$actor, $actorError] = $resolveDemoScenarioActor((string) $this->option('admin'));
+
+        if (! $actor) {
+            $this->error((string) $actorError);
+
+            return 1;
+        }
+
+        $timezone = (string) ($preset['timezone'] ?? $definition['reference_timezone'] ?? 'UTC');
+        $volume = trim((string) $this->option('volume'));
+        $referenceDate = trim((string) $this->option('reference-date'));
+        $seed = trim((string) $this->option('seed'));
+        $payload = array_replace(
+            $catalog->defaults(),
+            Arr::except($preset, ['key', 'label', 'description', 'modules'])
+        );
+        $payload['selected_modules'] = array_values((array) ($preset['modules'] ?? []));
+        $payload['scenario_key'] = $scenarioKey;
+        $payload['data_volume'] = $volume !== ''
+            ? $volume
+            : (string) ($definition['default_volume'] ?? config('demo_scenarios.default_volume', 'medium'));
+        $payload['reference_date'] = $referenceDate !== ''
+            ? $referenceDate
+            : now($timezone)->toDateString();
+        $payload['random_seed'] = $seed !== ''
+            ? $seed
+            : (int) config('demo_scenarios.default_seed', 26082026);
+        $payload['scenario_version'] = (int) ($definition['version'] ?? 1);
+        $payload['internal_notes'] = trim(implode("\n", array_filter([
+            (string) ($payload['internal_notes'] ?? ''),
+            'Created with demo:scenario:create.',
+        ])));
+
+        try {
+            if ((bool) $this->option('queue')) {
+                $workspace = $provisioner->queueCreate($payload, $actor);
+                ProvisionDemoWorkspaceJob::dispatch((int) $workspace->id, (int) $actor->id);
+                $workspace->refresh();
+            } else {
+                $workspace = $provisioner->create($payload, $actor);
+            }
+        } catch (\Throwable $exception) {
+            report($exception);
+            $this->error('Scenario creation failed: '.$exception->getMessage());
+
+            return 1;
+        }
+
+        $this->info((bool) $this->option('queue')
+            ? 'Demo scenario provisioning was queued.'
+            : 'Demo scenario workspace is ready.');
+        $this->table(
+            ['Workspace ID', 'Scenario', 'Volume', 'Reference date', 'Seed', 'Status', 'Access email'],
+            [[
+                $workspace->id,
+                $workspace->scenario_key,
+                $workspace->data_volume?->value,
+                $workspace->reference_date?->toDateString(),
+                $workspace->random_seed,
+                $workspace->provisioning_status,
+                $workspace->access_email ?: 'Pending provisioning',
+            ]]
+        );
+
+        return 0;
+    }
+)->purpose('Create a deterministic demo workspace through the modern scenario engine');
+
+Artisan::command(
+    'demo:scenario:reset
+        {workspace : Exact demo workspace ID}
+        {--admin= : Email of the authorized platform actor}
+        {--queue : Queue the baseline reset instead of running it in this process}
+        {--force : Reset without an interactive confirmation}',
+    function (DemoWorkspaceProvisioner $provisioner) use ($demoScenarioSafetyError, $resolveDemoScenarioActor): int {
+        if ($error = $demoScenarioSafetyError(true)) {
+            $this->error($error);
+
+            return 1;
+        }
+
+        $workspaceId = filter_var(
+            $this->argument('workspace'),
+            FILTER_VALIDATE_INT,
+            ['options' => ['min_range' => 1]]
+        );
+
+        if ($workspaceId === false) {
+            $this->error('The workspace argument must be an exact positive numeric ID.');
+
+            return 1;
+        }
+
+        $workspace = DemoWorkspace::query()->with('owner')->find((int) $workspaceId);
+
+        if (! $workspace) {
+            $this->error("Demo workspace [{$workspaceId}] was not found.");
+
+            return 1;
+        }
+
+        if (! filled($workspace->scenario_key)) {
+            $this->error("Demo workspace [{$workspaceId}] is not managed by the scenario engine.");
+
+            return 1;
+        }
+
+        if (! $workspace->owner || ! $workspace->owner->is_demo) {
+            $this->error("Demo workspace [{$workspaceId}] does not have a linked demo tenant and cannot be reset.");
+
+            return 1;
+        }
+
+        if (in_array($workspace->provisioning_status, [
+            DemoWorkspaceProvisioner::STATUS_QUEUED,
+            DemoWorkspaceProvisioner::STATUS_PROVISIONING,
+        ], true)) {
+            $this->error("Demo workspace [{$workspaceId}] is already queued or provisioning.");
+
+            return 1;
+        }
+
+        [$actor, $actorError] = $resolveDemoScenarioActor((string) $this->option('admin'));
+
+        if (! $actor) {
+            $this->error((string) $actorError);
+
+            return 1;
+        }
+
+        if (! (bool) $this->option('force') && ! $this->confirm(
+            "Reset only demo workspace #{$workspace->id} ({$workspace->company_name}) to its saved baseline?",
+            false
+        )) {
+            $this->warn('Reset cancelled.');
+
+            return 1;
+        }
+
+        try {
+            if ((bool) $this->option('queue')) {
+                $workspace = $provisioner->queueResetToBaseline($workspace, $actor);
+                ProvisionDemoWorkspaceJob::dispatch((int) $workspace->id, (int) $actor->id, true);
+                $workspace->refresh();
+            } else {
+                $workspace = $provisioner->resetToBaseline($workspace, $actor);
+            }
+        } catch (\Throwable $exception) {
+            report($exception);
+            $this->error('Scenario reset failed: '.$exception->getMessage());
+
+            return 1;
+        }
+
+        $this->info((bool) $this->option('queue')
+            ? "Baseline reset queued for demo workspace #{$workspace->id}."
+            : "Demo workspace #{$workspace->id} was reset to its saved baseline.");
+        $this->line(sprintf(
+            'Scenario=%s volume=%s reference_date=%s seed=%s status=%s',
+            (string) $workspace->scenario_key,
+            (string) ($workspace->data_volume?->value ?? ''),
+            (string) ($workspace->reference_date?->toDateString() ?? ''),
+            (string) $workspace->random_seed,
+            (string) $workspace->provisioning_status
+        ));
+
+        return 0;
+    }
+)->purpose('Reset one exact demo scenario workspace to its deterministic baseline');
+
+Artisan::command(
+    'demo:scenario:validate
+        {workspace : Exact demo workspace ID}
+        {--json : Print the complete validation report as JSON}',
+    function (
+        DemoScenarioInvariantValidator $validator,
+        DemoScenarioFingerprint $fingerprint
+    ) use ($demoScenarioSafetyError): int {
+        if ($error = $demoScenarioSafetyError(false)) {
+            $this->error($error);
+
+            return 1;
+        }
+
+        $workspaceId = filter_var(
+            $this->argument('workspace'),
+            FILTER_VALIDATE_INT,
+            ['options' => ['min_range' => 1]]
+        );
+
+        if ($workspaceId === false) {
+            $this->error('The workspace argument must be an exact positive numeric ID.');
+
+            return 1;
+        }
+
+        $workspace = DemoWorkspace::query()->with('owner')->find((int) $workspaceId);
+
+        if (! $workspace) {
+            $this->error("Demo workspace [{$workspaceId}] was not found.");
+
+            return 1;
+        }
+
+        if (! filled($workspace->scenario_key) || ! $workspace->owner) {
+            $this->error("Demo workspace [{$workspaceId}] is not a provisioned scenario workspace.");
+
+            return 1;
+        }
+
+        try {
+            $referenceDate = $workspace->reference_date?->toDateString()
+                ?? now((string) ($workspace->timezone ?: config('app.timezone', 'UTC')))->toDateString();
+            $report = $validator->validate($workspace->owner, $referenceDate);
+            $report['workspace_id'] = $workspace->id;
+            $report['scenario_key'] = $workspace->scenario_key;
+            $report['semantic_fingerprint'] = $fingerprint->forOwner($workspace->owner);
+        } catch (\Throwable $exception) {
+            report($exception);
+            $this->error('Scenario validation could not run: '.$exception->getMessage());
+
+            return 1;
+        }
+
+        if ((bool) $this->option('json')) {
+            $this->line((string) json_encode(
+                $report,
+                JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR
+            ));
+
+            return $report['valid'] ? 0 : 1;
+        }
+
+        $rows = collect($report['checks'])
+            ->map(fn (array $check, string $name): array => [
+                $name,
+                $check['valid'] ? 'PASS' : 'FAIL',
+                count($check['violations'] ?? []),
+            ])
+            ->values()
+            ->all();
+
+        $this->table(['Invariant', 'Result', 'Violations'], $rows);
+        $this->line('Semantic fingerprint: '.$report['semantic_fingerprint']);
+
+        if ($report['valid']) {
+            $this->info("Demo scenario workspace #{$workspace->id} is valid.");
+
+            return 0;
+        }
+
+        foreach ($report['violations'] as $violation) {
+            $this->error(sprintf(
+                '[%s] %s #%s: %s',
+                (string) ($violation['code'] ?? 'unknown'),
+                (string) ($violation['entity_type'] ?? 'record'),
+                (string) ($violation['entity_id'] ?? '?'),
+                (string) ($violation['message'] ?? 'Invariant violation')
+            ));
+        }
+
+        return 1;
+    }
+)->purpose('Validate the live invariants and fingerprint of one demo scenario workspace');
 
 Artisan::command('demo:seed {type=service} {--tenant_id=}', function (): int {
     $this->warn('Legacy demo CLI seeding is disabled.');

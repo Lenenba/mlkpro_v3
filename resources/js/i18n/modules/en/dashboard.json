@@ -258,6 +258,39 @@
         "void": "Void"
       }
     },
+    "scenario": {
+      "eyebrow": "Demo scenario",
+      "title": "Live operating picture",
+      "subtitle": "Metrics calculated as of {date} across the last {months} months.",
+      "history_title": "Revenue and expenses over 12 months",
+      "revenue": "Revenue",
+      "expenses": "Expenses",
+      "top_services": "Most requested services",
+      "top_employees": "Busiest employees",
+      "top_products": "Top-selling products",
+      "recent_payments": "Recent payments",
+      "no_recent_payments": "No recent payments.",
+      "metrics": {
+        "revenue_month": "Revenue this month",
+        "no_comparison": "No comparison available",
+        "vs_previous": "{value} versus last month",
+        "reservations_today": "Appointments today",
+        "upcoming": "{count} upcoming",
+        "occupancy": "Occupancy rate",
+        "trailing_days": "Over the last {count} days",
+        "new_customers": "New customers",
+        "recurring": "{count} returning customers",
+        "average_ticket": "Average service ticket",
+        "completed_services": "Completed services this month",
+        "outstanding": "Outstanding invoices",
+        "invoice_count": "{count} open invoice(s)",
+        "invoice_and_future": "{count} open invoice(s) · {future} committed future revenue",
+        "service_exceptions": "No-show rate",
+        "cancellations": "Cancellations: {value}",
+        "actions": "Actions to review",
+        "action_breakdown": "{quotes} quotes · {tasks} tasks · {stock} stock · {notifications} alerts"
+      }
+    },
     "marketing_panel": {
       "title": "Marketing KPI",
       "show": "Show panel",
