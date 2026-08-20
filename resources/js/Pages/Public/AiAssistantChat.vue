@@ -23,7 +23,7 @@ const props = defineProps({
     <GuestLayout :company="company" logo-href="" card-class="mt-4 w-full">
         <Head :title="assistant.name || 'Assistant IA'" />
 
-        <div class="min-h-screen bg-stone-50 px-4 py-6 text-stone-900 sm:px-6 lg:px-8">
+        <div class="w-full bg-stone-50 px-4 py-6 text-stone-900 sm:px-6 lg:px-8">
             <div class="mx-auto flex w-full max-w-5xl flex-col gap-5">
                 <header class="flex flex-wrap items-center justify-between gap-4 rounded-sm border border-stone-200 bg-white px-4 py-3 shadow-sm">
                     <div class="flex min-w-0 items-center gap-3">
