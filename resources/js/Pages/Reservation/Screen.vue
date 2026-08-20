@@ -395,7 +395,7 @@ onBeforeUnmount(() => {
 <template>
     <Head :title="$t('reservations.queue.screen.title')" />
 
-    <AuthenticatedLayout>
+    <AuthenticatedLayout :show-footer="false">
         <div class="space-y-4">
             <section class="rounded-sm border border-stone-200 border-t-4 border-t-emerald-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="flex flex-wrap items-center justify-between gap-3">

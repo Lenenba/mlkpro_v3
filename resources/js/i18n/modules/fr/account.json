@@ -9,7 +9,16 @@
     "logout": "Se déconnecter",
     "language": "Langue",
     "branding": {
-      "powered_by": "Propulsé par Malikia Pro"
+      "powered_by": "Propulsé par Malikia Pro",
+      "footer": {
+        "aria_label": "Pied de page Malikia Pro",
+        "navigation_aria_label": "Liens du pied de page",
+        "copyright": "© {year} Malikia Pro inc. Tous droits réservés.",
+        "support": "Assistance",
+        "privacy": "Confidentialité",
+        "terms": "Conditions d'utilisation",
+        "cookie_preferences": "Préférences de cookies"
+      }
     }
   }
 }

@@ -119,9 +119,11 @@ test('tenant public and contextual auth pages delegate their main logo to GuestL
     }
 
     const guestLayout = source('resources/js/Layouts/GuestLayout.vue');
+    const appFooter = source('resources/js/Components/UI/AppFooter.vue');
     assert.match(guestLayout, /<CompanyBrandLogo[\s\S]*?v-if="tenantCompany"/);
     assert.match(guestLayout, /<ApplicationLogo[\s\S]*?class="h-14 w-44 sm:h-16 sm:w-52"/);
-    assert.match(guestLayout, /account\.branding\.powered_by/);
+    assert.match(guestLayout, /:variant="showTenantAttribution \? 'powered-by' : 'platform'"/);
+    assert.match(appFooter, /account\.branding\.powered_by/);
 });
 
 test('booking and AI chat keep one tenant brand while preserving tenant routing', () => {
@@ -130,7 +132,7 @@ test('booking and AI chat keep one tenant brand while preserving tenant routing'
     const chatWidget = source('resources/js/Components/AiAssistant/PublicChatWidget.vue');
 
     for (const pageSource of [booking, assistantPage]) {
-        assert.match(pageSource, /<GuestLayout :company="company" logo-href=""/);
+        assert.match(pageSource, /<GuestLayout\b[^>]*:company="company"[^>]*logo-href=""/);
         assert.doesNotMatch(pageSource, /v-if="company\.logo_url"/);
         assert.doesNotMatch(pageSource, /company-logo-url/);
     }
@@ -229,11 +231,13 @@ test('public store, showcase and kiosk expose one tenant brand and one platform 
 
 test('client portal attribution and metadata branding remain context-aware', () => {
     const authenticatedLayout = source('resources/js/Layouts/AuthenticatedLayout.vue');
+    const appFooter = source('resources/js/Components/UI/AppFooter.vue');
     const seo = source('resources/js/Components/Seo/AppSeo.vue');
     const productTable = source('resources/js/Components/ProductTableList.vue');
     const portalShop = source('resources/js/Pages/Portal/Products/Shop.vue');
 
-    assert.match(authenticatedLayout, /v-if="isClient"[\s\S]*?account\.branding\.powered_by/);
+    assert.match(authenticatedLayout, /:variant="isClient \? 'powered-by' : 'platform'"/);
+    assert.match(appFooter, /account\.branding\.powered_by/);
     assert.match(seo, /resolveCompanyLogoUrl/);
     assert.match(seo, /const companyLogo = computed\(\(\) => resolveCompanyLogoUrl\(page\.props\.company\)\)/);
     assert.doesNotMatch(productTable, /companyLogo/);

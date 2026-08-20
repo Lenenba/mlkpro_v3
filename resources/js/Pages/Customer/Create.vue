@@ -6,6 +6,7 @@ import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import CustomerMediaFields from '@/Components/Customer/CustomerMediaFields.vue';
 import InputError from '@/Components/InputError.vue';
 import PreferenceToggleRow from '@/Components/PreferenceToggleRow.vue';
+import FormActionBar from '@/Components/UI/FormActionBar.vue';
 import {
     customerIconPresetsForType,
     defaultCustomerIconForType,
@@ -923,11 +924,13 @@ const handleCancelClick = (event) => {
                     </div>
                 </div>
             </div>
-            <div class="sticky bottom-3 z-30 rounded-xl border border-stone-200 bg-white/95 p-3 shadow-lg backdrop-blur dark:border-neutral-700 dark:bg-neutral-900/95 md:flex md:items-center md:justify-between md:gap-4">
-                <div>
-                    <p class="hidden text-xs text-stone-500 dark:text-neutral-400 md:block">
+            <FormActionBar :action-columns="isCreating ? 2 : 1">
+                <template #hint>
+                    <p>
                         {{ $t('customers.form.actions_hint') }}
                     </p>
+                </template>
+                <template #secondary>
                     <Link
                         :href="cancelHref"
                         :aria-disabled="form.processing"
@@ -937,38 +940,34 @@ const handleCancelClick = (event) => {
                     >
                         {{ $t('customers.actions.cancel') }}
                     </Link>
-                </div>
-                <div
-                    class="mt-2 grid grid-cols-1 gap-2 md:mt-0"
-                    :class="isCreating ? 'sm:grid-cols-2' : 'sm:grid-cols-1'"
+                </template>
+
+                <button
+                    v-if="isCreating"
+                    type="button"
+                    :disabled="form.processing"
+                    class="action-feedback inline-flex w-full items-center justify-center rounded-lg border border-green-600 px-4 py-2.5 text-sm font-medium text-green-700 transition hover:border-green-700 hover:bg-green-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 dark:text-green-400 dark:hover:bg-green-500/10 dark:focus-visible:ring-offset-neutral-900"
+                    @click="submitAndCreateAnother"
                 >
-                    <button
-                        v-if="isCreating"
-                        type="button"
-                        :disabled="form.processing"
-                        class="action-feedback inline-flex w-full items-center justify-center rounded-lg border border-green-600 px-4 py-2.5 text-sm font-medium text-green-700 transition hover:border-green-700 hover:bg-green-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 dark:text-green-400 dark:hover:bg-green-500/10 dark:focus-visible:ring-offset-neutral-900"
-                        @click="submitAndCreateAnother"
-                    >
-                        {{ $t('customers.form.actions.save_create_another') }}
-                    </button>
-                    <button
-                        type="submit"
-                        data-testid="demo-customer-save"
-                        :disabled="form.processing"
-                        class="action-feedback inline-flex w-full items-center justify-center gap-2 rounded-lg border border-transparent bg-green-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-60 dark:focus-visible:ring-offset-neutral-900"
-                    >
-                        <svg v-if="form.processing" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z" />
-                        </svg>
-                        {{ form.processing
-                            ? $t('customers.form.actions.saving')
-                            : (isCreating
-                                ? $t('customers.form.actions.save_client')
-                                : $t('customers.form.actions.update_client')) }}
-                    </button>
-                </div>
-            </div>
+                    {{ $t('customers.form.actions.save_create_another') }}
+                </button>
+                <button
+                    type="submit"
+                    data-testid="demo-customer-save"
+                    :disabled="form.processing"
+                    class="action-feedback inline-flex w-full items-center justify-center gap-2 rounded-lg border border-transparent bg-green-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-60 dark:focus-visible:ring-offset-neutral-900"
+                >
+                    <svg v-if="form.processing" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z" />
+                    </svg>
+                    {{ form.processing
+                        ? $t('customers.form.actions.saving')
+                        : (isCreating
+                            ? $t('customers.form.actions.save_client')
+                            : $t('customers.form.actions.update_client')) }}
+                </button>
+            </FormActionBar>
         </form>
     </AuthenticatedLayout>
 </template>

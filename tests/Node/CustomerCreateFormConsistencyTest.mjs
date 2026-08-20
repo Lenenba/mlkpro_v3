@@ -5,6 +5,7 @@ import test from 'node:test';
 
 const read = (path) => readFileSync(resolve(path), 'utf8');
 const source = read('resources/js/Pages/Customer/Create.vue');
+const actionBarSource = read('resources/js/Components/UI/FormActionBar.vue');
 
 test('customer create uses a responsive shell and real navigation actions', () => {
     assert.match(source, /max-w-6xl/);
@@ -14,7 +15,14 @@ test('customer create uses a responsive shell and real navigation actions', () =
     assert.match(source, /const cancelHref = computed/);
     assert.match(source, /const handleCancelClick = \(event\) =>/);
     assert.match(source, /<Link[\s\S]*?:href="cancelHref"/);
-    assert.match(source, /sticky bottom-3/);
+    assert.match(source, /<FormActionBar :action-columns="isCreating \? 2 : 1">/);
+    assert.match(actionBarSource, /sticky bottom-3/);
+    assert.match(actionBarSource, /data-form-action-bar/);
+    assert.match(actionBarSource, /<slot name="hint"/);
+    assert.match(actionBarSource, /<slot name="secondary"/);
+    assert.match(actionBarSource, /<slot \/>/);
+    assert.match(actionBarSource, /validator: \(value\) => \[1, 2\]\.includes\(value\)/);
+    assert.match(actionBarSource, /props\.reserveFloatingAction \? 'pe-14'/);
     assert.match(source, /data-testid="demo-customer-save"/);
     assert.match(source, /customers\.form\.actions\.saving/);
 });
