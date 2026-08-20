@@ -453,6 +453,14 @@ const openAlertDetails = (product, alertType) => {
     }
 };
 
+const openProductEdit = (product) => {
+    if (!product?.id || !window.HSOverlay) {
+        return;
+    }
+
+    window.HSOverlay.open(`#hs-pro-edit${product.id}`);
+};
+
 const loadReservedOrders = async (product) => {
     if (!product?.id) {
         return;
@@ -1594,6 +1602,7 @@ const submitImport = () => {
                                 @adjust="openAdjust(product)"
                                 @duplicate="duplicateProduct(product)"
                                 @toggle-archive="toggleArchive(product)"
+                                @edit="openProductEdit(product)"
                                 @delete="destroyProduct(product)"
                             />
                             <div v-else>

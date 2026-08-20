@@ -14,6 +14,26 @@ test('service owner can run the request inbox smoke flow', async ({ page }) => {
     const statusTrigger = page.getByTestId(`request-status-trigger-${inbox.newLeadId}`);
     await statusTrigger.click();
 
+    const statusMenu = page.getByTestId(`request-status-menu-${inbox.newLeadId}`);
+    await expect(statusMenu).toBeVisible();
+    const menuLayer = await statusMenu.evaluate((menu) => {
+        const bounds = menu.getBoundingClientRect();
+        const topElement = document.elementFromPoint(
+            bounds.left + (bounds.width / 2),
+            bounds.top + (bounds.height / 2),
+        );
+
+        return {
+            teleported: menu.parentElement === document.body,
+            insideViewport: bounds.left >= 0
+                && bounds.top >= 0
+                && bounds.right <= window.innerWidth
+                && bounds.bottom <= window.innerHeight,
+            onTop: menu === topElement || menu.contains(topElement),
+        };
+    });
+    expect(menuLayer).toEqual({ teleported: true, insideViewport: true, onTop: true });
+
     const contactedOption = page.getByTestId(`request-status-option-${inbox.newLeadId}-REQ_CONTACTED`);
     await expect(contactedOption).toBeVisible();
     const contactedLabel = ((await contactedOption.textContent()) || '').trim();

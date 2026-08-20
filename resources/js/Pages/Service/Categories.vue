@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
@@ -519,37 +520,24 @@ const categoryResultsLabel = computed(() => `${props.count} ${t('services.pagina
                                     </span>
                                 </td>
                                 <td class="size-px whitespace-nowrap px-5 py-2 text-end">
-                                    <div v-if="canManageCategory(category)" class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
-                                        <button type="button"
-                                            class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                            aria-haspopup="menu" aria-expanded="false" :aria-label="$t('services.aria.dropdown')">
-                                            <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
-                                                height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <circle cx="12" cy="12" r="1" />
-                                                <circle cx="12" cy="5" r="1" />
-                                                <circle cx="12" cy="19" r="1" />
-                                            </svg>
+                                    <AdminDataTableActions
+                                        v-if="canManageCategory(category)"
+                                        :label="$t('services.aria.dropdown')"
+                                        menu-width-class="w-32"
+                                    >
+                                        <button type="button" @click="startEditCategory(category)"
+                                            class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                            {{ $t('services.actions.edit') }}
                                         </button>
-
-                                        <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-32 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                                            role="menu" aria-orientation="vertical">
-                                            <div class="p-1">
-                                                <button type="button" @click="startEditCategory(category)"
-                                                    class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                    {{ $t('services.actions.edit') }}
-                                                </button>
-                                                <button v-if="!category.archived_at" type="button" @click="archiveCategory(category)"
-                                                    class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                    {{ $t('services.actions.archive') }}
-                                                </button>
-                                                <button v-else type="button" @click="restoreCategory(category)"
-                                                    class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                    {{ $t('services.actions.restore') }}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
+                                        <button v-if="!category.archived_at" type="button" @click="archiveCategory(category)"
+                                            class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                            {{ $t('services.actions.archive') }}
+                                        </button>
+                                        <button v-else type="button" @click="restoreCategory(category)"
+                                            class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                            {{ $t('services.actions.restore') }}
+                                        </button>
+                                    </AdminDataTableActions>
                                     <span v-else class="text-xs text-stone-400 dark:text-neutral-500">{{ $t('services.categories.table.locked') }}</span>
                                 </td>
                             </tr>

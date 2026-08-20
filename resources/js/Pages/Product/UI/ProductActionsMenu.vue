@@ -14,7 +14,7 @@ defineProps({
     },
 });
 
-defineEmits(['quick-edit', 'adjust', 'duplicate', 'toggle-archive', 'delete']);
+defineEmits(['quick-edit', 'adjust', 'duplicate', 'toggle-archive', 'edit', 'delete']);
 
 const { t } = useI18n();
 </script>
@@ -65,8 +65,8 @@ const { t } = useI18n();
         </button>
         <button
             type="button"
-            :data-hs-overlay="'#hs-pro-edit' + product.id"
             class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback"
+            @click="$emit('edit')"
         >
             {{ t('products.actions.edit') }}
         </button>

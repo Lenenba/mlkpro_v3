@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\Quote;
 use App\Models\Request as LeadRequest;
+use App\Models\Reservation;
 use App\Models\Role;
 use App\Models\Sale;
 use App\Models\TeamMember;
@@ -35,6 +36,7 @@ class E2ESmokeSeeder extends Seeder
                 'services' => true,
                 'team_members' => true,
                 'tasks' => true,
+                'reservations' => true,
             ],
             'is_suspended' => false,
         ]);
@@ -194,6 +196,30 @@ class E2ESmokeSeeder extends Seeder
             'is_active' => true,
         ]);
 
+        $reservationRows = collect(range(0, 11))->map(function (int $index) use ($serviceOwner, $serviceRep, $serviceCustomer, $publicShowcaseService) {
+            $startsAt = now('UTC')
+                ->startOfDay()
+                ->addDays($index + 1)
+                ->setTime(9 + ($index % 6), 0);
+
+            return Reservation::query()->create([
+                'account_id' => $serviceOwner->id,
+                'team_member_id' => $serviceRep->id,
+                'client_id' => $serviceCustomer->id,
+                'service_id' => $publicShowcaseService->id,
+                'created_by_user_id' => $serviceOwner->id,
+                'status' => $index % 2 === 0
+                    ? Reservation::STATUS_PENDING
+                    : Reservation::STATUS_CONFIRMED,
+                'source' => Reservation::SOURCE_STAFF,
+                'timezone' => 'UTC',
+                'starts_at' => $startsAt,
+                'ends_at' => $startsAt->copy()->addHour(),
+                'duration_minutes' => 60,
+                'buffer_minutes' => 0,
+            ]);
+        });
+
         $productOwner = User::factory()->create([
             'name' => 'E2E Product Owner',
             'email' => 'e2e.product.owner@example.test',
@@ -314,6 +340,14 @@ class E2ESmokeSeeder extends Seeder
                 'convertLeadTitle' => $convertibleLead->title,
                 'assigneeId' => $serviceRep->id,
                 'assigneeName' => $serviceRepUser->name,
+            ],
+            'reservations' => [
+                'path' => route('reservation.index', [
+                    'view_mode' => 'calendar',
+                    'per_page' => 25,
+                ], absolute: false),
+                'firstId' => $reservationRows->first()->id,
+                'lastId' => $reservationRows->last()->id,
             ],
             'productOwner' => [
                 'name' => $productOwner->name,

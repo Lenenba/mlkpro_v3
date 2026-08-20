@@ -1,49 +1,131 @@
 import { nextTick, onBeforeUnmount, ref } from 'vue';
 
+const hiddenMenuStyle = () => ({ visibility: 'hidden' });
+let activeFloatingMenuClose = null;
+
+export const resolveFloatingMenuPosition = ({
+    toggleRect,
+    menuRect,
+    viewportWidth,
+    viewportHeight,
+    padding = 12,
+    offset = 8,
+    align = 'end',
+}) => {
+    const maximumLeft = Math.max(padding, viewportWidth - menuRect.width - padding);
+    const preferredLeft = align === 'start'
+        ? toggleRect.left
+        : toggleRect.right - menuRect.width;
+    const left = Math.max(padding, Math.min(preferredLeft, maximumLeft));
+    const belowTop = toggleRect.bottom + offset;
+    const aboveTop = toggleRect.top - menuRect.height - offset;
+    const fitsBelow = belowTop + menuRect.height <= viewportHeight - padding;
+    const fitsAbove = aboveTop >= padding;
+    const availableBelow = viewportHeight - toggleRect.bottom;
+    const availableAbove = toggleRect.top;
+    const shouldOpenAbove = !fitsBelow && (fitsAbove || availableAbove > availableBelow);
+    const maximumTop = Math.max(padding, viewportHeight - menuRect.height - padding);
+    const preferredTop = shouldOpenAbove ? aboveTop : belowTop;
+    const top = Math.max(padding, Math.min(preferredTop, maximumTop));
+
+    return { left, top };
+};
+
 export function useFloatingMenu(options = {}) {
     const isOpen = ref(false);
     const toggleRef = ref(null);
     const menuRef = ref(null);
-    const menuStyle = ref({});
+    const menuStyle = ref(hiddenMenuStyle());
     let listenersBound = false;
+    let positionFrame = null;
 
     const padding = options.padding ?? 12;
     const offset = options.offset ?? 8;
+    const align = options.align ?? 'end';
+
+    const cancelPositionFrame = () => {
+        if (positionFrame === null || typeof window === 'undefined') {
+            return;
+        }
+
+        window.cancelAnimationFrame?.(positionFrame);
+        positionFrame = null;
+    };
 
     const updatePosition = () => {
         const button = toggleRef.value;
         const menu = menuRef.value;
 
-        if (!button || !menu) {
+        if (!button || !menu || typeof window === 'undefined') {
             return;
         }
 
-        const rect = button.getBoundingClientRect();
-        const menuRect = menu.getBoundingClientRect();
+        const toggleRect = button.getBoundingClientRect();
+        const toggleIsOutsideViewport = toggleRect.bottom < padding
+            || toggleRect.top > window.innerHeight - padding
+            || toggleRect.right < padding
+            || toggleRect.left > window.innerWidth - padding;
 
-        let left = rect.right - menuRect.width;
-        if (left < padding) {
-            left = padding;
-        }
-        if (left + menuRect.width > window.innerWidth - padding) {
-            left = Math.max(padding, window.innerWidth - menuRect.width - padding);
+        if (toggleIsOutsideViewport) {
+            closeMenu();
+            return;
         }
 
-        let top = rect.bottom + offset;
-        const maxTop = window.innerHeight - menuRect.height - padding;
-        if (top > maxTop) {
-            top = Math.max(padding, rect.top - menuRect.height - offset);
-        }
+        const position = resolveFloatingMenuPosition({
+            toggleRect,
+            menuRect: menu.getBoundingClientRect(),
+            viewportWidth: window.innerWidth,
+            viewportHeight: window.innerHeight,
+            padding,
+            offset,
+            align,
+        });
 
         menuStyle.value = {
-            left: `${left}px`,
-            top: `${top}px`,
+            left: `${position.left}px`,
+            top: `${position.top}px`,
+            visibility: 'visible',
         };
+    };
+
+    const schedulePositionUpdate = () => {
+        if (positionFrame !== null || typeof window === 'undefined') {
+            return;
+        }
+
+        if (typeof window.requestAnimationFrame !== 'function') {
+            updatePosition();
+            return;
+        }
+
+        positionFrame = window.requestAnimationFrame(() => {
+            positionFrame = null;
+            updatePosition();
+        });
+    };
+
+    const removeListeners = () => {
+        if (!listenersBound || typeof window === 'undefined') {
+            return;
+        }
+
+        window.removeEventListener('resize', schedulePositionUpdate);
+        window.removeEventListener('scroll', schedulePositionUpdate, true);
+        document.removeEventListener('click', handleOutsideClick, true);
+        document.removeEventListener('focusin', handleOutsideFocus, true);
+        document.removeEventListener('keydown', handleEscape, true);
+        listenersBound = false;
     };
 
     const closeMenu = () => {
         isOpen.value = false;
+        menuStyle.value = hiddenMenuStyle();
+        cancelPositionFrame();
         removeListeners();
+
+        if (activeFloatingMenuClose === closeMenu) {
+            activeFloatingMenuClose = null;
+        }
     };
 
     const handleOutsideClick = (event) => {
@@ -52,10 +134,20 @@ export function useFloatingMenu(options = {}) {
         }
 
         const target = event.target;
-        if (toggleRef.value && toggleRef.value.contains(target)) {
+        if (toggleRef.value?.contains(target) || menuRef.value?.contains(target)) {
             return;
         }
-        if (menuRef.value && menuRef.value.contains(target)) {
+
+        closeMenu();
+    };
+
+    const handleOutsideFocus = (event) => {
+        if (!isOpen.value) {
+            return;
+        }
+
+        const target = event.target;
+        if (toggleRef.value?.contains(target) || menuRef.value?.contains(target)) {
             return;
         }
 
@@ -63,39 +155,53 @@ export function useFloatingMenu(options = {}) {
     };
 
     const handleEscape = (event) => {
-        if (event.key === 'Escape' && isOpen.value) {
-            event.preventDefault();
-            closeMenu();
-        }
-    };
-
-    const addListeners = () => {
-        if (listenersBound) {
+        if (event.key !== 'Escape' || !isOpen.value) {
             return;
         }
 
-        window.addEventListener('resize', updatePosition);
-        window.addEventListener('scroll', updatePosition, true);
+        event.preventDefault();
+        closeMenu();
+        nextTick(() => {
+            const toggle = toggleRef.value;
+            const focusTarget = toggle?.matches?.('button, a, [tabindex]')
+                ? toggle
+                : toggle?.querySelector?.('button, a, [tabindex]');
+
+            focusTarget?.focus();
+        });
+    };
+
+    const addListeners = () => {
+        if (listenersBound || typeof window === 'undefined') {
+            return;
+        }
+
+        window.addEventListener('resize', schedulePositionUpdate);
+        window.addEventListener('scroll', schedulePositionUpdate, true);
         document.addEventListener('click', handleOutsideClick, true);
+        document.addEventListener('focusin', handleOutsideFocus, true);
         document.addEventListener('keydown', handleEscape, true);
         listenersBound = true;
     };
 
-    const removeListeners = () => {
-        if (!listenersBound) {
+    const openMenu = () => {
+        if (isOpen.value) {
             return;
         }
 
-        window.removeEventListener('resize', updatePosition);
-        window.removeEventListener('scroll', updatePosition, true);
-        document.removeEventListener('click', handleOutsideClick, true);
-        document.removeEventListener('keydown', handleEscape, true);
-        listenersBound = false;
-    };
+        if (activeFloatingMenuClose && activeFloatingMenuClose !== closeMenu) {
+            activeFloatingMenuClose();
+        }
 
-    const openMenu = () => {
+        activeFloatingMenuClose = closeMenu;
+        menuStyle.value = hiddenMenuStyle();
         isOpen.value = true;
+
         nextTick(() => {
+            if (!isOpen.value) {
+                return;
+            }
+
             updatePosition();
             addListeners();
         });
@@ -111,7 +217,7 @@ export function useFloatingMenu(options = {}) {
     };
 
     onBeforeUnmount(() => {
-        removeListeners();
+        closeMenu();
     });
 
     return {

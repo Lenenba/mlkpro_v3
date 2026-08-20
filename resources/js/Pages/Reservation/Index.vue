@@ -8,6 +8,7 @@ import 'dayjs/locale/es';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
 import Modal from '@/Components/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
@@ -1897,57 +1898,39 @@ const removeReservation = (reservation) => {
                                 </span>
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-2 text-end align-top">
-                                <div
+                                <AdminDataTableActions
                                     v-if="entry.can_update_status"
-                                    class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex"
+                                    :label="$t('reservations.table.actions')"
+                                    menu-width-class="w-44"
+                                    :disabled="waitlistUpdatingId === Number(entry.id)"
+                                    :trigger-test-id="`waitlist-actions-trigger-${entry.id}`"
+                                    :menu-test-id="`waitlist-actions-menu-${entry.id}`"
                                 >
                                     <button
+                                        v-if="entry.status === 'pending'"
                                         type="button"
-                                        class="size-7 inline-flex items-center justify-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:pointer-events-none disabled:opacity-50 focus:bg-stone-50 focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                        aria-haspopup="menu"
-                                        aria-expanded="false"
-                                        aria-label="Dropdown"
-                                        :disabled="waitlistUpdatingId === Number(entry.id)"
+                                        class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-neutral-800"
+                                        @click="updateWaitlistStatus(entry, 'released')"
                                     >
-                                        <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <circle cx="12" cy="12" r="1" />
-                                            <circle cx="12" cy="5" r="1" />
-                                            <circle cx="12" cy="19" r="1" />
-                                        </svg>
+                                        {{ $t('reservations.waitlist.actions.release') }}
                                     </button>
-                                    <div
-                                        class="hs-dropdown-menu hs-dropdown-open:opacity-100 hidden w-44 rounded-sm bg-white opacity-0 shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] transition-[opacity,margin] duration dark:bg-neutral-900 dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)]"
-                                        role="menu"
-                                        aria-orientation="vertical"
+                                    <button
+                                        v-if="entry.status === 'released'"
+                                        type="button"
+                                        class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-neutral-800"
+                                        @click="updateWaitlistStatus(entry, 'booked')"
                                     >
-                                        <div class="p-1">
-                                            <button
-                                                v-if="entry.status === 'pending'"
-                                                type="button"
-                                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-neutral-800"
-                                                @click="updateWaitlistStatus(entry, 'released')"
-                                            >
-                                                {{ $t('reservations.waitlist.actions.release') }}
-                                            </button>
-                                            <button
-                                                v-if="entry.status === 'released'"
-                                                type="button"
-                                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-neutral-800"
-                                                @click="updateWaitlistStatus(entry, 'booked')"
-                                            >
-                                                {{ $t('reservations.waitlist.actions.booked') }}
-                                            </button>
-                                            <button
-                                                v-if="['pending', 'released'].includes(entry.status)"
-                                                type="button"
-                                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-neutral-800"
-                                                @click="updateWaitlistStatus(entry, 'cancelled')"
-                                            >
-                                                {{ $t('reservations.actions.cancel') }}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
+                                        {{ $t('reservations.waitlist.actions.booked') }}
+                                    </button>
+                                    <button
+                                        v-if="['pending', 'released'].includes(entry.status)"
+                                        type="button"
+                                        class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-neutral-800"
+                                        @click="updateWaitlistStatus(entry, 'cancelled')"
+                                    >
+                                        {{ $t('reservations.actions.cancel') }}
+                                    </button>
+                                </AdminDataTableActions>
                                 <span v-else class="text-xs text-stone-400 dark:text-neutral-500">-</span>
                             </td>
                         </tr>
@@ -2014,6 +1997,7 @@ const removeReservation = (reservation) => {
                             <div class="inline-flex items-center rounded-sm border border-stone-200 bg-white p-0.5 text-xs font-semibold text-stone-600 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
                                 <button
                                     type="button"
+                                    data-testid="reservation-view-calendar"
                                     class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
                                     :class="viewMode === 'calendar'
                                         ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
@@ -2030,6 +2014,7 @@ const removeReservation = (reservation) => {
                                 </button>
                                 <button
                                     type="button"
+                                    data-testid="reservation-view-list"
                                     class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
                                     :class="viewMode === 'list'
                                         ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
@@ -2189,54 +2174,37 @@ const removeReservation = (reservation) => {
                                 </span>
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-2 text-end">
-                                <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
+                                <AdminDataTableActions
+                                    :label="$t('reservations.table.actions')"
+                                    menu-width-class="w-32"
+                                    :trigger-test-id="`reservation-actions-trigger-${reservation.id}`"
+                                    :menu-test-id="`reservation-actions-menu-${reservation.id}`"
+                                >
                                     <button
                                         type="button"
-                                        class="size-7 inline-flex items-center justify-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:pointer-events-none disabled:opacity-50 focus:bg-stone-50 focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                        aria-haspopup="menu"
-                                        aria-expanded="false"
-                                        aria-label="Dropdown"
+                                        class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                        @click="openDetails(reservation)"
                                     >
-                                        <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <circle cx="12" cy="12" r="1" />
-                                            <circle cx="12" cy="5" r="1" />
-                                            <circle cx="12" cy="19" r="1" />
-                                        </svg>
+                                        {{ $t('reservations.actions.view') }}
                                     </button>
-
-                                    <div
-                                        class="hs-dropdown-menu hs-dropdown-open:opacity-100 hidden w-32 rounded-sm bg-white opacity-0 shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] transition-[opacity,margin] duration dark:bg-neutral-900 dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)]"
-                                        role="menu"
-                                        aria-orientation="vertical"
+                                    <button
+                                        v-if="canManageReservationActions"
+                                        type="button"
+                                        class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                        @click="openEdit(reservation)"
                                     >
-                                        <div class="p-1">
-                                            <button
-                                                type="button"
-                                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                                                @click="openDetails(reservation)"
-                                            >
-                                                {{ $t('reservations.actions.view') }}
-                                            </button>
-                                            <button
-                                                v-if="canManageReservationActions"
-                                                type="button"
-                                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                                                @click="openEdit(reservation)"
-                                            >
-                                                {{ $t('reservations.actions.edit') }}
-                                            </button>
-                                            <div v-if="canManageReservationActions" class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                                            <button
-                                                v-if="canManageReservationActions"
-                                                type="button"
-                                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800"
-                                                @click="removeReservation(reservation)"
-                                            >
-                                                {{ $t('reservations.actions.delete') }}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
+                                        {{ $t('reservations.actions.edit') }}
+                                    </button>
+                                    <div v-if="canManageReservationActions" class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
+                                    <button
+                                        v-if="canManageReservationActions"
+                                        type="button"
+                                        class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800"
+                                        @click="removeReservation(reservation)"
+                                    >
+                                        {{ $t('reservations.actions.delete') }}
+                                    </button>
+                                </AdminDataTableActions>
                             </td>
                         </tr>
                     </template>

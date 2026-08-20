@@ -53,7 +53,7 @@ test('service owner can run the quote recovery smoke flow', async ({ page }) => 
 
     await acceptRow.scrollIntoViewIfNeeded();
     await acceptRow.getByTestId(`quote-actions-trigger-${recovery.acceptQuoteId}`).click();
-    const acceptAction = acceptRow.getByTestId(`quote-accept-${recovery.acceptQuoteId}`);
+    const acceptAction = page.getByTestId(`quote-accept-${recovery.acceptQuoteId}`);
     await expect(acceptAction).toBeVisible();
 
     await Promise.all([
