@@ -2,6 +2,7 @@
 
 use App\Models\Role;
 use App\Models\User;
+use App\Services\CompanyFeatureService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -48,6 +49,13 @@ it('enables reservations but disables sales/service pipeline modules by default 
     $restaurantOwner = sectorModuleOwner('restaurant', 'restaurant-default-owner@example.com');
 
     foreach ([$salonOwner, $wellnessOwner, $restaurantOwner] as $owner) {
+        $owner->update([
+            'company_features' => ['sales' => true],
+        ]);
+
+        expect(app(CompanyFeatureService::class)->hasFeature($owner, 'sales'))->toBeTrue()
+            ->and(app(CompanyFeatureService::class)->hasFeature($owner, 'sales_crm'))->toBeFalse();
+
         $this->actingAs($owner)
             ->withSession(['two_factor_passed' => true])
             ->getJson(route('reservation.index'))
@@ -67,6 +75,42 @@ it('enables reservations but disables sales/service pipeline modules by default 
                 ->assertForbidden()
                 ->assertJsonPath('message', 'Module unavailable for your plan.');
         }
+
+        foreach ([
+            'crm.next-actions.index',
+            'crm.sales-inbox.index',
+            'crm.manager-dashboard.index',
+        ] as $routeName) {
+            $this->actingAs($owner)
+                ->withSession(['two_factor_passed' => true])
+                ->getJson(route($routeName))
+                ->assertForbidden()
+                ->assertJsonPath('message', 'Module unavailable for your plan.');
+        }
+    }
+});
+
+it('allows the advanced sales crm for a salon only after an explicit tenant override', function () {
+    $owner = sectorModuleOwner('salon', 'salon-sales-crm-override@example.com');
+    $owner->update([
+        'company_features' => [
+            'sales' => true,
+            'sales_crm' => true,
+        ],
+    ]);
+
+    expect(app(CompanyFeatureService::class)->hasFeature($owner, 'sales'))->toBeTrue()
+        ->and(app(CompanyFeatureService::class)->hasFeature($owner, 'sales_crm'))->toBeTrue();
+
+    foreach ([
+        'crm.next-actions.index',
+        'crm.sales-inbox.index',
+        'crm.manager-dashboard.index',
+    ] as $routeName) {
+        $this->actingAs($owner)
+            ->withSession(['two_factor_passed' => true])
+            ->getJson(route($routeName))
+            ->assertOk();
     }
 });
 

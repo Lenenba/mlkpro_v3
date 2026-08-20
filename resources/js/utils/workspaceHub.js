@@ -184,7 +184,7 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             descriptionKey: 'workspace_hub.modules.next_actions',
             routeName: 'crm.next-actions.index',
             tone: 'next_actions',
-            visible: showServices && hasFeature('sales') && !isClient && !isSeller,
+            visible: showServices && hasFeature('sales') && hasFeature('sales_crm') && !isClient && !isSeller,
         },
         sales_inbox: {
             key: 'sales_inbox',
@@ -192,7 +192,7 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             descriptionKey: 'workspace_hub.modules.sales_inbox',
             routeName: 'crm.sales-inbox.index',
             tone: 'quotes',
-            visible: showServices && hasFeature('sales') && canSalesManage && !isClient && !isSeller,
+            visible: showServices && hasFeature('sales') && hasFeature('sales_crm') && canSalesManage && !isClient && !isSeller,
         },
         manager_dashboard: {
             key: 'manager_dashboard',
@@ -200,7 +200,7 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             descriptionKey: 'workspace_hub.modules.manager_dashboard',
             routeName: 'crm.manager-dashboard.index',
             tone: 'performance',
-            visible: showServices && hasFeature('sales') && canSalesManage && !isClient && !isSeller,
+            visible: showServices && hasFeature('sales') && hasFeature('sales_crm') && canSalesManage && !isClient && !isSeller,
         },
         orders: {
             key: 'orders',

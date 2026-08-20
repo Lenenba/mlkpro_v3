@@ -300,7 +300,7 @@ it('provisions a realistic service demo workspace from the admin module', functi
     Storage::fake('public');
 
     $admin = demoWorkspacePlatformAdmin([PlatformPermissions::DEMOS_MANAGE]);
-    $disabledSalonModules = ['requests', 'quotes', 'plan_scans', 'jobs', 'tasks', 'products'];
+    $disabledSalonModules = ['requests', 'quotes', 'plan_scans', 'jobs', 'tasks', 'products', 'sales_crm'];
     $payload = demoWorkspacePayload([
         'prefill_source' => 'crm',
         'prefill_payload' => [

@@ -393,6 +393,7 @@ class TenantController extends BaseController
             'presence' => 'Presence',
             'planning' => 'Planning',
             'sales' => 'Sales',
+            'sales_crm' => 'Advanced sales CRM',
             'promotions' => 'Promotions',
             'expenses' => 'Expenses',
             'accounting' => 'Accounting',

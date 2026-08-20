@@ -49,7 +49,7 @@ Dernier bloc livre:
 - suite `CrmFullNonRegressionPhaseSixTest` ajoutee pour couvrir le flux CRM transversal `Request / Quote / Customer / Pipeline / Next actions / Sales inbox / Manager dashboard`
 - non-regression phase 4 et 5 reverifiee avec les suites detail, timeline et `My next actions` apres fermeture de la phase 6
 - phase 6 verrouillee par un bundle complet `validation / schema / linking / pipeline / inbox / forecast / manager / full regression`
-- ecrans revenue CRM `my next actions / sales inbox / manager dashboard` explicitement rattaches au module forfaitaire `sales` pour les routes, le workspace hub et les overrides super-admin
+- ecrans revenue CRM `my next actions / sales inbox / manager dashboard` explicitement rattaches au module opt-in `sales_crm` pour les routes, le workspace hub et les overrides super-admin
 - aucun nouveau quota phase 6 ajoute: la couche revenue reutilise les limites existantes `requests / quotes / jobs / tasks`
 - documentation de synthese et guide de seed local ajoutes pour la phase 6 dans `docs/CRM_PHASE_6_OPPORTUNITY_LAYER_GUIDE_2026-04-21.md`
 - `LaunchSeeder` enrichi avec un dataset phase 6 deterministic et une date de reference stable `2026-04-25T09:00:00-04:00`
@@ -390,7 +390,7 @@ Construire une vue manager revenue lisible qui consomme la projection `Opportuni
 - recroiser la queue commerciale via `BuildSalesInboxIndexData` pour exposer pression des files et items d attention
 - garder `quote pull-through` derive de la population des opportunites avec devis plutot qu un nouvel objet conversion
 - rester volontairement revenue-first et manager-friendly sans figer une board pipeline UI plus lourde
-- reutiliser le module `sales` pour le gating forfaitaire et les overrides `company_features` au lieu d introduire un nouveau flag manager
+- utiliser le module `sales_crm` pour le gating forfaitaire et les overrides `company_features`, sans coupler le CRM avance a la caisse `sales`
 
 #### Tests ajoutes
 

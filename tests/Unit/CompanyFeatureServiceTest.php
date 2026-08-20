@@ -82,6 +82,52 @@ it('keeps owner-only solo plans on the simplified module path until solo growth'
         ->and($planModules['starter']['team_members'])->toBeTrue();
 });
 
+it('keeps the advanced sales crm opt-in on every plan', function () {
+    $planModules = CompanyFeatureService::defaultPlanModules();
+
+    foreach ($planModules as $modules) {
+        expect($modules['sales_crm'] ?? null)->toBeFalse();
+    }
+});
+
+it('allows an explicit owner-only sales crm override while keeping its sales dependency', function () {
+    $ownerRoleId = \App\Models\Role::query()->firstOrCreate(
+        ['name' => 'owner'],
+        ['description' => 'Account owner role']
+    )->id;
+
+    $enabledOwner = \App\Models\User::query()->create([
+        'name' => 'Sales CRM Enabled Owner',
+        'email' => 'sales-crm-enabled-owner@example.com',
+        'password' => 'password',
+        'role_id' => $ownerRoleId,
+        'company_type' => 'services',
+        'selected_plan_key' => 'solo_essential',
+        'onboarding_completed_at' => now(),
+        'company_features' => [
+            'sales' => true,
+            'sales_crm' => true,
+        ],
+    ]);
+
+    $missingDependencyOwner = \App\Models\User::query()->create([
+        'name' => 'Sales CRM Dependency Owner',
+        'email' => 'sales-crm-dependency-owner@example.com',
+        'password' => 'password',
+        'role_id' => $ownerRoleId,
+        'company_type' => 'services',
+        'selected_plan_key' => 'solo_essential',
+        'onboarding_completed_at' => now(),
+        'company_features' => [
+            'sales' => false,
+            'sales_crm' => true,
+        ],
+    ]);
+
+    expect(app(CompanyFeatureService::class)->hasFeature($enabledOwner, 'sales_crm'))->toBeTrue()
+        ->and(app(CompanyFeatureService::class)->hasFeature($missingDependencyOwner, 'sales_crm'))->toBeFalse();
+});
+
 it('disables accounting automatically when expenses are not enabled', function () {
     $ownerRoleId = \App\Models\Role::query()->firstOrCreate(
         ['name' => 'owner'],

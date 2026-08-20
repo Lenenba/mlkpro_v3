@@ -20,6 +20,7 @@ class DemoWorkspaceCatalog
         'jobs',
         'tasks',
         'products',
+        'sales_crm',
     ];
 
     /**
@@ -208,6 +209,13 @@ class DemoWorkspaceCatalog
                 'description' => 'POS and order history for commerce demos.',
                 'category' => 'Revenue',
                 'company_types' => ['services', 'products'],
+            ],
+            'sales_crm' => [
+                'key' => 'sales_crm',
+                'label' => 'Advanced sales CRM',
+                'description' => 'Next actions, sales inbox, and manager pipeline dashboard.',
+                'category' => 'Pipeline',
+                'company_types' => ['services'],
             ],
             'promotions' => [
                 'key' => 'promotions',

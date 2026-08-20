@@ -483,7 +483,7 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         ->name('crm.playbooks.run');
     Route::get('/crm/playbook-runs', [PlaybookRunController::class, 'index'])
         ->name('crm.playbook-runs.index');
-    Route::middleware('company.feature:sales')->group(function () {
+    Route::middleware(['company.feature:sales', 'company.feature:sales_crm'])->group(function () {
         Route::get('/crm/next-actions', [MyNextActionsController::class, 'index'])
             ->name('crm.next-actions.index');
         Route::get('/crm/sales-inbox', [SalesInboxController::class, 'index'])

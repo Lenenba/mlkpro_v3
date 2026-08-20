@@ -79,9 +79,9 @@ Attention aux membres d'equipe et aux clients : si le proprietaire est recharge 
 Regles metier actuellement encodees a conserver dans les tests :
 
 - salon et restaurant activent `reservations` par defaut ;
-- salon et restaurant desactivent par defaut `requests`, `products`, `quotes`, `plan_scans`, `jobs` et `tasks` ;
+- salon et restaurant desactivent par defaut `requests`, `products`, `quotes`, `plan_scans`, `jobs`, `tasks` et `sales_crm` ;
 - les plans owner-only forcent `performance`, `presence` et `team_members` a `false` ;
-- les overrides owner-only exceptionnellement permis sont `assistant`, `sales` et `promotions` ;
+- les overrides owner-only exceptionnellement permis sont `assistant`, `sales`, `sales_crm` et `promotions` ;
 - les overrides explicites du compte ont priorite sur les defaults sectoriels, avant l'application des restrictions de plan et des dependances.
 
 ## Registre des modules
@@ -101,6 +101,7 @@ Le registre de reference se trouve dans `CompanyFeatureService`. Les termes serv
 | `presence` | presence, attendance, pointage, check-in, presencia, asistencia, fichaje | equipe, planning, disponibilite |
 | `planning` | planning, schedule, calendrier, planificacion, planificación, horario | ventes, services, equipe |
 | `sales` | sale, sales, order, commande, POS, caisse, venta, pedido, caja | comptes produits et roles vendeur |
+| `sales_crm` | next actions, sales inbox, manager dashboard, CRM commercial | suite CRM avancee, depend de `sales`, opt-in par plan ou tenant |
 | `promotions` | promotion, discount, remise, coupon, promocion, promoción, descuento, cupon, cupón | catalogue, ventes, campagnes |
 | `expenses` | expense, expenses, depense, petty cash, gasto | pre-requis de la comptabilite |
 | `accounting` | accounting, comptabilite, ledger, journal, contabilidad, libro mayor | depend actuellement de `expenses` |

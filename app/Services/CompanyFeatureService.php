@@ -20,6 +20,7 @@ class CompanyFeatureService
         'presence',
         'planning',
         'sales',
+        'sales_crm',
         'promotions',
         'expenses',
         'accounting',
@@ -34,6 +35,7 @@ class CompanyFeatureService
 
     private const MODULE_DEPENDENCIES = [
         'accounting' => ['expenses'],
+        'sales_crm' => ['sales'],
     ];
 
     private const SALON_ONLY_DISABLED_MODULES = [
@@ -43,6 +45,7 @@ class CompanyFeatureService
         'plan_scans',
         'jobs',
         'tasks',
+        'sales_crm',
     ];
 
     private const OWNER_ONLY_FORCED_DISABLED_MODULES = [
@@ -54,6 +57,7 @@ class CompanyFeatureService
     private const OWNER_ONLY_ALLOWED_OVERRIDE_MODULES = [
         'assistant',
         'sales',
+        'sales_crm',
         'promotions',
     ];
 

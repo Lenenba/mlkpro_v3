@@ -52,7 +52,7 @@ it('shows subscription promotion settings in the super admin settings form', fun
         );
 });
 
-it('shows the sales module in the super admin plan modules form payload', function () {
+it('shows sales and the opt-in sales crm module in the super admin plan modules form payload', function () {
     $user = makeSubscriptionPromotionSuperadmin();
     $planKey = (string) (array_key_first(config('billing.plans', [])) ?? 'free');
 
@@ -62,6 +62,7 @@ it('shows the sales module in the super admin plan modules form payload', functi
         ->assertInertia(fn (Assert $page) => $page
             ->component('SuperAdmin/Settings/Edit')
             ->where("plan_modules.$planKey.sales", (bool) config("billing.plans.$planKey.default_modules.sales", true))
+            ->where("plan_modules.$planKey.sales_crm", false)
         );
 });
 

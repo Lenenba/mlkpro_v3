@@ -282,6 +282,7 @@ test('my next actions service scopes team member task visibility to the assigned
 test('my next actions workspace applies overdue filters and exposes the sales activity item payload', function () {
     $owner = User::factory()->create([
         'company_type' => 'services',
+        'company_features' => ['sales_crm' => true],
     ]);
 
     $customer = Customer::create([
@@ -343,6 +344,7 @@ test('my next actions workspace applies overdue filters and exposes the sales ac
 test('my next actions workspace respects team member task scope', function () {
     $owner = User::factory()->create([
         'company_type' => 'services',
+        'company_features' => ['sales_crm' => true],
     ]);
 
     $memberUser = User::factory()->create([
@@ -416,6 +418,7 @@ test('my next actions workspace respects team member task scope', function () {
 test('my next actions workspace paginates the card feed', function () {
     $owner = User::factory()->create([
         'company_type' => 'services',
+        'company_features' => ['sales_crm' => true],
     ]);
 
     $customer = Customer::create([

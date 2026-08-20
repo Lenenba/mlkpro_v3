@@ -10,6 +10,10 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    compact: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const normalize = (value) => Number(value || 0).toLocaleString();
@@ -141,19 +145,27 @@ const hasPerformance = computed(() => performanceCards.value.length > 0);
 </script>
 
 <template>
-    <div class="space-y-3">
-        <div class="grid grid-cols-2 gap-2 md:grid-cols-5 md:gap-3 lg:gap-5">
+    <div :class="compact ? 'space-y-2' : 'space-y-3'">
+        <div
+            class="grid"
+            :class="compact ? 'gap-2' : 'grid-cols-2 gap-2 md:grid-cols-5 md:gap-3 lg:gap-5'"
+            :style="compact ? { gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr))' } : undefined"
+        >
             <div
                 v-for="card in cards"
                 :key="`reservation-stat-${card.key}`"
-                class="rounded-sm border border-stone-200 border-t-4 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
-                :class="card.border"
+                class="rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
+                :class="[
+                    card.border,
+                    compact ? 'border-t-2 px-2.5 py-2' : 'border-t-4 p-4',
+                ]"
             >
                 <div class="flex items-start justify-between gap-2">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t(card.label) }}</div>
+                    <div :class="compact ? 'text-[11px]' : 'text-xs'" class="text-stone-500 dark:text-neutral-400">{{ $t(card.label) }}</div>
                     <svg
                         v-if="card.icon === 'layout-grid'"
-                        class="size-4 text-stone-400 dark:text-neutral-500"
+                        class="text-stone-400 dark:text-neutral-500"
+                        :class="compact ? 'size-3.5' : 'size-4'"
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 24 24"
                         fill="none"
@@ -167,7 +179,8 @@ const hasPerformance = computed(() => performanceCards.value.length > 0);
                     </svg>
                     <svg
                         v-else-if="card.icon === 'clock-3'"
-                        class="size-4 text-stone-400 dark:text-neutral-500"
+                        class="text-stone-400 dark:text-neutral-500"
+                        :class="compact ? 'size-3.5' : 'size-4'"
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 24 24"
                         fill="none"
@@ -179,7 +192,8 @@ const hasPerformance = computed(() => performanceCards.value.length > 0);
                     </svg>
                     <svg
                         v-else-if="card.icon === 'badge-check'"
-                        class="size-4 text-stone-400 dark:text-neutral-500"
+                        class="text-stone-400 dark:text-neutral-500"
+                        :class="compact ? 'size-3.5' : 'size-4'"
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 24 24"
                         fill="none"
@@ -191,7 +205,8 @@ const hasPerformance = computed(() => performanceCards.value.length > 0);
                     </svg>
                     <svg
                         v-else-if="card.icon === 'x-circle'"
-                        class="size-4 text-stone-400 dark:text-neutral-500"
+                        class="text-stone-400 dark:text-neutral-500"
+                        :class="compact ? 'size-3.5' : 'size-4'"
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 24 24"
                         fill="none"
@@ -204,7 +219,8 @@ const hasPerformance = computed(() => performanceCards.value.length > 0);
                     </svg>
                     <svg
                         v-else
-                        class="size-4 text-stone-400 dark:text-neutral-500"
+                        class="text-stone-400 dark:text-neutral-500"
+                        :class="compact ? 'size-3.5' : 'size-4'"
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 24 24"
                         fill="none"
@@ -217,31 +233,61 @@ const hasPerformance = computed(() => performanceCards.value.length > 0);
                         <path d="M3 10h18" />
                     </svg>
                 </div>
-                <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">
+                <div
+                    class="font-semibold text-stone-800 dark:text-neutral-100"
+                    :class="compact ? 'mt-0.5 text-base leading-tight' : 'mt-1 text-lg'"
+                >
                     {{ normalize(stats[card.key]) }}
                 </div>
             </div>
         </div>
 
-        <div v-if="hasPerformance" class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-            <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                {{ $t('reservations.performance.title', { days: performance.window_days || 30 }) }}
-            </div>
-            <div class="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-6">
+        <details
+            v-if="hasPerformance"
+            class="group rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+            :class="compact ? 'px-3 py-2' : 'p-3'"
+            :open="!compact"
+        >
+            <summary
+                class="flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-semibold uppercase tracking-wide text-stone-500 marker:hidden dark:text-neutral-400"
+                :class="compact ? 'group-open:mb-2' : 'mb-2 cursor-default'"
+            >
+                <span>{{ $t('reservations.performance.title', { days: performance.window_days || 30 }) }}</span>
+                <svg
+                    v-if="compact"
+                    class="size-3.5 shrink-0 transition-transform group-open:rotate-180"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                >
+                    <path d="m6 9 6 6 6-6" />
+                </svg>
+            </summary>
+            <div
+                class="grid"
+                :class="compact ? 'gap-1.5' : 'grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-6'"
+                :style="compact ? { gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 7.5rem), 1fr))' } : undefined"
+            >
                 <div
                     v-for="card in performanceCards"
                     :key="`reservation-performance-${card.key}`"
-                    class="rounded-sm border border-stone-200 border-t-4 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800"
-                    :class="card.border"
+                    class="rounded-sm border border-stone-200 bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800"
+                    :class="[
+                        card.border,
+                        compact ? 'border-t-2 px-2 py-1.5' : 'border-t-4 p-3',
+                    ]"
                 >
-                    <div class="text-[11px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                    <div class="uppercase tracking-wide text-stone-500 dark:text-neutral-400" :class="compact ? 'text-[10px]' : 'text-[11px]'">
                         {{ $t(card.label) }}
                     </div>
-                    <div class="mt-1 text-base font-semibold text-stone-800 dark:text-neutral-100">
+                    <div class="font-semibold text-stone-800 dark:text-neutral-100" :class="compact ? 'mt-0.5 text-sm' : 'mt-1 text-base'">
                         {{ normalizeMetric(performance[card.key], card.format) }}
                     </div>
                 </div>
             </div>
-        </div>
+        </details>
     </div>
 </template>

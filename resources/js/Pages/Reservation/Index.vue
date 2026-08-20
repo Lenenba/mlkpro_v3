@@ -1543,7 +1543,7 @@ const removeReservation = (reservation) => {
                 </div>
             </section>
 
-            <ReservationStats :stats="stats" :performance="performance" />
+            <ReservationStats :stats="stats" :performance="performance" compact />
 
             <section class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="flex flex-wrap items-center justify-between gap-2">

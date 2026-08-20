@@ -42,7 +42,7 @@ it('exposes an immersive Salon Eclat preset without changing the lean salon pres
         ->and(array_values(array_intersect($preset['modules'] ?? [], $fieldServiceModules)))->toBe([])
         ->and($leanPreset)->toBeArray()
         ->and($leanPreset['modules'] ?? null)->toBe($leanModules)
-        ->and($leanModules)->not->toContain('products', 'sales', 'promotions', 'loyalty', 'campaigns', 'assistant', 'social');
+        ->and($leanModules)->not->toContain('products', 'sales', 'sales_crm', 'promotions', 'loyalty', 'campaigns', 'assistant', 'social');
 });
 
 it('uses only canonical feature keys for every immersive salon module', function () {
@@ -57,7 +57,9 @@ it('uses only canonical feature keys for every immersive salon module', function
         ->all();
 
     expect($catalogModuleKeys)->toContain('social')
+        ->and($catalogModuleKeys)->toContain('sales_crm')
         ->and($planModuleKeys)->toContain('social')
+        ->and($planModuleKeys)->toContain('sales_crm')
         ->and(array_values(array_diff($preset['modules'] ?? [], $catalogModuleKeys)))->toBe([])
         ->and(array_values(array_diff($preset['modules'] ?? [], $planModuleKeys)))->toBe([]);
 });

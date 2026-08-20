@@ -33,6 +33,7 @@ class SuperAdminPlatformSettingsService
         'presence',
         'planning',
         'sales',
+        'sales_crm',
         'promotions',
         'expenses',
         'accounting',

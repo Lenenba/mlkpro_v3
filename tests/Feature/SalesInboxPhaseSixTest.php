@@ -249,6 +249,7 @@ function salesInboxPhaseSixOwner(array $overrides = []): User
     return User::factory()->create(array_replace_recursive([
         'role_id' => salesInboxPhaseSixRoleId('owner', 'Phase six owner role'),
         'company_type' => 'services',
+        'company_features' => ['sales_crm' => true],
         'onboarding_completed_at' => now(),
         'two_factor_exempt' => false,
     ], $overrides));

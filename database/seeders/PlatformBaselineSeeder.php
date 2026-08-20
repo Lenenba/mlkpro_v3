@@ -80,6 +80,7 @@ class PlatformBaselineSeeder extends Seeder
             'presence',
             'planning',
             'sales',
+            'sales_crm',
             'services',
             'tasks',
             'team_members',

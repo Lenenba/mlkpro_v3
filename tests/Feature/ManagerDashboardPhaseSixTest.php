@@ -306,6 +306,7 @@ function managerDashboardPhaseSixOwner(array $overrides = []): User
     return User::factory()->create(array_replace_recursive([
         'role_id' => managerDashboardPhaseSixRoleId('owner', 'Phase six manager dashboard owner role'),
         'company_type' => 'services',
+        'company_features' => ['sales_crm' => true],
         'onboarding_completed_at' => now(),
         'two_factor_exempt' => false,
     ], $overrides));

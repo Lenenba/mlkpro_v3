@@ -8,6 +8,13 @@ import {
     reservationStatusDotClasses,
     reservationStatusEventClasses,
 } from '@/Components/Reservation/status';
+import {
+    currentReservationDay,
+    reservationMonthGridDates,
+    reservationMonthGridStart,
+    reservationWeekStart,
+    resolveReservationViewAnchor,
+} from '@/utils/reservationCalendar';
 
 const props = defineProps({
     events: {
@@ -64,25 +71,13 @@ watch(dayjsLocale, (nextLocale) => {
     dayjs.locale(nextLocale);
 }, { immediate: true });
 
-const weekStartsOn = 1;
-const todayDate = dayjs();
+const todayDate = currentReservationDay();
 const availableViews = ['day', 'week', 'month', 'year'];
 const viewMode = ref(availableViews.includes(props.initialView) ? props.initialView : 'month');
 const anchorDate = ref(todayDate);
 
 const eventKey = (event) => String(event.id ?? `${event.start || ''}-${event.title || ''}`);
 const selectedKey = computed(() => (props.selectedEventId === null ? null : String(props.selectedEventId)));
-
-const getWeekStart = (date) => {
-    const offset = (date.day() - weekStartsOn + 7) % 7;
-    return date.subtract(offset, 'day');
-};
-
-const getMonthGridStart = (value) => {
-    const firstDay = value.startOf('month');
-    const offset = (firstDay.day() - weekStartsOn + 7) % 7;
-    return firstDay.subtract(offset, 'day');
-};
 
 const rangeForView = (mode = viewMode.value) => {
     if (mode === 'day') {
@@ -93,7 +88,7 @@ const rangeForView = (mode = viewMode.value) => {
     }
 
     if (mode === 'week') {
-        const start = getWeekStart(anchorDate.value);
+        const start = reservationWeekStart(anchorDate.value);
         return {
             start,
             end: start.add(6, 'day').endOf('day'),
@@ -101,7 +96,7 @@ const rangeForView = (mode = viewMode.value) => {
     }
 
     if (mode === 'month') {
-        const start = getMonthGridStart(anchorDate.value);
+        const start = reservationMonthGridStart(anchorDate.value);
         return {
             start,
             end: start.add(41, 'day').endOf('day'),
@@ -232,7 +227,7 @@ const mainTitle = computed(() => {
     }
 
     if (viewMode.value === 'week') {
-        const start = getWeekStart(anchorDate.value);
+        const start = reservationWeekStart(anchorDate.value);
         const end = start.add(6, 'day');
         return `${start.format('MMM D')} - ${end.format('MMM D, YYYY')}`;
     }
@@ -255,11 +250,7 @@ const weekDayLabels = computed(() => ([
 ]));
 
 const monthGrid = computed(() => {
-    const start = getMonthGridStart(anchorDate.value);
-
-    return Array.from({ length: 42 }, (_, index) => {
-        const date = start.add(index, 'day');
-
+    return reservationMonthGridDates(anchorDate.value).map((date) => {
         return {
             key: date.format('YYYY-MM-DD'),
             date,
@@ -271,25 +262,8 @@ const monthGrid = computed(() => {
     });
 });
 
-const monthViewDays = computed(() => {
-    const days = monthGrid.value || [];
-    if (!days.length) {
-        return days;
-    }
-
-    const weekStart = getWeekStart(todayDate);
-    const weekKey = weekStart.format('YYYY-MM-DD');
-    const startIndex = days.findIndex((day) => day.key === weekKey);
-
-    if (startIndex <= 0) {
-        return days;
-    }
-
-    return [...days.slice(startIndex), ...days.slice(0, startIndex)];
-});
-
 const weekDays = computed(() => {
-    const start = getWeekStart(anchorDate.value);
+    const start = reservationWeekStart(anchorDate.value);
 
     return Array.from({ length: 7 }, (_, index) => {
         const date = start.add(index, 'day');
@@ -316,6 +290,16 @@ const yearCountLabel = (count) => t('planning.preview.count_services', { count }
 const setViewMode = (mode) => {
     if (!availableViews.includes(mode)) {
         return;
+    }
+
+    const nextAnchor = resolveReservationViewAnchor({
+        currentView: viewMode.value,
+        nextView: mode,
+        anchor: anchorDate.value,
+    });
+
+    if (!nextAnchor.isSame(anchorDate.value)) {
+        anchorDate.value = nextAnchor;
     }
 
     viewMode.value = mode;
@@ -360,7 +344,7 @@ const goNext = () => {
 };
 
 const goToday = () => {
-    anchorDate.value = todayDate;
+    anchorDate.value = currentReservationDay();
 };
 
 const openDay = (date) => {
@@ -512,7 +496,7 @@ const eventClasses = (event) => reservationStatusEventClasses(getEventStatus(eve
 
                     <div class="grid grid-cols-7">
                         <div
-                            v-for="(day, index) in monthViewDays"
+                            v-for="(day, index) in monthGrid"
                             :key="day.key"
                             class="relative min-h-[120px] border-t border-l border-stone-200 dark:border-neutral-800"
                             :class="[
