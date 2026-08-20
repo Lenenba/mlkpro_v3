@@ -152,6 +152,7 @@ jobs:
             tests/Unit/CompanyFeatureServiceTest.php \
             tests/Unit/MegaMenuServicesTest.php \
             tests/Feature/AccountingModulePhaseZeroTest.php \
+            tests/Feature/DemoTypeDatabaseCompatibilityTest.php \
             tests/Feature/ExpenseModuleTest.php \
             tests/Feature/ReservationModuleTest.php \
             tests/Feature/ReservationKioskPublicEndpointsTest.php \

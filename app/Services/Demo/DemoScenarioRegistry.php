@@ -8,6 +8,8 @@ use LogicException;
 
 final class DemoScenarioRegistry
 {
+    public const MAX_KEY_LENGTH = 120;
+
     /**
      * @var array<string, DemoScenario>
      */
@@ -71,7 +73,7 @@ final class DemoScenarioRegistry
     {
         $key = trim($scenario->key());
 
-        if (strlen($key) > 120 || preg_match('/^[a-z0-9]+(?:_[a-z0-9]+)*$/', $key) !== 1) {
+        if (strlen($key) > self::MAX_KEY_LENGTH || preg_match('/^[a-z0-9]+(?:_[a-z0-9]+)*$/', $key) !== 1) {
             throw new InvalidArgumentException(sprintf('Invalid demo scenario key [%s].', $key));
         }
 

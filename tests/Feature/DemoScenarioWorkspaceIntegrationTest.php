@@ -475,6 +475,7 @@ it('provisions and reproducibly resets the real small Studio Naya scenario', fun
 
     expect($workspace->provisioning_status)->toBe(DemoWorkspaceProvisioner::STATUS_READY)
         ->and($workspace->scenario_key)->toBe('studio_naya_coiffure')
+        ->and($workspace->owner?->demo_type)->toBe('scenario:studio_naya_coiffure')
         ->and(data_get($workspace->seed_summary, 'team_members'))->toBe(5)
         ->and(data_get($workspace->seed_summary, 'customers'))->toBe(40)
         ->and(data_get($workspace->seed_summary, 'reservations'))->toBe(180)
