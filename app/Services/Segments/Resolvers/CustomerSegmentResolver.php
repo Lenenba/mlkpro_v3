@@ -6,9 +6,11 @@ use App\Models\Customer;
 use App\Models\SavedSegment;
 use App\Models\User;
 use App\Queries\Customers\BuildCustomerOperationalIndexData;
+use App\Queries\Customers\CustomerIndexFilters;
 use App\Services\CompanyFeatureService;
 use App\Services\Segments\Contracts\SegmentModuleResolver;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Arr;
 
 class CustomerSegmentResolver implements SegmentModuleResolver
 {
@@ -19,7 +21,7 @@ class CustomerSegmentResolver implements SegmentModuleResolver
 
     public function resolve(SavedSegment $segment): array
     {
-        $filters = $this->normalizedFilters($segment);
+        $requestedFilters = $this->normalizedFilters($segment);
         $sort = $this->normalizedSort($segment);
         $accountId = (int) $segment->user_id;
         $accountOwner = User::query()->find($accountId);
@@ -27,13 +29,8 @@ class CustomerSegmentResolver implements SegmentModuleResolver
 
         if ($accountOwner) {
             $context = $operationalIndexData->context($accountOwner);
-            $operationalFilter = $operationalIndexData->normalizeOperationalFilter(
-                $filters['operational_filter'] ?? null,
-                $context
-            );
         } else {
             $context = [];
-            $operationalFilter = null;
         }
         $appointmentProfile = ($context['profile'] ?? null) === 'appointment';
         $featureService = app(CompanyFeatureService::class);
@@ -44,16 +41,11 @@ class CustomerSegmentResolver implements SegmentModuleResolver
             && ! $appointmentProfile
             && $featureService->hasFeature($accountOwner, 'jobs');
 
-        if ($operationalFilter === null) {
-            unset($filters['operational_filter']);
-        } else {
-            $filters['operational_filter'] = $operationalFilter;
-        }
         if (! $showQuoteOperations) {
-            unset($filters['has_quotes']);
+            unset($requestedFilters['has_quotes']);
         }
         if (! $showJobOperations) {
-            unset($filters['has_works']);
+            unset($requestedFilters['has_works']);
         }
         if (
             ($sort['column'] === 'quotes_count' && ! $showQuoteOperations)
@@ -66,27 +58,32 @@ class CustomerSegmentResolver implements SegmentModuleResolver
         }
         if (! ($context['capabilities']['packages'] ?? false)) {
             unset(
-                $filters['has_active_package'],
-                $filters['package_status'],
-                $filters['package_remaining_lte'],
-                $filters['package_expires_within_days'],
-                $filters['package_is_recurring'],
-                $filters['package_recurrence_status']
+                $requestedFilters['has_active_package'],
+                $requestedFilters['package_status'],
+                $requestedFilters['package_remaining_lte'],
+                $requestedFilters['package_expires_within_days'],
+                $requestedFilters['package_is_recurring'],
+                $requestedFilters['package_recurrence_status']
             );
         }
 
+        if (! $accountOwner) {
+            return [
+                'module' => $this->key(),
+                'model_class' => Customer::class,
+                'ids' => [],
+                'selected_count' => 0,
+                'filters' => [],
+                'sort' => $sort,
+            ];
+        }
+
+        $indexFilters = app(CustomerIndexFilters::class);
+        $filters = $indexFilters->normalize($requestedFilters, $accountOwner, $context, $accountId);
         $query = Customer::query()
-            ->filter($filters)
+            ->filter($indexFilters->modelFilters($filters))
             ->byUser($accountId);
-
-        if ($accountOwner) {
-            $operationalIndexData->applyOperationalFilter(
-                $query,
-                $operationalFilter,
-                $accountOwner,
-                $context
-            );
-        }
+        $indexFilters->apply($query, $filters, $accountOwner, $context, $accountId);
 
         if ($sort['column'] === 'quotes_count') {
             $query->withCount([
@@ -124,25 +121,7 @@ class CustomerSegmentResolver implements SegmentModuleResolver
             $filters['name'] = $segment->search_term;
         }
 
-        return [
-            'name' => $filters['name'] ?? null,
-            'city' => $filters['city'] ?? null,
-            'country' => $filters['country'] ?? null,
-            'has_quotes' => $filters['has_quotes'] ?? null,
-            'has_works' => $filters['has_works'] ?? null,
-            'status' => $filters['status'] ?? null,
-            'created_from' => $filters['created_from'] ?? null,
-            'created_to' => $filters['created_to'] ?? null,
-            'is_vip' => $filters['is_vip'] ?? null,
-            'vip_tier_id' => $filters['vip_tier_id'] ?? null,
-            'has_active_package' => $filters['has_active_package'] ?? null,
-            'package_status' => $filters['package_status'] ?? null,
-            'package_remaining_lte' => $filters['package_remaining_lte'] ?? null,
-            'package_expires_within_days' => $filters['package_expires_within_days'] ?? null,
-            'package_is_recurring' => $filters['package_is_recurring'] ?? null,
-            'package_recurrence_status' => $filters['package_recurrence_status'] ?? null,
-            'operational_filter' => $filters['operational_filter'] ?? null,
-        ];
+        return Arr::only($filters, CustomerIndexFilters::INPUT_KEYS);
     }
 
     /**

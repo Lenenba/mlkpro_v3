@@ -4,9 +4,135 @@
     "stats": {
       "total": "Total customers",
       "new": "New (30 days)",
-      "active": "Active (30 days)",
+      "new_this_month": "New this month",
+      "active": "Active customers",
+      "inactive": "Inactive customers",
+      "vip": "VIP customers",
+      "no_next_appointment": "No next appointment",
+      "outstanding": "Outstanding balances",
+      "customers_count": "{count} customer(s)",
+      "recent_cancellations": "Recent cancellations",
+      "recent_no_shows": "Missed appointments",
+      "return_rate": "Return rate",
+      "average_value_per_customer": "Average value per customer",
+      "average_appointments_per_customer": "Average appointments per customer",
       "with_quotes": "With quotes",
       "with_jobs": "With jobs"
+    },
+    "kpis": {
+      "title": "Customer indicators",
+      "show_more": "Show more indicators",
+      "show_less": "Show fewer indicators",
+      "apply_filter": "Filter by {label}",
+      "remove_filter": "Remove the {label} filter"
+    },
+    "filter_summary": {
+      "title": "Filter summary",
+      "results": "{count} customer(s)",
+      "updating": "Updating…",
+      "active_count": "{count} active criterion/criteria",
+      "mode_label": "Quick-filter combination mode",
+      "modes": {
+        "all": "All criteria",
+        "any": "At least one criterion"
+      },
+      "quick_filters_label": "Customer quick filters",
+      "search_badge": "Search: {value}",
+      "filter_badge": "{label}: {value}",
+      "remove": "Remove {label}",
+      "clear_all": "Clear filters"
+    },
+    "advanced_filters": {
+      "title": "Advanced filters",
+      "description": "Refine the list by profile, appointments, billing, or period.",
+      "close": "Close advanced filters",
+      "reset": "Reset",
+      "apply": "Apply filters",
+      "trigger_active": "Filters ({count})",
+      "draft_count": "{count} draft criterion/criteria",
+      "current_results": "{count} current result(s)",
+      "sections": {
+        "profile": "Customer profile",
+        "appointments": "Appointments",
+        "billing": "Billing",
+        "period": "Period"
+      },
+      "options": {
+        "any": "Any",
+        "yes": "Yes",
+        "no": "No"
+      },
+      "fields": {
+        "city": "City",
+        "country": "Country",
+        "has_quotes": "Has a quote",
+        "has_works": "Has a job",
+        "status": "Status",
+        "client_type": "Customer type",
+        "is_vip": "VIP customer",
+        "vip": "VIP customer",
+        "vip_tier_id": "VIP tier",
+        "vip_tier": "VIP tier",
+        "acquisition_source": "Acquisition source",
+        "tags": "Tags",
+        "tags_hint": "Separate tags with commas",
+        "has_active_package": "Has an active package",
+        "package_status": "Package status",
+        "package_remaining_lte": "Maximum package balance",
+        "package_expires_within_days": "Package expiry (days)",
+        "package_is_recurring": "Recurring package",
+        "package_recurrence_status": "Recurrence status",
+        "has_upcoming_appointment": "Has an upcoming appointment",
+        "upcoming_appointment": "Upcoming appointment",
+        "last_appointment_from": "Last appointment from",
+        "last_appointment_to": "Last appointment to",
+        "next_appointment_from": "Next appointment from",
+        "next_appointment_to": "Next appointment to",
+        "appointments_min": "Minimum appointments",
+        "appointments_max": "Maximum appointments",
+        "cancellations_min": "Minimum cancellations",
+        "no_shows_min": "Minimum missed appointments",
+        "has_outstanding_balance": "Has an outstanding balance",
+        "outstanding_balance": "Outstanding balance",
+        "outstanding_min": "Minimum outstanding balance",
+        "outstanding_max": "Maximum outstanding balance",
+        "total_invoiced_min": "Minimum total invoiced",
+        "total_invoiced_max": "Maximum total invoiced",
+        "last_invoice_from": "Last invoice from",
+        "last_invoice_to": "Last invoice to",
+        "payment_statuses": "Payment statuses",
+        "created_from": "Created from",
+        "created_to": "Created to"
+      },
+      "payment_statuses": {
+        "pending": "Pending",
+        "paid": "Paid",
+        "completed": "Completed",
+        "failed": "Failed",
+        "refunded": "Refunded",
+        "reversed": "Reversed"
+      }
+    },
+    "states": {
+      "empty": {
+        "title": "No customers",
+        "description": "Add a customer to start building your directory.",
+        "action": "Add customer"
+      },
+      "no-results": {
+        "title": "No results",
+        "description": "No customer matches the active criteria.",
+        "action": "Clear filters"
+      },
+      "error": {
+        "title": "Unable to load customers",
+        "description": "An error occurred while updating the list.",
+        "action": "Try again"
+      }
+    },
+    "accessibility": {
+      "select_all": "Select all visible customers",
+      "select_customer": "Select {name}"
     },
     "activity": {
       "title": "Top customer activity",
@@ -38,7 +164,11 @@
         "all": "All",
         "vip": "VIP",
         "new": "New",
+        "new_this_month": "New this month",
         "no_next_appointment": "No next appointment",
+        "upcoming_appointment": "Upcoming appointment",
+        "outstanding_balance": "Outstanding balance",
+        "inactive": "Inactive",
         "follow_up_90": "Follow up (90 days)",
         "package_low": "Package nearly used",
         "unpaid": "Unpaid balance",
@@ -61,7 +191,8 @@
         "package_remaining": "{count} session(s) remaining",
         "total_spent": "Spent",
         "tip_total": "Tips",
-        "unpaid_balance": "Balance"
+        "unpaid_balance": "Balance",
+        "no_unpaid_balance": "No outstanding balance"
       },
       "actions": {
         "book": "Book appointment",

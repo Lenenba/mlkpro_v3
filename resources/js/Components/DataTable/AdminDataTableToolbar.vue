@@ -37,6 +37,14 @@ defineProps({
         type: String,
         default: 'Apply',
     },
+    filtersAvailable: {
+        type: Boolean,
+        default: false,
+    },
+    filtersControls: {
+        type: String,
+        default: undefined,
+    },
 });
 
 const slots = useSlots();
@@ -51,10 +59,12 @@ const slots = useSlots();
 
             <div class="flex flex-wrap items-center justify-end gap-2">
                 <button
-                    v-if="slots.filters"
+                    v-if="slots.filters || filtersAvailable"
                     type="button"
                     :class="crmButtonClass('secondary', 'toolbar')"
                     :disabled="busy"
+                    :aria-expanded="String(showFilters)"
+                    :aria-controls="filtersControls"
                     @click="$emit('toggle-filters')"
                 >
                     {{ filtersLabel }}

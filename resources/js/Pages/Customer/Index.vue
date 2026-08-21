@@ -4,7 +4,7 @@ import { Head } from '@inertiajs/vue3';
 import CustomerStats from '@/Components/UI/CustomerStats.vue';
 import CustomerActivityStat from '@/Components/UI/CustomerActivityStat.vue';
 import CustomerTable from './UI/CustomerTable.vue';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
 const props = defineProps({
@@ -12,6 +12,18 @@ const props = defineProps({
     filters: Object,
     count: Number,
     stats: Object,
+    kpis: {
+        type: Object,
+        default: () => ({}),
+    },
+    filterMeta: {
+        type: Object,
+        default: () => ({}),
+    },
+    filterOptions: {
+        type: Object,
+        default: () => ({}),
+    },
     topCustomers: Array,
     bulkActions: {
         type: Object,
@@ -41,22 +53,34 @@ const props = defineProps({
 });
 
 const { hasFeature } = useAccountFeatures();
+const customerTableRef = ref(null);
 const showOperationalActivity = computed(() => (
     props.customerIndexContext?.profile !== 'appointment'
     && (hasFeature('quotes') || hasFeature('jobs'))
 ));
+const activateKpiFilter = (action) => customerTableRef.value?.applyKpiFilter?.(action);
 </script>
 <template>
 
     <Head :title="$t('customers.title')" />
     <AuthenticatedLayout>
-        <CustomerStats :stats="stats" :customer-index-context="customerIndexContext" />
+        <CustomerStats
+            :kpis="kpis"
+            :stats="stats"
+            :filters="filters"
+            :filter-meta="filterMeta"
+            :customer-index-context="customerIndexContext"
+            @activate-filter="activateKpiFilter"
+        />
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-2 md:gap-3 lg:gap-5 ">
             <div class="col-span-1" :class="showOperationalActivity ? 'lg:col-span-3' : 'lg:col-span-4'">
                 <CustomerTable
+                    ref="customerTableRef"
                     :customers="customers"
                     :filters="filters"
                     :count="count"
+                    :filter-meta="filterMeta"
+                    :filter-options="filterOptions"
                     :bulk-actions="bulkActions"
                     :can-edit="canEdit"
                     :saved-segments="savedSegments"

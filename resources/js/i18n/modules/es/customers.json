@@ -4,9 +4,135 @@
     "stats": {
       "total": "Clientes totales",
       "new": "Nuevos (30 días)",
-      "active": "Activos (30 días)",
+      "new_this_month": "Nuevos este mes",
+      "active": "Clientes activos",
+      "inactive": "Clientes inactivos",
+      "vip": "Clientes VIP",
+      "no_next_appointment": "Sin próxima cita",
+      "outstanding": "Saldos pendientes",
+      "customers_count": "{count} cliente(s)",
+      "recent_cancellations": "Cancelaciones recientes",
+      "recent_no_shows": "Citas perdidas",
+      "return_rate": "Tasa de retorno",
+      "average_value_per_customer": "Valor medio por cliente",
+      "average_appointments_per_customer": "Promedio de citas por cliente",
       "with_quotes": "Con cotizaciones",
       "with_jobs": "Con trabajos"
+    },
+    "kpis": {
+      "title": "Indicadores de clientes",
+      "show_more": "Ver más indicadores",
+      "show_less": "Ver menos indicadores",
+      "apply_filter": "Filtrar por {label}",
+      "remove_filter": "Quitar el filtro {label}"
+    },
+    "filter_summary": {
+      "title": "Resumen de filtros",
+      "results": "{count} cliente(s)",
+      "updating": "Actualizando…",
+      "active_count": "{count} criterio(s) activo(s)",
+      "mode_label": "Modo de combinación de filtros rápidos",
+      "modes": {
+        "all": "Todos los criterios",
+        "any": "Al menos un criterio"
+      },
+      "quick_filters_label": "Filtros rápidos de clientes",
+      "search_badge": "Búsqueda: {value}",
+      "filter_badge": "{label}: {value}",
+      "remove": "Quitar {label}",
+      "clear_all": "Borrar filtros"
+    },
+    "advanced_filters": {
+      "title": "Filtros avanzados",
+      "description": "Refina la lista por perfil, citas, facturación o periodo.",
+      "close": "Cerrar filtros avanzados",
+      "reset": "Restablecer",
+      "apply": "Aplicar filtros",
+      "trigger_active": "Filtros ({count})",
+      "draft_count": "{count} criterio(s) en borrador",
+      "current_results": "{count} resultado(s) actual(es)",
+      "sections": {
+        "profile": "Perfil del cliente",
+        "appointments": "Citas",
+        "billing": "Facturación",
+        "period": "Periodo"
+      },
+      "options": {
+        "any": "Cualquiera",
+        "yes": "Sí",
+        "no": "No"
+      },
+      "fields": {
+        "city": "Ciudad",
+        "country": "País",
+        "has_quotes": "Tiene una cotización",
+        "has_works": "Tiene un trabajo",
+        "status": "Estado",
+        "client_type": "Tipo de cliente",
+        "is_vip": "Cliente VIP",
+        "vip": "Cliente VIP",
+        "vip_tier_id": "Nivel VIP",
+        "vip_tier": "Nivel VIP",
+        "acquisition_source": "Fuente de adquisición",
+        "tags": "Etiquetas",
+        "tags_hint": "Separa las etiquetas con comas",
+        "has_active_package": "Tiene un paquete activo",
+        "package_status": "Estado del paquete",
+        "package_remaining_lte": "Saldo máximo del paquete",
+        "package_expires_within_days": "Vencimiento del paquete (días)",
+        "package_is_recurring": "Paquete recurrente",
+        "package_recurrence_status": "Estado de recurrencia",
+        "has_upcoming_appointment": "Tiene una próxima cita",
+        "upcoming_appointment": "Próxima cita",
+        "last_appointment_from": "Última cita desde",
+        "last_appointment_to": "Última cita hasta",
+        "next_appointment_from": "Próxima cita desde",
+        "next_appointment_to": "Próxima cita hasta",
+        "appointments_min": "Número mínimo de citas",
+        "appointments_max": "Número máximo de citas",
+        "cancellations_min": "Número mínimo de cancelaciones",
+        "no_shows_min": "Número mínimo de citas perdidas",
+        "has_outstanding_balance": "Tiene saldo pendiente",
+        "outstanding_balance": "Saldo pendiente",
+        "outstanding_min": "Saldo pendiente mínimo",
+        "outstanding_max": "Saldo pendiente máximo",
+        "total_invoiced_min": "Total facturado mínimo",
+        "total_invoiced_max": "Total facturado máximo",
+        "last_invoice_from": "Última factura desde",
+        "last_invoice_to": "Última factura hasta",
+        "payment_statuses": "Estados de pago",
+        "created_from": "Creado desde",
+        "created_to": "Creado hasta"
+      },
+      "payment_statuses": {
+        "pending": "Pendiente",
+        "paid": "Pagado",
+        "completed": "Completado",
+        "failed": "Fallido",
+        "refunded": "Reembolsado",
+        "reversed": "Anulado"
+      }
+    },
+    "states": {
+      "empty": {
+        "title": "No hay clientes",
+        "description": "Agrega un cliente para comenzar tu directorio.",
+        "action": "Agregar cliente"
+      },
+      "no-results": {
+        "title": "Sin resultados",
+        "description": "Ningún cliente coincide con los criterios activos.",
+        "action": "Borrar filtros"
+      },
+      "error": {
+        "title": "No se pudieron cargar los clientes",
+        "description": "Ocurrió un error al actualizar la lista.",
+        "action": "Reintentar"
+      }
+    },
+    "accessibility": {
+      "select_all": "Seleccionar todos los clientes visibles",
+      "select_customer": "Seleccionar {name}"
     },
     "activity": {
       "title": "Actividad principal de clientes",
@@ -38,7 +164,11 @@
         "all": "Todos",
         "vip": "VIP",
         "new": "Nuevos",
+        "new_this_month": "Nuevos este mes",
         "no_next_appointment": "Sin próxima cita",
+        "upcoming_appointment": "Próxima cita",
+        "outstanding_balance": "Saldo pendiente",
+        "inactive": "Inactivos",
         "follow_up_90": "Por contactar (90 días)",
         "package_low": "Paquete casi agotado",
         "unpaid": "Saldo pendiente",
@@ -61,7 +191,8 @@
         "package_remaining": "{count} sesión(es) restante(s)",
         "total_spent": "Gastado",
         "tip_total": "Propinas",
-        "unpaid_balance": "Saldo"
+        "unpaid_balance": "Saldo",
+        "no_unpaid_balance": "Sin saldo pendiente"
       },
       "actions": {
         "book": "Reservar",

@@ -1,6 +1,8 @@
 <script setup>
 import {
     computed,
+    nextTick,
+    onUnmounted,
     ref,
     watch,
 } from 'vue';
@@ -15,12 +17,12 @@ import SavedSegmentBar from '@/Components/CRM/SavedSegmentBar.vue';
 import CustomerActionsMenu from '@/Pages/Customer/UI/CustomerActionsMenu.vue';
 import CustomerBulkContactModal from '@/Pages/Customer/UI/CustomerBulkContactModal.vue';
 import CustomerEmptyState from '@/Pages/Customer/UI/CustomerEmptyState.vue';
+import CustomerAdvancedFiltersDialog from '@/Components/Customer/CustomerAdvancedFiltersDialog.vue';
+import CustomerFilterSummary from '@/Components/Customer/CustomerFilterSummary.vue';
 import { humanizeDate } from '@/utils/date';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { useDataTableSelection } from '@/Composables/useDataTableSelection';
 import Checkbox from '@/Components/Checkbox.vue';
-import FloatingSelect from '@/Components/FloatingSelect.vue';
-import DatePicker from '@/Components/DatePicker.vue';
 import { crmButtonClass, crmSegmentedControlButtonClass, crmSegmentedControlClass } from '@/utils/crmButtonStyles';
 import { useI18n } from 'vue-i18n';
 import {
@@ -35,6 +37,16 @@ import { useCurrencyFormatter } from '@/utils/currency';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 import 'dayjs/locale/es';
+import {
+    compactCustomerFilterPayload,
+    countActiveCustomerAdvancedFilters,
+    createCustomerAdvancedFilters,
+    initialCustomerQuickFilters,
+    isCustomerFilterValueActive,
+    normalizeAvailableCustomerFilters,
+    normalizeCustomerQuickFilterMode,
+    toggleCustomerQuickFilter,
+} from '@/utils/customerFilters';
 
 const props = defineProps({
     filters: Object,
@@ -45,6 +57,14 @@ const props = defineProps({
     count: {
         type: Number,
         required: true,
+    },
+    filterMeta: {
+        type: Object,
+        default: () => ({}),
+    },
+    filterOptions: {
+        type: Object,
+        default: () => ({}),
     },
     bulkActions: {
         type: Object,
@@ -79,6 +99,7 @@ const { formatCurrency } = useCurrencyFormatter();
 const appointmentProfile = computed(() => props.customerIndexContext?.profile === 'appointment');
 const contextCapabilities = computed(() => props.customerIndexContext?.capabilities || {});
 const contextActions = computed(() => props.customerIndexContext?.actions || {});
+const vipCapabilityEnabled = computed(() => Boolean(contextCapabilities.value.campaigns));
 const quotesFeatureEnabled = computed(() => !appointmentProfile.value && hasFeature('quotes'));
 const jobsFeatureEnabled = computed(() => !appointmentProfile.value && hasFeature('jobs'));
 const customerSearchPlaceholder = computed(() => t(
@@ -148,22 +169,16 @@ const campaignsFeatureEnabled = computed(() => {
     return canEdit.value && hasFeature('campaigns');
 });
 
+const availableFilterKeys = computed(() => normalizeAvailableCustomerFilters(
+    props.filterMeta?.available_filters
+));
 const filterForm = useForm({
+    ...createCustomerAdvancedFilters(props.filters),
     name: props.filters?.name ?? '',
-    city: props.filters?.city ?? '',
-    country: props.filters?.country ?? '',
-    has_quotes: quotesFeatureEnabled.value ? (props.filters?.has_quotes ?? '') : '',
-    has_works: jobsFeatureEnabled.value ? (props.filters?.has_works ?? '') : '',
-    status: props.filters?.status ?? '',
-    created_from: props.filters?.created_from ?? '',
-    created_to: props.filters?.created_to ?? '',
-    has_active_package: packagesCapabilityEnabled.value ? (props.filters?.has_active_package ?? '') : '',
-    package_status: packagesCapabilityEnabled.value ? (props.filters?.package_status ?? '') : '',
-    package_remaining_lte: packagesCapabilityEnabled.value ? (props.filters?.package_remaining_lte ?? '') : '',
-    package_expires_within_days: packagesCapabilityEnabled.value ? (props.filters?.package_expires_within_days ?? '') : '',
-    package_is_recurring: packagesCapabilityEnabled.value ? (props.filters?.package_is_recurring ?? '') : '',
-    package_recurrence_status: packagesCapabilityEnabled.value ? (props.filters?.package_recurrence_status ?? '') : '',
-    operational_filter: appointmentProfile.value ? (props.filters?.operational_filter ?? '') : '',
+    quick_filters: initialCustomerQuickFilters(props.filters, availableFilterKeys.value),
+    quick_filter_mode: normalizeCustomerQuickFilterMode(
+        props.filters?.quick_filter_mode ?? props.filterMeta?.quick_filter_mode
+    ),
     sort: initialSort,
     direction: props.filters?.direction ?? 'desc',
 });
@@ -181,84 +196,30 @@ const customerTableColumnCount = computed(() => {
         + (loyaltyOrPackagesEnabled.value ? 1 : 0)
         + (customerValueCapabilityEnabled.value ? 1 : 0);
 });
-const compactObject = (payload) => Object.fromEntries(
-    Object.entries(payload || {}).filter(([, value]) => value !== '' && value !== null && value !== undefined)
-);
+const compactObject = compactCustomerFilterPayload;
 const segmentFilterValue = (value) => (value === null || value === undefined ? '' : String(value));
-const quoteFilterOptions = computed(() => ([
-    { value: '', label: t('customers.filters.quotes') },
-    { value: '1', label: t('customers.filters.with_quotes') },
-    { value: '0', label: t('customers.filters.no_quotes') },
-]));
-const jobFilterOptions = computed(() => ([
-    { value: '', label: t('customers.filters.jobs') },
-    { value: '1', label: t('customers.filters.with_jobs') },
-    { value: '0', label: t('customers.filters.no_jobs') },
-]));
-const statusFilterOptions = computed(() => ([
-    { value: '', label: t('customers.filters.status') },
-    { value: 'active', label: t('customers.status.active') },
-    { value: 'archived', label: t('customers.status.archived') },
-]));
-const packagePresenceOptions = computed(() => ([
-    { value: '', label: t('customers.filters.active_package') },
-    { value: '1', label: t('customers.filters.with_active_package') },
-    { value: '0', label: t('customers.filters.no_active_package') },
-]));
-const packageStatusOptions = computed(() => ([
-    { value: '', label: t('customers.filters.package_status') },
-    { value: 'active', label: t('customers.details.customer_packages.statuses.active') },
-    { value: 'consumed', label: t('customers.details.customer_packages.statuses.consumed') },
-    { value: 'expired', label: t('customers.details.customer_packages.statuses.expired') },
-    { value: 'cancelled', label: t('customers.details.customer_packages.statuses.cancelled') },
-]));
-const packageRecurringOptions = computed(() => ([
-    { value: '', label: t('customers.filters.package_recurrence') },
-    { value: '1', label: t('customers.filters.package_recurring') },
-    { value: '0', label: t('customers.filters.package_non_recurring') },
-]));
-const packageRecurrenceStatusOptions = computed(() => ([
-    { value: '', label: t('customers.filters.package_recurrence_status') },
-    { value: 'active', label: t('customers.details.customer_packages.recurrence_statuses.active') },
-    { value: 'payment_due', label: t('customers.details.customer_packages.recurrence_statuses.payment_due') },
-    { value: 'suspended', label: t('customers.details.customer_packages.recurrence_statuses.suspended') },
-    { value: 'cancelled', label: t('customers.details.customer_packages.recurrence_statuses.cancelled') },
-]));
 const operationalQuickFilters = computed(() => {
-    if (!appointmentProfile.value) {
-        return [];
-    }
+    const available = new Set(availableFilterKeys.value);
+    const candidates = [
+        { value: 'vip', capability: vipCapabilityEnabled.value },
+        { value: 'new', capability: true },
+        { value: 'new_this_month', capability: true },
+        { value: 'inactive', capability: true },
+        { value: 'no_next_appointment', capability: reservationsCapabilityEnabled.value },
+        { value: 'upcoming_appointment', capability: reservationsCapabilityEnabled.value },
+        { value: 'follow_up_90', capability: reservationsCapabilityEnabled.value },
+        { value: 'package_low', capability: packagesCapabilityEnabled.value },
+        { value: 'outstanding_balance', capability: invoicesCapabilityEnabled.value },
+        { value: 'birthday_upcoming', capability: birthdaysCapabilityEnabled.value },
+    ];
 
-    return [
-        { value: '', label: t('customers.appointment.quick_filters.all') },
-        campaignsCapabilityEnabled.value
-            ? { value: 'vip', label: t('customers.appointment.quick_filters.vip') }
-            : null,
-        { value: 'new', label: t('customers.appointment.quick_filters.new') },
-        reservationsCapabilityEnabled.value
-            ? { value: 'no_next_appointment', label: t('customers.appointment.quick_filters.no_next_appointment') }
-            : null,
-        reservationsCapabilityEnabled.value
-            ? { value: 'follow_up_90', label: t('customers.appointment.quick_filters.follow_up_90') }
-            : null,
-        packagesCapabilityEnabled.value
-            ? { value: 'package_low', label: t('customers.appointment.quick_filters.package_low') }
-            : null,
-        invoicesCapabilityEnabled.value
-            ? { value: 'unpaid', label: t('customers.appointment.quick_filters.unpaid') }
-            : null,
-        birthdaysCapabilityEnabled.value
-            ? { value: 'birthday_upcoming', label: t('customers.appointment.quick_filters.birthday_upcoming') }
-            : null,
-    ].filter(Boolean);
+    return candidates
+        .filter(({ value, capability }) => available.size ? available.has(value) : capability)
+        .map(({ value }) => ({
+            value,
+            label: t(`customers.appointment.quick_filters.${value}`),
+        }));
 });
-const normalizeOperationalQuickFilter = (value) => {
-    const normalized = segmentFilterValue(value);
-
-    return operationalQuickFilters.value.some((filter) => filter.value === normalized)
-        ? normalized
-        : '';
-};
 const isViewSwitching = ref(false);
 const allowedViews = ['table', 'cards'];
 const viewMode = ref('table');
@@ -267,20 +228,9 @@ const shouldShowSavedSegments = computed(() =>
     Boolean(props.canManageSavedSegments) || (Array.isArray(props.savedSegments) && props.savedSegments.length > 0)
 );
 const savedSegmentFilters = computed(() => compactObject({
-    city: filterForm.city,
-    country: filterForm.country,
-    has_quotes: quotesFeatureEnabled.value ? filterForm.has_quotes : '',
-    has_works: jobsFeatureEnabled.value ? filterForm.has_works : '',
-    status: filterForm.status,
-    created_from: filterForm.created_from,
-    created_to: filterForm.created_to,
-    has_active_package: packagesCapabilityEnabled.value ? filterForm.has_active_package : '',
-    package_status: packagesCapabilityEnabled.value ? filterForm.package_status : '',
-    package_remaining_lte: packagesCapabilityEnabled.value ? filterForm.package_remaining_lte : '',
-    package_expires_within_days: packagesCapabilityEnabled.value ? filterForm.package_expires_within_days : '',
-    package_is_recurring: packagesCapabilityEnabled.value ? filterForm.package_is_recurring : '',
-    package_recurrence_status: packagesCapabilityEnabled.value ? filterForm.package_recurrence_status : '',
-    operational_filter: appointmentProfile.value ? filterForm.operational_filter : '',
+    ...createCustomerAdvancedFilters(filterForm),
+    quick_filters: filterForm.quick_filters,
+    quick_filter_mode: filterForm.quick_filter_mode,
 }));
 const savedSegmentSort = computed(() => compactObject({
     sort: filterForm.sort,
@@ -314,130 +264,141 @@ const setViewMode = (mode) => {
 };
 
 const filterPayload = () => {
-    const payload = {
+    const advanced = createCustomerAdvancedFilters(filterForm);
+    const payload = compactObject({
+        ...advanced,
         name: filterForm.name,
-        city: filterForm.city,
-        country: filterForm.country,
-        has_quotes: quotesFeatureEnabled.value ? filterForm.has_quotes : '',
-        has_works: jobsFeatureEnabled.value ? filterForm.has_works : '',
-        status: filterForm.status,
-        created_from: filterForm.created_from,
-        created_to: filterForm.created_to,
-        has_active_package: packagesCapabilityEnabled.value ? filterForm.has_active_package : '',
-        package_status: packagesCapabilityEnabled.value ? filterForm.package_status : '',
-        package_remaining_lte: packagesCapabilityEnabled.value ? filterForm.package_remaining_lte : '',
-        package_expires_within_days: packagesCapabilityEnabled.value ? filterForm.package_expires_within_days : '',
-        package_is_recurring: packagesCapabilityEnabled.value ? filterForm.package_is_recurring : '',
-        package_recurrence_status: packagesCapabilityEnabled.value ? filterForm.package_recurrence_status : '',
-        operational_filter: appointmentProfile.value ? filterForm.operational_filter : '',
+        quick_filters: filterForm.quick_filters,
+        quick_filter_mode: filterForm.quick_filter_mode === 'any' ? 'any' : '',
         sort: filterForm.sort,
         direction: filterForm.direction,
         per_page: currentPerPage.value,
-    };
-
-    Object.keys(payload).forEach((key) => {
-        const value = payload[key];
-        if (value === '' || value === null || value === undefined) {
-            delete payload[key];
-        }
     });
 
     return payload;
 };
 
 let filterTimeout;
-const autoFilter = () => {
+let latestFilterVisit = 0;
+let synchronizingFilters = false;
+const filterError = ref(false);
+const stopFilterExceptionListener = router.on('exception', () => {
+    if (isLoading.value) {
+        filterError.value = true;
+    }
+});
+const stopInvalidResponseListener = router.on('invalid', () => {
+    if (isLoading.value) {
+        filterError.value = true;
+    }
+});
+
+onUnmounted(() => {
     if (filterTimeout) {
         clearTimeout(filterTimeout);
     }
-    filterTimeout = setTimeout(() => {
+    if (viewSwitchTimeout) {
+        clearTimeout(viewSwitchTimeout);
+    }
+    stopFilterExceptionListener();
+    stopInvalidResponseListener();
+});
+
+const visitFilters = ({ replace = false, debounce = 0 } = {}) => {
+    if (filterTimeout) {
+        clearTimeout(filterTimeout);
+    }
+
+    const visit = () => {
+        const visitId = ++latestFilterVisit;
         isLoading.value = true;
+        filterError.value = false;
         router.get(route('customer.index'), filterPayload(), {
-            only: ['customers', 'filters', 'stats', 'count', 'topCustomers'],
+            only: ['customers', 'filters', 'count', 'filterMeta', 'topCustomers'],
             preserveState: true,
             preserveScroll: true,
-            replace: true,
+            replace,
+            onError: () => {
+                if (visitId === latestFilterVisit) {
+                    filterError.value = true;
+                }
+            },
             onFinish: () => {
-                isLoading.value = false;
+                if (visitId === latestFilterVisit) {
+                    isLoading.value = false;
+                }
             },
         });
-    }, 300);
+    };
+
+    if (debounce > 0) {
+        filterTimeout = setTimeout(visit, debounce);
+        return;
+    }
+
+    visit();
+};
+
+const autoFilter = () => visitFilters({ replace: true, debounce: 300 });
+const updateFiltersExplicitly = (callback) => {
+    synchronizingFilters = true;
+    callback();
+    visitFilters({ replace: false });
+    nextTick(() => {
+        synchronizingFilters = false;
+    });
 };
 
 watch(() => filterForm.name, () => {
-    autoFilter();
+    if (!synchronizingFilters) {
+        autoFilter();
+    }
 });
 
-watch(() => [
-    filterForm.city,
-    filterForm.country,
-    filterForm.has_quotes,
-    filterForm.has_works,
-    filterForm.status,
-    filterForm.created_from,
-    filterForm.created_to,
-    filterForm.has_active_package,
-    filterForm.package_status,
-    filterForm.package_remaining_lte,
-    filterForm.package_expires_within_days,
-    filterForm.package_is_recurring,
-    filterForm.package_recurrence_status,
-    filterForm.operational_filter,
-    filterForm.sort,
-    filterForm.direction,
-], () => {
-    autoFilter();
-});
+watch(() => props.filters, async (filters) => {
+    synchronizingFilters = true;
+    Object.assign(filterForm, createCustomerAdvancedFilters(filters), {
+        name: filters?.name ?? '',
+        quick_filters: initialCustomerQuickFilters(filters, availableFilterKeys.value),
+        quick_filter_mode: normalizeCustomerQuickFilterMode(
+            filters?.quick_filter_mode ?? props.filterMeta?.quick_filter_mode
+        ),
+        sort: featureSortIsAvailable(filters?.sort) ? (filters?.sort ?? 'created_at') : 'created_at',
+        direction: filters?.direction ?? 'desc',
+    });
+    await nextTick();
+    synchronizingFilters = false;
+}, { deep: true });
 
 const clearFilters = () => {
-    filterForm.name = '';
-    filterForm.city = '';
-    filterForm.country = '';
-    filterForm.has_quotes = '';
-    filterForm.has_works = '';
-    filterForm.status = '';
-    filterForm.created_from = '';
-    filterForm.created_to = '';
-    filterForm.has_active_package = '';
-    filterForm.package_status = '';
-    filterForm.package_remaining_lte = '';
-    filterForm.package_expires_within_days = '';
-    filterForm.package_is_recurring = '';
-    filterForm.package_recurrence_status = '';
-    filterForm.operational_filter = '';
-    filterForm.sort = 'created_at';
-    filterForm.direction = 'desc';
-    autoFilter();
+    updateFiltersExplicitly(() => {
+        Object.assign(filterForm, createCustomerAdvancedFilters(), {
+            name: '',
+            quick_filters: [],
+            quick_filter_mode: 'all',
+            sort: 'created_at',
+            direction: 'desc',
+        });
+    });
 };
 
 const applySavedSegment = (segment) => {
     const filters = segment?.filters && typeof segment.filters === 'object' ? segment.filters : {};
     const sort = segment?.sort && typeof segment.sort === 'object' ? segment.sort : {};
-
-    filterForm.name = String(segment?.search_term || '');
-    filterForm.city = segmentFilterValue(filters.city);
-    filterForm.country = segmentFilterValue(filters.country);
-    filterForm.has_quotes = quotesFeatureEnabled.value ? segmentFilterValue(filters.has_quotes) : '';
-    filterForm.has_works = jobsFeatureEnabled.value ? segmentFilterValue(filters.has_works) : '';
-    filterForm.status = segmentFilterValue(filters.status);
-    filterForm.created_from = segmentFilterValue(filters.created_from);
-    filterForm.created_to = segmentFilterValue(filters.created_to);
-    filterForm.has_active_package = packagesCapabilityEnabled.value ? segmentFilterValue(filters.has_active_package) : '';
-    filterForm.package_status = packagesCapabilityEnabled.value ? segmentFilterValue(filters.package_status) : '';
-    filterForm.package_remaining_lte = packagesCapabilityEnabled.value ? segmentFilterValue(filters.package_remaining_lte) : '';
-    filterForm.package_expires_within_days = packagesCapabilityEnabled.value ? segmentFilterValue(filters.package_expires_within_days) : '';
-    filterForm.package_is_recurring = packagesCapabilityEnabled.value ? segmentFilterValue(filters.package_is_recurring) : '';
-    filterForm.package_recurrence_status = packagesCapabilityEnabled.value ? segmentFilterValue(filters.package_recurrence_status) : '';
-    filterForm.operational_filter = appointmentProfile.value
-        ? normalizeOperationalQuickFilter(filters.operational_filter)
-        : '';
     const requestedSort = segmentFilterValue(sort.sort) || 'created_at';
     const requestedSortIsAvailable = featureSortIsAvailable(requestedSort);
-    filterForm.sort = requestedSortIsAvailable ? requestedSort : 'created_at';
-    filterForm.direction = requestedSortIsAvailable
-        ? (segmentFilterValue(sort.direction) || 'desc')
-        : 'desc';
-    autoFilter();
+
+    updateFiltersExplicitly(() => {
+        Object.assign(filterForm, createCustomerAdvancedFilters(filters), {
+            name: String(segment?.search_term || ''),
+            quick_filters: initialCustomerQuickFilters(filters, availableFilterKeys.value),
+            quick_filter_mode: normalizeCustomerQuickFilterMode(filters.quick_filter_mode),
+            sort: requestedSortIsAvailable ? requestedSort : 'created_at',
+            direction: requestedSortIsAvailable
+                ? (segmentFilterValue(sort.direction) || 'desc')
+                : 'desc',
+        });
+    });
 };
 
 const toggleSort = (column) => {
@@ -445,23 +406,187 @@ const toggleSort = (column) => {
         return;
     }
 
-    if (filterForm.sort === column) {
-        filterForm.direction = filterForm.direction === 'asc' ? 'desc' : 'asc';
-        return;
-    }
-    filterForm.sort = column;
-    filterForm.direction = 'asc';
+    updateFiltersExplicitly(() => {
+        if (filterForm.sort === column) {
+            filterForm.direction = filterForm.direction === 'asc' ? 'desc' : 'asc';
+            return;
+        }
+        filterForm.sort = column;
+        filterForm.direction = 'asc';
+    });
 };
+const ariaSort = (column) => (
+    filterForm.sort === column
+        ? (filterForm.direction === 'asc' ? 'ascending' : 'descending')
+        : 'none'
+);
 
 const operationalQuickFilterClass = (value) => (
-    filterForm.operational_filter === value
+    filterForm.quick_filters.includes(value)
         ? 'border-transparent bg-green-600 text-white dark:bg-green-500 dark:text-white'
         : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800'
 );
 
 const setOperationalQuickFilter = (value) => {
-    filterForm.operational_filter = value;
+    updateFiltersExplicitly(() => {
+        filterForm.quick_filters = toggleCustomerQuickFilter(filterForm.quick_filters, value);
+    });
 };
+
+const clearQuickFilters = () => {
+    if (!filterForm.quick_filters.length) {
+        return;
+    }
+
+    updateFiltersExplicitly(() => {
+        filterForm.quick_filters = [];
+    });
+};
+
+const setQuickFilterMode = (mode) => {
+    const normalized = normalizeCustomerQuickFilterMode(mode);
+    if (filterForm.quick_filter_mode === normalized) {
+        return;
+    }
+
+    updateFiltersExplicitly(() => {
+        filterForm.quick_filter_mode = normalized;
+    });
+};
+
+const applyAdvancedFilters = (filters) => {
+    updateFiltersExplicitly(() => {
+        Object.assign(filterForm, createCustomerAdvancedFilters(filters));
+        showAdvanced.value = false;
+    });
+};
+
+const applyKpiFilter = (action) => {
+    if (!action || typeof action !== 'object') {
+        return;
+    }
+
+    if (action.type === 'quick') {
+        setOperationalQuickFilter(action.key);
+        return;
+    }
+
+    if (action.type === 'advanced' && action.key in createCustomerAdvancedFilters()) {
+        updateFiltersExplicitly(() => {
+            filterForm[action.key] = String(filterForm[action.key] ?? '') === String(action.value ?? '')
+                ? ''
+                : action.value;
+        });
+    }
+};
+
+defineExpose({ applyKpiFilter });
+
+const formatFilterValue = (key, value) => {
+    if (Array.isArray(value)) {
+        return value.join(', ');
+    }
+
+    if (value === '1') {
+        return t('customers.advanced_filters.options.yes');
+    }
+
+    if (value === '0') {
+        return t('customers.advanced_filters.options.no');
+    }
+
+    if (key === 'status' && ['active', 'archived'].includes(value)) {
+        return t(`customers.status.${value}`);
+    }
+
+    if (key === 'client_type' && ['individual', 'company'].includes(value)) {
+        return t(`customers.form.client_types.${value}`);
+    }
+
+    return String(value);
+};
+
+const activeFilterBadges = computed(() => {
+    const badges = [];
+    const search = String(filterForm.name || '').trim();
+
+    if (search) {
+        badges.push({
+            id: 'search',
+            kind: 'search',
+            key: 'name',
+            label: t('customers.filter_summary.search_badge', { value: search }),
+        });
+    }
+
+    filterForm.quick_filters.forEach((key) => {
+        const definition = operationalQuickFilters.value.find((filter) => filter.value === key);
+        if (definition) {
+            badges.push({
+                id: `quick:${key}`,
+                kind: 'quick',
+                key,
+                label: definition.label,
+            });
+        }
+    });
+
+    const advanced = createCustomerAdvancedFilters(filterForm);
+    Object.entries(advanced).forEach(([key, value]) => {
+        if (!isCustomerFilterValueActive(value)) {
+            return;
+        }
+
+        badges.push({
+            id: `advanced:${key}`,
+            kind: 'advanced',
+            key,
+            label: t('customers.filter_summary.filter_badge', {
+                label: t(`customers.advanced_filters.fields.${key}`),
+                value: formatFilterValue(key, value),
+            }),
+        });
+    });
+
+    return badges;
+});
+
+const removeActiveFilter = (filter) => {
+    if (!filter) {
+        return;
+    }
+
+    updateFiltersExplicitly(() => {
+        if (filter.kind === 'search') {
+            filterForm.name = '';
+            return;
+        }
+
+        if (filter.kind === 'quick') {
+            filterForm.quick_filters = filterForm.quick_filters.filter((key) => key !== filter.key);
+            return;
+        }
+
+        const defaults = createCustomerAdvancedFilters();
+        if (filter.key in defaults) {
+            filterForm[filter.key] = defaults[filter.key];
+        }
+    });
+};
+
+const matchingCount = computed(() => Number(
+    props.filterMeta?.matching_count ?? props.count ?? props.customers?.total ?? 0
+));
+const advancedFilterCount = computed(() => countActiveCustomerAdvancedFilters(filterForm));
+const hasAppliedFilters = computed(() => activeFilterBadges.value.length > 0);
+const emptyStateVariant = computed(() => {
+    if (filterError.value) {
+        return 'error';
+    }
+
+    return hasAppliedFilters.value ? 'no-results' : 'empty';
+});
+const retryFilters = () => visitFilters({ replace: true });
 
 const customerRows = computed(() => (Array.isArray(props.customers?.data) ? props.customers.data : []));
 const customerTableRows = computed(() => (isBusy.value
@@ -554,7 +679,7 @@ watch(selectedCount, (count, previousCount) => {
 
 const reloadBulkContext = () => new Promise((resolve) => {
     router.reload({
-        only: ['customers', 'filters', 'stats', 'count', 'topCustomers'],
+        only: ['customers', 'filters', 'kpis', 'stats', 'count', 'filterMeta', 'topCustomers'],
         preserveScroll: true,
         preserveState: true,
         onFinish: () => resolve(),
@@ -664,6 +789,20 @@ const getCity = (customer) => {
     return property ? property.city : '';
 };
 
+const customerTags = (customer) => {
+    if (Array.isArray(customer?.tags)) {
+        return customer.tags.map((tag) => String(tag || '').trim()).filter(Boolean);
+    }
+
+    if (typeof customer?.tags === 'string') {
+        return customer.tags.split(',').map((tag) => tag.trim()).filter(Boolean);
+    }
+
+    return [];
+};
+const visibleCustomerTags = (customer) => customerTags(customer).slice(0, 2);
+const hiddenCustomerTagCount = (customer) => Math.max(0, customerTags(customer).length - 2);
+
 const formatDate = (value) => humanizeDate(value);
 
 const hasCustomerLogo = (customer) => Boolean(customer?.logo_url || customer?.logo);
@@ -727,12 +866,14 @@ const remainingPackageLabel = (customer) => {
 
 const customerLinks = computed(() => props.customers?.links || []);
 const currentPerPage = computed(() => resolveDataTablePerPage(props.customers?.per_page, props.filters?.per_page));
-const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagination.results')}`);
+const customerResultsLabel = computed(() => t('customers.filter_summary.results', { count: matchingCount.value }));
 </script>
 
 <template>
     <div
-        class="p-5 space-y-4 flex flex-col border-t-4 border-t-zinc-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700">
+        class="p-4 sm:p-5 space-y-4 flex flex-col border-t-4 border-t-zinc-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700"
+        :aria-busy="String(isBusy)"
+    >
         <div class="space-y-3">
             <SavedSegmentBar
                 v-if="shouldShowSavedSegments"
@@ -751,7 +892,11 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                 :show-filters="showAdvanced"
                 :show-apply="false"
                 :busy="isBusy"
-                :filters-label="$t('customers.actions.filters')"
+                filters-available
+                filters-controls="customer-advanced-filters-dialog"
+                :filters-label="advancedFilterCount
+                    ? $t('customers.advanced_filters.trigger_active', { count: advancedFilterCount })
+                    : $t('customers.actions.filters')"
                 :clear-label="$t('customers.actions.clear')"
                 @toggle-filters="showAdvanced = !showAdvanced"
                 @apply="autoFilter"
@@ -759,6 +904,9 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
             >
                 <template #search>
                     <div class="relative">
+                        <label for="customer-index-search" class="sr-only">
+                            {{ customerSearchPlaceholder }}
+                        </label>
                         <div class="absolute inset-y-0 start-0 flex items-center pointer-events-none z-20 ps-3.5">
                             <svg class="shrink-0 size-4 text-stone-500 dark:text-neutral-400"
                                 xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -767,75 +915,11 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                                 <path d="m21 21-4.3-4.3" />
                             </svg>
                         </div>
-                        <input type="text" v-model="filterForm.name" data-testid="demo-customer-search"
+                        <input id="customer-index-search" type="search" v-model="filterForm.name" data-testid="demo-customer-search"
                             class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400 dark:focus:ring-neutral-600"
-                            :placeholder="customerSearchPlaceholder">
+                            :placeholder="customerSearchPlaceholder"
+                            :disabled="isBusy">
                     </div>
-                </template>
-
-                <template #filters>
-                    <input type="text" v-model="filterForm.city"
-                        class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                        :placeholder="$t('customers.filters.city')">
-                    <input type="text" v-model="filterForm.country"
-                        class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                        :placeholder="$t('customers.filters.country')">
-                    <FloatingSelect
-                        v-if="quotesFeatureEnabled"
-                        v-model="filterForm.has_quotes"
-                        :label="$t('customers.filters.quotes')"
-                        :options="quoteFilterOptions"
-                        dense
-                    />
-                    <FloatingSelect
-                        v-if="jobsFeatureEnabled"
-                        v-model="filterForm.has_works"
-                        :label="$t('customers.filters.jobs')"
-                        :options="jobFilterOptions"
-                        dense
-                    />
-                    <FloatingSelect
-                        v-model="filterForm.status"
-                        :label="$t('customers.filters.status')"
-                        :options="statusFilterOptions"
-                        dense
-                    />
-                    <FloatingSelect
-                        v-if="packagesCapabilityEnabled"
-                        v-model="filterForm.has_active_package"
-                        :label="$t('customers.filters.active_package')"
-                        :options="packagePresenceOptions"
-                        dense
-                    />
-                    <FloatingSelect
-                        v-if="packagesCapabilityEnabled"
-                        v-model="filterForm.package_status"
-                        :label="$t('customers.filters.package_status')"
-                        :options="packageStatusOptions"
-                        dense
-                    />
-                    <input v-if="packagesCapabilityEnabled" type="number" min="0" step="1" v-model="filterForm.package_remaining_lte"
-                        class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                        :placeholder="$t('customers.filters.package_remaining_lte')">
-                    <input v-if="packagesCapabilityEnabled" type="number" min="0" step="1" v-model="filterForm.package_expires_within_days"
-                        class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                        :placeholder="$t('customers.filters.package_expires_within_days')">
-                    <FloatingSelect
-                        v-if="packagesCapabilityEnabled"
-                        v-model="filterForm.package_is_recurring"
-                        :label="$t('customers.filters.package_recurrence')"
-                        :options="packageRecurringOptions"
-                        dense
-                    />
-                    <FloatingSelect
-                        v-if="packagesCapabilityEnabled"
-                        v-model="filterForm.package_recurrence_status"
-                        :label="$t('customers.filters.package_recurrence_status')"
-                        :options="packageRecurrenceStatusOptions"
-                        dense
-                    />
-                    <DatePicker v-model="filterForm.created_from" :label="$t('customers.filters.created_from')" />
-                    <DatePicker v-model="filterForm.created_to" :label="$t('customers.filters.created_to')" />
                 </template>
 
                 <template #actions>
@@ -880,18 +964,63 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                 </template>
             </AdminDataTableToolbar>
 
-            <div v-if="operationalQuickFilters.length" class="flex flex-wrap gap-2" data-testid="customer-operational-filters">
+            <div
+                v-if="operationalQuickFilters.length"
+                class="flex flex-wrap gap-2"
+                data-testid="customer-operational-filters"
+                role="group"
+                :aria-label="$t('customers.filter_summary.quick_filters_label')"
+            >
+                <button
+                    type="button"
+                    class="inline-flex min-h-11 items-center rounded-full border px-3 py-2 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600"
+                    :class="!filterForm.quick_filters.length
+                        ? 'border-transparent bg-green-600 text-white dark:bg-green-500'
+                        : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800'"
+                    :aria-pressed="String(!filterForm.quick_filters.length)"
+                    :disabled="isBusy"
+                    @click="clearQuickFilters"
+                >
+                    {{ $t('customers.appointment.quick_filters.all') }}
+                </button>
                 <button
                     v-for="filter in operationalQuickFilters"
-                    :key="filter.value || 'all'"
+                    :key="filter.value"
                     type="button"
-                    class="inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium transition"
+                    class="inline-flex min-h-11 items-center rounded-full border px-3 py-2 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600"
                     :class="operationalQuickFilterClass(filter.value)"
+                    :aria-pressed="String(filterForm.quick_filters.includes(filter.value))"
+                    :disabled="isBusy"
                     @click="setOperationalQuickFilter(filter.value)"
                 >
                     {{ filter.label }}
                 </button>
             </div>
+
+            <CustomerFilterSummary
+                :matching-count="matchingCount"
+                :active-filters="activeFilterBadges"
+                :quick-filter-mode="filterForm.quick_filter_mode"
+                :quick-filter-count="filterForm.quick_filters.length"
+                :busy="isBusy"
+                @update:quick-filter-mode="setQuickFilterMode"
+                @remove="removeActiveFilter"
+                @clear="clearFilters"
+            />
+
+            <CustomerAdvancedFiltersDialog
+                id="customer-advanced-filters-dialog"
+                :show="showAdvanced"
+                :filters="filterForm"
+                :matching-count="matchingCount"
+                :capabilities="contextCapabilities"
+                :available-filters="filterMeta?.available_filters"
+                :filter-options="filterOptions"
+                :show-quote-filters="quotesFeatureEnabled"
+                :show-job-filters="jobsFeatureEnabled"
+                @close="showAdvanced = false"
+                @apply="applyAdvancedFilters"
+            />
 
             <AdminDataTableBulkBar
                 v-if="canEdit"
@@ -934,6 +1063,17 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
             </AdminDataTableBulkBar>
         </div>
 
+        <div
+            v-if="filterError && customerRows.length"
+            class="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-800/70 dark:bg-rose-500/10 dark:text-rose-200"
+            role="alert"
+        >
+            <span>{{ $t('customers.states.error.description') }}</span>
+            <button type="button" :class="crmButtonClass('secondary', 'compact')" @click="retryFilters">
+                {{ $t('customers.states.error.action') }}
+            </button>
+        </div>
+
         <AdminDataTable
             v-if="viewMode === 'table'"
             embedded
@@ -945,7 +1085,12 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
         >
             <template #empty>
                 <div class="rounded-sm border border-dashed border-stone-200 bg-white px-4 py-10 text-center text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
-                    <CustomerEmptyState />
+                    <CustomerEmptyState
+                        :variant="emptyStateVariant"
+                        :can-create="canCreateCustomer"
+                        @clear="clearFilters"
+                        @retry="retryFilters"
+                    />
                 </div>
             </template>
 
@@ -953,9 +1098,10 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                 <tr v-if="appointmentProfile">
                     <th scope="col" class="w-10 px-4 py-2">
                         <input v-if="canEdit" ref="selectAllRef" type="checkbox" :checked="allSelected" @change="toggleAll"
+                            :aria-label="$t('customers.accessibility.select_all')"
                             class="rounded border-stone-300 text-green-600 shadow-sm focus:ring-green-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-green-400 dark:focus:ring-green-400" />
                     </th>
-                    <th scope="col" class="min-w-[290px]">
+                    <th scope="col" class="min-w-[290px]" :aria-sort="ariaSort('first_name')">
                         <button type="button" @click="toggleSort('first_name')"
                             class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
                             {{ $t('customers.appointment.table.client') }}
@@ -992,9 +1138,10 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                 <tr v-else-if="!appointmentProfile">
                             <th scope="col" class="w-10 px-4 py-2">
                                 <input v-if="canEdit" ref="selectAllRef" type="checkbox" :checked="allSelected" @change="toggleAll"
+                                    :aria-label="$t('customers.accessibility.select_all')"
                                     class="rounded border-stone-300 text-green-600 shadow-sm focus:ring-green-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-green-400 dark:focus:ring-green-400" />
                             </th>
-                            <th scope="col" class="min-w-[240px]">
+                            <th scope="col" class="min-w-[240px]" :aria-sort="ariaSort('company_name')">
                                 <button type="button" @click="toggleSort('company_name')"
                                     class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
                                     {{ $t('customers.table.company') }}
@@ -1006,7 +1153,7 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                                     </svg>
                                 </button>
                             </th>
-                            <th scope="col" class="min-w-40">
+                            <th scope="col" class="min-w-40" :aria-sort="ariaSort('first_name')">
                                 <button type="button" @click="toggleSort('first_name')"
                                     class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
                                     {{ $t('customers.table.contact') }}
@@ -1028,7 +1175,7 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                                     {{ $t('customers.table.city') }}
                                 </div>
                             </th>
-                            <th v-if="quotesFeatureEnabled" scope="col" class="min-w-28">
+                            <th v-if="quotesFeatureEnabled" scope="col" class="min-w-28" :aria-sort="ariaSort('quotes_count')">
                                 <button type="button" @click="toggleSort('quotes_count')"
                                     class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
                                     {{ $t('customers.table.quotes') }}
@@ -1040,7 +1187,7 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                                     </svg>
                                 </button>
                             </th>
-                            <th v-if="jobsFeatureEnabled" scope="col" class="min-w-28">
+                            <th v-if="jobsFeatureEnabled" scope="col" class="min-w-28" :aria-sort="ariaSort('works_count')">
                                 <button type="button" @click="toggleSort('works_count')"
                                     class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
                                     {{ $t('customers.table.jobs') }}
@@ -1052,7 +1199,7 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                                     </svg>
                                 </button>
                             </th>
-                            <th scope="col" class="min-w-32">
+                            <th scope="col" class="min-w-32" :aria-sort="ariaSort('created_at')">
                                 <button type="button" @click="toggleSort('created_at')"
                                     class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
                                     {{ $t('customers.table.created') }}
@@ -1087,6 +1234,7 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                                 <Checkbox
                                     v-if="canEdit"
                                     :checked="isSelected(customer)"
+                                    :aria-label="$t('customers.accessibility.select_customer', { name: customer.company_name || `${customer.first_name} ${customer.last_name}` })"
                                     @update:checked="toggleSelection(customer.id, $event)"
                                 />
                             </td>
@@ -1105,9 +1253,22 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                                                     class="inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-600 dark:bg-neutral-700 dark:text-neutral-300">
                                                     {{ $t('customers.status.archived') }}
                                                 </span>
+                                                <span v-if="vipCapabilityEnabled && customer.is_vip"
+                                                    class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold uppercase text-amber-700 dark:bg-amber-500/20 dark:text-amber-200">
+                                                    {{ $t('customers.appointment.labels.vip') }}
+                                                </span>
                                             </div>
                                             <span class="text-xs text-stone-500 dark:text-neutral-500">
                                                 {{ customer.number }}
+                                            </span>
+                                            <span v-if="customerTags(customer).length" class="mt-1 flex flex-wrap gap-1">
+                                                <span v-for="tag in visibleCustomerTags(customer)" :key="tag"
+                                                    class="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] text-stone-600 dark:bg-neutral-700 dark:text-neutral-300">
+                                                    {{ tag }}
+                                                </span>
+                                                <span v-if="hiddenCustomerTagCount(customer)" class="text-[10px] text-stone-400 dark:text-neutral-500">
+                                                    +{{ hiddenCustomerTagCount(customer) }}
+                                                </span>
                                             </span>
                                         </div>
                                     </div>
@@ -1165,6 +1326,7 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                         <Checkbox
                             v-if="canEdit"
                             :checked="isSelected(customer)"
+                            :aria-label="$t('customers.accessibility.select_customer', { name: customer.company_name || `${customer.first_name} ${customer.last_name}` })"
                             @update:checked="toggleSelection(customer.id, $event)"
                         />
                     </td>
@@ -1208,9 +1370,16 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                                 :class="lifecycleStatusClass(customer)">
                                 {{ lifecycleStatusLabel(customer) }}
                             </span>
-                            <span v-if="campaignsCapabilityEnabled && customer.is_vip"
+                            <span v-if="vipCapabilityEnabled && customer.is_vip"
                                 class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-500/20 dark:text-amber-200">
                                 {{ $t('customers.appointment.labels.vip') }}
+                            </span>
+                            <span v-for="tag in visibleCustomerTags(customer)" :key="tag"
+                                class="inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-[11px] text-stone-600 dark:bg-neutral-700 dark:text-neutral-300">
+                                {{ tag }}
+                            </span>
+                            <span v-if="hiddenCustomerTagCount(customer)" class="text-[11px] text-stone-400 dark:text-neutral-500">
+                                +{{ hiddenCustomerTagCount(customer) }}
                             </span>
                         </div>
                     </td>
@@ -1279,6 +1448,10 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                                 {{ $t('customers.appointment.labels.unpaid_balance') }}
                                 {{ formatCustomerCurrency(customer, operationalSummary(customer).unpaid_balance) }}
                             </div>
+                            <div v-else-if="invoicesCapabilityEnabled && hasNumericSummaryValue(customer, 'unpaid_balance')"
+                                class="text-stone-400 dark:text-neutral-500">
+                                {{ $t('customers.appointment.labels.no_unpaid_balance') }}
+                            </div>
                             <span v-if="!hasNumericSummaryValue(customer, 'total_spent') && (!invoicesCapabilityEnabled || !hasNumericSummaryValue(customer, 'unpaid_balance'))"
                                 class="text-stone-400 dark:text-neutral-500">-</span>
                         </div>
@@ -1327,7 +1500,12 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
             </div>
             <div v-else-if="!customerRows.length"
                 class="rounded-sm border border-dashed border-stone-200 bg-white px-4 py-10 text-center text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
-                <CustomerEmptyState />
+                <CustomerEmptyState
+                    :variant="emptyStateVariant"
+                    :can-create="canCreateCustomer"
+                    @clear="clearFilters"
+                    @retry="retryFilters"
+                />
             </div>
             <div v-else class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 <div
@@ -1367,10 +1545,17 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                                             {{ lifecycleStatusLabel(customer) }}
                                         </span>
                                         <span
-                                            v-if="campaignsCapabilityEnabled && customer.is_vip"
+                                            v-if="vipCapabilityEnabled && customer.is_vip"
                                             class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-500/20 dark:text-amber-200"
                                         >
                                             {{ $t('customers.appointment.labels.vip') }}
+                                        </span>
+                                        <span v-for="tag in visibleCustomerTags(customer)" :key="tag"
+                                            class="inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-[11px] text-stone-600 dark:bg-neutral-700 dark:text-neutral-300">
+                                            {{ tag }}
+                                        </span>
+                                        <span v-if="hiddenCustomerTagCount(customer)" class="text-[11px] text-stone-400 dark:text-neutral-500">
+                                            +{{ hiddenCustomerTagCount(customer) }}
                                         </span>
                                     </div>
                                 </div>
@@ -1379,6 +1564,7 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                                 <Checkbox
                                     v-if="canEdit"
                                     :checked="isSelected(customer)"
+                                    :aria-label="$t('customers.accessibility.select_customer', { name: customer.company_name || `${customer.first_name} ${customer.last_name}` })"
                                     @update:checked="toggleSelection(customer.id, $event)"
                                 />
                                 <CustomerActionsMenu
@@ -1476,6 +1662,10 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                                     {{ $t('customers.appointment.labels.unpaid_balance') }}
                                     {{ formatCustomerCurrency(customer, operationalSummary(customer).unpaid_balance) }}
                                 </div>
+                                <div v-else-if="invoicesCapabilityEnabled && hasNumericSummaryValue(customer, 'unpaid_balance')"
+                                    class="mt-0.5 text-stone-400 dark:text-neutral-500">
+                                    {{ $t('customers.appointment.labels.no_unpaid_balance') }}
+                                </div>
                                 <div v-if="!hasNumericSummaryValue(customer, 'total_spent') && (!invoicesCapabilityEnabled || !hasNumericSummaryValue(customer, 'unpaid_balance'))"
                                     class="mt-1 text-stone-400 dark:text-neutral-500">-</div>
                             </div>
@@ -1519,12 +1709,22 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                                 <div class="mt-1 text-[11px] text-stone-400 dark:text-neutral-500">
                                     {{ getCity(customer) || $t('customers.labels.unknown_city') }}
                                 </div>
+                                <div v-if="customerTags(customer).length" class="mt-2 flex flex-wrap gap-1">
+                                    <span v-for="tag in visibleCustomerTags(customer)" :key="tag"
+                                        class="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] text-stone-600 dark:bg-neutral-700 dark:text-neutral-300">
+                                        {{ tag }}
+                                    </span>
+                                    <span v-if="hiddenCustomerTagCount(customer)" class="text-[10px] text-stone-400 dark:text-neutral-500">
+                                        +{{ hiddenCustomerTagCount(customer) }}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                         <div class="flex items-center gap-2">
                             <Checkbox
                                 v-if="canEdit"
                                 :checked="isSelected(customer)"
+                                :aria-label="$t('customers.accessibility.select_customer', { name: customer.company_name || `${customer.first_name} ${customer.last_name}` })"
                                 @update:checked="toggleSelection(customer.id, $event)"
                             />
                             <CustomerActionsMenu

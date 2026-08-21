@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\CustomerClientType;
+use App\Http\Requests\CustomerIndexRequest;
 use App\Http\Requests\CustomerRequest;
 use App\Models\ActivityLog;
 use App\Models\Customer;
@@ -14,7 +15,9 @@ use App\Models\SavedSegment;
 use App\Models\User;
 use App\Notifications\InviteUserNotification;
 use App\Queries\Customers\BuildCustomerDetailViewData;
+use App\Queries\Customers\BuildCustomerIndexStats;
 use App\Queries\Customers\BuildCustomerOperationalIndexData;
+use App\Queries\Customers\CustomerIndexFilters;
 use App\Queries\Customers\CustomerReadSelects;
 use App\Services\BillingPlanService;
 use App\Services\BillingSubscriptionService;
@@ -45,28 +48,10 @@ class CustomerController extends Controller
      *
      * @return \Inertia\Response
      */
-    public function index(?Request $request)
+    public function index(CustomerIndexRequest $request)
     {
-        $filters = $request->only([
-            'name',
-            'city',
-            'country',
-            'has_quotes',
-            'has_works',
-            'status',
-            'created_from',
-            'created_to',
-            'has_active_package',
-            'package_status',
-            'package_remaining_lte',
-            'package_expires_within_days',
-            'package_is_recurring',
-            'package_recurrence_status',
-            'operational_filter',
-            'sort',
-            'direction',
-        ]);
-        $filters['per_page'] = $this->resolveDataTablePerPage($request);
+        $requestedFilters = $request->validated();
+        $requestedFilters['per_page'] = $this->resolveDataTablePerPage($request);
         $user = $request->user();
         if (! $user) {
             abort(403);
@@ -77,7 +62,6 @@ class CustomerController extends Controller
         $featureService = app(CompanyFeatureService::class);
         $quotesFeatureEnabled = $featureService->hasFeature($accountOwner, 'quotes');
         $jobsFeatureEnabled = $featureService->hasFeature($accountOwner, 'jobs');
-        $reservationsFeatureEnabled = $featureService->hasFeature($accountOwner, 'reservations');
         $campaignsFeatureEnabled = $featureService->hasFeature($accountOwner, 'campaigns');
         $salesFeatureEnabled = $featureService->hasFeature($accountOwner, 'sales');
         $operationalIndexData = app(BuildCustomerOperationalIndexData::class);
@@ -123,31 +107,20 @@ class CustomerController extends Controller
         $showQuoteOperations = $quotesFeatureEnabled && ! $appointmentProfile;
         $showJobOperations = $jobsFeatureEnabled && ! $appointmentProfile;
         $invoicesFeatureEnabled = (bool) ($customerIndexContext['capabilities']['invoices'] ?? false);
-        $operationalFilter = $operationalIndexData->normalizeOperationalFilter(
-            $filters['operational_filter'] ?? null,
-            $customerIndexContext
-        );
-
-        if ($operationalFilter === null) {
-            unset($filters['operational_filter']);
-        } else {
-            $filters['operational_filter'] = $operationalFilter;
-        }
-
         if (! $showQuoteOperations) {
-            unset($filters['has_quotes']);
+            unset($requestedFilters['has_quotes']);
         }
         if (! $showJobOperations) {
-            unset($filters['has_works']);
+            unset($requestedFilters['has_works']);
         }
         if (! ($customerIndexContext['capabilities']['packages'] ?? false)) {
             unset(
-                $filters['has_active_package'],
-                $filters['package_status'],
-                $filters['package_remaining_lte'],
-                $filters['package_expires_within_days'],
-                $filters['package_is_recurring'],
-                $filters['package_recurrence_status']
+                $requestedFilters['has_active_package'],
+                $requestedFilters['package_status'],
+                $requestedFilters['package_remaining_lte'],
+                $requestedFilters['package_expires_within_days'],
+                $requestedFilters['package_is_recurring'],
+                $requestedFilters['package_recurrence_status']
             );
         }
 
@@ -159,18 +132,26 @@ class CustomerController extends Controller
             $allowedSorts[] = 'works_count';
         }
 
-        if (isset($filters['sort']) && ! in_array($filters['sort'], $allowedSorts, true)) {
-            unset($filters['sort'], $filters['direction']);
+        if (isset($requestedFilters['sort']) && ! in_array($requestedFilters['sort'], $allowedSorts, true)) {
+            unset($requestedFilters['sort'], $requestedFilters['direction']);
         }
 
-        $baseQuery = Customer::query()
-            ->filter($filters)
-            ->byUser($accountId);
-        $operationalIndexData->applyOperationalFilter(
-            $baseQuery,
-            $operationalFilter,
+        $indexFilters = app(CustomerIndexFilters::class);
+        $filters = $indexFilters->normalize(
+            $requestedFilters,
             $accountOwner,
-            $customerIndexContext
+            $customerIndexContext,
+            $accountId
+        );
+        $baseQuery = Customer::query()
+            ->filter($indexFilters->modelFilters($filters))
+            ->byUser($accountId);
+        $indexFilters->apply(
+            $baseQuery,
+            $filters,
+            $accountOwner,
+            $customerIndexContext,
+            $accountId
         );
 
         $sort = in_array($filters['sort'] ?? null, $allowedSorts, true)
@@ -198,7 +179,7 @@ class CustomerController extends Controller
         $customers = $customersQuery
             ->orderBy($sort, $direction)
             ->paginate((int) $filters['per_page'])
-            ->withQueryString();
+            ->appends($filters);
         $operationalIndexData->appendOperationalSummaries(
             $customers->getCollection(),
             $accountOwner,
@@ -206,55 +187,20 @@ class CustomerController extends Controller
         );
 
         $totalCount = $customers->total();
-        $recentThreshold = now()->subDays(30);
-        $newCount = (clone $baseQuery)
-            ->whereDate('created_at', '>=', $recentThreshold)
-            ->count();
-        $withQuotes = $showQuoteOperations
-            ? (clone $baseQuery)
-                ->whereHas('quotes', fn ($query) => $query->where('user_id', $accountId))
-                ->count()
-            : 0;
-        $withWorks = $showJobOperations
-            ? (clone $baseQuery)
-                ->whereHas('works', fn ($query) => $query->where('user_id', $accountId))
-                ->count()
-            : 0;
-        $activeCount = 0;
-        if ($showQuoteOperations || $showJobOperations || $reservationsFeatureEnabled) {
-            $activeCount = (clone $baseQuery)
-                ->where(function ($query) use ($accountId, $recentThreshold, $reservationsFeatureEnabled, $showJobOperations, $showQuoteOperations) {
-                    if ($showQuoteOperations) {
-                        $query->whereHas('quotes', function ($sub) use ($accountId, $recentThreshold) {
-                            $sub->where('user_id', $accountId)
-                                ->where('created_at', '>=', $recentThreshold);
-                        });
-                    }
-                    if ($showJobOperations) {
-                        $method = $showQuoteOperations ? 'orWhereHas' : 'whereHas';
-                        $query->{$method}('works', function ($sub) use ($accountId, $recentThreshold) {
-                            $sub->where('user_id', $accountId)
-                                ->where('created_at', '>=', $recentThreshold);
-                        });
-                    }
-                    if ($reservationsFeatureEnabled) {
-                        $method = ($showQuoteOperations || $showJobOperations) ? 'orWhereHas' : 'whereHas';
-                        $query->{$method}('reservations', function ($sub) use ($accountId, $recentThreshold) {
-                            $sub->where('account_id', $accountId)
-                                ->where('created_at', '>=', $recentThreshold);
-                        });
-                    }
-                })
-                ->count();
-        }
-
-        $stats = [
-            'total' => $totalCount,
-            'new' => $newCount,
-            'with_quotes' => $withQuotes,
-            'with_works' => $withWorks,
-            'active' => $activeCount,
-        ];
+        $statsBuilder = app(BuildCustomerIndexStats::class);
+        $statsResolver = fn (): array => $statsBuilder->legacy(
+            $baseQuery,
+            $accountOwner,
+            $customerIndexContext,
+            $showQuoteOperations,
+            $showJobOperations,
+            $accountId
+        );
+        $kpisResolver = fn (): array => $statsBuilder->kpis(
+            $accountOwner,
+            $customerIndexContext,
+            $accountId
+        );
 
         $topCustomers = collect();
         if ($showQuoteOperations || $showJobOperations) {
@@ -300,12 +246,36 @@ class CustomerController extends Controller
                 ])
             : collect();
 
-        // Pass data to Inertia view
+        $activeFilters = $indexFilters->activeFilters($filters);
+        $filterOptionsResolver = fn (): array => $indexFilters->options(
+            $accountOwner,
+            $customerIndexContext,
+            $accountId
+        );
+        $returningJson = $this->shouldReturnJson($request);
+        $resolveLazyProp = static fn (\Closure $resolver): mixed => $returningJson ? $resolver() : $resolver;
+        $filterOptions = $resolveLazyProp($filterOptionsResolver);
+        $filterMeta = [
+            'matching_count' => $totalCount,
+            'active_filters' => $activeFilters,
+            'active_count' => count($activeFilters),
+            'quick_filter_mode' => $filters['quick_filter_mode'] ?? 'all',
+            'available_filters' => $indexFilters->availableQuickFilters($customerIndexContext),
+        ];
+        if ($returningJson) {
+            $filterMeta['options'] = $filterOptions;
+        }
+
+        // Pass data to Inertia view. Expensive global aggregates and filter
+        // options are lazy during partial Inertia reloads.
         return $this->inertiaOrJson('Customer/Index', [
             'customers' => $customers,
             'filters' => $filters,
             'count' => $totalCount,
-            'stats' => $stats,
+            'stats' => $resolveLazyProp($statsResolver),
+            'kpis' => $resolveLazyProp($kpisResolver),
+            'filterMeta' => $filterMeta,
+            'filterOptions' => $filterOptions,
             'topCustomers' => $topCustomers,
             'canEdit' => $canEdit,
             'savedSegments' => $savedSegments,

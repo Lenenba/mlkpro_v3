@@ -10,12 +10,14 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 
 | En cours | Bloqués | À faire | Terminés | Références | Archivés | À classer | Total |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 48 | 0 | 23 | 3 | 61 | 0 | 92 | 227 |
+| 49 | 0 | 23 | 4 | 61 | 0 | 92 | 229 |
 
 ## Derniers documents créés
 
 | Créé le | Modifié le | Suivi | Document |
 | --- | --- | --- | --- |
+| 2026-08-21 | 2026-08-21 | En cours | [audits/customers/2026-08-21-customer-experience-step-1.md](audits/customers/2026-08-21-customer-experience-step-1.md) |
+| 2026-08-21 | 2026-08-21 | Terminé | [audits/customers/2026-08-21-customer-experience-step-2.md](audits/customers/2026-08-21-customer-experience-step-2.md) |
 | 2026-08-20 | 2026-08-20 | Terminé | [demo/scenario-engine.md](demo/scenario-engine.md) |
 | 2026-08-18 | 2026-08-18 | Terminé | [PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md](PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md) |
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/capture-plan.csv](demo/video-library/capture-plan.csv) |
@@ -34,18 +36,19 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 | 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G07/capture-session.md](demo/video-library/captures/G07/capture-session.md) |
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G07/README.md](demo/video-library/captures/G07/README.md) |
 | 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G08/capture-session.md](demo/video-library/captures/G08/capture-session.md) |
-| 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G08/README.md](demo/video-library/captures/G08/README.md) |
-| 2026-08-11 | 2026-08-11 | Références actives | [demo/video-library/captures/README.md](demo/video-library/captures/README.md) |
 
 ## Derniers documents modifiés
 
 | Modifié le | Créé le | Suivi | Document |
 | --- | --- | --- | --- |
+| 2026-08-21 | 2026-08-21 | En cours | [audits/customers/2026-08-21-customer-experience-step-1.md](audits/customers/2026-08-21-customer-experience-step-1.md) |
+| 2026-08-21 | 2026-08-21 | Terminé | [audits/customers/2026-08-21-customer-experience-step-2.md](audits/customers/2026-08-21-customer-experience-step-2.md) |
 | 2026-08-20 | 2026-08-20 | Terminé | [demo/scenario-engine.md](demo/scenario-engine.md) |
 | 2026-08-20 | 2026-08-07 | Références actives | [MODULE_VISIBILITY_AUDIT_RUNBOOK.md](MODULE_VISIBILITY_AUDIT_RUNBOOK.md) |
 | 2026-08-20 | 2026-04-21 | Références actives | [CRM_PHASE_6_OPPORTUNITY_LAYER_GUIDE_2026-04-21.md](CRM_PHASE_6_OPPORTUNITY_LAYER_GUIDE_2026-04-21.md) |
 | 2026-08-20 | 2026-04-21 | À classer | [PHASE_6_OPPORTUNITY_LAYER_SALES_INBOX_FORECAST_DEV_BACKLOG_2026-04-21.md](PHASE_6_OPPORTUNITY_LAYER_SALES_INBOX_FORECAST_DEV_BACKLOG_2026-04-21.md) |
 | 2026-08-20 | 2026-04-20 | À classer | [CRM_DEV_EXECUTION_PHASES_2026-04-20.md](CRM_DEV_EXECUTION_PHASES_2026-04-20.md) |
+| 2026-08-20 | 2026-01-09 | Références actives | [DEMO_GUIDE.md](DEMO_GUIDE.md) |
 | 2026-08-18 | 2026-08-18 | Terminé | [PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md](PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md) |
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/capture-plan.csv](demo/video-library/capture-plan.csv) |
 | 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G01/capture-session.md](demo/video-library/captures/G01/capture-session.md) |
@@ -58,16 +61,13 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G04/README.md](demo/video-library/captures/G04/README.md) |
 | 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G05/capture-session.md](demo/video-library/captures/G05/capture-session.md) |
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G05/README.md](demo/video-library/captures/G05/README.md) |
-| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G06/capture-session.md](demo/video-library/captures/G06/capture-session.md) |
-| 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G06/README.md](demo/video-library/captures/G06/README.md) |
-| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G07/capture-session.md](demo/video-library/captures/G07/capture-session.md) |
 
 ## Sous-dossiers
 
 | Dossier | En cours | Bloqués | À faire | Terminés | Références | Archivés | À classer | Total |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | [api](api/00_INDEX.md) | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 2 |
-| [audits](audits/00_INDEX.md) | 8 | 0 | 4 | 1 | 13 | 0 | 0 | 26 |
+| [audits](audits/00_INDEX.md) | 9 | 0 | 4 | 2 | 13 | 0 | 0 | 28 |
 | [demo](demo/00_INDEX.md) | 33 | 0 | 17 | 1 | 30 | 0 | 0 | 81 |
 | [superpowers](superpowers/00_INDEX.md) | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
 
@@ -117,7 +117,7 @@ _Aucun document._
 | 2026-03-04 | 2026-03-30 | [CAMPAIGNS_ADMIN_GUIDE.md](CAMPAIGNS_ADMIN_GUIDE.md) | Campaigns Admin Guide | Référence | Nom du fichier |  |
 | 2026-01-29 | 2026-01-30 | [WORKFLOW_PRODUCTS.md](WORKFLOW_PRODUCTS.md) | WORKFLOW - ENTREPRISES DE PRODUITS (RETAIL) | Référence | Nom du fichier |  |
 | 2026-01-29 | 2026-01-30 | [WORKFLOW_SERVICES.md](WORKFLOW_SERVICES.md) | WORKFLOW - ENTREPRISES DE SERVICES | Référence | Nom du fichier |  |
-| 2026-01-09 | 2026-04-21 | [DEMO_GUIDE.md](DEMO_GUIDE.md) | Demo guide | Référence | Classement manuel | Guide actif du provisioning de demo; le workflow legacy n'est plus recommande. |
+| 2026-01-09 | 2026-08-20 | [DEMO_GUIDE.md](DEMO_GUIDE.md) | Demo guide | Référence | Classement manuel | Guide actif du provisioning de demo; le workflow legacy n'est plus recommande. |
 | 2025-12-22 | 2026-04-21 | [APP_GUIDE.md](APP_GUIDE.md) | Malikia pro - Guide d utilisation (MVP) | Référence | Nom du fichier |  |
 
 ## Archivés

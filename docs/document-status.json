@@ -79,6 +79,20 @@
             "updated_at": "2026-08-07",
             "note": "Infrastructure robuste, mais couverture metier Salon Eclat encore partielle."
         },
+        "docs/audits/customers/2026-08-21-customer-experience-step-1.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "created_at": "2026-08-21",
+            "updated_at": "2026-08-21",
+            "note": "Audit et contrat UX/donnees termines; l'index Clients est livre a l'etape 2 et l'historique unifie reste a livrer a l'etape 3."
+        },
+        "docs/audits/customers/2026-08-21-customer-experience-step-2.md": {
+            "document_status": "complete",
+            "delivery_status": "done",
+            "created_at": "2026-08-21",
+            "updated_at": "2026-08-21",
+            "note": "Index Clients livre: KPI stables, filtres rapides ET/OU, dialogue avance, URL/segments, liste, etats et accessibilite."
+        },
         "docs/audits/mlkpro-benchmark-2026-07-16/execution/PHASE_0_SECURITY_AND_BASELINE.md": {
             "document_status": "complete",
             "delivery_status": "done",
