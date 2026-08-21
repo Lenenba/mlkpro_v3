@@ -83,7 +83,7 @@ test('the floating textarea forwards native attributes while preserving layout c
 
     assert.match(source, /defineOptions\(\{ inheritAttrs: false \}\)/);
     assert.match(source, /const inputAttrs = \{ \.\.\.attrs \}[\s\S]*?delete inputAttrs\.class/);
-    assert.match(source, /<div class="relative" :class="attrs\.class">/);
+    assert.match(source, /<div class="relative w-full min-w-0" :class="attrs\.class">/);
     assert.match(source, /<textarea[\s\S]*?:required="required"[\s\S]*?v-bind="textareaAttrs"/);
     assert.match(source, /focus:border-green-600 focus:ring-green-600/);
     assert.doesNotMatch(source, /focus:border-green-500|focus:ring-green-500/);

@@ -48,7 +48,7 @@ defineExpose({ focus: () => input.value?.focus() });
 </script>
 
 <template>
-    <div class="relative" :class="attrs.class">
+    <div class="relative w-full min-w-0" :class="attrs.class">
         <textarea
             :id="textareaId"
             :disabled="disabled"
@@ -68,22 +68,21 @@ defineExpose({ focus: () => input.value?.focus() });
         ></textarea>
         <label
             :for="textareaId"
-            class="absolute top-0 left-0 p-4 h-full text-sm truncate pointer-events-none transition ease-in-out duration-100 origin-[0_0] dark:text-white peer-disabled:opacity-50 peer-disabled:pointer-events-none
+            :title="label"
+            class="app-floating-label
                 scale-90
                 translate-x-0.5
                 -translate-y-1.5
-                text-stone-500 dark:text-neutral-500
                 peer-placeholder-shown:scale-100
                 peer-placeholder-shown:translate-x-0
                 peer-placeholder-shown:translate-y-0
-                peer-placeholder-shown:text-stone-500 dark:peer-placeholder-shown:text-neutral-500
                 peer-focus:scale-90
                 peer-focus:translate-x-0.5
-                peer-focus:-translate-y-1.5
-                peer-focus:text-stone-500 dark:peer-focus:text-neutral-500"
+                peer-focus:-translate-y-1.5"
         >
-            <span>{{ label }}</span>
-            <span v-if="required" class="text-red-500 dark:text-red-400"> *</span>
+            <span class="app-floating-label-content">
+                {{ label }}<span v-if="required" class="text-red-500 dark:text-red-400"> *</span>
+            </span>
         </label>
     </div>
 </template>

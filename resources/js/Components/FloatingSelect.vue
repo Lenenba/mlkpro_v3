@@ -348,32 +348,34 @@ const inputAttrs = computed(() => {
 });
 
 const isDisabled = computed(() => Boolean(selectAttrs.value?.disabled));
+const isMultiple = computed(() => Boolean(selectAttrs.value?.multiple));
+const useFilterInput = computed(() => props.filterable && !isMultiple.value);
 
 const selectClass = computed(() => {
     const baseClass = props.dense
-        ? 'peer block w-full rounded-sm border-stone-200 bg-white px-2.5 py-2 text-xs leading-4 text-stone-700 focus:border-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:focus:ring-neutral-600 focus:pt-4 focus:pb-1'
-        : 'peer p-4 pe-9 block w-full border-stone-200 rounded-sm text-sm focus:border-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:focus:ring-neutral-600 focus:pt-6 focus:pb-2 autofill:pt-6 autofill:pb-2';
-    const filledClass = hasSelection.value
-        ? (props.dense ? 'pt-4 pb-1' : 'pt-6 pb-2')
+        ? 'app-field-control-compact peer truncate pe-9'
+        : 'app-field-control peer truncate pe-9';
+    const heightClass = isMultiple.value
+        ? 'h-auto py-2'
+        : '';
+    const placeholderClass = useFilterInput.value
+        ? 'placeholder:text-stone-400 dark:placeholder:text-neutral-500'
         : '';
 
-    return [baseClass, filledClass, attrs.class].filter(Boolean);
+    return [baseClass, heightClass, placeholderClass, attrs.class].filter(Boolean);
 });
 
 const labelClass = computed(() => (
     props.dense
         ? [
-            'absolute top-0 start-0 w-full px-2.5 py-2 pe-9 h-full truncate pointer-events-none transition ease-in-out duration-100 border border-transparent text-xs leading-4 text-stone-500 dark:text-neutral-500 peer-disabled:opacity-50 peer-disabled:pointer-events-none peer-focus:text-[10px] peer-focus:-translate-y-1 peer-focus:leading-3 peer-focus:text-stone-500 dark:peer-focus:text-neutral-500',
-            hasSelection.value ? 'text-[10px] -translate-y-1 leading-3 text-stone-500 dark:text-neutral-500' : '',
+            'app-floating-label-compact peer-focus:items-start peer-focus:pt-1.5 peer-focus:text-[10px] peer-focus:leading-3',
+            hasSelection.value ? 'items-start pt-1.5 text-[10px] leading-3' : '',
         ]
         : [
-            'absolute top-0 start-0 w-full p-4 pe-9 h-full truncate pointer-events-none transition ease-in-out duration-100 origin-[0_0] border border-transparent text-sm text-stone-500 dark:text-neutral-500 peer-disabled:opacity-50 peer-disabled:pointer-events-none peer-focus:scale-90 peer-focus:-translate-y-1.5 peer-focus:text-stone-500 dark:peer-focus:text-neutral-500',
-            hasSelection.value ? 'scale-90 -translate-y-1.5 text-stone-500 dark:text-neutral-500' : '',
+            'app-floating-label pe-9 peer-focus:scale-90 peer-focus:translate-x-0.5 peer-focus:-translate-y-1.5',
+            hasSelection.value ? 'scale-90 translate-x-0.5 -translate-y-1.5' : '',
         ]
 ));
-
-const isMultiple = computed(() => Boolean(selectAttrs.value?.multiple));
-const useFilterInput = computed(() => props.filterable && !isMultiple.value);
 
 watch(
     () => model.value,
@@ -431,7 +433,7 @@ defineExpose({ focus: () => input.value.focus() });
 
 <template>
     <!-- Floating Select -->
-    <div class="relative">
+    <div class="relative w-full min-w-0">
         <input
             v-if="useFilterInput"
             :id="controlId"
@@ -479,9 +481,11 @@ defineExpose({ focus: () => input.value.focus() });
         </select>
         <label
             :for="controlId"
+            :title="label"
             :class="labelClass">
-            <span>{{ label }}</span>
-            <span v-if="required" class="text-red-500 dark:text-red-400"> *</span>
+            <span class="app-floating-label-content">
+                {{ label }}<span v-if="required" class="text-red-500 dark:text-red-400"> *</span>
+            </span>
         </label>
         <div
             v-if="useFilterInput && isOpen"
@@ -491,7 +495,7 @@ defineExpose({ focus: () => input.value.focus() });
                 v-for="(option, index) in filteredOptions"
                 :key="option.key"
                 type="button"
-                class="flex w-full items-center px-3 py-2 text-left text-sm text-stone-700 transition dark:text-neutral-200"
+                class="flex min-w-0 w-full items-center whitespace-normal break-words px-3 py-2 text-left text-sm text-stone-700 transition dark:text-neutral-200"
                 :class="[
                     option.disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-stone-100 dark:hover:bg-neutral-800',
                     index === activeIndex ? 'bg-stone-100 dark:bg-neutral-800' : '',

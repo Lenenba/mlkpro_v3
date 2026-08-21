@@ -57,7 +57,7 @@ final class CustomerReadSelects
 
     public static function detailPaymentColumns(): array
     {
-        return ['id', 'invoice_id', 'amount', 'method', 'status', 'reference', 'paid_at', 'created_at'];
+        return ['id', 'invoice_id', 'amount', 'currency_code', 'method', 'status', 'reference', 'paid_at', 'created_at'];
     }
 
     public static function detailActivityColumns(): array

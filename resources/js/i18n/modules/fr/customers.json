@@ -509,6 +509,77 @@
         "title": "Activite recente pour ce client",
         "empty": "Aucune activite recente."
       },
+      "history": {
+        "title": "Historique unifié",
+        "subtitle": "Rendez-vous, facturation, communications et changements de profil dans une seule chronologie.",
+        "reset": "Réinitialiser",
+        "period_label": "Période",
+        "types_label": "Types d’activité",
+        "from": "Du",
+        "to": "Au",
+        "apply": "Appliquer",
+        "active_filters": "Filtres actifs",
+        "remove_period": "Retirer le filtre de période",
+        "remove_type": "Retirer le filtre {type}",
+        "loaded_count": "{count} activités",
+        "loaded_count_more": "{count}+ activités",
+        "unknown_date": "Date inconnue",
+        "system_actor": "Système",
+        "by_actor": "Par {actor}",
+        "list_label": "Chronologie des activités du client",
+        "periods": {
+          "last_7_days": "7 derniers jours",
+          "last_30_days": "30 derniers jours",
+          "last_90_days": "90 derniers jours",
+          "last_6_months": "6 derniers mois",
+          "current_year": "Année en cours",
+          "previous_year": "Année précédente",
+          "all": "Historique complet",
+          "custom": "Période personnalisée"
+        },
+        "types": {
+          "all": "Tous",
+          "appointments": "Rendez-vous",
+          "invoices": "Factures",
+          "payments": "Paiements",
+          "notes": "Notes",
+          "communications": "Communications",
+          "profile_changes": "Profil"
+        },
+        "statuses": {
+          "completed": "Terminé",
+          "confirmed": "Confirmé",
+          "cancelled": "Annulé",
+          "no_show": "Absent",
+          "rescheduled": "Replanifié",
+          "pending": "En attente",
+          "paid": "Payé",
+          "partial": "Partiel",
+          "refunded": "Remboursé",
+          "reversed": "Renversé",
+          "failed": "Échec",
+          "sent": "Envoyé",
+          "delivered": "Livré",
+          "opened": "Ouvert",
+          "recorded": "Consigné"
+        },
+        "validation": {
+          "dates_required": "Sélectionnez une date de début et une date de fin.",
+          "invalid_range": "La date de fin doit être postérieure ou égale à la date de début."
+        },
+        "states": {
+          "loading": "Chargement de l’historique…",
+          "loading_more": "Chargement…",
+          "load_more": "Charger plus",
+          "error_title": "Historique indisponible",
+          "error_description": "Impossible de charger l’historique.",
+          "retry": "Réessayer",
+          "empty_title": "Aucune activité",
+          "empty_description": "Les interactions de ce client apparaîtront ici.",
+          "no_results_title": "Aucune activité trouvée",
+          "no_results_description": "Essayez une période plus large ou retirez un filtre."
+        }
+      },
       "sales_activity": {
         "title": "Timeline CRM",
         "subtitle": "Regroupez ici appels, notes, emails, prochaines actions et rendez-vous lies au client.",

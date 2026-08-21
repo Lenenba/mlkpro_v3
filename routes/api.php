@@ -537,6 +537,8 @@ Route::group([], function () {
             Route::patch('customer/{customer}/notes', [CustomerController::class, 'updateNotes']);
             Route::patch('customer/{customer}/tags', [CustomerController::class, 'updateTags']);
             Route::patch('customer/{customer}/auto-validation', [CustomerController::class, 'updateAutoValidation']);
+            Route::get('customer/{customer}/activity', [CustomerController::class, 'activity'])
+                ->name('api.customer.activity_index');
             Route::apiResource('customer', CustomerController::class)
                 ->only(['index', 'store', 'update', 'show', 'destroy'])
                 ->names('api.customer');

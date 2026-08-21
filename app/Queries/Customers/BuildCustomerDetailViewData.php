@@ -42,7 +42,25 @@ class BuildCustomerDetailViewData
         bool $canEdit,
         array $filters
     ): array {
-        $hasSalesData = (bool) ($accountOwner && $this->featureService->hasFeature($accountOwner, 'sales'));
+        $canViewInvoices = (bool) ($user?->can('viewAny', Invoice::class) ?? false);
+        $currencyCode = $accountOwner?->businessCurrencyCode() ?? 'CAD';
+        $membership = $user?->relationLoaded('teamMembership')
+            ? $user->teamMembership
+            : $user?->teamMembership()->first();
+        $canViewSales = (bool) ($user && $accountOwner && (
+            (int) $user->id === (int) $accountOwner->id
+            || (
+                $membership
+                && $membership->is_active
+                && (int) $membership->account_id === (int) $accountOwner->id
+                && ($membership->role === 'admin'
+                    || $membership->hasPermission('sales.manage')
+                    || $membership->hasPermission('sales.pos'))
+            )
+        ));
+        $hasSalesData = (bool) ($accountOwner
+            && $this->featureService->hasFeature($accountOwner, 'sales')
+            && $canViewSales);
         $hasServiceData = (bool) ($accountOwner && collect([
             'requests',
             'quotes',
@@ -54,7 +72,7 @@ class BuildCustomerDetailViewData
 
         $customer->load(['properties', 'vipTier']);
         if ($hasServiceData) {
-            $customer->load([
+            $serviceRelations = [
                 'quotes' => fn ($query) => $query
                     ->without(['products', 'property'])
                     ->with('property:id,street1,city,country')
@@ -76,12 +94,17 @@ class BuildCustomerDetailViewData
                     ->latest()
                     ->limit(10)
                     ->with('prospect:id,customer_id,status,title,contact_name,contact_email,contact_phone'),
-                'invoices' => fn ($query) => $query
+            ];
+            if ($canViewInvoices) {
+                $serviceRelations['invoices'] = fn ($query) => $query
+                    ->whereNull('deleted_at')
+                    ->where('currency_code', $currencyCode)
                     ->select(CustomerReadSelects::detailInvoiceColumns())
                     ->withSum(['payments as payments_sum_amount' => fn ($paymentQuery) => $paymentQuery->whereIn('status', Payment::settledStatuses())], 'amount')
                     ->latest()
-                    ->limit(10),
-            ]);
+                    ->limit(10);
+            }
+            $customer->load($serviceRelations);
         }
 
         $campaignsFeatureEnabled = $accountOwner
@@ -133,11 +156,17 @@ class BuildCustomerDetailViewData
                 'upcomingJobs' => $upcomingJobs,
                 'recentPayments' => $recentPayments,
                 'billing' => $billing,
-            ] = $this->buildServiceData($customer, $accountId);
+            ] = $this->buildServiceData($customer, $accountId, $canViewInvoices, $currencyCode);
         }
 
-        $activity = $this->buildActivity($customer, $accountId, $hasSalesData, $hasServiceData);
-        $customerPackages = $this->buildCustomerPackages($customer, $accountId);
+        $activity = $this->buildActivity(
+            $customer,
+            $accountId,
+            $hasSalesData,
+            $hasServiceData,
+            $canViewInvoices
+        );
+        $customerPackages = $this->buildCustomerPackages($customer, $accountId, $canViewInvoices);
 
         return [
             'customer' => $customer,
@@ -392,8 +421,12 @@ class BuildCustomerDetailViewData
         ];
     }
 
-    private function buildServiceData(Customer $customer, int $accountId): array
-    {
+    private function buildServiceData(
+        Customer $customer,
+        int $accountId,
+        bool $canViewInvoices,
+        string $currencyCode
+    ): array {
         $serviceRequestCount = ServiceRequest::query()
             ->where('customer_id', $customer->id)
             ->where('user_id', $accountId)
@@ -439,39 +472,61 @@ class BuildCustomerDetailViewData
             ])
             ->values();
 
-        $recentPayments = Payment::query()
-            ->where('customer_id', $customer->id)
-            ->where('user_id', $accountId)
-            ->with('invoice:id,number')
-            ->orderByRaw('CASE WHEN paid_at IS NULL THEN 1 ELSE 0 END')
-            ->orderByDesc('paid_at')
-            ->orderByDesc('created_at')
-            ->limit(8)
-            ->get(CustomerReadSelects::detailPaymentColumns())
-            ->map(fn ($payment) => [
-                'id' => $payment->id,
-                'amount' => (float) $payment->amount,
-                'method' => $payment->method,
-                'status' => $payment->status,
-                'reference' => $payment->reference,
-                'paid_at' => $payment->paid_at,
-                'created_at' => $payment->created_at,
-                'invoice' => $payment->invoice ? [
-                    'id' => $payment->invoice_id,
-                    'number' => $payment->invoice->number,
-                ] : null,
-            ])
-            ->values();
+        $recentPayments = collect();
+        $totalInvoiced = 0.0;
+        $totalPaid = 0.0;
+        $invoiceCount = 0;
+        if ($canViewInvoices) {
+            $validInvoice = fn ($invoiceQuery) => $invoiceQuery
+                ->where('user_id', $accountId)
+                ->where('customer_id', $customer->id)
+                ->whereNull('deleted_at')
+                ->where('currency_code', $currencyCode);
+            $recentPayments = Payment::query()
+                ->where('customer_id', $customer->id)
+                ->where('user_id', $accountId)
+                ->where('currency_code', $currencyCode)
+                ->whereHas('invoice', $validInvoice)
+                ->with(['invoice' => fn ($invoiceQuery) => $validInvoice($invoiceQuery)
+                    ->select(['id', 'number', 'user_id', 'customer_id', 'currency_code'])])
+                ->orderByRaw('CASE WHEN paid_at IS NULL THEN 1 ELSE 0 END')
+                ->orderByDesc('paid_at')
+                ->orderByDesc('created_at')
+                ->limit(8)
+                ->get(CustomerReadSelects::detailPaymentColumns())
+                ->map(fn ($payment) => [
+                    'id' => $payment->id,
+                    'amount' => (float) $payment->amount,
+                    'currency_code' => $payment->currency_code,
+                    'method' => $payment->method,
+                    'status' => $payment->status,
+                    'reference' => $payment->reference,
+                    'paid_at' => $payment->paid_at,
+                    'created_at' => $payment->created_at,
+                    'invoice' => $payment->invoice ? [
+                        'id' => $payment->invoice_id,
+                        'number' => $payment->invoice->number,
+                    ] : null,
+                ])
+                ->values();
 
-        $totalInvoiced = (float) Invoice::query()
-            ->where('customer_id', $customer->id)
-            ->where('user_id', $accountId)
-            ->whereNotIn('status', ['void'])
-            ->sum('total');
-        $totalPaid = (float) Payment::query()
-            ->where('customer_id', $customer->id)
-            ->where('user_id', $accountId)
-            ->sum('amount');
+            $invoiceQuery = Invoice::query()
+                ->where('customer_id', $customer->id)
+                ->where('user_id', $accountId)
+                ->whereNull('deleted_at')
+                ->where('currency_code', $currencyCode);
+            $invoiceCount = (clone $invoiceQuery)->count();
+            $totalInvoiced = (float) (clone $invoiceQuery)
+                ->whereNotIn('status', ['void'])
+                ->sum('total');
+            $totalPaid = (float) Payment::query()
+                ->where('customer_id', $customer->id)
+                ->where('user_id', $accountId)
+                ->where('currency_code', $currencyCode)
+                ->whereIn('status', Payment::settledStatuses())
+                ->whereHas('invoice', $validInvoice)
+                ->sum('amount');
+        }
 
         return [
             'stats' => [
@@ -490,10 +545,7 @@ class BuildCustomerDetailViewData
                     ->where('customer_id', $customer->id)
                     ->where('user_id', $accountId)
                     ->count(),
-                'invoices' => Invoice::query()
-                    ->where('customer_id', $customer->id)
-                    ->where('user_id', $accountId)
-                    ->count(),
+                'invoices' => $invoiceCount,
             ],
             'tasks' => $tasks,
             'upcomingJobs' => $upcomingJobs,
@@ -506,8 +558,11 @@ class BuildCustomerDetailViewData
         ];
     }
 
-    private function buildCustomerPackages(Customer $customer, int $accountId): Collection
-    {
+    private function buildCustomerPackages(
+        Customer $customer,
+        int $accountId,
+        bool $canViewInvoices
+    ): Collection {
         $packages = CustomerPackage::query()
             ->forAccount($accountId)
             ->where('customer_id', $customer->id)
@@ -522,15 +577,18 @@ class BuildCustomerDetailViewData
             ->limit(12)
             ->get();
 
-        $renewalInvoices = Invoice::query()
-            ->where('user_id', $accountId)
-            ->whereIn('id', $packages
-                ->map(fn (CustomerPackage $package): int => (int) data_get($package->metadata, 'recurrence.pending_invoice_id', 0))
-                ->filter()
-                ->unique()
-                ->values())
-            ->get(['id', 'number', 'status', 'total', 'currency_code'])
-            ->keyBy('id');
+        $renewalInvoices = $canViewInvoices
+            ? Invoice::query()
+                ->where('user_id', $accountId)
+                ->whereNull('deleted_at')
+                ->whereIn('id', $packages
+                    ->map(fn (CustomerPackage $package): int => (int) data_get($package->metadata, 'recurrence.pending_invoice_id', 0))
+                    ->filter()
+                    ->unique()
+                    ->values())
+                ->get(['id', 'number', 'status', 'total', 'currency_code'])
+                ->keyBy('id')
+            : collect();
 
         return $packages
             ->map(function (CustomerPackage $package) use ($renewalInvoices): array {
@@ -662,7 +720,8 @@ class BuildCustomerDetailViewData
         Customer $customer,
         int $accountId,
         bool $hasSalesData,
-        bool $hasServiceData
+        bool $hasServiceData,
+        bool $canViewInvoices
     ): Collection {
         $subjectLabels = [
             LeadRequest::class => 'Request',
@@ -683,11 +742,18 @@ class BuildCustomerDetailViewData
         $workIds = $hasServiceData
             ? $this->customerSubjectIds(Work::query(), $customer, $accountId)
             : collect();
-        $invoiceIds = $hasServiceData
-            ? $this->customerSubjectIds(Invoice::query(), $customer, $accountId)
+        $invoiceIds = $hasServiceData && $canViewInvoices
+            ? $this->customerSubjectIds(Invoice::query()->whereNull('deleted_at'), $customer, $accountId)
             : collect();
-        $paymentIds = ($hasServiceData || $hasSalesData)
-            ? $this->customerSubjectIds(Payment::query(), $customer, $accountId)
+        $paymentIds = $canViewInvoices
+            ? $this->customerSubjectIds(
+                Payment::query()->whereHas('invoice', fn (Builder $invoiceQuery) => $invoiceQuery
+                    ->where('user_id', $accountId)
+                    ->where('customer_id', $customer->id)
+                    ->whereNull('deleted_at')),
+                $customer,
+                $accountId
+            )
             : collect();
         $saleIds = $hasSalesData
             ? $this->customerSubjectIds(Sale::query(), $customer, $accountId)

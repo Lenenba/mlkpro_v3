@@ -81,10 +81,10 @@
         },
         "docs/audits/customers/2026-08-21-customer-experience-step-1.md": {
             "document_status": "complete",
-            "delivery_status": "in_progress",
+            "delivery_status": "done",
             "created_at": "2026-08-21",
             "updated_at": "2026-08-21",
-            "note": "Audit et contrat UX/donnees termines; l'index Clients est livre a l'etape 2 et l'historique unifie reste a livrer a l'etape 3."
+            "note": "Audit et contrat UX/donnees executes; les trois etapes du chantier Clients sont livrees."
         },
         "docs/audits/customers/2026-08-21-customer-experience-step-2.md": {
             "document_status": "complete",
@@ -92,6 +92,13 @@
             "created_at": "2026-08-21",
             "updated_at": "2026-08-21",
             "note": "Index Clients livre: KPI stables, filtres rapides ET/OU, dialogue avance, URL/segments, liste, etats et accessibilite."
+        },
+        "docs/audits/customers/2026-08-21-customer-experience-step-3.md": {
+            "document_status": "complete",
+            "delivery_status": "done",
+            "created_at": "2026-08-21",
+            "updated_at": "2026-08-21",
+            "note": "Fiche Client livree: historique unifie, filtres periode/type, curseur stable, permissions par source et audit avant/apres."
         },
         "docs/audits/mlkpro-benchmark-2026-07-16/execution/PHASE_0_SECURITY_AND_BASELINE.md": {
             "document_status": "complete",

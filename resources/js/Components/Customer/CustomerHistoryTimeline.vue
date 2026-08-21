@@ -335,6 +335,18 @@ const removeType = (type) => {
     toggleType(type);
 };
 
+const selectAllTypes = () => {
+    if (!filters.value.types.length) {
+        return;
+    }
+
+    filters.value = {
+        ...filters.value,
+        types: [],
+    };
+    requestTimeline();
+};
+
 const clearPeriod = () => {
     filters.value = {
         ...filters.value,
@@ -457,6 +469,17 @@ defineExpose({ refresh });
                         {{ translate('types_label', 'Types d’activité') }}
                     </legend>
                     <div class="mt-2 flex flex-wrap gap-2" role="group" :aria-label="translate('types_label', 'Types d’activité')">
+                        <button
+                            type="button"
+                            class="inline-flex min-h-11 items-center rounded-full border px-3 py-2 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            :class="!filters.types.length
+                                ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300'
+                                : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:border-neutral-600'"
+                            :aria-pressed="!filters.types.length"
+                            @click="selectAllTypes"
+                        >
+                            {{ translate('types.all', 'Tous') }}
+                        </button>
                         <button
                             v-for="type in availableTypeOptions"
                             :key="type.value"

@@ -4,7 +4,7 @@ Date : 2026-08-21
 Branche : `develop`  
 Statut du document : complet  
 Statut de la livraison : terminée  
-Suite du chantier : étape 3 — historique unifié
+Suite du chantier : étape 3 livrée — chantier clos
 
 ## Résultat
 
@@ -131,6 +131,6 @@ Les bornes civiles sont calculées dans le fuseau de l'entreprise, puis converti
 
 La vérification visuelle interactive desktop/mobile n'a pas pu être exécutée dans le navigateur intégré, car son outil de contrôle n'était pas exposé dans la session. Le build, les contrats responsive/accessibilité et les tests automatisés sont verts; cette limite d'environnement est consignée sans la présenter comme une validation visuelle.
 
-## Décision de passage à l'étape 3
+## Clôture
 
-L'étape 2 est close. L'étape 3 peut démarrer séparément pour construire la chronologie métier, les périodes/types, la pagination d'activité et la journalisation des changements manquants.
+L'étape 2 reste close et son contrat est inchangé. L'étape 3 a ensuite livré séparément la chronologie métier, les périodes/types, la pagination d'activité et la journalisation des changements manquants.

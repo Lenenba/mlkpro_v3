@@ -18,7 +18,7 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 
 | Dossier | En cours | Bloqués | À faire | Terminés | Références | Archivés | À classer | Total |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| [customers](customers/00_INDEX.md) | 1 | 0 | 0 | 1 | 0 | 0 | 0 | 2 |
+| [customers](customers/00_INDEX.md) | 0 | 0 | 0 | 3 | 0 | 0 | 0 | 3 |
 | [demo-salon](demo-salon/00_INDEX.md) | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
 | [mlkpro-benchmark-2026-07-16](mlkpro-benchmark-2026-07-16/00_INDEX.md) | 6 | 0 | 4 | 1 | 13 | 0 | 0 | 24 |
 | [module-visibility](module-visibility/00_INDEX.md) | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |

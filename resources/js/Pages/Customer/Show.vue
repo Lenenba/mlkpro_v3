@@ -14,6 +14,7 @@ import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
 import SalesActivityPanel from '@/Components/CRM/SalesActivityPanel.vue';
+import CustomerHistoryTimeline from '@/Components/Customer/CustomerHistoryTimeline.vue';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
 import CustomerPreviewCard from './UI/CustomerPreviewCard.vue';
@@ -59,6 +60,14 @@ const props = defineProps({
     activity: {
         type: Array,
         default: () => [],
+    },
+    customerActivity: {
+        type: Object,
+        default: () => ({ data: [], meta: {}, links: {} }),
+    },
+    customerActivityEndpoint: {
+        type: String,
+        default: '',
     },
     lastInteraction: {
         type: Object,
@@ -205,6 +214,11 @@ const visibleSalesActivityManualActions = computed(() => (
         ? (props.salesActivityManualActions || [])
         : (props.salesActivityManualActions || []).filter((definition) => !isQuoteActivityDefinition(definition))
 ));
+const customerHistory = ref(null);
+const customerActivityEndpoint = computed(() => (
+    props.customerActivityEndpoint || route('customer.activity_index', props.customer?.id)
+));
+const refreshCustomerHistory = () => customerHistory.value?.refresh();
 
 const properties = computed(() => props.customer?.properties || []);
 const tags = computed(() => props.customer?.tags || []);
@@ -1065,7 +1079,13 @@ watch(rightRailTabs, (tabs) => {
 
 const showPlanningWorkspace = computed(() => showServiceOps.value && (jobsFeatureEnabled.value || tasksFeatureEnabled.value));
 const activityWorkspaceTabs = computed(() => {
-    const tabs = [];
+    const tabs = [{
+        id: 'history',
+        label: t('customers.details.history.title'),
+        initials: 'HI',
+        meta: t('customers.tabs.items', { count: props.customerActivity?.data?.length || 0 }),
+        tone: 'violet',
+    }];
 
     if (showPlanningWorkspace.value) {
         tabs.push({
@@ -1087,11 +1107,11 @@ const activityWorkspaceTabs = computed(() => {
 
     return tabs;
 });
-const activeActivityWorkspaceTab = ref('planning');
+const activeActivityWorkspaceTab = ref('history');
 
 watch(activityWorkspaceTabs, (tabs) => {
     if (!tabs.some((tab) => tab.id === activeActivityWorkspaceTab.value)) {
-        activeActivityWorkspaceTab.value = tabs[0]?.id || 'crm';
+        activeActivityWorkspaceTab.value = tabs[0]?.id || 'history';
     }
 }, { immediate: true });
 
@@ -1768,11 +1788,19 @@ const deleteProperty = (property) => {
                         v-model="activeActivityWorkspaceTab"
                         :tabs="activityWorkspaceTabs"
                         :aria-label="$t('customers.details.workspace.title')"
-                        grid-class="grid-cols-1 sm:grid-cols-2"
+                        grid-class="grid-cols-1 sm:grid-cols-3"
                         class="mb-4"
                     />
 
-                    <template v-if="activeActivityWorkspaceTab === 'planning'">
+                    <CustomerHistoryTimeline
+                        v-if="activeActivityWorkspaceTab === 'history'"
+                        ref="customerHistory"
+                        :activity="customerActivity"
+                        :fallback-items="visibleActivity"
+                        :endpoint="customerActivityEndpoint"
+                    />
+
+                    <template v-else-if="activeActivityWorkspaceTab === 'planning'">
                         <CardTileTabs
                             v-if="planningTabs.length > 1"
                             v-model="activePlanningTab"
@@ -1877,6 +1905,8 @@ const deleteProperty = (property) => {
                             i18n-prefix="customers.details.sales_activity"
                             dialog-id="customer-sales-activity-modal"
                             :embedded="true"
+                            :show-feed="false"
+                            @logged="refreshCustomerHistory"
                         />
                     </div>
                 </Card>

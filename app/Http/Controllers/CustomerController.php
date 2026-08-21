@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\CustomerClientType;
+use App\Http\Requests\CustomerActivityRequest;
 use App\Http\Requests\CustomerIndexRequest;
 use App\Http\Requests\CustomerRequest;
 use App\Models\ActivityLog;
@@ -17,11 +18,13 @@ use App\Notifications\InviteUserNotification;
 use App\Queries\Customers\BuildCustomerDetailViewData;
 use App\Queries\Customers\BuildCustomerIndexStats;
 use App\Queries\Customers\BuildCustomerOperationalIndexData;
+use App\Queries\Customers\BuildCustomerTimelineData;
 use App\Queries\Customers\CustomerIndexFilters;
 use App\Queries\Customers\CustomerReadSelects;
 use App\Services\BillingPlanService;
 use App\Services\BillingSubscriptionService;
 use App\Services\CompanyFeatureService;
+use App\Services\Customers\CustomerActivityAudit;
 use App\Services\Customers\CustomerBulkAudienceBridgeService;
 use App\Services\Customers\CustomerBulkContactService;
 use App\Support\BulkActions\BulkActionRegistry;
@@ -390,12 +393,11 @@ class CustomerController extends Controller
         $this->authorize('view', $customer);
 
         $user = $request?->user();
-        $accountOwner = null;
-        $accountId = $user?->id ?? Auth::id();
-        if ($user) {
-            [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
+        if (! $user) {
+            abort(403);
         }
-        $canEdit = $user ? $user->can('update', $customer) : false;
+        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
+        $canEdit = $user->can('update', $customer);
         $filters = $request?->only([
             'name',
             'status',
@@ -411,11 +413,50 @@ class CustomerController extends Controller
             $filters
         );
 
-        $props['canLogSalesActivity'] = true;
+        $activityRoute = $request?->routeIs('api.*')
+            ? 'api.customer.activity_index'
+            : 'customer.activity_index';
+        $activityEndpoint = route($activityRoute, $customer, false);
+        $props['customerActivity'] = app(BuildCustomerTimelineData::class)->execute(
+            $customer,
+            $user,
+            $accountOwner,
+            $accountId,
+            [
+                'period' => 'last_90_days',
+                'per_page' => 20,
+            ],
+            $activityEndpoint
+        );
+        $props['customerActivityEndpoint'] = $activityEndpoint;
+        $props['canLogSalesActivity'] = $user->can('logActivity', $customer);
         $props['salesActivityQuickActions'] = array_values(SalesActivityTaxonomy::quickActions());
         $props['salesActivityManualActions'] = SalesActivityTaxonomy::manualActionDefinitions();
 
         return $this->inertiaOrJson('Customer/Show', $props);
+    }
+
+    public function activity(
+        CustomerActivityRequest $request,
+        Customer $customer,
+        BuildCustomerTimelineData $timeline
+    ) {
+        $this->authorize('view', $customer);
+
+        $user = $request->user();
+        if (! $user) {
+            abort(403);
+        }
+        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
+
+        return response()->json($timeline->execute(
+            $customer,
+            $user,
+            $accountOwner,
+            $accountId,
+            $request->validated(),
+            $request->getPathInfo()
+        ));
     }
 
     public function updateNotes(Request $request, Customer $customer)
@@ -426,13 +467,20 @@ class CustomerController extends Controller
             'description' => 'nullable|string|max:255',
         ]);
 
+        $before = ['description' => $customer->description];
         $customer->update([
             'description' => $validated['description'] ?? null,
         ]);
 
-        ActivityLog::record($request->user(), $customer, 'notes_updated', [
-            'description' => $customer->description,
-        ], 'Customer notes updated');
+        app(CustomerActivityAudit::class)->recordChanges(
+            $request->user(),
+            $customer,
+            'notes_updated',
+            $before,
+            ['description' => $customer->description],
+            'Customer notes updated',
+            ['note' => $customer->description]
+        );
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -461,13 +509,19 @@ class CustomerController extends Controller
         $tags = array_map(fn ($tag) => mb_substr($tag, 0, 30), $tags);
         $tags = array_slice($tags, 0, 20);
 
+        $before = ['tags' => $customer->tags ?: []];
         $customer->update([
             'tags' => $tags ?: null,
         ]);
 
-        ActivityLog::record($request->user(), $customer, 'tags_updated', [
-            'tags' => $tags,
-        ], 'Customer tags updated');
+        app(CustomerActivityAudit::class)->recordChanges(
+            $request->user(),
+            $customer,
+            'tags_updated',
+            $before,
+            ['tags' => $customer->tags ?: []],
+            'Customer tags updated'
+        );
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -505,14 +559,21 @@ class CustomerController extends Controller
             'auto_validate_invoices' => (bool) ($validated['auto_validate_invoices'] ?? $customer->auto_validate_invoices ?? false),
         ], $accountOwner);
 
+        $before = collect(array_keys($preferences))
+            ->mapWithKeys(fn (string $field): array => [$field => (bool) $customer->getAttribute($field)])
+            ->all();
         $customer->update($preferences);
 
-        ActivityLog::record($request->user(), $customer, 'auto_validation_updated', [
-            'auto_accept_quotes' => $customer->auto_accept_quotes,
-            'auto_validate_jobs' => $customer->auto_validate_jobs,
-            'auto_validate_tasks' => $customer->auto_validate_tasks,
-            'auto_validate_invoices' => $customer->auto_validate_invoices,
-        ], 'Customer auto validation updated');
+        app(CustomerActivityAudit::class)->recordChanges(
+            $request->user(),
+            $customer,
+            'auto_validation_updated',
+            $before,
+            collect(array_keys($preferences))
+                ->mapWithKeys(fn (string $field): array => [$field => (bool) $customer->getAttribute($field)])
+                ->all(),
+            'Customer auto validation updated'
+        );
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -762,6 +823,8 @@ class CustomerController extends Controller
             abort(403);
         }
         [$accountOwner] = $this->resolveCustomerAccount($user);
+        $audit = app(CustomerActivityAudit::class);
+        $before = $audit->profileSnapshot($customer);
 
         $validated = $this->enforceAutoValidationFeatures(
             $this->normalizeCustomerPayload($request->validated(), $customer),
@@ -829,10 +892,15 @@ class CustomerController extends Controller
             }
         }
 
-        ActivityLog::record($request->user(), $customer, 'updated', [
-            'company_name' => $customer->company_name,
-            'email' => $customer->email,
-        ], 'Customer updated');
+        $customer->refresh();
+        $audit->recordChanges(
+            $request->user(),
+            $customer,
+            'updated',
+            $before,
+            $audit->profileSnapshot($customer),
+            'Customer updated'
+        );
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -898,10 +966,14 @@ class CustomerController extends Controller
             foreach ($customers as $customer) {
                 $this->authorize('update', $customer);
             }
-            Customer::query()
-                ->byUser($accountId)
-                ->whereIn('id', $data['ids'])
-                ->update(['portal_access' => true]);
+            $this->updateCustomersWithAudit(
+                $customers,
+                $user,
+                'portal_access',
+                true,
+                'portal_access_enabled',
+                'Customer portal access enabled'
+            );
 
             if ($this->shouldReturnJson($request)) {
                 return response()->json($this->bulkActionResult(
@@ -918,10 +990,14 @@ class CustomerController extends Controller
             foreach ($customers as $customer) {
                 $this->authorize('update', $customer);
             }
-            Customer::query()
-                ->byUser($accountId)
-                ->whereIn('id', $data['ids'])
-                ->update(['portal_access' => false]);
+            $this->updateCustomersWithAudit(
+                $customers,
+                $user,
+                'portal_access',
+                false,
+                'portal_access_disabled',
+                'Customer portal access disabled'
+            );
 
             if ($this->shouldReturnJson($request)) {
                 return response()->json($this->bulkActionResult(
@@ -938,10 +1014,14 @@ class CustomerController extends Controller
             foreach ($customers as $customer) {
                 $this->authorize('update', $customer);
             }
-            Customer::query()
-                ->byUser($accountId)
-                ->whereIn('id', $data['ids'])
-                ->update(['is_active' => false]);
+            $this->updateCustomersWithAudit(
+                $customers,
+                $user,
+                'is_active',
+                false,
+                'customer_archived',
+                'Customer archived'
+            );
 
             if ($this->shouldReturnJson($request)) {
                 return response()->json($this->bulkActionResult(
@@ -958,10 +1038,14 @@ class CustomerController extends Controller
             foreach ($customers as $customer) {
                 $this->authorize('update', $customer);
             }
-            Customer::query()
-                ->byUser($accountId)
-                ->whereIn('id', $data['ids'])
-                ->update(['is_active' => true]);
+            $this->updateCustomersWithAudit(
+                $customers,
+                $user,
+                'is_active',
+                true,
+                'customer_restored',
+                'Customer restored'
+            );
 
             if ($this->shouldReturnJson($request)) {
                 return response()->json($this->bulkActionResult(
@@ -1209,6 +1293,39 @@ class CustomerController extends Controller
                 $validated
             )
         );
+    }
+
+    /** @param iterable<int, Customer> $customers */
+    private function updateCustomersWithAudit(
+        iterable $customers,
+        User $actor,
+        string $field,
+        mixed $value,
+        string $action,
+        string $description
+    ): void {
+        $audit = app(CustomerActivityAudit::class);
+
+        DB::transaction(function () use ($customers, $actor, $field, $value, $action, $description, $audit): void {
+            foreach ($customers as $customer) {
+                $before = [$field => $customer->getAttribute($field)];
+                $customer->setAttribute($field, $value);
+                if (! $customer->isDirty($field)) {
+                    continue;
+                }
+
+                $customer->save();
+                $audit->recordChanges(
+                    $actor,
+                    $customer,
+                    $action,
+                    $before,
+                    [$field => $customer->getAttribute($field)],
+                    $description,
+                    ['source' => 'bulk']
+                );
+            }
+        });
     }
 
     private function resolveCustomerAccount(

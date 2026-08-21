@@ -4,6 +4,8 @@ namespace App\Queries\Customers;
 
 use App\Http\Requests\CustomerActivityRequest;
 use App\Models\ActivityLog;
+use App\Models\Campaign;
+use App\Models\CampaignEvent;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Payment;
@@ -18,7 +20,6 @@ use App\Support\CRM\MessageEventTaxonomy;
 use App\Support\CRM\SalesActivityTaxonomy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -27,6 +28,8 @@ use Throwable;
 final class BuildCustomerTimelineData
 {
     private const SOURCE_ACTIVITY = 'activity';
+
+    private const SOURCE_CAMPAIGN = 'campaign';
 
     private const SOURCE_INVOICE = 'invoice';
 
@@ -79,7 +82,7 @@ final class BuildCustomerTimelineData
             ->filter(fn (string $type): bool => (bool) ($capabilities[$type] ?? false))
             ->values()
             ->all();
-        $requestedTypes = isset($filters['types']) && is_array($filters['types'])
+        $requestedTypes = isset($filters['types']) && is_array($filters['types']) && $filters['types'] !== []
             ? array_values(array_intersect(CustomerActivityRequest::TYPES, $filters['types'], $availableTypes))
             : $availableTypes;
         $period = in_array($filters['period'] ?? null, CustomerActivityRequest::PERIODS, true)
@@ -131,15 +134,26 @@ final class BuildCustomerTimelineData
             ));
         }
 
-        $activityTypes = array_values(array_intersect(
-            $requestedTypes,
-            ['notes', 'communications', 'profile_changes']
-        ));
+        $activityTypes = array_values(array_intersect($requestedTypes, [
+            ...($capabilities['crm_communications'] ? ['notes', 'communications'] : []),
+            'profile_changes',
+        ]));
         if ($activityTypes !== []) {
             $events->push(...$this->activityLogs(
                 $customer,
                 $accountId,
                 $activityTypes,
+                $fromUtc,
+                $toUtc,
+                $cursor,
+                $perPage
+            ));
+        }
+
+        if (in_array('communications', $requestedTypes, true) && $capabilities['campaign_events']) {
+            $events->push(...$this->campaignEvents(
+                $customer,
+                $accountId,
                 $fromUtc,
                 $toUtc,
                 $cursor,
@@ -176,7 +190,7 @@ final class BuildCustomerTimelineData
                 'period' => $period,
                 'from' => $fromLocal,
                 'to' => $toLocal,
-                'types' => $requestedTypes,
+                'types' => $requestedTypes === $availableTypes ? [] : $requestedTypes,
                 'available_types' => $availableTypes,
                 'timezone' => $timezone,
                 'per_page' => $perPage,
@@ -198,14 +212,30 @@ final class BuildCustomerTimelineData
             && $actor->can('viewAny', Reservation::class);
         $hasInvoices = $this->featureService->hasFeature($accountOwner, 'invoices')
             && $actor->can('viewAny', Invoice::class);
+        $hasCampaignEvents = $this->featureService->hasFeature($accountOwner, 'campaigns')
+            && $actor->can('viewAny', Campaign::class);
+        $membership = $actor->relationLoaded('teamMembership')
+            ? $actor->teamMembership
+            : $actor->teamMembership()->first();
+        $canViewCrm = (int) $actor->id === $accountId
+            || (
+                $membership
+                && $membership->is_active
+                && (int) $membership->account_id === $accountId
+                && ($membership->role === 'admin'
+                    || $membership->hasPermission('sales.manage')
+                    || $membership->hasPermission('sales.pos'))
+            );
 
         return [
             'appointments' => $hasReservations,
             'invoices' => $hasInvoices,
             'payments' => $hasInvoices,
-            'notes' => (int) $actor->accountOwnerId() === $accountId,
-            'communications' => (int) $actor->accountOwnerId() === $accountId,
+            'notes' => $canViewCrm,
+            'communications' => $canViewCrm || $hasCampaignEvents,
             'profile_changes' => (int) $actor->accountOwnerId() === $accountId,
+            'campaign_events' => $hasCampaignEvents,
+            'crm_communications' => $canViewCrm,
         ];
     }
 
@@ -289,10 +319,11 @@ final class BuildCustomerTimelineData
             ->active()
             ->where('user_id', $actor->id)
             ->first();
+        $resolvedPermissions = $membership?->resolvedPermissions() ?? [];
         $canViewAll = $membership
             && ($membership->role === 'admin'
-                || $membership->hasPermission('reservations.manage')
-                || $membership->hasPermission('view_all_reservations'));
+                || in_array('reservations.manage', $resolvedPermissions, true)
+                || in_array('view_all_reservations', $resolvedPermissions, true));
 
         if (! $canViewAll) {
             $query->where('team_member_id', (int) ($membership?->id ?? 0));
@@ -315,6 +346,7 @@ final class BuildCustomerTimelineData
         $query = Invoice::query()
             ->where('user_id', $accountId)
             ->where('customer_id', $customer->id)
+            ->whereNull('deleted_at')
             ->where('currency_code', $currencyCode)
             ->with('creator:id,name');
         $this->applyDateBounds($query, 'created_at', $fromUtc, $toUtc);
@@ -378,11 +410,23 @@ final class BuildCustomerTimelineData
                 Payment::STATUS_REFUNDED,
                 Payment::STATUS_REVERSED,
             ])
-            ->whereHas('invoice', fn (Builder $invoiceQuery) => $invoiceQuery
-                ->where('user_id', $accountId)
-                ->where('customer_id', $customer->id)
-                ->where('currency_code', $currencyCode))
-            ->with(['invoice:id,number,user_id,customer_id,currency_code', 'user:id,name']);
+            ->where(function (Builder $sourceQuery) use ($accountId, $customer, $currencyCode): void {
+                $sourceQuery->whereNull('invoice_id')
+                    ->orWhereHas('invoice', fn (Builder $invoiceQuery) => $invoiceQuery
+                        ->where('user_id', $accountId)
+                        ->where('customer_id', $customer->id)
+                        ->whereNull('deleted_at')
+                        ->where('currency_code', $currencyCode));
+            })
+            ->with([
+                'invoice' => fn ($invoiceQuery) => $invoiceQuery
+                    ->where('user_id', $accountId)
+                    ->where('customer_id', $customer->id)
+                    ->whereNull('deleted_at')
+                    ->where('currency_code', $currencyCode)
+                    ->select(['id', 'number', 'user_id', 'customer_id', 'currency_code']),
+                'user:id,name',
+            ]);
         $this->applyDateBounds($query, $dateSql, $fromUtc, $toUtc);
         $this->applyCursor($query, $dateSql, self::SOURCE_PAYMENT, $cursor);
 
@@ -423,6 +467,76 @@ final class BuildCustomerTimelineData
                         'method' => $payment->method,
                         'reference' => $payment->reference,
                         'invoice_id' => $payment->invoice_id,
+                    ]
+                );
+            })
+            ->all();
+    }
+
+    /**
+     * @param  array{at: string, source: string, id: int}|null  $cursor
+     * @return array<int, array<string, mixed>>
+     */
+    private function campaignEvents(
+        Customer $customer,
+        int $accountId,
+        ?Carbon $fromUtc,
+        ?Carbon $toUtc,
+        ?array $cursor,
+        int $limit
+    ): array {
+        $dateSql = 'COALESCE(occurred_at, created_at)';
+        $query = CampaignEvent::query()
+            ->where('user_id', $accountId)
+            ->where('customer_id', $customer->id)
+            ->whereHas('campaign', fn (Builder $campaignQuery) => $campaignQuery
+                ->where('user_id', $accountId))
+            ->with([
+                'campaign' => fn ($campaignQuery) => $campaignQuery
+                    ->where('user_id', $accountId)
+                    ->select(['id', 'user_id', 'name']),
+                'user:id,name',
+            ]);
+        $this->applyDateBounds($query, $dateSql, $fromUtc, $toUtc);
+        $this->applyCursor($query, $dateSql, self::SOURCE_CAMPAIGN, $cursor);
+
+        return $query
+            ->select('campaign_events.*')
+            ->selectRaw($dateSql.' as timeline_occurred_at')
+            ->orderByRaw($dateSql.' DESC')
+            ->orderByDesc('id')
+            ->limit($limit + 1)
+            ->get()
+            ->map(function (CampaignEvent $event): array {
+                $eventType = strtolower((string) $event->event_type);
+                $campaignName = trim((string) ($event->campaign?->name ?? ''));
+                $channel = trim((string) ($event->channel ?? ''));
+
+                return $this->event(
+                    self::SOURCE_CAMPAIGN,
+                    (int) $event->id,
+                    $event->getAttribute('timeline_occurred_at'),
+                    'communications',
+                    $eventType !== '' ? $eventType : 'recorded',
+                    $this->campaignEventTitle($eventType),
+                    collect([$campaignName, $channel !== '' ? Str::headline($channel) : null])
+                        ->filter()
+                        ->implode(' · ') ?: null,
+                    null,
+                    $event->campaign ? [
+                        'type' => 'campaign',
+                        'id' => (int) $event->campaign->id,
+                        'href' => route('campaigns.show', $event->campaign, false),
+                    ] : null,
+                    'megaphone',
+                    $event->user ? [
+                        'id' => (int) $event->user->id,
+                        'name' => (string) $event->user->name,
+                    ] : null,
+                    [
+                        'channel' => $event->channel,
+                        'event_type' => $event->event_type,
+                        'conversion_type' => $event->conversion_type,
                     ]
                 );
             })
@@ -597,10 +711,25 @@ final class BuildCustomerTimelineData
             ];
         }
 
+        $rollingStart = match ($period) {
+            'last_7_days' => $now->copy()->subDays(6)->startOfDay(),
+            'last_30_days' => $now->copy()->subDays(29)->startOfDay(),
+            'last_6_months' => $now->copy()->subMonthsNoOverflow(6)->startOfDay(),
+            'last_90_days' => $now->copy()->subDays(89)->startOfDay(),
+            default => null,
+        };
+        if ($rollingStart) {
+            // Rolling presets keep the upper bound open so upcoming
+            // appointments remain visible beside the recent history.
+            return [
+                $rollingStart->copy()->utc(),
+                null,
+                $rollingStart->toDateString(),
+                null,
+            ];
+        }
+
         [$fromLocal, $toLocal] = match ($period) {
-            'last_7_days' => [$now->copy()->subDays(6)->startOfDay(), $now->copy()->addDay()->startOfDay()],
-            'last_30_days' => [$now->copy()->subDays(29)->startOfDay(), $now->copy()->addDay()->startOfDay()],
-            'last_6_months' => [$now->copy()->subMonthsNoOverflow(6)->startOfDay(), $now->copy()->addDay()->startOfDay()],
             'current_year' => [$now->copy()->startOfYear(), $now->copy()->addYear()->startOfYear()],
             'previous_year' => [$now->copy()->subYear()->startOfYear(), $now->copy()->startOfYear()],
             default => [$now->copy()->subDays(89)->startOfDay(), $now->copy()->addDay()->startOfDay()],
@@ -638,6 +767,7 @@ final class BuildCustomerTimelineData
             || ! is_string($decoded['at'] ?? null)
             || ! in_array($decoded['source'] ?? null, [
                 self::SOURCE_ACTIVITY,
+                self::SOURCE_CAMPAIGN,
                 self::SOURCE_INVOICE,
                 self::SOURCE_PAYMENT,
                 self::SOURCE_RESERVATION,
@@ -774,6 +904,22 @@ final class BuildCustomerTimelineData
         };
     }
 
+    private function campaignEventTitle(string $eventType): string
+    {
+        return match ($eventType) {
+            'queued' => 'Campaign message queued',
+            'sent' => 'Campaign message sent',
+            'delivered' => 'Campaign message delivered',
+            'opened' => 'Campaign message opened',
+            'click', 'clicked' => 'Campaign link clicked',
+            'conversion', 'converted' => 'Campaign conversion recorded',
+            'failed' => 'Campaign message failed',
+            'skipped' => 'Campaign message skipped',
+            'unsubscribe', 'unsubscribed' => 'Customer unsubscribed',
+            default => 'Campaign activity',
+        };
+    }
+
     private function activityType(string $action): string
     {
         if (in_array($action, self::NOTE_ACTIONS, true)) {
@@ -791,8 +937,20 @@ final class BuildCustomerTimelineData
     /** @param array<string, mixed> $properties */
     private function activityStatus(string $action, array $properties): string
     {
+        $profileStatus = match ($action) {
+            'customer_archived' => 'inactive',
+            'customer_restored' => 'active',
+            'portal_access_enabled' => 'active',
+            'portal_access_disabled' => 'inactive',
+            'customer_vip_updated', 'customer_vip_auto_synced' => (bool) data_get($properties, 'after.is_vip')
+                ? 'vip'
+                : 'standard',
+            default => null,
+        };
+
         return (string) ($properties['status']
             ?? $properties['after']['status']
+            ?? $profileStatus
             ?? MessageEventTaxonomy::present($action, $properties)['delivery_state']
             ?? MeetingEventTaxonomy::present($action, $properties)['lifecycle_state']
             ?? SalesActivityTaxonomy::present($action, $properties)['outcome']
@@ -816,6 +974,15 @@ final class BuildCustomerTimelineData
     private function activityDescription(ActivityLog $log, array $properties): ?string
     {
         $description = trim((string) ($properties['note'] ?? $log->description ?? ''));
+        $changedFields = collect(array_keys((array) ($properties['changes'] ?? [])))
+            ->map(fn (string $field): string => Str::headline($field))
+            ->implode(', ');
+
+        if ($changedFields !== '' && ! isset($properties['note'])) {
+            $description = $description !== ''
+                ? $description.' · '.$changedFields
+                : $changedFields;
+        }
 
         return $description !== '' ? $description : null;
     }

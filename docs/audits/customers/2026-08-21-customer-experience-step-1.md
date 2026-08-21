@@ -3,7 +3,7 @@
 Date : 2026-08-21  
 Branche auditée : `develop`  
 Statut du document : complet  
-Statut du chantier : étape 2 livrée; étape 3 à livrer
+Statut du chantier : terminé — étapes 1, 2 et 3 livrées
 
 ## Résultat exécutif
 
@@ -391,6 +391,6 @@ Pour fiabiliser le futur historique, l'étape 3 ajoutera des propriétés avant/
 - Inspection visuelle runtime : reportée aux étapes 2 et 3, car le navigateur intégré n'était pas exposé dans cette session.
 - Aucun fichier PHP modifié à cette étape; le gate `composer qa:format` ne s'applique pas à cette livraison documentaire.
 
-## Décision de passage à l'étape 2
+## Clôture du contrat
 
-L'étape 2 peut commencer sur ce contrat. Elle devra livrer l'index Clients complet et ses tests sans entamer la chronologie détaillée, réservée à l'étape 3.
+Le contrat a été exécuté en trois livraisons distinctes. L'index Clients est documenté à l'étape 2 et la chronologie détaillée à l'étape 3; le chantier est clos.

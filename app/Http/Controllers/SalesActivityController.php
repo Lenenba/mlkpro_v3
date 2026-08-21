@@ -46,7 +46,7 @@ class SalesActivityController extends Controller
             abort(403);
         }
 
-        $this->authorize('view', $customer);
+        $this->authorize('logActivity', $customer);
 
         $activity = $logger->record($user, $customer, $this->validatedPayload($request));
 

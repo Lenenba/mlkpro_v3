@@ -12,13 +12,11 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 
 | En cours | Bloqués | À faire | Terminés | Références | Archivés | À classer | Total |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 1 | 0 | 0 | 1 | 0 | 0 | 0 | 2 |
+| 0 | 0 | 0 | 3 | 0 | 0 | 0 | 3 |
 
 ## En cours
 
-| Créé le | Modifié le | Document | Titre | État du document | Source | Note |
-| --- | --- | --- | --- | --- | --- | --- |
-| 2026-08-21 | 2026-08-21 | [2026-08-21-customer-experience-step-1.md](2026-08-21-customer-experience-step-1.md) | Module Clients — étape 1/3 : audit et contrat d'implémentation | Complet | Classement manuel | Audit et contrat UX/donnees termines; l'index Clients est livre a l'etape 2 et l'historique unifie reste a livrer a l'etape 3. |
+_Aucun document._
 
 ## Bloqué
 
@@ -32,7 +30,9 @@ _Aucun document._
 
 | Créé le | Modifié le | Document | Titre | État du document | Source | Note |
 | --- | --- | --- | --- | --- | --- | --- |
+| 2026-08-21 | 2026-08-21 | [2026-08-21-customer-experience-step-1.md](2026-08-21-customer-experience-step-1.md) | Module Clients — étape 1/3 : audit et contrat d'implémentation | Complet | Classement manuel | Audit et contrat UX/donnees executes; les trois etapes du chantier Clients sont livrees. |
 | 2026-08-21 | 2026-08-21 | [2026-08-21-customer-experience-step-2.md](2026-08-21-customer-experience-step-2.md) | Module Clients — étape 2/3 : livraison de l'index | Complet | Classement manuel | Index Clients livre: KPI stables, filtres rapides ET/OU, dialogue avance, URL/segments, liste, etats et accessibilite. |
+| 2026-08-21 | 2026-08-21 | [2026-08-21-customer-experience-step-3.md](2026-08-21-customer-experience-step-3.md) | Module Clients — étape 3/3 : historique unifié | Complet | Classement manuel | Fiche Client livree: historique unifie, filtres periode/type, curseur stable, permissions par source et audit avant/apres. |
 
 ## Références actives
 

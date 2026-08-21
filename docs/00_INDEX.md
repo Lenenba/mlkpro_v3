@@ -10,14 +10,15 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 
 | En cours | Bloqués | À faire | Terminés | Références | Archivés | À classer | Total |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 49 | 0 | 23 | 4 | 61 | 0 | 92 | 229 |
+| 48 | 0 | 23 | 6 | 61 | 0 | 92 | 230 |
 
 ## Derniers documents créés
 
 | Créé le | Modifié le | Suivi | Document |
 | --- | --- | --- | --- |
-| 2026-08-21 | 2026-08-21 | En cours | [audits/customers/2026-08-21-customer-experience-step-1.md](audits/customers/2026-08-21-customer-experience-step-1.md) |
+| 2026-08-21 | 2026-08-21 | Terminé | [audits/customers/2026-08-21-customer-experience-step-1.md](audits/customers/2026-08-21-customer-experience-step-1.md) |
 | 2026-08-21 | 2026-08-21 | Terminé | [audits/customers/2026-08-21-customer-experience-step-2.md](audits/customers/2026-08-21-customer-experience-step-2.md) |
+| 2026-08-21 | 2026-08-21 | Terminé | [audits/customers/2026-08-21-customer-experience-step-3.md](audits/customers/2026-08-21-customer-experience-step-3.md) |
 | 2026-08-20 | 2026-08-20 | Terminé | [demo/scenario-engine.md](demo/scenario-engine.md) |
 | 2026-08-18 | 2026-08-18 | Terminé | [PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md](PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md) |
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/capture-plan.csv](demo/video-library/capture-plan.csv) |
@@ -35,14 +36,14 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G06/README.md](demo/video-library/captures/G06/README.md) |
 | 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G07/capture-session.md](demo/video-library/captures/G07/capture-session.md) |
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G07/README.md](demo/video-library/captures/G07/README.md) |
-| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G08/capture-session.md](demo/video-library/captures/G08/capture-session.md) |
 
 ## Derniers documents modifiés
 
 | Modifié le | Créé le | Suivi | Document |
 | --- | --- | --- | --- |
-| 2026-08-21 | 2026-08-21 | En cours | [audits/customers/2026-08-21-customer-experience-step-1.md](audits/customers/2026-08-21-customer-experience-step-1.md) |
+| 2026-08-21 | 2026-08-21 | Terminé | [audits/customers/2026-08-21-customer-experience-step-1.md](audits/customers/2026-08-21-customer-experience-step-1.md) |
 | 2026-08-21 | 2026-08-21 | Terminé | [audits/customers/2026-08-21-customer-experience-step-2.md](audits/customers/2026-08-21-customer-experience-step-2.md) |
+| 2026-08-21 | 2026-08-21 | Terminé | [audits/customers/2026-08-21-customer-experience-step-3.md](audits/customers/2026-08-21-customer-experience-step-3.md) |
 | 2026-08-20 | 2026-08-20 | Terminé | [demo/scenario-engine.md](demo/scenario-engine.md) |
 | 2026-08-20 | 2026-08-07 | Références actives | [MODULE_VISIBILITY_AUDIT_RUNBOOK.md](MODULE_VISIBILITY_AUDIT_RUNBOOK.md) |
 | 2026-08-20 | 2026-04-21 | Références actives | [CRM_PHASE_6_OPPORTUNITY_LAYER_GUIDE_2026-04-21.md](CRM_PHASE_6_OPPORTUNITY_LAYER_GUIDE_2026-04-21.md) |
@@ -60,14 +61,13 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 | 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G04/capture-session.md](demo/video-library/captures/G04/capture-session.md) |
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G04/README.md](demo/video-library/captures/G04/README.md) |
 | 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G05/capture-session.md](demo/video-library/captures/G05/capture-session.md) |
-| 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G05/README.md](demo/video-library/captures/G05/README.md) |
 
 ## Sous-dossiers
 
 | Dossier | En cours | Bloqués | À faire | Terminés | Références | Archivés | À classer | Total |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | [api](api/00_INDEX.md) | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 2 |
-| [audits](audits/00_INDEX.md) | 9 | 0 | 4 | 2 | 13 | 0 | 0 | 28 |
+| [audits](audits/00_INDEX.md) | 8 | 0 | 4 | 4 | 13 | 0 | 0 | 29 |
 | [demo](demo/00_INDEX.md) | 33 | 0 | 17 | 1 | 30 | 0 | 0 | 81 |
 | [superpowers](superpowers/00_INDEX.md) | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
 

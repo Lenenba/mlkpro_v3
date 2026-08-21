@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Models\Customer;
+use App\Models\TeamMember;
 use App\Models\User;
 
 class CustomerPolicy
@@ -75,5 +76,29 @@ class CustomerPolicy
         }
 
         return false;
+    }
+
+    public function logActivity(User $user, Customer $customer): bool
+    {
+        if (! $this->view($user, $customer)) {
+            return false;
+        }
+
+        if ((int) $user->id === (int) $customer->user_id) {
+            return true;
+        }
+
+        $membership = $user->relationLoaded('teamMembership')
+            ? $user->teamMembership
+            : TeamMember::query()
+                ->forAccount((int) $customer->user_id)
+                ->active()
+                ->where('user_id', $user->id)
+                ->first();
+
+        return (bool) $membership
+            && (int) $membership->account_id === (int) $customer->user_id
+            && (bool) $membership->is_active
+            && ($membership->role === 'admin' || $membership->hasPermission('sales.manage'));
     }
 }

@@ -508,6 +508,77 @@
         "title": "Recent activity for this client",
         "empty": "No recent activity yet."
       },
+      "history": {
+        "title": "Unified history",
+        "subtitle": "Appointments, billing, communications, and profile changes in one timeline.",
+        "reset": "Reset",
+        "period_label": "Period",
+        "types_label": "Activity types",
+        "from": "From",
+        "to": "To",
+        "apply": "Apply",
+        "active_filters": "Active filters",
+        "remove_period": "Remove period filter",
+        "remove_type": "Remove {type} filter",
+        "loaded_count": "{count} activities",
+        "loaded_count_more": "{count}+ activities",
+        "unknown_date": "Unknown date",
+        "system_actor": "System",
+        "by_actor": "By {actor}",
+        "list_label": "Customer activity timeline",
+        "periods": {
+          "last_7_days": "Last 7 days",
+          "last_30_days": "Last 30 days",
+          "last_90_days": "Last 90 days",
+          "last_6_months": "Last 6 months",
+          "current_year": "Current year",
+          "previous_year": "Previous year",
+          "all": "Full history",
+          "custom": "Custom period"
+        },
+        "types": {
+          "all": "All",
+          "appointments": "Appointments",
+          "invoices": "Invoices",
+          "payments": "Payments",
+          "notes": "Notes",
+          "communications": "Communications",
+          "profile_changes": "Profile"
+        },
+        "statuses": {
+          "completed": "Completed",
+          "confirmed": "Confirmed",
+          "cancelled": "Cancelled",
+          "no_show": "No-show",
+          "rescheduled": "Rescheduled",
+          "pending": "Pending",
+          "paid": "Paid",
+          "partial": "Partial",
+          "refunded": "Refunded",
+          "reversed": "Reversed",
+          "failed": "Failed",
+          "sent": "Sent",
+          "delivered": "Delivered",
+          "opened": "Opened",
+          "recorded": "Recorded"
+        },
+        "validation": {
+          "dates_required": "Select both a start date and an end date.",
+          "invalid_range": "The end date must be on or after the start date."
+        },
+        "states": {
+          "loading": "Loading history…",
+          "loading_more": "Loading…",
+          "load_more": "Load more",
+          "error_title": "History unavailable",
+          "error_description": "The customer history could not be loaded.",
+          "retry": "Try again",
+          "empty_title": "No activity",
+          "empty_description": "This customer’s interactions will appear here.",
+          "no_results_title": "No activity found",
+          "no_results_description": "Try a wider period or remove a filter."
+        }
+      },
       "sales_activity": {
         "title": "CRM timeline",
         "subtitle": "Bring together calls, notes, emails, next actions, and meetings linked to this customer.",
