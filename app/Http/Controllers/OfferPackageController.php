@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Enums\CurrencyCode;
+use App\Models\Customer;
 use App\Models\CustomerPackage;
 use App\Models\CustomerPackageUsage;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\OfferPackage;
+use App\Models\Payment;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\OfferPackages\OfferPackageService;
@@ -97,12 +99,24 @@ class OfferPackageController extends Controller
 
         $offerPackage->load(['items.product']);
         $owner = User::query()->find($accountId);
+        $packDetail = $offerPackage->type === OfferPackage::TYPE_PACK
+            ? $this->detailPack($offerPackage, $accountId, $user)
+            : null;
 
         return $this->inertiaOrJson('OfferPackages/Show', [
             'offer' => $this->payload($offerPackage),
-            'kpis' => $this->detailKpis($offerPackage, $accountId),
-            'customers' => $this->detailCustomers($offerPackage, $accountId),
-            'recentUsages' => $this->detailRecentUsages($offerPackage, $accountId),
+            'kpis' => $packDetail['kpis'] ?? $this->detailKpis($offerPackage, $accountId),
+            'sales' => $packDetail['sales'] ?? [],
+            'sales_meta' => $packDetail['sales_meta'] ?? [
+                'total' => 0,
+                'displayed' => 0,
+            ],
+            'customers' => $offerPackage->type === OfferPackage::TYPE_FORFAIT
+                ? $this->detailCustomers($offerPackage, $accountId, $user)
+                : [],
+            'recentUsages' => $offerPackage->type === OfferPackage::TYPE_FORFAIT
+                ? $this->detailRecentUsages($offerPackage, $accountId, $user)
+                : [],
             'tenantCurrencyCode' => $owner?->businessCurrencyCode() ?? $user->businessCurrencyCode(),
         ]);
     }
@@ -306,6 +320,7 @@ class OfferPackageController extends Controller
         $invoiceLines = InvoiceItem::query()
             ->whereHas('invoice', fn ($query) => $query
                 ->where('user_id', $accountId)
+                ->whereNull('deleted_at')
                 ->where('status', '!=', 'void'))
             ->get(['id', 'invoice_id', 'title', 'quantity', 'unit_price', 'total', 'currency_code', 'meta', 'created_at'])
             ->filter(fn (InvoiceItem $item): bool => (int) data_get($item->meta, 'offer_package_id') > 0
@@ -487,63 +502,369 @@ class OfferPackageController extends Controller
         return floor($rounded) === $rounded ? (int) $rounded : $rounded;
     }
 
+    /**
+     * Packs are sales lines, not consumable customer packages. Their detail sheet
+     * therefore follows the invoice line snapshot that was recorded at sale time.
+     *
+     * @return array{kpis: array<string, mixed>, sales: array<int, array<string, mixed>>, sales_meta: array{total: int, displayed: int}}
+     */
+    private function detailPack(OfferPackage $offerPackage, int $accountId, User $actor): array
+    {
+        $lines = InvoiceItem::query()
+            ->where('meta->offer_package_id', $offerPackage->id)
+            ->where('meta->offer_package_type', OfferPackage::TYPE_PACK)
+            ->whereHas('invoice', fn ($query) => $query
+                ->where('user_id', $accountId)
+                ->whereNull('deleted_at')
+                ->where('status', '!=', 'void'))
+            ->with([
+                'invoice' => fn ($query) => $query
+                    ->where('user_id', $accountId)
+                    ->whereNull('deleted_at')
+                    ->with([
+                        'customer' => fn ($query) => $query
+                            ->where('user_id', $accountId)
+                            ->select(['id', 'user_id', 'number', 'first_name', 'last_name', 'company_name', 'email', 'phone']),
+                        'payments' => fn ($query) => $query
+                            ->where('user_id', $accountId)
+                            ->select(['id', 'invoice_id', 'user_id', 'status', 'amount', 'currency_code', 'paid_at', 'method', 'created_at'])
+                            ->latest('paid_at')
+                            ->latest('id'),
+                    ]),
+            ])
+            ->latest('created_at')
+            ->latest('id')
+            ->get([
+                'id',
+                'invoice_id',
+                'title',
+                'quantity',
+                'unit_price',
+                'total',
+                'currency_code',
+                'meta',
+                'created_at',
+            ])
+            ->filter(fn (InvoiceItem $line): bool => $line->invoice instanceof Invoice)
+            ->values();
+
+        $facts = $lines->map(fn (InvoiceItem $line): array => $this->packLineFacts(
+            $line,
+            $offerPackage,
+            $accountId
+        ));
+        $invoices = $lines
+            ->pluck('invoice')
+            ->filter(fn ($invoice): bool => $invoice instanceof Invoice)
+            ->unique('id')
+            ->values();
+        $currencyBreakdown = $facts
+            ->groupBy('currency_code')
+            ->map(function (Collection $currencyFacts, string $currencyCode): array {
+                $quantity = (float) $currencyFacts->sum('quantity');
+                $billed = round((float) $currencyFacts->sum('total'), 2);
+                $collected = round((float) $currencyFacts->sum('collected_amount'), 2);
+
+                return [
+                    'currency_code' => $currencyCode,
+                    'sold_count' => $this->reportQuantity($quantity),
+                    'total_billed' => $billed,
+                    'total_collected' => $collected,
+                    'balance_due' => max(0, round($billed - $collected, 2)),
+                    'average_revenue' => $quantity > 0 ? round($billed / $quantity, 2) : 0.0,
+                ];
+            })
+            ->sortKeys()
+            ->values();
+        $primaryCurrency = $this->currencyCode($offerPackage->currency_code);
+        $primaryTotals = $currencyBreakdown
+            ->firstWhere('currency_code', $primaryCurrency) ?? [
+                'sold_count' => 0,
+                'total_billed' => 0.0,
+                'total_collected' => 0.0,
+                'balance_due' => 0.0,
+                'average_revenue' => 0.0,
+            ];
+        $paidInvoiceCount = $invoices
+            ->filter(fn (Invoice $invoice): bool => $this->invoiceIsPaid($invoice, $accountId))
+            ->count();
+        $outstandingInvoiceCount = $invoices
+            ->reject(fn (Invoice $invoice): bool => $this->invoiceIsPaid($invoice, $accountId))
+            ->count();
+
+        return [
+            'kpis' => [
+                'sold_count' => $this->reportQuantity((float) $facts->sum('quantity')),
+                'invoice_count' => $invoices->count(),
+                'assigned_customers' => $invoices
+                    ->filter(fn (Invoice $invoice): bool => $invoice->customer instanceof Customer)
+                    ->pluck('customer_id')
+                    ->filter()
+                    ->unique()
+                    ->count(),
+                'active_customers' => 0,
+                'active_count' => 0,
+                'consumed_count' => 0,
+                'expired_count' => 0,
+                'cancelled_count' => 0,
+                'recurring_count' => 0,
+                'payment_due_count' => 0,
+                'suspended_count' => 0,
+                'total_revenue' => (float) $primaryTotals['total_billed'],
+                'total_billed' => (float) $primaryTotals['total_billed'],
+                'total_collected' => (float) $primaryTotals['total_collected'],
+                'balance_due' => (float) $primaryTotals['balance_due'],
+                'average_revenue' => (float) $primaryTotals['average_revenue'],
+                'initial_quantity' => 0,
+                'consumed_quantity' => 0,
+                'remaining_quantity' => 0,
+                'usage_rate' => 0.0,
+                'paid_invoice_count' => $paidInvoiceCount,
+                'outstanding_invoice_count' => $outstandingInvoiceCount,
+                'currency_code' => $primaryCurrency,
+                'has_mixed_currencies' => $currencyBreakdown->count() > 1,
+                'currency_breakdown' => $currencyBreakdown->all(),
+                'status_breakdown' => $invoices
+                    ->countBy(fn (Invoice $invoice): string => (string) $invoice->status)
+                    ->all(),
+            ],
+            'sales' => $lines
+                ->take(25)
+                ->map(fn (InvoiceItem $line): array => $this->packSalePayload($line, $offerPackage, $accountId, $actor))
+                ->all(),
+            'sales_meta' => [
+                'total' => $lines->count(),
+                'displayed' => min(25, $lines->count()),
+            ],
+        ];
+    }
+
+    /**
+     * @return array{quantity: float, total: float, collected_amount: float, balance_due: float, currency_code: string}
+     */
+    private function packLineFacts(InvoiceItem $line, OfferPackage $offerPackage, int $accountId): array
+    {
+        /** @var Invoice $invoice */
+        $invoice = $line->invoice;
+        $lineTotal = round((float) $line->total, 2);
+        $invoiceTotal = round((float) $invoice->total, 2);
+        $settledAmount = $this->settledInvoiceAmount($invoice, $accountId);
+        $coverage = $invoiceTotal > 0
+            ? min(1, max(0, $settledAmount / $invoiceTotal))
+            : ($this->invoiceIsPaid($invoice, $accountId) ? 1.0 : 0.0);
+        $collectedAmount = round($lineTotal * $coverage, 2);
+
+        return [
+            'quantity' => (float) $line->quantity,
+            'total' => $lineTotal,
+            'collected_amount' => $collectedAmount,
+            'balance_due' => max(0, round($lineTotal - $collectedAmount, 2)),
+            'currency_code' => $this->currencyCode(
+                $line->currency_code ?: $invoice->currency_code ?: $offerPackage->currency_code
+            ),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function packSalePayload(
+        InvoiceItem $line,
+        OfferPackage $offerPackage,
+        int $accountId,
+        User $actor
+    ): array {
+        /** @var Invoice $invoice */
+        $invoice = $line->invoice;
+        $facts = $this->packLineFacts($line, $offerPackage, $accountId);
+        $canViewInvoice = $actor->can('view', $invoice);
+        $payments = $this->eligibleInvoicePayments($invoice, $accountId);
+        $settledPayments = $payments
+            ->whereIn('status', Payment::settledStatuses())
+            ->values();
+
+        return [
+            'id' => $line->id,
+            'sold_at' => $line->created_at,
+            'quantity' => $this->reportQuantity((float) $line->quantity),
+            'unit_price' => (float) $line->unit_price,
+            'total' => $facts['total'],
+            'collected_amount' => $facts['collected_amount'],
+            'balance_due' => $facts['balance_due'],
+            'currency_code' => $facts['currency_code'],
+            'customer' => $this->customerReference($invoice->customer, $accountId, $actor),
+            'invoice' => [
+                'id' => $canViewInvoice ? $invoice->id : null,
+                'number' => $canViewInvoice ? $invoice->number : null,
+                'status' => $invoice->status,
+                'total' => $canViewInvoice ? (float) $invoice->total : null,
+                'currency_code' => $this->currencyCode($invoice->currency_code ?: $facts['currency_code']),
+                'issued_at' => $invoice->created_at,
+                'paid_at' => $canViewInvoice ? $settledPayments->max('paid_at') : null,
+                'amount_paid' => $canViewInvoice ? $this->settledInvoiceAmount($invoice, $accountId) : null,
+                'balance_due' => $canViewInvoice
+                    ? max(0, round((float) $invoice->total - $this->settledInvoiceAmount($invoice, $accountId), 2))
+                    : null,
+                'can_view' => $canViewInvoice,
+                'href' => $canViewInvoice ? route('invoice.show', $invoice) : null,
+            ],
+            'payments' => $canViewInvoice
+                ? $payments
+                    ->map(fn (Payment $payment): array => [
+                        'id' => $payment->id,
+                        'status' => $payment->status,
+                        'amount' => (float) $payment->amount,
+                        'currency_code' => $this->currencyCode($payment->currency_code ?: $invoice->currency_code),
+                        'paid_at' => $payment->paid_at,
+                        'method' => $payment->method,
+                    ])
+                    ->values()
+                    ->all()
+                : [],
+        ];
+    }
+
+    /**
+     * @return Collection<int, Payment>
+     */
+    private function eligibleInvoicePayments(Invoice $invoice, int $accountId): Collection
+    {
+        $invoiceCurrency = CurrencyCode::tryFromMixed($invoice->currency_code)?->value;
+
+        if ($invoiceCurrency === null) {
+            return collect();
+        }
+
+        return $invoice->payments
+            ->filter(fn (Payment $payment): bool => (int) $payment->user_id === $accountId
+                && CurrencyCode::tryFromMixed($payment->currency_code)?->value === $invoiceCurrency)
+            ->values();
+    }
+
+    private function settledInvoiceAmount(Invoice $invoice, int $accountId): float
+    {
+        return round((float) $this->eligibleInvoicePayments($invoice, $accountId)
+            ->whereIn('status', Payment::settledStatuses())
+            ->sum('amount'), 2);
+    }
+
+    private function invoiceIsPaid(Invoice $invoice, int $accountId): bool
+    {
+        $invoiceTotal = round((float) $invoice->total, 2);
+
+        return $invoice->status === 'paid'
+            || ($invoiceTotal > 0 && $this->settledInvoiceAmount($invoice, $accountId) >= $invoiceTotal);
+    }
+
     private function detailKpis(OfferPackage $offerPackage, int $accountId): array
     {
-        $baseQuery = CustomerPackage::query()
+        $packages = CustomerPackage::query()
             ->forAccount($accountId)
-            ->where('offer_package_id', $offerPackage->id);
+            ->where('offer_package_id', $offerPackage->id)
+            ->whereHas('customer', fn ($query) => $query->where('user_id', $accountId))
+            ->get([
+                'id',
+                'customer_id',
+                'invoice_id',
+                'status',
+                'initial_quantity',
+                'consumed_quantity',
+                'remaining_quantity',
+                'price_paid',
+                'currency_code',
+                'is_recurring',
+                'recurrence_status',
+            ]);
+        $initialQuantity = (int) $packages->sum('initial_quantity');
+        $consumedQuantity = (int) $packages->sum('consumed_quantity');
+        $remainingQuantity = (int) $packages->sum('remaining_quantity');
+        $soldCount = $packages->count();
+        $primaryCurrency = $this->currencyCode($offerPackage->currency_code);
+        $currencyBreakdown = $packages
+            ->groupBy(fn (CustomerPackage $package): string => $this->currencyCode(
+                $package->currency_code ?: $primaryCurrency
+            ))
+            ->map(function (Collection $currencyPackages, string $currencyCode): array {
+                $revenue = round((float) $currencyPackages->sum('price_paid'), 2);
+                $count = $currencyPackages->count();
 
-        $initialQuantity = (int) (clone $baseQuery)->sum('initial_quantity');
-        $consumedQuantity = (int) (clone $baseQuery)->sum('consumed_quantity');
-        $remainingQuantity = (int) (clone $baseQuery)->sum('remaining_quantity');
-        $soldCount = (clone $baseQuery)->count();
-        $assignedCustomers = (clone $baseQuery)->distinct('customer_id')->count('customer_id');
+                return [
+                    'currency_code' => $currencyCode,
+                    'sold_count' => $count,
+                    'total_billed' => $revenue,
+                    'total_collected' => $revenue,
+                    'balance_due' => 0.0,
+                    'average_revenue' => $count > 0 ? round($revenue / $count, 2) : 0.0,
+                ];
+            })
+            ->sortKeys()
+            ->values();
+        $primaryTotals = $currencyBreakdown
+            ->firstWhere('currency_code', $primaryCurrency) ?? [
+                'total_billed' => 0.0,
+                'total_collected' => 0.0,
+                'balance_due' => 0.0,
+                'average_revenue' => 0.0,
+            ];
 
         return [
             'sold_count' => $soldCount,
-            'assigned_customers' => $assignedCustomers,
-            'active_customers' => (clone $baseQuery)
-                ->active()
-                ->distinct('customer_id')
-                ->count('customer_id'),
-            'active_count' => (clone $baseQuery)->where('status', CustomerPackage::STATUS_ACTIVE)->count(),
-            'consumed_count' => (clone $baseQuery)->where('status', CustomerPackage::STATUS_CONSUMED)->count(),
-            'expired_count' => (clone $baseQuery)->where('status', CustomerPackage::STATUS_EXPIRED)->count(),
-            'cancelled_count' => (clone $baseQuery)->where('status', CustomerPackage::STATUS_CANCELLED)->count(),
-            'recurring_count' => (clone $baseQuery)->recurring()->count(),
-            'payment_due_count' => (clone $baseQuery)
+            'invoice_count' => $packages->pluck('invoice_id')->filter()->unique()->count(),
+            'assigned_customers' => $packages->pluck('customer_id')->filter()->unique()->count(),
+            'active_customers' => $packages
+                ->where('status', CustomerPackage::STATUS_ACTIVE)
+                ->pluck('customer_id')
+                ->filter()
+                ->unique()
+                ->count(),
+            'active_count' => $packages->where('status', CustomerPackage::STATUS_ACTIVE)->count(),
+            'consumed_count' => $packages->where('status', CustomerPackage::STATUS_CONSUMED)->count(),
+            'expired_count' => $packages->where('status', CustomerPackage::STATUS_EXPIRED)->count(),
+            'cancelled_count' => $packages->where('status', CustomerPackage::STATUS_CANCELLED)->count(),
+            'recurring_count' => $packages->where('is_recurring', true)->count(),
+            'payment_due_count' => $packages
                 ->where('recurrence_status', CustomerPackage::RECURRENCE_PAYMENT_DUE)
                 ->count(),
-            'suspended_count' => (clone $baseQuery)
+            'suspended_count' => $packages
                 ->where('recurrence_status', CustomerPackage::RECURRENCE_SUSPENDED)
                 ->count(),
-            'total_revenue' => round((float) (clone $baseQuery)->sum('price_paid'), 2),
-            'average_revenue' => $soldCount > 0
-                ? round((float) (clone $baseQuery)->sum('price_paid') / $soldCount, 2)
-                : 0.0,
+            'total_revenue' => (float) $primaryTotals['total_billed'],
+            'total_billed' => (float) $primaryTotals['total_billed'],
+            'total_collected' => (float) $primaryTotals['total_collected'],
+            'balance_due' => (float) $primaryTotals['balance_due'],
+            'average_revenue' => (float) $primaryTotals['average_revenue'],
             'initial_quantity' => $initialQuantity,
             'consumed_quantity' => $consumedQuantity,
             'remaining_quantity' => $remainingQuantity,
             'usage_rate' => $initialQuantity > 0
                 ? round(($consumedQuantity / $initialQuantity) * 100, 1)
                 : 0.0,
+            'paid_invoice_count' => 0,
+            'outstanding_invoice_count' => 0,
+            'currency_code' => $primaryCurrency,
+            'has_mixed_currencies' => $currencyBreakdown->count() > 1,
+            'currency_breakdown' => $currencyBreakdown->all(),
             'status_breakdown' => [
-                CustomerPackage::STATUS_ACTIVE => (clone $baseQuery)->where('status', CustomerPackage::STATUS_ACTIVE)->count(),
-                CustomerPackage::STATUS_CONSUMED => (clone $baseQuery)->where('status', CustomerPackage::STATUS_CONSUMED)->count(),
-                CustomerPackage::STATUS_EXPIRED => (clone $baseQuery)->where('status', CustomerPackage::STATUS_EXPIRED)->count(),
-                CustomerPackage::STATUS_CANCELLED => (clone $baseQuery)->where('status', CustomerPackage::STATUS_CANCELLED)->count(),
+                CustomerPackage::STATUS_ACTIVE => $packages->where('status', CustomerPackage::STATUS_ACTIVE)->count(),
+                CustomerPackage::STATUS_CONSUMED => $packages->where('status', CustomerPackage::STATUS_CONSUMED)->count(),
+                CustomerPackage::STATUS_EXPIRED => $packages->where('status', CustomerPackage::STATUS_EXPIRED)->count(),
+                CustomerPackage::STATUS_CANCELLED => $packages->where('status', CustomerPackage::STATUS_CANCELLED)->count(),
             ],
         ];
     }
 
-    private function detailCustomers(OfferPackage $offerPackage, int $accountId): array
+    private function detailCustomers(OfferPackage $offerPackage, int $accountId, User $actor): array
     {
         $usagesCount = CustomerPackageUsage::query()
             ->selectRaw('count(*)')
-            ->whereColumn('customer_package_usages.customer_package_id', 'customer_packages.id');
+            ->where('customer_package_usages.user_id', $accountId)
+            ->whereColumn('customer_package_usages.customer_package_id', 'customer_packages.id')
+            ->whereColumn('customer_package_usages.customer_id', 'customer_packages.customer_id');
         $lastUsedAt = CustomerPackageUsage::query()
             ->select('used_at')
+            ->where('customer_package_usages.user_id', $accountId)
             ->whereColumn('customer_package_usages.customer_package_id', 'customer_packages.id')
+            ->whereColumn('customer_package_usages.customer_id', 'customer_packages.customer_id')
             ->latest('used_at')
             ->latest('id')
             ->limit(1);
@@ -556,9 +877,15 @@ class OfferPackageController extends Controller
         $packages = CustomerPackage::query()
             ->forAccount($accountId)
             ->where('offer_package_id', $offerPackage->id)
+            ->whereHas('customer', fn ($query) => $query->where('user_id', $accountId))
             ->with([
-                'customer:id,number,first_name,last_name,company_name,email,phone',
-                'invoice:id,number,status,total,currency_code',
+                'customer' => fn ($query) => $query
+                    ->where('user_id', $accountId)
+                    ->select(['id', 'user_id', 'number', 'first_name', 'last_name', 'company_name', 'email', 'phone']),
+                'invoice' => fn ($query) => $query
+                    ->where('user_id', $accountId)
+                    ->whereNull('deleted_at')
+                    ->select(['id', 'user_id', 'number', 'status', 'total', 'currency_code']),
             ])
             ->addSelect([
                 'usages_count' => $usagesCount,
@@ -572,33 +899,15 @@ class OfferPackageController extends Controller
         $renewalInvoices = $this->renewalInvoicesFor($packages, $accountId);
 
         return $packages
-            ->map(function (CustomerPackage $package) use ($renewalInvoices): array {
+            ->map(function (CustomerPackage $package) use ($accountId, $actor, $renewalInvoices): array {
                 $customer = $package->customer;
                 $renewalInvoice = $renewalInvoices->get((int) data_get($package->metadata, 'recurrence.pending_invoice_id', 0));
 
                 return [
                     'id' => $package->id,
-                    'customer' => $customer ? [
-                        'id' => $customer->id,
-                        'number' => $customer->number,
-                        'name' => $this->customerName($customer),
-                        'email' => $customer->email,
-                        'phone' => $customer->phone,
-                    ] : null,
-                    'invoice' => $package->invoice ? [
-                        'id' => $package->invoice->id,
-                        'number' => $package->invoice->number,
-                        'status' => $package->invoice->status,
-                        'total' => (float) $package->invoice->total,
-                        'currency_code' => $package->invoice->currency_code,
-                    ] : null,
-                    'renewal_invoice' => $renewalInvoice ? [
-                        'id' => $renewalInvoice->id,
-                        'number' => $renewalInvoice->number,
-                        'status' => $renewalInvoice->status,
-                        'total' => (float) $renewalInvoice->total,
-                        'currency_code' => $renewalInvoice->currency_code,
-                    ] : null,
+                    'customer' => $this->customerReference($customer, $accountId, $actor),
+                    'invoice' => $this->invoiceReference($package->invoice, $accountId, $actor),
+                    'renewal_invoice' => $this->invoiceReference($renewalInvoice, $accountId, $actor),
                     'status' => $package->status,
                     'starts_at' => $package->starts_at,
                     'expires_at' => $package->expires_at,
@@ -620,14 +929,20 @@ class OfferPackageController extends Controller
             ->all();
     }
 
-    private function detailRecentUsages(OfferPackage $offerPackage, int $accountId): array
+    private function detailRecentUsages(OfferPackage $offerPackage, int $accountId, User $actor): array
     {
         $query = CustomerPackageUsage::query()
             ->forAccount($accountId)
-            ->whereHas('customerPackage', fn ($query) => $query->where('offer_package_id', $offerPackage->id))
+            ->whereHas('customer', fn ($query) => $query->where('user_id', $accountId))
+            ->whereHas('customerPackage', fn ($query) => $query
+                ->forAccount($accountId)
+                ->where('offer_package_id', $offerPackage->id))
             ->with([
-                'customer:id,number,first_name,last_name,company_name,email',
+                'customer' => fn ($query) => $query
+                    ->where('user_id', $accountId)
+                    ->select(['id', 'user_id', 'number', 'first_name', 'last_name', 'company_name', 'email', 'phone']),
                 'creator:id,name',
+                'creator.teamMembership:id,user_id,account_id,is_active',
             ]);
 
         if ($this->usageReversalColumnExists()) {
@@ -642,17 +957,14 @@ class OfferPackageController extends Controller
             ->map(fn (CustomerPackageUsage $usage): array => [
                 'id' => $usage->id,
                 'customer_package_id' => $usage->customer_package_id,
-                'customer' => $usage->customer ? [
-                    'id' => $usage->customer->id,
-                    'number' => $usage->customer->number,
-                    'name' => $this->customerName($usage->customer),
-                    'email' => $usage->customer->email,
-                ] : null,
+                'customer' => $this->customerReference($usage->customer, $accountId, $actor),
                 'quantity' => (int) $usage->quantity,
                 'used_at' => $usage->used_at,
                 'note' => $usage->note,
                 'source' => data_get($usage->metadata, 'source'),
-                'created_by' => $usage->creator?->name,
+                'created_by' => $this->userBelongsToAccount($usage->creator, $accountId)
+                    ? $usage->creator?->name
+                    : null,
             ])
             ->values()
             ->all();
@@ -672,9 +984,83 @@ class OfferPackageController extends Controller
 
         return Invoice::query()
             ->where('user_id', $accountId)
+            ->whereNull('deleted_at')
             ->whereIn('id', $invoiceIds)
-            ->get(['id', 'number', 'status', 'total', 'currency_code'])
+            ->get(['id', 'user_id', 'number', 'status', 'total', 'currency_code'])
             ->keyBy('id');
+    }
+
+    /**
+     * Return customer data only when the actor can open the customer record.
+     * A hostile cross-tenant foreign key is treated as an unavailable customer.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function customerReference(?Customer $customer, int $accountId, User $actor): ?array
+    {
+        if (! $customer || (int) $customer->user_id !== $accountId) {
+            return null;
+        }
+
+        $canView = $actor->can('view', $customer);
+
+        return [
+            'id' => $canView ? $customer->id : null,
+            'number' => $canView ? $customer->number : null,
+            'name' => $canView ? $this->customerName($customer) : null,
+            'email' => $canView ? $customer->email : null,
+            'phone' => $canView ? $customer->phone : null,
+            'can_view' => $canView,
+            'href' => $canView ? route('customer.show', $customer) : null,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function invoiceReference(?Invoice $invoice, int $accountId, User $actor): ?array
+    {
+        if (! $invoice
+            || (int) $invoice->user_id !== $accountId
+            || $invoice->deleted_at !== null) {
+            return null;
+        }
+
+        $canView = $actor->can('view', $invoice);
+
+        return [
+            'id' => $canView ? $invoice->id : null,
+            'number' => $canView ? $invoice->number : null,
+            'status' => $invoice->status,
+            'total' => $canView ? (float) $invoice->total : null,
+            'currency_code' => $this->currencyCode($invoice->currency_code),
+            'can_view' => $canView,
+            'href' => $canView ? route('invoice.show', $invoice) : null,
+        ];
+    }
+
+    private function userBelongsToAccount(?User $user, int $accountId): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        if ((int) $user->id === $accountId) {
+            return true;
+        }
+
+        $membership = $user->relationLoaded('teamMembership')
+            ? $user->teamMembership
+            : null;
+
+        return $membership
+            && (int) $membership->account_id === $accountId;
+    }
+
+    private function currencyCode(mixed $currencyCode): string
+    {
+        return CurrencyCode::tryFromMixed($currencyCode)?->value
+            ?? CurrencyCode::default()->value;
     }
 
     private function customerName($customer): string

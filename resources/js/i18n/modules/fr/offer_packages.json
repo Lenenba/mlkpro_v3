@@ -1,0 +1,182 @@
+{
+  "offer_packages": {
+    "actions": {
+      "back_to_catalog": "Retour au catalogue",
+      "back_to_list": "Retour à la liste"
+    },
+    "common": {
+      "unavailable": "—",
+      "deleted_customer": "Client indisponible",
+      "invoice": "Facture",
+      "displayed_count": "{count} affiché(s)",
+      "displayed_of_total": "{displayed} affiché(s) sur {total}",
+      "days": "{count} jours"
+    },
+    "hero": {
+      "image_alt": "Illustration de l’offre {name}",
+      "public": "Public",
+      "carry_over": "Reliquat reporté",
+      "no_description": "Aucune description.",
+      "catalog_price": "Prix catalogue",
+      "created_on": "Créé le {date}"
+    },
+    "types": {
+      "pack": "Pack",
+      "forfait": "Forfait",
+      "unknown": "Offre"
+    },
+    "statuses": {
+      "draft": "Brouillon",
+      "active": "Actif",
+      "archived": "Archivé",
+      "consumed": "Consommé",
+      "expired": "Expiré",
+      "cancelled": "Annulé",
+      "canceled": "Annulé",
+      "sent": "Envoyée",
+      "paid": "Payée",
+      "void": "Annulée",
+      "payment_due": "Paiement dû",
+      "suspended": "Suspendu",
+      "overdue": "En retard",
+      "partial": "Partiellement payée",
+      "pending": "En attente",
+      "completed": "Réglé",
+      "failed": "Échoué",
+      "refunded": "Remboursé",
+      "accepted": "Acceptée",
+      "awaiting_acceptance": "En attente d’acceptation",
+      "rejected": "Refusée",
+      "unknown": "Statut inconnu"
+    },
+    "units": {
+      "session": "séance",
+      "hour": "heure",
+      "visit": "visite",
+      "credit": "crédit",
+      "month": "mois",
+      "unknown": "unité"
+    },
+    "recurrence": {
+      "monthly": "Mensuel",
+      "quarterly": "Trimestriel",
+      "yearly": "Annuel",
+      "unknown": "Non définie"
+    },
+    "payment_methods": {
+      "cash": "Espèces",
+      "card": "Carte",
+      "stripe": "Carte",
+      "bank_transfer": "Virement bancaire",
+      "e_transfer": "Virement Interac",
+      "etransfer": "Virement Interac",
+      "check": "Chèque",
+      "cheque": "Chèque",
+      "manual": "Paiement manuel",
+      "unknown": "Mode non précisé"
+    },
+    "kpis": {
+      "section_label": "Indicateurs de l’offre",
+      "total_billed": "Total facturé",
+      "packs_sold": "Packs vendus",
+      "total_collected": "Total encaissé",
+      "balance_due": "Solde à recevoir",
+      "paid_invoices": "Factures payées",
+      "average_sale": "Vente moyenne",
+      "catalog_price": "Prix catalogue : {amount}",
+      "invoice_count": "{count} facture(s)",
+      "collection_rate": "{rate}% encaissé",
+      "outstanding_count": "{count} facture(s) à recevoir",
+      "per_pack": "Par pack vendu",
+      "total_revenue": "Chiffre d’affaires",
+      "sales_count": "{count} forfait(s) attribué(s)",
+      "linked_customers": "Clients liés",
+      "active_count": "{count} actif(s)",
+      "active_plans": "Forfaits actifs",
+      "payment_due_count": "{count} paiement(s) dû(s)",
+      "remaining_balance": "Solde restant",
+      "usage": "Consommation",
+      "recurring": "Récurrents",
+      "suspended_count": "{count} suspendu(s)"
+    },
+    "columns": {
+      "customer": "Client",
+      "invoice": "Facture",
+      "sale": "Vente",
+      "payments": "Paiements",
+      "balance": "Solde",
+      "status": "Statut",
+      "period": "Période",
+      "revenue": "CA"
+    },
+    "currencies": {
+      "title": "Ventes dans plusieurs devises",
+      "description": "Les montants des indicateurs principaux sont exprimés en {currency}. Le nombre de packs vendus additionne toutes les devises, sans convertir leurs montants.",
+      "summary_label": "Totaux des ventes par devise",
+      "sold": "{count} vendu(s)",
+      "billed": "Facturé",
+      "collected": "Encaissé",
+      "balance": "Solde"
+    },
+    "pack_history": {
+      "title": "Historique des ventes",
+      "subtitle": "Factures et paiements associés à ce pack.",
+      "table_caption": "Ventes du pack {name}",
+      "scroll_label": "Tableau des ventes, défilement horizontal disponible",
+      "quantity_price": "{quantity} × {price}",
+      "payment_list": "Paiements de la facture",
+      "no_payment": "Aucun paiement réglé",
+      "collected": "{amount} encaissé",
+      "collected_label": "Encaissé",
+      "empty_title": "Aucune vente pour ce pack",
+      "empty_body": "Les factures contenant ce pack apparaîtront ici dès sa première vente."
+    },
+    "forfait_history": {
+      "title": "Clients rattachés",
+      "subtitle": "Forfaits clients créés à partir de cette offre.",
+      "table_caption": "Clients rattachés au forfait {name}",
+      "scroll_label": "Tableau des forfaits clients, défilement horizontal disponible",
+      "usage_progress": "Consommation du forfait de {customer}",
+      "usage_count": "{count} consommation(s)",
+      "expires_on": "Expire le {date}",
+      "renews_on": "Renouvellement le {date}",
+      "empty_title": "Aucun client rattaché",
+      "empty_body": "Les forfaits achetés ou attribués à des clients apparaîtront ici."
+    },
+    "usages": {
+      "title": "Consommations récentes",
+      "subtitle": "Dernières unités utilisées sur les forfaits clients.",
+      "list_label": "Historique récent des consommations",
+      "fallback_note": "Consommation du forfait",
+      "empty_title": "Aucune consommation enregistrée",
+      "empty_body": "Les consommations apparaîtront après la première utilisation d’un forfait client."
+    },
+    "health": {
+      "pack_title": "Suivi de la facturation",
+      "forfait_title": "Santé du forfait",
+      "collection_rate": "Taux encaissé",
+      "usage_rate": "Taux consommé",
+      "no_status": "Aucun statut disponible pour le moment."
+    },
+    "configuration": {
+      "title": "Configuration",
+      "included_quantity": "Quantité incluse",
+      "validity": "Validité",
+      "unlimited": "Sans limite",
+      "recurrence": "Récurrence",
+      "not_recurring": "Non récurrent",
+      "renewal_notice": "Rappel de renouvellement",
+      "payment_grace": "Délai de suspension",
+      "payment_reminders": "Relances impayées",
+      "reminder_days": "Jours {days}",
+      "carry_over": "Reliquat",
+      "carried_over": "Reporté",
+      "not_carried_over": "Non reporté"
+    },
+    "items": {
+      "title": "Éléments inclus",
+      "fallback": "Élément",
+      "empty": "Aucun élément inclus dans cette offre."
+    }
+  }
+}
