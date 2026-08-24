@@ -18,6 +18,7 @@ use App\Models\TeamMember;
 use App\Models\TeamMemberAttendance;
 use App\Models\User;
 use App\Models\WeeklyAvailability;
+use App\Queries\Reservations\BuildStaffReservationDetailData;
 use App\Queries\Reservations\BuildStaffReservationIndexData;
 use App\Services\BillingPlanService;
 use App\Services\BillingSubscriptionService;
@@ -203,6 +204,37 @@ class StaffReservationController extends Controller
         ]);
     }
 
+    public function show(
+        Request $request,
+        Reservation $reservation,
+        BuildStaffReservationDetailData $detailData
+    ) {
+        $user = $request->user();
+        if (! $user) {
+            abort(401);
+        }
+        if ($user->isClient()) {
+            abort(403);
+        }
+
+        $account = $this->resolveAccount($user);
+        $reservation = Reservation::query()
+            ->forAccount((int) $account->id)
+            ->whereKey($reservation->getKey())
+            ->firstOrFail();
+
+        $this->authorize('view', $reservation);
+
+        return response()->json([
+            'reservation' => $detailData->build(
+                $reservation,
+                $user,
+                $account,
+                $this->ownerOnlyMode($account)
+            ),
+        ]);
+    }
+
     public function store(StoreReservationRequest $request)
     {
         $user = $request->user();
@@ -277,7 +309,14 @@ class StaffReservationController extends Controller
         if (! $user) {
             abort(401);
         }
+
+        $account = $this->resolveAccount($user);
+        if ((int) $reservation->account_id !== (int) $account->id) {
+            abort(404);
+        }
+
         $this->authorize('updateStatus', $reservation);
+        $this->ensureManualReservationActionsAvailable($account);
 
         $validated = $request->validate([
             'status' => ['required', Rule::in(Reservation::STATUSES)],

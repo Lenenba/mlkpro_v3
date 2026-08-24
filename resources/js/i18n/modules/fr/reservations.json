@@ -437,6 +437,144 @@
       "service": "Service",
       "product": "Produit"
     },
+    "details": {
+      "eyebrow": "Fiche de réservation",
+      "title": "Détails de la réservation",
+      "subtitle": "Consultez le rendez-vous, les personnes concernées et son suivi.",
+      "description": "Consultez le rendez-vous, les personnes concernées et son suivi.",
+      "reference": "Réservation #{id}",
+      "close": "Fermer les détails de la réservation",
+      "sections": {
+        "schedule": "Horaire",
+        "client": "Client",
+        "team_member": "Membre d'équipe",
+        "service": "Service",
+        "notes": "Notes",
+        "resources": "Ressources",
+        "milestones": "Suivi",
+        "payment": "Paiement"
+      },
+      "schedule": "Horaire",
+      "client": "Client",
+      "customer": "Client",
+      "people": "Personnes",
+      "team_member": "Membre d'équipe",
+      "assigned_team_member": "Membre assigné",
+      "service": "Service",
+      "date": "Date",
+      "time": "Heure",
+      "duration": "Durée",
+      "minutes": "{count} min",
+      "party_size_value": "Personnes : {count}",
+      "catalog_price": "Prix catalogue",
+      "catalogue_price": "Prix catalogue",
+      "notes": "Notes",
+      "client_notes": "Notes du client",
+      "internal_notes": "Notes internes",
+      "no_notes": "Aucune note pour cette réservation.",
+      "no_contact": "Aucune coordonnée disponible.",
+      "unavailable": "Non disponible",
+      "resources": "Ressources",
+      "resource_quantity": "Quantité : {count}",
+      "landmarks": "Suivi",
+      "milestones": {
+        "created": "Créée",
+        "scheduled": "Planifiée",
+        "cancelled": "Annulée",
+        "auto_closed": "Fermée automatiquement"
+      },
+      "created_at": "Créée le",
+      "scheduled_for": "Planifiée pour",
+      "cancelled_at": "Annulée le",
+      "auto_closed_at": "Fermée automatiquement le",
+      "created_by": "Créée par {name}",
+      "cancelled_by": "Annulée par {name}",
+      "cancellation_reason": "Motif : {reason}",
+      "auto_closed_reason": "Motif : {reason}",
+      "source": "Source : {source}",
+      "sources": {
+        "staff": "Équipe",
+        "client": "Portail client",
+        "api": "API",
+        "public_booking": "Réservation publique",
+        "unknown": "Non précisée"
+      },
+      "vip": "Client VIP",
+      "loading": "Chargement des détails de la réservation...",
+      "error": "Impossible de charger les détails de cette réservation.",
+      "error_title": "Détails indisponibles",
+      "error_description": "Impossible de charger les détails de cette réservation.",
+      "retry": "Réessayer",
+      "labels": {
+        "contact": "Coordonnées",
+        "category": "Catégorie",
+        "resource": "Ressource"
+      },
+      "media": {
+        "service_alt": "Illustration de {service}",
+        "client_alt": "Photo de {client}",
+        "team_member_alt": "Photo de {team_member}",
+        "service_fallback": "Aucune image de service"
+      },
+      "service_fallback": "Service",
+      "service_image_alt": "Illustration du service {service}",
+      "customer_fallback": "Client",
+      "team_member_fallback": "Membre d'équipe",
+      "payment": "Paiement",
+      "deposit": "Acompte",
+      "no_show_fee": "Frais d'absence",
+      "payment_status": "État du paiement",
+      "no_payment": "Aucune politique de paiement associée.",
+      "payment_states": {
+        "required": "Requis",
+        "not_required": "Non requis",
+        "due_on_invoice": "À payer sur la facture",
+        "forfeited": "Conservé",
+        "refundable": "Remboursable",
+        "refunded": "Remboursé",
+        "not_applied": "Non appliqué",
+        "not_applicable": "Sans objet",
+        "charge_required": "Paiement requis",
+        "waived": "Annulé",
+        "paid": "Payé"
+      },
+      "conversion": {
+        "public_booking_title": "Réservation publique",
+        "public_booking_description": "Coordonnées transmises lors de la réservation publique.",
+        "title": "Conversion en client",
+        "description": "Vérifiez les doublons avant de créer un nouveau client.",
+        "fields": {
+          "name": "Nom du client",
+          "client_name": "Nom du client",
+          "email": "Courriel",
+          "phone": "Téléphone",
+          "company": "Entreprise (optionnel)"
+        },
+        "actions": {
+          "check": "Vérifier",
+          "checking": "Vérification...",
+          "link": "Lier",
+          "linking": "Liaison...",
+          "create": "Créer le client",
+          "creating": "Conversion..."
+        },
+        "states": {
+          "loading": "Chargement des options de conversion...",
+          "converting": "Conversion...",
+          "no_matches": "Aucun client existant correspondant n'a été trouvé.",
+          "ready": "Les informations sont prêtes à être vérifiées.",
+          "already_converted": "Cette réservation est déjà liée à un client."
+        },
+        "success": {
+          "converted": "Prospect converti en client."
+        },
+        "errors": {
+          "load": "Impossible de charger les options de conversion.",
+          "convert": "Impossible de convertir ce prospect.",
+          "validation": "Vérifiez les informations du client avant de continuer."
+        }
+      }
+    },
     "payment_policy": {
       "title": "Snapshot de politique de paiement",
       "deposit": "Acompte",

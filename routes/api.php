@@ -278,6 +278,7 @@ Route::group([], function () {
                 Route::get('reservations', [StaffReservationController::class, 'index']);
                 Route::get('reservations/events', [StaffReservationController::class, 'events']);
                 Route::get('reservations/slots', [StaffReservationController::class, 'slots']);
+                Route::get('reservations/{reservation}', [StaffReservationController::class, 'show']);
                 Route::post('reservations', [StaffReservationController::class, 'store']);
                 Route::put('reservations/{reservation}', [StaffReservationController::class, 'update']);
                 Route::patch('reservations/{reservation}/status', [StaffReservationController::class, 'updateStatus']);

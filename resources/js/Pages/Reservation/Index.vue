@@ -15,6 +15,7 @@ import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
 import ReservationCalendarBoard from '@/Components/Reservation/ReservationCalendarBoard.vue';
+import ReservationDetailsPanel from '@/Components/Reservation/ReservationDetailsPanel.vue';
 import ReservationStats from '@/Components/Reservation/ReservationStats.vue';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { reservationStatusBadgeClass } from '@/Components/Reservation/status';
@@ -149,6 +150,7 @@ const calendarEvents = ref([...(props.events || [])]);
 const calendarLoading = ref(false);
 const calendarError = ref('');
 const detailsActionError = ref('');
+const detailsActionLoading = ref(false);
 const waitlistRows = ref([...(props.waitlists || [])]);
 const waitlistActionError = ref('');
 const waitlistActionSuccess = ref('');
@@ -202,7 +204,6 @@ const canViewAll = computed(() => Boolean(props.access?.can_view_all));
 const canManage = computed(() => Boolean(props.access?.can_manage));
 const ownerOnlyMode = computed(() => Boolean(props.settings?.owner_only_mode));
 const canManageReservationActions = computed(() => canManage.value && !ownerOnlyMode.value);
-const canUpdateStatus = computed(() => Boolean(props.access?.can_update_status));
 const waitlistEnabled = computed(() => Boolean(props.settings?.waitlist_enabled));
 const queueModeEnabled = computed(() => Boolean(props.settings?.queue_mode_enabled));
 const queueAssignmentMode = computed(() => (
@@ -238,6 +239,8 @@ const calendarRange = ref({
 const showEditor = ref(false);
 const showDetails = ref(false);
 const activeReservation = ref(null);
+const detailsLoading = ref(false);
+const detailsLoadError = ref('');
 const showAdvanced = ref(false);
 const lastFocusedReservationId = ref(null);
 const conversionLoading = ref(false);
@@ -245,6 +248,10 @@ const conversionSubmitting = ref(false);
 const conversionPayload = ref(null);
 const conversionError = ref('');
 const conversionSuccess = ref('');
+let detailsAbortController = null;
+let detailsRequestSequence = 0;
+let conversionAbortController = null;
+let conversionMutationSequence = 0;
 
 watch(
     () => [hasQueueTab.value, hasWaitlistTab.value],
@@ -548,36 +555,42 @@ const firstValidationMessage = (errors) => {
     return '';
 };
 const toLocalInput = (value) => (value ? dayjs(value).format('YYYY-MM-DDTHH:mm') : '');
-const isPast = (value) => (value ? dayjs(value).isBefore(dayjs()) : false);
-const activePaymentPolicy = computed(() => activeReservation.value?.metadata?.payment_policy || {});
-const activePaymentState = computed(() => activeReservation.value?.metadata?.payment_state || {});
-const hasPaymentPolicy = computed(() => (
-    Boolean(activePaymentPolicy.value?.deposit_required)
-    || Boolean(activePaymentPolicy.value?.no_show_fee_enabled)
+const activePermissions = computed(() => activeReservation.value?.permissions || {});
+const activeAllowedStatusTransitions = computed(() => (
+    Array.isArray(activePermissions.value?.allowed_status_transitions)
+        ? activePermissions.value.allowed_status_transitions
+        : []
 ));
-const isPublicBookingProspect = computed(() => Boolean(activeReservation.value?.prospect_id && !activeReservation.value?.client_id));
+const canEditActiveReservation = computed(() => (
+    Boolean(activePermissions.value?.can_edit)
+    && !detailsLoading.value
+));
+const canConvertActiveReservation = computed(() => Boolean(activePermissions.value?.can_convert) && !detailsLoading.value);
+const canUpdateActiveReservationStatus = computed(() => (
+    Boolean(activePermissions.value?.can_update_status)
+    && !detailsLoading.value
+));
+const isPublicBookingProspect = computed(() => Boolean(
+    canConvertActiveReservation.value
+    && activeReservation.value?.prospect_id
+    && !activeReservation.value?.client_id
+));
 const publicBookingContact = computed(() => {
     const prospect = activeReservation.value?.prospect || {};
-    const meta = activeReservation.value?.metadata?.public_booking || {};
+    const publicBooking = activeReservation.value?.public_booking || {};
 
     return {
-        name: prospect.contact_name || meta.contact_name || '',
-        email: prospect.contact_email || meta.contact_email || '',
-        phone: prospect.contact_phone || meta.contact_phone || '',
-        link: activeReservation.value?.public_booking_link?.name || activeReservation.value?.publicBookingLink?.name || meta.link_name || '',
+        name: prospect.contact_name || publicBooking.contact_name || '',
+        email: prospect.contact_email || publicBooking.contact_email || '',
+        phone: prospect.contact_phone || publicBooking.contact_phone || '',
+        link: activeReservation.value?.public_booking_link?.name || publicBooking.link_name || '',
     };
 });
 
-const canConfirmStatus = (status) => ['pending', 'rescheduled'].includes(String(status || ''));
-const isConfirmedStatus = (status) => String(status || '') === 'confirmed';
-const canCancelStatus = (status) => ['pending', 'confirmed', 'rescheduled'].includes(String(status || ''));
-const canSetPendingStatus = (status) => ['confirmed', 'rescheduled'].includes(String(status || ''));
-const canCompleteReservation = (reservation) =>
-    ['confirmed', 'rescheduled'].includes(String(reservation?.status || ''))
-    && isPast(reservation?.ends_at || reservation?.starts_at);
-const canMarkNoShow = (reservation) =>
-    ['pending', 'confirmed', 'rescheduled'].includes(String(reservation?.status || ''))
-    && isPast(reservation?.starts_at);
+const canTransitionActiveReservationTo = (status) => (
+    canUpdateActiveReservationStatus.value
+    && activeAllowedStatusTransitions.value.includes(status)
+);
 const cancelActionLabel = computed(() =>
     ['pending', 'rescheduled'].includes(String(activeReservation.value?.status || ''))
         ? t('reservations.actions.decline')
@@ -767,6 +780,8 @@ onBeforeUnmount(() => {
         clearTimeout(filterTimer);
     }
 
+    detailsAbortController?.abort();
+    conversionAbortController?.abort();
     stopQueueStripeStatusPolling();
     teardownQueueActionListeners();
 });
@@ -890,16 +905,100 @@ const submitReservation = () => {
     });
 };
 
-const openDetails = (reservation) => {
+const resetConversionState = () => {
+    conversionMutationSequence += 1;
+    conversionAbortController?.abort();
+    conversionAbortController = null;
+    detailsActionLoading.value = false;
+    conversionLoading.value = false;
+    conversionSubmitting.value = false;
     detailsActionError.value = '';
     conversionError.value = '';
     conversionSuccess.value = '';
     conversionPayload.value = null;
-    activeReservation.value = reservation;
-    showDetails.value = true;
-    if (reservation?.prospect_id && !reservation?.client_id) {
+    conversionForm.clearErrors();
+};
+
+const loadReservationDetails = async (reservationId) => {
+    const id = Number(reservationId || 0);
+    if (!id) {
+        return;
+    }
+
+    detailsAbortController?.abort();
+    detailsAbortController = new AbortController();
+    const requestSequence = ++detailsRequestSequence;
+    detailsLoading.value = true;
+    detailsLoadError.value = '';
+    let shouldLoadConversion = false;
+
+    try {
+        const response = await axios.get(route('reservation.show', id), {
+            signal: detailsAbortController.signal,
+        });
+        const reservation = response?.data?.reservation;
+
+        if (!reservation || requestSequence !== detailsRequestSequence) {
+            return;
+        }
+
+        activeReservation.value = {
+            ...(activeReservation.value || {}),
+            ...reservation,
+        };
+        shouldLoadConversion = Boolean(
+            reservation?.permissions?.can_convert
+            && reservation?.prospect_id
+            && !reservation?.client_id
+        );
+    } catch (error) {
+        if (axios.isCancel(error) || error?.code === 'ERR_CANCELED' || requestSequence !== detailsRequestSequence) {
+            return;
+        }
+
+        detailsLoadError.value = error?.response?.data?.message || t('reservations.details.error');
+    } finally {
+        if (requestSequence === detailsRequestSequence) {
+            detailsLoading.value = false;
+        }
+    }
+
+    if (shouldLoadConversion && requestSequence === detailsRequestSequence && showDetails.value) {
         loadPublicBookingConversion();
     }
+};
+
+const openDetails = (reservation) => {
+    const id = Number(reservation?.id || 0);
+    if (!id) {
+        return;
+    }
+
+    resetConversionState();
+    detailsLoadError.value = '';
+    activeReservation.value = { ...(reservation || {}), id };
+    showDetails.value = true;
+    loadReservationDetails(id);
+};
+
+const retryReservationDetails = () => {
+    loadReservationDetails(activeReservation.value?.id);
+};
+
+const closeDetails = (force = false) => {
+    if (detailsActionLoading.value && !force) {
+        return;
+    }
+
+    detailsRequestSequence += 1;
+    conversionMutationSequence += 1;
+    detailsAbortController?.abort();
+    conversionAbortController?.abort();
+    detailsAbortController = null;
+    conversionAbortController = null;
+    detailsLoading.value = false;
+    conversionSubmitting.value = false;
+    showDetails.value = false;
 };
 
 const hydrateConversionForm = () => {
@@ -914,32 +1013,49 @@ const hydrateConversionForm = () => {
 };
 
 const loadPublicBookingConversion = async () => {
-    if (!activeReservation.value?.id) {
+    if (!activeReservation.value?.id || !canConvertActiveReservation.value) {
         return;
     }
 
     conversionLoading.value = true;
     conversionError.value = '';
+    conversionAbortController?.abort();
+    const controller = new AbortController();
+    const reservationId = Number(activeReservation.value.id);
+    conversionAbortController = controller;
 
     try {
-        const response = await axios.get(route('reservation.public-booking-conversion.show', activeReservation.value.id));
+        const response = await axios.get(route('reservation.public-booking-conversion.show', reservationId), {
+            signal: controller.signal,
+        });
+        if (controller.signal.aborted || Number(activeReservation.value?.id) !== reservationId || !showDetails.value) {
+            return;
+        }
         conversionPayload.value = {
             ...response?.data,
             default_mode: (response?.data?.matches || []).length ? 'link_existing' : 'create_new',
         };
         hydrateConversionForm();
     } catch (error) {
-        conversionError.value = error?.response?.data?.message || 'Impossible de charger les options de conversion.';
+        if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') {
+            return;
+        }
+        conversionError.value = error?.response?.data?.message || t('reservations.details.conversion.errors.load');
     } finally {
-        conversionLoading.value = false;
+        if (conversionAbortController === controller) {
+            conversionAbortController = null;
+            conversionLoading.value = false;
+        }
     }
 };
 
 const convertPublicBooking = async (mode, customerId = null) => {
-    if (!activeReservation.value?.id) {
+    if (!activeReservation.value?.id || !canConvertActiveReservation.value || conversionSubmitting.value) {
         return;
     }
 
+    const reservationId = Number(activeReservation.value.id);
+    const requestSequence = ++conversionMutationSequence;
     conversionSubmitting.value = true;
     conversionError.value = '';
     conversionSuccess.value = '';
@@ -955,24 +1071,45 @@ const convertPublicBooking = async (mode, customerId = null) => {
     };
 
     try {
-        const response = await axios.post(route('reservation.public-booking-conversion.store', activeReservation.value.id), payload);
-        activeReservation.value = response?.data?.reservation || activeReservation.value;
-        conversionSuccess.value = response?.data?.message || 'Prospect converti en client.';
+        const response = await axios.post(route('reservation.public-booking-conversion.store', reservationId), payload);
+        if (
+            requestSequence !== conversionMutationSequence
+            || Number(activeReservation.value?.id) !== reservationId
+            || !showDetails.value
+        ) {
+            refreshList();
+            return;
+        }
+        activeReservation.value = {
+            ...(activeReservation.value || {}),
+            ...(response?.data?.reservation || {}),
+            permissions: {
+                ...(activeReservation.value?.permissions || {}),
+                can_convert: false,
+            },
+        };
+        conversionSuccess.value = t('reservations.details.conversion.success.converted');
         conversionPayload.value = {
             ...(conversionPayload.value || {}),
             already_converted: true,
             matches: response?.data?.matches || conversionPayload.value?.matches || [],
         };
+        await loadReservationDetails(activeReservation.value.id);
         refreshList();
     } catch (error) {
+        if (requestSequence !== conversionMutationSequence) {
+            return;
+        }
         if (error?.response?.status === 422) {
             conversionForm.setError(error.response.data?.errors || {});
-            conversionError.value = firstValidationMessage(error.response.data?.errors || {}) || 'Impossible de convertir ce prospect.';
+            conversionError.value = firstValidationMessage(error.response.data?.errors || {}) || t('reservations.details.conversion.errors.convert');
         } else {
-            conversionError.value = error?.response?.data?.message || 'Impossible de convertir ce prospect.';
+            conversionError.value = error?.response?.data?.message || t('reservations.details.conversion.errors.convert');
         }
     } finally {
-        conversionSubmitting.value = false;
+        if (requestSequence === conversionMutationSequence) {
+            conversionSubmitting.value = false;
+        }
     }
 };
 
@@ -984,15 +1121,10 @@ watch(
             return;
         }
 
-        const reservation = reservationMap.value.get(id);
-        if (!reservation) {
-            return;
-        }
-
         activeDataTab.value = 'reservations';
         viewMode.value = 'list';
         lastFocusedReservationId.value = id;
-        openDetails(reservation);
+        openDetails(reservationMap.value.get(id) || { id });
     },
     { immediate: true }
 );
@@ -1019,18 +1151,21 @@ const updateStatus = async (status) => {
     if (!activeReservation.value?.id) {
         return;
     }
-    if (!canUpdateStatus.value) {
+    if (!canTransitionActiveReservationTo(status) || detailsActionLoading.value) {
         return;
     }
 
     detailsActionError.value = '';
+    detailsActionLoading.value = true;
 
     try {
         await axios.patch(route('reservation.status', activeReservation.value.id), { status });
-        showDetails.value = false;
+        closeDetails(true);
         refreshList();
     } catch (error) {
         detailsActionError.value = error?.response?.data?.message || t('reservations.errors.update_status');
+    } finally {
+        detailsActionLoading.value = false;
     }
 };
 
@@ -2550,166 +2685,176 @@ const removeReservation = (reservation) => {
             </div>
         </Modal>
 
-        <Modal :show="showDetails" maxWidth="2xl" @close="showDetails = false">
-            <div v-if="activeReservation" class="p-5">
-                <h2 class="text-sm font-semibold">{{ $t('reservations.client.index.details_title') }}</h2>
-                <div class="mt-3 space-y-2 text-sm">
-                    <div>{{ $t('reservations.table.when') }}: {{ formatDateTime(activeReservation.starts_at) }} - {{ formatDateTime(activeReservation.ends_at) }}</div>
-                    <div>{{ $t('reservations.table.item') }}: {{ activeReservation.service?.name || '-' }}</div>
-                    <div>{{ $t('planning.form.member') }}: {{ reservationMemberName(activeReservation) }}</div>
-                    <div>
-                        {{ $t('reservations.table.status') }}:
-                        <span class="ml-1 rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize" :class="statusBadgeClass(activeReservation.status)">
-                            {{ $t(`reservations.status.${activeReservation.status}`) || activeReservation.status?.replace(/_/g, ' ') }}
-                        </span>
+        <Modal
+            :show="showDetails"
+            maxWidth="2xl"
+            presentation="drawer"
+            :closeable="!detailsActionLoading"
+            aria-labelledby="reservation-details-title"
+            aria-describedby="reservation-details-subtitle"
+            @close="closeDetails"
+        >
+            <ReservationDetailsPanel
+                v-if="activeReservation"
+                :reservation="activeReservation"
+                :timezone="timezone"
+                :loading="detailsLoading"
+                :error="detailsLoadError"
+                :busy="detailsActionLoading"
+                @close="closeDetails"
+                @retry="retryReservationDetails"
+            >
+                <template #supplementary>
+                    <div
+                        v-if="conversionSuccess && !isPublicBookingProspect"
+                        class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 shadow-sm dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200"
+                        role="status"
+                    >
+                        {{ conversionSuccess }}
                     </div>
-                    <div>{{ $t('reservations.client.book.fields.client_notes') }}: {{ activeReservation.client_notes || '-' }}</div>
-                    <div>{{ $t('reservations.form.internal_notes') }}: {{ activeReservation.internal_notes || '-' }}</div>
-                    <div v-if="activeReservation.prospect_id" class="rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100">
-                        <div class="font-semibold">Reservation publique</div>
-                        <div class="mt-1">{{ publicBookingContact.name || '-' }} · {{ publicBookingContact.email || '-' }} · {{ publicBookingContact.phone || '-' }}</div>
-                        <div v-if="publicBookingContact.link" class="mt-1 text-emerald-700 dark:text-emerald-200">{{ publicBookingContact.link }}</div>
-                    </div>
-                    <div v-if="isPublicBookingProspect" class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 text-xs dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="flex items-start justify-between gap-3">
-                            <div>
-                                <div class="font-semibold text-stone-800 dark:text-neutral-100">Conversion client</div>
-                                <div class="mt-1 text-stone-500 dark:text-neutral-400">Verifiez les doublons avant de creer un nouveau client.</div>
+                    <section
+                        v-if="isPublicBookingProspect"
+                        class="rounded-2xl border border-emerald-200/80 bg-emerald-50/80 p-4 shadow-sm dark:border-emerald-500/25 dark:bg-emerald-500/10"
+                        aria-labelledby="reservation-conversion-title"
+                    >
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div class="min-w-0">
+                                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700 dark:text-emerald-300">
+                                    {{ $t('reservations.details.conversion.public_booking_title') }}
+                                </p>
+                                <h3 id="reservation-conversion-title" class="mt-1 text-sm font-semibold text-stone-900 dark:text-neutral-100">
+                                    {{ $t('reservations.details.conversion.title') }}
+                                </h3>
+                                <p class="mt-1 text-xs leading-5 text-stone-600 dark:text-neutral-300">
+                                    {{ $t('reservations.details.conversion.description') }}
+                                </p>
+                                <p class="mt-2 break-words text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ publicBookingContact.name || $t('reservations.details.no_contact') }}
+                                    <span v-if="publicBookingContact.email"> · {{ publicBookingContact.email }}</span>
+                                    <span v-if="publicBookingContact.phone"> · {{ publicBookingContact.phone }}</span>
+                                </p>
                             </div>
                             <button
                                 type="button"
-                                class="rounded-sm border border-stone-200 px-2 py-1 text-[11px] dark:border-neutral-700"
-                                :disabled="conversionLoading"
+                                class="min-h-11 shrink-0 rounded-xl border border-emerald-200 bg-white px-4 py-2 text-xs font-semibold text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-emerald-500/30 dark:bg-neutral-900 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
+                                :disabled="conversionLoading || conversionSubmitting"
                                 @click="loadPublicBookingConversion"
                             >
-                                {{ conversionLoading ? 'Chargement...' : 'Verifier' }}
+                                {{ conversionLoading
+                                    ? $t('reservations.details.conversion.states.loading')
+                                    : $t('reservations.details.conversion.actions.check') }}
                             </button>
                         </div>
 
-                        <div v-if="conversionPayload?.matches?.length" class="mt-3 space-y-2">
-                            <div
+                        <div v-if="conversionPayload?.matches?.length" class="mt-4 space-y-2">
+                            <article
                                 v-for="match in conversionPayload.matches"
                                 :key="`customer-match-${match.id}`"
-                                class="flex items-center justify-between gap-3 rounded-sm border border-white bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+                                class="flex flex-col gap-3 rounded-xl border border-white/90 bg-white/90 p-3 dark:border-neutral-700 dark:bg-neutral-900/80 sm:flex-row sm:items-center sm:justify-between"
                             >
-                                <div>
-                                    <div class="font-medium text-stone-800 dark:text-neutral-100">{{ match.display_name || `#${match.id}` }}</div>
-                                    <div class="text-stone-500 dark:text-neutral-400">{{ match.email || '-' }} · {{ match.phone || '-' }}</div>
+                                <div class="min-w-0">
+                                    <p class="truncate text-sm font-semibold text-stone-900 dark:text-neutral-100">{{ match.display_name || `#${match.id}` }}</p>
+                                    <p class="mt-0.5 break-words text-xs text-stone-500 dark:text-neutral-400">{{ match.email || '-' }} · {{ match.phone || '-' }}</p>
                                 </div>
                                 <button
                                     type="button"
-                                    class="rounded-sm bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-white disabled:opacity-50"
+                                    class="min-h-11 shrink-0 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                                     :disabled="conversionSubmitting"
                                     @click="convertPublicBooking('link_existing', match.id)"
                                 >
-                                    Lier
+                                    {{ $t('reservations.details.conversion.actions.link') }}
                                 </button>
-                            </div>
+                            </article>
                         </div>
 
-                        <div class="mt-3 grid gap-2 md:grid-cols-2">
-                            <FloatingInput v-model="conversionForm.contact_name" label="Nom du client" />
-                            <FloatingInput v-model="conversionForm.contact_email" type="email" label="Email" />
-                            <FloatingInput v-model="conversionForm.contact_phone" label="Telephone" />
-                            <FloatingInput v-model="conversionForm.company_name" label="Entreprise (optionnel)" />
+                        <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                            <FloatingInput v-model="conversionForm.contact_name" :label="$t('reservations.details.conversion.fields.name')" />
+                            <FloatingInput v-model="conversionForm.contact_email" type="email" :label="$t('reservations.details.conversion.fields.email')" />
+                            <FloatingInput v-model="conversionForm.contact_phone" :label="$t('reservations.details.conversion.fields.phone')" />
+                            <FloatingInput v-model="conversionForm.company_name" :label="$t('reservations.details.conversion.fields.company')" />
                         </div>
                         <InputError class="mt-2" :message="conversionForm.errors.customer_id || conversionForm.errors.contact_email || conversionForm.errors.contact_phone || conversionForm.errors.contact_name" />
-                        <div v-if="conversionError" class="mt-2 rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-rose-700">{{ conversionError }}</div>
-                        <div v-if="conversionSuccess" class="mt-2 rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-700">{{ conversionSuccess }}</div>
-                        <div class="mt-3 flex justify-end">
+                        <div v-if="conversionError" class="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200" role="alert">
+                            {{ conversionError }}
+                        </div>
+                        <div v-if="conversionSuccess" class="mt-3 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xs text-emerald-700 dark:border-emerald-500/30 dark:bg-neutral-900 dark:text-emerald-200" role="status">
+                            {{ conversionSuccess }}
+                        </div>
+                        <div class="mt-4 flex justify-end">
                             <button
                                 type="button"
-                                class="rounded-sm bg-stone-900 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
+                                class="min-h-11 w-full rounded-xl bg-stone-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200 sm:w-auto"
                                 :disabled="conversionSubmitting"
                                 @click="convertPublicBooking('create_new')"
                             >
-                                {{ conversionSubmitting ? 'Conversion...' : 'Creer le client' }}
+                                {{ conversionSubmitting
+                                    ? $t('reservations.details.conversion.states.converting')
+                                    : $t('reservations.details.conversion.actions.create') }}
                             </button>
                         </div>
+                    </section>
+                </template>
+
+                <template #actions>
+                    <div v-if="detailsActionError" class="w-full rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200" role="alert">
+                        {{ detailsActionError }}
                     </div>
-                    <div v-if="hasPaymentPolicy" class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="font-semibold text-stone-700 dark:text-neutral-200">{{ $t('reservations.payment_policy.title') }}</div>
-                        <div class="mt-1 text-stone-600 dark:text-neutral-300">
-                            {{ $t('reservations.payment_policy.deposit') }}:
-                            <template v-if="activePaymentPolicy.deposit_required">
-                                {{ formatMoney(activePaymentPolicy.deposit_amount) }}
-                                <span class="capitalize">({{ activePaymentState.deposit_status || '-' }})</span>
-                            </template>
-                            <template v-else>{{ $t('reservations.payment_policy.none') }}</template>
-                        </div>
-                        <div class="mt-1 text-stone-600 dark:text-neutral-300">
-                            {{ $t('reservations.payment_policy.no_show_fee') }}:
-                            <template v-if="activePaymentPolicy.no_show_fee_enabled">
-                                {{ formatMoney(activePaymentPolicy.no_show_fee_amount) }}
-                                <span class="capitalize">({{ activePaymentState.no_show_fee_status || '-' }})</span>
-                            </template>
-                            <template v-else>{{ $t('reservations.payment_policy.none') }}</template>
-                        </div>
-                    </div>
-                </div>
-                <div v-if="detailsActionError" class="mt-3 rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
-                    {{ detailsActionError }}
-                </div>
-                <div class="mt-4 flex flex-wrap justify-end gap-2">
                     <button
-                        v-if="canUpdateStatus && canConfirmStatus(activeReservation.status)"
+                        v-if="canTransitionActiveReservationTo('confirmed')"
                         type="button"
-                        class="rounded-sm bg-emerald-600 px-3 py-2 text-xs text-white"
+                        class="min-h-11 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-50"
+                        :disabled="detailsActionLoading"
                         @click="updateStatus('confirmed')"
                     >
                         {{ $t('reservations.actions.confirm') }}
                     </button>
                     <button
-                        v-else-if="isConfirmedStatus(activeReservation.status)"
+                        v-if="canTransitionActiveReservationTo('pending')"
                         type="button"
-                        class="cursor-not-allowed rounded-sm bg-emerald-200 px-3 py-2 text-xs text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300"
-                        :title="$t('reservations.actions.already_confirmed')"
-                        disabled
-                    >
-                        {{ $t('reservations.actions.confirm') }}
-                    </button>
-                    <button
-                        v-if="canUpdateStatus && canSetPendingStatus(activeReservation.status)"
-                        type="button"
-                        class="rounded-sm bg-amber-500 px-3 py-2 text-xs text-white"
+                        class="min-h-11 rounded-xl bg-amber-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-amber-600 disabled:cursor-wait disabled:opacity-50"
+                        :disabled="detailsActionLoading"
                         @click="updateStatus('pending')"
                     >
                         {{ $t('reservations.actions.set_pending') }}
                     </button>
                     <button
-                        v-if="canUpdateStatus && canCompleteReservation(activeReservation)"
+                        v-if="canTransitionActiveReservationTo('completed')"
                         type="button"
-                        class="rounded-sm bg-sky-600 px-3 py-2 text-xs text-white"
+                        class="min-h-11 rounded-xl bg-sky-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-sky-700 disabled:cursor-wait disabled:opacity-50"
+                        :disabled="detailsActionLoading"
                         @click="updateStatus('completed')"
                     >
                         {{ $t('reservations.actions.complete') }}
                     </button>
                     <button
-                        v-if="canUpdateStatus && canMarkNoShow(activeReservation)"
+                        v-if="canTransitionActiveReservationTo('no_show')"
                         type="button"
-                        class="rounded-sm bg-stone-600 px-3 py-2 text-xs text-white dark:bg-neutral-700"
+                        class="min-h-11 rounded-xl bg-stone-700 px-4 py-2 text-xs font-semibold text-white transition hover:bg-stone-800 disabled:cursor-wait disabled:opacity-50 dark:bg-neutral-600"
+                        :disabled="detailsActionLoading"
                         @click="updateStatus('no_show')"
                     >
                         {{ $t('reservations.actions.no_show') }}
                     </button>
                     <button
-                        v-if="canUpdateStatus && canCancelStatus(activeReservation.status)"
+                        v-if="canTransitionActiveReservationTo('cancelled')"
                         type="button"
-                        class="rounded-sm bg-rose-600 px-3 py-2 text-xs text-white"
+                        class="min-h-11 rounded-xl bg-rose-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-rose-700 disabled:cursor-wait disabled:opacity-50"
+                        :disabled="detailsActionLoading"
                         @click="updateStatus('cancelled')"
                     >
                         {{ cancelActionLabel }}
                     </button>
                     <button
-                        v-if="canManageReservationActions"
+                        v-if="canEditActiveReservation"
                         type="button"
-                        class="rounded-sm border border-stone-200 px-3 py-2 text-xs dark:border-neutral-700"
-                        @click="openEdit(activeReservation); showDetails = false"
+                        class="min-h-11 rounded-xl border border-stone-200 bg-white px-4 py-2 text-xs font-semibold text-stone-700 transition hover:border-stone-300 hover:bg-stone-50 disabled:cursor-wait disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                        :disabled="detailsActionLoading"
+                        @click="openEdit(activeReservation); closeDetails()"
                     >
                         {{ $t('reservations.actions.edit') }}
                     </button>
-                </div>
-            </div>
+                </template>
+            </ReservationDetailsPanel>
         </Modal>
     </AuthenticatedLayout>
 </template>

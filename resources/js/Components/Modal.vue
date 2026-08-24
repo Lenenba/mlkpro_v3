@@ -22,6 +22,11 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    presentation: {
+        type: String,
+        default: 'dialog',
+        validator: (value) => ['dialog', 'drawer'].includes(value),
+    },
 });
 
 const emit = defineEmits(['close']);
@@ -111,6 +116,8 @@ const positionClass = computed(() => {
         center: 'items-start sm:items-center',
     }[props.position] ?? 'items-start';
 });
+
+const isDrawer = computed(() => props.presentation === 'drawer');
 </script>
 
 <template>
@@ -121,7 +128,13 @@ const positionClass = computed(() => {
     >
         <div
             class="fixed inset-0 z-50 overflow-y-auto"
-            :class="fullScreenMobile ? 'p-0 sm:px-6 sm:py-6' : 'px-4 py-6 sm:px-6'"
+            :class="
+                isDrawer
+                    ? 'p-0'
+                    : fullScreenMobile
+                      ? 'p-0 sm:px-6 sm:py-6'
+                      : 'px-4 py-6 sm:px-6'
+            "
             scroll-region
         >
             <Transition
@@ -143,7 +156,26 @@ const positionClass = computed(() => {
                 </div>
             </Transition>
 
-            <div class="flex min-h-full justify-center" :class="positionClass">
+            <div v-if="isDrawer" class="flex min-h-full justify-end">
+                <Transition
+                    enter-active-class="ease-out duration-300 motion-reduce:transition-none motion-reduce:duration-0"
+                    enter-from-class="opacity-0 translate-x-full"
+                    enter-to-class="opacity-100 translate-x-0"
+                    leave-active-class="ease-in duration-200 motion-reduce:transition-none motion-reduce:duration-0"
+                    leave-from-class="opacity-100 translate-x-0"
+                    leave-to-class="opacity-0 translate-x-full"
+                >
+                    <div
+                        v-show="show"
+                        class="h-dvh w-full max-w-full min-w-0 transform overflow-hidden border-l border-stone-200 bg-white text-stone-900 shadow-2xl transition-all motion-reduce:transition-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                        :class="maxWidthClass"
+                    >
+                        <slot v-if="showSlot" />
+                    </div>
+                </Transition>
+            </div>
+
+            <div v-else class="flex min-h-full justify-center" :class="positionClass">
                 <Transition
                     enter-active-class="ease-out duration-300"
                     enter-from-class="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"

@@ -437,6 +437,144 @@
       "service": "Servicio",
       "product": "Producto"
     },
+    "details": {
+      "eyebrow": "Ficha de la reserva",
+      "title": "Detalles de la reserva",
+      "subtitle": "Consulte la cita, las personas involucradas y su progreso.",
+      "description": "Consulte la cita, las personas involucradas y su progreso.",
+      "reference": "Reserva n.º {id}",
+      "close": "Cerrar los detalles de la reserva",
+      "sections": {
+        "schedule": "Horario",
+        "client": "Cliente",
+        "team_member": "Miembro del equipo",
+        "service": "Servicio",
+        "notes": "Notas",
+        "resources": "Recursos",
+        "milestones": "Seguimiento",
+        "payment": "Pago"
+      },
+      "schedule": "Horario",
+      "client": "Cliente",
+      "customer": "Cliente",
+      "people": "Personas",
+      "team_member": "Miembro del equipo",
+      "assigned_team_member": "Miembro asignado",
+      "service": "Servicio",
+      "date": "Fecha",
+      "time": "Hora",
+      "duration": "Duración",
+      "minutes": "{count} min",
+      "party_size_value": "Personas: {count}",
+      "catalog_price": "Precio de catálogo",
+      "catalogue_price": "Precio de catálogo",
+      "notes": "Notas",
+      "client_notes": "Notas del cliente",
+      "internal_notes": "Notas internas",
+      "no_notes": "No hay notas para esta reserva.",
+      "no_contact": "No hay datos de contacto disponibles.",
+      "unavailable": "No disponible",
+      "resources": "Recursos",
+      "resource_quantity": "Cantidad: {count}",
+      "landmarks": "Seguimiento",
+      "milestones": {
+        "created": "Creada",
+        "scheduled": "Programada",
+        "cancelled": "Cancelada",
+        "auto_closed": "Cerrada automáticamente"
+      },
+      "created_at": "Creada el",
+      "scheduled_for": "Programada para",
+      "cancelled_at": "Cancelada el",
+      "auto_closed_at": "Cerrada automáticamente el",
+      "created_by": "Creada por {name}",
+      "cancelled_by": "Cancelada por {name}",
+      "cancellation_reason": "Motivo: {reason}",
+      "auto_closed_reason": "Motivo: {reason}",
+      "source": "Origen: {source}",
+      "sources": {
+        "staff": "Equipo",
+        "client": "Portal del cliente",
+        "api": "API",
+        "public_booking": "Reserva pública",
+        "unknown": "No especificado"
+      },
+      "vip": "Cliente VIP",
+      "loading": "Cargando los detalles de la reserva...",
+      "error": "No se pueden cargar los detalles de esta reserva.",
+      "error_title": "Detalles no disponibles",
+      "error_description": "No se pueden cargar los detalles de esta reserva.",
+      "retry": "Reintentar",
+      "labels": {
+        "contact": "Datos de contacto",
+        "category": "Categoría",
+        "resource": "Recurso"
+      },
+      "media": {
+        "service_alt": "Imagen de {service}",
+        "client_alt": "Foto de {client}",
+        "team_member_alt": "Foto de {team_member}",
+        "service_fallback": "Sin imagen del servicio"
+      },
+      "service_fallback": "Servicio",
+      "service_image_alt": "Imagen del servicio {service}",
+      "customer_fallback": "Cliente",
+      "team_member_fallback": "Miembro del equipo",
+      "payment": "Pago",
+      "deposit": "Depósito",
+      "no_show_fee": "Cargo por ausencia",
+      "payment_status": "Estado del pago",
+      "no_payment": "No hay ninguna política de pago asociada a esta reserva.",
+      "payment_states": {
+        "required": "Requerido",
+        "not_required": "No requerido",
+        "due_on_invoice": "Pendiente en la factura",
+        "forfeited": "Retenido",
+        "refundable": "Reembolsable",
+        "refunded": "Reembolsado",
+        "not_applied": "No aplicado",
+        "not_applicable": "No aplicable",
+        "charge_required": "Pago requerido",
+        "waived": "Exonerado",
+        "paid": "Pagado"
+      },
+      "conversion": {
+        "public_booking_title": "Reserva pública",
+        "public_booking_description": "Datos de contacto enviados con la reserva pública.",
+        "title": "Conversión en cliente",
+        "description": "Compruebe si hay duplicados antes de crear un nuevo cliente.",
+        "fields": {
+          "name": "Nombre del cliente",
+          "client_name": "Nombre del cliente",
+          "email": "Correo electrónico",
+          "phone": "Teléfono",
+          "company": "Empresa (opcional)"
+        },
+        "actions": {
+          "check": "Comprobar",
+          "checking": "Comprobando...",
+          "link": "Vincular",
+          "linking": "Vinculando...",
+          "create": "Crear cliente",
+          "creating": "Convirtiendo..."
+        },
+        "states": {
+          "loading": "Cargando las opciones de conversión...",
+          "converting": "Convirtiendo...",
+          "no_matches": "No se encontró ningún cliente existente que coincida.",
+          "ready": "La información está lista para comprobarse.",
+          "already_converted": "Esta reserva ya está vinculada a un cliente."
+        },
+        "success": {
+          "converted": "El prospecto se convirtió en cliente."
+        },
+        "errors": {
+          "load": "No se pueden cargar las opciones de conversión.",
+          "convert": "No se puede convertir este prospecto.",
+          "validation": "Compruebe los datos del cliente antes de continuar."
+        }
+      }
+    },
     "payment_policy": {
       "title": "Resumen de la política de pagos",
       "deposit": "Depósito",

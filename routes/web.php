@@ -562,6 +562,7 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::get('/app/reservations/screen/data', [StaffReservationController::class, 'screenData'])->name('reservation.screen.data');
         Route::get('/app/reservations/events', [StaffReservationController::class, 'events'])->name('reservation.events');
         Route::get('/app/reservations/slots', [StaffReservationController::class, 'slots'])->name('reservation.slots');
+        Route::get('/app/reservations/{reservation}', [StaffReservationController::class, 'show'])->name('reservation.show');
         Route::post('/app/reservations', [StaffReservationController::class, 'store'])->name('reservation.store');
         Route::put('/app/reservations/{reservation}', [StaffReservationController::class, 'update'])->name('reservation.update');
         Route::patch('/app/reservations/{reservation}/status', [StaffReservationController::class, 'updateStatus'])

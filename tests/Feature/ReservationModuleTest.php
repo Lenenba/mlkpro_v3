@@ -4,6 +4,8 @@ use App\Models\Customer;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\PublicBookingLink;
+use App\Models\Request as LeadRequest;
 use App\Models\Reservation;
 use App\Models\ReservationQueueItem;
 use App\Models\ReservationResource;
@@ -40,11 +42,11 @@ function ensureRole(string $name, string $description): int
     )->id;
 }
 
-function createOwnerWithReservationsEnabled(): User
+function createOwnerWithReservationsEnabled(array $overrides = []): User
 {
     $ownerRoleId = ensureRole('owner', 'Account owner role');
 
-    return User::query()->create([
+    return User::query()->create(array_merge([
         'name' => 'Reservation Owner',
         'email' => 'reservation.owner@example.com',
         'password' => 'password',
@@ -55,7 +57,7 @@ function createOwnerWithReservationsEnabled(): User
         'company_features' => [
             'reservations' => true,
         ],
-    ]);
+    ], $overrides));
 }
 
 function createTeamMemberForAccount(User $owner, array $overrides = []): TeamMember
@@ -595,6 +597,394 @@ it('sends reminder notifications from the scheduled reservation command', functi
     $metadata = (array) (Reservation::query()->find($reservation->id)?->metadata ?? []);
     expect((array) ($metadata['notifications'] ?? []))
         ->toHaveKey('reminder_24h_sent_at');
+});
+
+it('returns a sanitized account-scoped reservation detail contract', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $owner->forceFill([
+        'profile_picture' => '/images/presets/avatar-4.svg',
+    ])->save();
+    $teamMember = createTeamMemberForAccount($owner, [
+        'user_name' => 'Detail Specialist',
+        'user_email' => 'detail.specialist@example.com',
+        'title' => 'Senior stylist',
+    ]);
+    $teamMember->user()->firstOrFail()->forceFill([
+        'profile_picture' => '/images/presets/avatar-2.svg',
+    ])->save();
+
+    [$clientUser, $customer] = createClientForAccount($owner, 'Detail Client', 'detail.client@example.com');
+    $customer->forceFill([
+        'logo' => '/images/presets/avatar-3.svg',
+        'is_vip' => true,
+        'description' => 'customer-private-secret',
+    ])->save();
+
+    $category = ProductCategory::query()->create([
+        'name' => 'Signature care',
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+    ]);
+    $service = Product::query()->create([
+        'name' => 'Premium styling',
+        'description' => '<p>Premium <strong>service</strong> with care.</p>',
+        'category_id' => $category->id,
+        'user_id' => $owner->id,
+        'stock' => 0,
+        'minimum_stock' => 0,
+        'price' => 89.50,
+        'currency_code' => 'cad',
+        'image' => 'images/mega-menu/reservations-suite.svg',
+        'unit' => 'service',
+        'item_type' => Product::ITEM_TYPE_SERVICE,
+        'is_active' => true,
+        'stripe_product_id' => 'product-provider-secret',
+    ]);
+
+    $startsAt = Carbon::now('UTC')->subHours(3);
+    $reservation = Reservation::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $teamMember->id,
+        'client_id' => $customer->id,
+        'client_user_id' => $clientUser->id,
+        'service_id' => $service->id,
+        'created_by_user_id' => $owner->id,
+        'status' => Reservation::STATUS_CONFIRMED,
+        'source' => Reservation::SOURCE_STAFF,
+        'timezone' => 'UTC',
+        'starts_at' => $startsAt,
+        'ends_at' => $startsAt->copy()->addHour(),
+        'duration_minutes' => 60,
+        'buffer_minutes' => 10,
+        'client_notes' => 'Prefers a quiet appointment.',
+        'internal_notes' => 'Prepare station five.',
+        'metadata' => [
+            'party_size' => 2,
+            'private_secret' => 'reservation-private-secret',
+            'payment_policy' => [
+                'currency_code' => 'cad',
+                'deposit_required' => true,
+                'deposit_amount' => 25,
+                'no_show_fee_enabled' => true,
+                'no_show_fee_amount' => 12,
+                'provider_reference' => 'payment-provider-secret',
+            ],
+            'payment_state' => [
+                'deposit_status' => 'required',
+                'deposit_due_amount' => 25,
+                'no_show_fee_status' => 'not_applied',
+                'no_show_fee_amount' => 12,
+                'processor_payload' => 'processor-private-secret',
+            ],
+        ],
+    ]);
+
+    $resource = createActiveChairForMember($owner, $teamMember, [
+        'name' => 'Styling chair 5',
+        'capacity' => 2,
+        'metadata' => ['access_code' => 'resource-private-secret'],
+    ]);
+    ReservationResourceAllocation::query()->create([
+        'account_id' => $owner->id,
+        'reservation_id' => $reservation->id,
+        'reservation_resource_id' => $resource->id,
+        'quantity' => 1,
+    ]);
+
+    $response = $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.show', $reservation))
+        ->assertOk();
+
+    $detail = $response->json('reservation');
+    $this->assertSame($reservation->id, $detail['id']);
+    $this->assertSame(2, $detail['party_size']);
+    $this->assertSame('Detail Client', $detail['client']['display_name']);
+    $this->assertSame('company', $detail['client']['client_type']);
+    $this->assertTrue($detail['client']['is_vip']);
+    $this->assertSame('/images/presets/avatar-3.svg', $detail['client']['avatar_url']);
+    $this->assertSame('Premium service with care.', $detail['service']['description']);
+    $this->assertSame([
+        'id' => $category->id,
+        'name' => 'Signature care',
+    ], $detail['service']['category']);
+    $this->assertSame('CAD', $detail['service']['currency_code']);
+    $this->assertTrue($detail['service']['has_image']);
+    $this->assertStringEndsWith('/images/mega-menu/reservations-suite.svg', $detail['service']['image_url']);
+    $this->assertSame('Detail Specialist', $detail['team_member']['name']);
+    $this->assertSame('/images/presets/avatar-2.svg', $detail['team_member']['avatar_url']);
+    $this->assertSame([
+        'name' => 'Reservation Owner',
+        'avatar_url' => '/images/presets/avatar-4.svg',
+    ], $detail['creator']);
+    $this->assertNull($detail['canceller']);
+    $this->assertSame([[
+        'id' => $resource->id,
+        'name' => 'Styling chair 5',
+        'type' => ReservationResource::TYPE_CHAIR,
+        'capacity' => 2,
+        'quantity' => 1,
+    ]], $detail['resources']);
+    $this->assertSame('CAD', $detail['payment']['currency_code']);
+    $this->assertTrue($detail['payment']['policy']['deposit_required']);
+    $this->assertSame('required', $detail['payment']['state']['deposit_status']);
+    $this->assertSame('not_applied', $detail['payment']['state']['no_show_fee_status']);
+    $this->assertSame([
+        'can_edit' => true,
+        'can_delete' => true,
+        'can_update_status' => true,
+        'can_convert' => false,
+        'allowed_status_transitions' => [
+            Reservation::STATUS_PENDING,
+            Reservation::STATUS_COMPLETED,
+            Reservation::STATUS_NO_SHOW,
+            Reservation::STATUS_CANCELLED,
+        ],
+    ], $detail['permissions']);
+
+    $this->assertArrayNotHasKey('account_id', $detail);
+    $this->assertArrayNotHasKey('metadata', $detail);
+    $this->assertArrayNotHasKey('logo', $detail['client']);
+    $this->assertArrayNotHasKey('image', $detail['service']);
+    $this->assertArrayNotHasKey('profile_picture', $detail['team_member']);
+    $this->assertArrayNotHasKey('metadata', $detail['resources'][0]);
+
+    $encodedDetail = json_encode($detail, JSON_THROW_ON_ERROR);
+    foreach ([
+        'customer-private-secret',
+        'reservation-private-secret',
+        'payment-provider-secret',
+        'processor-private-secret',
+        'product-provider-secret',
+        'resource-private-secret',
+        'detail.specialist@example.com',
+    ] as $secret) {
+        $this->assertStringNotContainsString($secret, $encodedDetail);
+    }
+
+    $service->forceFill(['image' => null])->save();
+    $withoutImage = $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.show', $reservation))
+        ->assertOk()
+        ->json('reservation.service');
+    $this->assertFalse($withoutImage['has_image']);
+    $this->assertStringEndsWith('/images/placeholders/service-default.jpg', $withoutImage['image_url']);
+
+    $this->actingAs($clientUser)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.show', $reservation))
+        ->assertForbidden();
+});
+
+it('exposes a safe public booking prospect and protects conversion from unassigned members', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $assignedMember = createTeamMemberForAccount($owner, [
+        'user_name' => 'Assigned Public Specialist',
+        'user_email' => 'assigned.public@example.com',
+        'role' => 'member',
+        'permissions' => [],
+    ]);
+    $unassignedMember = createTeamMemberForAccount($owner, [
+        'user_name' => 'Unassigned Public Specialist',
+        'user_email' => 'unassigned.public@example.com',
+        'role' => 'member',
+        'permissions' => [],
+    ]);
+
+    $link = PublicBookingLink::query()->create([
+        'account_id' => $owner->id,
+        'name' => 'Instagram bookings',
+        'slug' => 'reservation-detail-instagram',
+        'is_active' => true,
+        'metadata' => ['provider_token' => 'link-provider-secret'],
+    ]);
+    $prospect = LeadRequest::query()->create([
+        'user_id' => $owner->id,
+        'public_booking_link_id' => $link->id,
+        'channel' => 'public_booking',
+        'status' => LeadRequest::STATUS_NEW,
+        'contact_name' => 'Public Guest',
+        'contact_email' => 'public.guest@example.com',
+        'contact_phone' => '+15145550123',
+        'meta' => ['provider_reference' => 'prospect-provider-secret'],
+    ]);
+    $customer = Customer::query()->create([
+        'user_id' => $owner->id,
+        'first_name' => 'Public',
+        'last_name' => 'Guest',
+        'company_name' => 'Public Guest',
+        'email' => 'public.guest@example.com',
+        'phone' => '+15145550123',
+        'description' => 'customer-conversion-secret',
+    ]);
+
+    $startsAt = Carbon::now('UTC')->addDay()->setTime(13, 0);
+    $reservation = Reservation::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $assignedMember->id,
+        'prospect_id' => $prospect->id,
+        'public_booking_link_id' => $link->id,
+        'status' => Reservation::STATUS_PENDING,
+        'source' => Reservation::SOURCE_PUBLIC_BOOKING,
+        'timezone' => 'UTC',
+        'starts_at' => $startsAt,
+        'ends_at' => $startsAt->copy()->addHour(),
+        'duration_minutes' => 60,
+        'buffer_minutes' => 0,
+        'metadata' => ['provider_reference' => 'reservation-provider-secret'],
+    ]);
+
+    $response = $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.show', $reservation))
+        ->assertOk();
+
+    $this->assertSame([
+        'id' => $prospect->id,
+        'contact_name' => 'Public Guest',
+        'contact_email' => 'public.guest@example.com',
+        'contact_phone' => '+15145550123',
+    ], $response->json('reservation.prospect'));
+    $this->assertSame([
+        'id' => $link->id,
+        'name' => 'Instagram bookings',
+    ], $response->json('reservation.public_booking_link'));
+    $this->assertTrue($response->json('reservation.permissions.can_convert'));
+
+    $unassignedUser = $unassignedMember->user()->firstOrFail();
+    $this->actingAs($unassignedUser)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.show', $reservation))
+        ->assertForbidden();
+    $this->actingAs($unassignedUser)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.public-booking-conversion.show', $reservation))
+        ->assertForbidden();
+
+    $conversionResponse = $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->postJson(route('reservation.public-booking-conversion.store', $reservation), [
+            'mode' => 'link_existing',
+            'customer_id' => $customer->id,
+        ])
+        ->assertOk()
+        ->assertJsonPath('reservation.id', $reservation->id)
+        ->assertJsonPath('reservation.client_id', $customer->id)
+        ->assertJsonPath('customer.email', 'public.guest@example.com');
+
+    $conversionPayload = $conversionResponse->json();
+    $this->assertSame(['id', 'client_id', 'prospect_id', 'status'], array_keys($conversionPayload['reservation']));
+    $this->assertArrayNotHasKey('metadata', $conversionPayload['reservation']);
+    $this->assertArrayNotHasKey('meta', $conversionPayload['prospect']);
+
+    $encodedConversion = json_encode($conversionPayload, JSON_THROW_ON_ERROR);
+    foreach ([
+        'link-provider-secret',
+        'prospect-provider-secret',
+        'reservation-provider-secret',
+        'customer-conversion-secret',
+    ] as $secret) {
+        $this->assertStringNotContainsString($secret, $encodedConversion);
+    }
+});
+
+it('lets view-all members read reservation details without mutation capabilities', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $viewerMember = createTeamMemberForAccount($owner, [
+        'user_name' => 'Reservation Viewer',
+        'user_email' => 'reservation.viewer@example.com',
+        'role' => 'member',
+        'permissions' => ['view_all_reservations'],
+    ]);
+    $assignedMember = createTeamMemberForAccount($owner, [
+        'user_name' => 'Other Reservation Specialist',
+        'user_email' => 'other.reservation.specialist@example.com',
+        'role' => 'member',
+        'permissions' => [],
+    ]);
+
+    $startsAt = Carbon::now('UTC')->addDay()->setTime(10, 0);
+    $reservation = Reservation::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $assignedMember->id,
+        'status' => Reservation::STATUS_PENDING,
+        'source' => Reservation::SOURCE_STAFF,
+        'timezone' => 'UTC',
+        'starts_at' => $startsAt,
+        'ends_at' => $startsAt->copy()->addHour(),
+        'duration_minutes' => 60,
+        'buffer_minutes' => 0,
+    ]);
+
+    $viewer = $viewerMember->user()->firstOrFail();
+    $response = $this->actingAs($viewer)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.show', $reservation))
+        ->assertOk();
+
+    $this->assertSame([
+        'can_edit' => false,
+        'can_delete' => false,
+        'can_update_status' => false,
+        'can_convert' => false,
+        'allowed_status_transitions' => [],
+    ], $response->json('reservation.permissions'));
+
+    $this->actingAs($viewer)
+        ->withSession(['two_factor_passed' => true])
+        ->patchJson(route('reservation.status', $reservation), [
+            'status' => Reservation::STATUS_CONFIRMED,
+        ])
+        ->assertForbidden();
+    $this->actingAs($viewer)
+        ->withSession(['two_factor_passed' => true])
+        ->deleteJson(route('reservation.destroy', $reservation))
+        ->assertForbidden();
+    $this->actingAs($viewer)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.public-booking-conversion.show', $reservation))
+        ->assertForbidden();
+});
+
+it('returns not found for hostile tenant reservation detail and mutation requests', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $foreignOwner = createOwnerWithReservationsEnabled([
+        'name' => 'Foreign Reservation Owner',
+        'email' => 'foreign.reservation.owner@example.com',
+    ]);
+    $foreignMember = createTeamMemberForAccount($foreignOwner, [
+        'user_name' => 'Foreign Reservation Specialist',
+        'user_email' => 'foreign.reservation.specialist@example.com',
+    ]);
+
+    $startsAt = Carbon::now('UTC')->addDay()->setTime(15, 0);
+    $foreignReservation = Reservation::query()->create([
+        'account_id' => $foreignOwner->id,
+        'team_member_id' => $foreignMember->id,
+        'status' => Reservation::STATUS_PENDING,
+        'source' => Reservation::SOURCE_STAFF,
+        'timezone' => 'UTC',
+        'starts_at' => $startsAt,
+        'ends_at' => $startsAt->copy()->addHour(),
+        'duration_minutes' => 60,
+        'buffer_minutes' => 0,
+    ]);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.show', $foreignReservation))
+        ->assertNotFound();
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.public-booking-conversion.show', $foreignReservation))
+        ->assertNotFound();
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->patchJson(route('reservation.status', $foreignReservation), [
+            'status' => Reservation::STATUS_CONFIRMED,
+        ])
+        ->assertNotFound();
 });
 
 it('defaults reservation scope to mine for team members and allows managers to switch to all', function () {
