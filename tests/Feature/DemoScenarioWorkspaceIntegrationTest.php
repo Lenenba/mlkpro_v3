@@ -124,6 +124,22 @@ function bindScenarioIntegrationFake(): DemoScenario
     return $scenario;
 }
 
+it('keeps MySQL demo timestamps in UTC across the spring DST gap', function () {
+    $serializedUtc = '2025-03-09 02:40:00';
+    $storedInstant = CarbonImmutable::createFromFormat(
+        'Y-m-d H:i:s',
+        $serializedUtc,
+        (string) config('database.connections.mysql.timezone'),
+    );
+    $torontoInstant = $storedInstant->setTimezone('America/Toronto');
+
+    expect(config('database.connections.mysql.timezone'))->toBe('+00:00')
+        ->and(config('database.connections.mariadb.timezone'))->toBe('+00:00')
+        ->and($storedInstant->format('P'))->toBe('+00:00')
+        ->and($torontoInstant->format('Y-m-d H:i:s P'))->toBe('2025-03-08 21:40:00 -05:00')
+        ->and($torontoInstant->utc()->format('Y-m-d H:i:s'))->toBe($serializedUtc);
+});
+
 it('exposes Studio Naya as an opt-in narrative preset without changing lean salon defaults', function () {
     $catalog = app(DemoWorkspaceCatalog::class);
     $preset = collect($catalog->presets())->firstWhere('key', 'studio_naya_coiffure');

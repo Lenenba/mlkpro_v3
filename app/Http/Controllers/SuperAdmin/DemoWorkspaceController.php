@@ -312,7 +312,9 @@ class DemoWorkspaceController extends BaseSuperAdminController
                 'from_status' => $currentProvisioningStatus,
             ]);
 
-        $this->dispatchProvisioningJob($queuedWorkspace, (int) $request->user()->id);
+        $isReset = $queuedWorkspace->provisioning_stage === DemoWorkspaceProvisioner::STAGE_QUEUED_FOR_BASELINE_RESET;
+
+        $this->dispatchProvisioningJob($queuedWorkspace, (int) $request->user()->id, $isReset);
 
         return redirect()
             ->route('superadmin.demo-workspaces.provisioning', $this->provisioningRouteParameters($request, $queuedWorkspace))
@@ -1697,12 +1699,6 @@ class DemoWorkspaceController extends BaseSuperAdminController
 
     private function dispatchProvisioningJob(DemoWorkspace $workspace, int $actorUserId, bool $isReset = false): void
     {
-        if ((bool) config('async.workloads.demos.run_inline', false)) {
-            ProvisionDemoWorkspaceJob::dispatchSync($workspace->id, $actorUserId, $isReset);
-
-            return;
-        }
-
         ProvisionDemoWorkspaceJob::dispatch($workspace->id, $actorUserId, $isReset);
     }
 

@@ -26,10 +26,6 @@ return [
         ],
         'demos' => [
             'queue' => env('ASYNC_QUEUE_DEMOS', 'demo-provisioning'),
-            'run_inline' => env(
-                'ASYNC_DEMOS_INLINE',
-                env('QUEUE_CONNECTION', 'database') === 'sync'
-            ),
             'backoff' => [60, 300, 900],
             'timeout' => 900,
         ],

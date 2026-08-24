@@ -78,6 +78,10 @@ class DemoWorkspaceProvisioner
 
     public const STATUS_FAILED = 'failed';
 
+    public const STAGE_QUEUED_FOR_PROVISIONING = 'Queued for provisioning';
+
+    public const STAGE_QUEUED_FOR_BASELINE_RESET = 'Queued for baseline reset';
+
     public function __construct(
         private DemoWorkspaceCatalog $catalog,
         private MarketingSettingsService $marketingSettingsService,
@@ -1147,7 +1151,9 @@ class DemoWorkspaceProvisioner
             'baseline_created_at' => $workspace->baseline_created_at ?? now(),
             'provisioning_status' => self::STATUS_QUEUED,
             'provisioning_progress' => 5,
-            'provisioning_stage' => $isReset ? 'Queued for baseline reset' : 'Queued for provisioning',
+            'provisioning_stage' => $isReset
+                ? self::STAGE_QUEUED_FOR_BASELINE_RESET
+                : self::STAGE_QUEUED_FOR_PROVISIONING,
             'provisioning_error' => null,
             'queued_at' => now(),
             'provisioning_started_at' => null,

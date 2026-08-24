@@ -18,6 +18,7 @@ use App\Services\Demo\DemoWorkspaceCatalog;
 use App\Support\PlatformPermissions;
 use Illuminate\Contracts\Bus\Dispatcher;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -346,7 +347,6 @@ it('rejects a narrative scenario request with missing required modules', functio
 });
 
 it('provisions a realistic service demo workspace from the admin module', function () {
-    config()->set('async.workloads.demos.run_inline', true);
     Storage::fake('public');
 
     $admin = demoWorkspacePlatformAdmin([PlatformPermissions::DEMOS_MANAGE]);
@@ -423,7 +423,6 @@ it('provisions a realistic service demo workspace from the admin module', functi
 });
 
 it('can dispatch an already queued demo workspace again', function () {
-    config()->set('async.workloads.demos.run_inline', true);
     Storage::fake('public');
 
     $admin = demoWorkspacePlatformAdmin([PlatformPermissions::DEMOS_MANAGE]);
@@ -443,6 +442,47 @@ it('can dispatch an already queued demo workspace again', function () {
     expect($workspace->provisioning_status)->toBe('ready');
     expect($workspace->provisioning_progress)->toBe(100);
     expect($workspace->owner)->not->toBeNull();
+});
+
+it('always dispatches web provisioning through the configured queue', function () {
+    config()->set('async.workloads.demos.run_inline', true);
+    Bus::fake([ProvisionDemoWorkspaceJob::class]);
+
+    $admin = demoWorkspacePlatformAdmin([PlatformPermissions::DEMOS_MANAGE]);
+
+    $this->actingAs($admin)
+        ->post(route('superadmin.demo-workspaces.store'), demoWorkspacePayload())
+        ->assertSessionHas('success');
+
+    $workspace = DemoWorkspace::query()->firstOrFail();
+
+    Bus::assertDispatched(ProvisionDemoWorkspaceJob::class, fn (ProvisionDemoWorkspaceJob $job): bool => $job->workspaceId === $workspace->id
+        && $job->actorUserId === $admin->id
+        && $job->isReset === false);
+    Bus::assertNotDispatchedSync(ProvisionDemoWorkspaceJob::class);
+
+    expect($workspace->provisioning_status)->toBe('queued')
+        ->and($workspace->provisioning_progress)->toBe(5);
+});
+
+it('preserves baseline reset intent when redispatching a queued workspace', function () {
+    $admin = demoWorkspacePlatformAdmin([PlatformPermissions::DEMOS_MANAGE]);
+    $workspace = app(\App\Services\Demo\DemoWorkspaceProvisioner::class)
+        ->queueCreate(demoWorkspacePayload(), $admin);
+    $workspace->forceFill([
+        'provisioning_stage' => \App\Services\Demo\DemoWorkspaceProvisioner::STAGE_QUEUED_FOR_BASELINE_RESET,
+    ])->save();
+    Bus::fake([ProvisionDemoWorkspaceJob::class]);
+
+    $this->actingAs($admin)
+        ->post(route('superadmin.demo-workspaces.queue', $workspace))
+        ->assertRedirect(demoWorkspaceProvisioningRoute($workspace))
+        ->assertSessionHas('success');
+
+    Bus::assertDispatched(ProvisionDemoWorkspaceJob::class, fn (ProvisionDemoWorkspaceJob $job): bool => $job->workspaceId === $workspace->id
+        && $job->actorUserId === $admin->id
+        && $job->isReset === true);
+    Bus::assertNotDispatchedSync(ProvisionDemoWorkspaceJob::class);
 });
 
 it('can create a workspace from a template, mark it sent and extend expiration', function () {

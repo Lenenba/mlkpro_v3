@@ -36,7 +36,8 @@
         <server name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>
-        <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="QUEUE_CONNECTION" value="sync" force="true"/>
+        <server name="QUEUE_CONNECTION" value="sync"/>
         <env name="DB_QUEUE_RETRY_AFTER" value="1200"/>
         <env name="BEANSTALKD_QUEUE_RETRY_AFTER" value="1200"/>
         <env name="REDIS_QUEUE_RETRY_AFTER" value="1200"/>

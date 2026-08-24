@@ -10,7 +10,7 @@ Dernière mise à jour : 2026-08-11
 - [ ] Confirmer que le preset est `salon_eclat_complete` pour les épisodes `G02` à `G08`.
 - [ ] Récupérer les identifiants temporaires sur la fiche du workspace, sans les copier dans Git.
 - [ ] Vérifier les migrations avec `herd php artisan migrate:status`.
-- [ ] Préparer le worker avec `herd php artisan queue:work` lorsque le provisioning, les invitations ou les notifications doivent être montrés.
+- [ ] Préparer le worker avec `herd php artisan queue:workloads development --memory=512` lorsque le provisioning, les invitations ou les notifications doivent être montrés.
 - [ ] Préparer un rendu stable des assets avec `npm run build`, ou confirmer que Vite tourne correctement.
 - [ ] Confirmer l'URL locale : `https://malikia.test`.
 - [ ] Rejouer le parcours une fois sans enregistrer.
