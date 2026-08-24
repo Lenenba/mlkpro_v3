@@ -3,6 +3,9 @@
     "title": "Reservations",
     "subtitle": "Review, confirm, or decline reservations assigned to your team.",
     "empty": "No reservations yet.",
+    "calendar": {
+      "loading": "Loading reservations..."
+    },
     "owner_only": {
       "staff_notice": "Solo growth keeps reservations in limited mode: view existing reservations, manage the waitlist, and configure global settings, but staff-based booking stays disabled.",
       "client_notice": "This solo workspace does not offer live appointment slots yet. Join the waitlist instead and the business can follow up manually.",

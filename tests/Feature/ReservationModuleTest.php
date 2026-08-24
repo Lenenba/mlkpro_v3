@@ -599,6 +599,553 @@ it('sends reminder notifications from the scheduled reservation command', functi
         ->toHaveKey('reminder_24h_sent_at');
 });
 
+it('scopes calendar events to assigned reservations unless staff can view all', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $assignedMember = createTeamMemberForAccount($owner, [
+        'user_name' => 'Assigned Calendar Specialist',
+        'user_email' => 'assigned.calendar@example.com',
+        'role' => 'member',
+        'permissions' => [],
+    ]);
+    $otherMember = createTeamMemberForAccount($owner, [
+        'user_name' => 'Other Calendar Specialist',
+        'user_email' => 'other.calendar@example.com',
+        'role' => 'member',
+        'permissions' => [],
+    ]);
+    $viewerMember = createTeamMemberForAccount($owner, [
+        'user_name' => 'All Calendar Viewer',
+        'user_email' => 'all.calendar.viewer@example.com',
+        'role' => 'member',
+        'permissions' => ['view_all_reservations'],
+    ]);
+
+    $startsAt = Carbon::parse('2026-09-10 14:00:00', 'UTC');
+    $assignedReservation = Reservation::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $assignedMember->id,
+        'status' => Reservation::STATUS_CONFIRMED,
+        'source' => Reservation::SOURCE_STAFF,
+        'timezone' => 'UTC',
+        'starts_at' => $startsAt,
+        'ends_at' => $startsAt->copy()->addHour(),
+        'duration_minutes' => 60,
+        'buffer_minutes' => 0,
+    ]);
+    $otherReservation = Reservation::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $otherMember->id,
+        'status' => Reservation::STATUS_CONFIRMED,
+        'source' => Reservation::SOURCE_STAFF,
+        'timezone' => 'UTC',
+        'starts_at' => $startsAt->copy()->addHours(2),
+        'ends_at' => $startsAt->copy()->addHours(3),
+        'duration_minutes' => 60,
+        'buffer_minutes' => 0,
+    ]);
+    $range = [
+        'start' => $startsAt->copy()->startOfDay()->toIso8601String(),
+        'end' => $startsAt->copy()->addDay()->startOfDay()->toIso8601String(),
+        'scope' => 'all',
+    ];
+
+    $assignedEvents = $this->actingAs($assignedMember->user()->firstOrFail())
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.events', $range))
+        ->assertOk()
+        ->json('events');
+
+    $this->assertSame([$assignedReservation->id], collect($assignedEvents)->pluck('id')->all());
+
+    $viewerEvents = $this->actingAs($viewerMember->user()->firstOrFail())
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.events', $range))
+        ->assertOk()
+        ->json('events');
+
+    $this->assertEqualsCanonicalizing(
+        [$assignedReservation->id, $otherReservation->id],
+        collect($viewerEvents)->pluck('id')->all()
+    );
+});
+
+it('returns sanitized calendar events with tenant-scoped relations', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $member = createTeamMemberForAccount($owner, [
+        'user_name' => 'Safe Calendar Specialist',
+        'user_email' => 'safe.calendar@example.com',
+    ]);
+    [, $customer] = createClientForAccount($owner, 'Safe Calendar Client', 'safe.calendar.client@example.com');
+    $category = ProductCategory::query()->create([
+        'name' => 'Safe calendar category',
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+    ]);
+    $service = Product::query()->create([
+        'name' => 'Safe calendar service',
+        'category_id' => $category->id,
+        'user_id' => $owner->id,
+        'stock' => 0,
+        'minimum_stock' => 0,
+        'price' => 75,
+        'unit' => 'service',
+        'item_type' => Product::ITEM_TYPE_SERVICE,
+        'is_active' => true,
+    ]);
+
+    $foreignOwner = createOwnerWithReservationsEnabled([
+        'name' => 'Foreign Calendar Owner',
+        'email' => 'foreign.calendar.owner@example.com',
+    ]);
+    $foreignMember = createTeamMemberForAccount($foreignOwner, [
+        'user_name' => 'FOREIGN TEAM SECRET',
+        'user_email' => 'foreign.calendar.team@example.com',
+    ]);
+    [, $foreignCustomer] = createClientForAccount(
+        $foreignOwner,
+        'FOREIGN CLIENT SECRET',
+        'foreign.calendar.client@example.com'
+    );
+    $foreignProspect = LeadRequest::query()->create([
+        'user_id' => $foreignOwner->id,
+        'channel' => 'manual',
+        'status' => LeadRequest::STATUS_NEW,
+        'contact_name' => 'FOREIGN PROSPECT SECRET',
+    ]);
+    $foreignCategory = ProductCategory::query()->create([
+        'name' => 'Foreign calendar category',
+        'user_id' => $foreignOwner->id,
+        'created_by_user_id' => $foreignOwner->id,
+    ]);
+    $foreignService = Product::query()->create([
+        'name' => 'FOREIGN SERVICE SECRET',
+        'category_id' => $foreignCategory->id,
+        'user_id' => $foreignOwner->id,
+        'stock' => 0,
+        'minimum_stock' => 0,
+        'price' => 120,
+        'unit' => 'service',
+        'item_type' => Product::ITEM_TYPE_SERVICE,
+        'is_active' => true,
+    ]);
+
+    $startsAt = Carbon::parse('2026-10-05 13:00:00', 'UTC');
+    $safeReservation = Reservation::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $member->id,
+        'client_id' => $customer->id,
+        'service_id' => $service->id,
+        'status' => Reservation::STATUS_CONFIRMED,
+        'source' => Reservation::SOURCE_STAFF,
+        'timezone' => 'UTC',
+        'starts_at' => $startsAt,
+        'ends_at' => $startsAt->copy()->addHour(),
+        'duration_minutes' => 60,
+        'buffer_minutes' => 0,
+        'internal_notes' => 'INTERNAL CALENDAR SECRET',
+        'client_notes' => 'CLIENT CALENDAR SECRET',
+        'metadata' => ['provider_reference' => 'METADATA CALENDAR SECRET'],
+    ]);
+    $hostileRelationReservation = Reservation::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $foreignMember->id,
+        'client_id' => $foreignCustomer->id,
+        'prospect_id' => $foreignProspect->id,
+        'service_id' => $foreignService->id,
+        'status' => Reservation::STATUS_CONFIRMED,
+        'source' => Reservation::SOURCE_API,
+        'timezone' => 'UTC',
+        'starts_at' => $startsAt->copy()->addHours(2),
+        'ends_at' => $startsAt->copy()->addHours(3),
+        'duration_minutes' => 60,
+        'buffer_minutes' => 0,
+    ]);
+    $foreignReservation = Reservation::query()->create([
+        'account_id' => $foreignOwner->id,
+        'team_member_id' => $foreignMember->id,
+        'client_id' => $foreignCustomer->id,
+        'prospect_id' => $foreignProspect->id,
+        'service_id' => $foreignService->id,
+        'status' => Reservation::STATUS_CONFIRMED,
+        'source' => Reservation::SOURCE_STAFF,
+        'timezone' => 'UTC',
+        'starts_at' => $startsAt->copy()->addHours(4),
+        'ends_at' => $startsAt->copy()->addHours(5),
+        'duration_minutes' => 60,
+        'buffer_minutes' => 0,
+    ]);
+
+    $events = $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.events', [
+            'start' => $startsAt->copy()->startOfDay()->toIso8601String(),
+            'end' => $startsAt->copy()->addDay()->startOfDay()->toIso8601String(),
+        ]))
+        ->assertOk()
+        ->json('events');
+
+    $eventIds = collect($events)->pluck('id')->all();
+    $this->assertEqualsCanonicalizing(
+        [$safeReservation->id, $hostileRelationReservation->id],
+        $eventIds
+    );
+    $this->assertNotContains($foreignReservation->id, $eventIds);
+
+    $safeEvent = collect($events)->firstWhere('id', $safeReservation->id);
+    $this->assertSame('Safe calendar service · Safe Calendar Client', $safeEvent['title']);
+    $this->assertSame($member->id, data_get($safeEvent, 'extendedProps.team_member_id'));
+    $this->assertSame('Safe Calendar Specialist', data_get($safeEvent, 'extendedProps.team_member_name'));
+
+    $hostileEvent = collect($events)->firstWhere('id', $hostileRelationReservation->id);
+    $this->assertNull($hostileEvent['title']);
+    $this->assertNull(data_get($hostileEvent, 'extendedProps.team_member_id'));
+    $this->assertNull(data_get($hostileEvent, 'extendedProps.team_member_name'));
+    $this->assertNull(data_get($hostileEvent, 'extendedProps.client_name'));
+    $this->assertNull(data_get($hostileEvent, 'extendedProps.service_name'));
+
+    foreach ($events as $event) {
+        $this->assertArrayNotHasKey('internal_notes', $event);
+        $this->assertArrayNotHasKey('client_notes', $event);
+        $this->assertArrayNotHasKey('metadata', $event);
+        $this->assertArrayNotHasKey('internal_notes', $event['extendedProps']);
+        $this->assertArrayNotHasKey('client_notes', $event['extendedProps']);
+        $this->assertArrayNotHasKey('metadata', $event['extendedProps']);
+    }
+
+    $encodedEvents = json_encode($events, JSON_THROW_ON_ERROR);
+    foreach ([
+        'INTERNAL CALENDAR SECRET',
+        'CLIENT CALENDAR SECRET',
+        'METADATA CALENDAR SECRET',
+        'FOREIGN TEAM SECRET',
+        'FOREIGN CLIENT SECRET',
+        'FOREIGN PROSPECT SECRET',
+        'FOREIGN SERVICE SECRET',
+    ] as $secret) {
+        $this->assertStringNotContainsString($secret, $encodedEvents);
+    }
+});
+
+it('limits calendar event ranges to 370 account-local days across DST', function () {
+    $owner = createOwnerWithReservationsEnabled([
+        'company_timezone' => 'America/Toronto',
+    ]);
+
+    $validRange = [
+        'start' => '2026-03-09T00:00:00-04:00',
+        'end' => '2027-03-14T00:00:00-05:00',
+    ];
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.events', $validRange))
+        ->assertOk()
+        ->assertJsonPath('events', []);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.events', [
+            ...$validRange,
+            'end' => '2027-03-14T00:00:01-05:00',
+        ]))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('end');
+});
+
+it('serializes tenant-safe reservation list rows and limits notes to managers', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $managerMember = createTeamMemberForAccount($owner, [
+        'user_name' => 'Safe List Manager',
+        'user_email' => 'safe.list.manager@example.com',
+        'role' => 'member',
+        'permissions' => ['reservations.manage'],
+    ]);
+    $viewerMember = createTeamMemberForAccount($owner, [
+        'user_name' => 'Safe List Viewer',
+        'user_email' => 'safe.list.viewer@example.com',
+        'role' => 'member',
+        'permissions' => ['view_all_reservations'],
+    ]);
+    [, $customer] = createClientForAccount($owner, 'Safe List Client', 'safe.list.client@example.com');
+    $customer->forceFill([
+        'phone' => '+15145550901',
+        'description' => 'CUSTOMER LIST SECRET',
+    ])->save();
+    $prospect = LeadRequest::query()->create([
+        'user_id' => $owner->id,
+        'channel' => 'public_booking',
+        'status' => LeadRequest::STATUS_NEW,
+        'contact_name' => 'Safe List Prospect',
+        'contact_email' => 'safe.list.prospect@example.com',
+        'contact_phone' => '+15145550902',
+        'meta' => ['provider_reference' => 'PROSPECT LIST SECRET'],
+    ]);
+    $category = ProductCategory::query()->create([
+        'name' => 'Safe list category',
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+    ]);
+    $service = Product::query()->create([
+        'name' => 'Safe list service',
+        'category_id' => $category->id,
+        'user_id' => $owner->id,
+        'stock' => 0,
+        'minimum_stock' => 0,
+        'price' => 95,
+        'unit' => 'service',
+        'item_type' => Product::ITEM_TYPE_SERVICE,
+        'is_active' => true,
+        'stripe_product_id' => 'SERVICE LIST SECRET',
+    ]);
+
+    $foreignOwner = createOwnerWithReservationsEnabled([
+        'name' => 'Foreign List Owner',
+        'email' => 'foreign.list.owner@example.com',
+    ]);
+    $foreignMember = createTeamMemberForAccount($foreignOwner, [
+        'user_name' => 'FOREIGN LIST TEAM SECRET',
+        'user_email' => 'foreign.list.team@example.com',
+    ]);
+    [, $foreignCustomer] = createClientForAccount(
+        $foreignOwner,
+        'FOREIGN LIST CLIENT SECRET',
+        'foreign.list.client@example.com'
+    );
+    $foreignProspect = LeadRequest::query()->create([
+        'user_id' => $foreignOwner->id,
+        'channel' => 'manual',
+        'status' => LeadRequest::STATUS_NEW,
+        'contact_name' => 'FOREIGN LIST PROSPECT SECRET',
+        'meta' => ['provider_reference' => 'FOREIGN PROSPECT META SECRET'],
+    ]);
+    $foreignCategory = ProductCategory::query()->create([
+        'name' => 'Foreign list category',
+        'user_id' => $foreignOwner->id,
+        'created_by_user_id' => $foreignOwner->id,
+    ]);
+    $foreignService = Product::query()->create([
+        'name' => 'FOREIGN LIST SERVICE SECRET',
+        'category_id' => $foreignCategory->id,
+        'user_id' => $foreignOwner->id,
+        'stock' => 0,
+        'minimum_stock' => 0,
+        'price' => 125,
+        'unit' => 'service',
+        'item_type' => Product::ITEM_TYPE_SERVICE,
+        'is_active' => true,
+    ]);
+
+    $startsAt = Carbon::parse('2026-11-18 13:00:00', 'UTC');
+    $reservation = Reservation::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $managerMember->id,
+        'client_id' => $customer->id,
+        'prospect_id' => $prospect->id,
+        'service_id' => $service->id,
+        'status' => Reservation::STATUS_CONFIRMED,
+        'source' => Reservation::SOURCE_PUBLIC_BOOKING,
+        'timezone' => 'America/Toronto',
+        'starts_at' => $startsAt,
+        'ends_at' => $startsAt->copy()->addMinutes(75),
+        'duration_minutes' => 75,
+        'buffer_minutes' => 15,
+        'internal_notes' => 'MANAGER INTERNAL LIST NOTE',
+        'client_notes' => 'MANAGER CLIENT LIST NOTE',
+        'metadata' => ['provider_reference' => 'RESERVATION LIST SECRET'],
+    ]);
+    $hostileRelationReservation = Reservation::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $foreignMember->id,
+        'client_id' => $foreignCustomer->id,
+        'prospect_id' => $foreignProspect->id,
+        'service_id' => $foreignService->id,
+        'status' => Reservation::STATUS_PENDING,
+        'source' => Reservation::SOURCE_API,
+        'timezone' => 'UTC',
+        'starts_at' => $startsAt->copy()->addHours(3),
+        'ends_at' => $startsAt->copy()->addHours(4),
+        'duration_minutes' => 60,
+        'buffer_minutes' => 0,
+        'metadata' => ['provider_reference' => 'HOSTILE RESERVATION LIST SECRET'],
+    ]);
+    $foreignReservation = Reservation::query()->create([
+        'account_id' => $foreignOwner->id,
+        'team_member_id' => $foreignMember->id,
+        'client_id' => $foreignCustomer->id,
+        'prospect_id' => $foreignProspect->id,
+        'service_id' => $foreignService->id,
+        'status' => Reservation::STATUS_CONFIRMED,
+        'source' => Reservation::SOURCE_STAFF,
+        'timezone' => 'UTC',
+        'starts_at' => $startsAt->copy()->addHours(5),
+        'ends_at' => $startsAt->copy()->addHours(6),
+        'duration_minutes' => 60,
+        'buffer_minutes' => 0,
+    ]);
+
+    $parameters = ['scope' => 'all', 'per_page' => 10];
+    $ownerPayload = $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.index', $parameters))
+        ->assertOk()
+        ->assertJsonPath('reservations.total', 2)
+        ->assertJsonPath('reservations.per_page', 10)
+        ->json();
+    $managerPayload = $this->actingAs($managerMember->user()->firstOrFail())
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.index', $parameters))
+        ->assertOk()
+        ->assertJsonPath('reservations.total', 2)
+        ->json();
+    $viewerPayload = $this->actingAs($viewerMember->user()->firstOrFail())
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.index', $parameters))
+        ->assertOk()
+        ->assertJsonPath('reservations.total', 2)
+        ->json();
+
+    $ownerPage = $ownerPayload['reservations'];
+    $managerPage = $managerPayload['reservations'];
+    $viewerPage = $viewerPayload['reservations'];
+    $this->assertSame(
+        ['id', 'first_name', 'last_name', 'company_name'],
+        array_keys($managerPayload['clients'][0])
+    );
+    $this->assertSame([], $viewerPayload['clients']);
+
+    $ownerRow = collect($ownerPage['data'])->firstWhere('id', $reservation->id);
+    $managerRow = collect($managerPage['data'])->firstWhere('id', $reservation->id);
+    $viewerRow = collect($viewerPage['data'])->firstWhere('id', $reservation->id);
+
+    foreach ([$ownerRow, $managerRow] as $editableRow) {
+        $this->assertSame($managerMember->id, $editableRow['team_member_id']);
+        $this->assertSame($customer->id, $editableRow['client_id']);
+        $this->assertSame($service->id, $editableRow['service_id']);
+        $this->assertSame(75, $editableRow['duration_minutes']);
+        $this->assertSame('America/Toronto', $editableRow['timezone']);
+        $this->assertSame('MANAGER INTERNAL LIST NOTE', $editableRow['internal_notes']);
+        $this->assertSame('MANAGER CLIENT LIST NOTE', $editableRow['client_notes']);
+    }
+
+    $this->assertArrayNotHasKey('internal_notes', $viewerRow);
+    $this->assertArrayNotHasKey('client_notes', $viewerRow);
+    $this->assertSame(
+        ['id', 'first_name', 'last_name', 'company_name'],
+        array_keys($managerRow['client'])
+    );
+    $this->assertSame(['id', 'contact_name'], array_keys($managerRow['prospect']));
+    $this->assertSame(['id', 'name'], array_keys($managerRow['service']));
+    $this->assertSame(['id', 'title', 'user'], array_keys($managerRow['team_member']));
+    $this->assertSame(['name'], array_keys($managerRow['team_member']['user']));
+
+    $hostileRow = collect($managerPage['data'])->firstWhere('id', $hostileRelationReservation->id);
+    $this->assertNull($hostileRow['team_member_id']);
+    $this->assertNull($hostileRow['client_id']);
+    $this->assertNull($hostileRow['prospect_id']);
+    $this->assertNull($hostileRow['service_id']);
+    $this->assertNull($hostileRow['team_member']);
+    $this->assertNull($hostileRow['client']);
+    $this->assertNull($hostileRow['prospect']);
+    $this->assertNull($hostileRow['service']);
+    $this->assertNotContains($foreignReservation->id, collect($managerPage['data'])->pluck('id')->all());
+
+    foreach ([$ownerPage['data'], $managerPage['data'], $viewerPage['data']] as $rows) {
+        $encodedRows = json_encode($rows, JSON_THROW_ON_ERROR);
+        foreach ([
+            'CUSTOMER LIST SECRET',
+            'PROSPECT LIST SECRET',
+            'SERVICE LIST SECRET',
+            'RESERVATION LIST SECRET',
+            'HOSTILE RESERVATION LIST SECRET',
+            'FOREIGN LIST TEAM SECRET',
+            'FOREIGN LIST CLIENT SECRET',
+            'FOREIGN LIST PROSPECT SECRET',
+            'FOREIGN PROSPECT META SECRET',
+            'FOREIGN LIST SERVICE SECRET',
+            'safe.list.client@example.com',
+            'safe.list.prospect@example.com',
+            '+15145550901',
+            '+15145550902',
+        ] as $secret) {
+            $this->assertStringNotContainsString($secret, $encodedRows);
+        }
+
+        foreach ($rows as $row) {
+            $this->assertArrayNotHasKey('account_id', $row);
+            $this->assertArrayNotHasKey('metadata', $row);
+        }
+    }
+});
+
+it('applies search and date filters to calendar events', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $member = createTeamMemberForAccount($owner);
+    [, $matchingCustomer] = createClientForAccount(
+        $owner,
+        'Filtered Calendar Client',
+        'filtered.calendar.client@example.com'
+    );
+    [, $otherCustomer] = createClientForAccount(
+        $owner,
+        'Unrelated Calendar Client',
+        'unrelated.calendar.client@example.com'
+    );
+
+    $targetDate = Carbon::parse('2026-11-10 14:00:00', 'UTC');
+    $targetReservation = Reservation::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $member->id,
+        'client_id' => $matchingCustomer->id,
+        'status' => Reservation::STATUS_CONFIRMED,
+        'source' => Reservation::SOURCE_STAFF,
+        'timezone' => 'UTC',
+        'starts_at' => $targetDate,
+        'ends_at' => $targetDate->copy()->addHour(),
+        'duration_minutes' => 60,
+        'buffer_minutes' => 0,
+    ]);
+    $sameDateUnrelated = Reservation::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $member->id,
+        'client_id' => $otherCustomer->id,
+        'status' => Reservation::STATUS_CONFIRMED,
+        'source' => Reservation::SOURCE_STAFF,
+        'timezone' => 'UTC',
+        'starts_at' => $targetDate->copy()->addHours(2),
+        'ends_at' => $targetDate->copy()->addHours(3),
+        'duration_minutes' => 60,
+        'buffer_minutes' => 0,
+    ]);
+    $otherDateMatching = Reservation::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $member->id,
+        'client_id' => $matchingCustomer->id,
+        'status' => Reservation::STATUS_CONFIRMED,
+        'source' => Reservation::SOURCE_STAFF,
+        'timezone' => 'UTC',
+        'starts_at' => $targetDate->copy()->addDays(2),
+        'ends_at' => $targetDate->copy()->addDays(2)->addHour(),
+        'duration_minutes' => 60,
+        'buffer_minutes' => 0,
+    ]);
+
+    $events = $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.events', [
+            'start' => '2026-11-01T00:00:00Z',
+            'end' => '2026-12-01T00:00:00Z',
+            'search' => 'Filtered Calendar Client',
+            'date_from' => '2026-11-10',
+            'date_to' => '2026-11-10',
+        ]))
+        ->assertOk()
+        ->json('events');
+
+    $this->assertSame([$targetReservation->id], collect($events)->pluck('id')->all());
+    $this->assertNotContains($sameDateUnrelated->id, collect($events)->pluck('id')->all());
+    $this->assertNotContains($otherDateMatching->id, collect($events)->pluck('id')->all());
+});
+
 it('returns a sanitized account-scoped reservation detail contract', function () {
     $owner = createOwnerWithReservationsEnabled();
     $owner->forceFill([

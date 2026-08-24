@@ -3,6 +3,9 @@
     "title": "Reservations",
     "subtitle": "Suivez, confirmez ou refusez les reservations assignees a votre equipe.",
     "empty": "Aucune reservation.",
+    "calendar": {
+      "loading": "Chargement des réservations..."
+    },
     "owner_only": {
       "staff_notice": "Solo growth garde les réservations en mode limité : consultation de l'historique, gestion de la liste d'attente et réglages globaux, mais la réservation par membre reste désactivée.",
       "client_notice": "Cet espace solo ne propose pas encore de créneaux en direct. Rejoignez plutôt la liste d'attente pour un suivi manuel.",

@@ -598,6 +598,7 @@ onBeforeUnmount(() => {
                         :selected-event-id="selectedSlotEventId"
                         initial-view="week"
                         :loading-label="$t('reservations.client.book.loading_slots')"
+                        :timezone="timezone"
                         @range-change="onCalendarRangeChange"
                         @event-click="onSlotEventClick"
                     />

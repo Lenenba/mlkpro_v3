@@ -18,6 +18,7 @@ use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationQueueService;
 use App\Support\DataTablePagination;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
@@ -38,13 +39,21 @@ class BuildStaffReservationIndexData
             $filters['scope'] = 'all';
         }
 
-        $query = $this->reservationQuery($account->id)
+        $canManageReservations = (bool) ($access['can_manage'] ?? false);
+        $query = $this->reservationQuery($account->id, true, $canManageReservations)
             ->tap(fn (Builder $builder) => $this->applyReservationFilters($builder, $filters, $access));
         $this->applyReservationSort($query, $filters['sort']);
 
         $reservations = (clone $query)
             ->paginate((int) ($filters['per_page'] ?? DataTablePagination::defaultPerPage()))
             ->withQueryString();
+        $reservations->setCollection(
+            $reservations->getCollection()
+                ->map(fn (Reservation $reservation) => $this->mapReservationListItem(
+                    $reservation,
+                    $canManageReservations
+                ))
+        );
 
         $events = $this->reservationEventQuery($account->id)
             ->tap(fn (Builder $builder) => $this->applyReservationFilters($builder, $filters, $access))
@@ -61,8 +70,6 @@ class BuildStaffReservationIndexData
                 'source',
                 'starts_at',
                 'ends_at',
-                'internal_notes',
-                'client_notes',
             ])
             ->map(fn (Reservation $reservation) => $this->mapEvent($reservation))
             ->values();
@@ -112,11 +119,20 @@ class BuildStaffReservationIndexData
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        $clients = Customer::query()
-            ->byUser($account->id)
-            ->orderBy('company_name')
-            ->orderBy('last_name')
-            ->get(['id', 'first_name', 'last_name', 'company_name', 'email']);
+        $clients = $canManageReservations
+            ? Customer::query()
+                ->byUser($account->id)
+                ->orderBy('company_name')
+                ->orderBy('last_name')
+                ->get(['id', 'first_name', 'last_name', 'company_name'])
+                ->map(fn (Customer $client) => [
+                    'id' => (int) $client->id,
+                    'first_name' => $client->first_name,
+                    'last_name' => $client->last_name,
+                    'company_name' => $client->company_name,
+                ])
+                ->values()
+            : collect();
 
         $settings = $this->availabilityService->resolveSettings($account->id, null);
         $performance = $this->buildPerformanceMetrics($account, $filters, $access, $settings);
@@ -200,10 +216,7 @@ class BuildStaffReservationIndexData
         $end = Carbon::parse((string) $validated['end'])->utc();
 
         return $this->reservationEventQuery($accountId)
-            ->tap(fn (Builder $builder) => $this->applyReservationFilters($builder, $filters, $access, [
-                'search' => false,
-                'date' => false,
-            ]))
+            ->tap(fn (Builder $builder) => $this->applyReservationFilters($builder, $filters, $access))
             ->where('starts_at', '<', $end)
             ->where('ends_at', '>', $start)
             ->orderBy('starts_at')
@@ -217,30 +230,104 @@ class BuildStaffReservationIndexData
                 'source',
                 'starts_at',
                 'ends_at',
-                'internal_notes',
-                'client_notes',
             ])
             ->map(fn (Reservation $reservation) => $this->mapEvent($reservation))
             ->values()
             ->all();
     }
 
-    private function reservationQuery(int $accountId, bool $withRelations = true): Builder
-    {
+    private function reservationQuery(
+        int $accountId,
+        bool $withRelations = true,
+        bool $includeNotes = false
+    ): Builder {
         $query = Reservation::query()->forAccount($accountId);
         if (! $withRelations) {
             return $query;
         }
 
-        return $query->with([
+        $columns = [
+            'id',
+            'account_id',
+            'team_member_id',
+            'client_id',
+            'prospect_id',
+            'service_id',
+            'status',
+            'source',
+            'timezone',
+            'starts_at',
+            'ends_at',
+            'duration_minutes',
+            'buffer_minutes',
+        ];
+        if ($includeNotes) {
+            $columns = [...$columns, 'internal_notes', 'client_notes'];
+        }
+
+        return $query->select($columns)->with([
+            'teamMember' => fn (BelongsTo $relation) => $relation
+                ->forAccount($accountId)
+                ->select(['id', 'account_id', 'user_id', 'title']),
             'teamMember.user:id,name',
-            'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
-            'prospect:id,contact_name,contact_email,contact_phone,status,converted_at,converted_customer_id,customer_id,meta,public_booking_link_id',
-            'publicBookingLink:id,name,slug',
-            'service:id,name,price,item_type',
-            'creator:id,name',
-            'canceller:id,name',
+            'client' => fn (BelongsTo $relation) => $relation
+                ->byUser($accountId)
+                ->select(['id', 'user_id', 'first_name', 'last_name', 'company_name']),
+            'prospect' => fn (BelongsTo $relation) => $relation
+                ->byUser($accountId)
+                ->select(['id', 'user_id', 'contact_name']),
+            'service' => fn (BelongsTo $relation) => $relation
+                ->byUser($accountId)
+                ->select(['id', 'user_id', 'name']),
         ]);
+    }
+
+    private function mapReservationListItem(Reservation $reservation, bool $includeNotes): array
+    {
+        $item = [
+            'id' => (int) $reservation->id,
+            'team_member_id' => $reservation->teamMember?->id
+                ? (int) $reservation->teamMember->id
+                : null,
+            'client_id' => $reservation->client?->id ? (int) $reservation->client->id : null,
+            'prospect_id' => $reservation->prospect?->id ? (int) $reservation->prospect->id : null,
+            'service_id' => $reservation->service?->id ? (int) $reservation->service->id : null,
+            'status' => (string) $reservation->status,
+            'source' => (string) $reservation->source,
+            'timezone' => (string) $reservation->timezone,
+            'starts_at' => $reservation->starts_at?->toIso8601String(),
+            'ends_at' => $reservation->ends_at?->toIso8601String(),
+            'duration_minutes' => (int) $reservation->duration_minutes,
+            'buffer_minutes' => (int) $reservation->buffer_minutes,
+            'client' => $reservation->client ? [
+                'id' => (int) $reservation->client->id,
+                'first_name' => $reservation->client->first_name,
+                'last_name' => $reservation->client->last_name,
+                'company_name' => $reservation->client->company_name,
+            ] : null,
+            'prospect' => $reservation->prospect ? [
+                'id' => (int) $reservation->prospect->id,
+                'contact_name' => $reservation->prospect->contact_name,
+            ] : null,
+            'service' => $reservation->service ? [
+                'id' => (int) $reservation->service->id,
+                'name' => (string) $reservation->service->name,
+            ] : null,
+            'team_member' => $reservation->teamMember ? [
+                'id' => (int) $reservation->teamMember->id,
+                'title' => $reservation->teamMember->title,
+                'user' => $reservation->teamMember->user ? [
+                    'name' => (string) $reservation->teamMember->user->name,
+                ] : null,
+            ] : null,
+        ];
+
+        if ($includeNotes) {
+            $item['internal_notes'] = $reservation->internal_notes;
+            $item['client_notes'] = $reservation->client_notes;
+        }
+
+        return $item;
     }
 
     private function reservationEventQuery(int $accountId): Builder
@@ -248,10 +335,19 @@ class BuildStaffReservationIndexData
         return Reservation::query()
             ->forAccount($accountId)
             ->with([
+                'teamMember' => fn (BelongsTo $query) => $query
+                    ->forAccount($accountId)
+                    ->select(['id', 'account_id', 'user_id']),
                 'teamMember.user:id,name',
-                'client:id,first_name,last_name,company_name',
-                'prospect:id,contact_name',
-                'service:id,name',
+                'client' => fn (BelongsTo $query) => $query
+                    ->byUser($accountId)
+                    ->select(['id', 'user_id', 'first_name', 'last_name', 'company_name']),
+                'prospect' => fn (BelongsTo $query) => $query
+                    ->byUser($accountId)
+                    ->select(['id', 'user_id', 'contact_name']),
+                'service' => fn (BelongsTo $query) => $query
+                    ->byUser($accountId)
+                    ->select(['id', 'user_id', 'name']),
             ]);
     }
 
@@ -698,24 +794,25 @@ class BuildStaffReservationIndexData
         if (! $clientLabel) {
             $clientLabel = $reservation->prospect?->contact_name;
         }
-        $serviceLabel = $reservation->service?->name ?: 'Reservation';
-        $memberLabel = $reservation->teamMember?->user?->name ?: 'Team';
-        $title = trim($serviceLabel.' · '.($clientLabel ?: 'Client'));
+        $serviceLabel = $reservation->service?->name;
+        $memberLabel = $reservation->teamMember?->user?->name;
+        $title = implode(' · ', array_values(array_filter([
+            $serviceLabel,
+            $clientLabel,
+        ], fn ($label) => filled($label))));
 
         return [
             'id' => $reservation->id,
-            'title' => $title,
+            'title' => $title ?: null,
             'start' => $reservation->starts_at?->toIso8601String(),
             'end' => $reservation->ends_at?->toIso8601String(),
             'classNames' => ['reservation-event', 'status-'.$reservation->status],
             'extendedProps' => [
                 'status' => $reservation->status,
-                'team_member_id' => $reservation->team_member_id,
-                'team_member_name' => $memberLabel,
+                'team_member_id' => $reservation->teamMember?->id,
+                'team_member_name' => $memberLabel ?: null,
                 'client_name' => $clientLabel ?: null,
-                'service_name' => $serviceLabel,
-                'internal_notes' => $reservation->internal_notes,
-                'client_notes' => $reservation->client_notes,
+                'service_name' => $serviceLabel ?: null,
                 'source' => $reservation->source,
             ],
         ];

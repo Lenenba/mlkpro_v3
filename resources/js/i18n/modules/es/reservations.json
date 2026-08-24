@@ -3,6 +3,9 @@
     "title": "Reservas",
     "subtitle": "Revise, confirme o rechace reservas asignadas a su equipo.",
     "empty": "Aún no hay reservas.",
+    "calendar": {
+      "loading": "Cargando reservas..."
+    },
     "owner_only": {
       "staff_notice": "El crecimiento individual mantiene las reservas en modo limitado: vea las reservas existentes, administre la lista de espera y configure ajustes globales, pero las reservas basadas en el personal permanecen deshabilitadas.",
       "client_notice": "Este espacio de trabajo en solitario aún no ofrece espacios para citas en vivo. Únase a la lista de espera y la empresa podrá realizar un seguimiento manual.",

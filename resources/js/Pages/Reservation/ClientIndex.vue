@@ -818,6 +818,7 @@ onBeforeUnmount(() => {
                 :empty-label="$t('reservations.client.index.empty')"
                 :selected-event-id="activeReservation?.id || null"
                 :loading-label="$t('reservations.client.book.loading_slots')"
+                :timezone="timezone"
                 @range-change="onCalendarRangeChange"
                 @event-click="openFromEvent"
             />
@@ -992,6 +993,7 @@ onBeforeUnmount(() => {
                         :selected-event-id="selectedRescheduleEventId"
                         initial-view="week"
                         :loading-label="$t('reservations.client.book.loading_slots')"
+                        :timezone="timezone"
                         @range-change="onRescheduleRangeChange"
                         @event-click="onRescheduleEventClick"
                     />

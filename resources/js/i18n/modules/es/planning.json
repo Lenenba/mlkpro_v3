@@ -20,7 +20,10 @@
       "month": "Mes",
       "week": "Semana",
       "day": "Día",
-      "year": "Año"
+      "year": "Año",
+      "previous": "Período anterior",
+      "next": "Período siguiente",
+      "open_day": "Abrir el {date}"
     },
     "preview": {
       "empty": "Sin turnos",

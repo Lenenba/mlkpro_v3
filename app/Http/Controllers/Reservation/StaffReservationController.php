@@ -154,7 +154,19 @@ class StaffReservationController extends Controller
             'service_id' => ['nullable', 'integer'],
             'scope' => ['nullable', Rule::in(['mine', 'all'])],
             'quick' => ['nullable', Rule::in(['pending', 'today', 'upcoming', 'past'])],
+            'search' => ['nullable', 'string', 'max:255'],
+            'date_from' => ['nullable', 'date_format:Y-m-d'],
+            'date_to' => ['nullable', 'date_format:Y-m-d'],
         ]);
+
+        $accountTimezone = $this->availabilityService->timezoneForAccount($account);
+        $rangeStart = Carbon::parse((string) $validated['start'])->setTimezone($accountTimezone);
+        $rangeEnd = Carbon::parse((string) $validated['end'])->setTimezone($accountTimezone);
+        if ($rangeEnd->greaterThan($rangeStart->copy()->addDays(370))) {
+            throw ValidationException::withMessages([
+                'end' => 'The calendar range may not exceed 370 days.',
+            ]);
+        }
 
         $events = app(BuildStaffReservationIndexData::class)->events($account->id, $access, $request, $validated);
 

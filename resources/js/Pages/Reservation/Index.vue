@@ -248,6 +248,8 @@ const conversionSubmitting = ref(false);
 const conversionPayload = ref(null);
 const conversionError = ref('');
 const conversionSuccess = ref('');
+let calendarAbortController = null;
+let calendarRequestSequence = 0;
 let detailsAbortController = null;
 let detailsRequestSequence = 0;
 let conversionAbortController = null;
@@ -352,7 +354,6 @@ const clientOptions = computed(() => [
         value: String(client.id),
         label: client.company_name
             || `${client.first_name || ''} ${client.last_name || ''}`.trim()
-            || client.email
             || `#${client.id}`,
     })),
 ]);
@@ -387,7 +388,6 @@ const reservationClientName = (reservation) => (
     reservation?.client?.company_name
     || `${reservation?.client?.first_name || ''} ${reservation?.client?.last_name || ''}`.trim()
     || reservation?.prospect?.contact_name
-    || reservation?.metadata?.public_booking?.contact_name
     || '-'
 );
 const reservationMemberName = (reservation) => (
@@ -602,26 +602,45 @@ const loadEvents = async () => {
         return;
     }
 
+    calendarAbortController?.abort();
+    const controller = new AbortController();
+    const requestSequence = ++calendarRequestSequence;
+    calendarAbortController = controller;
     calendarLoading.value = true;
     calendarError.value = '';
 
     try {
         const response = await axios.get(route('reservation.events'), {
+            signal: controller.signal,
             params: {
                 start: calendarRange.value.start,
                 end: calendarRange.value.end,
                 status: filterForm.status || undefined,
                 team_member_id: filterForm.team_member_id || undefined,
                 service_id: filterForm.service_id || undefined,
+                search: filterForm.search || undefined,
+                date_from: filterForm.date_from || undefined,
+                date_to: filterForm.date_to || undefined,
                 scope: filterForm.scope || undefined,
             },
         });
 
+        if (requestSequence !== calendarRequestSequence) {
+            return;
+        }
+
         calendarEvents.value = response?.data?.events || [];
     } catch (error) {
+        if (axios.isCancel(error) || error?.code === 'ERR_CANCELED' || requestSequence !== calendarRequestSequence) {
+            return;
+        }
+
         calendarError.value = error?.response?.data?.message || t('reservations.errors.load_events');
     } finally {
-        calendarLoading.value = false;
+        if (requestSequence === calendarRequestSequence) {
+            calendarAbortController = null;
+            calendarLoading.value = false;
+        }
     }
 };
 
@@ -780,6 +799,8 @@ onBeforeUnmount(() => {
         clearTimeout(filterTimer);
     }
 
+    calendarRequestSequence += 1;
+    calendarAbortController?.abort();
     detailsAbortController?.abort();
     conversionAbortController?.abort();
     stopQueueStripeStatusPolling();
@@ -1140,8 +1161,6 @@ const openFromEvent = (rawEvent) => {
         ends_at: source?.end,
         service: { name: source?.extendedProps?.service_name },
         teamMember: { user: { name: source?.extendedProps?.team_member_name } },
-        client_notes: source?.extendedProps?.client_notes,
-        internal_notes: source?.extendedProps?.internal_notes,
     };
 
     openDetails(reservationMap.value.get(eventId) || fallback);
@@ -2220,7 +2239,8 @@ const removeReservation = (reservation) => {
                 :error="calendarError"
                 :empty-label="$t('reservations.empty')"
                 :selected-event-id="activeReservation?.id || null"
-                :loading-label="$t('planning.filters.loading')"
+                :loading-label="$t('reservations.calendar.loading')"
+                :timezone="timezone"
                 @range-change="onCalendarRangeChange"
                 @event-click="openFromEvent"
             />
