@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import test from 'node:test';
 
+import { deepMerge } from '../../resources/js/i18n/locales/merge.js';
+
 import {
     compactCustomerFilterPayload,
     createCustomerAdvancedFilters,
@@ -87,10 +89,21 @@ test('customer index experience copy exists in every supported locale', () => {
         'appointment.quick_filters.upcoming_appointment',
         'appointment.quick_filters.outstanding_balance',
         'appointment.labels.no_unpaid_balance',
+        'actions.edit',
+        'actions.archive',
+        'labels.logo_alt',
+        'labels.selected',
+        'details.preview.title',
+        'form.client_types.individual',
     ];
 
     for (const locale of ['fr', 'en', 'es']) {
-        const messages = JSON.parse(read(`resources/js/i18n/modules/${locale}/customers.json`));
+        const commonMessages = JSON.parse(read(`resources/js/i18n/modules/${locale}/customers.json`));
+        const pageMessages = JSON.parse(read(`resources/js/i18n/modules/${locale}/customer_index.json`));
+        const messages = deepMerge(commonMessages, pageMessages);
+
+        assert.equal(commonMessages.customers.stats, undefined, `${locale}:common customers stays page-agnostic`);
+        assert.equal(typeof pageMessages.customers.stats, 'object', `${locale}:index owns its stats`);
 
         for (const path of requiredPaths) {
             const value = path

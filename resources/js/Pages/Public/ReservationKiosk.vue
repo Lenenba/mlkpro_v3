@@ -806,9 +806,9 @@ const formatDateTime = (value) => (value ? dayjs(value).format('DD MMM HH:mm') :
 <template>
     <Head :title="`${kioskTitle} - ${brandName}`" />
 
-    <main class="min-h-screen bg-[#f6f8f7] px-4 py-4 text-[#0f1720] lg:h-screen lg:min-h-0 lg:overflow-hidden lg:px-3 lg:py-[10px]">
-        <div class="mx-auto max-w-[1640px] overflow-hidden rounded-sm border border-[#dfe8e2] bg-white shadow-[0_18px_55px_rgba(15,23,32,0.06)] lg:flex lg:h-full lg:flex-col">
-            <header class="grid min-h-[96px] shrink-0 grid-cols-1 items-center gap-4 border-b border-[#e5e7eb] px-7 py-4 md:grid-cols-[1fr_auto_1fr] lg:h-[clamp(72px,10vh,96px)] lg:min-h-0 lg:px-7 lg:py-3 xl:px-9">
+    <main class="reservation-kiosk-page">
+        <div class="reservation-kiosk-shell">
+            <header class="reservation-kiosk-header">
                 <div class="flex flex-wrap items-center gap-5">
                     <h1 class="text-[23px] font-bold leading-none text-[#0f1720] lg:text-[clamp(21px,2.7vh,24px)]">
                         {{ kioskTitle }}
@@ -835,25 +835,25 @@ const formatDateTime = (value) => (value ? dayjs(value).format('DD MMM HH:mm') :
                 </div>
             </header>
 
-            <div class="px-7 pb-5 pt-5 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:px-7 lg:pb-3 lg:pt-3 xl:px-9">
-                <section class="grid gap-5 lg:h-[clamp(370px,54vh,500px)] lg:shrink-0 lg:grid-cols-[0.92fr_0.93fr_1.7fr] lg:items-stretch xl:grid-cols-[430px_374px_minmax(0,1fr)]">
-                    <div class="flex min-h-[430px] flex-col justify-center py-4 lg:h-full lg:min-h-0 lg:pl-4">
-                        <div class="space-y-7 lg:space-y-[clamp(18px,3vh,28px)]">
+            <div class="reservation-kiosk-content">
+                <section class="reservation-kiosk-hero-grid">
+                    <div class="reservation-kiosk-intro">
+                        <div class="reservation-kiosk-intro-stack">
                             <div>
-                                <h2 class="text-[30px] font-extrabold leading-[1.1] text-[#0f1720] sm:text-[36px] lg:text-[clamp(30px,4.3vh,38px)] 2xl:text-[39px]">
+                                <h2 class="reservation-kiosk-title">
                                     <span class="sm:whitespace-nowrap">{{ $t('reservations.kiosk.hero.welcome') }}</span><br>
                                     <span class="text-[#0f9a68] sm:whitespace-nowrap">{{ brandName }}</span>
                                 </h2>
-                                <p class="mt-6 max-w-[430px] text-[15px] font-medium leading-7 text-[#334155] lg:mt-[clamp(16px,2.6vh,24px)] lg:text-[clamp(13px,1.8vh,15px)] 2xl:text-[15px]">
+                                <p class="reservation-kiosk-description">
                                     <span class="sm:whitespace-nowrap">{{ $t('reservations.kiosk.hero.line_one') }}</span><br class="hidden sm:block">
                                     <span class="sm:whitespace-nowrap">{{ $t('reservations.kiosk.hero.line_two') }}</span>
                                 </p>
                             </div>
 
-                            <div class="w-full max-w-[318px] rounded-sm border border-[#dcebe3] bg-[#f8fbf9] p-3.5 shadow-[0_12px_28px_rgba(15,23,32,0.035)] lg:p-[clamp(11px,1.6vh,14px)]">
-                                <div class="flex gap-3.5">
-                                    <div class="flex size-12 shrink-0 items-center justify-center rounded-sm border border-teal-100 bg-teal-50 text-teal-600 shadow-[0_8px_22px_rgba(15,154,104,0.08)] lg:h-[clamp(42px,6.2vh,48px)] lg:w-[clamp(42px,6.2vh,48px)]">
-                                        <Clock3 class="size-7 lg:h-[clamp(23px,3.5vh,28px)] lg:w-[clamp(23px,3.5vh,28px)]" aria-hidden="true" />
+                            <div class="reservation-kiosk-wait-card">
+                                <div class="reservation-kiosk-wait-row">
+                                    <div class="reservation-kiosk-wait-icon">
+                                        <Clock3 class="reservation-kiosk-wait-icon__svg" aria-hidden="true" />
                                     </div>
                                         <div>
                                             <p class="text-[13px] font-medium text-[#1f2937]">{{ $t('reservations.kiosk.wait.title') }}</p>
@@ -865,43 +865,43 @@ const formatDateTime = (value) => (value ? dayjs(value).format('DD MMM HH:mm') :
                         </div>
                     </div>
 
-                    <figure class="min-h-[430px] overflow-hidden rounded-sm border border-[#e5e7eb] bg-[#f6f8f7] shadow-[0_16px_40px_rgba(15,23,32,0.05)] lg:h-full lg:min-h-0">
+                    <figure class="reservation-kiosk-portrait">
                         <img
                             :src="portraitImageUrl"
                             alt="Professionnelle de salon souriante"
-                            class="h-full min-h-[430px] w-full object-contain object-center lg:min-h-0"
+                            class="reservation-kiosk-portrait__image"
                             loading="eager"
                         >
                     </figure>
 
-                    <section class="rounded-sm border border-[#dfe5e1] bg-white p-5 shadow-[0_12px_32px_rgba(15,23,32,0.035)] lg:h-full lg:p-[clamp(16px,2.2vh,20px)]">
-                        <h2 class="text-[21px] font-extrabold leading-7 text-[#0f1720] lg:text-[clamp(19px,2.5vh,21px)]">
+                    <section class="reservation-kiosk-actions">
+                        <h2 class="reservation-kiosk-actions__title">
                             {{ $t('reservations.kiosk.actions.title') }}
                         </h2>
 
-                        <div class="mt-5 space-y-3.5 lg:mt-4 lg:space-y-3">
+                        <div class="reservation-kiosk-action-list">
                             <button
                                 v-for="item in actionItems"
                                 :key="item.key"
                                 type="button"
-                                class="group flex min-h-[84px] w-full items-center gap-4 rounded-sm border bg-white px-4 text-left transition focus:outline-none focus:ring-2 focus:ring-[#0f9a68]/25 lg:min-h-[clamp(68px,9.8vh,84px)]"
+                                class="group reservation-kiosk-action"
                                 :class="activeMode === item.key ? item.activeClass : item.inactiveClass"
                                 @click="setMode(item.key)"
                             >
-                                <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-sm border lg:h-[clamp(44px,6.8vh,56px)] lg:w-[clamp(44px,6.8vh,56px)]" :class="item.iconBoxClass">
-                                    <component :is="item.icon" class="size-7 lg:h-[clamp(23px,3.7vh,28px)] lg:w-[clamp(23px,3.7vh,28px)]" aria-hidden="true" />
+                                <span class="reservation-kiosk-action__icon" :class="item.iconBoxClass">
+                                    <component :is="item.icon" class="reservation-kiosk-action__icon-svg" aria-hidden="true" />
                                 </span>
                                 <span class="min-w-0 flex-1">
-                                    <span class="block text-[15px] font-extrabold leading-5 text-[#0f1720] lg:text-[clamp(14px,2vh,15px)]">{{ item.title }}</span>
-                                    <span class="mt-1 block text-[13px] font-medium text-[#4b5563]">{{ item.subtitle }}</span>
+                                    <span class="reservation-kiosk-action__title">{{ item.title }}</span>
+                                    <span class="reservation-kiosk-action__subtitle">{{ item.subtitle }}</span>
                                 </span>
-                                <ChevronRight class="size-6 shrink-0 text-[#0f1720] transition group-hover:translate-x-0.5" aria-hidden="true" />
+                                <ChevronRight class="reservation-kiosk-action__chevron" aria-hidden="true" />
                             </button>
                         </div>
 
                         <button
                             type="button"
-                            class="mt-4 flex h-[48px] w-full items-center justify-center rounded-sm bg-[#0f9a68] px-5 text-[15px] font-extrabold text-white transition hover:bg-[#0b865b] focus:outline-none focus:ring-2 focus:ring-[#0f9a68]/30 lg:mt-3 lg:h-[46px]"
+                            class="reservation-kiosk-continue"
                             @click="continueAction"
                         >
                             <span class="flex-1 text-center">{{ currentPreview.submitLabel }}</span>
@@ -1196,3 +1196,385 @@ const formatDateTime = (value) => (value ? dayjs(value).format('DD MMM HH:mm') :
         </div>
     </main>
 </template>
+
+<style scoped>
+.reservation-kiosk-page {
+    min-height: 100vh;
+    background: #f6f8f7;
+    padding: 1rem;
+    color: #0f1720;
+}
+
+.reservation-kiosk-shell {
+    max-width: 1640px;
+    margin-inline: auto;
+    overflow: hidden;
+    border: 1px solid #dfe8e2;
+    border-radius: 0.125rem;
+    background: white;
+    box-shadow: 0 18px 55px rgb(15 23 32 / 0.06);
+}
+
+.reservation-kiosk-header {
+    display: grid;
+    min-height: 96px;
+    flex-shrink: 0;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: center;
+    gap: 1rem;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 1rem 1.75rem;
+}
+
+.reservation-kiosk-content {
+    padding: 1.25rem 1.75rem;
+}
+
+.reservation-kiosk-hero-grid {
+    display: grid;
+    gap: 1.25rem;
+}
+
+.reservation-kiosk-intro {
+    display: flex;
+    min-height: 430px;
+    flex-direction: column;
+    justify-content: center;
+    padding-block: 1rem;
+}
+
+.reservation-kiosk-intro-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+}
+
+.reservation-kiosk-title {
+    color: #0f1720;
+    font-size: 30px;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.reservation-kiosk-description {
+    max-width: 430px;
+    margin-top: 1.5rem;
+    color: #334155;
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.75rem;
+}
+
+.reservation-kiosk-wait-card {
+    width: 100%;
+    max-width: 318px;
+    border: 1px solid #dcebe3;
+    border-radius: 0.125rem;
+    background: #f8fbf9;
+    padding: 0.875rem;
+    box-shadow: 0 12px 28px rgb(15 23 32 / 0.035);
+}
+
+.reservation-kiosk-wait-row {
+    display: flex;
+    gap: 0.875rem;
+}
+
+.reservation-kiosk-wait-icon {
+    display: flex;
+    width: 3rem;
+    height: 3rem;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #ccfbf1;
+    border-radius: 0.125rem;
+    background: #f0fdfa;
+    color: #0d9488;
+    box-shadow: 0 8px 22px rgb(15 154 104 / 0.08);
+}
+
+.reservation-kiosk-wait-icon__svg {
+    width: 1.75rem;
+    height: 1.75rem;
+}
+
+.reservation-kiosk-portrait {
+    min-height: 430px;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.125rem;
+    background: #f6f8f7;
+    box-shadow: 0 16px 40px rgb(15 23 32 / 0.05);
+}
+
+.reservation-kiosk-portrait__image {
+    width: 100%;
+    height: 100%;
+    min-height: 430px;
+    object-fit: contain;
+    object-position: center;
+}
+
+.reservation-kiosk-actions {
+    border: 1px solid #dfe5e1;
+    border-radius: 0.125rem;
+    background: white;
+    padding: 1.25rem;
+    box-shadow: 0 12px 32px rgb(15 23 32 / 0.035);
+}
+
+.reservation-kiosk-actions__title {
+    color: #0f1720;
+    font-size: 21px;
+    font-weight: 800;
+    line-height: 1.75rem;
+}
+
+.reservation-kiosk-action-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+    margin-top: 1.25rem;
+}
+
+.reservation-kiosk-action {
+    display: flex;
+    min-height: 84px;
+    width: 100%;
+    align-items: center;
+    gap: 1rem;
+    border-width: 1px;
+    border-radius: 0.125rem;
+    background: white;
+    padding-inline: 1rem;
+    text-align: left;
+    transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.reservation-kiosk-action:focus-visible {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 2px rgb(15 154 104 / 0.25);
+}
+
+.reservation-kiosk-action__icon {
+    display: flex;
+    width: 3.5rem;
+    height: 3.5rem;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-width: 1px;
+    border-radius: 0.125rem;
+}
+
+.reservation-kiosk-action__icon-svg {
+    width: 1.75rem;
+    height: 1.75rem;
+}
+
+.reservation-kiosk-action__title {
+    display: block;
+    color: #0f1720;
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.25rem;
+}
+
+.reservation-kiosk-action__subtitle {
+    display: block;
+    margin-top: 0.25rem;
+    color: #4b5563;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.25rem;
+}
+
+.reservation-kiosk-action__chevron {
+    width: 1.5rem;
+    height: 1.5rem;
+    flex-shrink: 0;
+    color: #0f1720;
+    transition: transform 150ms ease;
+}
+
+.reservation-kiosk-action:hover .reservation-kiosk-action__chevron {
+    transform: translateX(0.125rem);
+}
+
+.reservation-kiosk-continue {
+    display: flex;
+    width: 100%;
+    height: 48px;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1rem;
+    border-radius: 0.125rem;
+    background: #0f9a68;
+    padding-inline: 1.25rem;
+    color: white;
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.25rem;
+    transition: background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.reservation-kiosk-continue:hover {
+    background: #0b865b;
+}
+
+.reservation-kiosk-continue:focus-visible {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 2px rgb(15 154 104 / 0.3);
+}
+
+@media (min-width: 640px) {
+    .reservation-kiosk-title {
+        font-size: 36px;
+    }
+}
+
+@media (min-width: 768px) {
+    .reservation-kiosk-header {
+        grid-template-columns: 1fr auto 1fr;
+    }
+}
+
+@media (min-width: 1024px) {
+    .reservation-kiosk-page {
+        height: 100vh;
+        min-height: 0;
+        overflow: hidden;
+        padding: 10px 0.75rem;
+    }
+
+    .reservation-kiosk-shell {
+        display: flex;
+        height: 100%;
+        flex-direction: column;
+    }
+
+    .reservation-kiosk-header {
+        height: clamp(72px, 10vh, 96px);
+        min-height: 0;
+        padding: 0.75rem 1.75rem;
+    }
+
+    .reservation-kiosk-content {
+        display: flex;
+        min-height: 0;
+        flex: 1 1 0%;
+        flex-direction: column;
+        padding: 0.75rem 1.75rem;
+    }
+
+    .reservation-kiosk-hero-grid {
+        height: clamp(370px, 54vh, 500px);
+        flex-shrink: 0;
+        grid-template-columns: 0.92fr 0.93fr 1.7fr;
+        align-items: stretch;
+    }
+
+    .reservation-kiosk-intro {
+        height: 100%;
+        min-height: 0;
+        padding-left: 1rem;
+    }
+
+    .reservation-kiosk-intro-stack {
+        gap: clamp(18px, 3vh, 28px);
+    }
+
+    .reservation-kiosk-title {
+        font-size: clamp(30px, 4.3vh, 38px);
+    }
+
+    .reservation-kiosk-description {
+        margin-top: clamp(16px, 2.6vh, 24px);
+        font-size: clamp(13px, 1.8vh, 15px);
+    }
+
+    .reservation-kiosk-wait-card {
+        padding: clamp(11px, 1.6vh, 14px);
+    }
+
+    .reservation-kiosk-wait-icon {
+        width: clamp(42px, 6.2vh, 48px);
+        height: clamp(42px, 6.2vh, 48px);
+    }
+
+    .reservation-kiosk-wait-icon__svg {
+        width: clamp(23px, 3.5vh, 28px);
+        height: clamp(23px, 3.5vh, 28px);
+    }
+
+    .reservation-kiosk-portrait,
+    .reservation-kiosk-actions {
+        height: 100%;
+    }
+
+    .reservation-kiosk-portrait,
+    .reservation-kiosk-portrait__image {
+        min-height: 0;
+    }
+
+    .reservation-kiosk-actions {
+        padding: clamp(16px, 2.2vh, 20px);
+    }
+
+    .reservation-kiosk-actions__title {
+        font-size: clamp(19px, 2.5vh, 21px);
+    }
+
+    .reservation-kiosk-action-list {
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+
+    .reservation-kiosk-action {
+        min-height: clamp(68px, 9.8vh, 84px);
+    }
+
+    .reservation-kiosk-action__icon {
+        width: clamp(44px, 6.8vh, 56px);
+        height: clamp(44px, 6.8vh, 56px);
+    }
+
+    .reservation-kiosk-action__icon-svg {
+        width: clamp(23px, 3.7vh, 28px);
+        height: clamp(23px, 3.7vh, 28px);
+    }
+
+    .reservation-kiosk-action__title {
+        font-size: clamp(14px, 2vh, 15px);
+    }
+
+    .reservation-kiosk-continue {
+        height: 46px;
+        margin-top: 0.75rem;
+    }
+}
+
+@media (min-width: 1280px) {
+    .reservation-kiosk-header,
+    .reservation-kiosk-content {
+        padding-inline: 2.25rem;
+    }
+
+    .reservation-kiosk-hero-grid {
+        grid-template-columns: 430px 374px minmax(0, 1fr);
+    }
+}
+
+@media (min-width: 1536px) {
+    .reservation-kiosk-title {
+        font-size: 39px;
+    }
+
+    .reservation-kiosk-description {
+        font-size: 15px;
+    }
+}
+</style>

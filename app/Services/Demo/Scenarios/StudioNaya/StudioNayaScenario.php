@@ -8,9 +8,16 @@ use App\Models\CampaignEvent;
 use App\Models\CampaignRecipient;
 use App\Models\CampaignRun;
 use App\Models\Customer;
+use App\Models\CustomerBehaviorEvent;
+use App\Models\CustomerPackage;
+use App\Models\CustomerPackageUsage;
 use App\Models\Expense;
 use App\Models\Invoice;
+use App\Models\InvoiceItem;
+use App\Models\LoyaltyPointLedger;
 use App\Models\MailingList;
+use App\Models\OfferPackage;
+use App\Models\OfferPackageItem;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductStockMovement;
@@ -183,6 +190,15 @@ final class StudioNayaScenario implements DemoScenario
             throw new RuntimeException('Missing demo scenario volume configuration for ['.$volume->value.'].');
         }
 
+        // A queue worker can keep the previous Laravel configuration in memory
+        // while loading this updated scenario class for the first time. Merge
+        // version-one additions as fallbacks so that such a reset remains
+        // deterministic until the worker is restarted.
+        $targets = array_replace(
+            StudioNayaBlueprint::immersiveTargetsForVolume($volume->value),
+            $targets,
+        );
+
         return collect($targets)
             ->map(fn (mixed $value): int => (int) $value)
             ->all();
@@ -235,6 +251,66 @@ final class StudioNayaScenario implements DemoScenario
             'campaign_events' => CampaignEvent::query()->where('user_id', $ownerId)->count(),
             'promotions' => Promotion::query()->forAccount($ownerId)->count(),
             'promotion_usages' => PromotionUsage::query()->where('user_id', $ownerId)->count(),
+            'offer_packages' => OfferPackage::query()->forAccount($ownerId)->count(),
+            'offer_packs' => OfferPackage::query()
+                ->forAccount($ownerId)
+                ->where('type', OfferPackage::TYPE_PACK)
+                ->count(),
+            'offer_forfaits' => OfferPackage::query()
+                ->forAccount($ownerId)
+                ->where('type', OfferPackage::TYPE_FORFAIT)
+                ->count(),
+            'offer_package_items' => OfferPackageItem::query()
+                ->whereHas('offerPackage', fn ($query) => $query->where('user_id', $ownerId))
+                ->count(),
+            'pack_invoice_lines' => InvoiceItem::query()
+                ->whereHas('invoice', fn ($query) => $query->where('user_id', $ownerId))
+                ->get(['meta'])
+                ->filter(fn (InvoiceItem $item): bool => data_get($item->meta, 'offer_package_type') === OfferPackage::TYPE_PACK)
+                ->count(),
+            'customer_packages' => CustomerPackage::query()->forAccount($ownerId)->count(),
+            'customer_packages_active' => CustomerPackage::query()
+                ->forAccount($ownerId)
+                ->where('status', CustomerPackage::STATUS_ACTIVE)
+                ->count(),
+            'customer_packages_consumed' => CustomerPackage::query()
+                ->forAccount($ownerId)
+                ->where('status', CustomerPackage::STATUS_CONSUMED)
+                ->count(),
+            'customer_packages_expired' => CustomerPackage::query()
+                ->forAccount($ownerId)
+                ->where('status', CustomerPackage::STATUS_EXPIRED)
+                ->count(),
+            'customer_packages_recurring' => CustomerPackage::query()
+                ->forAccount($ownerId)
+                ->where('is_recurring', true)
+                ->count(),
+            'customer_package_usages' => CustomerPackageUsage::query()->forAccount($ownerId)->count(),
+            'customer_package_usages_reversed' => CustomerPackageUsage::query()
+                ->forAccount($ownerId)
+                ->whereNotNull('reversed_at')
+                ->count(),
+            'customer_package_usages_linked_reservations' => CustomerPackageUsage::query()
+                ->forAccount($ownerId)
+                ->whereNotNull('reservation_id')
+                ->count(),
+            'package_behavior_events' => CustomerBehaviorEvent::query()
+                ->byUser($ownerId)
+                ->whereIn('event_type', [
+                    'customer_package_purchased',
+                    'customer_package_low_balance',
+                    'customer_package_expired',
+                ])
+                ->count(),
+            'loyalty_point_ledgers' => LoyaltyPointLedger::query()->where('user_id', $ownerId)->count(),
+            'loyalty_story_events' => LoyaltyPointLedger::query()
+                ->where('user_id', $ownerId)
+                ->whereNull('payment_id')
+                ->whereIn('event', [
+                    LoyaltyPointLedger::EVENT_REDEMPTION,
+                    LoyaltyPointLedger::EVENT_REDEMPTION_REVERSAL,
+                ])
+                ->count(),
             'assistant_settings' => AiAssistantSetting::query()->forTenant($ownerId)->count(),
             'assistant_knowledge_items' => AiKnowledgeItem::query()->forTenant($ownerId)->count(),
             'assistant_conversations' => AiConversation::query()->forTenant($ownerId)->count(),
@@ -280,6 +356,13 @@ final class StudioNayaScenario implements DemoScenario
             'campaign_events' => 'campaign_events',
             'promotions' => 'promotions',
             'promotion_usages' => 'promotion_usages',
+            'offer_packages' => 'offer_packages',
+            'offer_package_items' => 'offer_package_items',
+            'pack_invoice_lines' => 'pack_invoice_lines',
+            'customer_packages' => 'customer_packages',
+            'customer_package_usages' => 'customer_package_usages',
+            'package_behavior_events' => 'package_behavior_events',
+            'loyalty_story_events' => 'loyalty_story_events',
             'assistant_settings' => 'assistant_settings',
             'assistant_knowledge_items' => 'assistant_knowledge_items',
             'assistant_conversations' => 'assistant_conversations',

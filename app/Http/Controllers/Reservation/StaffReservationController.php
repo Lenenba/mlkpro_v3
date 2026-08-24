@@ -58,6 +58,7 @@ class StaffReservationController extends Controller
         $this->authorize('viewAny', Reservation::class);
 
         $account = $this->resolveAccount($user);
+        $this->ensureOwnerOnlyReservationReadAccess($user, $account);
         $access = $this->resolveTeamAccess($user, $account->id);
         $props = app(BuildStaffReservationIndexData::class)->index($account, $access, $request);
         $props['settings'] = $this->effectiveSettings($account, $props['settings'] ?? []);
@@ -144,6 +145,7 @@ class StaffReservationController extends Controller
         }
         $this->authorize('viewAny', Reservation::class);
         $account = $this->resolveAccount($user);
+        $this->ensureOwnerOnlyReservationReadAccess($user, $account);
         $access = $this->resolveTeamAccess($user, $account->id);
 
         $validated = $request->validate([
@@ -168,7 +170,13 @@ class StaffReservationController extends Controller
             ]);
         }
 
-        $events = app(BuildStaffReservationIndexData::class)->events($account->id, $access, $request, $validated);
+        $events = app(BuildStaffReservationIndexData::class)->events(
+            $account->id,
+            $access,
+            $request,
+            $validated,
+            $accountTimezone
+        );
 
         return response()->json([
             'events' => $events,
@@ -230,6 +238,7 @@ class StaffReservationController extends Controller
         }
 
         $account = $this->resolveAccount($user);
+        $this->ensureOwnerOnlyReservationReadAccess($user, $account);
         $reservation = Reservation::query()
             ->forAccount((int) $account->id)
             ->whereKey($reservation->getKey())
@@ -882,6 +891,7 @@ class StaffReservationController extends Controller
 
         return [
             'own_team_member_id' => $ownTeamMember?->id,
+            'is_account_owner' => (int) $user->id === $accountId,
             'can_view_all' => $canViewAll,
             'can_manage' => $canManage,
             'can_update_status' => $canManage || (bool) $ownTeamMember,
@@ -1380,6 +1390,13 @@ class StaffReservationController extends Controller
         $planKey = app(BillingSubscriptionService::class)->resolvePlanKey($account, config('billing.plans', []));
 
         return $planKey ? app(BillingPlanService::class)->isOwnerOnlyPlan($planKey) : false;
+    }
+
+    private function ensureOwnerOnlyReservationReadAccess(User $user, User $account): void
+    {
+        if ($this->ownerOnlyMode($account) && (int) $user->id !== (int) $account->id) {
+            abort(403);
+        }
     }
 
     private function ensureManualReservationActionsAvailable(User $account): void

@@ -8,6 +8,61 @@ final class StudioNayaBlueprint
 
     public const DEFAULT_VOLUME = 'medium';
 
+    /**
+     * Targets introduced with the immersive offers and customer-package story.
+     *
+     * @var list<string>
+     */
+    public const IMMERSIVE_TARGET_KEYS = [
+        'offer_packages',
+        'offer_package_items',
+        'pack_invoice_lines',
+        'customer_packages',
+        'customer_package_usages',
+        'package_behavior_events',
+        'loyalty_story_events',
+    ];
+
+    /**
+     * Keep these version-one additions available to a long-running worker that
+     * booted before its configuration cache contained the new target keys.
+     *
+     * @return array<string, int>
+     */
+    public static function immersiveTargetsForVolume(string $volume): array
+    {
+        return match ($volume) {
+            'small' => [
+                'offer_packages' => 7,
+                'offer_package_items' => 20,
+                'pack_invoice_lines' => 6,
+                'customer_packages' => 12,
+                'customer_package_usages' => 40,
+                'package_behavior_events' => 18,
+                'loyalty_story_events' => 3,
+            ],
+            'medium' => [
+                'offer_packages' => 7,
+                'offer_package_items' => 20,
+                'pack_invoice_lines' => 18,
+                'customer_packages' => 36,
+                'customer_package_usages' => 118,
+                'package_behavior_events' => 54,
+                'loyalty_story_events' => 3,
+            ],
+            'large' => [
+                'offer_packages' => 7,
+                'offer_package_items' => 20,
+                'pack_invoice_lines' => 45,
+                'customer_packages' => 88,
+                'customer_package_usages' => 287,
+                'package_behavior_events' => 132,
+                'loyalty_story_events' => 3,
+            ],
+            default => throw new \InvalidArgumentException("Unsupported Studio Naya data volume [{$volume}]."),
+        };
+    }
+
     public static function definition(): array
     {
         return [
@@ -20,6 +75,7 @@ final class StudioNayaBlueprint
             'services' => self::services(),
             'suppliers' => self::suppliers(),
             'products' => self::products(),
+            'offer_packages' => self::offerPackages(),
             'employee_service_matrix' => self::employeeServiceMatrix(),
             'client_stories' => self::clientStories(),
             'expense_templates' => self::expenseTemplates(),
@@ -279,6 +335,131 @@ final class StudioNayaBlueprint
             self::product('nitrile_gloves', 'disposables', 'Gants de nitrile sans poudre', 'ecosalon_fournitures', 0.16, 0.00, 240, 100, 'unit'),
             self::product('disposable_towels', 'disposables', 'Serviettes jetables biodégradables', 'ecosalon_fournitures', 0.22, 0.00, 160, 80, 'unit'),
             self::product('satin_bonnet', 'retail', 'Bonnet de satin réversible', 'texture_tress_supply', 8.00, 22.00, 19, 8, 'unit', retail: true),
+        ];
+    }
+
+    public static function offerPackages(): array
+    {
+        return [
+            self::offerPackage(
+                'entretien_protecteur_6',
+                'Entretien protecteur · 6 visites',
+                'forfait',
+                'Six visites flexibles pour entretenir tresses, twists et coiffures protectrices.',
+                525.00,
+                [
+                    self::offerItem('service', 'cornrows'),
+                    self::offerItem('service', 'short_box_braids'),
+                    self::offerItem('service', 'braid_removal'),
+                ],
+                validityDays: 180,
+                includedQuantity: 6,
+                unitType: 'visit',
+                imagePath: '/images/landing/stock/beauty-treatment.jpg',
+                metadata: ['badge' => 'Favori', 'savings_amount' => 90.00],
+            ),
+            self::offerPackage(
+                'club_barbe_mensuel',
+                'Club Barbe mensuel',
+                'forfait',
+                'Deux rendez-vous barbier par mois, avec renouvellement et rappels automatiques.',
+                89.00,
+                [
+                    self::offerItem('service', 'men_cut'),
+                    self::offerItem('service', 'fade'),
+                    self::offerItem('service', 'beard_trim'),
+                ],
+                validityDays: 31,
+                includedQuantity: 2,
+                unitType: 'visit',
+                imagePath: '/images/landing/stock/salon-front-desk.jpg',
+                recurring: true,
+                recurrenceFrequency: 'monthly',
+                renewalNoticeDays: 7,
+                metadata: [
+                    'badge' => 'Mensuel',
+                    'recurrence' => [
+                        'carry_over_unused_balance' => true,
+                        'payment_grace_days' => 7,
+                        'payment_reminder_days' => [0, 3, 6],
+                    ],
+                ],
+            ),
+            self::offerPackage(
+                'passeport_brushing_5',
+                'Passeport Brushing · 5 séances',
+                'forfait',
+                'Cinq brushings au choix pour garder une mise en forme impeccable toute la saison.',
+                275.00,
+                [
+                    self::offerItem('service', 'short_hair_blowout'),
+                    self::offerItem('service', 'long_hair_blowout'),
+                ],
+                validityDays: 120,
+                includedQuantity: 5,
+                unitType: 'session',
+                imagePath: '/images/landing/stock/salon-front-desk.jpg',
+                metadata: ['badge' => 'Flexible', 'savings_amount' => 45.00],
+            ),
+            self::offerPackage(
+                'cure_reparation_4',
+                'Cure Réparation · 4 soins',
+                'forfait',
+                'Un protocole de quatre soins progressifs pour cheveux fragilisés ou colorés.',
+                298.00,
+                [
+                    self::offerItem('service', 'hydrating_shampoo_care'),
+                    self::offerItem('service', 'deep_conditioning'),
+                    self::offerItem('service', 'repair_treatment'),
+                ],
+                validityDays: 90,
+                includedQuantity: 4,
+                unitType: 'session',
+                imagePath: '/images/landing/stock/beauty-treatment.jpg',
+                metadata: ['badge' => 'Résultats visibles', 'savings_amount' => 42.00],
+            ),
+            self::offerPackage(
+                'rituel_hydratation',
+                'Rituel Hydratation',
+                'pack',
+                'Un soin hydratant en salon accompagné de deux essentiels à emporter.',
+                99.00,
+                [
+                    self::offerItem('service', 'hydrating_shampoo_care'),
+                    self::offerItem('product', 'deep_mask'),
+                    self::offerItem('product', 'hair_oil'),
+                ],
+                imagePath: '/images/landing/stock/beauty-treatment.jpg',
+                metadata: ['badge' => 'Découverte', 'savings_amount' => 20.00],
+            ),
+            self::offerPackage(
+                'duo_coupe_soin',
+                'Duo Coupe & Soin',
+                'pack',
+                'Coupe, soin profond et revitalisant réparateur réunis dans une offre simple.',
+                139.00,
+                [
+                    self::offerItem('service', 'women_cut'),
+                    self::offerItem('service', 'deep_conditioning'),
+                    self::offerItem('product', 'repair_conditioner'),
+                ],
+                imagePath: '/images/landing/stock/salon-front-desk.jpg',
+                metadata: ['badge' => 'Essentiel', 'savings_amount' => 23.00],
+            ),
+            self::offerPackage(
+                'mariage_serenite',
+                'Mariage Sérénité',
+                'pack',
+                'Consultation, essai et coiffure du jour J réunis avec un suivi personnalisé.',
+                323.00,
+                [
+                    self::offerItem('service', 'hair_consultation'),
+                    self::offerItem('service', 'event_updo', 2),
+                    self::offerItem('product', 'hair_oil'),
+                ],
+                imagePath: '/images/landing/stock/beauty-treatment.jpg',
+                metadata: ['badge' => 'Événement', 'savings_amount' => 30.00],
+            ),
         ];
     }
 
@@ -614,6 +795,71 @@ final class StudioNayaBlueprint
                     ? 'out_of_stock'
                     : ($stockOnHand <= $reorderThreshold ? 'low' : 'healthy'),
             ], $metadata),
+        ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $items
+     * @param  array<string, mixed>  $metadata
+     */
+    private static function offerPackage(
+        string $key,
+        string $name,
+        string $type,
+        string $description,
+        float $price,
+        array $items,
+        ?int $validityDays = null,
+        ?int $includedQuantity = null,
+        ?string $unitType = null,
+        ?string $imagePath = null,
+        bool $recurring = false,
+        ?string $recurrenceFrequency = null,
+        ?int $renewalNoticeDays = null,
+        array $metadata = [],
+    ): array {
+        return [
+            'key' => $key,
+            'name' => $name,
+            'type' => $type,
+            'status' => 'active',
+            'description' => $description,
+            'image_path' => $imagePath,
+            'pricing_mode' => 'fixed',
+            'price' => $price,
+            'currency_code' => 'CAD',
+            'validity_days' => $validityDays,
+            'included_quantity' => $includedQuantity,
+            'unit_type' => $unitType,
+            'is_public' => true,
+            'is_recurring' => $recurring,
+            'recurrence_frequency' => $recurrenceFrequency,
+            'renewal_notice_days' => $renewalNoticeDays,
+            'items' => $items,
+            'metadata' => array_merge([
+                'scenario_key' => self::KEY,
+                'merchandising' => [
+                    'featured' => true,
+                    'channel' => 'salon_and_portal',
+                ],
+            ], $metadata),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function offerItem(
+        string $catalog,
+        string $key,
+        float $quantity = 1,
+    ): array {
+        return [
+            'catalog' => $catalog,
+            'key' => $key,
+            'quantity' => $quantity,
+            'included' => true,
+            'is_optional' => false,
         ];
     }
 

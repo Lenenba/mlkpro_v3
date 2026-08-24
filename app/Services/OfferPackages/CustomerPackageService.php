@@ -177,6 +177,13 @@ class CustomerPackageService
                 ]);
             }
 
+            if ($locked->is_recurring
+                && $locked->recurrence_status === CustomerPackage::RECURRENCE_SUSPENDED) {
+                throw ValidationException::withMessages([
+                    'customer_package_id' => 'This recurring forfait is suspended until its renewal payment is settled.',
+                ]);
+            }
+
             if (! $allowNegative && $quantity > (int) $locked->remaining_quantity) {
                 throw ValidationException::withMessages([
                     'quantity' => 'The requested quantity exceeds the remaining balance.',
@@ -1113,6 +1120,12 @@ class CustomerPackageService
         $packages = CustomerPackage::query()
             ->forAccount((int) $reservation->account_id)
             ->active()
+            ->where(function ($query): void {
+                $query->where('is_recurring', false)
+                    ->orWhereNull('is_recurring')
+                    ->orWhereNull('recurrence_status')
+                    ->orWhere('recurrence_status', '!=', CustomerPackage::RECURRENCE_SUSPENDED);
+            })
             ->where('customer_id', $reservation->client_id)
             ->where('remaining_quantity', '>', 0)
             ->whereDate('starts_at', '<=', $usedAt->toDateString())

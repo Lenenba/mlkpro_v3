@@ -131,7 +131,7 @@ final class DemoCustomerGenerator
             'is_vip' => $isVip,
             'vip_tier_code' => $isVip ? 'naya_signature' : null,
             'vip_since_at' => $isVip ? $createdAt->addMonths(2) : null,
-            'logo' => Customer::DEFAULT_AVATAR_PATH,
+            'logo' => '/images/presets/avatar-'.(($index % 4) + 1).'.svg',
             'refer_by' => $index % 4 === 0 ? 'Recommandation client' : ($index % 4 === 1 ? 'Instagram' : 'Passage en salon'),
             'salutation' => $index % 5 === 0 ? 'Mr' : 'Mrs',
             'billing_same_as_physical' => true,

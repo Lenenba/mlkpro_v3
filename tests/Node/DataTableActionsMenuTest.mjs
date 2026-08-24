@@ -88,15 +88,17 @@ test('shared DataTable actions are Vue-controlled, teleported and independent fr
 
 test('known inline DataTable dropdowns use the shared floating action menu', () => {
     const reservation = source('resources/js/Pages/Reservation/Index.vue');
+    const reservationList = source('resources/js/Components/Reservation/ReservationListTable.vue');
     const serviceCategories = source('resources/js/Pages/Service/Categories.vue');
     const requestTable = source('resources/js/Pages/Request/UI/RequestTable.vue');
 
-    assert.equal((reservation.match(/<AdminDataTableActions/g) || []).length, 2);
-    assert.match(reservation, /reservation-actions-trigger-/);
+    assert.equal((reservation.match(/<AdminDataTableActions/g) || []).length, 1);
+    assert.equal((reservationList.match(/<AdminDataTableActions/g) || []).length, 2);
+    assert.match(reservationList, /reservation-actions-trigger-/);
     assert.match(reservation, /waitlist-actions-trigger-/);
     assert.match(serviceCategories, /<AdminDataTableActions/);
     assert.match(requestTable, /<AdminDataTableActions[\s\S]*?menu-align="start"/);
-    [reservation, serviceCategories, requestTable].forEach((contents) => {
+    [reservation, reservationList, serviceCategories, requestTable].forEach((contents) => {
         assert.doesNotMatch(contents, /hs-dropdown/);
     });
 });

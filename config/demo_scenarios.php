@@ -43,6 +43,7 @@ return [
             'social_templates' => 3,
             'social_posts' => 6,
             'social_targets' => 6,
+            ...StudioNayaBlueprint::immersiveTargetsForVolume('small'),
         ],
         'medium' => [
             'employees' => 5,
@@ -77,6 +78,7 @@ return [
             'social_templates' => 4,
             'social_posts' => 18,
             'social_targets' => 18,
+            ...StudioNayaBlueprint::immersiveTargetsForVolume('medium'),
         ],
         'large' => [
             'employees' => 5,
@@ -111,6 +113,7 @@ return [
             'social_templates' => 5,
             'social_posts' => 36,
             'social_targets' => 36,
+            ...StudioNayaBlueprint::immersiveTargetsForVolume('large'),
         ],
     ],
 

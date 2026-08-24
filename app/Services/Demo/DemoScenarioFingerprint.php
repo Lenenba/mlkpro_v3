@@ -30,7 +30,7 @@ final class DemoScenarioFingerprint
                 ->join('users', 'users.id', '=', 'team_members.user_id')
                 ->where('team_members.account_id', $ownerId)
                 ->orderBy('users.name')
-                ->get(['users.name', 'team_members.role', 'team_members.title', 'team_members.planning_rules'])
+                ->get(['users.name', 'users.profile_picture', 'team_members.role', 'team_members.title', 'team_members.planning_rules'])
                 ->map(function (object $row): array {
                     $payload = (array) $row;
                     $rules = json_decode((string) ($payload['planning_rules'] ?? ''), true);
@@ -61,14 +61,135 @@ final class DemoScenarioFingerprint
                 ->where('user_id', $ownerId)
                 ->orderBy('item_type')
                 ->orderBy('name')
-                ->get(['name', 'item_type', 'price', 'cost_price', 'stock', 'minimum_stock', 'is_active', 'tags'])
+                ->get(['name', 'item_type', 'price', 'cost_price', 'stock', 'minimum_stock', 'is_active', 'image', 'tags'])
+                ->map(fn (object $row): array => (array) $row)
+                ->pipe(fn (Collection $rows): string => $this->hashRows($rows)),
+            'offer_packages' => DB::table('offer_packages')
+                ->where('user_id', $ownerId)
+                ->orderBy('slug')
+                ->get([
+                    'name',
+                    'slug',
+                    'type',
+                    'status',
+                    'description',
+                    'image_path',
+                    'price',
+                    'currency_code',
+                    'validity_days',
+                    'included_quantity',
+                    'unit_type',
+                    'is_public',
+                    'is_recurring',
+                    'recurrence_frequency',
+                    'renewal_notice_days',
+                    'metadata',
+                    'created_at',
+                ])
+                ->map(fn (object $row): array => (array) $row)
+                ->pipe(fn (Collection $rows): string => $this->hashRows($rows)),
+            'offer_package_items' => DB::table('offer_package_items')
+                ->join('offer_packages', 'offer_packages.id', '=', 'offer_package_items.offer_package_id')
+                ->join('products', 'products.id', '=', 'offer_package_items.product_id')
+                ->where('offer_packages.user_id', $ownerId)
+                ->orderBy('offer_packages.slug')
+                ->orderBy('offer_package_items.sort_order')
+                ->get([
+                    'offer_packages.slug as offer_slug',
+                    'products.name as product_name',
+                    'offer_package_items.item_type_snapshot',
+                    'offer_package_items.name_snapshot',
+                    'offer_package_items.quantity',
+                    'offer_package_items.unit_price',
+                    'offer_package_items.included',
+                    'offer_package_items.is_optional',
+                    'offer_package_items.sort_order',
+                ])
                 ->map(fn (object $row): array => (array) $row)
                 ->pipe(fn (Collection $rows): string => $this->hashRows($rows)),
             'customers' => DB::table('customers')
                 ->where('user_id', $ownerId)
                 ->orderBy('first_name')
                 ->orderBy('last_name')
-                ->get(['first_name', 'last_name', 'tags', 'is_vip', 'created_at'])
+                ->get(['first_name', 'last_name', 'logo', 'tags', 'is_vip', 'loyalty_points_balance', 'created_at'])
+                ->map(fn (object $row): array => (array) $row)
+                ->pipe(fn (Collection $rows): string => $this->hashRows($rows)),
+            'customer_packages' => DB::table('customer_packages')
+                ->join('customers', 'customers.id', '=', 'customer_packages.customer_id')
+                ->leftJoin('offer_packages', 'offer_packages.id', '=', 'customer_packages.offer_package_id')
+                ->leftJoin('invoices as package_invoices', 'package_invoices.id', '=', 'customer_packages.invoice_id')
+                ->where('customer_packages.user_id', $ownerId)
+                ->orderBy('customers.first_name')
+                ->orderBy('customers.last_name')
+                ->orderBy('customer_packages.starts_at')
+                ->orderBy('offer_packages.name')
+                ->get([
+                    'customers.first_name',
+                    'customers.last_name',
+                    'offer_packages.name as offer_name',
+                    'package_invoices.number as source_invoice_number',
+                    'customer_packages.status',
+                    'customer_packages.starts_at',
+                    'customer_packages.expires_at',
+                    'customer_packages.consumed_at',
+                    'customer_packages.initial_quantity',
+                    'customer_packages.consumed_quantity',
+                    'customer_packages.remaining_quantity',
+                    'customer_packages.unit_type',
+                    'customer_packages.price_paid',
+                    'customer_packages.is_recurring',
+                    'customer_packages.recurrence_frequency',
+                    'customer_packages.recurrence_status',
+                    'customer_packages.current_period_starts_at',
+                    'customer_packages.current_period_ends_at',
+                    'customer_packages.next_renewal_at',
+                    'customer_packages.renewal_count',
+                    'customer_packages.metadata',
+                ])
+                ->map(function (object $row): array {
+                    $data = (array) $row;
+                    $metadata = json_decode((string) ($data['metadata'] ?? ''), true) ?: [];
+                    foreach ([
+                        'renewed_from_customer_package_id',
+                        'provisioning.invoice_id',
+                        'provisioning.invoice_item_id',
+                        'recurrence.pending_invoice_id',
+                        'recurrence.pending_invoice_item_id',
+                        'recurrence.paid_invoice_id',
+                        'recurrence.paid_invoice_item_id',
+                        'recurrence.renewed_to_customer_package_id',
+                        'recurrence.paid_renewed_to_customer_package_id',
+                        'recurrence.renewed_by_user_id',
+                    ] as $volatilePath) {
+                        data_forget($metadata, $volatilePath);
+                    }
+                    $data['metadata'] = $metadata;
+
+                    return $data;
+                })
+                ->pipe(fn (Collection $rows): string => $this->hashRows($rows)),
+            'customer_package_usages' => DB::table('customer_package_usages')
+                ->join('customer_packages', 'customer_packages.id', '=', 'customer_package_usages.customer_package_id')
+                ->join('customers', 'customers.id', '=', 'customer_package_usages.customer_id')
+                ->leftJoin('offer_packages', 'offer_packages.id', '=', 'customer_packages.offer_package_id')
+                ->leftJoin('products', 'products.id', '=', 'customer_package_usages.product_id')
+                ->leftJoin('reservations', 'reservations.id', '=', 'customer_package_usages.reservation_id')
+                ->where('customer_package_usages.user_id', $ownerId)
+                ->orderBy('customer_package_usages.used_at')
+                ->orderBy('customers.first_name')
+                ->orderBy('customers.last_name')
+                ->get([
+                    'customers.first_name',
+                    'customers.last_name',
+                    'offer_packages.name as offer_name',
+                    'products.name as product_name',
+                    'reservations.starts_at as reservation_starts_at',
+                    'customer_package_usages.quantity',
+                    'customer_package_usages.used_at',
+                    'customer_package_usages.reversed_at',
+                    'customer_package_usages.reversal_reason',
+                    'customer_package_usages.note',
+                ])
                 ->map(fn (object $row): array => (array) $row)
                 ->pipe(fn (Collection $rows): string => $this->hashRows($rows)),
             'reservations' => DB::table('reservations')
@@ -79,6 +200,10 @@ final class DemoScenarioFingerprint
                 ->where('reservations.account_id', $ownerId)
                 ->orderBy('reservations.starts_at')
                 ->orderBy('staff_users.name')
+                ->orderBy('customers.first_name')
+                ->orderBy('customers.last_name')
+                ->orderBy('services.name')
+                ->orderBy('reservations.status')
                 ->get([
                     'customers.first_name',
                     'customers.last_name',
@@ -109,6 +234,38 @@ final class DemoScenarioFingerprint
                 ])
                 ->map(fn (object $row): array => (array) $row)
                 ->pipe(fn (Collection $rows): string => $this->hashRows($rows)),
+            'pack_invoice_lines' => DB::table('invoice_items')
+                ->join('invoices', 'invoices.id', '=', 'invoice_items.invoice_id')
+                ->join('customers', 'customers.id', '=', 'invoices.customer_id')
+                ->where('invoices.user_id', $ownerId)
+                ->orderBy('invoices.created_at')
+                ->orderBy('invoices.number')
+                ->get([
+                    'customers.first_name',
+                    'customers.last_name',
+                    'invoices.status as invoice_status',
+                    'invoice_items.title',
+                    'invoice_items.quantity',
+                    'invoice_items.unit_price',
+                    'invoice_items.total',
+                    'invoice_items.meta',
+                    'invoice_items.created_at',
+                ])
+                ->map(fn (object $row): array => (array) $row)
+                ->filter(function (array $row): bool {
+                    $meta = json_decode((string) ($row['meta'] ?? ''), true);
+
+                    return data_get($meta, 'offer_package_type') === 'pack';
+                })
+                ->map(function (array $row): array {
+                    $meta = json_decode((string) ($row['meta'] ?? ''), true);
+                    $row['offer_name'] = data_get($meta, 'offer_package_snapshot.name');
+                    unset($row['meta']);
+
+                    return $row;
+                })
+                ->values()
+                ->pipe(fn (Collection $rows): string => $this->hashRows($rows)),
             'payments' => DB::table('payments')
                 ->where('user_id', $ownerId)
                 ->orderBy('paid_at')
@@ -120,7 +277,17 @@ final class DemoScenarioFingerprint
                 ->where('user_id', $ownerId)
                 ->orderBy('created_at')
                 ->orderBy('number')
-                ->get(['status', 'subtotal', 'tax_total', 'total', 'paid_at', 'created_at'])
+                ->get([
+                    'status',
+                    'subtotal',
+                    'tax_total',
+                    'discount_total',
+                    'loyalty_points_redeemed',
+                    'loyalty_discount_total',
+                    'total',
+                    'paid_at',
+                    'created_at',
+                ])
                 ->map(fn (object $row): array => (array) $row)
                 ->pipe(fn (Collection $rows): string => $this->hashRows($rows)),
             'quotes' => DB::table('quotes')
@@ -300,6 +467,69 @@ final class DemoScenarioFingerprint
                     'promotion_usages.used_at',
                 ])
                 ->map(fn (object $row): array => (array) $row)
+                ->pipe(fn (Collection $rows): string => $this->hashRows($rows)),
+            'package_behavior_events' => DB::table('customer_behavior_events')
+                ->join('customers', 'customers.id', '=', 'customer_behavior_events.customer_id')
+                ->leftJoin('products', 'products.id', '=', 'customer_behavior_events.product_id')
+                ->where('customer_behavior_events.user_id', $ownerId)
+                ->whereIn('customer_behavior_events.event_type', [
+                    'customer_package_purchased',
+                    'customer_package_low_balance',
+                    'customer_package_expired',
+                ])
+                ->orderBy('customer_behavior_events.occurred_at')
+                ->orderBy('customers.first_name')
+                ->orderBy('customers.last_name')
+                ->get([
+                    'customers.first_name',
+                    'customers.last_name',
+                    'products.name as product_name',
+                    'customer_behavior_events.event_type',
+                    'customer_behavior_events.occurred_at',
+                ])
+                ->map(fn (object $row): array => (array) $row)
+                ->pipe(fn (Collection $rows): string => $this->hashRows($rows)),
+            'loyalty_program' => DB::table('loyalty_programs')
+                ->where('user_id', $ownerId)
+                ->get([
+                    'is_enabled',
+                    'points_per_currency_unit',
+                    'minimum_spend',
+                    'rounding_mode',
+                    'points_label',
+                ])
+                ->map(fn (object $row): array => (array) $row)
+                ->pipe(fn (Collection $rows): string => $this->hashRows($rows)),
+            'loyalty_ledgers' => DB::table('loyalty_point_ledgers')
+                ->join('customers', 'customers.id', '=', 'loyalty_point_ledgers.customer_id')
+                ->leftJoin('payments', 'payments.id', '=', 'loyalty_point_ledgers.payment_id')
+                ->where('loyalty_point_ledgers.user_id', $ownerId)
+                ->orderBy('loyalty_point_ledgers.processed_at')
+                ->orderBy('customers.first_name')
+                ->orderBy('customers.last_name')
+                ->orderBy('loyalty_point_ledgers.event')
+                ->orderBy('payments.reference')
+                ->orderBy('loyalty_point_ledgers.points')
+                ->orderBy('loyalty_point_ledgers.amount')
+                ->get([
+                    'customers.first_name',
+                    'customers.last_name',
+                    'payments.paid_at as payment_paid_at',
+                    'payments.reference as payment_reference',
+                    'loyalty_point_ledgers.event',
+                    'loyalty_point_ledgers.points',
+                    'loyalty_point_ledgers.amount',
+                    'loyalty_point_ledgers.processed_at',
+                    'loyalty_point_ledgers.meta',
+                ])
+                ->map(function (object $row): array {
+                    $data = (array) $row;
+                    $meta = json_decode((string) ($data['meta'] ?? ''), true) ?: [];
+                    $data['sale_number'] = $meta['sale_number'] ?? null;
+                    unset($data['meta']);
+
+                    return $data;
+                })
                 ->pipe(fn (Collection $rows): string => $this->hashRows($rows)),
             'assistant_settings' => DB::table('ai_assistant_settings')
                 ->where('tenant_id', $ownerId)

@@ -1,16 +1,21 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, defineAsyncComponent, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import AnnouncementsPanel from '@/Components/Dashboard/AnnouncementsPanel.vue';
 import KpiCompositePanel from '@/Components/Dashboard/KpiCompositePanel.vue';
-import ScenarioBusinessOverview from '@/Components/Dashboard/ScenarioBusinessOverview.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 import { buildSparklinePoints, buildTrend } from '@/utils/kpi';
 import { useCurrencyFormatter } from '@/utils/currency';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 import { usePermissions } from '@/Composables/usePermissions';
+
+const AnnouncementsPanel = defineAsyncComponent(
+    () => import('@/Components/Dashboard/AnnouncementsPanel.vue'),
+);
+const ScenarioBusinessOverview = defineAsyncComponent(
+    () => import('@/Components/Dashboard/ScenarioBusinessOverview.vue'),
+);
 
 const props = defineProps({
     stats: {

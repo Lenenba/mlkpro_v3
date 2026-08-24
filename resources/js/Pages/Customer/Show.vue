@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import axios from 'axios';
 import Header from './UI/Header.vue';
 import Card from '@/Components/UI/Card.vue';
@@ -13,11 +13,9 @@ import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
-import SalesActivityPanel from '@/Components/CRM/SalesActivityPanel.vue';
 import CustomerHistoryTimeline from '@/Components/Customer/CustomerHistoryTimeline.vue';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
-import CustomerPreviewCard from './UI/CustomerPreviewCard.vue';
 import { useCurrencyFormatter } from '@/utils/currency';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 import { ArrowUpDown, Ban, ReceiptText } from 'lucide-vue-next';
@@ -26,6 +24,13 @@ import {
     buildAddressSearchLabel,
     useGeoapifyAddressAutocomplete,
 } from '@/Composables/useGeoapifyAddressAutocomplete';
+
+const SalesActivityPanel = defineAsyncComponent(
+    () => import('@/Components/CRM/SalesActivityPanel.vue'),
+);
+const CustomerPreviewCard = defineAsyncComponent(
+    () => import('./UI/CustomerPreviewCard.vue'),
+);
 
 const props = defineProps({
     customer: Object,

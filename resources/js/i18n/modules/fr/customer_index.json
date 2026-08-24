@@ -1,0 +1,478 @@
+{
+  "customers": {
+    "title": "Clients",
+    "stats": {
+      "total": "Total clients",
+      "new": "Nouveaux (30 jours)",
+      "new_this_month": "Nouveaux ce mois-ci",
+      "active": "Clients actifs",
+      "inactive": "Clients inactifs",
+      "vip": "Clients VIP",
+      "no_next_appointment": "Sans prochain rendez-vous",
+      "outstanding": "Soldes impayés",
+      "customers_count": "{count} client(s) concerné(s)",
+      "recent_cancellations": "Annulations récentes",
+      "recent_no_shows": "Rendez-vous manqués",
+      "return_rate": "Taux de retour",
+      "average_value_per_customer": "Valeur moyenne par client",
+      "average_appointments_per_customer": "Rendez-vous moyens par client",
+      "with_quotes": "Avec devis",
+      "with_jobs": "Avec chantiers"
+    },
+    "kpis": {
+      "title": "Indicateurs clients",
+      "show_more": "Voir plus d’indicateurs",
+      "show_less": "Afficher moins d’indicateurs",
+      "apply_filter": "Filtrer par {label}",
+      "remove_filter": "Retirer le filtre {label}"
+    },
+    "filter_summary": {
+      "title": "Résumé des filtres",
+      "results": "{count} client(s)",
+      "updating": "Mise à jour…",
+      "active_count": "{count} critère(s) actif(s)",
+      "mode_label": "Mode de combinaison des filtres rapides",
+      "modes": {
+        "all": "Tous les critères",
+        "any": "Au moins un critère"
+      },
+      "quick_filters_label": "Filtres rapides clients",
+      "quick_filters_label_short": "Filtres rapides",
+      "search_badge": "Recherche : {value}",
+      "filter_badge": "{label} : {value}",
+      "remove": "Retirer {label}",
+      "clear_all": "Effacer les filtres"
+    },
+    "advanced_filters": {
+      "title": "Filtres avancés",
+      "description": "Affinez la liste par profil, rendez-vous, facturation ou période.",
+      "close": "Fermer les filtres avancés",
+      "reset": "Réinitialiser",
+      "apply": "Appliquer les filtres",
+      "trigger_active": "Filtres ({count})",
+      "draft_count": "{count} critère(s) dans le brouillon",
+      "current_results": "{count} résultat(s) actuel(s)",
+      "sections": {
+        "profile": "Profil du client",
+        "appointments": "Rendez-vous",
+        "billing": "Facturation",
+        "period": "Période"
+      },
+      "options": {
+        "any": "Indifférent",
+        "yes": "Oui",
+        "no": "Non"
+      },
+      "fields": {
+        "city": "Ville",
+        "country": "Pays",
+        "has_quotes": "Possède un devis",
+        "has_works": "Possède un chantier",
+        "status": "Statut",
+        "client_type": "Type de client",
+        "is_vip": "Client VIP",
+        "vip": "Client VIP",
+        "vip_tier_id": "Niveau VIP",
+        "vip_tier": "Niveau VIP",
+        "acquisition_source": "Source d’acquisition",
+        "tags": "Étiquettes",
+        "tags_hint": "Séparez les étiquettes par des virgules",
+        "has_active_package": "Possède un forfait actif",
+        "package_status": "Statut du forfait",
+        "package_remaining_lte": "Solde maximal du forfait",
+        "package_expires_within_days": "Expiration du forfait (jours)",
+        "package_is_recurring": "Forfait récurrent",
+        "package_recurrence_status": "Statut de récurrence",
+        "has_upcoming_appointment": "Possède un rendez-vous à venir",
+        "upcoming_appointment": "Rendez-vous à venir",
+        "last_appointment_from": "Dernier rendez-vous à partir du",
+        "last_appointment_to": "Dernier rendez-vous jusqu’au",
+        "next_appointment_from": "Prochain rendez-vous à partir du",
+        "next_appointment_to": "Prochain rendez-vous jusqu’au",
+        "appointments_min": "Nombre minimal de rendez-vous",
+        "appointments_max": "Nombre maximal de rendez-vous",
+        "cancellations_min": "Nombre minimal d’annulations",
+        "no_shows_min": "Nombre minimal de rendez-vous manqués",
+        "has_outstanding_balance": "Possède un solde impayé",
+        "outstanding_balance": "Solde impayé",
+        "outstanding_min": "Solde impayé minimal",
+        "outstanding_max": "Solde impayé maximal",
+        "total_invoiced_min": "Total facturé minimal",
+        "total_invoiced_max": "Total facturé maximal",
+        "last_invoice_from": "Dernière facture à partir du",
+        "last_invoice_to": "Dernière facture jusqu’au",
+        "payment_statuses": "Statuts de paiement",
+        "created_from": "Créé à partir du",
+        "created_to": "Créé jusqu’au"
+      },
+      "payment_statuses": {
+        "pending": "En attente",
+        "paid": "Payé",
+        "completed": "Terminé",
+        "failed": "Échoué",
+        "refunded": "Remboursé",
+        "reversed": "Annulé"
+      }
+    },
+    "states": {
+      "empty": {
+        "title": "Aucun client",
+        "description": "Ajoutez un client pour démarrer votre base.",
+        "action": "Ajouter un client"
+      },
+      "no-results": {
+        "title": "Aucun résultat",
+        "description": "Aucun client ne correspond aux critères actifs.",
+        "action": "Effacer les filtres"
+      },
+      "error": {
+        "title": "Impossible de charger les clients",
+        "description": "Une erreur est survenue pendant la mise à jour de la liste.",
+        "action": "Réessayer"
+      }
+    },
+    "accessibility": {
+      "select_all": "Sélectionner tous les clients visibles",
+      "select_customer": "Sélectionner {name}"
+    },
+    "activity": {
+      "title": "Activite client",
+      "subtitle": "Devis + chantiers",
+      "subtitle_quotes": "Activite des devis",
+      "subtitle_jobs": "Activite des chantiers",
+      "actions": "{count} actions",
+      "empty": "Aucune activite client.",
+      "quotes_short": "d",
+      "jobs_short": "c"
+    },
+    "view": {
+      "table": "Table",
+      "cards": "Cartes"
+    },
+    "appointment": {
+      "search_placeholder": "Rechercher par nom, email ou téléphone",
+      "table": {
+        "client": "Client",
+        "status": "Statut",
+        "last_visit": "Dernière visite",
+        "next_appointment": "Prochain rendez-vous",
+        "usual_team_member": "Employé habituel",
+        "loyalty_package": "Fidélité / forfait",
+        "customer_value": "Valeur client",
+        "actions": "Actions"
+      },
+      "quick_filters": {
+        "all": "Tous",
+        "vip": "VIP",
+        "new": "Nouveaux",
+        "new_this_month": "Nouveaux ce mois-ci",
+        "no_next_appointment": "Sans prochain RDV",
+        "upcoming_appointment": "Rendez-vous à venir",
+        "outstanding_balance": "Solde impayé",
+        "inactive": "Inactifs",
+        "follow_up_90": "À relancer (90 j)",
+        "package_low": "Forfait presque épuisé",
+        "unpaid": "Solde impayé",
+        "birthday_upcoming": "Anniversaires à venir"
+      },
+      "lifecycle": {
+        "new": "Nouveau",
+        "active": "Actif",
+        "follow_up": "À relancer",
+        "inactive": "Inactif"
+      },
+      "labels": {
+        "vip": "VIP",
+        "service_unknown": "Service non précisé",
+        "no_visit": "Aucune visite",
+        "unassigned": "Non assigné",
+        "no_next_appointment": "Aucun rendez-vous à venir",
+        "no_usual_team_member": "Aucun employé habituel",
+        "loyalty_points": "{count} points",
+        "package_remaining": "{count} séance(s) restante(s)",
+        "total_spent": "Dépensé",
+        "tip_total": "Pourboires",
+        "unpaid_balance": "Solde",
+        "no_unpaid_balance": "Aucun solde impayé"
+      },
+      "actions": {
+        "book": "Réserver",
+        "billing": "Facturation",
+        "checkout": "Encaisser",
+        "email": "Envoyer un email",
+        "call": "Appeler"
+      }
+    },
+    "filters": {
+      "search_placeholder": "Rechercher nom, societe, email ou telephone",
+      "city": "Ville",
+      "country": "Pays",
+      "quotes": "Devis",
+      "requests": "Demandes",
+      "jobs": "Chantiers",
+      "status": "Statut",
+      "created_from": "Cree a partir du",
+      "created_to": "Cree jusqu'au",
+      "with_quotes": "Avec devis",
+      "no_quotes": "Sans devis",
+      "with_jobs": "Avec chantiers",
+      "no_jobs": "Sans chantiers",
+      "active_package": "Forfait actif",
+      "with_active_package": "Avec forfait actif",
+      "no_active_package": "Sans forfait actif",
+      "package_status": "Statut forfait",
+      "package_remaining_lte": "Solde forfait <= ",
+      "package_expires_within_days": "Expire dans N jours",
+      "package_recurrence": "Recurrence forfait",
+      "package_recurring": "Forfait recurrent",
+      "package_non_recurring": "Forfait non recurrent",
+      "package_recurrence_status": "Statut recurrence"
+    },
+    "saved_segments": {
+      "title": "Segments sauvegardes",
+      "manage": "Creer / gerer",
+      "summary_empty": "Aucun segment selectionne",
+      "selected_label": "Segment actif",
+      "snapshot_label": "Snapshot courant",
+      "dialog_hint": "Appliquez un segment existant ou sauvegardez l'etat actuel des filtres.",
+      "selection_panel": "Appliquer un segment",
+      "management_panel": "Sauvegarder l'etat courant",
+      "select_label": "Segment sauvegarde",
+      "select_placeholder": "Choisir un segment",
+      "name_label": "Nom du segment",
+      "name_placeholder": "Ex. Clients actifs Montreal",
+      "apply": "Appliquer",
+      "save_current": "Sauver filtres",
+      "update_selected": "Mettre a jour",
+      "delete_selected": "Supprimer",
+      "cached_count": "{count} en cache",
+      "updated_at": "Mis a jour {value}",
+      "current_snapshot_ready": "Le filtre actuel est pret a etre sauvegarde.",
+      "empty_state": "Aucun segment sauvegarde pour l'instant.",
+      "info_created": "Segment sauvegarde cree.",
+      "info_updated": "Segment sauvegarde mis a jour.",
+      "info_deleted": "Segment sauvegarde supprime.",
+      "error_load": "Impossible de charger les segments sauvegardes.",
+      "error_save": "Impossible d'enregistrer ce segment sauvegarde.",
+      "error_delete": "Impossible de supprimer ce segment sauvegarde.",
+      "confirm_delete": "Supprimer le segment sauvegarde \"{name}\" ?"
+    },
+    "bulk": {
+      "title": "Actions en lot",
+      "enable_portal": "Activer acces portail",
+      "disable_portal": "Desactiver acces portail",
+      "delete_confirm": "Supprimer les clients selectionnes ?"
+    },
+    "bulk_contact": {
+      "action": "Contacter la selection",
+      "title": "Contacter les clients selectionnes",
+      "subtitle": "Envoyez un email ou un SMS directement depuis la liste clients.",
+      "selection_summary": "{count} client(s) selectionne(s)",
+      "fields": {
+        "objective": "Objectif",
+        "channel": "Canal",
+        "template": "Template sauvegarde",
+        "offer": "Produit ou service",
+        "subject": "Sujet",
+        "body": "Message"
+      },
+      "objectives": {
+        "payment_followup": "Relance paiement",
+        "promotion": "Promotion",
+        "announcement": "Annonce",
+        "manual_message": "Message libre"
+      },
+      "channels": {
+        "email": "Email",
+        "sms": "SMS"
+      },
+      "payment_followup_hint": "Si le sujet ou le message restent vides, un rappel suggere sera utilise.",
+      "template_hint_email": "Vous pouvez garder le template Malikia suggere ou appliquer un template sauvegarde du module Campaigns.",
+      "template_applied_hint": "Le template sauvegarde est applique. Vous pouvez encore ajuster le contenu avant l envoi.",
+      "template_default_option": "Aucun template sauvegarde",
+      "clear_template": "Retirer le template",
+      "loading_templates": "Chargement des templates...",
+      "no_templates": "Aucun template sauvegarde disponible pour ce canal ou cet objectif.",
+      "template_load_error": "Impossible de charger les templates marketing pour le moment.",
+      "offer_search_placeholder": "Rechercher un produit ou un service a promouvoir",
+      "no_offer_results": "Aucun produit ou service ne correspond a cette recherche.",
+      "clear_offer": "Retirer",
+      "offer_required_hint": "Pour une promotion, selectionnez l offre que vous souhaitez mettre en avant.",
+      "loading_offers": "Recherche du catalogue...",
+      "body_required_hint": "Le message est requis pour cet envoi.",
+      "sms_length": "{count} caracteres",
+      "preview_title": "Apercu des destinataires",
+      "preview_subtitle": "Le systeme verifie les destinataires eligibles avant l'envoi.",
+      "preview": {
+        "selected": "Selectionnes",
+        "eligible": "Eligibles",
+        "excluded": "Exclus",
+        "selected_offer": "Offre selectionnee",
+        "reasons_title": "Principales raisons d'exclusion",
+        "eligible_examples": "Exemples eligibles",
+        "excluded_examples": "Exemples exclus",
+        "invoice_summary": "{count} facture(s) ouvertes, {amount} {currency}"
+      },
+      "actions": {
+        "refresh_preview": "Actualiser l'aperçu",
+        "refreshing": "Actualisation...",
+        "close": "Fermer",
+        "send": "Envoyer",
+        "sending": "Envoi..."
+      },
+      "preview_error": "Impossible de verifier les destinataires pour le moment.",
+      "send_error": "Impossible d'envoyer ce message en lot.",
+      "result_summary": "Envoyes: {sent}, echecs: {failed}, ignores: {skipped}",
+      "result": {
+        "processed": "Traites",
+        "sent": "Envoyes",
+        "failed": "Echecs",
+        "skipped": "Ignores",
+        "reasons_title": "Motifs principaux",
+        "failures_title": "Exemples d echecs"
+      },
+      "tokens_title": "Tokens disponibles",
+      "tokens_hint": "Vous pouvez utiliser ces tokens dans le sujet ou le message.",
+      "reasons": {
+        "channel_disabled": "Canal desactive",
+        "missing_destination": "Coordonnee manquante ou invalide",
+        "no_open_invoices": "Aucune facture ouverte",
+        "consent_missing": "Consentement manquant",
+        "consent_revoked": "Consentement revoque",
+        "opted_out": "Destinataire desinscrit",
+        "quiet_hours": "Bloque pendant les heures calmes",
+        "fatigue_limit": "Limite anti-fatigue atteinte",
+        "mail_exception": "Echec email",
+        "sms_error": "Echec SMS",
+        "invalid_recipient": "Destinataire invalide",
+        "send_failed": "Envoi echoue"
+      },
+      "tokens_map": {
+        "customerName": "Nom complet du client",
+        "firstName": "Prenom du client",
+        "companyName": "Societe du client",
+        "customerEmail": "Email du client",
+        "customerPhone": "Telephone du client",
+        "unpaidInvoiceCount": "Nombre de factures ouvertes",
+        "balanceDue": "Solde du",
+        "offerName": "Nom du produit ou service",
+        "offerPrice": "Prix de l offre",
+        "offerUrl": "Lien de l offre",
+        "offerImageUrl": "Image de l offre",
+        "promoPercent": "Pourcentage promo",
+        "promoCode": "Code promo",
+        "promoEndDate": "Date de fin promo",
+        "productName": "Nom du produit",
+        "serviceName": "Nom du service",
+        "brandName": "Nom de votre entreprise",
+        "brandReplyToEmail": "Email de reponse",
+        "brandPhone": "Telephone de l'entreprise"
+      },
+      "template_types": {
+        "general": "General",
+        "promotion": "Promotion",
+        "announcement": "Annonce"
+      },
+      "offer_types": {
+        "product": "Produit",
+        "service": "Service"
+      },
+      "campaign_bridge": {
+        "title": "Reutiliser cette selection en marketing",
+        "subtitle": "Ajoutez les clients selectionnes a une mailing list ou ouvrez directement le wizard Campaigns avec cette audience.",
+        "existing_label": "Mailing list existante",
+        "existing_placeholder": "Choisir une mailing list existante",
+        "new_label": "Nouvelle mailing list",
+        "helper": "Si une mailing list existante est choisie, les clients selectionnes y seront ajoutes. Sinon, une nouvelle liste sera creee pour l ouverture dans Campaigns.",
+        "loading_lists": "Chargement des mailing lists...",
+        "actions": {
+          "add_to_existing": "Ajouter a la liste",
+          "create_list": "Creer la liste",
+          "open_campaigns": "Ouvrir dans Campaigns",
+          "opening_campaigns": "Ouverture de Campaigns..."
+        },
+        "messages": {
+          "saved_existing": "{added} clients ajoutes a {list}. Deja presents: {alreadyPresent}. Total: {total}.",
+          "created": "La mailing list {list} a ete creee avec {total} clients."
+        },
+        "errors": {
+          "load_lists": "Impossible de charger les mailing lists marketing pour le moment.",
+          "save_selection": "Impossible d ajouter cette selection a la mailing list choisie.",
+          "create_list": "Impossible de creer la mailing list pour cette selection.",
+          "open_campaign": "Impossible d ouvrir Campaigns avec cette audience pour le moment."
+        },
+        "default_names": {
+          "promotion": "Audience promo",
+          "announcement": "Audience annonce",
+          "payment_followup": "Audience relance paiement",
+          "manual_message": "Audience clients"
+        }
+      }
+    },
+    "table": {
+      "company": "Societe",
+      "contact": "Contact",
+      "phone": "Telephone",
+      "city": "Ville",
+      "quotes": "Devis",
+      "jobs": "Chantiers",
+      "created": "Cree"
+    },
+    "empty": {
+      "title": "Aucun client",
+      "subtitle": "Ajoutez un client pour demarrer votre base.",
+      "action": "Ajouter un client"
+    },
+    "pagination": {
+      "previous": "Precedent",
+      "next": "Suivant",
+      "of": "sur",
+      "results": "resultats"
+    },
+    "status": {
+      "active": "Actif",
+      "archived": "Archive"
+    },
+    "actions": {
+      "filters": "Filtres",
+      "clear": "Effacer",
+      "add_customer": "Ajouter client",
+      "archive": "Archiver",
+      "restore": "Restaurer",
+      "delete_confirm": "Supprimer \"{name}\" ?",
+      "archive_confirm": "{action} \"{name}\" ?",
+      "view": "Voir"
+    },
+    "labels": {
+      "selected": "{count} selectionnes",
+      "customer_initial": "C",
+      "unknown_city": "Ville inconnue",
+      "quotes": "Devis",
+      "jobs": "Chantiers",
+      "created": "Cree"
+    },
+    "details": {
+      "preview": {
+        "title": "Apercu client",
+        "quotes": "Devis",
+        "active_jobs": "Chantiers actifs",
+        "jobs": "Chantiers",
+        "invoices": "Factures",
+        "requests": "Demandes",
+        "balance_due": "Solde du",
+        "latest_quote": "Dernier devis",
+        "quote_number": "Devis {number}",
+        "quote_fallback": "Devis",
+        "total": "Total",
+        "no_quotes": "Aucun devis.",
+        "latest_job": "Dernier chantier",
+        "job_fallback": "Chantier",
+        "no_jobs": "Aucun chantier.",
+        "latest_invoice": "Derniere facture",
+        "invoice_number": "Facture {number}",
+        "invoice_fallback": "Facture",
+        "no_invoices": "Aucune facture."
+      }
+    }
+  }
+}

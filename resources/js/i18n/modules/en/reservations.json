@@ -6,6 +6,30 @@
     "calendar": {
       "loading": "Loading reservations..."
     },
+    "list": {
+      "title": "At a glance",
+      "subtitle": "Scan services, clients, and team members without losing context.",
+      "count": "{count} reservations",
+      "timezone": "Local time · {timezone}",
+      "reference": "Reservation #{id}",
+      "unavailable": "Unavailable",
+      "unassigned": "Unassigned",
+      "open": "Open {service} for {client}",
+      "actions_for": "Actions for {reference}",
+      "service_image_alt": "Preview of {service}",
+      "loading": "Refreshing reservations…",
+      "error_title": "The list could not be refreshed",
+      "retry": "Try again",
+      "mobile_controls": "List display",
+      "sort_by": "Sort by",
+      "sort_direction": "Sort direction",
+      "sort_ascending": "Ascending order",
+      "sort_descending": "Descending order",
+      "rows_per_page": "Per page",
+      "empty_title": "No reservations to display",
+      "empty_description": "Upcoming reservations will appear here with their service, client, and status.",
+      "empty_filtered": "No reservation matches the current filters. Clear them to return to the complete list."
+    },
     "owner_only": {
       "staff_notice": "Solo growth keeps reservations in limited mode: view existing reservations, manage the waitlist, and configure global settings, but staff-based booking stays disabled.",
       "client_notice": "This solo workspace does not offer live appointment slots yet. Join the waitlist instead and the business can follow up manually.",
@@ -97,6 +121,7 @@
       "when": "Date/time",
       "customer": "Customer",
       "item": "Product/service",
+      "source": "Source",
       "status": "Status",
       "size_qty": "Size / Qty",
       "contact": "Contact",
@@ -429,6 +454,7 @@
     },
     "errors": {
       "load_events": "Unable to load reservation events.",
+      "load_list": "Unable to refresh the reservation list.",
       "load_slots": "Unable to load available slots.",
       "cancel": "Unable to cancel this reservation.",
       "create": "Unable to create reservation.",

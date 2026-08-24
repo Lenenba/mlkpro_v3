@@ -77,6 +77,7 @@ final class DemoTeamCatalogGenerator
 
         $owner->forceFill([
             'name' => 'Maya Koné',
+            'profile_picture' => '/images/presets/avatar-1.svg',
             'locale' => 'fr',
             'currency_code' => (string) ($identity['currency_code'] ?? 'CAD'),
             'phone_number' => $identity['phone'] ?? null,
@@ -157,6 +158,7 @@ final class DemoTeamCatalogGenerator
                 ? $owner
                 : User::query()->create([
                     'name' => (string) $profile['name'],
+                    'profile_picture' => '/images/presets/avatar-'.(($index % 4) + 1).'.svg',
                     'email' => sprintf('%s-%d@studio-naya.example', Str::slug((string) $profile['name']), $context->workspace->id),
                     'password' => Hash::make('password'),
                     'role_id' => $employeeRole->id,
@@ -440,6 +442,9 @@ final class DemoTeamCatalogGenerator
                 'stock' => 0,
                 'minimum_stock' => 0,
                 'price' => (float) $definition['price'],
+                'image' => in_array((string) $definition['category_key'], ['protective_styles', 'color', 'hair_care'], true)
+                    ? 'images/landing/stock/beauty-treatment.jpg'
+                    : 'images/landing/stock/salon-front-desk.jpg',
                 'currency_code' => 'CAD',
                 'unit' => 'service',
                 'cost_price' => round((float) $definition['price'] * 0.32, 2),
@@ -478,6 +483,9 @@ final class DemoTeamCatalogGenerator
                 'stock' => 0,
                 'minimum_stock' => (int) $definition['reorder_threshold'],
                 'price' => (float) $definition['price'],
+                'image' => (string) $definition['category_key'] === 'barber'
+                    ? 'images/landing/stock/salon-front-desk.jpg'
+                    : 'images/landing/stock/beauty-treatment.jpg',
                 'currency_code' => 'CAD',
                 'sku' => 'NAYA-'.Str::upper(Str::replace('_', '-', (string) $definition['key'])),
                 'unit' => (string) $definition['unit'],

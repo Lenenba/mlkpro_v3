@@ -870,6 +870,7 @@ it('serializes tenant-safe reservation list rows and limits notes to managers', 
     $customer->forceFill([
         'phone' => '+15145550901',
         'description' => 'CUSTOMER LIST SECRET',
+        'logo' => 'customers/safe-list-client.jpg',
     ])->save();
     $prospect = LeadRequest::query()->create([
         'user_id' => $owner->id,
@@ -895,8 +896,12 @@ it('serializes tenant-safe reservation list rows and limits notes to managers', 
         'unit' => 'service',
         'item_type' => Product::ITEM_TYPE_SERVICE,
         'is_active' => true,
+        'image' => 'services/safe-list-service.jpg',
         'stripe_product_id' => 'SERVICE LIST SECRET',
     ]);
+    $managerMember->user()->firstOrFail()->forceFill([
+        'profile_picture' => 'avatars/safe-list-manager.jpg',
+    ])->save();
 
     $foreignOwner = createOwnerWithReservationsEnabled([
         'name' => 'Foreign List Owner',
@@ -1030,13 +1035,35 @@ it('serializes tenant-safe reservation list rows and limits notes to managers', 
     $this->assertArrayNotHasKey('internal_notes', $viewerRow);
     $this->assertArrayNotHasKey('client_notes', $viewerRow);
     $this->assertSame(
-        ['id', 'first_name', 'last_name', 'company_name'],
+        ['id', 'display_name', 'first_name', 'last_name', 'company_name', 'avatar_url'],
         array_keys($managerRow['client'])
     );
+    $this->assertSame('Safe List Client', $managerRow['client']['display_name']);
+    $this->assertStringEndsWith('/storage/customers/safe-list-client.jpg', $managerRow['client']['avatar_url']);
     $this->assertSame(['id', 'contact_name'], array_keys($managerRow['prospect']));
-    $this->assertSame(['id', 'name'], array_keys($managerRow['service']));
-    $this->assertSame(['id', 'title', 'user'], array_keys($managerRow['team_member']));
+    $this->assertSame(['id', 'name', 'image_url', 'has_image'], array_keys($managerRow['service']));
+    $this->assertTrue($managerRow['service']['has_image']);
+    $this->assertStringEndsWith('/storage/services/safe-list-service.jpg', $managerRow['service']['image_url']);
+    $this->assertSame(['id', 'name', 'title', 'avatar_url', 'user'], array_keys($managerRow['team_member']));
+    $this->assertSame('Safe List Manager', $managerRow['team_member']['name']);
+    $this->assertStringEndsWith('/storage/avatars/safe-list-manager.jpg', $managerRow['team_member']['avatar_url']);
     $this->assertSame(['name'], array_keys($managerRow['team_member']['user']));
+    $this->assertSame([
+        'can_view' => true,
+        'can_edit' => true,
+        'can_delete' => true,
+        'can_update_status' => true,
+        'can_convert' => false,
+        'allowed_status_transitions' => [Reservation::STATUS_PENDING, Reservation::STATUS_CANCELLED],
+    ], $managerRow['permissions']);
+    $this->assertSame([
+        'can_view' => true,
+        'can_edit' => false,
+        'can_delete' => false,
+        'can_update_status' => false,
+        'can_convert' => false,
+        'allowed_status_transitions' => [],
+    ], $viewerRow['permissions']);
 
     $hostileRow = collect($managerPage['data'])->firstWhere('id', $hostileRelationReservation->id);
     $this->assertNull($hostileRow['team_member_id']);
@@ -1073,7 +1100,212 @@ it('serializes tenant-safe reservation list rows and limits notes to managers', 
         foreach ($rows as $row) {
             $this->assertArrayNotHasKey('account_id', $row);
             $this->assertArrayNotHasKey('metadata', $row);
+            $this->assertArrayNotHasKey('image', $row['service'] ?? []);
+            $this->assertArrayNotHasKey('logo', $row['client'] ?? []);
+            $this->assertArrayNotHasKey('profile_picture', $row['team_member'] ?? []);
         }
+    }
+
+    foreach ([
+        ['search' => 'FOREIGN LIST CLIENT SECRET'],
+        ['search' => 'FOREIGN LIST SERVICE SECRET'],
+        ['search' => 'FOREIGN LIST PROSPECT SECRET'],
+        ['team_member_id' => $foreignMember->id],
+        ['service_id' => $foreignService->id],
+    ] as $hostileFilters) {
+        $this->actingAs($owner)
+            ->withSession(['two_factor_passed' => true])
+            ->getJson(route('reservation.index', ['scope' => 'all', ...$hostileFilters]))
+            ->assertOk()
+            ->assertJsonPath('reservations.total', 0);
+    }
+});
+
+it('applies every supported reservation list sort deterministically and keeps pagination ties stable', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $members = [
+        createTeamMemberForAccount($owner, [
+            'user_name' => 'Charlie Stylist',
+            'user_email' => 'sort.charlie@example.com',
+        ]),
+        createTeamMemberForAccount($owner, [
+            'user_name' => 'Alice Stylist',
+            'user_email' => 'sort.alice@example.com',
+        ]),
+        createTeamMemberForAccount($owner, [
+            'user_name' => 'Bob Stylist',
+            'user_email' => 'sort.bob@example.com',
+        ]),
+    ];
+    $clients = [
+        createClientForAccount($owner, 'Zulu Client', 'sort.zulu@example.com')[1],
+        createClientForAccount($owner, 'Alpha Client', 'sort.alpha@example.com')[1],
+        createClientForAccount($owner, 'Mike Client', 'sort.mike@example.com')[1],
+    ];
+    $category = ProductCategory::query()->create([
+        'name' => 'Sortable services',
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+    ]);
+    $services = collect(['Beta Service', 'Gamma Service', 'Alpha Service'])
+        ->map(fn (string $name) => Product::query()->create([
+            'name' => $name,
+            'category_id' => $category->id,
+            'user_id' => $owner->id,
+            'stock' => 0,
+            'minimum_stock' => 0,
+            'price' => 80,
+            'unit' => 'service',
+            'item_type' => Product::ITEM_TYPE_SERVICE,
+            'is_active' => true,
+        ]));
+    $startsAt = Carbon::parse('2026-10-14 14:00:00', 'UTC');
+    $statuses = [
+        Reservation::STATUS_COMPLETED,
+        Reservation::STATUS_PENDING,
+        Reservation::STATUS_CONFIRMED,
+    ];
+    $reservations = collect(range(0, 2))->map(fn (int $index) => Reservation::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $members[$index]->id,
+        'client_id' => $clients[$index]->id,
+        'service_id' => $services[$index]->id,
+        'status' => $statuses[$index],
+        'source' => Reservation::SOURCE_STAFF,
+        'timezone' => 'UTC',
+        'starts_at' => $startsAt,
+        'ends_at' => $startsAt->copy()->addHour(),
+        'duration_minutes' => 60,
+        'buffer_minutes' => 0,
+    ]));
+    [$first, $second, $third] = $reservations->all();
+
+    $expectedBySort = [
+        'date_asc' => [$first->id, $second->id, $third->id],
+        'date_desc' => [$third->id, $second->id, $first->id],
+        'status' => [$second->id, $third->id, $first->id],
+        'status_asc' => [$second->id, $third->id, $first->id],
+        'status_desc' => [$first->id, $third->id, $second->id],
+        'client_asc' => [$second->id, $third->id, $first->id],
+        'client_desc' => [$first->id, $third->id, $second->id],
+        'service_asc' => [$third->id, $first->id, $second->id],
+        'service_desc' => [$second->id, $first->id, $third->id],
+        'team_member_asc' => [$second->id, $third->id, $first->id],
+        'team_member_desc' => [$first->id, $third->id, $second->id],
+    ];
+
+    foreach ($expectedBySort as $sort => $expectedIds) {
+        $response = $this->actingAs($owner)
+            ->withSession(['two_factor_passed' => true])
+            ->getJson(route('reservation.index', [
+                'scope' => 'all',
+                'view_mode' => 'list',
+                'sort' => $sort,
+                'per_page' => 5,
+            ]))
+            ->assertOk()
+            ->assertJsonPath('filters.sort', $sort);
+
+        $this->assertSame($expectedIds, collect($response->json('reservations.data'))->pluck('id')->all(), $sort);
+    }
+
+    $extraReservations = collect(range(1, 3))->map(fn () => Reservation::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $members[0]->id,
+        'status' => Reservation::STATUS_CONFIRMED,
+        'source' => Reservation::SOURCE_STAFF,
+        'timezone' => 'UTC',
+        'starts_at' => $startsAt,
+        'ends_at' => $startsAt->copy()->addHour(),
+        'duration_minutes' => 60,
+        'buffer_minutes' => 0,
+    ]));
+    $allIds = $reservations->concat($extraReservations)->pluck('id')->all();
+
+    $pageOne = $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.index', [
+            'scope' => 'all',
+            'sort' => 'date_asc',
+            'per_page' => 5,
+            'page' => 1,
+        ]))
+        ->assertOk();
+    $pageTwo = $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.index', [
+            'scope' => 'all',
+            'sort' => 'date_asc',
+            'per_page' => 5,
+            'page' => 2,
+        ]))
+        ->assertOk();
+
+    $this->assertSame($allIds, [
+        ...collect($pageOne->json('reservations.data'))->pluck('id')->all(),
+        ...collect($pageTwo->json('reservations.data'))->pluck('id')->all(),
+    ]);
+});
+
+it('applies reservation list date and today filters in the account timezone across DST', function () {
+    Carbon::setTestNow(Carbon::parse('2026-03-08 16:00:00', 'UTC'));
+
+    try {
+        $owner = createOwnerWithReservationsEnabled([
+            'company_timezone' => 'America/Toronto',
+        ]);
+        $member = createTeamMemberForAccount($owner);
+        $instants = [
+            Carbon::parse('2026-03-07 23:30:00', 'America/Toronto')->utc(),
+            Carbon::parse('2026-03-08 00:30:00', 'America/Toronto')->utc(),
+            Carbon::parse('2026-03-08 23:30:00', 'America/Toronto')->utc(),
+            Carbon::parse('2026-03-09 00:30:00', 'America/Toronto')->utc(),
+        ];
+        $reservations = collect($instants)->map(fn (Carbon $startsAt) => Reservation::query()->create([
+            'account_id' => $owner->id,
+            'team_member_id' => $member->id,
+            'status' => Reservation::STATUS_CONFIRMED,
+            'source' => Reservation::SOURCE_STAFF,
+            'timezone' => 'America/Toronto',
+            'starts_at' => $startsAt,
+            'ends_at' => $startsAt->copy()->addMinutes(30),
+            'duration_minutes' => 30,
+            'buffer_minutes' => 0,
+        ]));
+        $expectedTodayIds = [$reservations[1]->id, $reservations[2]->id];
+
+        $dateResponse = $this->actingAs($owner)
+            ->withSession(['two_factor_passed' => true])
+            ->getJson(route('reservation.index', [
+                'scope' => 'all',
+                'date_from' => '2026-03-08',
+                'date_to' => '2026-03-08',
+                'sort' => 'date_asc',
+            ]))
+            ->assertOk()
+            ->assertJsonPath('stats.today', 2)
+            ->assertJsonPath('quickCounts.today', 2);
+
+        $this->assertSame(
+            $expectedTodayIds,
+            collect($dateResponse->json('reservations.data'))->pluck('id')->all()
+        );
+
+        $quickResponse = $this->actingAs($owner)
+            ->withSession(['two_factor_passed' => true])
+            ->getJson(route('reservation.index', [
+                'scope' => 'all',
+                'quick' => 'today',
+                'sort' => 'date_asc',
+            ]))
+            ->assertOk();
+
+        $this->assertSame(
+            $expectedTodayIds,
+            collect($quickResponse->json('reservations.data'))->pluck('id')->all()
+        );
+    } finally {
+        Carbon::setTestNow();
     }
 });
 
@@ -1649,6 +1881,20 @@ it('allows assigned team members to update only their reservation status', funct
             'status' => Reservation::STATUS_CONFIRMED,
         ])
         ->assertForbidden();
+
+    $listPayload = $this->actingAs($assignedUser)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.index'))
+        ->assertOk()
+        ->assertJsonPath('reservations.total', 1)
+        ->json('reservations.data.0');
+
+    $this->assertTrue($listPayload['permissions']['can_view']);
+    $this->assertFalse($listPayload['permissions']['can_edit']);
+    $this->assertFalse($listPayload['permissions']['can_delete']);
+    $this->assertTrue($listPayload['permissions']['can_update_status']);
+    $this->assertArrayNotHasKey('internal_notes', $listPayload);
+    $this->assertArrayNotHasKey('client_notes', $listPayload);
 });
 
 it('allows reservation-managers to access reservations settings and all reservations without jobs/tasks edit permissions', function () {

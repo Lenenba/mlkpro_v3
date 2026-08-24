@@ -64,14 +64,14 @@ herd php artisan storage:link
 
 # Terminal 2 — OBLIGATOIRE : le provisioning de démo, les emails et les
 # notifications passent par la file (QUEUE_CONNECTION=database)
-herd php artisan queue:workloads development --memory=512
+herd php -d memory_limit=512M artisan queue:workloads development --memory=512
 
 # Terminal 3 — assets
 npm run dev        # tournage en local
 # ou npm run build  # si tu veux le rendu production (recommandé pour la vidéo)
 ```
 
-> ⚠️ **Sans le worker `queue:workloads development --memory=512`, la création d'un espace de démo reste bloquée en « En attente » et aucun email ne part.** C'est le piège n°1 le jour du tournage.
+> ⚠️ **Sans le worker `php -d memory_limit=512M artisan queue:workloads development --memory=512`, la création d'un espace de démo reste bloquée en « En attente » et aucun email ne part.** C'est le piège n°1 le jour du tournage.
 
 ## 1.2 Choisir ta stratégie d'espace de démo
 
@@ -132,7 +132,7 @@ Le module réservation prend tout son sens quand on voit **plusieurs points de v
 
 | Symptôme | Cause | Correctif |
 |---|---|---|
-| Espace de démo bloqué « en attente » | Pas de queue worker | `herd php artisan queue:workloads development --memory=512` |
+| Espace de démo bloqué « en attente » | Pas de queue worker | `herd php -d memory_limit=512M artisan queue:workloads development --memory=512` |
 | Pas de bouton « Ouvrir le kiosque » | Mode file hybride désactivé | Paramètres → Réservations → *Activer le mode file hybride* |
 | Aucun créneau proposé au client | Pas de disponibilité hebdo définie | Paramètres → Réservations → Disponibilités hebdomadaires |
 | Menu Réservations absent | Feature `reservations` inactive | Le secteur doit être `salon` (ou activer la feature côté Super Admin → Espaces → Features) |

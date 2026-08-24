@@ -1,0 +1,477 @@
+{
+  "customers": {
+    "title": "Customers",
+    "stats": {
+      "total": "Total customers",
+      "new": "New (30 days)",
+      "new_this_month": "New this month",
+      "active": "Active customers",
+      "inactive": "Inactive customers",
+      "vip": "VIP customers",
+      "no_next_appointment": "No next appointment",
+      "outstanding": "Outstanding balances",
+      "customers_count": "{count} customer(s)",
+      "recent_cancellations": "Recent cancellations",
+      "recent_no_shows": "Missed appointments",
+      "return_rate": "Return rate",
+      "average_value_per_customer": "Average value per customer",
+      "average_appointments_per_customer": "Average appointments per customer",
+      "with_quotes": "With quotes",
+      "with_jobs": "With jobs"
+    },
+    "kpis": {
+      "title": "Customer indicators",
+      "show_more": "Show more indicators",
+      "show_less": "Show fewer indicators",
+      "apply_filter": "Filter by {label}",
+      "remove_filter": "Remove the {label} filter"
+    },
+    "filter_summary": {
+      "title": "Filter summary",
+      "results": "{count} customer(s)",
+      "updating": "Updating…",
+      "active_count": "{count} active criterion/criteria",
+      "mode_label": "Quick-filter combination mode",
+      "modes": {
+        "all": "All criteria",
+        "any": "At least one criterion"
+      },
+      "quick_filters_label": "Customer quick filters",
+      "search_badge": "Search: {value}",
+      "filter_badge": "{label}: {value}",
+      "remove": "Remove {label}",
+      "clear_all": "Clear filters"
+    },
+    "advanced_filters": {
+      "title": "Advanced filters",
+      "description": "Refine the list by profile, appointments, billing, or period.",
+      "close": "Close advanced filters",
+      "reset": "Reset",
+      "apply": "Apply filters",
+      "trigger_active": "Filters ({count})",
+      "draft_count": "{count} draft criterion/criteria",
+      "current_results": "{count} current result(s)",
+      "sections": {
+        "profile": "Customer profile",
+        "appointments": "Appointments",
+        "billing": "Billing",
+        "period": "Period"
+      },
+      "options": {
+        "any": "Any",
+        "yes": "Yes",
+        "no": "No"
+      },
+      "fields": {
+        "city": "City",
+        "country": "Country",
+        "has_quotes": "Has a quote",
+        "has_works": "Has a job",
+        "status": "Status",
+        "client_type": "Customer type",
+        "is_vip": "VIP customer",
+        "vip": "VIP customer",
+        "vip_tier_id": "VIP tier",
+        "vip_tier": "VIP tier",
+        "acquisition_source": "Acquisition source",
+        "tags": "Tags",
+        "tags_hint": "Separate tags with commas",
+        "has_active_package": "Has an active package",
+        "package_status": "Package status",
+        "package_remaining_lte": "Maximum package balance",
+        "package_expires_within_days": "Package expiry (days)",
+        "package_is_recurring": "Recurring package",
+        "package_recurrence_status": "Recurrence status",
+        "has_upcoming_appointment": "Has an upcoming appointment",
+        "upcoming_appointment": "Upcoming appointment",
+        "last_appointment_from": "Last appointment from",
+        "last_appointment_to": "Last appointment to",
+        "next_appointment_from": "Next appointment from",
+        "next_appointment_to": "Next appointment to",
+        "appointments_min": "Minimum appointments",
+        "appointments_max": "Maximum appointments",
+        "cancellations_min": "Minimum cancellations",
+        "no_shows_min": "Minimum missed appointments",
+        "has_outstanding_balance": "Has an outstanding balance",
+        "outstanding_balance": "Outstanding balance",
+        "outstanding_min": "Minimum outstanding balance",
+        "outstanding_max": "Maximum outstanding balance",
+        "total_invoiced_min": "Minimum total invoiced",
+        "total_invoiced_max": "Maximum total invoiced",
+        "last_invoice_from": "Last invoice from",
+        "last_invoice_to": "Last invoice to",
+        "payment_statuses": "Payment statuses",
+        "created_from": "Created from",
+        "created_to": "Created to"
+      },
+      "payment_statuses": {
+        "pending": "Pending",
+        "paid": "Paid",
+        "completed": "Completed",
+        "failed": "Failed",
+        "refunded": "Refunded",
+        "reversed": "Reversed"
+      }
+    },
+    "states": {
+      "empty": {
+        "title": "No customers",
+        "description": "Add a customer to start building your directory.",
+        "action": "Add customer"
+      },
+      "no-results": {
+        "title": "No results",
+        "description": "No customer matches the active criteria.",
+        "action": "Clear filters"
+      },
+      "error": {
+        "title": "Unable to load customers",
+        "description": "An error occurred while updating the list.",
+        "action": "Try again"
+      }
+    },
+    "accessibility": {
+      "select_all": "Select all visible customers",
+      "select_customer": "Select {name}"
+    },
+    "activity": {
+      "title": "Top customer activity",
+      "subtitle": "Quotes + jobs activity",
+      "subtitle_quotes": "Quote activity",
+      "subtitle_jobs": "Job activity",
+      "actions": "{count} actions",
+      "empty": "No customer activity yet.",
+      "quotes_short": "q",
+      "jobs_short": "j"
+    },
+    "view": {
+      "table": "Table",
+      "cards": "Cards"
+    },
+    "appointment": {
+      "search_placeholder": "Search by name, email, or phone",
+      "table": {
+        "client": "Customer",
+        "status": "Status",
+        "last_visit": "Last visit",
+        "next_appointment": "Next appointment",
+        "usual_team_member": "Usual team member",
+        "loyalty_package": "Loyalty / package",
+        "customer_value": "Customer value",
+        "actions": "Actions"
+      },
+      "quick_filters": {
+        "all": "All",
+        "vip": "VIP",
+        "new": "New",
+        "new_this_month": "New this month",
+        "no_next_appointment": "No next appointment",
+        "upcoming_appointment": "Upcoming appointment",
+        "outstanding_balance": "Outstanding balance",
+        "inactive": "Inactive",
+        "follow_up_90": "Follow up (90 days)",
+        "package_low": "Package nearly used",
+        "unpaid": "Unpaid balance",
+        "birthday_upcoming": "Upcoming birthdays"
+      },
+      "lifecycle": {
+        "new": "New",
+        "active": "Active",
+        "follow_up": "Follow up",
+        "inactive": "Inactive"
+      },
+      "labels": {
+        "vip": "VIP",
+        "service_unknown": "Service not specified",
+        "no_visit": "No visit yet",
+        "unassigned": "Unassigned",
+        "no_next_appointment": "No upcoming appointment",
+        "no_usual_team_member": "No usual team member",
+        "loyalty_points": "{count} points",
+        "package_remaining": "{count} session(s) remaining",
+        "total_spent": "Spent",
+        "tip_total": "Tips",
+        "unpaid_balance": "Balance",
+        "no_unpaid_balance": "No outstanding balance"
+      },
+      "actions": {
+        "book": "Book appointment",
+        "billing": "Billing",
+        "checkout": "Collect payment",
+        "email": "Send email",
+        "call": "Call"
+      }
+    },
+    "filters": {
+      "search_placeholder": "Search name, company, email, or phone",
+      "city": "City",
+      "country": "Country",
+      "quotes": "Quotes",
+      "requests": "Requests",
+      "jobs": "Jobs",
+      "status": "Status",
+      "created_from": "Created from",
+      "created_to": "Created to",
+      "with_quotes": "With quotes",
+      "no_quotes": "No quotes",
+      "with_jobs": "With jobs",
+      "no_jobs": "No jobs",
+      "active_package": "Active package",
+      "with_active_package": "With active package",
+      "no_active_package": "No active package",
+      "package_status": "Package status",
+      "package_remaining_lte": "Package balance <= ",
+      "package_expires_within_days": "Expires within N days",
+      "package_recurrence": "Package recurrence",
+      "package_recurring": "Recurring package",
+      "package_non_recurring": "Non-recurring package",
+      "package_recurrence_status": "Recurrence status"
+    },
+    "saved_segments": {
+      "title": "Saved segments",
+      "manage": "Create / manage",
+      "summary_empty": "No segment selected",
+      "selected_label": "Active segment",
+      "snapshot_label": "Current snapshot",
+      "dialog_hint": "Apply an existing segment or save the current filter state.",
+      "selection_panel": "Apply a segment",
+      "management_panel": "Save current state",
+      "select_label": "Saved segment",
+      "select_placeholder": "Choose a segment",
+      "name_label": "Segment name",
+      "name_placeholder": "Ex. Active Montreal customers",
+      "apply": "Apply",
+      "save_current": "Save filters",
+      "update_selected": "Update",
+      "delete_selected": "Delete",
+      "cached_count": "{count} cached",
+      "updated_at": "Updated {value}",
+      "current_snapshot_ready": "The current filter snapshot is ready to save.",
+      "empty_state": "No saved segments yet.",
+      "info_created": "Saved segment created.",
+      "info_updated": "Saved segment updated.",
+      "info_deleted": "Saved segment deleted.",
+      "error_load": "Unable to load saved segments.",
+      "error_save": "Unable to save this segment.",
+      "error_delete": "Unable to delete this segment.",
+      "confirm_delete": "Delete saved segment \"{name}\"?"
+    },
+    "bulk": {
+      "title": "Bulk actions",
+      "enable_portal": "Enable portal access",
+      "disable_portal": "Disable portal access",
+      "delete_confirm": "Delete selected customers?"
+    },
+    "bulk_contact": {
+      "action": "Contact selected",
+      "title": "Contact selected customers",
+      "subtitle": "Send an email or SMS directly from the customer list.",
+      "selection_summary": "{count} customer(s) selected",
+      "fields": {
+        "objective": "Objective",
+        "channel": "Channel",
+        "template": "Saved template",
+        "offer": "Product or service",
+        "subject": "Subject",
+        "body": "Message"
+      },
+      "objectives": {
+        "payment_followup": "Payment follow-up",
+        "promotion": "Promotion",
+        "announcement": "Announcement",
+        "manual_message": "Manual message"
+      },
+      "channels": {
+        "email": "Email",
+        "sms": "SMS"
+      },
+      "payment_followup_hint": "If subject or message stay empty, a suggested reminder will be used.",
+      "template_hint_email": "You can keep the suggested Malikia template or apply a saved template from Campaigns.",
+      "template_applied_hint": "The saved template is applied. You can still adjust the content before sending.",
+      "template_default_option": "No saved template",
+      "clear_template": "Clear template",
+      "loading_templates": "Loading templates...",
+      "no_templates": "No saved template is available for this channel or objective.",
+      "template_load_error": "Unable to load marketing templates right now.",
+      "offer_search_placeholder": "Search for a product or service to promote",
+      "no_offer_results": "No product or service matches this search.",
+      "clear_offer": "Clear",
+      "offer_required_hint": "For a promotion, select the offer you want to highlight.",
+      "loading_offers": "Searching catalog...",
+      "body_required_hint": "A message is required for this send.",
+      "sms_length": "{count} characters",
+      "preview_title": "Recipient preview",
+      "preview_subtitle": "The system checks eligible recipients before sending.",
+      "preview": {
+        "selected": "Selected",
+        "eligible": "Eligible",
+        "excluded": "Excluded",
+        "selected_offer": "Selected offer",
+        "reasons_title": "Main exclusion reasons",
+        "eligible_examples": "Eligible examples",
+        "excluded_examples": "Excluded examples",
+        "invoice_summary": "{count} open invoice(s), {amount} {currency}"
+      },
+      "actions": {
+        "refresh_preview": "Refresh preview",
+        "refreshing": "Refreshing...",
+        "close": "Close",
+        "send": "Send",
+        "sending": "Sending..."
+      },
+      "preview_error": "Unable to validate recipients right now.",
+      "send_error": "Unable to send this bulk message.",
+      "result_summary": "Sent: {sent}, failed: {failed}, skipped: {skipped}",
+      "result": {
+        "processed": "Processed",
+        "sent": "Sent",
+        "failed": "Failed",
+        "skipped": "Skipped",
+        "reasons_title": "Main reasons",
+        "failures_title": "Delivery issues"
+      },
+      "tokens_title": "Available tokens",
+      "tokens_hint": "You can use these tokens in the subject or message.",
+      "reasons": {
+        "channel_disabled": "Channel disabled",
+        "missing_destination": "Missing or invalid destination",
+        "no_open_invoices": "No open invoices",
+        "consent_missing": "Missing consent",
+        "consent_revoked": "Consent revoked",
+        "opted_out": "Recipient opted out",
+        "quiet_hours": "Blocked during quiet hours",
+        "fatigue_limit": "Fatigue limit reached",
+        "mail_exception": "Email send failed",
+        "sms_error": "SMS send failed",
+        "invalid_recipient": "Invalid recipient",
+        "send_failed": "Send failed"
+      },
+      "tokens_map": {
+        "customerName": "Customer full name",
+        "firstName": "Customer first name",
+        "companyName": "Customer company",
+        "customerEmail": "Customer email",
+        "customerPhone": "Customer phone",
+        "unpaidInvoiceCount": "Open invoice count",
+        "balanceDue": "Balance due",
+        "offerName": "Offer name",
+        "offerPrice": "Offer price",
+        "offerUrl": "Offer link",
+        "offerImageUrl": "Offer image",
+        "promoPercent": "Promotion percent",
+        "promoCode": "Promotion code",
+        "promoEndDate": "Promotion end date",
+        "productName": "Product name",
+        "serviceName": "Service name",
+        "brandName": "Your company name",
+        "brandReplyToEmail": "Reply-to email",
+        "brandPhone": "Company phone"
+      },
+      "template_types": {
+        "general": "General",
+        "promotion": "Promotion",
+        "announcement": "Announcement"
+      },
+      "offer_types": {
+        "product": "Product",
+        "service": "Service"
+      },
+      "campaign_bridge": {
+        "title": "Reuse this selection in marketing",
+        "subtitle": "Add the selected customers to a mailing list or open the Campaigns wizard directly with this audience.",
+        "existing_label": "Existing mailing list",
+        "existing_placeholder": "Choose an existing mailing list",
+        "new_label": "New mailing list",
+        "helper": "If an existing mailing list is selected, the chosen customers will be added to it. Otherwise a new list will be created for the Campaigns handoff.",
+        "loading_lists": "Loading mailing lists...",
+        "actions": {
+          "add_to_existing": "Add to list",
+          "create_list": "Create list",
+          "open_campaigns": "Open in Campaigns",
+          "opening_campaigns": "Opening Campaigns..."
+        },
+        "messages": {
+          "saved_existing": "{added} customers added to {list}. Already present: {alreadyPresent}. Total: {total}.",
+          "created": "Mailing list {list} was created with {total} customers."
+        },
+        "errors": {
+          "load_lists": "Unable to load marketing mailing lists right now.",
+          "save_selection": "Unable to add this selection to the chosen mailing list.",
+          "create_list": "Unable to create a mailing list for this selection.",
+          "open_campaign": "Unable to open Campaigns with this audience right now."
+        },
+        "default_names": {
+          "promotion": "Promotion audience",
+          "announcement": "Announcement audience",
+          "payment_followup": "Payment follow-up audience",
+          "manual_message": "Customer audience"
+        }
+      }
+    },
+    "table": {
+      "company": "Company",
+      "contact": "Contact",
+      "phone": "Phone",
+      "city": "City",
+      "quotes": "Quotes",
+      "jobs": "Jobs",
+      "created": "Created"
+    },
+    "empty": {
+      "title": "No customers",
+      "subtitle": "Add a customer to start your database.",
+      "action": "Add customer"
+    },
+    "pagination": {
+      "previous": "Previous",
+      "next": "Next",
+      "of": "of",
+      "results": "results"
+    },
+    "status": {
+      "active": "Active",
+      "archived": "Archived"
+    },
+    "actions": {
+      "filters": "Filters",
+      "clear": "Clear",
+      "add_customer": "Add customer",
+      "archive": "Archive",
+      "restore": "Restore",
+      "delete_confirm": "Delete \"{name}\"?",
+      "archive_confirm": "{action} \"{name}\"?",
+      "view": "View"
+    },
+    "labels": {
+      "selected": "{count} selected",
+      "customer_initial": "C",
+      "unknown_city": "Unknown city",
+      "quotes": "Quotes",
+      "jobs": "Jobs",
+      "created": "Created"
+    },
+    "details": {
+      "preview": {
+        "title": "Customer overview",
+        "quotes": "Quotes",
+        "active_jobs": "Active jobs",
+        "jobs": "Jobs",
+        "invoices": "Invoices",
+        "requests": "Requests",
+        "balance_due": "Balance due",
+        "latest_quote": "Latest quote",
+        "quote_number": "Quote {number}",
+        "quote_fallback": "Quote",
+        "total": "Total",
+        "no_quotes": "No quotes.",
+        "latest_job": "Latest job",
+        "job_fallback": "Job",
+        "no_jobs": "No jobs.",
+        "latest_invoice": "Latest invoice",
+        "invoice_number": "Invoice {number}",
+        "invoice_fallback": "Invoice",
+        "no_invoices": "No invoices."
+      }
+    }
+  }
+}

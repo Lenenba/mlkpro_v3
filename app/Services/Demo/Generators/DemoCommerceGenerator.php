@@ -38,6 +38,7 @@ final class DemoCommerceGenerator
         private readonly SalePaymentService $salePaymentService,
         private readonly AccountingSyncService $accountingSyncService,
         private readonly FinanceApprovalService $financeApprovalService,
+        private readonly DemoOfferPackageGenerator $offerPackageGenerator,
     ) {}
 
     /**
@@ -62,6 +63,10 @@ final class DemoCommerceGenerator
         Collection $products,
         Collection $reservationIds,
     ): array {
+        $generateImmersiveOffers = (int) ($targets['offer_packages'] ?? 0) > 0;
+        if ($generateImmersiveOffers) {
+            $this->offerPackageGenerator->configureLoyaltyProgram($context);
+        }
         $invoiceSummary = $this->createInvoicesAndPayments(
             $context,
             $targets,
@@ -93,6 +98,18 @@ final class DemoCommerceGenerator
             (int) ($targets['expenses'] ?? 0),
             $teamMembers,
         );
+        $offerPackages = $generateImmersiveOffers
+            ? $this->offerPackageGenerator->generate(
+                $context,
+                $blueprint,
+                $targets,
+                $customers,
+                $storyCustomers,
+                $services,
+                $products,
+                $reservationIds,
+            )
+            : [];
         $this->recordNarrativeTimelines($context, $blueprint, $storyCustomers);
         $notifications = $this->createNotifications(
             $context,
@@ -106,6 +123,7 @@ final class DemoCommerceGenerator
         return [
             ...$invoiceSummary,
             ...$quoteSummary,
+            ...$offerPackages,
             'sales' => $sales,
             'expenses' => $expenses,
             'notifications' => $notifications,

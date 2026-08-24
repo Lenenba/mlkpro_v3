@@ -25,6 +25,7 @@ test('maps known page components to their shell and business domains', () => {
     const quoteDomains = getDomainsForPage('Quote/Create');
     const publicInvoiceDomains = getDomainsForPage('Public/InvoicePay');
     const authDomains = getDomainsForPage('Auth/Login');
+    const customerIndexDomains = getDomainsForPage('Customer/Index');
     const customerShowDomains = getDomainsForPage('Customer/Show');
     const dashboardDomains = getDomainsForPage('Dashboard');
     const onboardingDomains = getDomainsForPage('Onboarding/Index');
@@ -38,7 +39,12 @@ test('maps known page components to their shell and business domains', () => {
     assert.equal(authDomains.includes('two_factor'), true);
     assert.equal(authDomains.includes('alerts'), true);
     assert.equal(authDomains.includes('cookies'), true);
+    assert.equal(customerIndexDomains.includes('customer_index'), true);
+    assert.equal(customerIndexDomains.includes('customers'), true);
+    assert.equal(customerIndexDomains.includes('marketing'), true);
+    assert.equal(getDomainsForPage('Customer/Create').includes('customer_index'), false);
     assert.equal(customerShowDomains.includes('service_requests'), true);
+    assert.equal(customerShowDomains.includes('customer_index'), false);
     assert.equal(getDomainsForPage('DashboardClient').includes('dashboard'), true);
     assert.equal(getDomainsForPage('SuperAdmin/Announcements/Preview').includes('dashboard'), true);
     assert.equal(dashboardDomains.includes('settings'), true);

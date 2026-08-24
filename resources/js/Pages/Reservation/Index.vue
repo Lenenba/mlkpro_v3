@@ -16,10 +16,18 @@ import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
 import ReservationCalendarBoard from '@/Components/Reservation/ReservationCalendarBoard.vue';
 import ReservationDetailsPanel from '@/Components/Reservation/ReservationDetailsPanel.vue';
+import ReservationListTable from '@/Components/Reservation/ReservationListTable.vue';
 import ReservationStats from '@/Components/Reservation/ReservationStats.vue';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { reservationStatusBadgeClass } from '@/Components/Reservation/status';
 import { paymentMethodLabel as resolvePaymentMethodLabel, useTenantPaymentMethods } from '@/Composables/useTenantPaymentMethods';
+import {
+    nextReservationListSort,
+    reservationListCanView,
+    reservationListSortColumn,
+    reservationListSortDirection,
+    reservationListSortValue,
+} from '@/utils/reservationList';
 
 const { t, locale } = useI18n();
 const queueStripeReturn = (() => {
@@ -149,6 +157,8 @@ const viewMode = ref(props.filters?.view_mode || 'calendar');
 const calendarEvents = ref([...(props.events || [])]);
 const calendarLoading = ref(false);
 const calendarError = ref('');
+const listLoading = ref(false);
+const listError = ref('');
 const detailsActionError = ref('');
 const detailsActionLoading = ref(false);
 const waitlistRows = ref([...(props.waitlists || [])]);
@@ -250,6 +260,7 @@ const conversionError = ref('');
 const conversionSuccess = ref('');
 let calendarAbortController = null;
 let calendarRequestSequence = 0;
+let listRequestSequence = 0;
 let detailsAbortController = null;
 let detailsRequestSequence = 0;
 let conversionAbortController = null;
@@ -360,7 +371,7 @@ const clientOptions = computed(() => [
 
 const isDateSort = computed(() => ['date_asc', 'date_desc'].includes(filterForm.sort));
 const isDateSortAsc = computed(() => filterForm.sort === 'date_asc');
-const isStatusSort = computed(() => filterForm.sort === 'status');
+const isStatusSort = computed(() => ['status', 'status_asc', 'status_desc'].includes(filterForm.sort));
 const reservationRows = computed(() => (Array.isArray(props.reservations?.data) ? props.reservations.data : []));
 const focusReservationId = computed(() => Number(props.focus_reservation_id || 0));
 const reservationLinks = computed(() => props.reservations?.links || []);
@@ -369,6 +380,14 @@ const reservationPaginationLabel = computed(() => t('reservations.pagination.sho
     from: props.reservations?.from || 0,
     to: props.reservations?.to || 0,
 }));
+const hasActiveReservationFilters = computed(() => Boolean(
+    filterForm.search
+    || filterForm.status
+    || filterForm.service_id
+    || filterForm.date_from
+    || filterForm.date_to
+    || (filterForm.scope !== 'mine' && filterForm.team_member_id)
+));
 
 const statusBadgeClass = (status) => reservationStatusBadgeClass(status);
 const waitlistBadgeStatus = (status) => {
@@ -384,17 +403,6 @@ const waitlistBadgeStatus = (status) => {
     return status;
 };
 const formatDateTime = (value) => (value ? dayjs(value).locale(dayjsLocale.value).format('DD MMM YYYY HH:mm') : '-');
-const reservationClientName = (reservation) => (
-    reservation?.client?.company_name
-    || `${reservation?.client?.first_name || ''} ${reservation?.client?.last_name || ''}`.trim()
-    || reservation?.prospect?.contact_name
-    || '-'
-);
-const reservationMemberName = (reservation) => (
-    ownerOnlyMode.value
-        ? '-'
-        : (reservation?.team_member?.user?.name || reservation?.teamMember?.user?.name || '-')
-);
 const formatMoney = (value) => Number(value || 0).toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -644,8 +652,18 @@ const loadEvents = async () => {
     }
 };
 
-const refreshList = () => {
+const refreshList = (overrides = {}) => {
     filterForm.view_mode = viewMode.value;
+    const tracksReservationList = activeDataTab.value === 'reservations' && viewMode.value === 'list';
+    const requestSequence = ++listRequestSequence;
+    const requestedPerPage = resolveDataTablePerPage(overrides?.per_page, currentPerPage.value);
+
+    if (tracksReservationList) {
+        listLoading.value = true;
+        listError.value = '';
+    } else {
+        listLoading.value = false;
+    }
 
     router.get(
         route('reservation.index'),
@@ -659,13 +677,23 @@ const refreshList = () => {
             scope: filterForm.scope || undefined,
             sort: filterForm.sort || undefined,
             view_mode: viewMode.value,
-            per_page: currentPerPage.value,
+            per_page: requestedPerPage,
         },
         {
             preserveState: true,
             preserveScroll: true,
             replace: true,
             only: ['filters', 'reservations', 'stats', 'performance', 'waitlists', 'waitlistStats', 'queueItems', 'queueStats'],
+            onError: () => {
+                if (tracksReservationList && requestSequence === listRequestSequence) {
+                    listError.value = t('reservations.errors.load_list');
+                }
+            },
+            onFinish: () => {
+                if (tracksReservationList && requestSequence === listRequestSequence) {
+                    listLoading.value = false;
+                }
+            },
         }
     );
 
@@ -843,16 +871,28 @@ const clearFilters = () => {
     filterForm.sort = 'date_asc';
 };
 
-const toggleDateSort = () => {
-    if (filterForm.sort === 'date_asc') {
-        filterForm.sort = 'date_desc';
-        return;
-    }
-    filterForm.sort = 'date_asc';
+const setReservationSort = (column) => {
+    filterForm.sort = nextReservationListSort(filterForm.sort, column);
 };
 
+const setReservationSortValue = (sort) => {
+    filterForm.sort = reservationListSortValue(
+        reservationListSortColumn(sort),
+        reservationListSortDirection(sort),
+    );
+};
+
+const setReservationPerPage = (perPage) => {
+    const normalizedPerPage = resolveDataTablePerPage(perPage, currentPerPage.value);
+
+    if (normalizedPerPage !== currentPerPage.value) {
+        refreshList({ per_page: normalizedPerPage });
+    }
+};
+
+const toggleDateSort = () => setReservationSort('date');
 const setStatusSort = () => {
-    filterForm.sort = 'status';
+    setReservationSort('status');
 };
 
 const onCalendarRangeChange = (payload) => {
@@ -991,7 +1031,7 @@ const loadReservationDetails = async (reservationId) => {
 
 const openDetails = (reservation) => {
     const id = Number(reservation?.id || 0);
-    if (!id) {
+    if (!id || !reservationListCanView(reservation)) {
         return;
     }
 
@@ -2245,138 +2285,34 @@ const removeReservation = (reservation) => {
                 @event-click="openFromEvent"
             />
 
-            <section v-else-if="activeDataTab === 'reservations'" class="p-5 space-y-4 flex flex-col border-t-4 border-t-zinc-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700">
-                <AdminDataTable
-                    embedded
-                    :rows="reservationRows"
-                    :links="reservationLinks"
-                    :show-pagination="reservationRows.length > 0"
-                    show-per-page
-                    :per-page="currentPerPage"
-                >
-                    <template #head>
-                        <tr>
-                            <th scope="col" class="min-w-52">
-                                <button
-                                    type="button"
-                                    class="flex w-full items-center gap-x-1 px-5 py-2.5 text-start text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300"
-                                    @click="toggleDateSort"
-                                >
-                                    {{ $t('reservations.table.when') }}
-                                    <svg
-                                        v-if="isDateSort"
-                                        class="size-3"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="2"
-                                        :class="isDateSortAsc ? 'rotate-180' : ''"
-                                    >
-                                        <path d="m6 9 6 6 6-6" />
-                                    </svg>
-                                </button>
-                            </th>
-                            <th scope="col" class="min-w-44 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                {{ $t('reservations.table.item') }}
-                            </th>
-                            <th scope="col" class="min-w-52 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                {{ $t('reservations.table.customer') }}
-                            </th>
-                            <th scope="col" class="min-w-40 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                {{ $t('planning.form.member') }}
-                            </th>
-                            <th scope="col" class="min-w-32">
-                                <button
-                                    type="button"
-                                    class="flex w-full items-center gap-x-1 px-5 py-2.5 text-start text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300"
-                                    @click="setStatusSort"
-                                >
-                                    {{ $t('reservations.table.status') }}
-                                    <svg
-                                        v-if="isStatusSort"
-                                        class="size-3"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="2"
-                                    >
-                                        <path d="m6 9 6 6 6-6" />
-                                    </svg>
-                                </button>
-                            </th>
-                            <th scope="col" class="min-w-20 px-5 py-2.5 text-end text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                {{ $t('reservations.table.actions') }}
-                            </th>
-                        </tr>
-                    </template>
-
-                    <template #row="{ row: reservation }">
-                        <tr>
-                            <td class="size-px whitespace-nowrap px-4 py-2">
-                                <button type="button" class="text-start hover:underline" @click="openDetails(reservation)">
-                                    <div class="text-sm text-stone-700 dark:text-neutral-200">{{ formatDateTime(reservation.starts_at) }}</div>
-                                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ formatDateTime(reservation.ends_at) }}</div>
-                                </button>
-                            </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">{{ reservation.service?.name || '-' }}</td>
-                            <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">{{ reservationClientName(reservation) }}</td>
-                            <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">{{ reservationMemberName(reservation) }}</td>
-                            <td class="size-px whitespace-nowrap px-4 py-2">
-                                <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize" :class="statusBadgeClass(reservation.status)">
-                                    {{ $t(`reservations.status.${reservation.status}`) || reservation.status?.replace(/_/g, ' ') }}
-                                </span>
-                            </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2 text-end">
-                                <AdminDataTableActions
-                                    :label="$t('reservations.table.actions')"
-                                    menu-width-class="w-32"
-                                    :trigger-test-id="`reservation-actions-trigger-${reservation.id}`"
-                                    :menu-test-id="`reservation-actions-menu-${reservation.id}`"
-                                >
-                                    <button
-                                        type="button"
-                                        class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                                        @click="openDetails(reservation)"
-                                    >
-                                        {{ $t('reservations.actions.view') }}
-                                    </button>
-                                    <button
-                                        v-if="canManageReservationActions"
-                                        type="button"
-                                        class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                                        @click="openEdit(reservation)"
-                                    >
-                                        {{ $t('reservations.actions.edit') }}
-                                    </button>
-                                    <div v-if="canManageReservationActions" class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                                    <button
-                                        v-if="canManageReservationActions"
-                                        type="button"
-                                        class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800"
-                                        @click="removeReservation(reservation)"
-                                    >
-                                        {{ $t('reservations.actions.delete') }}
-                                    </button>
-                                </AdminDataTableActions>
-                            </td>
-                        </tr>
-                    </template>
-
-                    <template #empty>
-                        <div class="rounded-sm border border-dashed border-stone-300 bg-stone-50 px-4 py-6 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
-                            {{ $t('reservations.empty') }}
-                        </div>
-                    </template>
-
-                    <template #pagination_prefix>
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">
-                            {{ reservationPaginationLabel }}
-                        </div>
-                    </template>
-                </AdminDataTable>
-            </section>
+            <ReservationListTable
+                v-else-if="activeDataTab === 'reservations'"
+                :rows="reservationRows"
+                :links="reservationLinks"
+                :total="Number(reservations?.total ?? reservationRows.length)"
+                :loading="listLoading"
+                :error="listError"
+                :can-manage="canManageReservationActions"
+                :show-team-member="!ownerOnlyMode"
+                :timezone="timezone"
+                :per-page="currentPerPage"
+                :pagination-label="reservationPaginationLabel"
+                :has-active-filters="hasActiveReservationFilters"
+                :is-date-sort="isDateSort"
+                :is-date-sort-asc="isDateSortAsc"
+                :is-status-sort="isStatusSort"
+                :sort="filterForm.sort"
+                @open="openDetails"
+                @edit="openEdit"
+                @delete="removeReservation"
+                @retry="refreshList"
+                @clear-filters="clearFilters"
+                @toggle-date-sort="toggleDateSort"
+                @sort-status="setStatusSort"
+                @sort="setReservationSort"
+                @set-sort="setReservationSortValue"
+                @per-page="setReservationPerPage"
+            />
         </div>
 
         <Modal :show="showQueueCheckout" maxWidth="xl" @close="closeQueueCheckout">

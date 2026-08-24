@@ -6,6 +6,30 @@
     "calendar": {
       "loading": "Chargement des réservations..."
     },
+    "list": {
+      "title": "Vue d’ensemble",
+      "subtitle": "Parcourez rapidement les services, les clients et les membres de l’équipe.",
+      "count": "{count} réservations",
+      "timezone": "Heure locale · {timezone}",
+      "reference": "Réservation #{id}",
+      "unavailable": "Non disponible",
+      "unassigned": "Non assigné",
+      "open": "Ouvrir {service} pour {client}",
+      "actions_for": "Actions pour {reference}",
+      "service_image_alt": "Aperçu de {service}",
+      "loading": "Actualisation des réservations…",
+      "error_title": "La liste n’a pas pu être actualisée",
+      "retry": "Réessayer",
+      "mobile_controls": "Affichage de la liste",
+      "sort_by": "Trier par",
+      "sort_direction": "Direction du tri",
+      "sort_ascending": "Ordre croissant",
+      "sort_descending": "Ordre décroissant",
+      "rows_per_page": "Par page",
+      "empty_title": "Aucune réservation à afficher",
+      "empty_description": "Les prochaines réservations apparaîtront ici avec leur service, leur client et leur statut.",
+      "empty_filtered": "Aucune réservation ne correspond aux filtres actuels. Réinitialisez-les pour retrouver la liste complète."
+    },
     "owner_only": {
       "staff_notice": "Solo growth garde les réservations en mode limité : consultation de l'historique, gestion de la liste d'attente et réglages globaux, mais la réservation par membre reste désactivée.",
       "client_notice": "Cet espace solo ne propose pas encore de créneaux en direct. Rejoignez plutôt la liste d'attente pour un suivi manuel.",
@@ -97,6 +121,7 @@
       "when": "Date/heure",
       "customer": "Client",
       "item": "Produit/service",
+      "source": "Source",
       "status": "Statut",
       "size_qty": "Taille / Qt",
       "contact": "Contact",
@@ -429,6 +454,7 @@
     },
     "errors": {
       "load_events": "Impossible de charger les reservations.",
+      "load_list": "Impossible d actualiser la liste des reservations.",
       "load_slots": "Impossible de charger les creneaux disponibles.",
       "cancel": "Impossible d annuler cette reservation.",
       "create": "Impossible de creer la reservation.",

@@ -6,6 +6,30 @@
     "calendar": {
       "loading": "Cargando reservas..."
     },
+    "list": {
+      "title": "Vista general",
+      "subtitle": "Consulte rápidamente los servicios, los clientes y los miembros del equipo.",
+      "count": "{count} reservas",
+      "timezone": "Hora local · {timezone}",
+      "reference": "Reserva n.º {id}",
+      "unavailable": "No disponible",
+      "unassigned": "Sin asignar",
+      "open": "Abrir {service} para {client}",
+      "actions_for": "Acciones para {reference}",
+      "service_image_alt": "Vista previa de {service}",
+      "loading": "Actualizando las reservas…",
+      "error_title": "No se pudo actualizar la lista",
+      "retry": "Reintentar",
+      "mobile_controls": "Visualización de la lista",
+      "sort_by": "Ordenar por",
+      "sort_direction": "Dirección del orden",
+      "sort_ascending": "Orden ascendente",
+      "sort_descending": "Orden descendente",
+      "rows_per_page": "Por página",
+      "empty_title": "No hay reservas para mostrar",
+      "empty_description": "Las próximas reservas aparecerán aquí con su servicio, cliente y estado.",
+      "empty_filtered": "Ninguna reserva coincide con los filtros actuales. Bórrelos para volver a la lista completa."
+    },
     "owner_only": {
       "staff_notice": "El crecimiento individual mantiene las reservas en modo limitado: vea las reservas existentes, administre la lista de espera y configure ajustes globales, pero las reservas basadas en el personal permanecen deshabilitadas.",
       "client_notice": "Este espacio de trabajo en solitario aún no ofrece espacios para citas en vivo. Únase a la lista de espera y la empresa podrá realizar un seguimiento manual.",
@@ -97,6 +121,7 @@
       "when": "Fecha/hora",
       "customer": "Cliente",
       "item": "Producto/servicio",
+      "source": "Origen",
       "status": "Estado",
       "size_qty": "Tamaño / Cantidad",
       "contact": "Contacto",
@@ -429,6 +454,7 @@
     },
     "errors": {
       "load_events": "No se pueden cargar eventos de reserva.",
+      "load_list": "No se puede actualizar la lista de reservas.",
       "load_slots": "No se pueden cargar los espacios disponibles.",
       "cancel": "No se puede cancelar esta reserva.",
       "create": "No se puede crear la reserva.",

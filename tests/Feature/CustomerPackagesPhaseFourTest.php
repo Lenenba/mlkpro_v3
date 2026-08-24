@@ -181,6 +181,55 @@ it('does not consume a forfait for a reservation using another service', functio
     Carbon::setTestNow();
 });
 
+it('skips suspended recurring forfaits for reservations but keeps payment due forfaits eligible', function () {
+    Carbon::setTestNow(Carbon::parse('2026-05-11 12:00:00', 'UTC'));
+
+    $owner = customerPackagesPhaseFourOwner();
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $service = customerPackagesPhaseFourProduct($owner);
+    $offer = customerPackagesPhaseFourOffer($owner, $service);
+    $package = app(CustomerPackageService::class)->assign($owner, $customer, $offer, [
+        'starts_at' => '2026-05-01',
+        'initial_quantity' => 2,
+    ]);
+    $package->forceFill([
+        'is_recurring' => true,
+        'recurrence_status' => CustomerPackage::RECURRENCE_SUSPENDED,
+    ])->save();
+    $suspendedReservation = customerPackagesPhaseFourReservation($owner, $customer, $service);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->patchJson(route('reservation.status', $suspendedReservation), [
+            'status' => Reservation::STATUS_COMPLETED,
+        ])
+        ->assertOk();
+
+    expect(CustomerPackageUsage::query()->count())->toBe(0)
+        ->and(data_get($suspendedReservation->fresh()->metadata, 'customer_package.reason'))
+        ->toBe('no_eligible_customer_package');
+
+    $package->forceFill([
+        'recurrence_status' => CustomerPackage::RECURRENCE_PAYMENT_DUE,
+    ])->save();
+    $graceReservation = customerPackagesPhaseFourReservation($owner, $customer, $service, [
+        'starts_at' => '2026-05-11 10:30:00',
+    ]);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->patchJson(route('reservation.status', $graceReservation), [
+            'status' => Reservation::STATUS_COMPLETED,
+        ])
+        ->assertOk();
+
+    expect(CustomerPackageUsage::query()->count())->toBe(1)
+        ->and($package->fresh()->remaining_quantity)->toBe(1)
+        ->and(data_get($graceReservation->fresh()->metadata, 'customer_package.status'))->toBe('consumed');
+
+    Carbon::setTestNow();
+});
+
 it('restores an automatic reservation consumption when completion is reversed', function () {
     Carbon::setTestNow(Carbon::parse('2026-05-11 12:00:00', 'UTC'));
 

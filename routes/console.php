@@ -2956,7 +2956,7 @@ Artisan::command('queue:workloads
     {--tries= : Fallback attempts for jobs without an explicit policy}
     {--timeout= : Worker timeout; cannot be lower than the profile timeout}
     {--sleep=3 : Seconds to sleep when no job is available}
-    {--memory=256 : Memory limit in megabytes}
+    {--memory=512 : Worker and PHP memory limit in megabytes}
 ', function (): int {
     $profile = trim((string) $this->argument('profile'));
     $connection = trim((string) ($this->argument('connection') ?: config('queue.default', 'database')));
@@ -3040,6 +3040,23 @@ Artisan::command('queue:workloads
         }
 
         return 0;
+    }
+
+    $currentMemoryLimit = trim((string) ini_get('memory_limit'));
+    $currentMemoryBytes = match (strtolower(substr($currentMemoryLimit, -1))) {
+        'g' => (int) $currentMemoryLimit * 1024 * 1024 * 1024,
+        'm' => (int) $currentMemoryLimit * 1024 * 1024,
+        'k' => (int) $currentMemoryLimit * 1024,
+        default => (int) $currentMemoryLimit,
+    };
+    $requestedMemoryBytes = $memory * 1024 * 1024;
+
+    if ($currentMemoryLimit !== '-1' && $currentMemoryBytes < $requestedMemoryBytes) {
+        if (ini_set('memory_limit', "{$memory}M") === false) {
+            $this->error("Unable to raise the PHP memory_limit to {$memory}M.");
+
+            return 1;
+        }
     }
 
     return $this->call($command, [

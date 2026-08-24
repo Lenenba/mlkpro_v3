@@ -892,6 +892,47 @@ it('suspends payment due recurring forfaits after the grace period', function ()
     Carbon::setTestNow();
 });
 
+it('blocks suspended forfait consumption while preserving the payment due grace period', function () {
+    Carbon::setTestNow(Carbon::parse('2026-06-09 10:00:00', 'UTC'));
+
+    $owner = customerPackagesPhaseFiveOwner();
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $product = customerPackagesPhaseFiveProduct($owner);
+    $offer = customerPackagesPhaseFiveOffer($owner, $product);
+    $service = app(CustomerPackageService::class);
+    $package = $service->assign($owner, $customer, $offer, [
+        'starts_at' => '2026-05-01',
+        'expires_at' => '2026-06-30',
+    ]);
+
+    $package->forceFill([
+        'recurrence_status' => CustomerPackage::RECURRENCE_SUSPENDED,
+    ])->save();
+
+    expect(fn () => $service->consume($owner, $customer, $package->fresh(), [
+        'quantity' => 1,
+        'used_at' => '2026-06-09',
+        'product_id' => $product->id,
+    ]))->toThrow(
+        Illuminate\Validation\ValidationException::class,
+        'This recurring forfait is suspended until its renewal payment is settled.',
+    );
+
+    $package->forceFill([
+        'recurrence_status' => CustomerPackage::RECURRENCE_PAYMENT_DUE,
+    ])->save();
+    $updated = $service->consume($owner, $customer, $package->fresh(), [
+        'quantity' => 1,
+        'used_at' => '2026-06-09',
+        'product_id' => $product->id,
+    ]);
+
+    expect($updated->consumed_quantity)->toBe(1)
+        ->and($updated->remaining_quantity)->toBe(3);
+
+    Carbon::setTestNow();
+});
+
 it('records marketing behavior events for forfait retention triggers', function () {
     Notification::fake();
     Carbon::setTestNow(Carbon::parse('2026-05-11 08:00:00', 'UTC'));

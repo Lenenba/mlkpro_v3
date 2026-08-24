@@ -52,6 +52,7 @@ test('queue workload worker dry run resolves overridden queues and workload time
         ->and($payload['connection'])->toBe(config('queue.default'))
         ->and($payload['queues'])->toBe(['plan-scans-test'])
         ->and($payload['timeout'])->toBe(240)
+        ->and($payload['memory'])->toBe(512)
         ->and($payload['tries'])->toBe(QueueWorkload::workerTries('plan-scans'));
 });
 
