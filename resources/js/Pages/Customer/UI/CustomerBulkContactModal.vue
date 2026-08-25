@@ -6,6 +6,7 @@ import Modal from '@/Components/UI/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import EmailBodyEditor from '@/Pages/Campaigns/Components/EmailBodyEditor.vue';
 import InputError from '@/Components/InputError.vue';
 import { useI18n } from 'vue-i18n';
@@ -201,6 +202,52 @@ const smsLength = computed(() => htmlToPlainText(form.body).length);
 const summaryLine = computed(() => t('customers.bulk_contact.selection_summary', {
     count: props.selectedCount,
 }));
+const resultMetrics = computed(() => ([
+    {
+        key: 'processed',
+        label: t('customers.bulk_contact.result.processed'),
+        value: resultSummary.value?.processed_count ?? 0,
+        tone: 'stone',
+    },
+    {
+        key: 'sent',
+        label: t('customers.bulk_contact.result.sent'),
+        value: resultSummary.value?.success_count ?? 0,
+        tone: 'emerald',
+    },
+    {
+        key: 'failed',
+        label: t('customers.bulk_contact.result.failed'),
+        value: resultSummary.value?.failed_count ?? 0,
+        tone: 'rose',
+    },
+    {
+        key: 'skipped',
+        label: t('customers.bulk_contact.result.skipped'),
+        value: resultSummary.value?.skipped_count ?? 0,
+        tone: 'amber',
+    },
+]));
+const previewMetrics = computed(() => ([
+    {
+        key: 'selected',
+        label: t('customers.bulk_contact.preview.selected'),
+        value: preview.value.selected_count,
+        tone: 'stone',
+    },
+    {
+        key: 'eligible',
+        label: t('customers.bulk_contact.preview.eligible'),
+        value: preview.value.eligible_count,
+        tone: 'emerald',
+    },
+    {
+        key: 'excluded',
+        label: t('customers.bulk_contact.preview.excluded'),
+        value: preview.value.excluded_count,
+        tone: 'amber',
+    },
+]));
 const showCampaignBridge = computed(() => props.campaignsEnabled && form.objective !== 'payment_followup');
 const mailingListOptions = computed(() => ([
     { value: '', label: t('customers.bulk_contact.campaign_bridge.existing_placeholder') },
@@ -863,40 +910,12 @@ defineExpose({
                     }) }}
                 </div>
 
-                <div class="mt-3 grid gap-2 md:grid-cols-4">
-                    <div class="rounded-sm border border-emerald-200/70 bg-white/70 px-3 py-2 dark:border-emerald-500/20 dark:bg-neutral-900/40">
-                        <div class="text-[11px] uppercase tracking-wide">
-                            {{ $t('customers.bulk_contact.result.processed') }}
-                        </div>
-                        <div class="mt-1 text-base font-semibold">
-                            {{ resultSummary.processed_count ?? 0 }}
-                        </div>
-                    </div>
-                    <div class="rounded-sm border border-emerald-200/70 bg-white/70 px-3 py-2 dark:border-emerald-500/20 dark:bg-neutral-900/40">
-                        <div class="text-[11px] uppercase tracking-wide">
-                            {{ $t('customers.bulk_contact.result.sent') }}
-                        </div>
-                        <div class="mt-1 text-base font-semibold">
-                            {{ resultSummary.success_count ?? 0 }}
-                        </div>
-                    </div>
-                    <div class="rounded-sm border border-emerald-200/70 bg-white/70 px-3 py-2 dark:border-emerald-500/20 dark:bg-neutral-900/40">
-                        <div class="text-[11px] uppercase tracking-wide">
-                            {{ $t('customers.bulk_contact.result.failed') }}
-                        </div>
-                        <div class="mt-1 text-base font-semibold">
-                            {{ resultSummary.failed_count ?? 0 }}
-                        </div>
-                    </div>
-                    <div class="rounded-sm border border-emerald-200/70 bg-white/70 px-3 py-2 dark:border-emerald-500/20 dark:bg-neutral-900/40">
-                        <div class="text-[11px] uppercase tracking-wide">
-                            {{ $t('customers.bulk_contact.result.skipped') }}
-                        </div>
-                        <div class="mt-1 text-base font-semibold">
-                            {{ resultSummary.skipped_count ?? 0 }}
-                        </div>
-                    </div>
-                </div>
+                <KpiMetricGrid
+                    class="mt-3"
+                    :metrics="resultMetrics"
+                    grid-class="grid-cols-1 md:grid-cols-4"
+                    compact
+                />
 
                 <div v-if="resultSummary.reasons?.length" class="mt-3 space-y-2">
                     <div class="text-xs font-semibold">
@@ -1158,32 +1177,11 @@ defineExpose({
                     </div>
                 </div>
 
-                <div class="grid gap-3 md:grid-cols-3">
-                    <div class="rounded-sm border border-stone-200 bg-stone-50/70 px-3 py-3 dark:border-neutral-700 dark:bg-neutral-800/70">
-                        <div class="text-[11px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                            {{ $t('customers.bulk_contact.preview.selected') }}
-                        </div>
-                        <div class="mt-1 text-lg font-semibold text-stone-900 dark:text-neutral-100">
-                            {{ preview.selected_count }}
-                        </div>
-                    </div>
-                    <div class="rounded-sm border border-emerald-200 bg-emerald-50/70 px-3 py-3 dark:border-emerald-500/30 dark:bg-emerald-500/10">
-                        <div class="text-[11px] uppercase tracking-wide text-emerald-700 dark:text-emerald-200">
-                            {{ $t('customers.bulk_contact.preview.eligible') }}
-                        </div>
-                        <div class="mt-1 text-lg font-semibold text-emerald-800 dark:text-emerald-100">
-                            {{ preview.eligible_count }}
-                        </div>
-                    </div>
-                    <div class="rounded-sm border border-amber-200 bg-amber-50/70 px-3 py-3 dark:border-amber-500/30 dark:bg-amber-500/10">
-                        <div class="text-[11px] uppercase tracking-wide text-amber-700 dark:text-amber-200">
-                            {{ $t('customers.bulk_contact.preview.excluded') }}
-                        </div>
-                        <div class="mt-1 text-lg font-semibold text-amber-800 dark:text-amber-100">
-                            {{ preview.excluded_count }}
-                        </div>
-                    </div>
-                </div>
+                <KpiMetricGrid
+                    :metrics="previewMetrics"
+                    grid-class="grid-cols-1 md:grid-cols-3"
+                    compact
+                />
 
                 <div v-if="preview.reasons.length" class="space-y-2">
                     <div class="text-xs font-semibold text-stone-700 dark:text-neutral-200">

@@ -273,6 +273,11 @@
     },
     "template_manager": {
       "title": "Templates",
+      "kpis": {
+        "total": "Templates",
+        "email": "Email layouts",
+        "defaults": "Defaults"
+      },
       "template_name": "Template name",
       "channel": "Channel",
       "campaign_type": "Campaign type",
@@ -636,6 +641,26 @@
         "offers": "Offers",
         "runs": "Runs"
       },
+      "run_summary": {
+        "targeted": "Targeted",
+        "sent": "Sent",
+        "delivered": "Delivered",
+        "opened": "Opened",
+        "clicked": "Clicked",
+        "converted": "Converted",
+        "failed": "Failed",
+        "skipped": "Skipped"
+      },
+      "delivery": {
+        "title": "Delivery — latest run",
+        "latest_run": "Latest run",
+        "ab_split": "A/B split",
+        "no_ab_data": "No A/B data",
+        "holdout": "Holdout",
+        "fallback": "Fallback use",
+        "fallback_value": "{count} fallback",
+        "fallback_context": "{rate}% of failures ({count})"
+      },
       "sections": {
         "funnel": "Funnel",
         "prospecting": "Prospecting",
@@ -652,9 +677,9 @@
         "qualified": "Qualified",
         "leads": "Leads",
         "customers": "Customers",
-        "prospect_to_lead_rate": "Prospect to lead rate",
-        "lead_to_customer_rate": "Lead to customer rate",
-        "overall_customer_rate": "Prospect to customer rate",
+        "prospect_to_lead_rate": "Prospect → lead",
+        "lead_to_customer_rate": "Lead → customer",
+        "overall_customer_rate": "Prospect → customer",
         "not_available": "N/A"
       },
       "prospecting": {
@@ -779,6 +804,25 @@
       "header_edit": "Edit campaign #{id}",
       "header_new": "Create campaign",
       "description": "Configure campaign setup, audience, messages, and send strategy.",
+      "results": {
+        "campaign_status": "Campaign status",
+        "updated": "Updated {date}",
+        "save_to_start": "Save the draft to start.",
+        "latest_run": "Latest run",
+        "no_run": "No run",
+        "launch_to_create": "Launch from review to create the first run.",
+        "targeted": "Targeted",
+        "latest_recipients": "Recipients in the latest run",
+        "estimated_recipients": "Estimated eligible recipients",
+        "delivered": "Delivered",
+        "delivery_context": "{sent} sent · {failed} failed",
+        "metrics_after_launch": "Metrics appear after launch.",
+        "trigger": "Trigger",
+        "started": "Started",
+        "completed": "Completed",
+        "engagement": "Engagement",
+        "engagement_value": "{opened} opened · {clicked} clicked"
+      },
       "foundation": {
         "current_step": "Step {current} of {total}",
         "progress_ready": "{count} step(s) ready",

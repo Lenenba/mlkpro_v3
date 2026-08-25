@@ -5,6 +5,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import InputError from '@/Components/InputError.vue';
 import Modal from '@/Components/Modal.vue';
@@ -252,6 +253,39 @@ const targetedCount = computed(() => props.announcements.filter((item) => item.a
 
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+const kpiMetrics = computed(() => [
+    {
+        key: 'total',
+        label: t('super_admin.announcements.stats.total'),
+        value: formatNumber(totalCount.value),
+        tone: 'emerald',
+    },
+    {
+        key: 'active',
+        label: t('super_admin.announcements.stats.active'),
+        value: formatNumber(activeCount.value),
+        tone: 'blue',
+    },
+    {
+        key: 'drafts',
+        label: t('super_admin.announcements.stats.drafts'),
+        value: formatNumber(draftCount.value),
+        tone: 'rose',
+    },
+    {
+        key: 'with_media',
+        label: t('super_admin.announcements.stats.with_media'),
+        value: formatNumber(mediaCount.value),
+        tone: 'amber',
+    },
+    {
+        key: 'targeted',
+        label: t('super_admin.announcements.stats.targeted'),
+        value: formatNumber(targetedCount.value),
+        tone: 'sky',
+    },
+]);
 
 const statusClass = (status) => {
     if (status === 'active') {
@@ -517,48 +551,10 @@ watch(
                 </div>
             </section>
 
-            <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2 md:gap-3 lg:gap-5">
-                <div class="p-4 bg-white border border-t-4 border-t-emerald-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.announcements.stats.total') }}
-                    </p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ formatNumber(totalCount) }}
-                    </p>
-                </div>
-                <div class="p-4 bg-white border border-t-4 border-t-blue-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.announcements.stats.active') }}
-                    </p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ formatNumber(activeCount) }}
-                    </p>
-                </div>
-                <div class="p-4 bg-white border border-t-4 border-t-rose-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.announcements.stats.drafts') }}
-                    </p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ formatNumber(draftCount) }}
-                    </p>
-                </div>
-                <div class="p-4 bg-white border border-t-4 border-t-amber-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.announcements.stats.with_media') }}
-                    </p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ formatNumber(mediaCount) }}
-                    </p>
-                </div>
-                <div class="p-4 bg-white border border-t-4 border-t-sky-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.announcements.stats.targeted') }}
-                    </p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ formatNumber(targetedCount) }}
-                    </p>
-                </div>
-            </div>
+            <KpiMetricGrid
+                :metrics="kpiMetrics"
+                grid-class="grid-cols-2 md:grid-cols-3 xl:grid-cols-5"
+            />
 
             <AdminDataTable
                 :rows="filteredAnnouncements"

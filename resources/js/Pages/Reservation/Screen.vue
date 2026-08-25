@@ -7,6 +7,7 @@ import 'dayjs/locale/fr';
 import 'dayjs/locale/es';
 import { useI18n } from 'vue-i18n';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { reservationStatusBadgeClass } from '@/Components/Reservation/status';
 
@@ -81,6 +82,8 @@ const queueItems = computed(() => (Array.isArray(queueData.value?.items) ? queue
 const waitingRows = computed(() => (Array.isArray(queueData.value?.waiting) ? queueData.value.waiting : []));
 const statusBadgeClass = (status) => reservationStatusBadgeClass(status);
 const formatDateTime = (value) => (value ? dayjs(value).locale(dayjsLocale.value).format('DD MMM HH:mm') : '-');
+const formatDate = (value) => (value ? dayjs(value).locale(dayjsLocale.value).format('DD MMM') : '');
+const formatTime = (value) => (value ? dayjs(value).locale(dayjsLocale.value).format('HH:mm') : '-');
 const formatNow = (value) => (value ? dayjs(value).locale(dayjsLocale.value).format('HH:mm:ss') : '-');
 const queueNumberLabel = (item) => item?.queue_number || (item?.id ? `#${item.id}` : '-');
 
@@ -365,6 +368,53 @@ const summary = computed(() => {
     return { activeSeats, occupied, ready, avgWait, nextBooking };
 });
 
+const seatProgress = (value) => {
+    const total = Number(summary.value.activeSeats);
+    const count = Number(value);
+
+    if (!Number.isFinite(total) || total <= 0 || !Number.isFinite(count)) {
+        return null;
+    }
+
+    return { value: count, max: total };
+};
+
+const summaryMetrics = computed(() => ([
+    {
+        key: 'active-seats',
+        label: t('reservations.queue.screen.metrics.seats_active'),
+        value: summary.value.activeSeats,
+        tone: 'stone',
+    },
+    {
+        key: 'occupied',
+        label: t('reservations.queue.screen.metrics.occupied'),
+        value: summary.value.occupied,
+        tone: 'violet',
+        progress: seatProgress(summary.value.occupied),
+    },
+    {
+        key: 'ready',
+        label: t('reservations.queue.screen.metrics.ready'),
+        value: summary.value.ready,
+        tone: 'emerald',
+        progress: seatProgress(summary.value.ready),
+    },
+    {
+        key: 'average-wait',
+        label: t('reservations.queue.screen.metrics.avg_wait'),
+        value: `${summary.value.avgWait} min`,
+        tone: 'amber',
+    },
+    {
+        key: 'next-booking',
+        label: t('reservations.queue.screen.metrics.next_booking'),
+        value: formatTime(summary.value.nextBooking),
+        context: formatDate(summary.value.nextBooking),
+        tone: 'sky',
+    },
+]));
+
 const modeToggleUrl = computed(() => route('reservation.screen', {
     anonymize: anonymizeClients.value ? 1 : 0,
     mode: isTvMode.value ? 'board' : 'tv',
@@ -433,28 +483,7 @@ onBeforeUnmount(() => {
             </section>
 
             <template v-else>
-                <section v-if="!isTvMode" class="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-                    <article class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ $t('reservations.queue.screen.metrics.seats_active') }}</p>
-                        <p class="mt-1 text-2xl font-bold text-stone-900 dark:text-neutral-100">{{ summary.activeSeats }}</p>
-                    </article>
-                    <article class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ $t('reservations.queue.screen.metrics.occupied') }}</p>
-                        <p class="mt-1 text-2xl font-bold text-stone-900 dark:text-neutral-100">{{ summary.occupied }}</p>
-                    </article>
-                    <article class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ $t('reservations.queue.screen.metrics.ready') }}</p>
-                        <p class="mt-1 text-2xl font-bold text-stone-900 dark:text-neutral-100">{{ summary.ready }}</p>
-                    </article>
-                    <article class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ $t('reservations.queue.screen.metrics.avg_wait') }}</p>
-                        <p class="mt-1 text-2xl font-bold text-stone-900 dark:text-neutral-100">{{ summary.avgWait }} <span class="text-sm font-semibold text-stone-500 dark:text-neutral-400">min</span></p>
-                    </article>
-                    <article class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ $t('reservations.queue.screen.metrics.next_booking') }}</p>
-                        <p class="mt-1 text-lg font-bold text-stone-900 dark:text-neutral-100">{{ summary.nextBooking ? formatDateTime(summary.nextBooking) : '-' }}</p>
-                    </article>
-                </section>
+                <KpiMetricGrid v-if="!isTvMode" :metrics="summaryMetrics" />
 
                 <section :class="isTvMode ? 'grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5' : 'grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'">
                     <article

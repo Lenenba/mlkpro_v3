@@ -1,8 +1,7 @@
 <script setup>
 import { computed, reactive, ref, watchEffect, nextTick } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import KpiSparkline from '@/Components/Dashboard/KpiSparkline.vue';
-import KpiTrendBadge from '@/Components/Dashboard/KpiTrendBadge.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 import FullCalendar from '@fullcalendar/vue3';
@@ -187,6 +186,44 @@ const kpiData = computed(() => {
 });
 
 const stat = (key) => props.stats?.[key] ?? 0;
+const clientMetrics = computed(() => ([
+    {
+        key: 'quotes-pending',
+        label: t('client_dashboard.kpi.quotes_pending'),
+        value: stat('quotes_pending'),
+        tone: 'stone',
+        colorClass: 'bg-stone-400/70 dark:bg-neutral-500/50',
+        trend: kpiData.value.quotes_pending.trend,
+        points: kpiData.value.quotes_pending.points,
+    },
+    {
+        key: 'works-pending',
+        label: t('client_dashboard.kpi.jobs_pending'),
+        value: stat('works_pending'),
+        tone: 'stone',
+        colorClass: 'bg-stone-400/70 dark:bg-neutral-500/50',
+        trend: kpiData.value.works_pending.trend,
+        points: kpiData.value.works_pending.points,
+    },
+    ...(!autoValidation.value.invoices ? [{
+        key: 'invoices-due',
+        label: t('client_dashboard.kpi.invoices_due'),
+        value: stat('invoices_due'),
+        tone: 'stone',
+        colorClass: 'bg-stone-400/70 dark:bg-neutral-500/50',
+        trend: kpiData.value.invoices_due.trend,
+        points: kpiData.value.invoices_due.points,
+    }] : []),
+    {
+        key: 'ratings-due',
+        label: t('client_dashboard.kpi.ratings_due'),
+        value: stat('ratings_due'),
+        tone: 'stone',
+        colorClass: 'bg-stone-400/70 dark:bg-neutral-500/50',
+        trend: kpiData.value.ratings_due.trend,
+        points: kpiData.value.ratings_due.points,
+    },
+]));
 
 const { formatCurrency } = useCurrencyFormatter();
 
@@ -766,49 +803,12 @@ const submitWorkRating = (workId) => {
                         {{ $t('client_dashboard.actions.view_invoice_history') }}
                     </Link>
                 </div>
-                <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-                    <div class="p-4 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                        <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_dashboard.kpi.quotes_pending') }}</p>
-                            <KpiTrendBadge :trend="kpiData.quotes_pending.trend" />
-                        </div>
-                        <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ stat('quotes_pending') }}
-                        </p>
-                        <KpiSparkline :points="kpiData.quotes_pending.points" />
-                    </div>
-                    <div class="p-4 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                        <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_dashboard.kpi.jobs_pending') }}</p>
-                            <KpiTrendBadge :trend="kpiData.works_pending.trend" />
-                        </div>
-                        <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ stat('works_pending') }}
-                        </p>
-                        <KpiSparkline :points="kpiData.works_pending.points" />
-                    </div>
-                    <div v-if="!autoValidation.invoices"
-                        class="p-4 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                        <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_dashboard.kpi.invoices_due') }}</p>
-                            <KpiTrendBadge :trend="kpiData.invoices_due.trend" />
-                        </div>
-                        <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ stat('invoices_due') }}
-                        </p>
-                        <KpiSparkline :points="kpiData.invoices_due.points" />
-                    </div>
-                    <div class="p-4 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                        <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_dashboard.kpi.ratings_due') }}</p>
-                            <KpiTrendBadge :trend="kpiData.ratings_due.trend" />
-                        </div>
-                        <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ stat('ratings_due') }}
-                        </p>
-                        <KpiSparkline :points="kpiData.ratings_due.points" />
-                    </div>
-                </div>
+                <KpiMetricGrid
+                    class="mt-4"
+                    :metrics="clientMetrics"
+                    grid-class="grid-cols-1 sm:grid-cols-2 xl:grid-cols-4"
+                    :aria-label="$t('client_dashboard.title')"
+                />
             </section>
 
             <div v-if="profileMissing"

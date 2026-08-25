@@ -3,8 +3,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import AnnouncementsPanel from '@/Components/Dashboard/AnnouncementsPanel.vue';
-import KpiSparkline from '@/Components/Dashboard/KpiSparkline.vue';
-import KpiTrendBadge from '@/Components/Dashboard/KpiTrendBadge.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 import { buildSparklinePoints, buildTrend } from '@/utils/kpi';
@@ -54,6 +53,35 @@ const kpiData = computed(() => {
 });
 
 const stat = (key) => props.stats?.[key] ?? 0;
+const taskMetrics = computed(() => ([
+    {
+        key: 'tasks-todo',
+        label: t('dashboard.status.task.todo'),
+        value: stat('tasks_todo'),
+        tone: 'amber',
+        colorClass: 'bg-amber-500/70 dark:bg-amber-400/50',
+        trend: kpiData.value.tasks_todo.trend,
+        points: kpiData.value.tasks_todo.points,
+    },
+    {
+        key: 'tasks-in-progress',
+        label: t('dashboard.status.task.in_progress'),
+        value: stat('tasks_in_progress'),
+        tone: 'blue',
+        colorClass: 'bg-blue-500/70 dark:bg-blue-400/50',
+        trend: kpiData.value.tasks_in_progress.trend,
+        points: kpiData.value.tasks_in_progress.points,
+    },
+    {
+        key: 'tasks-done',
+        label: t('dashboard.status.task.done'),
+        value: stat('tasks_done'),
+        tone: 'emerald',
+        colorClass: 'bg-emerald-500/70 dark:bg-emerald-400/50',
+        trend: kpiData.value.tasks_done.trend,
+        points: kpiData.value.tasks_done.points,
+    },
+]));
 const formatDate = (value) => humanizeDate(value) || '-';
 const formatTime = (value) => {
     if (!value) {
@@ -261,41 +289,11 @@ const hasAgendaAlerts = computed(() => agendaAlertItems.value.length > 0);
             </div>
 
             <div :class="['grid gap-4', hasAnnouncements ? 'xl:grid-cols-[minmax(0,1fr)_320px]' : 'grid-cols-1']">
-                <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
-                    <div class="rounded-sm border border-stone-200 border-t-4 border-t-amber-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('dashboard.status.task.todo') }}</p>
-                            <KpiTrendBadge :trend="kpiData.tasks_todo.trend" />
-                        </div>
-                        <p class="mt-1 text-2xl font-semibold text-stone-900 dark:text-neutral-100">{{ stat('tasks_todo') }}</p>
-                        <KpiSparkline
-                            :points="kpiData.tasks_todo.points"
-                            color-class="bg-amber-500/70 dark:bg-amber-400/50"
-                        />
-                    </div>
-                    <div class="rounded-sm border border-stone-200 border-t-4 border-t-blue-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('dashboard.status.task.in_progress') }}</p>
-                            <KpiTrendBadge :trend="kpiData.tasks_in_progress.trend" />
-                        </div>
-                        <p class="mt-1 text-2xl font-semibold text-stone-900 dark:text-neutral-100">{{ stat('tasks_in_progress') }}</p>
-                        <KpiSparkline
-                            :points="kpiData.tasks_in_progress.points"
-                            color-class="bg-blue-500/70 dark:bg-blue-400/50"
-                        />
-                    </div>
-                    <div class="rounded-sm border border-stone-200 border-t-4 border-t-emerald-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('dashboard.status.task.done') }}</p>
-                            <KpiTrendBadge :trend="kpiData.tasks_done.trend" />
-                        </div>
-                        <p class="mt-1 text-2xl font-semibold text-stone-900 dark:text-neutral-100">{{ stat('tasks_done') }}</p>
-                        <KpiSparkline
-                            :points="kpiData.tasks_done.points"
-                            color-class="bg-emerald-500/70 dark:bg-emerald-400/50"
-                        />
-                    </div>
-                </div>
+                <KpiMetricGrid
+                    :metrics="taskMetrics"
+                    grid-class="grid-cols-1 md:grid-cols-3"
+                    :aria-label="$t('dashboard_tasks.my_tasks.title')"
+                />
                 <AnnouncementsPanel
                     v-if="hasAnnouncements"
                     :announcements="announcements"

@@ -6,6 +6,7 @@ import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 
 const props = defineProps({
     setting: {
@@ -35,11 +36,11 @@ const languageLabels = {
 };
 
 const actionToggles = [
-    { key: 'allow_create_prospect', label: 'Creer un prospect' },
-    { key: 'allow_create_client', label: 'Creer un client' },
-    { key: 'allow_create_reservation', label: 'Preparer une reservation' },
-    { key: 'allow_reschedule_reservation', label: 'Preparer une replanification' },
-    { key: 'allow_create_task', label: 'Creer une tache' },
+    { key: 'allow_create_prospect', label: 'Créer un prospect' },
+    { key: 'allow_create_client', label: 'Créer un client' },
+    { key: 'allow_create_reservation', label: 'Préparer une réservation' },
+    { key: 'allow_reschedule_reservation', label: 'Préparer une replanification' },
+    { key: 'allow_create_task', label: 'Créer une tâche' },
 ];
 
 const proactiveToggles = [
@@ -50,7 +51,7 @@ const proactiveToggles = [
     },
     {
         key: 'allow_ai_to_choose_earliest_slot',
-        label: 'Choisir le premier creneau',
+        label: 'Choisir le premier créneau',
         help: 'Utilise le premier creneau disponible quand le client est flexible.',
     },
     {
@@ -65,7 +66,7 @@ const proactiveToggles = [
     },
     {
         key: 'enable_client_history_recommendations',
-        label: 'Utiliser l historique client',
+        label: 'Utiliser l’historique client',
         help: 'Peut proposer le meme service que le dernier rendez-vous.',
     },
     {
@@ -75,7 +76,7 @@ const proactiveToggles = [
     },
     {
         key: 'enable_upsell_suggestions',
-        label: 'Suggestions complementaires',
+        label: 'Suggestions complémentaires',
         help: 'Optionnel et desactive par defaut pour eviter un ton trop commercial.',
     },
 ];
@@ -129,6 +130,12 @@ const enabledActionsCount = computed(() => actionToggles
 const languageSummary = computed(() => form.supported_languages
     .map((language) => languageLabels[language] || language)
     .join(', '));
+const summaryMetrics = computed(() => [
+    { key: 'status', label: 'Statut', value: enabledLabel.value, tone: form.enabled ? 'emerald' : 'stone' },
+    { key: 'mode', label: 'Mode', value: validationModeLabel.value, tone: 'sky' },
+    { key: 'languages', label: 'Langues', value: languageSummary.value || '-', tone: 'violet' },
+    { key: 'actions', label: 'Actions', value: `${enabledActionsCount.value} actives`, tone: 'amber' },
+]);
 
 const isLanguageSelected = (language) => form.supported_languages.includes(language);
 
@@ -207,24 +214,7 @@ const submit = () => {
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3 lg:gap-5">
-                <div class="rounded-sm border border-stone-200 border-t-4 border-t-emerald-500 bg-white p-4 shadow-sm dark:border-neutral-700 dark:border-t-emerald-500 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">Statut</div>
-                    <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ enabledLabel }}</div>
-                </div>
-                <div class="rounded-sm border border-stone-200 border-t-4 border-t-sky-500 bg-white p-4 shadow-sm dark:border-neutral-700 dark:border-t-sky-500 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">Mode</div>
-                    <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ validationModeLabel }}</div>
-                </div>
-                <div class="rounded-sm border border-stone-200 border-t-4 border-t-violet-500 bg-white p-4 shadow-sm dark:border-neutral-700 dark:border-t-violet-500 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">Langues</div>
-                    <div class="mt-1 truncate text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ languageSummary }}</div>
-                </div>
-                <div class="rounded-sm border border-stone-200 border-t-4 border-t-amber-500 bg-white p-4 shadow-sm dark:border-neutral-700 dark:border-t-amber-500 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">Actions</div>
-                    <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ enabledActionsCount }} actives</div>
-                </div>
-            </div>
+            <KpiMetricGrid :metrics="summaryMetrics" />
 
             <form class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]" @submit.prevent="submit">
                 <div class="space-y-4">

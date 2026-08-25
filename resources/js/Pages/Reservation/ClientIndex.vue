@@ -6,6 +6,7 @@ import axios from 'axios';
 import dayjs from 'dayjs';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import Modal from '@/Components/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
@@ -174,22 +175,22 @@ const serviceOverviewCards = computed(() => ([
         key: 'upcoming',
         label: t('reservations.stats.upcoming'),
         value: Number(props.stats?.upcoming || reservationCount.value),
-        meta: t('reservations.client.index.title'),
-        border: 'border-t-green-600',
+        context: t('reservations.client.index.title'),
+        tone: 'green',
     },
     {
         key: 'today',
         label: t('reservations.stats.today'),
         value: Number(props.stats?.today || 0),
-        meta: viewMode.value === 'calendar' ? t('planning.calendar.month') : t('reservations.view.list'),
-        border: 'border-t-sky-600',
+        context: viewMode.value === 'calendar' ? t('planning.calendar.month') : t('reservations.view.list'),
+        tone: 'sky',
     },
     {
         key: 'queue',
         label: t('reservations.queue.title'),
         value: queueTickets.value.length,
-        meta: queueModeEnabled.value ? t('reservations.queue.cards.waiting') : t('reservations.queue.client.none'),
-        border: 'border-t-amber-500',
+        context: queueModeEnabled.value ? t('reservations.queue.cards.waiting') : t('reservations.queue.client.none'),
+        tone: 'amber',
     },
 ]));
 
@@ -626,24 +627,11 @@ onBeforeUnmount(() => {
                     </div>
                 </div>
 
-                <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-                    <div
-                        v-for="card in serviceOverviewCards"
-                        :key="card.key"
-                        class="rounded-sm border border-stone-200 border-t-4 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800"
-                        :class="card.border"
-                    >
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">
-                            {{ card.label }}
-                        </div>
-                        <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ card.value }}
-                        </div>
-                        <div class="mt-1 truncate text-xs text-stone-500 dark:text-neutral-400">
-                            {{ card.meta }}
-                        </div>
-                    </div>
-                </div>
+                <KpiMetricGrid
+                    class="mt-4"
+                    :metrics="serviceOverviewCards"
+                    grid-class="grid-cols-1 md:grid-cols-3"
+                />
             </section>
 
             <div

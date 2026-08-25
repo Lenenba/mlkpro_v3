@@ -70,6 +70,35 @@ const number = (value, maximumFractionDigits = 0) => Number(value || 0).toLocale
 });
 const percent = (value) => `${number(value, 1)} %`;
 const currencyMetric = (metric) => formatCurrency(metric?.amount ?? 0, metric?.currency_code || null);
+const numericValue = (value) => {
+    const numeric = Number(value);
+
+    return Number.isFinite(numeric) ? Math.max(0, numeric) : 0;
+};
+const customerShare = (value, label) => {
+    const maximum = numericValue(source.value.total);
+
+    if (maximum <= 0) {
+        return null;
+    }
+
+    const current = Math.min(numericValue(value), maximum);
+
+    return {
+        value: current,
+        max: maximum,
+        label: `${label} — ${number(current)} / ${number(maximum)}`,
+    };
+};
+const percentageProgress = (value, label) => {
+    const current = Math.min(numericValue(value), 100);
+
+    return {
+        value: current,
+        max: 100,
+        label: `${label} — ${percent(current)}`,
+    };
+};
 const quickAction = (key) => (canUseQuickFilter(key) ? { type: 'quick', key } : null);
 const advancedAction = (key, value) => ({ type: 'advanced', key, value });
 const isActionActive = (action) => {
@@ -83,13 +112,14 @@ const isActionActive = (action) => {
 
     return String(props.filters?.[action.key] ?? '') === String(action.value ?? '');
 };
-const card = ({ key, label, value, detail = '', tone, icon, action = null }) => ({
+const card = ({ key, label, value, detail = '', tone, icon, action = null, progress = null }) => ({
     key,
     label,
     value,
     detail,
     tone,
     icon,
+    progress,
     action,
     interactive: Boolean(action),
     active: isActionActive(action),
@@ -112,6 +142,7 @@ const primaryCards = computed(() => [
         value: number(source.value.new_this_month),
         tone: 'emerald',
         icon: 'user-plus',
+        progress: customerShare(source.value.new_this_month, t('customers.stats.new_this_month')),
         action: quickAction('new_this_month'),
     }),
     card({
@@ -120,6 +151,7 @@ const primaryCards = computed(() => [
         value: number(source.value.active),
         tone: 'sky',
         icon: 'users',
+        progress: customerShare(source.value.active, t('customers.stats.active')),
         action: advancedAction('status', 'active'),
     }),
     hasValue('vip') && (capabilities.value.campaigns || canUseQuickFilter('vip'))
@@ -129,6 +161,7 @@ const primaryCards = computed(() => [
             value: number(source.value.vip),
             tone: 'amber',
             icon: 'star',
+            progress: customerShare(source.value.vip, t('customers.stats.vip')),
             action: quickAction('vip'),
         })
         : null,
@@ -139,6 +172,10 @@ const primaryCards = computed(() => [
             value: number(source.value.no_next_appointment),
             tone: 'violet',
             icon: 'calendar',
+            progress: customerShare(
+                source.value.no_next_appointment,
+                t('customers.stats.no_next_appointment')
+            ),
             action: quickAction('no_next_appointment'),
         })
         : null,
@@ -150,6 +187,10 @@ const primaryCards = computed(() => [
             detail: t('customers.stats.customers_count', { count: Number(source.value.outstanding?.customers || 0) }),
             tone: 'rose',
             icon: 'invoice',
+            progress: customerShare(
+                source.value.outstanding?.customers,
+                t('customers.stats.outstanding')
+            ),
             action: quickAction('outstanding_balance'),
         })
         : null,
@@ -163,6 +204,7 @@ const secondaryCards = computed(() => [
             value: number(source.value.inactive),
             tone: 'stone',
             icon: 'users',
+            progress: customerShare(source.value.inactive, t('customers.stats.inactive')),
             action: quickAction('inactive'),
         })
         : null,
@@ -173,6 +215,10 @@ const secondaryCards = computed(() => [
             value: number(source.value.recent_cancellations),
             tone: 'amber',
             icon: 'alert',
+            progress: customerShare(
+                source.value.recent_cancellations,
+                t('customers.stats.recent_cancellations')
+            ),
             action: quickAction('recent_cancellations'),
         })
         : null,
@@ -183,6 +229,10 @@ const secondaryCards = computed(() => [
             value: number(source.value.recent_no_shows),
             tone: 'rose',
             icon: 'alert',
+            progress: customerShare(
+                source.value.recent_no_shows,
+                t('customers.stats.recent_no_shows')
+            ),
             action: quickAction('recent_no_shows'),
         })
         : null,
@@ -193,6 +243,7 @@ const secondaryCards = computed(() => [
             value: percent(source.value.return_rate),
             tone: 'emerald',
             icon: 'repeat',
+            progress: percentageProgress(source.value.return_rate, t('customers.stats.return_rate')),
         })
         : null,
     hasValue('average_value_per_customer')
@@ -220,6 +271,7 @@ const secondaryCards = computed(() => [
             value: number(source.value.with_quotes),
             tone: 'amber',
             icon: 'invoice',
+            progress: customerShare(source.value.with_quotes, t('customers.stats.with_quotes')),
             action: advancedAction('has_quotes', '1'),
         })
         : null,
@@ -230,6 +282,7 @@ const secondaryCards = computed(() => [
             value: number(source.value.with_works),
             tone: 'rose',
             icon: 'users',
+            progress: customerShare(source.value.with_works, t('customers.stats.with_jobs')),
             action: advancedAction('has_works', '1'),
         })
         : null,

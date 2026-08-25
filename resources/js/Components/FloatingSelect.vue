@@ -433,7 +433,7 @@ defineExpose({ focus: () => input.value.focus() });
 
 <template>
     <!-- Floating Select -->
-    <div class="relative w-full min-w-0">
+    <div class="relative min-w-0">
         <input
             v-if="useFilterInput"
             :id="controlId"

@@ -26,7 +26,7 @@
       "kpi": {
         "total_companies": "Total entreprises",
         "onboarded": "Onboardees : {count} ({percent})",
-        "new_companies_30d": "Nouvelles entreprises (30j)",
+        "new_companies_30d": "Nouvelles (30 j)",
         "onboarding_conversion_30d": "Conversion onboarding : {percent}",
         "active_companies": "Entreprises actives",
         "active_wau_mau": "WAU {wau} / MAU {mau}",
@@ -68,7 +68,7 @@
       "alerts": {
         "title": "Alertes plateforme",
         "last_24h": "Dernieres 24h",
-        "limits": "Entreprises proches des limites",
+        "limits": "Limites à surveiller",
         "limit_list": "Limites a surveiller",
         "limit_empty": "Aucune entreprise proche des limites.",
         "stripe_failures": "Echecs Stripe",
@@ -131,16 +131,16 @@
         "title": "Sante",
         "failed_jobs_24h": "Jobs echoues 24h",
         "failed_jobs_7d": "Jobs echoues 7j",
-        "email_failures_24h": "Echecs email 24h",
+        "email_failures_24h": "Échecs email (24 h)",
         "pending_jobs": "Jobs en attente",
         "oldest_job_minutes": "Anciennete job (min)",
         "public_storage": "Stockage public"
       },
       "data_quality": {
         "title": "Qualite des donnees",
-        "customer_email_duplicates": "Doublons email client",
-        "customer_name_duplicates": "Doublons nom client",
-        "product_name_duplicates": "Doublons nom produit"
+        "customer_email_duplicates": "E-mails en doublon",
+        "customer_name_duplicates": "Noms en doublon",
+        "product_name_duplicates": "Produits en doublon"
       },
       "limits": {
         "quotes": "Devis",

@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import AppBreadcrumbs from '@/Components/UI/AppBreadcrumbs.vue';
@@ -104,38 +105,38 @@ const summaryCards = computed(() => ([
         key: 'weighted_open_amount',
         label: t('crm_manager_dashboard.summary.weighted_open_amount'),
         value: formatCurrency(props.summary?.weighted_open_amount || 0),
-        detail: t('crm_manager_dashboard.summary.open_count_detail', {
+        context: t('crm_manager_dashboard.summary.open_count_detail', {
             count: Number(props.summary?.open_count || 0),
         }),
-        tone: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300',
+        tone: 'emerald',
     },
     {
         key: 'month_to_date_won_amount',
         label: t('crm_manager_dashboard.summary.month_to_date_won_amount'),
         value: formatCurrency(props.summary?.month_to_date_won_amount || 0),
-        detail: t('crm_manager_dashboard.summary.wins_detail', {
+        context: t('crm_manager_dashboard.summary.wins_detail', {
             count: Number(props.summary?.month_to_date_won_count || 0),
         }),
-        tone: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-300',
+        tone: 'sky',
     },
     {
         key: 'overdue_next_actions',
         label: t('crm_manager_dashboard.summary.overdue_next_actions'),
         value: Number(props.summary?.overdue_next_actions || 0),
-        detail: t('crm_manager_dashboard.summary.overdue_detail', {
+        context: t('crm_manager_dashboard.summary.overdue_detail', {
             count: Number(props.summary?.overdue_next_actions || 0),
         }),
-        tone: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300',
+        tone: 'rose',
     },
     {
         key: 'quote_pull_through',
         label: t('crm_manager_dashboard.summary.quote_pull_through'),
         value: formatPercent(props.summary?.quote_pull_through?.rate || 0),
-        detail: t('crm_manager_dashboard.summary.quote_pull_through_detail', {
+        context: t('crm_manager_dashboard.summary.quote_pull_through_detail', {
             won: Number(props.summary?.quote_pull_through?.won || 0),
             total: Number(props.summary?.quote_pull_through?.total || 0),
         }),
-        tone: 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/20 dark:bg-violet-500/10 dark:text-violet-300',
+        tone: 'violet',
     },
 ]));
 
@@ -438,24 +439,10 @@ const openedLabel = (item) => {
                 </div>
             </section>
 
-            <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(12rem,1fr))]">
-                <article
-                    v-for="card in summaryCards"
-                    :key="card.key"
-                    class="rounded-sm border p-3 shadow-sm"
-                    :class="card.tone"
-                >
-                    <div class="text-[11px] font-semibold uppercase tracking-[0.14em] leading-4">
-                        {{ card.label }}
-                    </div>
-                    <div class="mt-1.5 text-xl font-semibold lg:text-2xl">
-                        {{ card.value }}
-                    </div>
-                    <div class="mt-1.5 text-xs opacity-80">
-                        {{ card.detail }}
-                    </div>
-                </article>
-            </section>
+            <KpiMetricGrid
+                :metrics="summaryCards"
+                grid-class="sm:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(12rem,1fr))]"
+            />
 
             <section class="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
                 <article class="rounded-sm border border-stone-200 bg-white p-3.5 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">

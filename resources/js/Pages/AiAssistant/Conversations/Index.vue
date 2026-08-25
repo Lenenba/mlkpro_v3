@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 
 const props = defineProps({
@@ -64,27 +65,39 @@ const channelLabels = {
 const quickFilters = computed(() => [
     {
         key: 'review',
-        label: 'A valider',
-        count: props.summary?.needs_review || 0,
+        label: 'À valider',
+        value: props.summary?.needs_review || 0,
         params: { queue: 'review', status: undefined },
+        tone: 'amber',
+        interactive: true,
+        active: activeQueue.value === 'review',
     },
     {
         key: 'open',
         label: 'En cours',
-        count: props.summary?.open || 0,
+        value: props.summary?.open || 0,
         params: { queue: undefined, status: 'open' },
+        tone: 'sky',
+        interactive: true,
+        active: activeQueue.value === 'open',
     },
     {
         key: 'resolved',
-        label: 'Resolues',
-        count: props.summary?.resolved || 0,
+        label: 'Résolues',
+        value: props.summary?.resolved || 0,
         params: { queue: undefined, status: 'resolved' },
+        tone: 'emerald',
+        interactive: true,
+        active: activeQueue.value === 'resolved',
     },
     {
         key: 'all',
         label: 'Toutes',
-        count: props.summary?.total || 0,
+        value: props.summary?.total || 0,
         params: { queue: undefined, status: undefined },
+        tone: 'stone',
+        interactive: true,
+        active: activeQueue.value === 'all',
     },
 ]);
 
@@ -173,21 +186,11 @@ const paginationLabel = (label) => String(label || '')
                 </div>
             </header>
 
-            <section class="grid gap-2 md:grid-cols-4">
-                <button
-                    v-for="item in quickFilters"
-                    :key="item.key"
-                    type="button"
-                    class="rounded-sm border p-3 text-left shadow-sm transition"
-                    :class="activeQueue === item.key
-                        ? 'border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-100'
-                        : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800'"
-                    @click="applyQuickFilter(item)"
-                >
-                    <div class="text-xs font-semibold uppercase tracking-wide opacity-70">{{ item.label }}</div>
-                    <div class="mt-1 text-xl font-semibold">{{ item.count }}</div>
-                </button>
-            </section>
+            <KpiMetricGrid
+                :metrics="quickFilters"
+                grid-class="grid-cols-1 md:grid-cols-4"
+                @activate="applyQuickFilter"
+            />
 
             <section class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="grid gap-2 md:grid-cols-[1fr_1fr_1fr_auto]">

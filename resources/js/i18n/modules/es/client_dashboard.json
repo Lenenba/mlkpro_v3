@@ -4,8 +4,8 @@
     "welcome": "Bienvenido de nuevo, {name}. Esto es lo que espera tu validación.",
     "profile_missing": "Tu perfil de cliente todavía no está vinculado. Contacta con la empresa para conectar tu cuenta.",
     "kpi": {
-      "quotes_pending": "Cotizaciones en espera de validación",
-      "jobs_pending": "Trabajos pendientes de validación",
+      "quotes_pending": "Cotizaciones por validar",
+      "jobs_pending": "Trabajos por validar",
       "invoices_due": "Facturas por pagar",
       "ratings_due": "Valoraciones pendientes"
     },

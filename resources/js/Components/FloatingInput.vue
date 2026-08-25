@@ -79,7 +79,7 @@ defineExpose({ focus: () => input.value?.focus() });
 </script>
 
 <template>
-    <div class="relative w-full min-w-0">
+    <div class="relative min-w-0">
         <input
             :id="inputId"
             v-model="value"

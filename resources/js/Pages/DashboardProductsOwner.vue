@@ -5,6 +5,7 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import AnnouncementsPanel from '@/Components/Dashboard/AnnouncementsPanel.vue';
 import KpiCompositePanel from '@/Components/Dashboard/KpiCompositePanel.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import Card from '@/Components/UI/Card.vue';
 import Modal from '@/Components/Modal.vue';
 import { humanizeDate } from '@/utils/date';
@@ -118,11 +119,19 @@ const marketingCards = computed(() => {
             key: 'campaigns_sent',
             label: t('dashboard.marketing_panel.cards.campaigns_sent'),
             value: formatNumber(marketingMetrics.value.campaigns_sent || 0),
+            tone: 'emerald',
+            colorClass: 'bg-emerald-500/70 dark:bg-emerald-400/50',
+            trend: null,
+            points: [],
         },
         {
             key: 'delivery_success_rate',
             label: t('dashboard.marketing_panel.cards.delivery_success_rate'),
             value: formatPercent(marketingMetrics.value.delivery_success_rate),
+            tone: 'sky',
+            colorClass: 'bg-sky-500/70 dark:bg-sky-400/50',
+            trend: null,
+            points: [],
         },
         {
             key: 'click_rate',
@@ -130,11 +139,19 @@ const marketingCards = computed(() => {
             value: marketingMetrics.value.click_rate === null
                 ? t('dashboard.marketing_panel.cards.tracking_off')
                 : formatPercent(marketingMetrics.value.click_rate),
+            tone: 'amber',
+            colorClass: 'bg-amber-500/70 dark:bg-amber-400/50',
+            trend: null,
+            points: [],
         },
         {
             key: 'conversions_attributed',
             label: t('dashboard.marketing_panel.cards.conversions_attributed'),
             value: formatNumber(marketingMetrics.value.conversions_attributed || 0),
+            tone: 'violet',
+            colorClass: 'bg-violet-500/70 dark:bg-violet-400/50',
+            trend: null,
+            points: [],
         },
     ];
 });
@@ -146,16 +163,105 @@ const audienceGrowthDelta = computed(() => {
 
     return formatNumber(delta);
 });
-const audienceGrowthDeltaClass = computed(() => {
+const audienceGrowthTone = computed(() => {
     const delta = Number(marketingMetrics.value?.audience_growth?.delta || 0);
     if (delta > 0) {
-        return 'text-emerald-700 dark:text-emerald-300';
+        return 'emerald';
     }
     if (delta < 0) {
-        return 'text-rose-700 dark:text-rose-300';
+        return 'rose';
     }
 
-    return 'text-stone-600 dark:text-neutral-300';
+    return 'stone';
+});
+const audienceGrowthColorClass = computed(() => ({
+    emerald: 'bg-emerald-500/70 dark:bg-emerald-400/50',
+    rose: 'bg-rose-500/70 dark:bg-rose-400/50',
+    stone: 'bg-stone-400/70 dark:bg-neutral-500/50',
+}[audienceGrowthTone.value]));
+const marketingSecondaryCards = computed(() => ([
+    {
+        key: 'top-campaign',
+        label: t('dashboard.marketing_panel.top_campaign'),
+        value: marketingMetrics.value?.top_performing_campaign?.name || t('dashboard.marketing_panel.no_data'),
+        context: t('dashboard.marketing_panel.conversions_clicks', {
+            conversions: formatNumber(marketingMetrics.value?.top_performing_campaign?.conversions || 0),
+            clicks: formatNumber(marketingMetrics.value?.top_performing_campaign?.clicks || 0),
+        }),
+        tone: 'violet',
+        colorClass: 'bg-violet-500/70 dark:bg-violet-400/50',
+        trend: null,
+        points: [],
+        wrapValue: true,
+    },
+    {
+        key: 'audience-growth',
+        label: t('dashboard.marketing_panel.audience_growth'),
+        value: formatNumber(marketingMetrics.value?.audience_growth?.current || 0),
+        context: `${t('dashboard.marketing_panel.delta')}: ${audienceGrowthDelta.value}`,
+        tone: audienceGrowthTone.value,
+        colorClass: audienceGrowthColorClass.value,
+        trend: null,
+        points: [],
+    },
+    {
+        key: 'vip-customers',
+        label: t('dashboard.marketing_panel.vip_customers'),
+        value: formatNumber(marketingMetrics.value?.vip_count || 0),
+        tone: 'amber',
+        colorClass: 'bg-amber-500/70 dark:bg-amber-400/50',
+        trend: null,
+        points: [],
+    },
+    {
+        key: 'mailing-lists',
+        label: t('dashboard.marketing_panel.mailing_lists'),
+        value: t('dashboard.marketing_panel.list_count', {
+            count: formatNumber(marketingMetrics.value?.mailing_lists?.count || 0),
+        }),
+        context: t('dashboard.marketing_panel.customers_count', {
+            count: formatNumber(marketingMetrics.value?.mailing_lists?.customers_total || 0),
+        }),
+        tone: 'sky',
+        colorClass: 'bg-sky-500/70 dark:bg-sky-400/50',
+        trend: null,
+        points: [],
+    },
+]));
+const marketingCrossModuleCards = computed(() => {
+    if (!marketingCrossModule.value) {
+        return [];
+    }
+
+    return [
+        {
+            key: 'reservations-created',
+            label: t('dashboard.marketing_panel.reservations_created_label'),
+            value: formatNumber(marketingCrossModule.value.reservations_created || 0),
+            tone: 'violet',
+            colorClass: 'bg-violet-500/70 dark:bg-violet-400/50',
+            trend: null,
+            points: [],
+        },
+        {
+            key: 'invoices-paid',
+            label: t('dashboard.marketing_panel.invoices_paid_label'),
+            value: formatNumber(marketingCrossModule.value.invoices_paid || 0),
+            tone: 'emerald',
+            colorClass: 'bg-emerald-500/70 dark:bg-emerald-400/50',
+            trend: null,
+            points: [],
+        },
+        {
+            key: 'quotes-accepted',
+            label: t('dashboard.marketing_panel.quotes_accepted_label'),
+            value: formatNumber(marketingCrossModule.value.quotes_accepted || 0),
+            tone: 'sky',
+            colorClass: 'bg-sky-500/70 dark:bg-sky-400/50',
+            trend: null,
+            points: [],
+        },
+    ];
 });
 const setMarketingPanelVisibility = (visible) => {
     showMarketingPanel.value = visible;
@@ -265,7 +371,10 @@ const overviewMetrics = computed(() => (
             key: `overview-${card.icon || index}`,
             label: card.label,
             value: card.value,
+            tone: card.tone,
             colorClass: panelMetricColors[card.tone] || 'bg-stone-400/70 dark:bg-neutral-500/50',
+            trend: null,
+            points: [],
         }))
 ));
 
@@ -287,25 +396,37 @@ const inventoryMetrics = computed(() => ([
         key: 'low-stock',
         label: t('dashboard_products.owner.kpi.low_stock'),
         value: formatNumber(props.stats.low_stock),
+        tone: 'amber',
         colorClass: panelMetricColors.amber,
+        trend: null,
+        points: [],
     },
     {
         key: 'out-of-stock',
         label: t('dashboard_products.owner.kpi.out_of_stock'),
         value: formatNumber(props.stats.out_of_stock),
+        tone: 'red',
         colorClass: panelMetricColors.red,
+        trend: null,
+        points: [],
     },
     {
         key: 'reserved-stock',
         label: t('dashboard_products.common.metrics.reserved'),
         value: formatNumber(props.stats.reserved_total),
+        tone: 'sky',
         colorClass: panelMetricColors.sky,
+        trend: null,
+        points: [],
     },
     {
         key: 'damaged-stock',
         label: t('dashboard_products.common.metrics.damaged'),
         value: formatNumber(props.stats.damaged_total),
+        tone: 'red',
         colorClass: panelMetricColors.red,
+        trend: null,
+        points: [],
     },
 ]));
 
@@ -324,65 +445,60 @@ const inventorySummaryItems = computed(() => ([
     },
 ]));
 
-const kpiIconStyles = {
-    emerald: 'bg-emerald-500/90 text-white shadow-emerald-500/30',
-    sky: 'bg-sky-500/90 text-white shadow-sky-500/30',
-    amber: 'bg-amber-500/90 text-white shadow-amber-500/30',
-    red: 'bg-red-500/90 text-white shadow-red-500/30',
-};
-
-const kpiBorderStyles = {
-    emerald: 'border-t-emerald-500 dark:border-t-emerald-400',
-    sky: 'border-t-sky-500 dark:border-t-sky-400',
-    amber: 'border-t-amber-500 dark:border-t-amber-400',
-    red: 'border-t-red-500 dark:border-t-red-400',
-};
-
-const performanceKpiIcons = {
-    revenue: ['M12 6v12', 'M8.5 9.5a3.5 3.5 0 117 0c0 1.933-1.567 3.5-3.5 3.5S8.5 11.433 8.5 9.5z'],
-    orders: ['M3 3h2l.4 2', 'M7 13h10l4-8H5.4', 'M7 13L5.4 5', 'M7 13l-2 6', 'M17 13l2 6'],
-    items_sold: ['M12 3l8 4-8 4-8-4 8-4z', 'M4 7v10l8 4 8-4V7'],
-    avg_order: ['M6 4h12v16l-3-1.5-3 1.5-3-1.5-3 1.5V4z', 'M9 9h6', 'M9 13h6'],
-    customers: ['M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2', 'M9 7a4 4 0 100 8 4 4 0 000-8z'],
-    revenue_per_seller: ['M3 17l6-6 4 4 7-7', 'M14 7h7v7'],
-};
-
 const performanceKpis = computed(() => ([
     {
         key: 'revenue',
         label: t('dashboard_products.owner.performance.kpi.revenue'),
         value: formatCurrency(periodStats.value.revenue),
         tone: 'emerald',
+        colorClass: panelMetricColors.emerald,
+        trend: null,
+        points: [],
     },
     {
         key: 'orders',
         label: t('dashboard_products.owner.performance.kpi.orders'),
         value: formatNumber(periodStats.value.orders),
         tone: 'sky',
+        colorClass: panelMetricColors.sky,
+        trend: null,
+        points: [],
     },
     {
         key: 'items_sold',
         label: t('dashboard_products.owner.performance.kpi.items_sold'),
         value: formatNumber(periodStats.value.items_sold),
         tone: 'amber',
+        colorClass: panelMetricColors.amber,
+        trend: null,
+        points: [],
     },
     {
         key: 'avg_order',
         label: t('dashboard_products.owner.performance.kpi.avg_order'),
         value: formatCurrency(periodStats.value.avg_order),
         tone: 'emerald',
+        colorClass: panelMetricColors.emerald,
+        trend: null,
+        points: [],
     },
     {
         key: 'customers',
         label: t('dashboard_products.owner.performance.kpi.customers'),
         value: formatNumber(periodStats.value.customers),
         tone: 'sky',
+        colorClass: panelMetricColors.sky,
+        trend: null,
+        points: [],
     },
     {
         key: 'revenue_per_seller',
         label: t('dashboard_products.owner.performance.kpi.revenue_per_seller'),
         value: formatCurrency(periodStats.value.revenue_per_seller),
         tone: 'amber',
+        colorClass: panelMetricColors.amber,
+        trend: null,
+        points: [],
     },
 ]));
 
@@ -684,69 +800,27 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                 </div>
 
                 <div v-if="showMarketingPanel" class="mt-3 space-y-3">
-                    <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-                        <div
-                            v-for="card in marketingCards"
-                            :key="`marketing-kpi-${card.key}`"
-                            class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 dark:border-neutral-700 dark:bg-neutral-800"
-                        >
-                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ card.label }}</div>
-                            <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ card.value }}</div>
-                        </div>
-                    </div>
+                    <KpiMetricGrid
+                        :metrics="marketingCards"
+                        grid-class="grid-cols-1 md:grid-cols-2 xl:grid-cols-4"
+                        :aria-label="$t('dashboard.marketing_panel.title')"
+                        compact
+                    />
 
-                    <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-                        <div class="rounded-sm border border-stone-200 bg-white px-3 py-3 dark:border-neutral-700 dark:bg-neutral-900">
-                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('dashboard.marketing_panel.top_campaign') }}</div>
-                            <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ marketingMetrics?.top_performing_campaign?.name || $t('dashboard.marketing_panel.no_data') }}
-                            </div>
-                        </div>
-                        <div class="rounded-sm border border-stone-200 bg-white px-3 py-3 dark:border-neutral-700 dark:bg-neutral-900">
-                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('dashboard.marketing_panel.audience_growth') }}</div>
-                            <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ formatNumber(marketingMetrics?.audience_growth?.current || 0) }}
-                            </div>
-                            <div class="mt-1 text-xs" :class="audienceGrowthDeltaClass">{{ $t('dashboard.marketing_panel.delta') }}: {{ audienceGrowthDelta }}</div>
-                        </div>
-                        <div class="rounded-sm border border-stone-200 bg-white px-3 py-3 dark:border-neutral-700 dark:bg-neutral-900">
-                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('dashboard.marketing_panel.vip_customers') }}</div>
-                            <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ formatNumber(marketingMetrics?.vip_count || 0) }}
-                            </div>
-                        </div>
-                        <div class="rounded-sm border border-stone-200 bg-white px-3 py-3 dark:border-neutral-700 dark:bg-neutral-900">
-                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('dashboard.marketing_panel.mailing_lists') }}</div>
-                            <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ $t('dashboard.marketing_panel.list_count', {
-                                    count: formatNumber(marketingMetrics?.mailing_lists?.count || 0),
-                                }) }}
-                            </div>
-                            <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('dashboard.marketing_panel.customers_count', {
-                                    count: formatNumber(marketingMetrics?.mailing_lists?.customers_total || 0),
-                                }) }}
-                            </div>
-                        </div>
-                    </div>
+                    <KpiMetricGrid
+                        :metrics="marketingSecondaryCards"
+                        grid-class="grid-cols-1 md:grid-cols-2 xl:grid-cols-4"
+                        :aria-label="$t('dashboard.marketing_panel.title')"
+                        compact
+                    />
 
-                    <div v-if="marketingCrossModule" class="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                        <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                            {{ $t('dashboard.marketing_panel.reservations_created', {
-                                count: formatNumber(marketingCrossModule.reservations_created || 0),
-                            }) }}
-                        </div>
-                        <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                            {{ $t('dashboard.marketing_panel.invoices_paid', {
-                                count: formatNumber(marketingCrossModule.invoices_paid || 0),
-                            }) }}
-                        </div>
-                        <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                            {{ $t('dashboard.marketing_panel.quotes_accepted', {
-                                count: formatNumber(marketingCrossModule.quotes_accepted || 0),
-                            }) }}
-                        </div>
-                    </div>
+                    <KpiMetricGrid
+                        v-if="marketingCrossModule"
+                        :metrics="marketingCrossModuleCards"
+                        grid-class="grid-cols-1 gap-2 sm:grid-cols-3"
+                        :aria-label="$t('dashboard.marketing_panel.title')"
+                        compact
+                    />
                 </div>
             </section>
 
@@ -784,9 +858,8 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                         </a>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+                    <div v-if="isHydrating" class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-3">
                         <div
-                            v-if="isHydrating"
                             v-for="index in skeletonKpis"
                             :key="`perf-kpi-skeleton-${index}`"
                             class="rounded-sm border border-t-4 border-stone-200 bg-white p-3 text-xs text-stone-500 animate-pulse dark:border-neutral-700 dark:border-t-neutral-600 dark:bg-neutral-900 dark:text-neutral-400"
@@ -799,41 +872,14 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                                 <div class="h-8 w-8 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
                             </div>
                         </div>
-                        <div
-                            v-else
-                            v-for="card in performanceKpis"
-                            :key="card.label"
-                            class="rounded-sm border border-t-4 border-stone-200 bg-white p-3 text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
-                            :class="kpiBorderStyles[card.tone] || 'border-t-stone-300 dark:border-t-neutral-600'"
-                        >
-                            <div class="flex items-start justify-between gap-2">
-                                <div>
-                                    <p class="uppercase">{{ card.label }}</p>
-                                    <p class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                        {{ card.value }}
-                                    </p>
-                                </div>
-                                <span
-                                    class="flex h-8 w-8 items-center justify-center rounded-full shadow-md ring-1 ring-white/20 animate-[pulse_3s_ease-in-out_infinite]"
-                                    :class="kpiIconStyles[card.tone] || 'bg-stone-600/90 text-white shadow-stone-500/30'"
-                                >
-                                    <svg
-                                        v-if="performanceKpiIcons[card.key]"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        class="h-4 w-4"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="1.8"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    >
-                                        <path v-for="path in performanceKpiIcons[card.key]" :key="path" :d="path" />
-                                    </svg>
-                                </span>
-                            </div>
-                        </div>
                     </div>
+                    <KpiMetricGrid
+                        v-else
+                        :metrics="performanceKpis"
+                        grid-class="grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))]"
+                        :aria-label="$t('dashboard_products.owner.performance.title')"
+                        compact
+                    />
 
                     <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
                         <div class="lg:col-span-2 space-y-4">

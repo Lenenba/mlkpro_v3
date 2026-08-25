@@ -2,6 +2,8 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Head, Link, useForm } from '@inertiajs/vue3';
+import KpiMetricCard from '@/Components/Dashboard/KpiMetricCard.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { humanizeDate } from '@/utils/date';
 
@@ -163,6 +165,62 @@ const jobsBacklogDetail = computed(() => {
     });
 });
 
+const platformMetrics = computed(() => [
+    {
+        key: 'total_companies',
+        label: t('super_admin.dashboard.kpi.total_companies'),
+        value: formatNumber(props.metrics.companies_total),
+        context: t('super_admin.dashboard.kpi.onboarded', {
+            count: formatNumber(props.metrics.companies_onboarded),
+            percent: formatPercent(props.metrics.onboarding_conversion),
+        }),
+        tone: 'emerald',
+    },
+    {
+        key: 'new_companies_30d',
+        label: t('super_admin.dashboard.kpi.new_companies_30d'),
+        value: formatNumber(newCompanies30.value),
+        context: t('super_admin.dashboard.kpi.onboarding_conversion_30d', {
+            percent: formatPercent(props.metrics.onboarding_conversion_30d),
+        }),
+        tone: 'amber',
+    },
+    {
+        key: 'active_companies',
+        label: t('super_admin.dashboard.kpi.active_companies'),
+        value: t('super_admin.dashboard.kpi.active_wau_mau', {
+            wau: formatNumber(props.metrics.wau),
+            mau: formatNumber(props.metrics.mau),
+        }),
+        context: t('super_admin.dashboard.kpi.activation_rates', {
+            j7: formatPercent(props.metrics.activation_rates?.j7),
+            j30: formatPercent(props.metrics.activation_rates?.j30),
+        }),
+        tone: 'blue',
+    },
+    {
+        key: 'platform_health',
+        label: t('super_admin.dashboard.kpi.platform_health'),
+        value: formatMeasuredNumber(
+            props.metrics.health?.failed_jobs_24h,
+            failedJobsMeasurable.value,
+        ),
+        context: t('super_admin.dashboard.kpi.health_hint', {
+            failed: formatMeasuredNumber(
+                props.metrics.health?.failed_jobs_24h,
+                failedJobsMeasurable.value,
+            ),
+            pending: formatMeasuredNumber(
+                props.metrics.health?.pending_jobs,
+                queueBacklogMeasurable.value,
+            ),
+        }),
+        tone: platformHealthUnavailable.value ? 'amber' : 'violet',
+        measurementStatus: platformHealthUnavailable.value ? 'unknown' : 'available',
+        testId: 'superadmin-platform-health',
+    },
+]);
+
 const healthCards = computed(() => ([
     {
         key: 'failed_jobs_24h',
@@ -173,8 +231,8 @@ const healthCards = computed(() => ([
         ),
         measurable: failedJobsMeasurable.value,
         tone: !failedJobsMeasurable.value
-            ? 'text-amber-600 dark:text-amber-400'
-            : (props.metrics.health.failed_jobs_24h > 0 ? 'text-red-600' : 'text-emerald-700'),
+            ? 'amber'
+            : (props.metrics.health.failed_jobs_24h > 0 ? 'red' : 'emerald'),
     },
     {
         key: 'pending_jobs',
@@ -185,8 +243,8 @@ const healthCards = computed(() => ([
         ),
         measurable: queueBacklogMeasurable.value,
         tone: !queueBacklogMeasurable.value
-            ? 'text-amber-600 dark:text-amber-400'
-            : (props.metrics.health.pending_jobs > 0 ? 'text-amber-600' : 'text-emerald-700'),
+            ? 'amber'
+            : (props.metrics.health.pending_jobs > 0 ? 'amber' : 'emerald'),
     },
     {
         key: 'email_failures_24h',
@@ -197,8 +255,8 @@ const healthCards = computed(() => ([
         ),
         measurable: failedMailJobsMeasurable.value,
         tone: !failedMailJobsMeasurable.value
-            ? 'text-amber-600 dark:text-amber-400'
-            : (props.metrics.health.failed_mail_jobs_24h > 0 ? 'text-red-600' : 'text-emerald-700'),
+            ? 'amber'
+            : (props.metrics.health.failed_mail_jobs_24h > 0 ? 'red' : 'emerald'),
     },
     {
         key: 'storage_public_bytes',
@@ -206,7 +264,7 @@ const healthCards = computed(() => ([
         value: formatBytes(props.metrics.health?.storage_public_bytes),
         measurable: props.metrics.health?.storage_public_bytes !== null
             && props.metrics.health?.storage_public_bytes !== undefined,
-        tone: 'text-stone-700 dark:text-neutral-200',
+        tone: 'stone',
     },
 ]));
 
@@ -260,6 +318,120 @@ const riskTenants = computed(() => props.metrics.at_risk_tenants?.tenants || [])
 const usageTrends = computed(() => props.metrics.usage_trends || []);
 const siteTraffic = computed(() => props.metrics.site_traffic || {});
 const siteTrafficSeries = computed(() => props.metrics.site_traffic_series || []);
+
+const alertMetrics = computed(() => [
+    {
+        key: 'limits',
+        label: t('super_admin.dashboard.alerts.limits'),
+        value: formatNumber(limitAlerts.value.count),
+        tone: limitAlerts.value.count > 0 ? 'rose' : 'emerald',
+    },
+    {
+        key: 'stripe_failures',
+        label: t('super_admin.dashboard.alerts.stripe_failures'),
+        value: formatMeasuredNumber(
+            props.metrics.alerts?.stripe_failures_24h,
+            stripeFailuresMeasurable.value,
+        ),
+        tone: !stripeFailuresMeasurable.value
+            ? 'amber'
+            : (props.metrics.alerts.stripe_failures_24h > 0 ? 'rose' : 'emerald'),
+        measurementStatus: stripeFailuresMeasurable.value ? 'available' : 'unknown',
+        testId: 'superadmin-stripe-failures',
+    },
+    {
+        key: 'smtp_failures',
+        label: t('super_admin.dashboard.alerts.smtp_failures'),
+        value: formatMeasuredNumber(
+            props.metrics.alerts?.smtp_failures_24h,
+            smtpFailuresMeasurable.value,
+        ),
+        tone: !smtpFailuresMeasurable.value
+            ? 'amber'
+            : (props.metrics.alerts.smtp_failures_24h > 0 ? 'rose' : 'emerald'),
+        measurementStatus: smtpFailuresMeasurable.value ? 'available' : 'unknown',
+        testId: 'superadmin-smtp-failures',
+    },
+    {
+        key: 'jobs_backlog',
+        label: t('super_admin.dashboard.alerts.jobs_backlog'),
+        value: formatMeasuredNumber(
+            props.metrics.alerts?.jobs_backlog?.pending,
+            jobsBacklogPendingMeasurable.value,
+        ),
+        context: jobsBacklogDetail.value,
+        tone: !jobsBacklogMeasurable.value
+            ? 'amber'
+            : (props.metrics.alerts.jobs_backlog.pending > 0 ? 'amber' : 'emerald'),
+        measurementStatus: jobsBacklogMeasurable.value ? 'available' : 'unknown',
+        testId: 'superadmin-jobs-backlog',
+    },
+    {
+        key: 'storage',
+        label: t('super_admin.dashboard.alerts.storage'),
+        value: storageAlertMeasurable.value
+            ? `${props.metrics.alerts?.storage?.used_percent}%`
+            : t('super_admin.common.not_available'),
+        context: formatBytes(props.metrics.alerts?.storage?.used_bytes),
+        tone: !storageAlertMeasurable.value
+            ? 'amber'
+            : (props.metrics.alerts?.storage?.critical ? 'rose' : 'emerald'),
+        measurementStatus: storageAlertMeasurable.value ? 'available' : 'unknown',
+        testId: 'superadmin-storage-alert',
+        gridClass: 'sm:col-span-2',
+    },
+]);
+
+const siteTrafficMetrics = computed(() => [
+    {
+        key: 'last_24h',
+        label: t('super_admin.dashboard.site_traffic.last_24h'),
+        value: formatNumber(siteTraffic.value.total_24h),
+        context: t('super_admin.dashboard.site_traffic.unique_label', {
+            count: formatNumber(siteTraffic.value.unique_24h),
+        }),
+        tone: 'emerald',
+    },
+    {
+        key: 'last_7d',
+        label: t('super_admin.dashboard.site_traffic.last_7d'),
+        value: formatNumber(siteTraffic.value.total_7d),
+        context: t('super_admin.dashboard.site_traffic.unique_label', {
+            count: formatNumber(siteTraffic.value.unique_7d),
+        }),
+        tone: 'sky',
+    },
+    {
+        key: 'last_30d',
+        label: t('super_admin.dashboard.site_traffic.last_30d'),
+        value: formatNumber(siteTraffic.value.total_30d),
+        context: t('super_admin.dashboard.site_traffic.unique_label', {
+            count: formatNumber(siteTraffic.value.unique_30d),
+        }),
+        tone: 'indigo',
+    },
+]);
+
+const dataQualityMetrics = computed(() => [
+    {
+        key: 'customer_email_duplicates',
+        label: t('super_admin.dashboard.data_quality.customer_email_duplicates'),
+        value: formatNumber(props.metrics.data_quality?.customer_email_duplicates),
+        tone: 'rose',
+    },
+    {
+        key: 'customer_name_duplicates',
+        label: t('super_admin.dashboard.data_quality.customer_name_duplicates'),
+        value: formatNumber(props.metrics.data_quality?.customer_name_duplicates),
+        tone: 'amber',
+    },
+    {
+        key: 'product_name_duplicates',
+        label: t('super_admin.dashboard.data_quality.product_name_duplicates'),
+        value: formatNumber(props.metrics.data_quality?.product_name_duplicates),
+        tone: 'orange',
+    },
+]);
 
 const buildSparklinePoints = (values, width = 260, height = 80, padding = 6) => {
     if (!values.length) {
@@ -390,81 +562,13 @@ const resetAuditFilters = () => {
             </div>
 
             <div class="grid gap-3 md:grid-cols-4">
-                <div class="rounded-sm border border-stone-200 border-t-4 border-t-emerald-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.dashboard.kpi.total_companies') }}
-                    </p>
-                    <p class="mt-2 text-2xl font-semibold text-stone-800 dark:text-white">
-                        {{ formatNumber(metrics.companies_total) }}
-                    </p>
-                    <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.dashboard.kpi.onboarded', {
-                            count: formatNumber(metrics.companies_onboarded),
-                            percent: formatPercent(metrics.onboarding_conversion)
-                        }) }}
-                    </p>
-                </div>
-                <div class="rounded-sm border border-stone-200 border-t-4 border-t-amber-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.dashboard.kpi.new_companies_30d') }}
-                    </p>
-                    <p class="mt-2 text-2xl font-semibold text-stone-800 dark:text-white">
-                        {{ formatNumber(newCompanies30) }}
-                    </p>
-                    <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.dashboard.kpi.onboarding_conversion_30d', {
-                            percent: formatPercent(metrics.onboarding_conversion_30d)
-                        }) }}
-                    </p>
-                </div>
-                <div class="rounded-sm border border-stone-200 border-t-4 border-t-blue-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.dashboard.kpi.active_companies') }}
-                    </p>
-                    <p class="mt-2 text-2xl font-semibold text-stone-800 dark:text-white">
-                        {{ $t('super_admin.dashboard.kpi.active_wau_mau', {
-                            wau: formatNumber(metrics.wau),
-                            mau: formatNumber(metrics.mau)
-                        }) }}
-                    </p>
-                    <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.dashboard.kpi.activation_rates', {
-                            j7: formatPercent(metrics.activation_rates?.j7),
-                            j30: formatPercent(metrics.activation_rates?.j30)
-                        }) }}
-                    </p>
-                </div>
-                <div
-                    class="rounded-sm border border-stone-200 border-t-4 p-4 shadow-sm dark:border-neutral-700"
-                    :class="platformHealthUnavailable
-                        ? 'border-t-amber-500 bg-amber-50/60 dark:bg-amber-950/20'
-                        : 'border-t-violet-600 bg-white dark:bg-neutral-800'"
-                    :data-measurement-status="platformHealthUnavailable ? 'unknown' : 'available'"
-                    data-testid="superadmin-platform-health"
-                >
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.dashboard.kpi.platform_health') }}
-                    </p>
-                    <p
-                        class="mt-2 text-2xl font-semibold"
-                        :class="platformHealthUnavailable
-                            ? 'text-amber-700 dark:text-amber-300'
-                            : 'text-stone-800 dark:text-white'"
-                    >
-                        {{ formatMeasuredNumber(metrics.health?.failed_jobs_24h, failedJobsMeasurable) }}
-                    </p>
-                    <p
-                        class="mt-1 text-xs"
-                        :class="platformHealthUnavailable
-                            ? 'text-amber-700 dark:text-amber-300'
-                            : 'text-stone-500 dark:text-neutral-400'"
-                    >
-                        {{ $t('super_admin.dashboard.kpi.health_hint', {
-                            failed: formatMeasuredNumber(metrics.health?.failed_jobs_24h, failedJobsMeasurable),
-                            pending: formatMeasuredNumber(metrics.health?.pending_jobs, queueBacklogMeasurable)
-                        }) }}
-                    </p>
-                </div>
+                <KpiMetricCard
+                    v-for="metric in platformMetrics"
+                    :key="metric.key"
+                    :metric="metric"
+                    :data-measurement-status="metric.measurementStatus"
+                    :data-testid="metric.testId"
+                />
             </div>
 
             <div class="grid gap-3 lg:grid-cols-2">
@@ -478,101 +582,14 @@ const resetAuditFilters = () => {
                         </span>
                     </div>
                     <div class="mt-3 grid gap-3 sm:grid-cols-2">
-                        <div class="rounded-sm border border-stone-200 p-3 text-sm dark:border-neutral-700">
-                            <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.dashboard.alerts.limits') }}
-                            </div>
-                            <div class="mt-1 text-lg font-semibold" :class="limitAlerts.count > 0 ? 'text-rose-600' : 'text-emerald-600'">
-                                {{ formatNumber(limitAlerts.count) }}
-                            </div>
-                        </div>
-                        <div
-                            class="rounded-sm border p-3 text-sm"
-                            :class="stripeFailuresMeasurable
-                                ? 'border-stone-200 dark:border-neutral-700'
-                                : 'border-amber-300 bg-amber-50/60 dark:border-amber-700 dark:bg-amber-950/20'"
-                            :data-measurement-status="stripeFailuresMeasurable ? 'available' : 'unknown'"
-                            data-testid="superadmin-stripe-failures"
-                        >
-                            <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.dashboard.alerts.stripe_failures') }}
-                            </div>
-                            <div
-                                class="mt-1 text-lg font-semibold"
-                                :class="!stripeFailuresMeasurable
-                                    ? 'text-amber-700 dark:text-amber-300'
-                                    : (metrics.alerts.stripe_failures_24h > 0 ? 'text-rose-600' : 'text-emerald-600')"
-                            >
-                                {{ formatMeasuredNumber(metrics.alerts?.stripe_failures_24h, stripeFailuresMeasurable) }}
-                            </div>
-                        </div>
-                        <div
-                            class="rounded-sm border p-3 text-sm"
-                            :class="smtpFailuresMeasurable
-                                ? 'border-stone-200 dark:border-neutral-700'
-                                : 'border-amber-300 bg-amber-50/60 dark:border-amber-700 dark:bg-amber-950/20'"
-                            :data-measurement-status="smtpFailuresMeasurable ? 'available' : 'unknown'"
-                            data-testid="superadmin-smtp-failures"
-                        >
-                            <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.dashboard.alerts.smtp_failures') }}
-                            </div>
-                            <div
-                                class="mt-1 text-lg font-semibold"
-                                :class="!smtpFailuresMeasurable
-                                    ? 'text-amber-700 dark:text-amber-300'
-                                    : (metrics.alerts.smtp_failures_24h > 0 ? 'text-rose-600' : 'text-emerald-600')"
-                            >
-                                {{ formatMeasuredNumber(metrics.alerts?.smtp_failures_24h, smtpFailuresMeasurable) }}
-                            </div>
-                        </div>
-                        <div
-                            class="rounded-sm border p-3 text-sm"
-                            :class="jobsBacklogMeasurable
-                                ? 'border-stone-200 dark:border-neutral-700'
-                                : 'border-amber-300 bg-amber-50/60 dark:border-amber-700 dark:bg-amber-950/20'"
-                            :data-measurement-status="jobsBacklogMeasurable ? 'available' : 'unknown'"
-                            data-testid="superadmin-jobs-backlog"
-                        >
-                            <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.dashboard.alerts.jobs_backlog') }}
-                            </div>
-                            <div
-                                class="mt-1 text-sm font-semibold"
-                                :class="jobsBacklogMeasurable
-                                    ? 'text-stone-800 dark:text-neutral-100'
-                                    : 'text-amber-700 dark:text-amber-300'"
-                            >
-                                {{ jobsBacklogDetail }}
-                            </div>
-                        </div>
-                        <div
-                            class="rounded-sm border p-3 text-sm sm:col-span-2"
-                            :class="storageAlertMeasurable
-                                ? 'border-stone-200 dark:border-neutral-700'
-                                : 'border-amber-300 bg-amber-50/60 dark:border-amber-700 dark:bg-amber-950/20'"
-                            :data-measurement-status="storageAlertMeasurable ? 'available' : 'unknown'"
-                            data-testid="superadmin-storage-alert"
-                        >
-                            <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.dashboard.alerts.storage') }}
-                            </div>
-                            <div class="mt-1 flex items-center gap-2 text-sm">
-                                <span
-                                    class="font-semibold"
-                                    :class="!storageAlertMeasurable
-                                        ? 'text-amber-700 dark:text-amber-300'
-                                        : (metrics.alerts?.storage?.critical ? 'text-rose-600' : 'text-emerald-600')"
-                                >
-                                    {{ storageAlertMeasurable
-                                        ? `${metrics.alerts?.storage?.used_percent}%`
-                                        : $t('super_admin.common.not_available') }}
-                                </span>
-                                <span class="text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ formatBytes(metrics.alerts?.storage?.used_bytes) }}
-                                </span>
-                            </div>
-                        </div>
+                        <KpiMetricCard
+                            v-for="metric in alertMetrics"
+                            :key="metric.key"
+                            :metric="metric"
+                            :class="metric.gridClass"
+                            :data-measurement-status="metric.measurementStatus"
+                            :data-testid="metric.testId"
+                        />
                     </div>
                     <div class="mt-4">
                         <h3 class="text-xs font-semibold uppercase text-stone-500 dark:text-neutral-400">
@@ -654,16 +671,15 @@ const resetAuditFilters = () => {
                 <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                     {{ $t('super_admin.dashboard.health.title') }}
                 </h2>
-                <div class="mt-4 grid gap-3 sm:grid-cols-4 text-sm text-stone-700 dark:text-neutral-200">
-                    <div
+                <div class="mt-4 grid gap-3 sm:grid-cols-4">
+                    <KpiMetricCard
                         v-for="card in healthCards"
                         :key="card.key"
+                        :metric="card"
+                        compact
                         :data-measurement-status="card.measurable ? 'available' : 'unknown'"
                         :data-testid="`superadmin-health-${card.key}`"
-                    >
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ card.label }}</div>
-                        <div class="mt-1 font-semibold" :class="card.tone">{{ card.value }}</div>
-                    </div>
+                    />
                 </div>
             </div>
 
@@ -688,41 +704,11 @@ const resetAuditFilters = () => {
                 <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                     {{ $t('super_admin.dashboard.site_traffic.title') }}
                 </h2>
-                <div class="mt-4 grid gap-3 sm:grid-cols-3 text-sm text-stone-700 dark:text-neutral-200">
-                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-900">
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">
-                            {{ $t('super_admin.dashboard.site_traffic.last_24h') }}
-                        </div>
-                        <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ formatNumber(siteTraffic.total_24h) }}
-                        </div>
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">
-                            {{ $t('super_admin.dashboard.site_traffic.unique_label', { count: formatNumber(siteTraffic.unique_24h) }) }}
-                        </div>
-                    </div>
-                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-900">
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">
-                            {{ $t('super_admin.dashboard.site_traffic.last_7d') }}
-                        </div>
-                        <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ formatNumber(siteTraffic.total_7d) }}
-                        </div>
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">
-                            {{ $t('super_admin.dashboard.site_traffic.unique_label', { count: formatNumber(siteTraffic.unique_7d) }) }}
-                        </div>
-                    </div>
-                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-900">
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">
-                            {{ $t('super_admin.dashboard.site_traffic.last_30d') }}
-                        </div>
-                        <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ formatNumber(siteTraffic.total_30d) }}
-                        </div>
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">
-                            {{ $t('super_admin.dashboard.site_traffic.unique_label', { count: formatNumber(siteTraffic.unique_30d) }) }}
-                        </div>
-                    </div>
-                </div>
+                <KpiMetricGrid
+                    class="mt-4"
+                    :metrics="siteTrafficMetrics"
+                    grid-class="sm:grid-cols-3"
+                />
                 <div class="mt-4">
                     <div v-if="!trafficHasData" class="text-xs text-stone-500 dark:text-neutral-400">
                         {{ $t('super_admin.dashboard.site_traffic.empty') }}
@@ -856,20 +842,12 @@ const resetAuditFilters = () => {
                 <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                     {{ $t('super_admin.dashboard.data_quality.title') }}
                 </h2>
-                <div class="mt-4 grid gap-3 sm:grid-cols-3 text-sm text-stone-700 dark:text-neutral-200">
-                    <div>
-                        {{ $t('super_admin.dashboard.data_quality.customer_email_duplicates') }}:
-                        <span class="font-semibold">{{ formatNumber(metrics.data_quality?.customer_email_duplicates) }}</span>
-                    </div>
-                    <div>
-                        {{ $t('super_admin.dashboard.data_quality.customer_name_duplicates') }}:
-                        <span class="font-semibold">{{ formatNumber(metrics.data_quality?.customer_name_duplicates) }}</span>
-                    </div>
-                    <div>
-                        {{ $t('super_admin.dashboard.data_quality.product_name_duplicates') }}:
-                        <span class="font-semibold">{{ formatNumber(metrics.data_quality?.product_name_duplicates) }}</span>
-                    </div>
-                </div>
+                <KpiMetricGrid
+                    class="mt-4"
+                    :metrics="dataQualityMetrics"
+                    grid-class="sm:grid-cols-3"
+                    compact
+                />
             </div>
 
             <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">

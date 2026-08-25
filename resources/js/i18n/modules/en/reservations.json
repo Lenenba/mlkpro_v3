@@ -45,13 +45,13 @@
     },
     "performance": {
       "title": "Performance (last {days} days)",
-      "occupancy_rate": "Occupancy rate",
-      "no_show_rate": "No-show rate",
-      "reschedule_rate": "Reschedule rate",
-      "completion_rate": "Completion rate",
-      "avg_service_value": "Avg service value",
-      "tip_rate": "Tip rate",
-      "resource_reservation_rate": "Resource usage",
+      "occupancy_rate": "Occupancy",
+      "no_show_rate": "No-shows",
+      "reschedule_rate": "Reschedules",
+      "completion_rate": "Completion",
+      "avg_service_value": "Avg service",
+      "tip_rate": "Tips",
+      "resource_reservation_rate": "Resource use",
       "table_turnover": "Table turnover",
       "party_size_avg": "Avg party size"
     },
@@ -641,7 +641,7 @@
           "submitted": "Reservation request submitted."
         },
         "waitlist": {
-          "title": "Join the waitlist",
+          "title": "Waitlist",
           "description": "No matching slot right now. Join the waitlist and get priority when a slot is released.",
           "join_button": "Join waitlist",
           "created": "Waitlist request submitted.",

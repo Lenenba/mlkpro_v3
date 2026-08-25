@@ -28,12 +28,12 @@
     },
     "kpi": {
       "total_tips": "propinas totales",
-      "average_tip_per_reservation": "Propina media por reserva",
+      "average_tip_per_reservation": "Propina media / reserva",
       "top_members": "Los 3 mejores miembros del equipo",
       "top_collectors": "Mejores coleccionistas",
       "current_month_tips": "Consejos del mes actual",
       "period_total": "Total del período",
-      "average_tip_per_service": "Propina promedio por servicio"
+      "average_tip_per_service": "Propina media / servicio"
     },
     "table": {
       "datetime": "Fecha y hora",

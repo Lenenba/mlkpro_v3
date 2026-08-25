@@ -28,7 +28,7 @@ test('floating labels stay bounded across every shared text and date control', (
     for (const file of files) {
         const source = read(file);
 
-        assert.match(source, /relative w-full min-w-0/, file);
+        assert.match(source, /relative(?: w-full)? min-w-0/, file);
         assert.match(source, /app-floating-label/, file);
         assert.match(source, /app-floating-label-content/, file);
         assert.match(source, /:title="label"/, file);
@@ -42,6 +42,42 @@ test('floating labels stay bounded across every shared text and date control', (
         'resources/js/Components/TimePicker.vue',
     ]) {
         assert.match(read(file), /app-field-control/, file);
+    }
+});
+
+test('floating text and select wrappers do not force compact DataTable filters onto full rows', () => {
+    const input = read('resources/js/Components/FloatingInput.vue');
+    const select = read('resources/js/Components/FloatingSelect.vue');
+    const toolbar = read('resources/js/Components/DataTable/AdminDataTableToolbar.vue');
+    const taskTable = read('resources/js/Pages/Task/UI/TaskTable.vue');
+    const quoteTable = read('resources/js/Pages/Quote/UI/QuoteTable.vue');
+    const actionsSlot = (source) => {
+        const start = source.indexOf('<template #actions>');
+        const end = source.indexOf('</template>', start);
+
+        assert.notEqual(start, -1);
+        assert.notEqual(end, -1);
+
+        return source.slice(start, end);
+    };
+
+    for (const source of [input, select]) {
+        assert.match(source, /<div class="relative min-w-0">/);
+        assert.doesNotMatch(source, /<div class="relative w-full min-w-0"/);
+    }
+
+    assert.match(input, /v-bind="attrs"/);
+    assert.match(select, /return \[baseClass, heightClass, placeholderClass, attrs\.class\]/);
+    assert.match(toolbar, /class="flex flex-wrap items-center justify-end gap-2"/);
+
+    const taskActions = actionsSlot(taskTable);
+    assert.equal(taskActions.match(/<FloatingSelect/g)?.length, 3);
+    assert.equal(taskActions.match(/class="min-w-\[150px\]"/g)?.length, 3);
+
+    const quoteActions = actionsSlot(quoteTable);
+    assert.equal(quoteActions.match(/<FloatingSelect/g)?.length, 3);
+    for (const width of ['150', '170', '190']) {
+        assert.match(quoteActions, new RegExp(`class="min-w-\\[${width}px\\]"`));
     }
 });
 

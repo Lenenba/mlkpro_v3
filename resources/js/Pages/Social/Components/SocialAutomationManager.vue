@@ -7,6 +7,7 @@ import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import { useI18n } from 'vue-i18n';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 
 const props = defineProps({
     initialRules: {
@@ -182,6 +183,62 @@ const activeRuleId = ref(null);
 const form = ref(buildForm());
 
 const canManage = computed(() => Boolean(access.value.can_manage_automations));
+const automationMetrics = computed(() => ([
+    {
+        key: 'total',
+        label: t('social.automation_manager.summary.total'),
+        value: Number(summary.value.total || 0),
+        tone: 'stone',
+        colorClass: 'bg-stone-400/70 dark:bg-neutral-500/50',
+        trend: null,
+        points: [],
+    },
+    {
+        key: 'active',
+        label: t('social.automation_manager.summary.active'),
+        value: Number(summary.value.active || 0),
+        tone: 'emerald',
+        colorClass: 'bg-emerald-500/70 dark:bg-emerald-400/50',
+        trend: null,
+        points: [],
+    },
+    {
+        key: 'paused',
+        label: t('social.automation_manager.summary.paused'),
+        value: Number(summary.value.paused || 0),
+        tone: 'amber',
+        colorClass: 'bg-amber-500/70 dark:bg-amber-400/50',
+        trend: null,
+        points: [],
+    },
+    {
+        key: 'pending-approvals',
+        label: t('social.automation_manager.summary.pending_approvals'),
+        value: Number(summary.value.pending_approvals || 0),
+        tone: 'sky',
+        colorClass: 'bg-sky-500/70 dark:bg-sky-400/50',
+        trend: null,
+        points: [],
+    },
+    {
+        key: 'attention',
+        label: t('social.automation_manager.summary.attention'),
+        value: Number(summary.value.attention || 0),
+        tone: 'rose',
+        colorClass: 'bg-rose-500/70 dark:bg-rose-400/50',
+        trend: null,
+        points: [],
+    },
+    {
+        key: 'auto-paused',
+        label: t('social.automation_manager.summary.auto_paused'),
+        value: Number(summary.value.auto_paused || 0),
+        tone: 'orange',
+        colorClass: 'bg-orange-500/70 dark:bg-orange-400/50',
+        trend: null,
+        points: [],
+    },
+]));
 const sortedRules = computed(() => [...rules.value].sort((left, right) => {
     if (Boolean(left?.is_active) !== Boolean(right?.is_active)) {
         return left?.is_active ? -1 : 1;
@@ -594,55 +651,12 @@ const sourceSummaryFor = (rule) => (Array.isArray(rule?.content_sources) ? rule.
             {{ info }}
         </div>
 
-        <section class="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-6">
-            <div class="rounded-3xl border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="text-xs uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                    {{ t('social.automation_manager.summary.total') }}
-                </div>
-                <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
-                    {{ Number(summary.total || 0) }}
-                </div>
-            </div>
-            <div class="rounded-3xl border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="text-xs uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                    {{ t('social.automation_manager.summary.active') }}
-                </div>
-                <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
-                    {{ Number(summary.active || 0) }}
-                </div>
-            </div>
-            <div class="rounded-3xl border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="text-xs uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                    {{ t('social.automation_manager.summary.paused') }}
-                </div>
-                <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
-                    {{ Number(summary.paused || 0) }}
-                </div>
-            </div>
-            <div class="rounded-3xl border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="text-xs uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                    {{ t('social.automation_manager.summary.pending_approvals') }}
-                </div>
-                <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
-                    {{ Number(summary.pending_approvals || 0) }}
-                </div>
-            </div>
-            <div class="rounded-3xl border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="text-xs uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                    {{ t('social.automation_manager.summary.attention') }}
-                </div>
-                <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
-                    {{ Number(summary.attention || 0) }}
-                </div>
-            </div>
-            <div class="rounded-3xl border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="text-xs uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                    {{ t('social.automation_manager.summary.auto_paused') }}
-                </div>
-                <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
-                    {{ Number(summary.auto_paused || 0) }}
-                </div>
-            </div>
+        <section>
+            <KpiMetricGrid
+                :metrics="automationMetrics"
+                grid-class="grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))]"
+                :aria-label="t('social.automation_manager.title')"
+            />
         </section>
 
         <div class="grid grid-cols-1 gap-5 xl:grid-cols-[1.1fr,0.9fr]">

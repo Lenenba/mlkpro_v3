@@ -5,6 +5,7 @@ import { router, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import EmailTemplateBuilder from '@/Pages/Campaigns/Components/EmailTemplateBuilder.vue';
@@ -605,11 +606,26 @@ const sendTestEmail = async () => {
     }
 };
 
-const listStats = computed(() => ({
-    total: rows.value.length,
-    email: rows.value.filter((template) => String(template?.channel || '').toUpperCase() === 'EMAIL').length,
-    defaults: rows.value.filter((template) => Boolean(template?.is_default)).length,
-}));
+const listMetrics = computed(() => ([
+    {
+        key: 'total',
+        label: t('marketing.template_manager.kpis.total'),
+        value: rows.value.length,
+        tone: 'emerald',
+    },
+    {
+        key: 'email',
+        label: t('marketing.template_manager.kpis.email'),
+        value: rows.value.filter((template) => String(template?.channel || '').toUpperCase() === 'EMAIL').length,
+        tone: 'sky',
+    },
+    {
+        key: 'defaults',
+        label: t('marketing.template_manager.kpis.defaults'),
+        value: rows.value.filter((template) => Boolean(template?.is_default)).length,
+        tone: 'amber',
+    },
+]));
 
 watch([listSearch, listChannel, listPerPage], () => {
     listPage.value = 1;
@@ -1016,20 +1032,7 @@ load();
                 />
             </div>
 
-            <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-                    <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">Templates</p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">{{ listStats.total }}</p>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-                    <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">Email layouts</p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">{{ listStats.email }}</p>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-                    <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">Default templates</p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">{{ listStats.defaults }}</p>
-                </div>
-            </div>
+            <KpiMetricGrid class="mt-4" :metrics="listMetrics" />
 
             <div class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
                 <div

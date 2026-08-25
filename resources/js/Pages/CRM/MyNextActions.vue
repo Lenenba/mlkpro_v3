@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import AppBreadcrumbs from '@/Components/UI/AppBreadcrumbs.vue';
@@ -217,25 +218,25 @@ const statCards = computed(() => ([
         key: 'total',
         label: t('crm_next_actions.cards.total'),
         value: Number(props.stats?.total || props.count || 0),
-        tone: 'border-stone-200 bg-stone-50 text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200',
+        tone: 'stone',
     },
     {
         key: 'overdue',
         label: t('crm_next_actions.cards.overdue'),
         value: Number(props.stats?.overdue || 0),
-        tone: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300',
+        tone: 'rose',
     },
     {
         key: 'due_today',
         label: t('crm_next_actions.cards.due_today'),
         value: Number(props.stats?.due_today || 0),
-        tone: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300',
+        tone: 'amber',
     },
     {
         key: 'active_sources',
         label: t('crm_next_actions.cards.active_sources'),
         value: activeSourceCount.value,
-        tone: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300',
+        tone: 'emerald',
     },
 ]));
 
@@ -433,21 +434,10 @@ const latestActivityLabel = (item) => {
                 </div>
             </section>
 
-            <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <article
-                    v-for="card in statCards"
-                    :key="card.key"
-                    class="rounded-sm border p-4 shadow-sm"
-                    :class="card.tone"
-                >
-                    <div class="text-xs font-semibold uppercase tracking-[0.16em]">
-                        {{ card.label }}
-                    </div>
-                    <div class="mt-2 text-2xl font-semibold">
-                        {{ card.value }}
-                    </div>
-                </article>
-            </section>
+            <KpiMetricGrid
+                :metrics="statCards"
+                grid-class="sm:grid-cols-2 xl:grid-cols-4"
+            />
 
             <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
                 <div class="flex flex-wrap items-start justify-between gap-3">

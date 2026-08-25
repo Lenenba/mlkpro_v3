@@ -4,6 +4,7 @@ import axios from 'axios';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import PlanPriceDisplay from '@/Components/Billing/PlanPriceDisplay.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import {
     displayIntervalKeyForBillingPeriod,
     hasActiveSubscriptionPromotion,
@@ -234,6 +235,29 @@ const assistantAddonEnabled = computed(() => Boolean(assistantAddon.value.addon_
 const assistantAddonAvailable = computed(() => Boolean(assistantAddon.value.available));
 const assistantAddonMode = computed(() => assistantAddon.value.mode || 'none');
 const assistantUsage = computed(() => assistantAddon.value.usage || {});
+const assistantUsageMetrics = computed(() => [
+    {
+        key: 'requests',
+        label: t('settings.billing.assistant_addon.usage_title'),
+        value: assistantUsage.value.requests || 0,
+        context: t('settings.billing.assistant_addon.usage_requests'),
+        tone: 'violet',
+    },
+    ...(assistantUsage.value.tokens !== undefined ? [{
+        key: 'tokens',
+        label: t('settings.billing.assistant_addon.usage_tokens_label'),
+        value: assistantUsage.value.tokens || 0,
+        context: t('settings.billing.assistant_addon.usage_tokens'),
+        tone: 'sky',
+    }] : []),
+    ...(assistantUsage.value.billed_units !== undefined ? [{
+        key: 'billed-units',
+        label: t('settings.billing.assistant_addon.usage_units_label'),
+        value: assistantUsage.value.billed_units || 0,
+        context: t('settings.billing.assistant_addon.usage_units'),
+        tone: 'amber',
+    }] : []),
+]);
 const assistantCredits = computed(() => assistantAddon.value.credits || {});
 const assistantCreditBalance = computed(() => Number(assistantCredits.value.balance || 0));
 const assistantCreditPackSize = computed(() => Number(assistantCredits.value.pack_size || 0));
@@ -1758,23 +1782,11 @@ watch(
                             {{ assistantCreditError }}
                         </div>
 
-                        <div class="assistant-addon__usage">
-                            <div class="assistant-addon__usage-item">
-                                <span>{{ $t('settings.billing.assistant_addon.usage_title') }}</span>
-                                <strong>{{ assistantUsage.requests || 0 }}</strong>
-                                <em>{{ $t('settings.billing.assistant_addon.usage_requests') }}</em>
-                            </div>
-                            <div class="assistant-addon__usage-item" v-if="assistantUsage.tokens !== undefined">
-                                <span>{{ $t('settings.billing.assistant_addon.usage_tokens_label') }}</span>
-                                <strong>{{ assistantUsage.tokens || 0 }}</strong>
-                                <em>{{ $t('settings.billing.assistant_addon.usage_tokens') }}</em>
-                            </div>
-                            <div class="assistant-addon__usage-item" v-if="assistantUsage.billed_units !== undefined">
-                                <span>{{ $t('settings.billing.assistant_addon.usage_units_label') }}</span>
-                                <strong>{{ assistantUsage.billed_units || 0 }}</strong>
-                                <em>{{ $t('settings.billing.assistant_addon.usage_units') }}</em>
-                            </div>
-                        </div>
+                        <KpiMetricGrid
+                            class="mt-3"
+                            :metrics="assistantUsageMetrics"
+                            compact
+                        />
 
                         <div v-if="assistantCreditMode" class="assistant-addon__credits">
                             <div class="assistant-addon__usage-item">

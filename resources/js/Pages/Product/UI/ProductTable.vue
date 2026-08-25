@@ -13,6 +13,7 @@ import Checkbox from '@/Components/Checkbox.vue';
 import { useI18n } from 'vue-i18n';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import axios from 'axios';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { useDataTableSelection } from '@/Composables/useDataTableSelection';
@@ -435,6 +436,42 @@ const alertDetailsProduct = ref(null);
 const alertDetailsType = ref('');
 const reservedOrdersLoading = ref(false);
 const reservedOrdersError = ref(false);
+const alertStockMetrics = computed(() => {
+    const product = alertDetailsProduct.value;
+
+    if (!product) {
+        return [];
+    }
+
+    const available = getAvailableStock(product);
+
+    return [
+        {
+            key: 'available',
+            label: t('products.labels.available'),
+            value: formatNumber(available),
+            tone: available <= 0 ? 'red' : (available <= product.minimum_stock ? 'amber' : 'emerald'),
+        },
+        {
+            key: 'minimum',
+            label: t('products.labels.minimum'),
+            value: formatNumber(product.minimum_stock),
+            tone: 'stone',
+        },
+        {
+            key: 'reserved',
+            label: t('products.labels.reserved'),
+            value: formatNumber(getReservedStock(product)),
+            tone: 'sky',
+        },
+        {
+            key: 'damaged',
+            label: t('products.labels.damaged'),
+            value: formatNumber(getDamagedStock(product)),
+            tone: 'red',
+        },
+    ];
+});
 const alertDetailsTitle = computed(() => {
     if (!alertDetailsProduct.value) {
         return t('products.alerts.details_title');
@@ -1698,32 +1735,11 @@ const submitImport = () => {
 
             <div class="rounded-sm border border-stone-200 p-4 dark:border-neutral-700">
                 <template v-if="alertDetailsType === 'out' || alertDetailsType === 'low'">
-                    <div class="grid gap-3 md:grid-cols-4">
-                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('products.labels.available') }}</div>
-                            <div class="text-lg font-semibold text-stone-800 dark:text-neutral-200">
-                                {{ formatNumber(getAvailableStock(alertDetailsProduct)) }}
-                            </div>
-                        </div>
-                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('products.labels.minimum') }}</div>
-                            <div class="text-lg font-semibold text-stone-800 dark:text-neutral-200">
-                                {{ formatNumber(alertDetailsProduct.minimum_stock) }}
-                            </div>
-                        </div>
-                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('products.labels.reserved') }}</div>
-                            <div class="text-lg font-semibold text-stone-800 dark:text-neutral-200">
-                                {{ formatNumber(getReservedStock(alertDetailsProduct)) }}
-                            </div>
-                        </div>
-                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('products.labels.damaged') }}</div>
-                            <div class="text-lg font-semibold text-stone-800 dark:text-neutral-200">
-                                {{ formatNumber(getDamagedStock(alertDetailsProduct)) }}
-                            </div>
-                        </div>
-                    </div>
+                    <KpiMetricGrid
+                        :metrics="alertStockMetrics"
+                        grid-class="grid-cols-1 sm:grid-cols-2 md:grid-cols-4"
+                        compact
+                    />
                     <div class="mt-3 flex flex-wrap items-center gap-2 text-xs text-stone-500 dark:text-neutral-400">
                         <span v-if="getAvailableStock(alertDetailsProduct) <= 0" class="text-red-600 dark:text-red-400">
                             {{ $t('products.alerts.stock_depleted') }}

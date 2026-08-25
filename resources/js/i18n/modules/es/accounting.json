@@ -107,7 +107,7 @@
         "taxes_collected": "Impuestos cobrados",
         "taxes_paid": "Impuestos pagados",
         "net_tax_due": "Impuesto neto a pagar",
-        "review_required_count": "Lineas fiscales a revisar"
+        "review_required_count": "Líneas por revisar"
       }
     },
     "exports": {
@@ -197,7 +197,7 @@
       "not_configured": "Por configurar",
       "cards": {
         "approvals": "Aprobaciones financieras",
-        "auto_approve": "Autoaprobacion de factura",
+        "auto_approve": "Aprobación automática",
         "accounts": "Cuentas del sistema",
         "mappings": "Mapeos"
       }

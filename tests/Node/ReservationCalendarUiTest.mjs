@@ -238,21 +238,17 @@ test('calendar events are indexed on every overlapped civil day without includin
     }
 });
 
-test('the staff page uses square metrics in two responsive compact groups', () => {
+test('the staff page keeps compact metric groups readable without narrow square cards', () => {
     const stats = source('resources/js/Components/Reservation/ReservationStats.vue');
     const staffPage = source('resources/js/Pages/Reservation/Index.vue');
     const clientPage = source('resources/js/Pages/Reservation/ClientIndex.vue');
     const calendar = source('resources/js/Components/Reservation/ReservationCalendarBoard.vue');
 
     assert.match(stats, /compact:\s*\{[\s\S]*?type:\s*Boolean[\s\S]*?default:\s*false/);
-    assert.match(stats, /grid-cols-\[repeat\(auto-fill,minmax\(6\.25rem,1fr\)\)\]/);
-    assert.match(stats, /aspect-square/);
-    assert.match(stats, /xl:grid-cols-\[minmax\(0,5fr\)_minmax\(0,6fr\)\]/);
-    assert.match(stats, /xl:grid-cols-\[minmax\(0,5fr\)_minmax\(0,7fr\)\]/);
-    assert.match(stats, /return 'xl:grid-cols-2'/);
-    assert.match(stats, /return 'xl:grid-cols-5'/);
-    assert.match(stats, /return 'xl:grid-cols-6'/);
-    assert.match(stats, /return 'xl:grid-cols-7'/);
+    assert.match(stats, /grid-cols-\[repeat\(auto-fit,minmax\(min\(100%,12rem\),1fr\)\)\]/);
+    assert.match(stats, /'grid grid-cols-1 items-start gap-3'/);
+    assert.doesNotMatch(stats, /auto-fill|minmax\(6\.25rem|aspect-square/);
+    assert.doesNotMatch(stats, /xl:grid-cols-[567]/);
     assert.match(stats, /<section[\s\S]*?v-if="compact && hasPerformance"/);
     assert.match(stats, /<details[\s\S]*?v-else-if="hasPerformance"/);
     assert.match(staffPage, /<ReservationStats\s+:stats="stats"\s+:performance="performance"\s+compact\s*\/>/);

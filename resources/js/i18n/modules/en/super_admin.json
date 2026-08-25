@@ -131,16 +131,16 @@
         "title": "Health",
         "failed_jobs_24h": "Failed jobs 24h",
         "failed_jobs_7d": "Failed jobs 7d",
-        "email_failures_24h": "Email failures 24h",
+        "email_failures_24h": "Email failures (24h)",
         "pending_jobs": "Pending jobs",
         "oldest_job_minutes": "Oldest job age (min)",
         "public_storage": "Public storage"
       },
       "data_quality": {
         "title": "Data quality",
-        "customer_email_duplicates": "Customer email duplicates",
-        "customer_name_duplicates": "Customer name duplicates",
-        "product_name_duplicates": "Product name duplicates"
+        "customer_email_duplicates": "Duplicate emails",
+        "customer_name_duplicates": "Duplicate names",
+        "product_name_duplicates": "Duplicate products"
       },
       "limits": {
         "quotes": "Quotes",

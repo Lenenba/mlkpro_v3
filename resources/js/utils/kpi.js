@@ -13,6 +13,25 @@ export const buildSparklinePoints = (values, maxHeight = 28, minHeight = 4, fall
     }));
 };
 
+export const buildKpiProgress = (value, maximum, label = undefined) => {
+    if (value === null || value === undefined) {
+        return null;
+    }
+
+    const current = Number(value);
+    const max = Number(maximum);
+
+    if (!Number.isFinite(current) || !Number.isFinite(max) || max <= 0) {
+        return null;
+    }
+
+    return {
+        value: Math.min(max, Math.max(0, current)),
+        max,
+        ...(label ? { label } : {}),
+    };
+};
+
 export const buildTrend = (values, positiveDirection = 'up') => {
     const safeValues = Array.isArray(values) && values.length ? values : [0, 0];
     const numbers = safeValues.map((value) => Number(value || 0));

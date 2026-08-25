@@ -459,13 +459,13 @@
           "lost_note": "Prospects clotures comme perdus.",
           "conversion_rate": "Conversion {days}j",
           "conversion_rate_note": "{converted} convertis / {created} crees",
-          "avg_conversion_days": "Delai moyen de conversion",
+          "avg_conversion_days": "Délai de conversion",
           "avg_conversion_days_note": "Base sur les prospects convertis en clients sur la fenetre en cours."
         }
       },
-      "first_response": "Délai moyen 1re réponse",
+      "first_response": "1re réponse moyenne",
       "first_response_note": "Base sur la premiere action apres creation du prospect.",
-      "time_to_intake": "Délai moyen prise en charge",
+      "time_to_intake": "Prise en charge moy.",
       "time_to_intake_note": "Mesure le temps avant qu'un prospect soit reellement pris en charge.",
       "conversion_rate": "Taux de conversion",
       "conversion_note": "Prospects gagnes vs total crees.",

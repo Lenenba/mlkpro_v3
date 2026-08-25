@@ -4,8 +4,8 @@
     "welcome": "Bon retour, {name}. Voici ce qui attend votre validation.",
     "profile_missing": "Votre profil client n'est pas encore lie. Contactez l'entreprise pour connecter votre compte.",
     "kpi": {
-      "quotes_pending": "Devis en attente de validation",
-      "jobs_pending": "Chantiers en attente de validation",
+      "quotes_pending": "Devis à valider",
+      "jobs_pending": "Chantiers à valider",
       "invoices_due": "Factures a payer",
       "ratings_due": "Avis a laisser"
     },

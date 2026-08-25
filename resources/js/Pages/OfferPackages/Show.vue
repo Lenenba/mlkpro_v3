@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { crmButtonClass } from '@/utils/crmButtonStyles';
 
@@ -86,6 +87,21 @@ const usageRate = computed(() => finite(props.kpis.usage_rate));
 const healthRate = computed(() => (isPack.value ? collectionRate.value : usageRate.value));
 const healthProgress = computed(() => ({ width: `${Math.max(0, Math.min(100, healthRate.value))}%` }));
 
+const kpiTones = {
+    billed: 'emerald',
+    sold: 'indigo',
+    collected: 'teal',
+    balance: 'amber',
+    paid: 'sky',
+    average: 'violet',
+    revenue: 'emerald',
+    customers: 'indigo',
+    active: 'teal',
+    remaining: 'amber',
+    usage: 'sky',
+    recurring: 'violet',
+};
+
 const kpiCards = computed(() => (isPack.value ? [
     ['billed', t('offer_packages.kpis.total_billed'), money(billed.value), t('offer_packages.kpis.catalog_price', { amount: money(props.offer?.price) })],
     ['sold', t('offer_packages.kpis.packs_sold'), number(props.kpis.sold_count), t('offer_packages.kpis.invoice_count', { count: number(props.kpis.invoice_count) })],
@@ -100,7 +116,13 @@ const kpiCards = computed(() => (isPack.value ? [
     ['remaining', t('offer_packages.kpis.remaining_balance'), number(props.kpis.remaining_quantity), unitLabel(props.offer?.unit_type)],
     ['usage', t('offer_packages.kpis.usage'), `${number(usageRate.value)}%`, `${number(props.kpis.consumed_quantity)}/${number(props.kpis.initial_quantity)}`],
     ['recurring', t('offer_packages.kpis.recurring'), number(props.kpis.recurring_count), t('offer_packages.kpis.suspended_count', { count: number(props.kpis.suspended_count) })],
-]).map(([key, label, value, helper]) => ({ key, label, value, helper })));
+]).map(([key, label, value, helper]) => ({
+    key,
+    label,
+    value,
+    context: helper,
+    tone: kpiTones[key] || 'stone',
+})));
 
 const statusBreakdown = computed(() => Object.entries(props.kpis.status_breakdown || {}).map(([status, count]) => ({ status, count: finite(count) })));
 const badgeClass = (status) => {
@@ -156,13 +178,10 @@ const payments = (sale) => (Array.isArray(sale?.payments) ? sale.payments : []);
                 </div>
             </section>
 
-            <section :aria-label="t('offer_packages.kpis.section_label')" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-                <article v-for="card in kpiCards" :key="card.key" class="min-w-0 rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs font-medium uppercase text-stone-500 dark:text-neutral-400">{{ card.label }}</div>
-                    <div class="mt-2 break-words text-2xl font-semibold text-stone-900 dark:text-neutral-50">{{ card.value }}</div>
-                    <div class="mt-1 break-words text-xs text-stone-500 dark:text-neutral-400">{{ card.helper }}</div>
-                </article>
-            </section>
+            <KpiMetricGrid
+                :metrics="kpiCards"
+                :aria-label="t('offer_packages.kpis.section_label')"
+            />
 
             <section
                 v-if="isPack && hasMixedCurrencies"

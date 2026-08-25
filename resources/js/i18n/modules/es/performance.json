@@ -22,12 +22,13 @@
       "items_sold": "Artículos vendidos",
       "jobs": "Trabajos",
       "tasks": "Tareas",
-      "avg_order": "Valor medio del pedido",
-      "avg_job": "Valor promedio del trabajo",
+      "avg_order": "Pedido medio",
+      "avg_job": "Valor del trabajo",
+      "avg_service": "Valor del servicio",
       "customers": "Clientes",
-      "revenue_per_seller": "Ingresos por vendedor",
-      "revenue_per_member": "Ingresos por miembro",
-      "avg_customer_value": "Ingresos por cliente"
+      "revenue_per_seller": "Ingreso por vendedor",
+      "revenue_per_member": "Ingreso por miembro",
+      "avg_customer_value": "Ingreso por cliente"
     },
     "clients": {
       "title": "Rendimiento del cliente",

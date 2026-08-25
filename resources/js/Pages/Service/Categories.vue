@@ -1,7 +1,8 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
+import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
@@ -226,6 +227,32 @@ const categoryRows = computed(() => (Array.isArray(props.categories?.data) ? pro
 const categoryLinks = computed(() => props.categories?.links || []);
 const currentPerPage = computed(() => resolveDataTablePerPage(props.categories?.per_page, props.filters?.per_page));
 const categoryResultsLabel = computed(() => `${props.count} ${t('services.pagination.results')}`);
+const categoryKpis = computed(() => ([
+    {
+        key: 'total',
+        label: t('services.categories.stats.total'),
+        value: Number(props.stats?.total || 0).toLocaleString(),
+        tone: 'emerald',
+    },
+    {
+        key: 'active',
+        label: t('services.categories.stats.active'),
+        value: Number(props.stats?.active || 0).toLocaleString(),
+        tone: 'sky',
+    },
+    {
+        key: 'archived',
+        label: t('services.categories.stats.archived'),
+        value: Number(props.stats?.archived || 0).toLocaleString(),
+        tone: 'stone',
+    },
+    {
+        key: 'in-use',
+        label: t('services.categories.stats.in_use'),
+        value: Number(props.stats?.used || 0).toLocaleString(),
+        tone: 'amber',
+    },
+]));
 </script>
 
 <template>
@@ -233,91 +260,10 @@ const categoryResultsLabel = computed(() => `${props.count} ${t('services.pagina
 
     <AuthenticatedLayout>
         <div class="space-y-5">
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 lg:gap-5">
-                <div
-                    class="p-4 sm:p-5 bg-white border border-t-4 border-t-emerald-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <div class="sm:flex sm:gap-x-3">
-                        <svg class="sm:order-2 mb-2 sm:mb-0 shrink-0 size-6 text-stone-400 dark:text-neutral-600"
-                            xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M3 3h18v18H3z" />
-                            <path d="M7 7h10v10H7z" />
-                        </svg>
-                        <div class="sm:order-1 grow space-y-1">
-                            <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                                {{ $t('services.categories.stats.total') }}
-                            </h2>
-                            <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
-                                {{ Number(stats.total || 0).toLocaleString() }}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div
-                    class="p-4 sm:p-5 bg-white border border-t-4 border-t-sky-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <div class="sm:flex sm:gap-x-3">
-                        <svg class="sm:order-2 mb-2 sm:mb-0 shrink-0 size-6 text-stone-400 dark:text-neutral-600"
-                            xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="m9 12 2 2 4-4" />
-                            <circle cx="12" cy="12" r="10" />
-                        </svg>
-                        <div class="sm:order-1 grow space-y-1">
-                            <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                                {{ $t('services.categories.stats.active') }}
-                            </h2>
-                            <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
-                                {{ Number(stats.active || 0).toLocaleString() }}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div
-                    class="p-4 sm:p-5 bg-white border border-t-4 border-t-stone-500 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <div class="sm:flex sm:gap-x-3">
-                        <svg class="sm:order-2 mb-2 sm:mb-0 shrink-0 size-6 text-stone-400 dark:text-neutral-600"
-                            xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M3 3h18v18H3z" />
-                            <path d="M8 8h8v8H8z" />
-                        </svg>
-                        <div class="sm:order-1 grow space-y-1">
-                            <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                                {{ $t('services.categories.stats.archived') }}
-                            </h2>
-                            <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
-                                {{ Number(stats.archived || 0).toLocaleString() }}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div
-                    class="p-4 sm:p-5 bg-white border border-t-4 border-t-amber-500 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <div class="sm:flex sm:gap-x-3">
-                        <svg class="sm:order-2 mb-2 sm:mb-0 shrink-0 size-6 text-stone-400 dark:text-neutral-600"
-                            xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M8 6h13" />
-                            <path d="M5 6h.01" />
-                            <path d="M8 12h13" />
-                            <path d="M5 12h.01" />
-                            <path d="M8 18h13" />
-                            <path d="M5 18h.01" />
-                        </svg>
-                        <div class="sm:order-1 grow space-y-1">
-                            <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                                {{ $t('services.categories.stats.in_use') }}
-                            </h2>
-                            <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
-                                {{ Number(stats.used || 0).toLocaleString() }}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <KpiMetricGrid
+                :metrics="categoryKpis"
+                grid-class="grid-cols-2 md:grid-cols-4"
+            />
 
             <div
                 class="p-5 space-y-4 flex flex-col border-t-4 border-t-emerald-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700">

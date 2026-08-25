@@ -13,7 +13,7 @@ import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
-import CustomerHistoryTimeline from '@/Components/Customer/CustomerHistoryTimeline.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
 import { useCurrencyFormatter } from '@/utils/currency';
@@ -27,6 +27,9 @@ import {
 
 const SalesActivityPanel = defineAsyncComponent(
     () => import('@/Components/CRM/SalesActivityPanel.vue'),
+);
+const CustomerHistoryTimeline = defineAsyncComponent(
+    () => import('@/Components/Customer/CustomerHistoryTimeline.vue'),
 );
 const CustomerPreviewCard = defineAsyncComponent(
     () => import('./UI/CustomerPreviewCard.vue'),
@@ -272,6 +275,26 @@ const purchasedPacks = computed(() => props.customerPurchasedPacks || []);
 const packageSummary = computed(() => props.customerPackageSummary || {});
 const purchasedPackSummary = computed(() => props.customerPurchasedPackSummary || {});
 const customerPackageOptions = computed(() => props.customerPackageOptions || []);
+const salesSummaryMetrics = computed(() => ([
+    {
+        key: 'sales-count',
+        label: t('customers.details.sales.count'),
+        value: props.salesSummary?.count || 0,
+        tone: 'stone',
+    },
+    {
+        key: 'sales-paid',
+        label: t('customers.details.sales.paid'),
+        value: formatCurrency(props.salesSummary?.paid || 0),
+        tone: 'emerald',
+    },
+    {
+        key: 'sales-total',
+        label: t('customers.details.sales.total'),
+        value: formatCurrency(props.salesSummary?.total || 0),
+        tone: 'sky',
+    },
+]));
 const customerOfferCount = computed(() => (
     Number(packageSummary.value.total || assignedPackages.value.length)
     + Number(purchasedPackSummary.value.total_lines || purchasedPacks.value.length)
@@ -290,6 +313,86 @@ const loyaltyRoundingLabel = computed(() => {
 
     return translated && translated !== key ? translated : mode;
 });
+const customerPackageMetrics = computed(() => ([
+    {
+        key: 'offers-total',
+        label: t('customers.details.customer_packages.summary.total'),
+        value: customerOfferCount.value,
+        tone: 'stone',
+    },
+    {
+        key: 'packs-total',
+        label: t('customers.details.customer_packages.summary.packs'),
+        value: purchasedPackSummary.value.total_lines || 0,
+        tone: 'sky',
+    },
+    {
+        key: 'packages-active',
+        label: t('customers.details.customer_packages.summary.active'),
+        value: packageSummary.value.active || 0,
+        tone: 'emerald',
+    },
+    {
+        key: 'quantity-remaining',
+        label: t('customers.details.customer_packages.summary.remaining'),
+        value: formatNumber(packageSummary.value.remaining_quantity || 0),
+        tone: 'violet',
+    },
+    {
+        key: 'packages-expiring',
+        label: t('customers.details.customer_packages.summary.expiring'),
+        value: packageSummary.value.expiring_soon || 0,
+        tone: 'amber',
+    },
+]));
+const billingSummaryMetrics = computed(() => ([
+    {
+        key: 'billing-invoiced',
+        label: t('customers.details.billing_history.invoiced'),
+        value: formatCurrency(props.billing?.summary?.total_invoiced),
+        tone: 'sky',
+    },
+    {
+        key: 'billing-paid',
+        label: t('customers.details.billing_history.paid'),
+        value: formatCurrency(props.billing?.summary?.total_paid),
+        tone: 'emerald',
+    },
+    {
+        key: 'billing-balance-due',
+        label: t('customers.details.billing_history.balance_due'),
+        value: formatCurrency(props.billing?.summary?.balance_due),
+        tone: 'amber',
+    },
+]));
+const loyaltySummaryMetrics = computed(() => ([
+    {
+        key: 'loyalty-balance',
+        label: t('customers.details.loyalty.balance'),
+        value: `${formatNumber(loyalty.value?.balance || 0)} ${loyaltyPointLabel.value}`,
+        tone: 'violet',
+    },
+    {
+        key: 'loyalty-earn-rate',
+        label: t('customers.details.loyalty.earn_rate'),
+        value: t('customers.details.loyalty.rate_value', {
+            rate: formatNumber(loyalty.value?.rate || 0, 2),
+        }),
+        context: t('customers.details.loyalty.rounding', {
+            mode: loyaltyRoundingLabel.value,
+        }),
+        tone: 'emerald',
+    },
+    {
+        key: 'loyalty-minimum-spend',
+        label: t('customers.details.loyalty.minimum_spend'),
+        value: formatCurrency(loyalty.value?.minimum_spend || 0),
+        context: loyalty.value?.enabled
+            ? t('customers.details.loyalty.enabled')
+            : t('customers.details.loyalty.disabled'),
+        tone: 'amber',
+    },
+]));
 const formatSignedPoints = (value) => {
     const points = Number(value || 0);
     const prefix = points > 0 ? '+' : '';
@@ -320,36 +423,51 @@ const purchaseCards = computed(() => {
 
     return [
         {
+            key: 'last-purchase',
             label: t('customers.details.purchase.last_purchase'),
             value: insights.last_purchase_at ? formatDate(insights.last_purchase_at) : t('customers.labels.none'),
+            tone: 'stone',
         },
         {
+            key: 'days-since-purchase',
             label: t('customers.details.purchase.days_since'),
             value: hasValue(insights.days_since_last_purchase)
                 ? t('customers.details.days_label', { count: numberLabel(insights.days_since_last_purchase) })
                 : t('customers.labels.none'),
+            tone: 'amber',
         },
         {
+            key: 'average-order',
             label: t('customers.details.purchase.average_order'),
             value: formatCurrency(insights.average_order_value || 0),
+            tone: 'emerald',
         },
         {
+            key: 'average-items',
             label: t('customers.details.purchase.average_items'),
             value: hasValue(insights.average_items) ? numberLabel(insights.average_items, 1) : t('customers.labels.none'),
+            tone: 'sky',
         },
         {
+            key: 'purchase-frequency',
             label: t('customers.details.purchase.frequency'),
             value: hasValue(insights.purchase_frequency_days)
                 ? t('customers.details.days_label', { count: numberLabel(insights.purchase_frequency_days, 1) })
                 : t('customers.labels.none'),
+            tone: 'violet',
         },
         {
+            key: 'recent-purchases',
             label: t('customers.details.purchase.recent_30'),
             value: numberLabel(insights.recent_30_count || 0),
+            tone: 'blue',
         },
         {
+            key: 'purchase-preference',
             label: t('customers.details.purchase.preference'),
             value: preferred || t('customers.labels.none'),
+            wrapValue: true,
+            tone: 'cyan',
         },
     ];
 });
@@ -641,9 +759,6 @@ const changePackageForm = useForm({
     carry_over_unused_balance: false,
     note: '',
 });
-const changingPackage = computed(() =>
-    assignedPackages.value.find((customerPackage) => Number(customerPackage.id) === Number(changingPackageId.value))
-);
 const selectedChangeOffer = computed(() =>
     customerPackageOptions.value.find((offer) => String(offer.id) === String(changePackageForm.target_offer_package_id))
 );
@@ -786,20 +901,6 @@ const packageUnitLabel = (unitType) => {
     const translated = t(key);
 
     return translated && translated !== key ? translated : (unitType || 'credit');
-};
-
-const recurrenceLabel = (frequency) => {
-    const key = `customers.details.customer_packages.recurrence.${frequency || 'monthly'}`;
-    const translated = t(key);
-
-    return translated && translated !== key ? translated : (frequency || 'monthly');
-};
-
-const recurrenceStatusLabel = (status) => {
-    const key = `customers.details.customer_packages.recurrence_statuses.${status || 'active'}`;
-    const translated = t(key);
-
-    return translated && translated !== key ? translated : formatStatus(status);
 };
 
 const packageProgress = (customerPackage) => {
@@ -1390,20 +1491,10 @@ const deleteProperty = (property) => {
                         </div>
                     </template>
 
-                    <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
-                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
-                            <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.sales.count') }}</div>
-                            <div class="mt-1 text-lg font-semibold">{{ salesSummary?.count || 0 }}</div>
-                        </div>
-                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
-                            <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.sales.paid') }}</div>
-                            <div class="mt-1 text-lg font-semibold">{{ formatCurrency(salesSummary?.paid || 0) }}</div>
-                        </div>
-                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
-                            <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.sales.total') }}</div>
-                            <div class="mt-1 text-lg font-semibold">{{ formatCurrency(salesSummary?.total || 0) }}</div>
-                        </div>
-                    </div>
+                    <KpiMetricGrid
+                        :metrics="salesSummaryMetrics"
+                        grid-class="grid-cols-1 md:grid-cols-3"
+                    />
 
                     <div class="mt-4">
                         <div v-if="!sales.length" class="text-sm text-stone-500 dark:text-neutral-400">
@@ -1438,18 +1529,11 @@ const deleteProperty = (property) => {
                 <Card v-if="showSales" class="mt-5">
                     <template #title>{{ $t('customers.details.purchase.title') }}</template>
 
-                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                        <div
-                            v-for="card in purchaseCards"
-                            :key="card.label"
-                            class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
-                        >
-                            <div class="text-xs uppercase text-stone-400">{{ card.label }}</div>
-                            <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ card.value }}
-                            </div>
-                        </div>
-                    </div>
+                    <KpiMetricGrid
+                        :metrics="purchaseCards"
+                        grid-class="grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"
+                        compact
+                    />
 
                     <div class="mt-5">
                         <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ $t('customers.details.top_products.title') }}</h3>
@@ -2113,28 +2197,12 @@ const deleteProperty = (property) => {
                                     </button>
                                 </div>
 
-                                <div class="mt-3 grid grid-cols-2 gap-2">
-                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
-                                        <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.customer_packages.summary.total') }}</div>
-                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ customerOfferCount }}</div>
-                                    </div>
-                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
-                                        <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.customer_packages.summary.packs') }}</div>
-                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ purchasedPackSummary.total_lines || 0 }}</div>
-                                    </div>
-                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
-                                        <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.customer_packages.summary.active') }}</div>
-                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ packageSummary.active || 0 }}</div>
-                                    </div>
-                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
-                                        <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.customer_packages.summary.remaining') }}</div>
-                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ formatNumber(packageSummary.remaining_quantity || 0) }}</div>
-                                    </div>
-                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
-                                        <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.customer_packages.summary.expiring') }}</div>
-                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ packageSummary.expiring_soon || 0 }}</div>
-                                    </div>
-                                </div>
+                                <KpiMetricGrid
+                                    class="mt-3"
+                                    :metrics="customerPackageMetrics"
+                                    grid-class="grid-cols-2"
+                                    compact
+                                />
 
                                 <div
                                     v-if="showAssignPackage"
@@ -2865,26 +2933,12 @@ const deleteProperty = (property) => {
                                     {{ $t('customers.details.billing_history.title') }}
                                 </div>
 
-                                <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
-                                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.billing_history.invoiced') }}</div>
-                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
-                                            {{ formatCurrency(billing?.summary?.total_invoiced) }}
-                                        </div>
-                                    </div>
-                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
-                                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.billing_history.paid') }}</div>
-                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
-                                            {{ formatCurrency(billing?.summary?.total_paid) }}
-                                        </div>
-                                    </div>
-                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
-                                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.billing_history.balance_due') }}</div>
-                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
-                                            {{ formatCurrency(billing?.summary?.balance_due) }}
-                                        </div>
-                                    </div>
-                                </div>
+                                <KpiMetricGrid
+                                    class="mt-3"
+                                    :metrics="billingSummaryMetrics"
+                                    grid-class="grid-cols-1 sm:grid-cols-3"
+                                    compact
+                                />
 
                                 <div class="mt-5">
                                     <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ $t('customers.details.billing_history.recent_payments') }}</h3>
@@ -2934,32 +2988,12 @@ const deleteProperty = (property) => {
                                     {{ $t('customers.details.loyalty.title') }}
                                 </div>
 
-                                <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
-                                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.loyalty.balance') }}</div>
-                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
-                                            {{ formatNumber(loyalty?.balance || 0) }} {{ loyaltyPointLabel }}
-                                        </div>
-                                    </div>
-                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
-                                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.loyalty.earn_rate') }}</div>
-                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
-                                            {{ $t('customers.details.loyalty.rate_value', { rate: formatNumber(loyalty?.rate || 0, 2) }) }}
-                                        </div>
-                                        <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                            {{ $t('customers.details.loyalty.rounding', { mode: loyaltyRoundingLabel }) }}
-                                        </div>
-                                    </div>
-                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
-                                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.loyalty.minimum_spend') }}</div>
-                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
-                                            {{ formatCurrency(loyalty?.minimum_spend || 0) }}
-                                        </div>
-                                        <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                            {{ loyalty?.enabled ? $t('customers.details.loyalty.enabled') : $t('customers.details.loyalty.disabled') }}
-                                        </div>
-                                    </div>
-                                </div>
+                                <KpiMetricGrid
+                                    class="mt-3"
+                                    :metrics="loyaltySummaryMetrics"
+                                    grid-class="grid-cols-1 sm:grid-cols-3"
+                                    compact
+                                />
 
                                 <div class="mt-5">
                                     <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ $t('customers.details.loyalty.recent_activity') }}</h3>

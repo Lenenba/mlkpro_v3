@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
@@ -46,59 +47,85 @@ const chartMaximum = computed(() => Math.max(
 ));
 const barHeight = (value) => `${Math.max(3, (Number(value || 0) / chartMaximum.value) * 100)}%`;
 const revenueChange = computed(() => metrics.value.revenue_change_percent);
-const revenueChangeClass = computed(() => (
-    Number(revenueChange.value || 0) >= 0
-        ? 'text-emerald-700 dark:text-emerald-300'
-        : 'text-rose-700 dark:text-rose-300'
-));
+const revenueTone = computed(() => Number(revenueChange.value || 0) >= 0 ? 'emerald' : 'rose');
+const revenueColorClass = computed(() => revenueTone.value === 'emerald'
+    ? 'bg-emerald-500/70 dark:bg-emerald-400/50'
+    : 'bg-rose-500/70 dark:bg-rose-400/50');
 const cards = computed(() => [
     {
         key: 'revenue',
         label: t('dashboard.scenario.metrics.revenue_month'),
         value: formatCurrency(metrics.value.revenue_current_month || 0),
-        detail: revenueChange.value === null || revenueChange.value === undefined
+        context: revenueChange.value === null || revenueChange.value === undefined
             ? t('dashboard.scenario.metrics.no_comparison')
             : t('dashboard.scenario.metrics.vs_previous', { value: percent(revenueChange.value) }),
-        detailClass: revenueChangeClass.value,
+        tone: revenueTone.value,
+        colorClass: revenueColorClass.value,
+        trend: null,
+        points: [],
     },
     {
         key: 'today',
         label: t('dashboard.scenario.metrics.reservations_today'),
         value: number(metrics.value.reservations_today),
-        detail: t('dashboard.scenario.metrics.upcoming', { count: number(metrics.value.reservations_upcoming) }),
+        context: t('dashboard.scenario.metrics.upcoming', { count: number(metrics.value.reservations_upcoming) }),
+        tone: 'sky',
+        colorClass: 'bg-sky-500/70 dark:bg-sky-400/50',
+        trend: null,
+        points: [],
     },
     {
         key: 'occupancy',
         label: t('dashboard.scenario.metrics.occupancy'),
         value: percent(metrics.value.occupancy_rate),
-        detail: t('dashboard.scenario.metrics.trailing_days', { count: 30 }),
+        context: t('dashboard.scenario.metrics.trailing_days', { count: 30 }),
+        tone: 'violet',
+        colorClass: 'bg-violet-500/70 dark:bg-violet-400/50',
+        trend: null,
+        points: [],
     },
     {
         key: 'customers',
         label: t('dashboard.scenario.metrics.new_customers'),
         value: number(metrics.value.customers_new),
-        detail: t('dashboard.scenario.metrics.recurring', { count: number(metrics.value.customers_recurring) }),
+        context: t('dashboard.scenario.metrics.recurring', { count: number(metrics.value.customers_recurring) }),
+        tone: 'indigo',
+        colorClass: 'bg-indigo-500/70 dark:bg-indigo-400/50',
+        trend: null,
+        points: [],
     },
     {
         key: 'ticket',
         label: t('dashboard.scenario.metrics.average_ticket'),
         value: formatCurrency(metrics.value.average_service_value || 0),
-        detail: t('dashboard.scenario.metrics.completed_services'),
+        context: t('dashboard.scenario.metrics.completed_services'),
+        tone: 'amber',
+        colorClass: 'bg-amber-500/70 dark:bg-amber-400/50',
+        trend: null,
+        points: [],
     },
     {
         key: 'outstanding',
         label: t('dashboard.scenario.metrics.outstanding'),
         value: formatCurrency(metrics.value.outstanding_balance || 0),
-        detail: t('dashboard.scenario.metrics.invoice_and_future', {
+        context: t('dashboard.scenario.metrics.invoice_and_future', {
             count: number(metrics.value.outstanding_invoices),
             future: formatCurrency(metrics.value.committed_future_revenue || 0),
         }),
+        tone: 'rose',
+        colorClass: 'bg-rose-500/70 dark:bg-rose-400/50',
+        trend: null,
+        points: [],
     },
     {
         key: 'exceptions',
         label: t('dashboard.scenario.metrics.service_exceptions'),
         value: percent(metrics.value.no_show_rate),
-        detail: t('dashboard.scenario.metrics.cancellations', { value: percent(metrics.value.cancellation_rate) }),
+        context: t('dashboard.scenario.metrics.cancellations', { value: percent(metrics.value.cancellation_rate) }),
+        tone: 'orange',
+        colorClass: 'bg-orange-500/70 dark:bg-orange-400/50',
+        trend: null,
+        points: [],
     },
     {
         key: 'alerts',
@@ -109,12 +136,16 @@ const cards = computed(() => [
             + Number(metrics.value.inventory_alerts || 0)
             + Number(metrics.value.unread_notifications || 0),
         ),
-        detail: t('dashboard.scenario.metrics.action_breakdown', {
+        context: t('dashboard.scenario.metrics.action_breakdown', {
             quotes: number(metrics.value.pending_quotes),
             tasks: number(metrics.value.open_tasks),
             stock: number(metrics.value.inventory_alerts),
             notifications: number(metrics.value.unread_notifications),
         }),
+        tone: 'red',
+        colorClass: 'bg-red-500/70 dark:bg-red-400/50',
+        trend: null,
+        points: [],
     },
 ]);
 </script>
@@ -144,23 +175,13 @@ const cards = computed(() => [
             </div>
         </div>
 
-        <div class="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-8">
-            <div
-                v-for="card in cards"
-                :key="card.key"
-                class="min-w-0 rounded-sm border border-stone-200 bg-stone-50 p-2.5 dark:border-neutral-700 dark:bg-neutral-800"
-            >
-                <div class="text-[10px] font-semibold uppercase leading-tight tracking-wide text-stone-500 dark:text-neutral-400">
-                    {{ card.label }}
-                </div>
-                <div class="mt-2 text-lg font-semibold leading-none text-stone-800 dark:text-neutral-100">
-                    {{ card.value }}
-                </div>
-                <div class="mt-2 line-clamp-2 text-[10px] leading-tight text-stone-500 dark:text-neutral-400" :class="card.detailClass">
-                    {{ card.detail }}
-                </div>
-            </div>
-        </div>
+        <KpiMetricGrid
+            class="mt-4"
+            :metrics="cards"
+            grid-class="grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))]"
+            :aria-label="$t('dashboard.scenario.title')"
+            compact
+        />
 
         <div class="mt-4 grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
             <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">

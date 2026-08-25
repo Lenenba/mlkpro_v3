@@ -9,6 +9,7 @@ import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import DropzoneInput from '@/Components/DropzoneInput.vue';
 import InputError from '@/Components/InputError.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import CardTileTabs from '@/Components/UI/CardTileTabs.vue';
 
 const { t } = useI18n();
@@ -342,31 +343,31 @@ const summaryCards = computed(() => ([
         key: 'timezone',
         label: t('settings.reservations.summary.timezone'),
         value: props.timezone || 'UTC',
-        border: 'border-t-indigo-600',
+        tone: 'indigo',
     },
     {
         key: 'team',
         label: t('settings.reservations.summary.team_members'),
         value: Number(props.teamMembers?.length || 0).toLocaleString(),
-        border: 'border-t-emerald-600',
+        tone: 'emerald',
     },
     {
         key: 'weekly',
         label: t('settings.reservations.summary.weekly_rules'),
         value: Number(form.weekly_availabilities?.length || 0).toLocaleString(),
-        border: 'border-t-amber-500',
+        tone: 'amber',
     },
     {
         key: 'exceptions',
         label: t('settings.reservations.summary.exceptions'),
         value: Number(form.exceptions?.length || 0).toLocaleString(),
-        border: 'border-t-rose-600',
+        tone: 'rose',
     },
     {
         key: 'resources',
         label: resourceSummaryLabel.value,
         value: Number(form.resources?.length || 0).toLocaleString(),
-        border: 'border-t-cyan-600',
+        tone: 'cyan',
         visible: canViewChairs.value,
     },
 ]).filter((card) => card.visible !== false));
@@ -846,17 +847,7 @@ const submit = () => {
                 </p>
             </div>
 
-            <div class="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3 lg:gap-5">
-                <div
-                    v-for="card in summaryCards"
-                    :key="`reservation-summary-${card.key}`"
-                    class="rounded-sm border border-stone-200 border-t-4 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
-                    :class="card.border"
-                >
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ card.label }}</div>
-                    <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ card.value }}</div>
-                </div>
-            </div>
+            <KpiMetricGrid :metrics="summaryCards" />
 
             <form class="space-y-4" @submit.prevent="submit">
                 <CardTileTabs

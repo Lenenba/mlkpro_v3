@@ -46,14 +46,14 @@
     "performance": {
       "title": "Rendimiento (últimos {days} días)",
       "occupancy_rate": "Tasa de ocupación",
-      "no_show_rate": "Tarifa de no presentación",
-      "reschedule_rate": "Tarifa de reprogramación",
+      "no_show_rate": "Inasistencias",
+      "reschedule_rate": "Reprogramación",
       "completion_rate": "Tasa de finalización",
-      "avg_service_value": "Valor promedio del servicio",
-      "tip_rate": "tasa de propina",
+      "avg_service_value": "Valor del servicio",
+      "tip_rate": "Tasa de propina",
       "resource_reservation_rate": "Uso de recursos",
       "table_turnover": "Rotación de mesa",
-      "party_size_avg": "Tamaño promedio del grupo"
+      "party_size_avg": "Tamaño del grupo"
     },
     "filters": {
       "search": "Buscar",
@@ -641,7 +641,7 @@
           "submitted": "Solicitud de reserva enviada."
         },
         "waitlist": {
-          "title": "Únete a la lista de espera",
+          "title": "Lista de espera",
           "description": "No hay ningún espacio coincidente en este momento. Únase a la lista de espera y obtenga prioridad cuando se libere un espacio.",
           "join_button": "Unirse a la lista de espera",
           "created": "Solicitud de lista de espera enviada.",

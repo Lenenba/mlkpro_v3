@@ -5,7 +5,7 @@
     "kpi": {
       "balance": "Solde disponible",
       "earned_period": "Points gagnes (periode)",
-      "spent_period": "Points utilises (periode)",
+      "spent_period": "Points utilisés",
       "movements": "Mouvements (periode)",
       "earned_lifetime": "Total gagne",
       "spent_lifetime": "Total utilise",

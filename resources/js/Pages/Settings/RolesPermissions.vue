@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
@@ -31,6 +32,32 @@ const customRoles = computed(() => props.roles.filter((role) => !role.is_system)
 const systemRoles = computed(() => props.roles.filter((role) => role.is_system));
 const activeRoles = computed(() => props.roles.filter((role) => role.is_active));
 const permissionCount = computed(() => props.permissions.reduce((total, group) => total + (group.permissions?.length || 0), 0));
+const roleMetrics = computed(() => ([
+    {
+        key: 'active-roles',
+        label: "Rôles d'accès actifs",
+        value: activeRoles.value.length,
+        tone: 'emerald',
+    },
+    {
+        key: 'system-roles',
+        label: 'Rôles système',
+        value: systemRoles.value.length,
+        tone: 'sky',
+    },
+    {
+        key: 'custom-roles',
+        label: 'Rôles personnalisés',
+        value: customRoles.value.length,
+        tone: 'violet',
+    },
+    {
+        key: 'permissions',
+        label: 'Permissions',
+        value: permissionCount.value,
+        tone: 'amber',
+    },
+]));
 const groupTabs = computed(() => [
     { id: 'all', label: 'Tous' },
     ...props.permissions.map((group) => ({ id: group.group, label: group.label || group.group })),
@@ -186,24 +213,10 @@ const roleTone = (role) => {
                 </div>
             </header>
 
-            <section class="grid gap-3 md:grid-cols-4">
-                <div class="border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <p class="text-xs uppercase text-stone-500 dark:text-neutral-400">Rôles d'accès actifs</p>
-                    <p class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">{{ activeRoles.length }}</p>
-                </div>
-                <div class="border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <p class="text-xs uppercase text-stone-500 dark:text-neutral-400">Rôles système</p>
-                    <p class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">{{ systemRoles.length }}</p>
-                </div>
-                <div class="border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <p class="text-xs uppercase text-stone-500 dark:text-neutral-400">Rôles personnalisés</p>
-                    <p class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">{{ customRoles.length }}</p>
-                </div>
-                <div class="border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <p class="text-xs uppercase text-stone-500 dark:text-neutral-400">Permissions</p>
-                    <p class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">{{ permissionCount }}</p>
-                </div>
-            </section>
+            <KpiMetricGrid
+                :metrics="roleMetrics"
+                grid-class="grid-cols-1 md:grid-cols-4"
+            />
 
             <section class="grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
                 <aside class="space-y-3">

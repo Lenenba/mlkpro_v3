@@ -4,6 +4,7 @@ import { Head, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import InputError from '@/Components/InputError.vue';
 import Checkbox from '@/Components/Checkbox.vue';
@@ -58,6 +59,33 @@ const editForm = useForm({
 
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+const kpiMetrics = computed(() => [
+    {
+        key: 'total',
+        label: t('super_admin.admins.stats.total'),
+        value: formatNumber(props.stats.total),
+        tone: 'emerald',
+    },
+    {
+        key: 'active',
+        label: t('super_admin.admins.stats.active'),
+        value: formatNumber(props.stats.active),
+        tone: 'blue',
+    },
+    {
+        key: 'inactive',
+        label: t('super_admin.admins.stats.inactive'),
+        value: formatNumber(props.stats.inactive),
+        tone: 'rose',
+    },
+    {
+        key: 'require_2fa',
+        label: t('super_admin.admins.stats.require_2fa'),
+        value: formatNumber(props.stats.require_2fa),
+        tone: 'amber',
+    },
+]);
 
 const adminRows = computed(() => props.admins || []);
 const adminsResultsLabel = computed(() => t('super_admin.admins.filters.results', { count: adminRows.value.length }));
@@ -125,40 +153,10 @@ const submitEdit = () => {
                 </div>
             </section>
 
-            <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2 md:gap-3 lg:gap-5">
-                <div class="p-4 bg-white border border-t-4 border-t-emerald-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.admins.stats.total') }}
-                    </p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ formatNumber(stats.total) }}
-                    </p>
-                </div>
-                <div class="p-4 bg-white border border-t-4 border-t-blue-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.admins.stats.active') }}
-                    </p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ formatNumber(stats.active) }}
-                    </p>
-                </div>
-                <div class="p-4 bg-white border border-t-4 border-t-rose-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.admins.stats.inactive') }}
-                    </p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ formatNumber(stats.inactive) }}
-                    </p>
-                </div>
-                <div class="p-4 bg-white border border-t-4 border-t-amber-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.admins.stats.require_2fa') }}
-                    </p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ formatNumber(stats.require_2fa) }}
-                    </p>
-                </div>
-            </div>
+            <KpiMetricGrid
+                :metrics="kpiMetrics"
+                grid-class="grid-cols-2 md:grid-cols-3 xl:grid-cols-4"
+            />
 
             <AdminDataTable
                 :rows="adminRows"

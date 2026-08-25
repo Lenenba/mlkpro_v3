@@ -3,8 +3,10 @@ import { computed, ref, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 import DatePicker from '@/Components/DatePicker.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import { humanizeDate } from '@/utils/date';
 import { useCurrencyFormatter } from '@/utils/currency';
+import { buildSparklinePoints, buildTrend } from '@/utils/kpi';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -156,6 +158,19 @@ const deltaClass = computed(() => {
         : 'text-emerald-600 dark:text-emerald-300';
 });
 
+const totalSpentSeries = computed(() => {
+    const previous = kpis.value.previous_total_spent;
+    const current = kpis.value.total_spent;
+
+    if (previous === null || previous === undefined || current === null || current === undefined) {
+        return [];
+    }
+
+    const values = [Number(previous), Number(current)];
+
+    return values.every((value) => Number.isFinite(value)) ? values : [];
+});
+
 const categoryLabel = (item) => {
     const key = item?.key;
 
@@ -178,37 +193,43 @@ const moneyKpis = computed(() => ([
         key: 'total_spent',
         label: t('expenses.recap.kpis.total_spent'),
         value: formatCurrency(kpis.value.total_spent),
-        tone: 'border-t-red-600',
+        tone: 'red',
+        points: totalSpentSeries.value.length === 2
+            ? buildSparklinePoints(totalSpentSeries.value)
+            : [],
+        trend: totalSpentSeries.value.length === 2
+            ? buildTrend(totalSpentSeries.value, 'down')
+            : null,
     },
     {
         key: 'approved_total',
         label: t('expenses.recap.kpis.approved_total'),
         value: formatCurrency(kpis.value.approved_total),
-        tone: 'border-t-sky-600',
+        tone: 'sky',
     },
     {
         key: 'paid_total',
         label: t('expenses.recap.kpis.paid_total'),
         value: formatCurrency(kpis.value.paid_total),
-        tone: 'border-t-emerald-600',
+        tone: 'emerald',
     },
     {
         key: 'to_pay_total',
         label: t('expenses.recap.kpis.to_pay_total'),
         value: formatCurrency(kpis.value.to_pay_total),
-        tone: 'border-t-amber-500',
+        tone: 'amber',
     },
     {
         key: 'reimbursement_total',
         label: t('expenses.recap.kpis.reimbursement_total'),
         value: formatCurrency(kpis.value.reimbursement_total),
-        tone: 'border-t-orange-500',
+        tone: 'orange',
     },
     {
         key: 'pending_approval_count',
         label: t('expenses.recap.kpis.pending_approval_count'),
         value: formatNumber(kpis.value.pending_approval_count),
-        tone: 'border-t-stone-500',
+        tone: 'stone',
     },
 ]));
 
@@ -297,21 +318,7 @@ const breakdownCards = computed(() => ([
             </button>
         </div>
 
-        <div class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
-            <div
-                v-for="item in moneyKpis"
-                :key="item.key"
-                class="rounded-sm border border-t-4 border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
-                :class="item.tone"
-            >
-                <div class="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                    {{ item.label }}
-                </div>
-                <div class="mt-2 text-lg font-semibold text-stone-900 dark:text-neutral-100">
-                    {{ item.value }}
-                </div>
-            </div>
-        </div>
+        <KpiMetricGrid class="mt-5" :metrics="moneyKpis" />
 
         <div class="mt-4 grid gap-4 xl:grid-cols-[1fr,320px]">
             <div class="grid gap-4 lg:grid-cols-2">

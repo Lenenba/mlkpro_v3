@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import { humanizeDate } from '@/utils/date';
@@ -146,6 +147,36 @@ const formatNumber = (value) => Number(value || 0).toLocaleString();
 const { formatCurrency } = useCurrencyFormatter();
 const formatDateTime = (value) => humanizeDate(value) || '-';
 const pointLabel = computed(() => props.program?.points_label || t('loyalty_module.default_points_label'));
+const kpiMetrics = computed(() => [
+    {
+        key: 'total_balance',
+        label: t('loyalty_module.kpi.total_balance'),
+        value: `${formatNumber(props.stats.total_balance)} ${pointLabel.value}`,
+        tone: 'indigo',
+        loading: isLoading.value,
+    },
+    {
+        key: 'active_customers',
+        label: t('loyalty_module.kpi.active_customers'),
+        value: formatNumber(props.stats.active_customers),
+        tone: 'sky',
+        loading: isLoading.value,
+    },
+    {
+        key: 'points_earned',
+        label: t('loyalty_module.kpi.points_earned'),
+        value: `+${formatNumber(props.stats.points_earned)}`,
+        tone: 'emerald',
+        loading: isLoading.value,
+    },
+    {
+        key: 'points_spent',
+        label: t('loyalty_module.kpi.points_spent'),
+        value: `-${formatNumber(props.stats.points_spent)}`,
+        tone: 'rose',
+        loading: isLoading.value,
+    },
+]);
 const currentPage = computed(() => Number(props.entries?.current_page || 1));
 const totalPages = computed(() => Number(props.entries?.last_page || 1));
 const entryRows = computed(() => (Array.isArray(props.entries?.data) ? props.entries.data : []));
@@ -249,28 +280,10 @@ onBeforeUnmount(() => {
                 </div>
             </section>
 
-            <section class="grid grid-cols-2 gap-3 md:grid-cols-4">
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('loyalty_module.kpi.total_balance') }}</div>
-                    <div v-if="isLoading" class="mt-2 h-7 w-28 animate-pulse rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                    <div v-else class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">{{ formatNumber(stats.total_balance) }} {{ pointLabel }}</div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('loyalty_module.kpi.active_customers') }}</div>
-                    <div v-if="isLoading" class="mt-2 h-7 w-16 animate-pulse rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                    <div v-else class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">{{ formatNumber(stats.active_customers) }}</div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('loyalty_module.kpi.points_earned') }}</div>
-                    <div v-if="isLoading" class="mt-2 h-7 w-20 animate-pulse rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                    <div v-else class="mt-1 text-2xl font-semibold text-emerald-700 dark:text-emerald-400">+{{ formatNumber(stats.points_earned) }}</div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('loyalty_module.kpi.points_spent') }}</div>
-                    <div v-if="isLoading" class="mt-2 h-7 w-20 animate-pulse rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                    <div v-else class="mt-1 text-2xl font-semibold text-rose-700 dark:text-rose-400">-{{ formatNumber(stats.points_spent) }}</div>
-                </div>
-            </section>
+            <KpiMetricGrid
+                :metrics="kpiMetrics"
+                :aria-busy="String(isLoading)"
+            />
 
             <section class="grid grid-cols-1 gap-4 xl:h-[calc(100vh-25.5rem)] xl:min-h-[420px] xl:grid-cols-[300px,minmax(0,1fr)]">
                 <aside class="flex h-full min-h-0 flex-col gap-4">

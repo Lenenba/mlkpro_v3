@@ -5,7 +5,7 @@
     "kpi": {
       "balance": "Saldo disponible",
       "earned_period": "Puntos ganados (período)",
-      "spent_period": "Puntos canjeados (período)",
+      "spent_period": "Puntos canjeados",
       "movements": "Movimientos (período)",
       "earned_lifetime": "Total ganado",
       "spent_lifetime": "Total canjeado",

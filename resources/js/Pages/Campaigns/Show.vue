@@ -3,8 +3,10 @@ import { computed, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { humanizeDate } from '@/utils/date';
+import { buildSparklinePoints } from '@/utils/kpi';
 
 const props = defineProps({
     campaign: { type: Object, required: true },
@@ -91,6 +93,174 @@ const prospectingSummary = computed(() => prospectingInsights.value?.summary || 
 const prospectingRecentBatches = computed(() => Array.isArray(prospectingInsights.value?.recent_batches) ? prospectingInsights.value.recent_batches : []);
 const prospectingTopProspects = computed(() => Array.isArray(prospectingInsights.value?.top_prospects) ? prospectingInsights.value.top_prospects : []);
 const { t } = useI18n();
+
+const runSummaryFields = [
+    { key: 'targeted', tone: 'indigo' },
+    { key: 'sent', tone: 'sky' },
+    { key: 'delivered', tone: 'emerald' },
+    { key: 'opened', tone: 'violet' },
+    { key: 'clicked', tone: 'fuchsia' },
+    { key: 'converted', tone: 'green' },
+    { key: 'failed', tone: 'rose' },
+    { key: 'skipped', tone: 'amber' },
+];
+
+const runSummaryValue = (run, key) => {
+    const summary = run?.summary;
+    if (!summary || typeof summary !== 'object' || !Object.prototype.hasOwnProperty.call(summary, key)) {
+        return null;
+    }
+
+    const rawValue = summary[key];
+    if (rawValue === null || rawValue === undefined || rawValue === '') {
+        return null;
+    }
+
+    const value = Number(rawValue);
+    return Number.isFinite(value) ? value : null;
+};
+
+const chronologicalRuns = computed(() => (
+    Array.isArray(runs.value)
+        ? runs.value.slice(0, 12).reverse()
+        : []
+));
+
+const runSummaryMetrics = computed(() => {
+    const latestRun = Array.isArray(runs.value) ? runs.value[0] : null;
+    const targeted = runSummaryValue(latestRun, 'targeted');
+
+    return runSummaryFields.flatMap((field) => {
+        const value = runSummaryValue(latestRun, field.key);
+        if (value === null) {
+            return [];
+        }
+
+        const series = chronologicalRuns.value
+            .map((run) => runSummaryValue(run, field.key))
+            .filter((point) => point !== null);
+        const hasTargetedRatio = field.key !== 'targeted' && targeted !== null && targeted > 0;
+        const targetedPercent = hasTargetedRatio ? (value / targeted) * 100 : null;
+
+        return [{
+            key: `run-${field.key}`,
+            label: t(`marketing.campaign_show.run_summary.${field.key}`),
+            value,
+            tone: field.tone,
+            context: targetedPercent !== null ? `${targetedPercent.toFixed(1)}%` : undefined,
+            points: series.length ? buildSparklinePoints(series) : [],
+            progress: hasTargetedRatio
+                ? { value, max: targeted }
+                : undefined,
+        }];
+    });
+});
+
+const deliveryInsightMetrics = computed(() => [
+    {
+        key: 'latest-run',
+        label: t('marketing.campaign_show.delivery.latest_run'),
+        value: insights.value.latest_run_id ? `#${insights.value.latest_run_id}` : '-',
+        tone: 'indigo',
+    },
+    {
+        key: 'ab-split',
+        label: t('marketing.campaign_show.delivery.ab_split'),
+        value: `A ${abInsights.value.a} / B ${abInsights.value.b}`,
+        context: abInsights.value.total > 0
+            ? `A ${abInsights.value.splitA}% | B ${abInsights.value.splitB}%`
+            : t('marketing.campaign_show.delivery.no_ab_data'),
+        tone: 'sky',
+        progress: abInsights.value.total > 0
+            ? { value: abInsights.value.a, max: abInsights.value.total }
+            : undefined,
+    },
+    {
+        key: 'holdout-recipients',
+        label: t('marketing.campaign_show.delivery.holdout'),
+        value: Number(insights.value.holdout_count || 0),
+        tone: 'amber',
+    },
+    {
+        key: 'fallback-usage',
+        label: t('marketing.campaign_show.delivery.fallback'),
+        value: t('marketing.campaign_show.delivery.fallback_value', { count: fallbackInsights.value.count }),
+        context: t('marketing.campaign_show.delivery.fallback_context', {
+            rate: fallbackInsights.value.rate,
+            count: fallbackInsights.value.failedCount,
+        }),
+        tone: 'rose',
+        progress: fallbackInsights.value.failedCount > 0
+            ? { value: fallbackInsights.value.count, max: fallbackInsights.value.failedCount }
+            : undefined,
+    },
+]);
+const funnelRateMetric = (key, label, rawValue) => {
+    const value = Number(rawValue);
+    const isAvailable = rawValue !== null
+        && rawValue !== undefined
+        && rawValue !== ''
+        && Number.isFinite(value);
+
+    return {
+        key,
+        label,
+        value: isAvailable
+            ? `${value}%`
+            : t('marketing.campaign_show.funnel.not_available'),
+        progress: isAvailable ? { value, max: 100 } : undefined,
+    };
+};
+
+const funnelRateMetrics = computed(() => [
+    funnelRateMetric(
+        'prospect-to-lead',
+        t('marketing.campaign_show.funnel.prospect_to_lead_rate'),
+        funnelRates.value.prospectToLead
+    ),
+    funnelRateMetric(
+        'lead-to-customer',
+        t('marketing.campaign_show.funnel.lead_to_customer_rate'),
+        funnelRates.value.leadToCustomer
+    ),
+    funnelRateMetric(
+        'overall-customer',
+        t('marketing.campaign_show.funnel.overall_customer_rate'),
+        funnelRates.value.overallCustomer
+    ),
+]);
+const prospectingMetrics = computed(() => [
+    {
+        key: 'total-batches',
+        label: t('marketing.campaign_show.prospecting.total_batches'),
+        value: Number(prospectingSummary.value.total_batches || 0),
+    },
+    {
+        key: 'pending-review-batches',
+        label: t('marketing.campaign_show.prospecting.pending_review_batches'),
+        value: Number(prospectingSummary.value.pending_review_batches || 0),
+    },
+    {
+        key: 'ready-for-outreach',
+        label: t('marketing.campaign_show.prospecting.ready_for_outreach'),
+        value: Number(prospectingSummary.value.ready_for_outreach_prospects || 0),
+    },
+    {
+        key: 'follow-up-due',
+        label: t('marketing.campaign_show.prospecting.follow_up_due'),
+        value: Number(prospectingSummary.value.follow_up_due_prospects || 0),
+    },
+    {
+        key: 'converted-leads',
+        label: t('marketing.campaign_show.prospecting.converted_leads'),
+        value: Number(prospectingSummary.value.converted_leads || 0),
+    },
+    {
+        key: 'do-not-contact',
+        label: t('marketing.campaign_show.prospecting.do_not_contact'),
+        value: Number(prospectingSummary.value.do_not_contact_prospects || 0),
+    },
+]);
 
 const conversionError = ref('');
 const conversionBusy = ref(false);
@@ -254,44 +424,22 @@ const openProspectingWorkspace = (step = 3) => {
             </section>
 
             <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="mb-2 text-sm font-semibold text-stone-800 dark:text-neutral-100">Delivery insights (latest run)</div>
-                <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">Latest run</div>
-                        <div class="mt-1 text-sm font-semibold text-stone-700 dark:text-neutral-200">
-                            {{ insights.latest_run_id ? `#${insights.latest_run_id}` : '-' }}
-                        </div>
-                    </div>
-                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">A/B split</div>
-                        <div class="mt-1 text-sm font-semibold text-stone-700 dark:text-neutral-200">
-                            A {{ abInsights.a }} / B {{ abInsights.b }}
-                        </div>
-                        <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                            <template v-if="abInsights.total > 0">
-                                A {{ abInsights.splitA }}% | B {{ abInsights.splitB }}%
-                            </template>
-                            <template v-else>
-                                No A/B data
-                            </template>
-                        </div>
-                    </div>
-                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">Holdout recipients</div>
-                        <div class="mt-1 text-sm font-semibold text-stone-700 dark:text-neutral-200">
-                            {{ Number(insights.holdout_count || 0) }}
-                        </div>
-                    </div>
-                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">Fallback usage</div>
-                        <div class="mt-1 text-sm font-semibold text-stone-700 dark:text-neutral-200">
-                            {{ fallbackInsights.count }} triggered
-                        </div>
-                        <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                            {{ fallbackInsights.rate }}% of failed ({{ fallbackInsights.failedCount }} failed)
-                        </div>
-                    </div>
+                <div class="mb-2 text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                    {{ t('marketing.campaign_show.delivery.title') }}
                 </div>
+                <KpiMetricGrid
+                    v-if="runSummaryMetrics.length"
+                    :metrics="runSummaryMetrics"
+                    grid-class="grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))]"
+                    compact
+                />
+
+                <KpiMetricGrid
+                    :class="runSummaryMetrics.length ? 'mt-4' : ''"
+                    :metrics="deliveryInsightMetrics"
+                    grid-class="grid-cols-1 md:grid-cols-2 xl:grid-cols-4"
+                    compact
+                />
 
                 <div class="mt-4 overflow-x-auto">
                     <table class="min-w-full divide-y divide-stone-200 text-sm dark:divide-neutral-700">
@@ -341,37 +489,19 @@ const openProspectingWorkspace = (step = 3) => {
                     </span>
                 </div>
 
-                <div class="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-                    <div
-                        v-for="stage in funnelStages"
-                        :key="`funnel-${stage.key}`"
-                        class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800"
-                    >
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ stage.label }}</div>
-                        <div class="mt-1 text-lg font-semibold text-stone-700 dark:text-neutral-200">{{ stage.value }}</div>
-                    </div>
-                </div>
+                <KpiMetricGrid
+                    class="mt-4"
+                    :metrics="funnelStages"
+                    grid-class="grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))]"
+                    compact
+                />
 
-                <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_show.funnel.prospect_to_lead_rate') }}</div>
-                        <div class="mt-1 text-sm font-semibold text-stone-700 dark:text-neutral-200">
-                            {{ funnelRates.prospectToLead === null ? t('marketing.campaign_show.funnel.not_available') : `${funnelRates.prospectToLead}%` }}
-                        </div>
-                    </div>
-                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_show.funnel.lead_to_customer_rate') }}</div>
-                        <div class="mt-1 text-sm font-semibold text-stone-700 dark:text-neutral-200">
-                            {{ funnelRates.leadToCustomer === null ? t('marketing.campaign_show.funnel.not_available') : `${funnelRates.leadToCustomer}%` }}
-                        </div>
-                    </div>
-                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_show.funnel.overall_customer_rate') }}</div>
-                        <div class="mt-1 text-sm font-semibold text-stone-700 dark:text-neutral-200">
-                            {{ funnelRates.overallCustomer === null ? t('marketing.campaign_show.funnel.not_available') : `${funnelRates.overallCustomer}%` }}
-                        </div>
-                    </div>
-                </div>
+                <KpiMetricGrid
+                    class="mt-4"
+                    :metrics="funnelRateMetrics"
+                    grid-class="grid-cols-1 md:grid-cols-3"
+                    compact
+                />
             </section>
 
             <section v-if="showProspectingDashboard" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
@@ -394,32 +524,12 @@ const openProspectingWorkspace = (step = 3) => {
                     </div>
                 </div>
 
-                <div class="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_show.prospecting.total_batches') }}</div>
-                        <div class="mt-1 text-lg font-semibold text-stone-700 dark:text-neutral-200">{{ Number(prospectingSummary.total_batches || 0) }}</div>
-                    </div>
-                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_show.prospecting.pending_review_batches') }}</div>
-                        <div class="mt-1 text-lg font-semibold text-stone-700 dark:text-neutral-200">{{ Number(prospectingSummary.pending_review_batches || 0) }}</div>
-                    </div>
-                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_show.prospecting.ready_for_outreach') }}</div>
-                        <div class="mt-1 text-lg font-semibold text-stone-700 dark:text-neutral-200">{{ Number(prospectingSummary.ready_for_outreach_prospects || 0) }}</div>
-                    </div>
-                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_show.prospecting.follow_up_due') }}</div>
-                        <div class="mt-1 text-lg font-semibold text-stone-700 dark:text-neutral-200">{{ Number(prospectingSummary.follow_up_due_prospects || 0) }}</div>
-                    </div>
-                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_show.prospecting.converted_leads') }}</div>
-                        <div class="mt-1 text-lg font-semibold text-stone-700 dark:text-neutral-200">{{ Number(prospectingSummary.converted_leads || 0) }}</div>
-                    </div>
-                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_show.prospecting.do_not_contact') }}</div>
-                        <div class="mt-1 text-lg font-semibold text-stone-700 dark:text-neutral-200">{{ Number(prospectingSummary.do_not_contact_prospects || 0) }}</div>
-                    </div>
-                </div>
+                <KpiMetricGrid
+                    class="mt-4"
+                    :metrics="prospectingMetrics"
+                    grid-class="grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))]"
+                    compact
+                />
 
                 <div class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
                     <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">

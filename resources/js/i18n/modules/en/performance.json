@@ -24,6 +24,7 @@
       "tasks": "Tasks",
       "avg_order": "Avg order value",
       "avg_job": "Avg job value",
+      "avg_service": "Avg service",
       "customers": "Customers",
       "revenue_per_seller": "Revenue per seller",
       "revenue_per_member": "Revenue per member",

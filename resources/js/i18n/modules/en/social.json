@@ -755,7 +755,7 @@
         "pending": "Pending",
         "automated": "Automated",
         "manual": "Manual",
-        "stale": "Aging approvals"
+        "stale": "Older approvals"
       },
       "fields": {
         "search": "Search text, source, or link",

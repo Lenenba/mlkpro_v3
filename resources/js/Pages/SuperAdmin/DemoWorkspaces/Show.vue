@@ -4,6 +4,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import Modal from '@/Components/Modal.vue';
 
 const props = defineProps({
@@ -88,25 +89,25 @@ const financeSnapshotCards = computed(() => {
             {
                 key: 'expenses',
                 label: 'Expenses seeded',
-                value: summary.expenses ?? 0,
+                value: formatNumber(summary.expenses ?? 0),
                 tone: 'stone',
             },
             {
                 key: 'expenses_due',
                 label: 'Due now',
-                value: summary.expenses_due ?? 0,
+                value: formatNumber(summary.expenses_due ?? 0),
                 tone: 'amber',
             },
             {
                 key: 'expenses_paid',
                 label: 'Paid or reimbursed',
-                value: summary.expenses_paid ?? 0,
+                value: formatNumber(summary.expenses_paid ?? 0),
                 tone: 'emerald',
             },
             {
                 key: 'expense_attachments',
                 label: 'Receipt files',
-                value: summary.expense_attachments ?? 0,
+                value: formatNumber(summary.expense_attachments ?? 0),
                 tone: 'blue',
             },
         );
@@ -117,25 +118,25 @@ const financeSnapshotCards = computed(() => {
             {
                 key: 'accounting_entries',
                 label: 'Journal entries',
-                value: summary.accounting_entries ?? 0,
+                value: formatNumber(summary.accounting_entries ?? 0),
                 tone: 'slate',
             },
             {
                 key: 'accounting_batches',
                 label: 'Generated batches',
-                value: summary.accounting_batches ?? 0,
+                value: formatNumber(summary.accounting_batches ?? 0),
                 tone: 'slate',
             },
             {
                 key: 'accounting_review_required_batches',
                 label: 'Review required',
-                value: summary.accounting_review_required_batches ?? 0,
+                value: formatNumber(summary.accounting_review_required_batches ?? 0),
                 tone: 'amber',
             },
             {
                 key: 'accounting_active_periods',
                 label: 'Active periods',
-                value: summary.accounting_active_periods ?? 0,
+                value: formatNumber(summary.accounting_active_periods ?? 0),
                 tone: 'blue',
             },
         );
@@ -143,14 +144,6 @@ const financeSnapshotCards = computed(() => {
 
     return cards;
 });
-
-const financeSnapshotCardClass = (tone) => ({
-    stone: 'border-stone-200 bg-stone-50 text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200',
-    slate: 'border-slate-200 bg-slate-50 text-slate-800 dark:border-slate-900/60 dark:bg-slate-950/30 dark:text-slate-200',
-    amber: 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200',
-    emerald: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200',
-    blue: 'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-200',
-}[tone] || 'border-stone-200 bg-stone-50 text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200');
 
 const salesStatusOptions = computed(() =>
     (props.options?.sales_statuses || []).filter((option) => option.value !== 'all'),
@@ -691,21 +684,11 @@ const copyAccessKit = async () => {
                             Quick demo QA block driven by the seeded finance summary. Use it to confirm that the workspace is ready for expense and accounting walkthroughs before opening the tenant.
                         </p>
 
-                        <div class="mt-4 grid gap-3 sm:grid-cols-2">
-                            <div
-                                v-for="card in financeSnapshotCards"
-                                :key="card.key"
-                                class="rounded-sm border p-3"
-                                :class="financeSnapshotCardClass(card.tone)"
-                            >
-                                <div class="text-[11px] uppercase tracking-[0.18em] opacity-80">
-                                    {{ card.label }}
-                                </div>
-                                <div class="mt-2 text-2xl font-semibold">
-                                    {{ formatNumber(card.value) }}
-                                </div>
-                            </div>
-                        </div>
+                        <KpiMetricGrid
+                            class="mt-4"
+                            :metrics="financeSnapshotCards"
+                            grid-class="grid-cols-1 sm:grid-cols-2"
+                        />
                     </section>
 
                     <section class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">

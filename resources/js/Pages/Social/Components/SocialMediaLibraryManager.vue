@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import DropzoneInput from '@/Components/DropzoneInput.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 
@@ -75,6 +76,12 @@ const originFilterOptions = computed(() => originOptions.value.map((option) => (
     ...option,
     label: optionLabel('origins', option.value),
 })));
+const summaryMetrics = computed(() => ([
+    { key: 'total', label: t('social.media_manager.summary.total'), value: summary.value.total || 0, tone: 'stone' },
+    { key: 'uploads', label: t('social.media_manager.summary.uploads'), value: summary.value.uploads || 0, tone: 'sky' },
+    { key: 'ai', label: t('social.media_manager.summary.ai'), value: summary.value.ai || 0, tone: 'violet' },
+    { key: 'posts', label: t('social.media_manager.summary.posts'), value: summary.value.posts || 0, tone: 'emerald' },
+]));
 
 const requestErrorMessage = (requestError, fallback) => {
     const validationMessage = Object.values(requestError?.response?.data?.errors || {})
@@ -244,27 +251,7 @@ const bytesLabel = (value) => {
         </div>
 
         <section class="grid grid-cols-1 items-start gap-4 xl:grid-cols-3">
-            <section class="rounded-md border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="grid grid-cols-1 gap-3">
-                    <div
-                        v-for="item in [
-                            ['total', summary.total || 0],
-                            ['uploads', summary.uploads || 0],
-                            ['ai', summary.ai || 0],
-                            ['posts', summary.posts || 0],
-                        ]"
-                        :key="item[0]"
-                        class="flex items-center justify-between gap-3 rounded-md border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800/60"
-                    >
-                        <div class="text-xs font-medium text-stone-500 dark:text-neutral-400">
-                            {{ t(`social.media_manager.summary.${item[0]}`) }}
-                        </div>
-                        <div class="text-xl font-semibold text-stone-900 dark:text-neutral-100">
-                            {{ item[1] }}
-                        </div>
-                    </div>
-                </div>
-            </section>
+            <KpiMetricGrid :metrics="summaryMetrics" compact />
 
             <form class="rounded-md border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900" @submit.prevent="load">
                 <div class="grid grid-cols-1 gap-3">

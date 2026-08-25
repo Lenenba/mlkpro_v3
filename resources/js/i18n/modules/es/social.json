@@ -755,7 +755,7 @@
         "pending": "Pendientes",
         "automated": "Automatizadas",
         "manual": "Manuales",
-        "stale": "Pendientes antiguas"
+        "stale": "Validaciones antiguas"
       },
       "fields": {
         "search": "Buscar texto, fuente o enlace",

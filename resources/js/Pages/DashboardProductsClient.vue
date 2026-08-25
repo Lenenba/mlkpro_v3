@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import ClientPortalTabs from '@/Components/Portal/ClientPortalTabs.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
 import { useCurrencyFormatter } from '@/utils/currency';
@@ -64,9 +65,33 @@ const productTabs = computed(() => ([
 ]));
 
 const heroCards = computed(() => ([
-    { key: 'orders', label: t('client_orders.kpi.orders'), value: formatNumber(props.stats.orders_total), tone: 'orange' },
-    { key: 'pending', label: t('client_orders.kpi.pending'), value: formatNumber(props.stats.orders_pending), tone: 'amber' },
-    { key: 'paid', label: t('client_orders.kpi.paid'), value: formatNumber(props.stats.orders_paid), tone: 'emerald' },
+    {
+        key: 'orders',
+        label: t('client_orders.kpi.orders'),
+        value: formatNumber(props.stats.orders_total),
+        tone: 'orange',
+        colorClass: 'bg-orange-500/70 dark:bg-orange-400/50',
+        trend: null,
+        points: [],
+    },
+    {
+        key: 'pending',
+        label: t('client_orders.kpi.pending'),
+        value: formatNumber(props.stats.orders_pending),
+        tone: 'amber',
+        colorClass: 'bg-amber-500/70 dark:bg-amber-400/50',
+        trend: null,
+        points: [],
+    },
+    {
+        key: 'paid',
+        label: t('client_orders.kpi.paid'),
+        value: formatNumber(props.stats.orders_paid),
+        tone: 'emerald',
+        colorClass: 'bg-emerald-500/70 dark:bg-emerald-400/50',
+        trend: null,
+        points: [],
+    },
 ]));
 
 const statusLabels = computed(() => ({
@@ -117,12 +142,6 @@ const fulfillmentBadge = {
     ready_for_pickup: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-200',
     completed: 'bg-stone-100 text-stone-600 dark:bg-neutral-800 dark:text-neutral-300',
     confirmed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200',
-};
-
-const toneAccent = {
-    orange: 'from-orange-500/15 via-orange-100 to-white text-orange-700 dark:from-orange-500/15 dark:via-orange-500/10 dark:to-neutral-900 dark:text-orange-200',
-    amber: 'from-amber-500/15 via-amber-100 to-white text-amber-700 dark:from-amber-500/15 dark:via-amber-500/10 dark:to-neutral-900 dark:text-amber-200',
-    emerald: 'from-emerald-500/15 via-emerald-100 to-white text-emerald-700 dark:from-emerald-500/15 dark:via-emerald-500/10 dark:to-neutral-900 dark:text-emerald-200',
 };
 
 const formatDate = (value) => humanizeDate(value);
@@ -304,20 +323,12 @@ const paidSummary = (sale) => {
                 :columns="2"
             />
 
-            <section class="grid gap-3 md:grid-cols-3">
-                <article
-                    v-for="card in heroCards"
-                    :key="card.key"
-                    class="rounded-[1.5rem] border border-stone-200/80 bg-gradient-to-br px-4 py-4 shadow-sm dark:border-neutral-800"
-                    :class="toneAccent[card.tone]"
-                >
-                    <p class="text-xs font-semibold uppercase tracking-[0.18em]">
-                        {{ card.label }}
-                    </p>
-                    <p class="mt-3 text-3xl font-semibold tracking-tight">
-                        {{ card.value }}
-                    </p>
-                </article>
+            <section>
+                <KpiMetricGrid
+                    :metrics="heroCards"
+                    grid-class="grid-cols-1 md:grid-cols-3"
+                    :aria-label="$t('client_orders.title')"
+                />
             </section>
 
             <div class="grid gap-4 xl:grid-cols-[1.3fr_1fr]">

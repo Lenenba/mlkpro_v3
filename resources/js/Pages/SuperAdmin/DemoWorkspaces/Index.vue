@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Modal from '@/Components/Modal.vue';
 
@@ -15,6 +16,38 @@ const props = defineProps({
 });
 
 const formatNumber = (value) => Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+const kpiMetrics = computed(() => [
+    {
+        key: 'active',
+        label: 'Active demos',
+        value: formatNumber(props.stats.active),
+        tone: 'emerald',
+    },
+    {
+        key: 'sent',
+        label: 'Sent',
+        value: formatNumber(props.stats.sent),
+        tone: 'blue',
+    },
+    {
+        key: 'expiring_soon',
+        label: 'Expiring soon',
+        value: formatNumber(props.stats.expiring_soon),
+        tone: 'amber',
+    },
+    {
+        key: 'expired',
+        label: 'Expired',
+        value: formatNumber(props.stats.expired),
+        tone: 'rose',
+    },
+    {
+        key: 'total',
+        label: 'Total',
+        value: formatNumber(props.stats.total),
+        tone: 'stone',
+    },
+]);
 const formatDate = (value) => value ? new Date(value).toLocaleDateString() : 'Not set';
 const formatDateTime = (value) => value ? new Date(value).toLocaleString() : 'Not set';
 const truncateText = (value, limit = 120) => {
@@ -434,28 +467,10 @@ onBeforeUnmount(() => {
                 </div>
             </section>
 
-            <div class="grid grid-cols-2 gap-2 md:grid-cols-5 md:gap-3">
-                <div class="rounded-sm border border-stone-200 border-t-4 border-t-emerald-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">Active demos</p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">{{ formatNumber(stats.active) }}</p>
-                </div>
-                <div class="rounded-sm border border-stone-200 border-t-4 border-t-blue-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">Sent</p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">{{ formatNumber(stats.sent) }}</p>
-                </div>
-                <div class="rounded-sm border border-stone-200 border-t-4 border-t-amber-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">Expiring soon</p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">{{ formatNumber(stats.expiring_soon) }}</p>
-                </div>
-                <div class="rounded-sm border border-stone-200 border-t-4 border-t-rose-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">Expired</p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">{{ formatNumber(stats.expired) }}</p>
-                </div>
-                <div class="rounded-sm border border-stone-200 border-t-4 border-t-stone-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">Total</p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">{{ formatNumber(stats.total) }}</p>
-                </div>
-            </div>
+            <KpiMetricGrid
+                :metrics="kpiMetrics"
+                grid-class="grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))]"
+            />
 
             <AdminDataTable
                 :rows="workspaceRows"

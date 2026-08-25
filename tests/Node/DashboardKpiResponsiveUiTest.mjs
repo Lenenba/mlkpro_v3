@@ -6,6 +6,8 @@ import test from 'node:test';
 const read = (path) => readFileSync(resolve(path), 'utf8');
 const dashboard = read('resources/js/Pages/Dashboard.vue');
 const panel = read('resources/js/Components/Dashboard/KpiCompositePanel.vue');
+const metricGrid = read('resources/js/Components/Dashboard/KpiMetricGrid.vue');
+const metricCard = read('resources/js/Components/Dashboard/KpiMetricCard.vue');
 
 const extractFunction = (source, functionName, nextDeclaration) => {
     const start = source.indexOf(`const ${functionName} =`);
@@ -64,29 +66,60 @@ test('dashboard composite grids adapt one through five metrics without forcing n
     assert.match(dashboard, /:metrics-grid-class="inventoryPanelGridClass"/u);
 });
 
-test('KPI panels wrap headers and preserve complete labels and values', () => {
+test('KPI panels and their shared metric cards preserve complete labels and values', () => {
     assert.match(panel, /flex flex-wrap items-start justify-between gap-3/u);
     assert.match(panel, /flex-\[1_1_14rem\]/u);
     assert.match(panel, /whitespace-normal/u);
-    assert.match(panel, /\[overflow-wrap:anywhere\]/u);
-    assert.match(panel, /tabular-nums/u);
-    assert.match(panel, /class="shrink-0 whitespace-nowrap"/u);
-    assert.match(panel, /max-w-full whitespace-nowrap font-semibold tabular-nums/u);
-    assert.doesNotMatch(panel, /\btruncate\b/u);
-    assert.doesNotMatch(panel, /bg-gradient-|(?:dark:)?(?:from|via|to)-(?:stone|neutral|white)/u);
+    assert.match(metricCard, /grid-cols-\[minmax\(0,1fr\)_auto\]/u);
+    assert.match(metricCard, /\[overflow-wrap:anywhere\]/u);
+    assert.match(metricCard, /tabular-nums/u);
+    assert.match(metricCard, /class="shrink-0 whitespace-nowrap"/u);
+    assert.match(metricCard, /max-w-full whitespace-normal break-words font-semibold leading-7 tabular-nums/u);
+    assert.match(metricCard, /line-clamp-2 min-w-0 break-words/u);
+    assert.match(metricCard, /:title="metric\.label"/u);
+    assert.doesNotMatch(metricCard, /whitespace-nowrap[^\n]*metric\.value/u);
+    assert.match(metricCard, /flex h-full min-w-0 flex-col items-stretch justify-start overflow-hidden/u);
+    assert.match(metricCard, /min-h-8 min-w-0 items-start/u);
+    assert.match(metricCard, /hasContext \? '' : 'invisible'/u);
+    assert.doesNotMatch(metricCard, /\btruncate\b/u);
+
+    for (const source of [panel, metricGrid, metricCard]) {
+        assert.doesNotMatch(source, /bg-gradient-|(?:dark:)?(?:from|via|to)-(?:stone|neutral|white)/u);
+    }
 });
 
-test('KPI panels expose a labelled semantic region and visible keyboard focus', () => {
+test('KPI panels, grids, and interactive cards keep their accessibility contract', () => {
     assert.match(panel, /<section[\s\S]*?:aria-label="title"/u);
     assert.match(panel, /<h2 class="break-words/u);
-    assert.match(panel, /aria-hidden="true"/u);
     assert.match(panel, /focus-visible:ring-2/u);
+
+    assert.match(metricGrid, /:role="labelledBy \|\| ariaLabel \? 'group' : undefined"/u);
+    assert.match(metricGrid, /:aria-labelledby="labelledBy"/u);
+    assert.match(metricGrid, /:aria-label="ariaLabel"/u);
+
+    assert.match(metricCard, /const rootElement = computed\(\(\) => interactive\.value \? 'button' : 'article'\)/u);
+    assert.match(metricCard, /:type="interactive \? 'button' : undefined"/u);
+    assert.match(metricCard, /:disabled="interactive \? Boolean\(metric\.disabled\) : undefined"/u);
+    assert.match(metricCard, /:aria-label="interactive \? metric\.ariaLabel : undefined"/u);
+    assert.match(metricCard, /:aria-pressed="interactive && metric\.active !== undefined/u);
+    assert.match(metricCard, /aria-hidden="true"/u);
+    assert.match(metricCard, /focus-visible:ring-2/u);
+    assert.match(metricCard, /emit\('activate', props\.metric\?\.action \?\? props\.metric\)/u);
+    assert.match(metricCard, /role="progressbar"/u);
+    assert.match(metricCard, /:aria-valuemax="progress\.max"/u);
+    assert.match(metricCard, /:aria-valuenow="progress\.value"/u);
 });
 
-test('KPI panel keeps its shared grid customization contract for product dashboards', () => {
+test('KPI panel delegates through the shared grid and card while preserving grid customization', () => {
     const productTeamDashboard = read('resources/js/Pages/DashboardProductsTeam.vue');
     const productOwnerDashboard = read('resources/js/Pages/DashboardProductsOwner.vue');
 
+    assert.match(panel, /import KpiMetricGrid from '@\/Components\/Dashboard\/KpiMetricGrid\.vue'/u);
+    assert.match(panel, /<KpiMetricGrid[\s\S]*?:metrics="metrics"[\s\S]*?:grid-class="metricsGridClass"[\s\S]*?:compact="compactMetrics"/u);
+    assert.match(metricGrid, /import KpiMetricCard from '@\/Components\/Dashboard\/KpiMetricCard\.vue'/u);
+    assert.match(metricGrid, /<KpiMetricCard[\s\S]*?v-for="metric in metrics"[\s\S]*?:metric="metric"[\s\S]*?:compact="compact"/u);
+    assert.match(metricGrid, /@activate="\$emit\('activate', \$event\)"/u);
+    assert.match(metricGrid, /default: 'grid-cols-\[repeat\(auto-fit,minmax\(min\(100%,12rem\),1fr\)\)\]'/u);
     assert.match(panel, /metricsGridClass:[\s\S]*?default: 'sm:grid-cols-2'/u);
     assert.match(panel, /summaryGridClass:[\s\S]*?default: 'sm:grid-cols-3'/u);
     assert.match(productTeamDashboard, /metrics-grid-class="sm:grid-cols-2 xl:grid-cols-4"/u);

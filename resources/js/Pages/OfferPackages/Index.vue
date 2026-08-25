@@ -5,6 +5,7 @@ import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
@@ -134,6 +135,21 @@ const statLabels = {
     public: 'Publics',
 };
 
+const statTones = {
+    total: 'indigo',
+    active: 'emerald',
+    packs: 'sky',
+    forfaits: 'violet',
+    public: 'teal',
+};
+
+const statMetrics = computed(() => Object.entries(props.stats || {}).map(([key, value]) => ({
+    key,
+    label: statLabels[key] || key,
+    value,
+    tone: statTones[key] || 'stone',
+})));
+
 const typeOptions = computed(() => [
     { value: 'pack', label: typeLabel('pack') },
     { value: 'forfait', label: typeLabel('forfait') },
@@ -211,28 +227,32 @@ const reportCards = computed(() => {
 
     return [
         {
+            key: 'packs',
             label: 'Packs vendus',
             value: numberValue(packs.sold_count),
-            helper: money(packs.revenue),
-            detail: `${numberValue(packs.line_count)} ligne${Number(packs.line_count || 0) > 1 ? 's' : ''} facture`,
+            context: `${money(packs.revenue)} · ${numberValue(packs.line_count)} ligne${Number(packs.line_count || 0) > 1 ? 's' : ''} facture`,
+            tone: 'emerald',
         },
         {
+            key: 'forfaits',
             label: 'Forfaits vendus',
             value: numberValue(forfaits.sold_count),
-            helper: money(forfaits.revenue),
-            detail: `${numberValue(forfaits.remaining_quantity)} droits restants`,
+            context: `${money(forfaits.revenue)} · ${numberValue(forfaits.remaining_quantity)} droits restants`,
+            tone: 'sky',
         },
         {
+            key: 'recurring',
             label: 'Recurrents actifs',
             value: numberValue(recurring.active),
-            helper: `${numberValue(recurring.total)} recurrent${Number(recurring.total || 0) > 1 ? 's' : ''}`,
-            detail: `${numberValue(recurring.renewed)} renouvele${Number(recurring.renewed || 0) > 1 ? 's' : ''}`,
+            context: `${numberValue(recurring.total)} recurrent${Number(recurring.total || 0) > 1 ? 's' : ''} · ${numberValue(recurring.renewed)} renouvele${Number(recurring.renewed || 0) > 1 ? 's' : ''}`,
+            tone: 'violet',
         },
         {
+            key: 'carry-over',
             label: 'Solde reporte',
             value: numberValue(carryOver.quantity),
-            helper: `${numberValue(carryOver.packages_count)} forfait${Number(carryOver.packages_count || 0) > 1 ? 's' : ''}`,
-            detail: `${numberValue(carryOver.remaining_quantity)} droits restants`,
+            context: `${numberValue(carryOver.packages_count)} forfait${Number(carryOver.packages_count || 0) > 1 ? 's' : ''} · ${numberValue(carryOver.remaining_quantity)} droits restants`,
+            tone: 'amber',
         },
     ];
 });
@@ -520,44 +540,12 @@ const restoreOffer = (offer) => {
                     </button>
                 </div>
 
-                <div class="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
-                    <div
-                        v-for="(value, key) in stats"
-                        :key="key"
-                        class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800"
-                    >
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">
-                            {{ statLabels[key] || key }}
-                        </div>
-                        <div class="mt-1 text-xl font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ value }}
-                        </div>
-                    </div>
-                </div>
+                <KpiMetricGrid class="mt-4" :metrics="statMetrics" />
             </section>
 
             <section class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
                 <div class="space-y-4">
-                    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                        <div
-                            v-for="card in reportCards"
-                            :key="card.label"
-                            class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
-                        >
-                            <div class="text-xs font-medium uppercase text-stone-500 dark:text-neutral-400">
-                                {{ card.label }}
-                            </div>
-                            <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-50">
-                                {{ card.value }}
-                            </div>
-                            <div class="mt-1 text-sm font-medium text-stone-700 dark:text-neutral-200">
-                                {{ card.helper }}
-                            </div>
-                            <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                {{ card.detail }}
-                            </div>
-                        </div>
-                    </div>
+                    <KpiMetricGrid :metrics="reportCards" />
 
                     <div class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                         <div class="flex flex-wrap items-center justify-between gap-3">

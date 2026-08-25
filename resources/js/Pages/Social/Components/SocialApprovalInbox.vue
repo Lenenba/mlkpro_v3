@@ -6,6 +6,7 @@ import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import SocialPostQualityPanel from '@/Pages/Social/Components/SocialPostQualityPanel.vue';
 import SocialVisualPostPreview from '@/Pages/Social/Components/SocialVisualPostPreview.vue';
 import { useI18n } from 'vue-i18n';
@@ -73,6 +74,44 @@ const info = ref('');
 const scheduleInputs = ref({});
 
 const canApprove = computed(() => Boolean(access.value.can_approve));
+const approvalMetrics = computed(() => ([
+    {
+        key: 'pending',
+        label: t('social.approval_inbox.summary.pending'),
+        value: Number(summary.value.pending || 0),
+        tone: 'amber',
+        colorClass: 'bg-amber-500/70 dark:bg-amber-400/50',
+        trend: null,
+        points: [],
+    },
+    {
+        key: 'automated',
+        label: t('social.approval_inbox.summary.automated'),
+        value: Number(summary.value.automated || 0),
+        tone: 'sky',
+        colorClass: 'bg-sky-500/70 dark:bg-sky-400/50',
+        trend: null,
+        points: [],
+    },
+    {
+        key: 'manual',
+        label: t('social.approval_inbox.summary.manual'),
+        value: Number(summary.value.manual || 0),
+        tone: 'violet',
+        colorClass: 'bg-violet-500/70 dark:bg-violet-400/50',
+        trend: null,
+        points: [],
+    },
+    {
+        key: 'stale',
+        label: t('social.approval_inbox.summary.stale'),
+        value: Number(summary.value.stale || 0),
+        tone: 'rose',
+        colorClass: 'bg-rose-500/70 dark:bg-rose-400/50',
+        trend: null,
+        points: [],
+    },
+]));
 const ruleFilterOptions = computed(() => [
     { value: '', label: t('social.approval_inbox.filters.all_rules') },
     ...ruleFilters.value,
@@ -356,39 +395,12 @@ const isStale = (post) => {
             {{ info }}
         </div>
 
-        <section class="grid grid-cols-1 gap-4 md:grid-cols-4">
-            <div class="rounded-3xl border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="text-xs uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                    {{ t('social.approval_inbox.summary.pending') }}
-                </div>
-                <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
-                    {{ Number(summary.pending || 0) }}
-                </div>
-            </div>
-            <div class="rounded-3xl border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="text-xs uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                    {{ t('social.approval_inbox.summary.automated') }}
-                </div>
-                <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
-                    {{ Number(summary.automated || 0) }}
-                </div>
-            </div>
-            <div class="rounded-3xl border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="text-xs uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                    {{ t('social.approval_inbox.summary.manual') }}
-                </div>
-                <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
-                    {{ Number(summary.manual || 0) }}
-                </div>
-            </div>
-            <div class="rounded-3xl border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="text-xs uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                    {{ t('social.approval_inbox.summary.stale') }}
-                </div>
-                <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
-                    {{ Number(summary.stale || 0) }}
-                </div>
-            </div>
+        <section>
+            <KpiMetricGrid
+                :metrics="approvalMetrics"
+                grid-class="grid-cols-1 gap-4 md:grid-cols-4"
+                :aria-label="t('social.approval_inbox.title')"
+            />
         </section>
 
         <section class="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">

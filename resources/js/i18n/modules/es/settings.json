@@ -192,6 +192,24 @@
           "clear": "Quitar formato"
         }
       }
+    },
+    "reservations": {
+      "summary": {
+        "timezone": "Zona horaria",
+        "team_members": "Miembros del equipo",
+        "weekly_rules": "Reglas semanales",
+        "exceptions": "Excepciones"
+      }
+    },
+    "billing": {
+      "assistant_addon": {
+        "usage_title": "Uso este mes",
+        "usage_requests": "solicitudes",
+        "usage_tokens_label": "Tokens",
+        "usage_tokens": "tokens",
+        "usage_units_label": "Unidades",
+        "usage_units": "unidades facturadas"
+      }
     }
   }
 }

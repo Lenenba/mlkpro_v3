@@ -47,13 +47,13 @@
       "title": "Performance ({days} derniers jours)",
       "occupancy_rate": "Taux d'occupation",
       "no_show_rate": "Taux d'absence",
-      "reschedule_rate": "Taux de replanification",
+      "reschedule_rate": "Replanification",
       "completion_rate": "Taux de complétion",
-      "avg_service_value": "Panier moyen service",
+      "avg_service_value": "Panier moyen",
       "tip_rate": "Taux de pourboire",
-      "resource_reservation_rate": "Utilisation des ressources",
+      "resource_reservation_rate": "Usage des ressources",
       "table_turnover": "Rotation des tables",
-      "party_size_avg": "Taille moyenne du groupe"
+      "party_size_avg": "Taille du groupe"
     },
     "filters": {
       "search": "Recherche",
@@ -641,7 +641,7 @@
           "submitted": "Demande de réservation envoyée."
         },
         "waitlist": {
-          "title": "Rejoindre la liste d'attente",
+          "title": "Liste d'attente",
           "description": "Aucun créneau correspondant pour le moment. Rejoignez la liste d'attente pour être prioritaire quand un créneau se libère.",
           "join_button": "Rejoindre la liste",
           "created": "Demande de liste d'attente envoyée.",

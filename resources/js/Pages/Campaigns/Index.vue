@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
@@ -65,6 +66,13 @@ const providerSummary = computed(() => ({
     connected: Number(props.prospectProviderSummary?.connected || 0),
     attention: Number(props.prospectProviderSummary?.attention || 0),
 }));
+const campaignMetrics = computed(() => [
+    { key: 'total', label: t('marketing.campaign_index.stats.total'), value: props.stats.total || 0, tone: 'stone' },
+    { key: 'draft', label: t('marketing.campaign_index.stats.draft'), value: props.stats.draft || 0, tone: 'stone' },
+    { key: 'scheduled', label: t('marketing.campaign_index.stats.scheduled'), value: props.stats.scheduled || 0, tone: 'sky' },
+    { key: 'running', label: t('marketing.campaign_index.stats.running'), value: props.stats.running || 0, tone: 'emerald' },
+    { key: 'completed', label: t('marketing.campaign_index.stats.completed'), value: props.stats.completed || 0, tone: 'indigo' },
+]);
 
 const humanizeValue = (value) => String(value || '')
     .replaceAll('_', ' ')
@@ -225,28 +233,7 @@ const statusBadgeClass = (status) => {
                     </div>
                 </div>
 
-                <div class="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
-                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_index.stats.total') }}</div>
-                        <div class="mt-1 text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ stats.total || 0 }}</div>
-                    </div>
-                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_index.stats.draft') }}</div>
-                        <div class="mt-1 text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ stats.draft || 0 }}</div>
-                    </div>
-                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_index.stats.scheduled') }}</div>
-                        <div class="mt-1 text-xl font-semibold text-sky-700 dark:text-sky-300">{{ stats.scheduled || 0 }}</div>
-                    </div>
-                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_index.stats.running') }}</div>
-                        <div class="mt-1 text-xl font-semibold text-emerald-700 dark:text-emerald-300">{{ stats.running || 0 }}</div>
-                    </div>
-                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_index.stats.completed') }}</div>
-                        <div class="mt-1 text-xl font-semibold text-indigo-700 dark:text-indigo-300">{{ stats.completed || 0 }}</div>
-                    </div>
-                </div>
+                <KpiMetricGrid class="mt-4" :metrics="campaignMetrics" />
 
                 <div class="mt-4 rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
                     <div class="flex flex-wrap items-center justify-between gap-3">

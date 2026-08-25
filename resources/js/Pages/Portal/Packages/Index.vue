@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import { humanizeDate } from '@/utils/date';
 import { useCurrencyFormatter } from '@/utils/currency';
 
@@ -47,6 +48,14 @@ const translateValue = (group, value, fallback = '-') => {
 const formatDate = (value) => humanizeDate(value) || '-';
 
 const formatQuantity = (value) => Number(value || 0).toLocaleString();
+const packageMetrics = computed(() => [
+    { key: 'total', label: t('client_packages.stats.total'), value: formatQuantity(props.stats.total), tone: 'stone' },
+    { key: 'active', label: t('client_packages.stats.active'), value: formatQuantity(props.stats.active), tone: 'emerald' },
+    { key: 'remaining', label: t('client_packages.stats.remaining'), value: formatQuantity(props.stats.remaining_quantity), tone: 'teal' },
+    { key: 'recurring', label: t('client_packages.stats.recurring'), value: formatQuantity(props.stats.recurring), tone: 'violet' },
+    { key: 'payment-due', label: t('client_packages.stats.payment_due'), value: formatQuantity(props.stats.payment_due), tone: 'amber' },
+    { key: 'carried-over', label: t('client_packages.stats.carried_over'), value: formatQuantity(props.stats.carried_over_quantity), tone: 'sky' },
+]);
 
 const balancePercent = (item) => {
     const initial = Math.max(0, Number(item?.initial_quantity || 0));
@@ -126,32 +135,7 @@ const submitRequest = () => {
                 </div>
             </section>
 
-            <section class="grid grid-cols-2 gap-3 lg:grid-cols-6">
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_packages.stats.total') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">{{ formatQuantity(stats.total) }}</div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_packages.stats.active') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-emerald-700 dark:text-emerald-400">{{ formatQuantity(stats.active) }}</div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_packages.stats.remaining') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">{{ formatQuantity(stats.remaining_quantity) }}</div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_packages.stats.recurring') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">{{ formatQuantity(stats.recurring) }}</div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_packages.stats.payment_due') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-amber-700 dark:text-amber-400">{{ formatQuantity(stats.payment_due) }}</div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_packages.stats.carried_over') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-sky-700 dark:text-sky-400">{{ formatQuantity(stats.carried_over_quantity) }}</div>
-                </div>
-            </section>
+            <KpiMetricGrid :metrics="packageMetrics" :aria-label="$t('client_packages.title')" />
 
             <section v-if="packageRows.length" class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(320px,420px),minmax(0,1fr)]">
                 <aside class="space-y-3">

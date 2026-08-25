@@ -2,8 +2,10 @@
 import { computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import Card from '@/Components/UI/Card.vue';
 import { humanizeDate } from '@/utils/date';
+import { buildSparklinePoints } from '@/utils/kpi';
 import { useI18n } from 'vue-i18n';
 import { useCurrencyFormatter } from '@/utils/currency';
 
@@ -49,10 +51,48 @@ const totalReserved = computed(() =>
 const totalDamaged = computed(() =>
     inventoryList.value.reduce((sum, inventory) => sum + Number(inventory?.damaged || 0), 0)
 );
-const stockValue = computed(() => {
-    const unitValue = Number(props.product?.cost_price || 0) || Number(props.product?.price || 0);
-    return totalOnHand.value * unitValue;
+const stockUnitValue = computed(() => (
+    Number(props.product?.cost_price || 0) || Number(props.product?.price || 0)
+));
+const stockValue = computed(() => totalOnHand.value * stockUnitValue.value);
+
+const stockMovements = computed(() => (
+    Array.isArray(props.product?.stock_movements)
+        ? props.product.stock_movements.filter((movement) => Number.isFinite(Number(movement?.quantity)))
+        : []
+));
+
+const stockLevelSeries = computed(() => {
+    if (!stockMovements.value.length) {
+        return [];
+    }
+
+    let runningTotal = totalOnHand.value;
+    const newestToOldest = [runningTotal];
+
+    stockMovements.value.forEach((movement) => {
+        runningTotal -= Number(movement.quantity);
+        newestToOldest.push(runningTotal);
+    });
+
+    if (newestToOldest.some((value) => !Number.isFinite(value) || value < 0)) {
+        return [];
+    }
+
+    return newestToOldest.reverse();
 });
+
+const stockLevelPoints = computed(() => (
+    stockLevelSeries.value.length > 1
+        ? buildSparklinePoints(stockLevelSeries.value)
+        : []
+));
+
+const stockValuePoints = computed(() => (
+    stockLevelSeries.value.length > 1 && stockUnitValue.value > 0
+        ? buildSparklinePoints(stockLevelSeries.value.map((quantity) => quantity * stockUnitValue.value))
+        : []
+));
 
 const lotItems = computed(() => {
     if (!Array.isArray(props.product?.lots)) {
@@ -150,40 +190,42 @@ const requestSupplierStock = () => {
 
 const kpiCards = computed(() => ([
     {
+        key: 'in-stock',
         label: t('products.show.kpi.in_stock'),
         value: formatNumber(totalOnHand.value),
-        tone: 'success',
-        icon: 'box',
+        tone: 'emerald',
+        points: stockLevelPoints.value,
     },
     {
+        key: 'stock-value',
         label: t('products.show.kpi.stock_value'),
         value: formatCurrency(stockValue.value),
-        tone: 'info',
-        icon: 'cash',
+        tone: 'sky',
+        points: stockValuePoints.value,
     },
     {
+        key: 'reserved',
         label: t('products.show.kpi.reserved'),
         value: formatNumber(totalReserved.value),
-        tone: 'warning',
-        icon: 'lock',
+        tone: 'amber',
     },
     {
+        key: 'damaged',
         label: t('products.show.kpi.damaged'),
         value: formatNumber(totalDamaged.value),
-        tone: 'danger',
-        icon: 'alert',
+        tone: 'red',
     },
     {
+        key: 'lots-serials',
         label: t('products.show.kpi.lots_serials'),
         value: formatNumber(lotItems.value.length),
-        tone: 'info',
-        icon: 'layers',
+        tone: 'sky',
     },
     {
+        key: 'minimum',
         label: t('products.show.kpi.minimum'),
         value: formatNumber(props.product?.minimum_stock || 0),
-        tone: 'warning',
-        icon: 'thermo',
+        tone: 'amber',
     },
 ]));
 
@@ -257,55 +299,7 @@ const canOpenPulseComposer = computed(() => Boolean(props.pulse?.can_open));
 
             <div class="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]">
                 <div class="space-y-4">
-                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                        <div
-                            v-for="(card, index) in kpiCards"
-                            :key="card.label"
-                            class="rise-in rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
-                            :style="{ animationDelay: `${index * 80}ms` }"
-                        >
-                            <div class="flex items-center justify-between gap-3">
-                                <div>
-                                    <p class="text-xs uppercase text-stone-400">{{ card.label }}</p>
-                                    <p class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ card.value }}</p>
-                                </div>
-                                <span
-                                    class="flex h-10 w-10 items-center justify-center rounded-full"
-                                    :class="alertToneClasses[card.tone]"
-                                >
-                                    <svg v-if="card.icon === 'box'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="m7.5 4.27 9 5.15" />
-                                        <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
-                                        <path d="m3.3 7 8.7 5 8.7-5" />
-                                        <path d="M12 22V12" />
-                                    </svg>
-                                    <svg v-else-if="card.icon === 'cash'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <rect x="2" y="5" width="20" height="14" rx="2" />
-                                        <path d="M16 10a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" />
-                                        <path d="M6 15h.01" />
-                                        <path d="M18 9h.01" />
-                                    </svg>
-                                    <svg v-else-if="card.icon === 'lock'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <rect x="3" y="11" width="18" height="10" rx="2" />
-                                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                                    </svg>
-                                    <svg v-else-if="card.icon === 'alert'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-                                        <path d="M12 9v4" />
-                                        <path d="M12 17h.01" />
-                                    </svg>
-                                    <svg v-else-if="card.icon === 'layers'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="m12 2 10 6-10 6L2 8z" />
-                                        <path d="m2 14 10 6 10-6" />
-                                    </svg>
-                                    <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M14 4a2 2 0 0 1 2 2v14H8V6a2 2 0 0 1 2-2h4Z" />
-                                        <path d="M5 10h14" />
-                                    </svg>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
+                    <KpiMetricGrid class="rise-in" :metrics="kpiCards" />
 
                     <Card class="rise-in" :style="{ animationDelay: '120ms' }">
                         <template #title>{{ $t('products.show.alerts_title') }}</template>

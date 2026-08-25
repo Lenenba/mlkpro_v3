@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 
 const props = defineProps({
     analytics: {
@@ -110,6 +111,75 @@ const riskLabel = (days) => {
 const riskClass = (days) => (days >= 14
     ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300'
     : 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300');
+
+const analyticsKpis = computed(() => ([
+    {
+        key: 'first-response',
+        label: t('requests.analytics.first_response'),
+        value: formatHours(avgFirstResponse.value),
+        context: t('requests.analytics.first_response_note'),
+        tone: 'sky',
+    },
+    {
+        key: 'time-to-intake',
+        label: t('requests.analytics.time_to_intake'),
+        value: formatHours(avgTimeToIntake.value),
+        context: t('requests.analytics.time_to_intake_note'),
+        tone: 'indigo',
+    },
+    {
+        key: 'conversion-rate',
+        label: t('requests.analytics.conversion_rate'),
+        value: `${conversionRate.value}%`,
+        context: t('requests.analytics.conversion_note'),
+        tone: 'emerald',
+    },
+    {
+        key: 'total-leads',
+        label: t('requests.analytics.total_leads'),
+        value: totalLeads.value,
+        context: t('requests.analytics.total_note', { days: windowDays.value }),
+        tone: 'stone',
+    },
+    {
+        key: 'stale-count',
+        label: t('requests.analytics.stale_count'),
+        value: staleCount.value,
+        context: t('requests.analytics.stale_note'),
+        tone: 'amber',
+    },
+    {
+        key: 'breached-count',
+        label: t('requests.analytics.breached_count'),
+        value: breachedCount.value,
+        context: t('requests.analytics.breached_note'),
+        tone: 'rose',
+    },
+]));
+
+const formKpis = computed(() => ([
+    {
+        key: 'views',
+        label: t('requests.analytics.form.views'),
+        value: formViews.value,
+        context: t('requests.analytics.form.unique', { count: formUniqueViews.value }),
+        tone: 'sky',
+    },
+    {
+        key: 'submits',
+        label: t('requests.analytics.form.submits'),
+        value: formSubmits.value,
+        context: t('requests.analytics.form.submits_note'),
+        tone: 'indigo',
+    },
+    {
+        key: 'conversion',
+        label: t('requests.analytics.form.conversion'),
+        value: `${formConversion.value}%`,
+        context: t('requests.analytics.form.conversion_note'),
+        tone: 'emerald',
+    },
+]));
 </script>
 
 <template>
@@ -125,50 +195,11 @@ const riskClass = (days) => (days >= 14
             </div>
         </div>
 
-        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
-            <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
-                <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('requests.analytics.first_response') }}</div>
-                <div class="mt-2 text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ formatHours(avgFirstResponse) }}</div>
-                <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                    {{ $t('requests.analytics.first_response_note') }}
-                </div>
-            </div>
-            <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
-                <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('requests.analytics.time_to_intake') }}</div>
-                <div class="mt-2 text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ formatHours(avgTimeToIntake) }}</div>
-                <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                    {{ $t('requests.analytics.time_to_intake_note') }}
-                </div>
-            </div>
-            <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
-                <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('requests.analytics.conversion_rate') }}</div>
-                <div class="mt-2 text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ conversionRate }}%</div>
-                <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                    {{ $t('requests.analytics.conversion_note') }}
-                </div>
-            </div>
-            <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
-                <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('requests.analytics.total_leads') }}</div>
-                <div class="mt-2 text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ totalLeads }}</div>
-                <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                    {{ $t('requests.analytics.total_note', { days: windowDays }) }}
-                </div>
-            </div>
-            <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
-                <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('requests.analytics.stale_count') }}</div>
-                <div class="mt-2 text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ staleCount }}</div>
-                <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                    {{ $t('requests.analytics.stale_note') }}
-                </div>
-            </div>
-            <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
-                <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('requests.analytics.breached_count') }}</div>
-                <div class="mt-2 text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ breachedCount }}</div>
-                <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                    {{ $t('requests.analytics.breached_note') }}
-                </div>
-            </div>
-        </div>
+        <KpiMetricGrid
+            :metrics="analyticsKpis"
+            grid-class="grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))]"
+            :aria-label="$t('requests.analytics.title', { days: windowDays })"
+        />
 
         <div class="rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
             <div class="flex flex-wrap items-center justify-between gap-2">
@@ -182,29 +213,13 @@ const riskClass = (days) => (days >= 14
             <div v-if="formViews === 0 && formSubmits === 0" class="mt-3 text-xs text-stone-500 dark:text-neutral-400">
                 {{ $t('requests.analytics.form.empty') }}
             </div>
-            <div v-else class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
-                <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('requests.analytics.form.views') }}</div>
-                    <div class="mt-2 text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ formViews }}</div>
-                    <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('requests.analytics.form.unique', { count: formUniqueViews }) }}
-                    </div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('requests.analytics.form.submits') }}</div>
-                    <div class="mt-2 text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ formSubmits }}</div>
-                    <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('requests.analytics.form.submits_note') }}
-                    </div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('requests.analytics.form.conversion') }}</div>
-                    <div class="mt-2 text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ formConversion }}%</div>
-                    <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('requests.analytics.form.conversion_note') }}
-                    </div>
-                </div>
-            </div>
+            <KpiMetricGrid
+                v-else
+                class="mt-3"
+                :metrics="formKpis"
+                grid-class="grid-cols-1 md:grid-cols-3"
+                :aria-label="$t('requests.analytics.form.title')"
+            />
             <div v-if="formLastView || formLastSubmit" class="mt-3 text-xs text-stone-500 dark:text-neutral-400">
                 <span v-if="formLastView">{{ $t('requests.analytics.form.last_view') }}: {{ formatDate(formLastView) }}</span>
                 <span v-if="formLastView && formLastSubmit"> · </span>

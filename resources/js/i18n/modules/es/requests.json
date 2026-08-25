@@ -408,13 +408,13 @@
           "lost_note": "Prospectos cerrados como perdidos.",
           "conversion_rate": "Conversion {days}d",
           "conversion_rate_note": "{converted} convertidos / {created} creados",
-          "avg_conversion_days": "Tiempo medio de conversion",
+          "avg_conversion_days": "Tiempo de conversión",
           "avg_conversion_days_note": "Basado en prospectos convertidos en clientes durante la ventana actual."
         }
       },
-      "first_response": "Promedio de primera respuesta",
+      "first_response": "1.ª respuesta media",
       "first_response_note": "Basado en la primera accion despues de crear el prospecto.",
-      "time_to_intake": "Tiempo medio de atención",
+      "time_to_intake": "Atención media",
       "time_to_intake_note": "Mide cuanto tarda un prospecto en ser atendido de verdad.",
       "conversion_rate": "Tasa de conversión",
       "conversion_note": "Prospectos ganados frente al total creado.",

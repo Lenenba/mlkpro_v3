@@ -7,6 +7,7 @@ import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 
 const props = defineProps({
     initialPosts: {
@@ -63,6 +64,35 @@ const info = ref('');
 
 const canManage = computed(() => Boolean(access.value.can_manage_posts));
 const canApprove = computed(() => Boolean(access.value.can_approve));
+const historyMetrics = computed(() => ([
+    {
+        key: 'total',
+        label: t('social.history_manager.summary.total'),
+        value: Number(summary.value.total || 0),
+        tone: 'stone',
+        colorClass: 'bg-stone-400/70 dark:bg-neutral-500/50',
+        trend: null,
+        points: [],
+    },
+    {
+        key: 'published',
+        label: t('social.history_manager.summary.published'),
+        value: Number(summary.value.published || 0),
+        tone: 'emerald',
+        colorClass: 'bg-emerald-500/70 dark:bg-emerald-400/50',
+        trend: null,
+        points: [],
+    },
+    {
+        key: 'attention',
+        label: t('social.history_manager.summary.attention'),
+        value: Number(summary.value.attention || 0),
+        tone: 'rose',
+        colorClass: 'bg-rose-500/70 dark:bg-rose-400/50',
+        trend: null,
+        points: [],
+    },
+]));
 const statusFilterOptions = computed(() => [
     { value: '', label: t('social.history_manager.filters.all_statuses') },
     ...props.initialStatusFilters.map((statusOption) => ({
@@ -437,32 +467,11 @@ const resolveApproval = async (post, decision) => {
                     </p>
                 </div>
 
-                <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
-                    <div class="rounded-2xl bg-stone-100 px-3 py-2 text-sm dark:bg-neutral-800">
-                        <div class="text-xs uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                            {{ t('social.history_manager.summary.total') }}
-                        </div>
-                        <div class="mt-1 text-lg font-semibold text-stone-900 dark:text-neutral-100">
-                            {{ Number(summary.total || 0) }}
-                        </div>
-                    </div>
-                    <div class="rounded-2xl bg-stone-100 px-3 py-2 text-sm dark:bg-neutral-800">
-                        <div class="text-xs uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                            {{ t('social.history_manager.summary.published') }}
-                        </div>
-                        <div class="mt-1 text-lg font-semibold text-stone-900 dark:text-neutral-100">
-                            {{ Number(summary.published || 0) }}
-                        </div>
-                    </div>
-                    <div class="rounded-2xl bg-stone-100 px-3 py-2 text-sm dark:bg-neutral-800">
-                        <div class="text-xs uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                            {{ t('social.history_manager.summary.attention') }}
-                        </div>
-                        <div class="mt-1 text-lg font-semibold text-stone-900 dark:text-neutral-100">
-                            {{ Number(summary.attention || 0) }}
-                        </div>
-                    </div>
-                </div>
+                <KpiMetricGrid
+                    :metrics="historyMetrics"
+                    grid-class="grid-cols-1 md:grid-cols-3"
+                    :aria-label="t('social.history_manager.filters_title')"
+                />
             </div>
 
             <div class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr,0.8fr,0.8fr,auto]">

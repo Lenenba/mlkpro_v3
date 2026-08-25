@@ -2,12 +2,12 @@
   "performance": {
     "title": "Performance",
     "subtitle": "Vue globale des ventes par clients et vendeurs.",
-    "subtitle_services": "Indicateurs services pour les clients et l equipe.",
+    "subtitle_services": "Indicateurs de service pour les clients et l’équipe.",
     "tabs": {
       "clients": "Clients",
       "employees": "Employés",
       "clients_services": "Clients",
-      "employees_services": "Equipe"
+      "employees_services": "Équipe"
     },
     "period": {
       "day": "Aujourd'hui",
@@ -21,9 +21,10 @@
       "orders": "Commandes",
       "items_sold": "Articles vendus",
       "jobs": "Interventions",
-      "tasks": "Taches",
+      "tasks": "Tâches",
       "avg_order": "Panier moyen",
       "avg_job": "Valeur moyenne",
+      "avg_service": "Panier moyen",
       "customers": "Clients",
       "revenue_per_seller": "CA par vendeur",
       "revenue_per_member": "CA par membre",
@@ -41,7 +42,7 @@
       "no_customer_period": "Aucune donnée client pour cette période.",
       "no_customer_year": "Aucune donnée client pour l'année.",
       "line": "{revenue} · {orders} commandes · {items} articles",
-      "line_services": "{revenue} · {orders} interventions · {items} taches"
+      "line_services": "{revenue} · {orders} interventions · {items} tâches"
     },
     "employees": {
       "title": "Performance vendeurs",
@@ -64,14 +65,14 @@
       "active_sellers": "{count} vendeurs actifs",
       "active_members": "{count} membres actifs",
       "no_sellers": "Aucune performance vendeur.",
-      "no_members": "Aucune performance equipe.",
+      "no_members": "Aucune performance d’équipe.",
       "no_products": "Aucune performance produit.",
       "no_jobs": "Aucune performance intervention.",
       "no_seller_period": "Aucune donnée vendeur pour cette période.",
-      "no_member_period": "Aucune donnée equipe pour cette période.",
+      "no_member_period": "Aucune donnée d’équipe pour cette période.",
       "no_seller_year": "Aucune donnée vendeur pour l'année.",
       "seller_line": "{revenue} · {orders} commandes · {items} articles",
-      "member_line": "{revenue} · {orders} interventions · {items} taches",
+      "member_line": "{revenue} · {orders} interventions · {items} tâches",
       "product_line": "{revenue} · {quantity} articles",
       "job_line": "{revenue} · {quantity} interventions",
       "view_employee": "Voir la fiche"
@@ -98,7 +99,7 @@
       "no_customers": "Aucune donnée client.",
       "no_jobs": "Aucune donnée intervention.",
       "customer_line": "{revenue} · {orders} commandes · {items} articles",
-      "customer_line_services": "{revenue} · {orders} interventions · {items} taches",
+      "customer_line_services": "{revenue} · {orders} interventions · {items} tâches",
       "product_line": "{revenue} · {quantity} articles",
       "job_line": "{revenue} · {quantity} interventions"
     }

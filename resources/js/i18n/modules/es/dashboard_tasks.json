@@ -4,7 +4,8 @@
     "subtitle_admin": "Bienvenido, {name}. Aquí tienes la vista general de tareas del equipo.",
     "subtitle_member": "Bienvenido, {name}. Aquí tienes tu vista general de tareas.",
     "kpi": {
-      "total": "Tareas totales"
+      "total": "Tareas totales",
+      "group_label": "Indicadores de tareas"
     },
     "announcements": {
       "title": "Anuncios",

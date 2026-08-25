@@ -1,8 +1,9 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Head, router, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import FloatingInput from '@/Components/FloatingInput.vue';
@@ -143,6 +144,39 @@ const entryPageIndicator = computed(() => t('datatable.shared.page_indicator', {
     total: totalPages.value,
 }));
 const formatNumber = (value) => Number(value || 0).toLocaleString();
+const loyaltyMetrics = computed(() => [
+    {
+        key: 'balance',
+        label: t('client_loyalty.kpi.balance'),
+        value: `${formatNumber(props.stats.balance)} ${pointLabel.value}`,
+        tone: 'amber',
+        loading: isLoading.value,
+    },
+    {
+        key: 'earned-period',
+        label: t('client_loyalty.kpi.earned_period'),
+        value: `+${formatNumber(props.stats.points_earned_period)}`,
+        context: `${t('client_loyalty.kpi.earned_lifetime')}: +${formatNumber(props.stats.points_earned_lifetime)}`,
+        tone: 'emerald',
+        loading: isLoading.value,
+    },
+    {
+        key: 'spent-period',
+        label: t('client_loyalty.kpi.spent_period'),
+        value: `-${formatNumber(props.stats.points_spent_period)}`,
+        context: `${t('client_loyalty.kpi.spent_lifetime')}: -${formatNumber(props.stats.points_spent_lifetime)}`,
+        tone: 'rose',
+        loading: isLoading.value,
+    },
+    {
+        key: 'movements',
+        label: t('client_loyalty.kpi.movements'),
+        value: formatNumber(props.stats.movements_count_period),
+        context: `${t('client_loyalty.kpi.movements_lifetime')}: ${formatNumber(props.stats.movements_count_lifetime)}`,
+        tone: 'sky',
+        loading: isLoading.value,
+    },
+]);
 const { formatCurrency } = useCurrencyFormatter();
 const formatDateTime = (value) => humanizeDate(value) || '-';
 
@@ -209,31 +243,7 @@ onBeforeUnmount(() => {
                 </div>
             </section>
 
-            <section class="grid grid-cols-2 gap-3 md:grid-cols-4">
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_loyalty.kpi.balance') }}</div>
-                    <div v-if="isLoading" class="mt-2 h-7 w-28 animate-pulse rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                    <div v-else class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">{{ formatNumber(stats.balance) }} {{ pointLabel }}</div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_loyalty.kpi.earned_period') }}</div>
-                    <div v-if="isLoading" class="mt-2 h-7 w-20 animate-pulse rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                    <div v-else class="mt-1 text-2xl font-semibold text-emerald-700 dark:text-emerald-400">+{{ formatNumber(stats.points_earned_period) }}</div>
-                    <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_loyalty.kpi.earned_lifetime') }}: +{{ formatNumber(stats.points_earned_lifetime) }}</div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_loyalty.kpi.spent_period') }}</div>
-                    <div v-if="isLoading" class="mt-2 h-7 w-20 animate-pulse rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                    <div v-else class="mt-1 text-2xl font-semibold text-rose-700 dark:text-rose-400">-{{ formatNumber(stats.points_spent_period) }}</div>
-                    <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_loyalty.kpi.spent_lifetime') }}: -{{ formatNumber(stats.points_spent_lifetime) }}</div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_loyalty.kpi.movements') }}</div>
-                    <div v-if="isLoading" class="mt-2 h-7 w-16 animate-pulse rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                    <div v-else class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">{{ formatNumber(stats.movements_count_period) }}</div>
-                    <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_loyalty.kpi.movements_lifetime') }}: {{ formatNumber(stats.movements_count_lifetime) }}</div>
-                </div>
-            </section>
+            <KpiMetricGrid :metrics="loyaltyMetrics" :aria-label="$t('client_loyalty.title')" />
 
             <section class="grid grid-cols-1 gap-4 xl:h-[calc(100vh-25.5rem)] xl:min-h-[420px] xl:grid-cols-[320px,minmax(0,1fr)]">
                 <aside class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">

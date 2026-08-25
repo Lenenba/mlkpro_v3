@@ -4,8 +4,8 @@
     "welcome": "Welcome back, {name}. Here is what is waiting for your validation.",
     "profile_missing": "Your client profile is not linked yet. Please contact the business to connect your account.",
     "kpi": {
-      "quotes_pending": "Quotes awaiting validation",
-      "jobs_pending": "Jobs awaiting validation",
+      "quotes_pending": "Quotes to approve",
+      "jobs_pending": "Jobs to approve",
       "invoices_due": "Invoices to pay",
       "ratings_due": "Ratings to leave"
     },

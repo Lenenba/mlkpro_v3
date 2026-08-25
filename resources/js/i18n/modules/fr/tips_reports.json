@@ -28,12 +28,12 @@
     },
     "kpi": {
       "total_tips": "Total pourboires",
-      "average_tip_per_reservation": "Moyenne pourboire / reservation",
+      "average_tip_per_reservation": "Pourboire moy. / résa",
       "top_members": "Top 3 membres",
       "top_collectors": "Principaux collecteurs",
       "current_month_tips": "Pourboires du mois",
       "period_total": "Total periode",
-      "average_tip_per_service": "Moyenne pourboire / service"
+      "average_tip_per_service": "Pourboire moy. / service"
     },
     "table": {
       "datetime": "Date et heure",

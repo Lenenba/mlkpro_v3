@@ -12,7 +12,7 @@ const props = defineProps({
 </script>
 
 <template>
-    <div class="mt-3 flex h-8 items-end gap-0.5">
+    <div class="flex h-8 items-end gap-0.5" aria-hidden="true">
         <span
             v-for="(point, index) in points"
             :key="index"

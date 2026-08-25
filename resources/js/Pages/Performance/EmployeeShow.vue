@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import Card from '@/Components/UI/Card.vue';
 import { useCurrencyFormatter } from '@/utils/currency';
 
@@ -100,8 +101,9 @@ const initials = (label) => {
 };
 
 const kpiCards = computed(() => ([
-    { label: t('performance.kpi.revenue'), value: formatCurrency(periodStats.value.revenue), tone: 'emerald' },
+    { key: 'revenue', label: t('performance.kpi.revenue'), value: formatCurrency(periodStats.value.revenue), tone: 'emerald' },
     {
+        key: isServiceCompany.value ? 'jobs' : 'orders',
         label: isReservationPerformance.value
             ? t('nav.reservations')
             : (isServiceCompany.value ? t('performance.kpi.jobs') : t('performance.kpi.orders')),
@@ -109,6 +111,7 @@ const kpiCards = computed(() => ([
         tone: isServiceCompany.value ? 'indigo' : 'sky',
     },
     {
+        key: isServiceCompany.value ? 'tasks' : 'items-sold',
         label: isReservationPerformance.value
             ? t('nav.services')
             : (isServiceCompany.value ? t('performance.kpi.tasks') : t('performance.kpi.items_sold')),
@@ -116,41 +119,36 @@ const kpiCards = computed(() => ([
         tone: isServiceCompany.value ? 'rose' : 'amber',
     },
     {
+        key: isServiceCompany.value ? 'average-job' : 'average-order',
         label: isReservationPerformance.value
-            ? t('reservations.performance.avg_service_value')
+            ? t('performance.kpi.avg_service')
             : (isServiceCompany.value ? t('performance.kpi.avg_job') : t('performance.kpi.avg_order')),
         value: formatCurrency(periodStats.value.avg_order),
         tone: 'violet',
     },
-    { label: t('performance.kpi.customers'), value: formatNumber(periodStats.value.customers), tone: 'rose' },
+    { key: 'customers', label: t('performance.kpi.customers'), value: formatNumber(periodStats.value.customers), tone: 'rose' },
 ]));
 
 const timeOffCards = computed(() => ([
     {
+        key: 'absence-days',
         label: t('performance.employee.absence_days'),
         value: formatNumber(timeOffStats.value.absence_days),
         tone: 'amber',
     },
     {
+        key: 'leave-days',
         label: t('performance.employee.leave_days'),
         value: formatNumber(timeOffStats.value.leave_days),
         tone: 'sky',
     },
     {
+        key: 'partial-hours',
         label: t('performance.employee.partial_hours'),
         value: formatHours(timeOffStats.value.partial_hours),
         tone: 'emerald',
     },
 ]));
-
-const kpiBorderStyles = {
-    emerald: 'border-t-emerald-500 dark:border-t-emerald-400',
-    sky: 'border-t-sky-500 dark:border-t-sky-400',
-    amber: 'border-t-amber-500 dark:border-t-amber-400',
-    rose: 'border-t-rose-500 dark:border-t-rose-400',
-    indigo: 'border-t-indigo-500 dark:border-t-indigo-400',
-    violet: 'border-t-violet-500 dark:border-t-violet-400',
-};
 
 const rangeLabel = computed(() => {
     const range = periodStats.value.range;
@@ -295,32 +293,12 @@ const customerLine = (customer) => {
                 </span>
             </div>
 
-            <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-                <div
-                    v-for="card in kpiCards"
-                    :key="card.label"
-                    class="rounded-sm border border-t-4 border-stone-200 bg-white p-4 text-xs text-stone-500 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
-                    :class="kpiBorderStyles[card.tone] || 'border-t-stone-300 dark:border-t-neutral-600'"
-                >
-                    <p class="uppercase">{{ card.label }}</p>
-                    <p class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ card.value }}</p>
-                </div>
-            </div>
+            <KpiMetricGrid :metrics="kpiCards" />
 
             <div class="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
                 <Card>
                     <template #title>{{ t('performance.employee.time_off_title') }}</template>
-                    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                        <div
-                            v-for="card in timeOffCards"
-                            :key="card.label"
-                            class="rounded-sm border border-t-4 border-stone-200 bg-white p-4 text-xs text-stone-500 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
-                            :class="kpiBorderStyles[card.tone] || 'border-t-stone-300 dark:border-t-neutral-600'"
-                        >
-                            <p class="uppercase">{{ card.label }}</p>
-                            <p class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ card.value }}</p>
-                        </div>
-                    </div>
+                    <KpiMetricGrid :metrics="timeOffCards" compact />
                 </Card>
 
                 <Card>

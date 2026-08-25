@@ -312,8 +312,11 @@
       "list_count": "{count} liste(s)",
       "customers_count": "{count} clients",
       "reservations_created": "Reservations creees : {count}",
+      "reservations_created_label": "Reservations creees",
       "invoices_paid": "Factures payees : {count}",
+      "invoices_paid_label": "Factures payees",
       "quotes_accepted": "Devis acceptes : {count}",
+      "quotes_accepted_label": "Devis acceptes",
       "cards": {
         "campaigns_sent": "Campagnes envoyees",
         "delivery_success_rate": "Taux de livraison",
