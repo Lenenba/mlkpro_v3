@@ -23,21 +23,12 @@ const setDocumentLang = (locale) => {
     }
 };
 
-const translate = (key, fallback, params = {}) => {
+const translate = (key, fallback) => {
     if (i18nInstance?.global?.t) {
-        return i18nInstance.global.t(key, params);
+        return i18nInstance.global.t(key);
     }
 
     return fallback;
-};
-
-const dispatchToast = (type, message) => {
-    if (typeof window === 'undefined') {
-        return;
-    }
-    window.dispatchEvent(new CustomEvent('mlk-toast', {
-        detail: { type, message },
-    }));
 };
 
 const refreshCsrfToken = async () => {
@@ -64,7 +55,12 @@ const handleSessionExpired = (status) => {
         return;
     }
     sessionReloading = true;
-    dispatchToast('warning', translate('session.expired_retry', 'Session expiree. Veuillez reessayer.'));
+    window.dispatchEvent(new CustomEvent('mlk-toast', {
+        detail: {
+            type: 'warning',
+            message: translate('session.expired_retry', 'Session expiree. Veuillez reessayer.'),
+        },
+    }));
     setTimeout(() => {
         sessionReloading = false;
     }, 4000);

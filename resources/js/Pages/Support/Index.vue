@@ -8,6 +8,7 @@ import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
 import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import Modal from '@/Components/Modal.vue';
 import { humanizeDate } from '@/utils/date';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
@@ -283,7 +284,9 @@ const ticketLinks = computed(() => props.tickets?.links || []);
                 </div>
             </section>
 
-            <KpiMetricGrid :metrics="supportMetrics" />
+            <ModuleKpiSection module-key="support">
+                <KpiMetricGrid :metrics="supportMetrics" />
+            </ModuleKpiSection>
 
             <div
                 class="p-5 space-y-4 flex flex-col border-t-4 border-t-zinc-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:border-neutral-700 dark:bg-neutral-800">

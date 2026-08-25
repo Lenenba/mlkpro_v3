@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 
 const props = defineProps({
@@ -186,11 +187,13 @@ const paginationLabel = (label) => String(label || '')
                 </div>
             </header>
 
-            <KpiMetricGrid
-                :metrics="quickFilters"
-                grid-class="grid-cols-1 md:grid-cols-4"
-                @activate="applyQuickFilter"
-            />
+            <ModuleKpiSection module-key="ai-assistant">
+                <KpiMetricGrid
+                    :metrics="quickFilters"
+                    grid-class="grid-cols-1 md:grid-cols-4"
+                    @activate="applyQuickFilter"
+                />
+            </ModuleKpiSection>
 
             <section class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="grid gap-2 md:grid-cols-[1fr_1fr_1fr_auto]">

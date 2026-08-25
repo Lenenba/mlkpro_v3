@@ -18,6 +18,7 @@ import ReservationCalendarBoard from '@/Components/Reservation/ReservationCalend
 import ReservationDetailsPanel from '@/Components/Reservation/ReservationDetailsPanel.vue';
 import ReservationListTable from '@/Components/Reservation/ReservationListTable.vue';
 import ReservationStats from '@/Components/Reservation/ReservationStats.vue';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { reservationStatusBadgeClass } from '@/Components/Reservation/status';
 import { paymentMethodLabel as resolvePaymentMethodLabel, useTenantPaymentMethods } from '@/Composables/useTenantPaymentMethods';
@@ -1738,7 +1739,9 @@ const removeReservation = (reservation) => {
                 </div>
             </section>
 
-            <ReservationStats :stats="stats" :performance="performance" compact />
+            <ModuleKpiSection module-key="reservations">
+                <ReservationStats :stats="stats" :performance="performance" compact />
+            </ModuleKpiSection>
 
             <section class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="flex flex-wrap items-center justify-between gap-2">
@@ -2204,7 +2207,7 @@ const removeReservation = (reservation) => {
                                         <line x1="8" y1="2" x2="8" y2="6" />
                                         <line x1="3" y1="10" x2="21" y2="10" />
                                     </svg>
-                                    {{ $t('planning.calendar.month') }}
+                                    {{ $t('reservations.view.calendar') }}
                                 </button>
                                 <button
                                     type="button"
@@ -2279,6 +2282,7 @@ const removeReservation = (reservation) => {
                 :error="calendarError"
                 :empty-label="$t('reservations.empty')"
                 :selected-event-id="activeReservation?.id || null"
+                initial-view="week"
                 :loading-label="$t('reservations.calendar.loading')"
                 :timezone="timezone"
                 @range-change="onCalendarRangeChange"

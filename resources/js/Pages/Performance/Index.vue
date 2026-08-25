@@ -4,6 +4,7 @@ import { Head, Link, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import Card from '@/Components/UI/Card.vue';
 import { useCurrencyFormatter } from '@/utils/currency';
 
@@ -463,22 +464,24 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
             </div>
 
             <div v-if="activeTab === 'clients'" class="space-y-4">
-                <div v-if="isHydrating" class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-3">
-                    <div
-                        v-for="index in skeletonKpis"
-                        :key="`client-kpi-skeleton-${index}`"
-                        class="rounded-sm border border-t-4 border-stone-200 bg-white p-4 text-xs text-stone-500 shadow-sm animate-pulse dark:border-neutral-700 dark:border-t-neutral-600 dark:bg-neutral-900 dark:text-neutral-400"
-                    >
-                        <div class="flex items-start justify-between gap-2">
-                            <div class="space-y-2">
-                                <div class="h-3 w-16 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
-                                <div class="h-4 w-20 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                <ModuleKpiSection module-key="performance">
+                    <div v-if="isHydrating" class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-3">
+                        <div
+                            v-for="index in skeletonKpis"
+                            :key="`client-kpi-skeleton-${index}`"
+                            class="rounded-sm border border-t-4 border-stone-200 bg-white p-4 text-xs text-stone-500 shadow-sm animate-pulse dark:border-neutral-700 dark:border-t-neutral-600 dark:bg-neutral-900 dark:text-neutral-400"
+                        >
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="space-y-2">
+                                    <div class="h-3 w-16 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-4 w-20 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                </div>
+                                <div class="h-9 w-9 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
                             </div>
-                            <div class="h-9 w-9 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
                         </div>
                     </div>
-                </div>
-                <KpiMetricGrid v-else :metrics="clientKpis" />
+                    <KpiMetricGrid v-else :metrics="clientKpis" />
+                </ModuleKpiSection>
 
                 <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
                     <Card class="lg:col-span-2">
@@ -595,22 +598,24 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
             </div>
 
             <div v-else class="space-y-4">
-                <div v-if="isHydrating" class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-3">
-                    <div
-                        v-for="index in skeletonKpis"
-                        :key="`employee-kpi-skeleton-${index}`"
-                        class="rounded-sm border border-t-4 border-stone-200 bg-white p-4 text-xs text-stone-500 shadow-sm animate-pulse dark:border-neutral-700 dark:border-t-neutral-600 dark:bg-neutral-900 dark:text-neutral-400"
-                    >
-                        <div class="flex items-start justify-between gap-2">
-                            <div class="space-y-2">
-                                <div class="h-3 w-16 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
-                                <div class="h-4 w-20 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                <ModuleKpiSection module-key="performance">
+                    <div v-if="isHydrating" class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-3">
+                        <div
+                            v-for="index in skeletonKpis"
+                            :key="`employee-kpi-skeleton-${index}`"
+                            class="rounded-sm border border-t-4 border-stone-200 bg-white p-4 text-xs text-stone-500 shadow-sm animate-pulse dark:border-neutral-700 dark:border-t-neutral-600 dark:bg-neutral-900 dark:text-neutral-400"
+                        >
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="space-y-2">
+                                    <div class="h-3 w-16 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-4 w-20 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                </div>
+                                <div class="h-9 w-9 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
                             </div>
-                            <div class="h-9 w-9 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
                         </div>
                     </div>
-                </div>
-                <KpiMetricGrid v-else :metrics="employeeKpis" />
+                    <KpiMetricGrid v-else :metrics="employeeKpis" />
+                </ModuleKpiSection>
 
                 <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
                     <div class="lg:col-span-2 space-y-4">

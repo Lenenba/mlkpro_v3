@@ -1,6 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head } from '@inertiajs/vue3';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import CustomerStats from '@/Components/UI/CustomerStats.vue';
 import CustomerActivityStat from '@/Components/UI/CustomerActivityStat.vue';
 import CustomerTable from './UI/CustomerTable.vue';
@@ -64,14 +65,16 @@ const activateKpiFilter = (action) => customerTableRef.value?.applyKpiFilter?.(a
 
     <Head :title="$t('customers.title')" />
     <AuthenticatedLayout>
-        <CustomerStats
-            :kpis="kpis"
-            :stats="stats"
-            :filters="filters"
-            :filter-meta="filterMeta"
-            :customer-index-context="customerIndexContext"
-            @activate-filter="activateKpiFilter"
-        />
+        <ModuleKpiSection module-key="customers">
+            <CustomerStats
+                :kpis="kpis"
+                :stats="stats"
+                :filters="filters"
+                :filter-meta="filterMeta"
+                :customer-index-context="customerIndexContext"
+                @activate-filter="activateKpiFilter"
+            />
+        </ModuleKpiSection>
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-2 md:gap-3 lg:gap-5 ">
             <div class="col-span-1" :class="showOperationalActivity ? 'lg:col-span-3' : 'lg:col-span-4'">
                 <CustomerTable

@@ -16,5 +16,10 @@
       "processing_failed": "No se pudo procesar la imagen.",
       "too_large": "La imagen es demasiado grande. Tamaño máximo: {size}."
     }
+  },
+  "kpi_visibility": {
+    "title": "Indicadores",
+    "show": "Mostrar indicadores",
+    "hide": "Ocultar indicadores"
   }
 }

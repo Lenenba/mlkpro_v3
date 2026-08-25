@@ -4,6 +4,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 
 const props = defineProps({
     stats: {
@@ -347,7 +348,9 @@ const handleSectionScroll = (documentType, event) => {
                     </div>
                 </div>
 
-                <KpiMetricGrid class="mt-4" :metrics="statCards" />
+                <ModuleKpiSection class="mt-4" module-key="finance-approvals">
+                    <KpiMetricGrid :metrics="statCards" />
+                </ModuleKpiSection>
 
                 <div class="mt-4">
                     <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">

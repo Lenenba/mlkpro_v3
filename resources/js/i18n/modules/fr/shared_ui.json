@@ -16,5 +16,10 @@
       "processing_failed": "Le traitement de l'image a échoué.",
       "too_large": "L'image est trop volumineuse. Taille maximale : {size}."
     }
+  },
+  "kpi_visibility": {
+    "title": "Indicateurs",
+    "show": "Afficher les indicateurs",
+    "hide": "Masquer les indicateurs"
   }
 }

@@ -4,6 +4,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
 import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import AppBreadcrumbs from '@/Components/UI/AppBreadcrumbs.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { buildSparklinePoints } from '@/utils/kpi';
@@ -591,11 +592,13 @@ function roleLimitLabel(value) {
                 </div>
 
                 <div class="grid gap-4 px-5 py-5 lg:grid-cols-[1.6fr,1fr]">
-                    <KpiMetricGrid
-                        :metrics="sourceCards"
-                        grid-class="sm:grid-cols-2 xl:grid-cols-4"
-                        :aria-label="$t('accounting.heading')"
-                    />
+                    <ModuleKpiSection module-key="accounting">
+                        <KpiMetricGrid
+                            :metrics="sourceCards"
+                            grid-class="sm:grid-cols-2 xl:grid-cols-4"
+                            :aria-label="$t('accounting.heading')"
+                        />
+                    </ModuleKpiSection>
 
                     <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-950">
                         <div class="text-[11px] font-medium uppercase tracking-[0.16em] text-stone-500 dark:text-neutral-400">

@@ -4,6 +4,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import { humanizeDate } from '@/utils/date';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { useI18n } from 'vue-i18n';
@@ -269,7 +270,9 @@ const paymentPageIndicator = computed(() => t('datatable.shared.page_indicator',
             </section>
 
             <section class="grid grid-cols-1 gap-3 md:grid-cols-3">
-                <KpiMetricGrid class="md:col-span-2" :metrics="kpiMetrics" />
+                <ModuleKpiSection class="md:col-span-2" module-key="tips">
+                    <KpiMetricGrid :metrics="kpiMetrics" />
+                </ModuleKpiSection>
                 <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <div class="text-xs text-stone-500 dark:text-neutral-400">{{ topCollectorsLabel }}</div>
                     <div class="mt-2 space-y-1">

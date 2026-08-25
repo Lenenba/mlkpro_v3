@@ -1,6 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head } from '@inertiajs/vue3';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import ProductTable from '@/Pages/Product/UI/ProductTable.vue';
 import ProductStats from '@/Components/UI/ProductStats.vue';
 import ProductUsageStat from '@/Components/UI/ProductUsageStat.vue';
@@ -63,7 +64,9 @@ const props = defineProps({
 <template>
     <Head :title="$t('products.title')" />
     <AuthenticatedLayout>
-        <ProductStats :stats="stats" />
+        <ModuleKpiSection module-key="products">
+            <ProductStats :stats="stats" />
+        </ModuleKpiSection>
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-2 md:gap-3 lg:gap-5 ">
             <div class="col-span-1 lg:col-span-3">
                 <ProductTable

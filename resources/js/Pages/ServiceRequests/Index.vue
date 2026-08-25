@@ -4,6 +4,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
 import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
@@ -375,10 +376,12 @@ const setViewMode = (mode) => {
                 </div>
             </section>
 
-            <KpiMetricGrid
-                :metrics="statCards"
-                grid-class="sm:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(11rem,1fr))]"
-            />
+            <ModuleKpiSection module-key="service-requests">
+                <KpiMetricGrid
+                    :metrics="statCards"
+                    grid-class="sm:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(11rem,1fr))]"
+                />
+            </ModuleKpiSection>
 
             <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
                 <div class="space-y-1">

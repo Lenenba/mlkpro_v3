@@ -16,5 +16,10 @@
       "processing_failed": "Image processing failed.",
       "too_large": "Image too large. Max {size}."
     }
+  },
+  "kpi_visibility": {
+    "title": "Indicators",
+    "show": "Show indicators",
+    "hide": "Hide indicators"
   }
 }

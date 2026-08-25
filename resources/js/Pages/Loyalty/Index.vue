@@ -6,6 +6,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import { humanizeDate } from '@/utils/date';
@@ -280,10 +281,12 @@ onBeforeUnmount(() => {
                 </div>
             </section>
 
-            <KpiMetricGrid
-                :metrics="kpiMetrics"
-                :aria-busy="String(isLoading)"
-            />
+            <ModuleKpiSection module-key="loyalty">
+                <KpiMetricGrid
+                    :metrics="kpiMetrics"
+                    :aria-busy="String(isLoading)"
+                />
+            </ModuleKpiSection>
 
             <section class="grid grid-cols-1 gap-4 xl:h-[calc(100vh-25.5rem)] xl:min-h-[420px] xl:grid-cols-[300px,minmax(0,1fr)]">
                 <aside class="flex h-full min-h-0 flex-col gap-4">

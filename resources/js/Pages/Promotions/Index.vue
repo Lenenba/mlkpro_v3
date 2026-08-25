@@ -8,6 +8,7 @@ import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import InputError from '@/Components/InputError.vue';
 import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import { useCurrencyFormatter } from '@/utils/currency';
 
@@ -234,7 +235,9 @@ const deletePromotion = (promotion) => {
                 </PrimaryButton>
             </div>
 
-            <KpiMetricGrid :metrics="kpiMetrics" />
+            <ModuleKpiSection module-key="promotions">
+                <KpiMetricGrid :metrics="kpiMetrics" />
+            </ModuleKpiSection>
 
             <div class="rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="border-b border-stone-200 px-4 py-3 dark:border-neutral-700">

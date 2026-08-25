@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import { useCurrencyFormatter } from '@/utils/currency';
 import { buildKpiProgress } from '@/utils/kpi';
 import { useI18n } from 'vue-i18n';
@@ -81,7 +82,9 @@ const categoryLabel = (item) => {
 
 <template>
     <div class="space-y-3 md:space-y-4">
-        <KpiMetricGrid :metrics="metrics" />
+        <ModuleKpiSection module-key="expenses">
+            <KpiMetricGrid :metrics="metrics" />
+        </ModuleKpiSection>
 
         <div class="grid gap-3 lg:grid-cols-2">
             <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">

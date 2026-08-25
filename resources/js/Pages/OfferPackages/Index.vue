@@ -6,6 +6,7 @@ import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
@@ -540,7 +541,9 @@ const restoreOffer = (offer) => {
                     </button>
                 </div>
 
-                <KpiMetricGrid class="mt-4" :metrics="statMetrics" />
+                <ModuleKpiSection class="mt-4" module-key="offer-packages">
+                    <KpiMetricGrid :metrics="statMetrics" />
+                </ModuleKpiSection>
             </section>
 
             <section class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">

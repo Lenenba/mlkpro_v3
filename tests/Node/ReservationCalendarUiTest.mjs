@@ -257,6 +257,27 @@ test('the staff page keeps compact metric groups readable without narrow square 
     assert.match(calendar, /v-for="\(day, index\) in monthGrid"/);
 });
 
+test('the staff reservation calendar opens in a single-row week view with a neutral header', () => {
+    const calendar = source('resources/js/Components/Reservation/ReservationCalendarBoard.vue');
+    const staffPage = source('resources/js/Pages/Reservation/Index.vue');
+    const clientPage = source('resources/js/Pages/Reservation/ClientIndex.vue');
+    const staffCalendar = staffPage.match(/<ReservationCalendarBoard\b[\s\S]*?\/>/u)?.[0] || '';
+    const weekView = calendar.match(
+        /<div v-else-if="viewMode === 'week'"[\s\S]*?(?=<div v-else-if="viewMode === 'day'")/u
+    )?.[0] || '';
+    const header = calendar.match(/<header[\s\S]*?<\/header>/u)?.[0] || '';
+
+    assert.ok(staffCalendar, 'the staff page must render the reservation calendar');
+    assert.match(staffCalendar, /\binitial-view="week"/u);
+    assert.match(weekView, /sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7/u);
+    assert.doesNotMatch(weekView, /xl:grid-cols-4|2xl:grid-cols-7/u);
+    assert.match(header, /border-stone-200 bg-stone-50\/80/u);
+    assert.doesNotMatch(header, /(?:bg|border)-amber-/u);
+    assert.doesNotMatch(calendar, /(?:bg|border)-amber-/u);
+    assert.match(staffPage, /\$t\('reservations\.view\.calendar'\)/u);
+    assert.match(clientPage, /\$t\('reservations\.view\.calendar'\)/u);
+});
+
 test('calendar navigation copy is complete and parameterized in every locale', () => {
     for (const locale of ['fr', 'en', 'es']) {
         const messages = json(`resources/js/i18n/modules/${locale}/planning.json`);
@@ -276,6 +297,10 @@ test('calendar navigation copy is complete and parameterized in every locale', (
         assert.ok(
             reservationMessages.reservations?.calendar?.loading?.trim(),
             `${locale} is missing reservations.calendar.loading`
+        );
+        assert.ok(
+            reservationMessages.reservations?.view?.calendar?.trim(),
+            `${locale} is missing reservations.view.calendar`
         );
     }
 });

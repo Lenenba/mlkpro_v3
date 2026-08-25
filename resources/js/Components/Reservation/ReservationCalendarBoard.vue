@@ -720,7 +720,7 @@ const eventClasses = (event) => reservationStatusEventClasses(getEventStatus(eve
         :aria-busy="loading"
     >
         <header
-            class="border-b border-amber-200/70 bg-amber-50/80 px-4 py-4 dark:border-neutral-800 dark:bg-neutral-900 sm:px-5 sm:py-5"
+            class="border-b border-stone-200 bg-stone-50/80 px-4 py-4 dark:border-neutral-800 dark:bg-neutral-900 sm:px-5 sm:py-5"
         >
             <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                 <div class="min-w-0">
@@ -781,7 +781,7 @@ const eventClasses = (event) => reservationStatusEventClasses(getEventStatus(eve
                 </div>
             </div>
 
-            <div class="mt-4 flex items-center justify-between gap-3 border-t border-amber-200/70 pt-4 dark:border-neutral-800">
+            <div class="mt-4 flex items-center justify-between gap-3 border-t border-stone-200 pt-4 dark:border-neutral-800">
                 <button
                     type="button"
                     class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-600 shadow-sm transition hover:border-stone-300 hover:bg-stone-100 hover:text-stone-950 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 motion-reduce:transition-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-white dark:focus-visible:ring-offset-neutral-900"
@@ -853,7 +853,7 @@ const eventClasses = (event) => reservationStatusEventClasses(getEventStatus(eve
                                     :class="[
                                         index % 7 === 0 ? 'border-l-0' : '',
                                         day.isWeekend
-                                            ? 'bg-amber-50/50 dark:bg-amber-500/5'
+                                            ? 'bg-stone-50/80 dark:bg-neutral-900/40'
                                             : 'bg-white dark:bg-neutral-950',
                                         !day.isCurrentMonth
                                             ? 'bg-stone-100/90 dark:bg-neutral-900/70'
@@ -950,14 +950,14 @@ const eventClasses = (event) => reservationStatusEventClasses(getEventStatus(eve
                 </div>
 
                 <div v-else-if="viewMode === 'week'" class="bg-stone-50/70 p-3 dark:bg-neutral-950 sm:p-5">
-                    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
+                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
                         <article
                             v-for="day in weekDays"
                             :key="`week-${day.key}`"
                             class="flex min-h-72 min-w-0 flex-col overflow-hidden rounded-2xl border bg-white shadow-sm dark:bg-neutral-900"
                             :class="[
                                 day.isWeekend
-                                    ? 'border-amber-200 dark:border-amber-500/20'
+                                    ? 'border-stone-300 dark:border-neutral-700'
                                     : 'border-stone-200 dark:border-neutral-800',
                                 day.isToday
                                     ? 'ring-2 ring-emerald-400/70 dark:ring-emerald-500/60'
@@ -970,7 +970,7 @@ const eventClasses = (event) => reservationStatusEventClasses(getEventStatus(eve
                                     day.isToday
                                         ? 'border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10'
                                         : day.isWeekend
-                                          ? 'border-amber-100 bg-amber-50/70 dark:bg-amber-500/5'
+                                          ? 'border-stone-200 bg-stone-100/80 dark:bg-neutral-800/70'
                                           : 'border-stone-200 bg-stone-50 dark:bg-neutral-900'
                                 "
                             >
@@ -1007,7 +1007,7 @@ const eventClasses = (event) => reservationStatusEventClasses(getEventStatus(eve
 
                             <div
                                 class="flex-1 space-y-2 overflow-y-auto p-3"
-                                :class="day.isWeekend ? 'bg-amber-50/30 dark:bg-amber-500/[0.03]' : ''"
+                                :class="day.isWeekend ? 'bg-stone-50/70 dark:bg-neutral-900/50' : ''"
                             >
                                 <p
                                     v-if="!getDayEvents(day.key).length"

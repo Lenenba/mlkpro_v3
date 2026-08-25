@@ -430,6 +430,7 @@
       "showing": "{from} - {to}"
     },
     "view": {
+      "calendar": "Calendar",
       "list": "List"
     },
     "status": {

@@ -7,6 +7,7 @@ import dayjs from 'dayjs';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import Modal from '@/Components/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
@@ -641,7 +642,9 @@ onBeforeUnmount(() => {
                 {{ $t('reservations.owner_only.client_notice') }}
             </div>
 
-            <ReservationStats :stats="stats" />
+            <ModuleKpiSection module-key="reservations">
+                <ReservationStats :stats="stats" />
+            </ModuleKpiSection>
 
             <section
                 v-if="false"
@@ -767,7 +770,7 @@ onBeforeUnmount(() => {
                                 <line x1="8" y1="2" x2="8" y2="6" />
                                 <line x1="3" y1="10" x2="21" y2="10" />
                             </svg>
-                            {{ $t('planning.calendar.month') }}
+                            {{ $t('reservations.view.calendar') }}
                         </button>
                         <button
                             type="button"

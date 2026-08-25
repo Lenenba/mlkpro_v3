@@ -2,6 +2,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import TeamStats from '@/Components/UI/TeamStats.vue';
 import TeamTable from '@/Pages/Team/UI/TeamTable.vue';
 
@@ -25,7 +26,9 @@ const { t } = useI18n();
 <template>
     <Head :title="t('team.page_title')" />
     <AuthenticatedLayout>
-        <TeamStats :stats="stats" />
+        <ModuleKpiSection module-key="team">
+            <TeamStats :stats="stats" />
+        </ModuleKpiSection>
         <div class="mt-3">
             <TeamTable
                 :teamMembers="teamMembers"

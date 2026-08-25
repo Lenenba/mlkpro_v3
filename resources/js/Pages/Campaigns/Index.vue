@@ -4,6 +4,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
@@ -233,7 +234,9 @@ const statusBadgeClass = (status) => {
                     </div>
                 </div>
 
-                <KpiMetricGrid class="mt-4" :metrics="campaignMetrics" />
+                <ModuleKpiSection class="mt-4" module-key="campaigns">
+                    <KpiMetricGrid :metrics="campaignMetrics" />
+                </ModuleKpiSection>
 
                 <div class="mt-4 rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
                     <div class="flex flex-wrap items-center justify-between gap-3">
