@@ -787,46 +787,20 @@ const pipelinePanelSummary = computed(() => {
 
     return items;
 });
-const financePanelGridClass = computed(() => {
-    if (financePanelMetrics.value.length >= 4) {
-        return 'sm:grid-cols-2 xl:grid-cols-4';
+const adaptivePanelGridClass = (itemCount, summary = false) => {
+    if (itemCount <= 1) {
+        return 'grid-cols-1';
     }
 
-    if (financePanelMetrics.value.length === 3) {
-        return 'sm:grid-cols-2 xl:grid-cols-3';
-    }
-
-    return 'sm:grid-cols-2';
-});
-const pipelinePanelGridClass = computed(() => {
-    if (pipelinePanelMetrics.value.length >= 3) {
-        return 'sm:grid-cols-2 xl:grid-cols-3';
-    }
-
-    return 'sm:grid-cols-2';
-});
-const financePanelSummaryGridClass = computed(() => {
-    if (financePanelSummary.value.length >= 4) {
-        return 'sm:grid-cols-2 xl:grid-cols-4';
-    }
-
-    if (financePanelSummary.value.length === 3) {
-        return 'sm:grid-cols-3';
-    }
-
-    return 'sm:grid-cols-2';
-});
-const pipelinePanelSummaryGridClass = computed(() => {
-    if (pipelinePanelSummary.value.length >= 4) {
-        return 'sm:grid-cols-2 xl:grid-cols-4';
-    }
-
-    if (pipelinePanelSummary.value.length === 3) {
-        return 'sm:grid-cols-3';
-    }
-
-    return 'sm:grid-cols-2';
-});
+    return summary
+        ? 'grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))]'
+        : 'grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))]';
+};
+const financePanelGridClass = computed(() => adaptivePanelGridClass(financePanelMetrics.value.length));
+const pipelinePanelGridClass = computed(() => adaptivePanelGridClass(pipelinePanelMetrics.value.length));
+const inventoryPanelGridClass = computed(() => adaptivePanelGridClass(inventoryPanelMetrics.value.length));
+const financePanelSummaryGridClass = computed(() => adaptivePanelGridClass(financePanelSummary.value.length, true));
+const pipelinePanelSummaryGridClass = computed(() => adaptivePanelGridClass(pipelinePanelSummary.value.length, true));
 const hasFinancePanel = computed(() => financePanelMetrics.value.length > 0);
 const hasPipelinePanel = computed(() => pipelinePanelMetrics.value.length > 0);
 const hasInventoryPanel = computed(() => inventoryPanelMetrics.value.length > 0);
@@ -835,17 +809,17 @@ const overviewPanelCount = computed(() => [
     hasPipelinePanel.value,
     hasInventoryPanel.value,
 ].filter(Boolean).length);
-const overviewPanelClass = computed(() => {
-    if (overviewPanelCount.value >= 3) {
-        return 'xl:col-span-4';
+const overviewPanelClass = (panelCount, panel) => {
+    if (panelCount === 2) {
+        return 'xl:col-span-6';
     }
 
-    if (overviewPanelCount.value === 2) {
+    if (panelCount >= 3 && panel !== 'finance') {
         return 'xl:col-span-6';
     }
 
     return 'xl:col-span-12';
-});
+};
 
 const displayCustomer = (customer) =>
     customer?.company_name ||
@@ -1031,10 +1005,10 @@ onMounted(() => {
             </section>
 
             <div :class="['grid gap-4 items-start', hasTopAnnouncements ? 'xl:grid-cols-[minmax(0,1fr)_320px]' : 'grid-cols-1']">
-                <section class="grid grid-cols-1 gap-4 xl:grid-cols-12" data-testid="demo-dashboard-overview">
+                <section class="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-12" data-testid="demo-dashboard-overview">
                     <KpiCompositePanel
                         v-if="financePanelMetrics.length"
-                        :class="overviewPanelClass"
+                        :class="overviewPanelClass(overviewPanelCount, 'finance')"
                         :title="$t('dashboard.kpi_panels.finance_title')"
                         :subtitle="$t('dashboard.kpi_panels.finance_subtitle')"
                         :metrics="financePanelMetrics"
@@ -1048,7 +1022,7 @@ onMounted(() => {
                     />
                     <KpiCompositePanel
                         v-if="pipelinePanelMetrics.length"
-                        :class="overviewPanelClass"
+                        :class="overviewPanelClass(overviewPanelCount, 'pipeline')"
                         :title="$t('dashboard.kpi_panels.pipeline_title')"
                         :subtitle="$t('dashboard.kpi_panels.pipeline_subtitle')"
                         :metrics="pipelinePanelMetrics"
@@ -1062,11 +1036,11 @@ onMounted(() => {
                     />
                     <KpiCompositePanel
                         v-if="inventoryPanelMetrics.length"
-                        :class="overviewPanelClass"
+                        :class="overviewPanelClass(overviewPanelCount, 'inventory')"
                         :title="$t('dashboard.kpi_panels.inventory_title')"
                         :subtitle="$t('dashboard.kpi_panels.inventory_subtitle')"
                         :metrics="inventoryPanelMetrics"
-                        metrics-grid-class="sm:grid-cols-2"
+                        :metrics-grid-class="inventoryPanelGridClass"
                         :action-href="route('product.index')"
                         :action-label="$t('dashboard.actions.view_all')"
                         accent-class="border-t-teal-600"

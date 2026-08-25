@@ -48,17 +48,18 @@ defineProps({
 </script>
 
 <template>
-    <div
-        class="h-full overflow-hidden rounded-sm border border-stone-200 border-t-4 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
+    <section
+        class="h-full min-w-0 rounded-sm border border-stone-200 border-t-4 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
         :class="accentClass"
+        :aria-label="title"
     >
-        <div class="bg-gradient-to-br from-stone-50 via-white to-white p-4 dark:from-neutral-900 dark:via-neutral-900 dark:to-neutral-800">
-            <div class="flex items-start justify-between gap-3">
-                <div class="min-w-0">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+        <div class="bg-stone-50 p-4 dark:bg-neutral-900">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="min-w-0 flex-[1_1_14rem]">
+                    <h2 class="break-words text-sm font-semibold text-stone-800 dark:text-neutral-100">
                         {{ title }}
                     </h2>
-                    <p v-if="subtitle" class="mt-1 max-w-2xl text-xs leading-5 text-stone-500 dark:text-neutral-400">
+                    <p v-if="subtitle" class="mt-1 max-w-2xl break-words text-xs leading-5 text-stone-500 dark:text-neutral-400">
                         {{ subtitle }}
                     </p>
                 </div>
@@ -66,43 +67,48 @@ defineProps({
                 <Link
                     v-if="actionHref && actionLabel"
                     :href="actionHref"
-                    class="inline-flex shrink-0 items-center rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-green-700 ring-1 ring-stone-200 transition hover:bg-stone-50 dark:bg-neutral-900 dark:text-green-300 dark:ring-neutral-700 dark:hover:bg-neutral-800"
+                    class="inline-flex max-w-full items-center justify-center whitespace-normal rounded-sm bg-white px-3 py-1 text-center text-[11px] font-semibold text-green-700 ring-1 ring-stone-200 transition [overflow-wrap:anywhere] hover:bg-stone-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600 dark:bg-neutral-800 dark:text-green-300 dark:ring-neutral-700 dark:hover:bg-neutral-700"
                 >
                     {{ actionLabel }}
                 </Link>
             </div>
 
-            <div class="mt-4 grid gap-3" :class="metricsGridClass">
+            <div class="mt-4 grid min-w-0 gap-3" :class="metricsGridClass">
                 <article
                     v-for="metric in metrics"
                     :key="metric.key"
-                    class="rounded-sm border border-stone-200 bg-white/90 dark:border-neutral-700 dark:bg-neutral-900/80"
+                    class="min-w-0 rounded-sm border border-stone-200 bg-white dark:border-neutral-700 dark:bg-neutral-800"
                     :class="compactMetrics ? 'p-2.5' : 'p-3'"
                 >
-                    <div class="flex items-start justify-between gap-3">
-                        <div class="min-w-0 flex-1">
-                            <div class="flex items-center gap-2">
+                    <div class="flex min-w-0 flex-wrap items-start justify-between gap-2">
+                        <div class="min-w-0 flex-[1_1_8rem]">
+                            <div class="flex min-w-0 items-start gap-2">
                                 <span
-                                    class="size-2 rounded-full"
+                                    class="mt-1 size-2 shrink-0 rounded-full"
                                     :class="metric.colorClass || 'bg-stone-400/70 dark:bg-neutral-500/50'"
+                                    aria-hidden="true"
                                 ></span>
-                                <p class="truncate text-xs font-medium text-stone-500 dark:text-neutral-400">
+                                <p class="min-w-0 break-words text-xs font-medium leading-4 text-stone-500 [overflow-wrap:anywhere] dark:text-neutral-400">
                                     {{ metric.label }}
                                 </p>
                             </div>
                             <p
-                                class="font-semibold text-stone-800 dark:text-neutral-100"
-                                :class="compactMetrics ? 'mt-1.5 text-lg' : 'mt-2 text-xl'"
+                                class="max-w-full whitespace-nowrap font-semibold tabular-nums text-stone-800 dark:text-neutral-100"
+                                :class="compactMetrics ? 'mt-1.5 text-base' : 'mt-2 text-lg'"
                             >
                                 {{ metric.value }}
                             </p>
                         </div>
-                        <KpiTrendBadge v-if="metric.trend" :trend="metric.trend" />
+                        <KpiTrendBadge
+                            v-if="metric.trend"
+                            class="shrink-0 whitespace-nowrap"
+                            :trend="metric.trend"
+                        />
                     </div>
 
                     <p
                         v-if="metric.context"
-                        class="text-stone-500 dark:text-neutral-400"
+                        class="break-words text-stone-500 [overflow-wrap:anywhere] dark:text-neutral-400"
                         :class="compactMetrics ? 'mt-1 min-h-0 text-[11px] leading-4' : 'mt-2 min-h-10 text-xs leading-5'"
                     >
                         {{ metric.context }}
@@ -118,23 +124,23 @@ defineProps({
 
             <div
                 v-if="summaryItems.length"
-                class="mt-4 grid gap-2"
+                class="mt-4 grid min-w-0 gap-2"
                 :class="summaryGridClass"
             >
                 <div
                     v-for="item in summaryItems"
                     :key="item.key"
-                    class="rounded-sm border border-stone-200/80 bg-stone-50/80 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900/70"
+                    class="min-w-0 rounded-sm border border-stone-200 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800"
                     :class="item.toneClass"
                 >
-                    <div class="text-[11px] uppercase tracking-[0.08em] text-stone-500 dark:text-neutral-400">
+                    <div class="break-words text-[11px] uppercase tracking-[0.08em] text-stone-500 [overflow-wrap:anywhere] dark:text-neutral-400">
                         {{ item.label }}
                     </div>
-                    <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                    <div class="mt-1 max-w-full whitespace-nowrap text-sm font-semibold tabular-nums text-stone-800 dark:text-neutral-100">
                         {{ item.value }}
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    </section>
 </template>
