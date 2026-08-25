@@ -6,6 +6,7 @@ use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\CustomerPackage;
 use App\Models\Invoice;
+use App\Models\InvoiceItem;
 use App\Models\LoyaltyPointLedger;
 use App\Models\LoyaltyProgram;
 use App\Models\OfferPackage;
@@ -167,6 +168,12 @@ class BuildCustomerDetailViewData
             $canViewInvoices
         );
         $customerPackages = $this->buildCustomerPackages($customer, $accountId, $canViewInvoices);
+        $purchasedPackData = $this->buildCustomerPurchasedPackData(
+            $customer,
+            $accountId,
+            $user,
+            $canViewInvoices
+        );
 
         return [
             'customer' => $customer,
@@ -190,6 +197,8 @@ class BuildCustomerDetailViewData
             'lastInteraction' => $activity->first(),
             'customerPackages' => $customerPackages,
             'customerPackageSummary' => $this->buildCustomerPackageSummary($customer, $accountId),
+            'customerPurchasedPacks' => $purchasedPackData['packs'],
+            'customerPurchasedPackSummary' => $purchasedPackData['summary'],
             'customerPackageOptions' => $this->buildCustomerPackageOptions($accountId),
             'vipTiers' => $vipTiers,
             'campaignsFeatureEnabled' => $campaignsFeatureEnabled,
@@ -664,6 +673,138 @@ class BuildCustomerDetailViewData
                 ->whereBetween('expires_at', [today()->toDateString(), today()->addDays(30)->toDateString()])
                 ->count(),
         ];
+    }
+
+    /**
+     * Packs are invoice purchases rather than consumable customer packages. Read
+     * their immutable sale snapshots without creating artificial entitlements.
+     *
+     * @return array{
+     *     packs: Collection<int, array<string, mixed>>,
+     *     summary: array{
+     *         total_lines: int,
+     *         displayed: int,
+     *         total_quantity: int|float,
+     *         currency_breakdown: array<int, array{currency_code: string, total_lines: int, total_quantity: int|float, total_spent: float}>
+     *     }
+     * }
+     */
+    private function buildCustomerPurchasedPackData(
+        Customer $customer,
+        int $accountId,
+        ?User $actor,
+        bool $canViewInvoices
+    ): array {
+        if (! $canViewInvoices || ! $actor || (int) $actor->accountOwnerId() !== $accountId) {
+            return [
+                'packs' => collect(),
+                'summary' => [
+                    'total_lines' => 0,
+                    'displayed' => 0,
+                    'total_quantity' => 0,
+                    'currency_breakdown' => [],
+                ],
+            ];
+        }
+
+        $baseQuery = InvoiceItem::query()
+            ->where('meta->source', 'offer_package')
+            ->where('meta->offer_package_type', OfferPackage::TYPE_PACK)
+            ->whereHas('invoice', fn (Builder $invoiceQuery): Builder => $invoiceQuery
+                ->where('user_id', $accountId)
+                ->where('customer_id', $customer->id)
+                ->whereNull('deleted_at')
+                ->where('status', '!=', 'void'));
+
+        $currencyBreakdown = (clone $baseQuery)
+            ->selectRaw('currency_code, COUNT(*) as total_lines, SUM(quantity) as total_quantity, SUM(total) as total_spent')
+            ->groupBy('currency_code')
+            ->orderBy('currency_code')
+            ->get()
+            ->map(fn (InvoiceItem $line): array => [
+                'currency_code' => (string) $line->currency_code,
+                'total_lines' => (int) $line->getAttribute('total_lines'),
+                'total_quantity' => $this->packQuantity((float) $line->getAttribute('total_quantity')),
+                'total_spent' => round((float) $line->getAttribute('total_spent'), 2),
+            ])
+            ->values();
+
+        $totalLines = (int) $currencyBreakdown->sum('total_lines');
+        $totalQuantity = (float) $currencyBreakdown->sum(
+            fn (array $currency): float => (float) $currency['total_quantity']
+        );
+
+        $packs = (clone $baseQuery)
+            ->with(['invoice' => fn ($invoiceQuery) => $invoiceQuery
+                ->where('user_id', $accountId)
+                ->where('customer_id', $customer->id)
+                ->whereNull('deleted_at')
+                ->where('status', '!=', 'void')
+                ->select(['id', 'user_id', 'customer_id', 'number', 'status', 'currency_code', 'created_at'])])
+            ->latest('created_at')
+            ->latest('id')
+            ->limit(12)
+            ->get([
+                'id',
+                'invoice_id',
+                'title',
+                'description',
+                'quantity',
+                'unit_price',
+                'total',
+                'currency_code',
+                'meta',
+                'created_at',
+            ])
+            ->filter(fn (InvoiceItem $line): bool => $line->invoice instanceof Invoice)
+            ->map(function (InvoiceItem $line) use ($actor): array {
+                /** @var Invoice $invoice */
+                $invoice = $line->invoice;
+                $canViewInvoice = (bool) ($actor?->can('view', $invoice) ?? false);
+
+                return [
+                    'id' => $line->id,
+                    'type' => OfferPackage::TYPE_PACK,
+                    'offer_package_id' => (int) data_get($line->meta, 'offer_package_id', 0) ?: null,
+                    'name' => (string) (data_get($line->meta, 'offer_package_snapshot.name')
+                        ?: data_get($line->meta, 'source_details.offer_package.name')
+                        ?: $line->title
+                        ?: 'Pack'),
+                    'description' => data_get($line->meta, 'offer_package_snapshot.description')
+                        ?: data_get($line->meta, 'source_details.offer_package.description')
+                        ?: $line->description,
+                    'quantity' => $this->packQuantity((float) $line->quantity),
+                    'unit_price' => round((float) $line->unit_price, 2),
+                    'total' => round((float) $line->total, 2),
+                    'currency_code' => (string) ($line->currency_code ?: $invoice->currency_code),
+                    'purchased_at' => $line->created_at,
+                    'invoice' => [
+                        'id' => $canViewInvoice ? $invoice->id : null,
+                        'number' => $canViewInvoice ? $invoice->number : null,
+                        'status' => $invoice->status,
+                        'can_view' => $canViewInvoice,
+                        'href' => $canViewInvoice ? route('invoice.show', $invoice) : null,
+                    ],
+                ];
+            })
+            ->values();
+
+        return [
+            'packs' => $packs,
+            'summary' => [
+                'total_lines' => $totalLines,
+                'displayed' => $packs->count(),
+                'total_quantity' => $this->packQuantity($totalQuantity),
+                'currency_breakdown' => $currencyBreakdown->all(),
+            ],
+        ];
+    }
+
+    private function packQuantity(float $quantity): int|float
+    {
+        $rounded = round($quantity, 2);
+
+        return floor($rounded) === $rounded ? (int) $rounded : $rounded;
     }
 
     private function buildCustomerPackageOptions(int $accountId): array

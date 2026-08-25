@@ -449,29 +449,6 @@
       "quotes": "Cotizaciones",
       "jobs": "Trabajos",
       "created": "Creado"
-    },
-    "details": {
-      "preview": {
-        "title": "Resumen del cliente",
-        "quotes": "Cotizaciones",
-        "active_jobs": "Trabajos activos",
-        "jobs": "Trabajos",
-        "invoices": "Facturas",
-        "requests": "Solicitudes",
-        "balance_due": "Saldo adeudado",
-        "latest_quote": "Última cotización",
-        "quote_number": "Cotización {number}",
-        "quote_fallback": "Cotización",
-        "total": "Total",
-        "no_quotes": "Sin cotizaciones.",
-        "latest_job": "Último trabajo",
-        "job_fallback": "Trabajo",
-        "no_jobs": "Sin trabajos.",
-        "latest_invoice": "Última factura",
-        "invoice_number": "Factura {number}",
-        "invoice_fallback": "Factura",
-        "no_invoices": "Sin facturas."
-      }
     }
   }
 }

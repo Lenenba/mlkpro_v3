@@ -449,29 +449,6 @@
       "quotes": "Quotes",
       "jobs": "Jobs",
       "created": "Created"
-    },
-    "details": {
-      "preview": {
-        "title": "Customer overview",
-        "quotes": "Quotes",
-        "active_jobs": "Active jobs",
-        "jobs": "Jobs",
-        "invoices": "Invoices",
-        "requests": "Requests",
-        "balance_due": "Balance due",
-        "latest_quote": "Latest quote",
-        "quote_number": "Quote {number}",
-        "quote_fallback": "Quote",
-        "total": "Total",
-        "no_quotes": "No quotes.",
-        "latest_job": "Latest job",
-        "job_fallback": "Job",
-        "no_jobs": "No jobs.",
-        "latest_invoice": "Latest invoice",
-        "invoice_number": "Invoice {number}",
-        "invoice_fallback": "Invoice",
-        "no_invoices": "No invoices."
-      }
     }
   }
 }

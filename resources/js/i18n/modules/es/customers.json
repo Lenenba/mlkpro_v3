@@ -21,6 +21,27 @@
       "unknown_status": "Estado desconocido"
     },
     "details": {
+      "preview": {
+        "title": "Resumen del cliente",
+        "quotes": "Cotizaciones",
+        "active_jobs": "Trabajos activos",
+        "jobs": "Trabajos",
+        "invoices": "Facturas",
+        "requests": "Solicitudes",
+        "balance_due": "Saldo adeudado",
+        "latest_quote": "Última cotización",
+        "quote_number": "Cotización {number}",
+        "quote_fallback": "Cotización",
+        "total": "Total",
+        "no_quotes": "Sin cotizaciones.",
+        "latest_job": "Último trabajo",
+        "job_fallback": "Trabajo",
+        "no_jobs": "Sin trabajos.",
+        "latest_invoice": "Última factura",
+        "invoice_number": "Factura {number}",
+        "invoice_fallback": "Factura",
+        "no_invoices": "Sin facturas."
+      },
       "sales": {
         "title": "Ventas",
         "view_all": "Ver todo",
@@ -226,7 +247,7 @@
         "title": "Panel del cliente",
         "tabs": {
           "profile": "Perfil",
-          "packages": "Forfaits",
+        "packages": "Packs y planes",
           "marketing": "Marketing",
           "automation": "Automatización",
           "finance": "Finanzas"
@@ -298,6 +319,15 @@
       },
       "customer_packages": {
         "title": "Forfaits del cliente",
+        "combined_title": "Packs y forfaits del cliente",
+        "pack_type": "Pack",
+        "forfait_type": "Forfait",
+        "purchased_packs_title": "Packs comprados",
+        "purchased_packs_empty": "Este cliente no ha comprado ningún pack.",
+        "purchased_on": "Comprado el",
+        "quantity": "Cantidad",
+        "amount": "Importe",
+        "invoice": "Factura",
         "assign_action": "Asignar forfait",
         "assign_submit": "Asignar",
         "consume_action": "Consumir",
@@ -333,7 +363,8 @@
           "total": "Total",
           "active": "Activos",
           "remaining": "Saldo",
-          "expiring": "Vencen pronto"
+          "expiring": "Vencen pronto",
+          "packs": "Packs"
         },
         "fields": {
           "offer": "Forfait",
@@ -366,6 +397,17 @@
           "consumed": "Consumido",
           "expired": "Vencido",
           "cancelled": "Cancelado"
+        },
+        "invoice_statuses": {
+          "draft": "Borrador",
+          "sent": "Enviada",
+          "awaiting_acceptance": "En espera de aceptación",
+          "accepted": "Aceptada",
+          "rejected": "Rechazada",
+          "partial": "Parcialmente pagada",
+          "paid": "Pagada",
+          "overdue": "Vencida",
+          "void": "Anulada"
         },
         "recurrence_statuses": {
           "active": "Recurrencia activa",

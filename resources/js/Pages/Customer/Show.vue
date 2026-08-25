@@ -98,6 +98,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    customerPurchasedPacks: {
+        type: Array,
+        default: () => [],
+    },
     customerPackageSummary: {
         type: Object,
         default: () => ({
@@ -105,6 +109,14 @@ const props = defineProps({
             active: 0,
             remaining_quantity: 0,
             expiring_soon: 0,
+        }),
+    },
+    customerPurchasedPackSummary: {
+        type: Object,
+        default: () => ({
+            total_lines: 0,
+            total_quantity: 0,
+            currency_breakdown: [],
         }),
     },
     customerPackageOptions: {
@@ -256,9 +268,19 @@ const formatStatus = (status, keyPrefix = '') => {
 const hasValue = (value) => value !== null && value !== undefined;
 const topProducts = computed(() => props.topProducts || []);
 const assignedPackages = computed(() => props.customerPackages || []);
+const purchasedPacks = computed(() => props.customerPurchasedPacks || []);
 const packageSummary = computed(() => props.customerPackageSummary || {});
+const purchasedPackSummary = computed(() => props.customerPurchasedPackSummary || {});
 const customerPackageOptions = computed(() => props.customerPackageOptions || []);
-const showCustomerPackages = computed(() => props.canEdit || assignedPackages.value.length > 0);
+const customerOfferCount = computed(() => (
+    Number(packageSummary.value.total || assignedPackages.value.length)
+    + Number(purchasedPackSummary.value.total_lines || purchasedPacks.value.length)
+));
+const showCustomerPackages = computed(() => (
+    props.canEdit
+    || assignedPackages.value.length > 0
+    || purchasedPacks.value.length > 0
+));
 const loyaltyPointLabel = computed(() => loyalty.value?.label || t('customers.details.loyalty.points_unit'));
 const loyaltyRecent = computed(() => loyalty.value?.recent || []);
 const loyaltyRoundingLabel = computed(() => {
@@ -741,11 +763,23 @@ const packageStatusLabel = (status) => {
 };
 
 const packageStatusClass = (status) => ({
-    'bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400': status === 'active',
+    'bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400': ['active', 'paid'].includes(status),
     'bg-stone-100 text-stone-700 dark:bg-neutral-800 dark:text-neutral-300': status === 'consumed',
-    'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300': status === 'expired',
-    'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400': status === 'cancelled',
+    'bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300': status === 'sent',
+    'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300': ['expired', 'draft', 'partial'].includes(status),
+    'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400': ['cancelled', 'overdue'].includes(status),
 });
+
+const authorizedPurchasedPackInvoiceHref = (purchasedPack) => {
+    const invoice = purchasedPack?.invoice;
+    if (!invoice || invoice.can_view === false || typeof invoice.href !== 'string') {
+        return null;
+    }
+
+    const href = invoice.href.trim();
+
+    return /^\/(?!\/)/u.test(href) ? href : null;
+};
 
 const packageUnitLabel = (unitType) => {
     const key = `customers.details.customer_packages.units.${unitType || 'credit'}`;
@@ -1036,8 +1070,8 @@ const rightRailTabs = computed(() => {
         tabs.push({
             id: 'packages',
             label: t('customers.details.sidebar.tabs.packages'),
-            initials: 'FP',
-            meta: t('customers.tabs.items', { count: packageSummary.value.total || 0 }),
+            initials: 'PF',
+            meta: t('customers.tabs.items', { count: customerOfferCount.value }),
             tone: 'violet',
         });
     }
@@ -2067,7 +2101,7 @@ const deleteProperty = (property) => {
                             <div class="rounded-sm border border-stone-200 bg-stone-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/60">
                                 <div class="flex items-center justify-between gap-3">
                                     <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                                        {{ $t('customers.details.customer_packages.title') }}
+                                        {{ $t('customers.details.customer_packages.combined_title') }}
                                     </div>
                                     <button
                                         v-if="canEdit"
@@ -2082,7 +2116,11 @@ const deleteProperty = (property) => {
                                 <div class="mt-3 grid grid-cols-2 gap-2">
                                     <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
                                         <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.customer_packages.summary.total') }}</div>
-                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ packageSummary.total || 0 }}</div>
+                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ customerOfferCount }}</div>
+                                    </div>
+                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
+                                        <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.customer_packages.summary.packs') }}</div>
+                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ purchasedPackSummary.total_lines || 0 }}</div>
                                     </div>
                                     <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
                                         <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.customer_packages.summary.active') }}</div>
@@ -2171,7 +2209,20 @@ const deleteProperty = (property) => {
                                 </div>
                             </div>
 
-                            <div class="rounded-sm border border-stone-200 bg-stone-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/60">
+                            <div
+                                data-customer-forfaits
+                                class="rounded-sm border border-stone-200 bg-stone-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/60"
+                                role="region"
+                                aria-labelledby="customer-forfaits-title"
+                            >
+                                <div class="mb-3 flex items-center justify-between gap-3">
+                                    <h3 id="customer-forfaits-title" class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                        {{ $t('customers.details.customer_packages.title') }}
+                                    </h3>
+                                    <span class="inline-flex min-w-6 items-center justify-center rounded-sm bg-white px-2 py-1 text-xs font-semibold text-stone-700 dark:bg-neutral-900 dark:text-neutral-200">
+                                        {{ assignedPackages.length }}
+                                    </span>
+                                </div>
                                 <div v-if="!assignedPackages.length" class="text-sm text-stone-500 dark:text-neutral-400">
                                     {{ $t('customers.details.customer_packages.empty') }}
                                 </div>
@@ -2540,6 +2591,126 @@ const deleteProperty = (property) => {
                                     </div>
                                 </div>
                             </div>
+
+                            <section
+                                data-customer-purchased-packs
+                                class="rounded-sm border border-stone-200 bg-stone-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/60"
+                                aria-labelledby="customer-purchased-packs-title"
+                            >
+                                <div class="flex flex-wrap items-center justify-between gap-3">
+                                    <h3 id="customer-purchased-packs-title" class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                        {{ $t('customers.details.customer_packages.purchased_packs_title') }}
+                                    </h3>
+                                    <span class="inline-flex min-w-6 items-center justify-center rounded-sm bg-white px-2 py-1 text-xs font-semibold text-stone-700 dark:bg-neutral-900 dark:text-neutral-200">
+                                        {{ purchasedPackSummary.total_lines || purchasedPacks.length }}
+                                    </span>
+                                </div>
+
+                                <div
+                                    v-if="purchasedPackSummary.currency_breakdown?.length"
+                                    class="mt-3 flex flex-wrap gap-2"
+                                    role="list"
+                                    :aria-label="$t('customers.details.customer_packages.amount')"
+                                >
+                                    <div
+                                        v-for="currency in purchasedPackSummary.currency_breakdown"
+                                        :key="currency.currency_code"
+                                        class="rounded-sm border border-stone-200 bg-white px-2.5 py-2 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
+                                        role="listitem"
+                                    >
+                                        <span class="font-semibold text-stone-800 dark:text-neutral-100">
+                                            {{ formatCurrency(currency.total_spent || 0, currency.currency_code) }}
+                                        </span>
+                                        <span class="ml-1 text-stone-500 dark:text-neutral-400">
+                                            · {{ formatNumber(currency.total_quantity || 0) }} {{ $t('customers.details.customer_packages.pack_type') }}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div
+                                    v-if="!purchasedPacks.length"
+                                    class="mt-3 rounded-sm border border-dashed border-stone-200 bg-white px-3 py-5 text-center text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
+                                    role="status"
+                                >
+                                    {{ $t('customers.details.customer_packages.purchased_packs_empty') }}
+                                </div>
+
+                                <div v-else class="mt-3 space-y-2" role="list">
+                                    <article
+                                        v-for="purchasedPack in purchasedPacks"
+                                        :key="purchasedPack.id"
+                                        class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900"
+                                        role="listitem"
+                                    >
+                                        <div class="flex flex-wrap items-start justify-between gap-3">
+                                            <div class="min-w-0 flex-1">
+                                                <div class="flex flex-wrap items-center gap-2">
+                                                    <h4 class="break-words text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                                        {{ purchasedPack.name }}
+                                                    </h4>
+                                                    <span class="inline-flex rounded-sm bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700 dark:bg-violet-500/10 dark:text-violet-300">
+                                                        {{ $t('customers.details.customer_packages.pack_type') }}
+                                                    </span>
+                                                    <span
+                                                        v-if="purchasedPack.invoice?.status"
+                                                        class="inline-flex rounded-sm px-2 py-0.5 text-xs font-semibold"
+                                                        :class="packageStatusClass(purchasedPack.invoice.status)"
+                                                    >
+                                                        {{ formatStatus(purchasedPack.invoice.status, 'customers.details.customer_packages.invoice_statuses') }}
+                                                    </span>
+                                                </div>
+                                                <p v-if="purchasedPack.description" class="mt-1 break-words text-xs text-stone-500 dark:text-neutral-400">
+                                                    {{ purchasedPack.description }}
+                                                </p>
+                                            </div>
+                                            <div class="shrink-0 text-right">
+                                                <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                                    {{ formatCurrency(purchasedPack.total || 0, purchasedPack.currency_code) }}
+                                                </div>
+                                                <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                                    {{ $t('customers.details.customer_packages.amount') }}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <dl class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                                            <div class="rounded-sm bg-stone-50 px-2.5 py-2 dark:bg-neutral-800">
+                                                <dt class="text-stone-500 dark:text-neutral-400">
+                                                    {{ $t('customers.details.customer_packages.quantity') }}
+                                                </dt>
+                                                <dd class="mt-1 font-semibold text-stone-800 dark:text-neutral-100">
+                                                    {{ formatNumber(purchasedPack.quantity || 0) }} × {{ formatCurrency(purchasedPack.unit_price || 0, purchasedPack.currency_code) }}
+                                                </dd>
+                                            </div>
+                                            <div class="rounded-sm bg-stone-50 px-2.5 py-2 dark:bg-neutral-800">
+                                                <dt class="text-stone-500 dark:text-neutral-400">
+                                                    {{ $t('customers.details.customer_packages.purchased_on') }}
+                                                </dt>
+                                                <dd class="mt-1 font-semibold text-stone-800 dark:text-neutral-100">
+                                                    {{ formatDate(purchasedPack.purchased_at) }}
+                                                </dd>
+                                            </div>
+                                        </dl>
+
+                                        <div v-if="purchasedPack.invoice" class="mt-3 flex min-w-0 items-center gap-2 border-t border-stone-100 pt-3 text-xs dark:border-neutral-800">
+                                            <ReceiptText class="size-4 shrink-0 text-stone-400" aria-hidden="true" />
+                                            <span class="shrink-0 text-stone-500 dark:text-neutral-400">
+                                                {{ $t('customers.details.customer_packages.invoice') }}
+                                            </span>
+                                            <Link
+                                                v-if="authorizedPurchasedPackInvoiceHref(purchasedPack)"
+                                                :href="authorizedPurchasedPackInvoiceHref(purchasedPack)"
+                                                class="min-w-0 truncate font-semibold text-green-700 hover:underline focus:outline-none focus:ring-2 focus:ring-green-500 dark:text-green-300"
+                                            >
+                                                {{ purchasedPack.invoice.number }}
+                                            </Link>
+                                            <span v-else class="min-w-0 truncate font-semibold text-stone-700 dark:text-neutral-200">
+                                                {{ purchasedPack.invoice.number }}
+                                            </span>
+                                        </div>
+                                    </article>
+                                </div>
+                            </section>
                         </template>
 
                         <template v-else-if="activeRightRailTab === 'marketing'">
