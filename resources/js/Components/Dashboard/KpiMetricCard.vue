@@ -65,9 +65,9 @@ const activate = () => {
         :type="interactive ? 'button' : undefined"
         :data-testid="metric.testId"
         :data-measurement-status="metric.measurementStatus"
-        class="group flex h-full min-w-0 flex-col items-stretch justify-start overflow-hidden rounded-sm border border-stone-200 bg-white text-start transition dark:border-neutral-700 dark:bg-neutral-800"
+        class="flex h-full min-w-0 flex-col overflow-hidden rounded-lg border border-stone-200 bg-white text-start shadow-sm transition dark:border-neutral-700 dark:bg-neutral-800"
         :class="[
-            compact ? 'min-h-32 p-2.5' : 'min-h-40 p-3',
+            compact ? 'min-h-32' : 'min-h-40',
             interactive
                 ? 'hover:border-stone-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2 motion-reduce:transition-none dark:hover:border-neutral-600 dark:focus-visible:ring-offset-neutral-900'
                 : '',
@@ -81,62 +81,70 @@ const activate = () => {
         :aria-busy="metric.loading ? 'true' : undefined"
         @click="activate"
     >
-        <div class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
-            <div class="min-w-0">
-                <div class="flex min-h-8 min-w-0 items-start gap-2">
-                    <span
-                        class="mt-1 size-2 shrink-0 rounded-full"
-                        :class="colorClass"
-                        aria-hidden="true"
-                    ></span>
+        <div :class="compact ? 'p-3' : 'p-4'">
+            <div class="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-3">
+                <span
+                    class="w-1 rounded-full"
+                    :class="colorClass"
+                    aria-hidden="true"
+                ></span>
+
+                <div class="min-w-0">
                     <p
-                        class="line-clamp-2 min-w-0 break-words text-xs font-medium leading-4 text-stone-500 [hyphens:auto] [overflow-wrap:anywhere] dark:text-neutral-400"
+                        class="line-clamp-2 min-w-0 break-words min-h-8 text-xs font-medium leading-4 text-stone-500 [hyphens:auto] [overflow-wrap:anywhere] dark:text-neutral-400"
                         :title="metric.label"
                     >
                         {{ metric.label }}
                     </p>
-                </div>
-                <div
-                    v-if="metric.loading"
-                    class="mt-1.5 h-6 w-24 max-w-full animate-pulse rounded-sm bg-stone-200 dark:bg-neutral-700"
-                    aria-hidden="true"
-                ></div>
-                <p
-                    v-else
-                    class="min-h-7 max-w-full whitespace-normal break-words font-semibold leading-7 tabular-nums text-stone-800 [overflow-wrap:anywhere] dark:text-neutral-100"
-                    :class="compact ? 'mt-1 text-base' : 'mt-1.5 text-lg'"
-                >
-                    {{ metric.value }}
-                </p>
-            </div>
 
-            <KpiTrendBadge v-if="metric.trend" class="shrink-0 whitespace-nowrap" :trend="metric.trend" />
+                    <div
+                        v-if="metric.loading"
+                        class="mt-1.5 h-6 w-24 max-w-full animate-pulse rounded-sm bg-stone-200 dark:bg-neutral-700"
+                        aria-hidden="true"
+                    ></div>
+
+                    <div v-else class="mt-1.5 flex min-h-7 min-w-0 flex-wrap items-center gap-2">
+                        <p
+                            class="max-w-full whitespace-normal break-words font-semibold leading-7 tabular-nums text-stone-800 [overflow-wrap:anywhere] dark:text-neutral-100"
+                            :class="compact ? 'text-lg' : 'text-xl sm:text-2xl'"
+                        >
+                            {{ metric.value }}
+                        </p>
+                        <KpiTrendBadge v-if="metric.trend" class="shrink-0 whitespace-nowrap" :trend="metric.trend" />
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <p
-            class="break-words text-stone-500 [overflow-wrap:anywhere] dark:text-neutral-400"
-            :class="[
-                compact
-                    ? 'mt-1 min-h-4 text-[11px] leading-4 line-clamp-1'
-                    : 'mt-1.5 min-h-10 text-xs leading-5 line-clamp-2',
-                hasContext ? '' : 'invisible',
-            ]"
-            :title="hasContext ? String(metric.context) : undefined"
-            :aria-hidden="hasContext ? undefined : 'true'"
+        <div
+            v-if="hasContext || metric.points?.length || progress"
+            class="mt-auto border-t border-stone-100 bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900"
+            :class="compact ? 'px-3 py-2.5' : 'px-4 py-3'"
         >
-            {{ hasContext ? metric.context : '—' }}
-        </p>
+            <p
+                class="break-words text-stone-500 [overflow-wrap:anywhere] dark:text-neutral-400"
+                :class="[
+                    compact
+                        ? 'min-h-4 text-[11px] leading-4 line-clamp-1'
+                        : 'min-h-10 text-xs leading-5 line-clamp-2',
+                    hasContext ? '' : 'invisible',
+                ]"
+                :title="hasContext ? String(metric.context) : undefined"
+                :aria-hidden="hasContext ? undefined : 'true'"
+            >
+                {{ hasContext ? metric.context : '—' }}
+            </p>
 
-        <div class="mt-auto pt-2.5">
             <KpiSparkline
                 v-if="metric.points?.length"
+                class="mt-2"
                 :points="metric.points"
                 :color-class="colorClass"
             />
 
             <div
                 v-else-if="progress"
-                class="flex h-8 items-end"
+                class="flex h-10 items-end"
                 role="progressbar"
                 aria-valuemin="0"
                 :aria-valuemax="progress.max"
@@ -155,7 +163,7 @@ const activate = () => {
                 </span>
             </div>
 
-            <div v-else class="h-8" aria-hidden="true"></div>
+            <div v-else class="h-10" aria-hidden="true"></div>
         </div>
     </component>
 </template>

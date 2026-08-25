@@ -70,7 +70,7 @@ test('KPI panels and their shared metric cards preserve complete labels and valu
     assert.match(panel, /flex flex-wrap items-start justify-between gap-3/u);
     assert.match(panel, /flex-\[1_1_14rem\]/u);
     assert.match(panel, /whitespace-normal/u);
-    assert.match(metricCard, /grid-cols-\[minmax\(0,1fr\)_auto\]/u);
+    assert.match(metricCard, /grid-cols-\[auto_minmax\(0,1fr\)\]/u);
     assert.match(metricCard, /\[overflow-wrap:anywhere\]/u);
     assert.match(metricCard, /tabular-nums/u);
     assert.match(metricCard, /class="shrink-0 whitespace-nowrap"/u);
@@ -78,14 +78,33 @@ test('KPI panels and their shared metric cards preserve complete labels and valu
     assert.match(metricCard, /line-clamp-2 min-w-0 break-words/u);
     assert.match(metricCard, /:title="metric\.label"/u);
     assert.doesNotMatch(metricCard, /whitespace-nowrap[^\n]*metric\.value/u);
-    assert.match(metricCard, /flex h-full min-w-0 flex-col items-stretch justify-start overflow-hidden/u);
-    assert.match(metricCard, /min-h-8 min-w-0 items-start/u);
+    assert.match(metricCard, /flex h-full min-w-0 flex-col overflow-hidden/u);
+    assert.match(metricCard, /line-clamp-2 min-w-0 break-words min-h-8/u);
     assert.match(metricCard, /hasContext \? '' : 'invisible'/u);
     assert.doesNotMatch(metricCard, /\btruncate\b/u);
 
     for (const source of [panel, metricGrid, metricCard]) {
         assert.doesNotMatch(source, /bg-gradient-|(?:dark:)?(?:from|via|to)-(?:stone|neutral|white)/u);
     }
+});
+
+test('shared KPI cards use a structured visual hierarchy without synthetic decoration', () => {
+    const sparkline = read('resources/js/Components/Dashboard/KpiSparkline.vue');
+    const trendBadge = read('resources/js/Components/Dashboard/KpiTrendBadge.vue');
+
+    assert.match(metricCard, /flex h-full min-w-0/u);
+    assert.match(metricCard, /rounded-lg border border-stone-200/u);
+    assert.match(metricCard, /shadow-sm/u);
+    assert.match(metricCard, /class="w-1 rounded-full"/u);
+    assert.match(metricCard, /v-if="hasContext \|\| metric\.points\?\.length \|\| progress"/u);
+    assert.match(metricCard, /border-t border-stone-100 bg-stone-50/u);
+    assert.match(metricCard, /text-xl sm:text-2xl/u);
+    assert.match(metricCard, /v-if="metric\.points\?\.length"/u);
+    assert.match(metricCard, /v-else-if="progress"/u);
+    assert.match(sparkline, /flex h-10 items-end gap-1 border-b/u);
+    assert.match(sparkline, /rounded-t-sm opacity-80/u);
+    assert.match(trendBadge, /:aria-label="title"/u);
+    assert.match(trendBadge, /aria-hidden="true"/u);
 });
 
 test('KPI panels, grids, and interactive cards keep their accessibility contract', () => {

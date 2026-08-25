@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import test from 'node:test';
-import { buildKpiProgress } from '../../resources/js/utils/kpi.js';
+import { buildKpiProgress, buildSparklinePoints, buildTrend } from '../../resources/js/utils/kpi.js';
 
 const read = (path) => readFileSync(resolve(path), 'utf8');
 
@@ -130,6 +130,15 @@ test('shared KPI progress rejects invalid denominators and status modules use re
         assert.match(source, /import \{ buildKpiProgress \} from '@\/utils\/kpi'/u, path);
         assert.match(source, /progress: buildKpiProgress\(/u, path);
     }
+});
+
+test('shared KPI graphics stay empty until a real series is available', () => {
+    assert.deepEqual(buildSparklinePoints([]), []);
+    assert.deepEqual(buildSparklinePoints(null), []);
+    assert.equal(buildTrend([]), null);
+    assert.equal(buildTrend([12]), null);
+    assert.equal(buildSparklinePoints([0, 2]).length, 2);
+    assert.equal(buildTrend([0, 2])?.direction, 'up');
 });
 
 test('temporal KPI graphics use chronological source data instead of unrelated snapshots', () => {
