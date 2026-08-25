@@ -429,6 +429,7 @@ const openProspectingWorkspace = (step = 3) => {
                 </div>
                 <KpiMetricGrid
                     v-if="runSummaryMetrics.length"
+                    variant="record"
                     :metrics="runSummaryMetrics"
                     grid-class="grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))]"
                     compact
@@ -436,6 +437,7 @@ const openProspectingWorkspace = (step = 3) => {
 
                 <KpiMetricGrid
                     :class="runSummaryMetrics.length ? 'mt-4' : ''"
+                    variant="record"
                     :metrics="deliveryInsightMetrics"
                     grid-class="grid-cols-1 md:grid-cols-2 xl:grid-cols-4"
                     compact
@@ -491,6 +493,7 @@ const openProspectingWorkspace = (step = 3) => {
 
                 <KpiMetricGrid
                     class="mt-4"
+                    variant="record"
                     :metrics="funnelStages"
                     grid-class="grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))]"
                     compact
@@ -498,6 +501,7 @@ const openProspectingWorkspace = (step = 3) => {
 
                 <KpiMetricGrid
                     class="mt-4"
+                    variant="record"
                     :metrics="funnelRateMetrics"
                     grid-class="grid-cols-1 md:grid-cols-3"
                     compact
@@ -526,6 +530,7 @@ const openProspectingWorkspace = (step = 3) => {
 
                 <KpiMetricGrid
                     class="mt-4"
+                    variant="record"
                     :metrics="prospectingMetrics"
                     grid-class="grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))]"
                     compact

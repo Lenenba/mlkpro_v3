@@ -299,7 +299,7 @@ const canOpenPulseComposer = computed(() => Boolean(props.pulse?.can_open));
 
             <div class="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]">
                 <div class="space-y-4">
-                    <KpiMetricGrid class="rise-in" :metrics="kpiCards" />
+                    <KpiMetricGrid class="rise-in" variant="record" :metrics="kpiCards" />
 
                     <Card class="rise-in" :style="{ animationDelay: '120ms' }">
                         <template #title>{{ $t('products.show.alerts_title') }}</template>

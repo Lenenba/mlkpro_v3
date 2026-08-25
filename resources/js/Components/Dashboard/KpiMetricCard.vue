@@ -13,37 +13,25 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    variant: {
+        type: String,
+        default: 'module',
+    },
 });
 
 const emit = defineEmits(['activate']);
 
-const toneClasses = {
-    amber: 'bg-amber-500',
-    blue: 'bg-blue-600',
-    cyan: 'bg-cyan-600',
-    emerald: 'bg-emerald-600',
-    fuchsia: 'bg-fuchsia-600',
-    green: 'bg-green-600',
-    indigo: 'bg-indigo-600',
-    lime: 'bg-lime-600',
-    orange: 'bg-orange-500',
-    red: 'bg-red-600',
-    rose: 'bg-rose-600',
-    sky: 'bg-sky-600',
-    slate: 'bg-slate-500',
-    stone: 'bg-stone-500 dark:bg-neutral-500',
-    teal: 'bg-teal-600',
-    violet: 'bg-violet-600',
-};
+const tones = 'amber blue cyan emerald fuchsia green indigo lime orange red rose sky slate stone teal violet'.split(' ');
 
 const interactive = computed(() => Boolean(props.metric?.interactive));
 const rootElement = computed(() => interactive.value ? 'button' : 'article');
 const hasContext = computed(() => String(props.metric?.context ?? '').trim() !== '');
-const colorClass = computed(() => (
-    props.metric?.colorClass
-    || toneClasses[props.metric?.tone]
-    || 'bg-stone-400/70 dark:bg-neutral-500/50'
-));
+const colorClass = computed(() => {
+    const tone = props.metric?.tone;
+
+    return props.metric?.colorClass
+        || (tones.includes(tone) ? `bg-${tone}-600` : 'bg-stone-400/70 dark:bg-neutral-500/50');
+});
 const progress = computed(() => {
     const source = props.metric?.progress;
     return buildKpiProgress(
@@ -52,6 +40,8 @@ const progress = computed(() => {
         source?.label,
     );
 });
+const showSparkline = computed(() => props.variant === 'dashboard' && props.metric?.points?.length);
+const showProgress = computed(() => props.variant !== 'record' && progress.value);
 const activate = () => {
     if (interactive.value && !props.metric?.disabled) {
         emit('activate', props.metric?.action ?? props.metric);
@@ -65,14 +55,21 @@ const activate = () => {
         :type="interactive ? 'button' : undefined"
         :data-testid="metric.testId"
         :data-measurement-status="metric.measurementStatus"
-        class="flex h-full min-w-0 flex-col overflow-hidden rounded-lg border border-stone-200 bg-white text-start shadow-sm transition dark:border-neutral-700 dark:bg-neutral-800"
+        class="flex h-full min-w-0 flex-col overflow-hidden bg-white text-start dark:bg-neutral-800"
         :class="[
-            compact ? 'min-h-32' : 'min-h-40',
+            variant === 'dashboard'
+                ? (compact ? 'min-h-32' : 'min-h-40')
+                : (compact ? 'min-h-24' : 'min-h-28'),
+            variant === 'dashboard'
+                ? 'rounded-lg border border-stone-200 shadow-sm dark:border-neutral-700'
+                : variant === 'record'
+                    ? ''
+                    : 'rounded-md border border-stone-200 dark:border-neutral-700',
             interactive
-                ? 'hover:border-stone-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2 motion-reduce:transition-none dark:hover:border-neutral-600 dark:focus-visible:ring-offset-neutral-900'
+                ? 'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-green-600'
                 : '',
             metric.active
-                ? 'ring-2 ring-green-600 ring-offset-2 dark:ring-green-400 dark:ring-offset-neutral-900'
+                ? 'ring-2 ring-inset ring-green-600'
                 : '',
         ]"
         :disabled="interactive ? Boolean(metric.disabled) : undefined"
@@ -81,11 +78,17 @@ const activate = () => {
         :aria-busy="metric.loading ? 'true' : undefined"
         @click="activate"
     >
-        <div :class="compact ? 'p-3' : 'p-4'">
+        <div :class="variant === 'dashboard' && !compact ? 'p-4' : 'p-3'">
             <div class="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-3">
                 <span
-                    class="w-1 rounded-full"
-                    :class="colorClass"
+                    :class="[
+                        colorClass,
+                        variant === 'dashboard'
+                            ? 'w-1 rounded-full'
+                            : variant === 'record'
+                                ? 'mt-1 size-2 rounded-sm'
+                                : 'mt-1 size-2 rounded-full',
+                    ]"
                     aria-hidden="true"
                 ></span>
 
@@ -106,7 +109,7 @@ const activate = () => {
                     <div v-else class="mt-1.5 flex min-h-7 min-w-0 flex-wrap items-center gap-2">
                         <p
                             class="max-w-full whitespace-normal break-words font-semibold leading-7 tabular-nums text-stone-800 [overflow-wrap:anywhere] dark:text-neutral-100"
-                            :class="compact ? 'text-lg' : 'text-xl sm:text-2xl'"
+                            :class="variant === 'dashboard' && !compact ? 'text-xl sm:text-2xl' : variant === 'record' ? 'text-lg' : 'text-xl'"
                         >
                             {{ metric.value }}
                         </p>
@@ -117,34 +120,40 @@ const activate = () => {
         </div>
 
         <div
-            v-if="hasContext || metric.points?.length || progress"
-            class="mt-auto border-t border-stone-100 bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900"
-            :class="compact ? 'px-3 py-2.5' : 'px-4 py-3'"
+            v-if="hasContext || showSparkline || showProgress"
+            class="mt-auto border-t border-stone-100 dark:border-neutral-700"
+            :class="[
+                variant === 'dashboard'
+                    ? 'bg-stone-50 dark:bg-neutral-900'
+                    : '',
+                variant === 'dashboard' && !compact ? 'px-4 py-3' : 'px-3 py-2.5',
+            ]"
         >
             <p
+                v-if="hasContext"
                 class="break-words text-stone-500 [overflow-wrap:anywhere] dark:text-neutral-400"
-                :class="[
-                    compact
-                        ? 'min-h-4 text-[11px] leading-4 line-clamp-1'
-                        : 'min-h-10 text-xs leading-5 line-clamp-2',
-                    hasContext ? '' : 'invisible',
-                ]"
-                :title="hasContext ? String(metric.context) : undefined"
-                :aria-hidden="hasContext ? undefined : 'true'"
+                :class="compact || variant !== 'dashboard'
+                    ? 'text-[11px] leading-4 line-clamp-2'
+                    : 'text-xs leading-5 line-clamp-2'"
+                :title="String(metric.context)"
             >
-                {{ hasContext ? metric.context : '—' }}
+                {{ metric.context }}
             </p>
 
             <KpiSparkline
-                v-if="metric.points?.length"
-                class="mt-2"
+                v-if="showSparkline"
+                :class="hasContext ? 'mt-2' : ''"
                 :points="metric.points"
                 :color-class="colorClass"
             />
 
             <div
-                v-else-if="progress"
-                class="flex h-10 items-end"
+                v-else-if="showProgress"
+                class="flex"
+                :class="[
+                    variant === 'dashboard' ? 'h-10 items-end' : 'h-3 items-center',
+                    hasContext ? 'mt-2' : '',
+                ]"
                 role="progressbar"
                 aria-valuemin="0"
                 :aria-valuemax="progress.max"
@@ -162,8 +171,6 @@ const activate = () => {
                     ></span>
                 </span>
             </div>
-
-            <div v-else class="h-10" aria-hidden="true"></div>
         </div>
     </component>
 </template>

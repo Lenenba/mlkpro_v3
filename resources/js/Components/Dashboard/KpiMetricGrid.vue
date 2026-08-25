@@ -14,6 +14,10 @@ defineProps({
         type: Boolean,
         default: false,
     },
+    variant: {
+        type: String,
+        default: 'module',
+    },
     labelledBy: {
         type: String,
         default: undefined,
@@ -29,8 +33,13 @@ defineEmits(['activate']);
 
 <template>
     <div
-        class="grid min-w-0 gap-3"
-        :class="gridClass"
+        class="grid min-w-0"
+        :class="[
+            gridClass,
+            variant === 'record'
+                ? 'gap-px overflow-hidden rounded-lg border border-stone-200 bg-stone-200 dark:border-neutral-700 dark:bg-neutral-700'
+                : 'gap-3',
+        ]"
         :role="labelledBy || ariaLabel ? 'group' : undefined"
         :aria-labelledby="labelledBy"
         :aria-label="ariaLabel"
@@ -40,6 +49,7 @@ defineEmits(['activate']);
             :key="metric.key"
             :metric="metric"
             :compact="compact"
+            :variant="variant"
             @activate="$emit('activate', $event)"
         />
     </div>

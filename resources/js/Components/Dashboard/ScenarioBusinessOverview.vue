@@ -177,6 +177,7 @@ const cards = computed(() => [
 
         <KpiMetricGrid
             class="mt-4"
+            variant="dashboard"
             :metrics="cards"
             grid-class="grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))]"
             :aria-label="$t('dashboard.scenario.title')"

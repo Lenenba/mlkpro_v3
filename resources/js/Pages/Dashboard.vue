@@ -1218,6 +1218,7 @@ onMounted(() => {
                 <KpiMetricGrid
                     v-if="showMarketingPanel"
                     class="mt-3"
+                    variant="dashboard"
                     :metrics="marketingCards"
                     grid-class="grid-cols-1 md:grid-cols-2 xl:grid-cols-4"
                     :aria-label="$t('dashboard.marketing_panel.title')"
@@ -1227,6 +1228,7 @@ onMounted(() => {
                 <KpiMetricGrid
                     v-if="showMarketingPanel"
                     class="mt-3"
+                    variant="dashboard"
                     :metrics="marketingSecondaryCards"
                     grid-class="grid-cols-1 md:grid-cols-2 xl:grid-cols-4"
                     :aria-label="$t('dashboard.marketing_panel.title')"
@@ -1236,6 +1238,7 @@ onMounted(() => {
                 <KpiMetricGrid
                     v-if="showMarketingPanel && marketingCrossModule"
                     class="mt-3"
+                    variant="dashboard"
                     :metrics="marketingCrossModuleCards"
                     grid-class="grid-cols-1 gap-2 sm:grid-cols-3"
                     :aria-label="$t('dashboard.marketing_panel.title')"
@@ -1288,6 +1291,7 @@ onMounted(() => {
                                 </div>
                             </div>
                             <KpiMetricGrid
+                                variant="dashboard"
                                 :metrics="scheduleSummaryCards"
                                 grid-class="grid-cols-2 gap-2 xl:grid-cols-4"
                                 :aria-label="$t('dashboard.weekly.title')"

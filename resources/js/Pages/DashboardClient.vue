@@ -805,6 +805,7 @@ const submitWorkRating = (workId) => {
                 </div>
                 <KpiMetricGrid
                     class="mt-4"
+                    variant="dashboard"
                     :metrics="clientMetrics"
                     grid-class="grid-cols-1 sm:grid-cols-2 xl:grid-cols-4"
                     :aria-label="$t('client_dashboard.title')"

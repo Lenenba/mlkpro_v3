@@ -60,67 +60,12 @@ const formatStatus = (status, keyPrefix = '') => {
     return String(status).replace(/_/g, ' ');
 };
 const hasValue = (value) => value !== null && value !== undefined;
-
-const kpiMax = computed(() => {
-    const values = [];
-
-    if (quotesFeatureEnabled.value) {
-        values.push(Number(props.stats?.quotes || 0));
-    }
-    if (jobsFeatureEnabled.value) {
-        values.push(Number(props.stats?.active_works || 0));
-        values.push(Number(props.stats?.jobs || 0));
-    }
-    if (invoicesFeatureEnabled.value) {
-        values.push(Number(props.stats?.invoices || 0));
-    }
-    if (requestsFeatureEnabled.value) {
-        values.push(Number(props.stats?.requests || 0));
-    }
-
-    return Math.max(1, ...values);
-});
-
-const kpiBarWidth = (value) => {
-    const safe = Number(value || 0);
-    if (safe <= 0) {
-        return '0%';
-    }
-
-    const max = kpiMax.value || 1;
-    const percent = max ? Math.round((safe / max) * 100) : 0;
-
-    return `${Math.min(100, Math.max(12, percent))}%`;
-};
-
-const balanceBarWidth = computed(() => {
-    const balance = Math.max(0, Number(props.billing?.summary?.balance_due || 0));
-    const total = Math.max(0, Number(props.billing?.summary?.total_invoiced || 0));
-    if (!balance) {
-        return '0%';
-    }
-    if (!total) {
-        return '60%';
-    }
-
-    const percent = Math.round((balance / total) * 100);
-
-    return `${Math.min(100, Math.max(12, percent))}%`;
-});
-const countMetricPoints = (value) => {
-    const safe = Number(value || 0);
-
-    return safe > 0
-        ? [{ value: formatNumber(safe), height: kpiBarWidth(safe) }]
-        : [];
-};
 const previewMetrics = computed(() => [
     quotesFeatureEnabled.value
         ? {
             key: 'quotes',
             value: formatNumber(props.stats?.quotes ?? 0),
             tone: 'emerald',
-            points: countMetricPoints(props.stats?.quotes),
         }
         : null,
     jobsFeatureEnabled.value
@@ -128,7 +73,6 @@ const previewMetrics = computed(() => [
             key: 'active-jobs',
             value: formatNumber(props.stats?.active_works ?? 0),
             tone: 'sky',
-            points: countMetricPoints(props.stats?.active_works),
         }
         : null,
     jobsFeatureEnabled.value
@@ -136,7 +80,6 @@ const previewMetrics = computed(() => [
             key: 'jobs',
             value: formatNumber(props.stats?.jobs ?? 0),
             tone: 'amber',
-            points: countMetricPoints(props.stats?.jobs),
         }
         : null,
     invoicesFeatureEnabled.value
@@ -144,7 +87,6 @@ const previewMetrics = computed(() => [
             key: 'invoices',
             value: formatNumber(props.stats?.invoices ?? 0),
             tone: 'indigo',
-            points: countMetricPoints(props.stats?.invoices),
         }
         : null,
     requestsFeatureEnabled.value
@@ -152,7 +94,6 @@ const previewMetrics = computed(() => [
             key: 'requests',
             value: formatNumber(props.stats?.requests ?? 0),
             tone: 'rose',
-            points: countMetricPoints(props.stats?.requests),
         }
         : null,
     invoicesFeatureEnabled.value
@@ -160,12 +101,6 @@ const previewMetrics = computed(() => [
             key: 'balance-due',
             value: formatCurrency(props.billing?.summary?.balance_due),
             tone: 'teal',
-            points: Number(props.billing?.summary?.balance_due || 0) > 0
-                ? [{
-                    value: formatCurrency(props.billing?.summary?.balance_due),
-                    height: balanceBarWidth.value,
-                }]
-                : [],
         }
         : null,
 ].filter(Boolean));
@@ -187,6 +122,7 @@ const hasPreviewContent = computed(() => (
 
         <KpiMetricGrid
             class="rise-stagger"
+            variant="record"
             :metrics="withPreviewLabels({
                 quotes: $t('customers.details.preview.quotes'),
                 'active-jobs': $t('customers.details.preview.active_jobs'),

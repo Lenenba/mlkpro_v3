@@ -77,6 +77,7 @@ defineProps({
                 :metrics="metrics"
                 :grid-class="metricsGridClass"
                 :compact="compactMetrics"
+                variant="dashboard"
             />
 
             <div

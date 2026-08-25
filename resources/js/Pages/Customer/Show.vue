@@ -1492,6 +1492,7 @@ const deleteProperty = (property) => {
                     </template>
 
                     <KpiMetricGrid
+                        variant="record"
                         :metrics="salesSummaryMetrics"
                         grid-class="grid-cols-1 md:grid-cols-3"
                     />
@@ -1530,6 +1531,7 @@ const deleteProperty = (property) => {
                     <template #title>{{ $t('customers.details.purchase.title') }}</template>
 
                     <KpiMetricGrid
+                        variant="record"
                         :metrics="purchaseCards"
                         grid-class="grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"
                         compact
@@ -2199,6 +2201,7 @@ const deleteProperty = (property) => {
 
                                 <KpiMetricGrid
                                     class="mt-3"
+                                    variant="record"
                                     :metrics="customerPackageMetrics"
                                     grid-class="grid-cols-2"
                                     compact
@@ -2935,6 +2938,7 @@ const deleteProperty = (property) => {
 
                                 <KpiMetricGrid
                                     class="mt-3"
+                                    variant="record"
                                     :metrics="billingSummaryMetrics"
                                     grid-class="grid-cols-1 sm:grid-cols-3"
                                     compact
@@ -2990,6 +2994,7 @@ const deleteProperty = (property) => {
 
                                 <KpiMetricGrid
                                     class="mt-3"
+                                    variant="record"
                                     :metrics="loyaltySummaryMetrics"
                                     grid-class="grid-cols-1 sm:grid-cols-3"
                                     compact

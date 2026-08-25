@@ -80,7 +80,8 @@ test('KPI panels and their shared metric cards preserve complete labels and valu
     assert.doesNotMatch(metricCard, /whitespace-nowrap[^\n]*metric\.value/u);
     assert.match(metricCard, /flex h-full min-w-0 flex-col overflow-hidden/u);
     assert.match(metricCard, /line-clamp-2 min-w-0 break-words min-h-8/u);
-    assert.match(metricCard, /hasContext \? '' : 'invisible'/u);
+    assert.doesNotMatch(metricCard, /hasContext \? '' : 'invisible'/u);
+    assert.doesNotMatch(metricCard, /v-else class="h-10"/u);
     assert.doesNotMatch(metricCard, /\btruncate\b/u);
 
     for (const source of [panel, metricGrid, metricCard]) {
@@ -93,14 +94,15 @@ test('shared KPI cards use a structured visual hierarchy without synthetic decor
     const trendBadge = read('resources/js/Components/Dashboard/KpiTrendBadge.vue');
 
     assert.match(metricCard, /flex h-full min-w-0/u);
-    assert.match(metricCard, /rounded-lg border border-stone-200/u);
+    assert.match(metricCard, /variant === 'dashboard'[\s\S]*?'rounded-lg border border-stone-200 shadow-sm dark:border-neutral-700'/u);
     assert.match(metricCard, /shadow-sm/u);
-    assert.match(metricCard, /class="w-1 rounded-full"/u);
-    assert.match(metricCard, /v-if="hasContext \|\| metric\.points\?\.length \|\| progress"/u);
-    assert.match(metricCard, /border-t border-stone-100 bg-stone-50/u);
+    assert.match(metricCard, /'w-1 rounded-full'/u);
+    assert.match(metricCard, /v-if="hasContext \|\| showSparkline \|\| showProgress"/u);
+    assert.match(metricCard, /border-t border-stone-100/u);
+    assert.match(metricCard, /bg-stone-50 dark:bg-neutral-900/u);
     assert.match(metricCard, /text-xl sm:text-2xl/u);
-    assert.match(metricCard, /v-if="metric\.points\?\.length"/u);
-    assert.match(metricCard, /v-else-if="progress"/u);
+    assert.match(metricCard, /v-if="showSparkline"/u);
+    assert.match(metricCard, /v-else-if="showProgress"/u);
     assert.match(sparkline, /flex h-10 items-end gap-1 border-b/u);
     assert.match(sparkline, /rounded-t-sm opacity-80/u);
     assert.match(trendBadge, /:aria-label="title"/u);
@@ -134,9 +136,9 @@ test('KPI panel delegates through the shared grid and card while preserving grid
     const productOwnerDashboard = read('resources/js/Pages/DashboardProductsOwner.vue');
 
     assert.match(panel, /import KpiMetricGrid from '@\/Components\/Dashboard\/KpiMetricGrid\.vue'/u);
-    assert.match(panel, /<KpiMetricGrid[\s\S]*?:metrics="metrics"[\s\S]*?:grid-class="metricsGridClass"[\s\S]*?:compact="compactMetrics"/u);
+    assert.match(panel, /<KpiMetricGrid[\s\S]*?:metrics="metrics"[\s\S]*?:grid-class="metricsGridClass"[\s\S]*?:compact="compactMetrics"[\s\S]*?variant="dashboard"/u);
     assert.match(metricGrid, /import KpiMetricCard from '@\/Components\/Dashboard\/KpiMetricCard\.vue'/u);
-    assert.match(metricGrid, /<KpiMetricCard[\s\S]*?v-for="metric in metrics"[\s\S]*?:metric="metric"[\s\S]*?:compact="compact"/u);
+    assert.match(metricGrid, /<KpiMetricCard[\s\S]*?v-for="metric in metrics"[\s\S]*?:metric="metric"[\s\S]*?:compact="compact"[\s\S]*?:variant="variant"/u);
     assert.match(metricGrid, /@activate="\$emit\('activate', \$event\)"/u);
     assert.match(metricGrid, /default: 'grid-cols-\[repeat\(auto-fit,minmax\(min\(100%,12rem\),1fr\)\)\]'/u);
     assert.match(panel, /metricsGridClass:[\s\S]*?default: 'sm:grid-cols-2'/u);

@@ -179,6 +179,7 @@ const payments = (sale) => (Array.isArray(sale?.payments) ? sale.payments : []);
             </section>
 
             <KpiMetricGrid
+                variant="record"
                 :metrics="kpiCards"
                 :aria-label="t('offer_packages.kpis.section_label')"
             />

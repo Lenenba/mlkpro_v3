@@ -801,6 +801,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
 
                 <div v-if="showMarketingPanel" class="mt-3 space-y-3">
                     <KpiMetricGrid
+                        variant="dashboard"
                         :metrics="marketingCards"
                         grid-class="grid-cols-1 md:grid-cols-2 xl:grid-cols-4"
                         :aria-label="$t('dashboard.marketing_panel.title')"
@@ -808,6 +809,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                     />
 
                     <KpiMetricGrid
+                        variant="dashboard"
                         :metrics="marketingSecondaryCards"
                         grid-class="grid-cols-1 md:grid-cols-2 xl:grid-cols-4"
                         :aria-label="$t('dashboard.marketing_panel.title')"
@@ -816,6 +818,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
 
                     <KpiMetricGrid
                         v-if="marketingCrossModule"
+                        variant="dashboard"
                         :metrics="marketingCrossModuleCards"
                         grid-class="grid-cols-1 gap-2 sm:grid-cols-3"
                         :aria-label="$t('dashboard.marketing_panel.title')"
@@ -875,6 +878,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                     </div>
                     <KpiMetricGrid
                         v-else
+                        variant="dashboard"
                         :metrics="performanceKpis"
                         grid-class="grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))]"
                         :aria-label="$t('dashboard_products.owner.performance.title')"

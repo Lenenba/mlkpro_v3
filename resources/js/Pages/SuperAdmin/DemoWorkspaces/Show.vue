@@ -686,6 +686,7 @@ const copyAccessKit = async () => {
 
                         <KpiMetricGrid
                             class="mt-4"
+                            variant="record"
                             :metrics="financeSnapshotCards"
                             grid-class="grid-cols-1 sm:grid-cols-2"
                         />

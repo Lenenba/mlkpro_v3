@@ -290,6 +290,7 @@ const hasAgendaAlerts = computed(() => agendaAlertItems.value.length > 0);
 
             <div :class="['grid gap-4', hasAnnouncements ? 'xl:grid-cols-[minmax(0,1fr)_320px]' : 'grid-cols-1']">
                 <KpiMetricGrid
+                    variant="dashboard"
                     :metrics="taskMetrics"
                     grid-class="grid-cols-1 md:grid-cols-3"
                     :aria-label="$t('dashboard_tasks.my_tasks.title')"

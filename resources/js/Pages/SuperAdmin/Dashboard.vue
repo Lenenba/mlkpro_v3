@@ -565,6 +565,7 @@ const resetAuditFilters = () => {
                 <KpiMetricCard
                     v-for="metric in platformMetrics"
                     :key="metric.key"
+                    variant="dashboard"
                     :metric="metric"
                     :data-measurement-status="metric.measurementStatus"
                     :data-testid="metric.testId"
@@ -585,6 +586,7 @@ const resetAuditFilters = () => {
                         <KpiMetricCard
                             v-for="metric in alertMetrics"
                             :key="metric.key"
+                            variant="dashboard"
                             :metric="metric"
                             :class="metric.gridClass"
                             :data-measurement-status="metric.measurementStatus"
@@ -675,6 +677,7 @@ const resetAuditFilters = () => {
                     <KpiMetricCard
                         v-for="card in healthCards"
                         :key="card.key"
+                        variant="dashboard"
                         :metric="card"
                         compact
                         :data-measurement-status="card.measurable ? 'available' : 'unknown'"
@@ -706,6 +709,7 @@ const resetAuditFilters = () => {
                 </h2>
                 <KpiMetricGrid
                     class="mt-4"
+                    variant="dashboard"
                     :metrics="siteTrafficMetrics"
                     grid-class="sm:grid-cols-3"
                 />
@@ -844,6 +848,7 @@ const resetAuditFilters = () => {
                 </h2>
                 <KpiMetricGrid
                     class="mt-4"
+                    variant="dashboard"
                     :metrics="dataQualityMetrics"
                     grid-class="sm:grid-cols-3"
                     compact

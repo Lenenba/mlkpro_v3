@@ -325,6 +325,7 @@ const paidSummary = (sale) => {
 
             <section>
                 <KpiMetricGrid
+                    variant="dashboard"
                     :metrics="heroCards"
                     grid-class="grid-cols-1 md:grid-cols-3"
                     :aria-label="$t('client_orders.title')"

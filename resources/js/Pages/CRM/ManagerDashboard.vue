@@ -440,6 +440,7 @@ const openedLabel = (item) => {
             </section>
 
             <KpiMetricGrid
+                variant="dashboard"
                 :metrics="summaryCards"
                 grid-class="sm:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(12rem,1fr))]"
             />

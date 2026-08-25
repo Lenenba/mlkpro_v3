@@ -293,12 +293,12 @@ const customerLine = (customer) => {
                 </span>
             </div>
 
-            <KpiMetricGrid :metrics="kpiCards" />
+            <KpiMetricGrid variant="record" :metrics="kpiCards" />
 
             <div class="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
                 <Card>
                     <template #title>{{ t('performance.employee.time_off_title') }}</template>
-                    <KpiMetricGrid :metrics="timeOffCards" compact />
+                    <KpiMetricGrid variant="record" :metrics="timeOffCards" compact />
                 </Card>
 
                 <Card>
