@@ -1,5 +1,5 @@
 <script setup>
-import { computed, useSlots } from 'vue';
+import { computed, defineAsyncComponent, useSlots } from 'vue';
 import Header from '@/Layouts/UI/Header.vue';
 import Sidebar from '@/Layouts/UI/Sidebar.vue';
 import ValidationSummary from '@/Components/ValidationSummary.vue';
@@ -7,12 +7,13 @@ import DemoBanner from '@/Components/Demo/DemoBanner.vue';
 import DemoTourProvider from '@/Components/Demo/DemoTourProvider.vue';
 import GlobalAssistant from '@/Components/Assistant/GlobalAssistant.vue';
 import FlashToaster from '@/Components/UI/FlashToaster.vue';
-import AppBreadcrumbs from '@/Components/UI/AppBreadcrumbs.vue';
 import AppFooter from '@/Components/UI/AppFooter.vue';
 import CookieBanner from '@/Components/UI/CookieBanner.vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import { resolveWorkspaceBreadcrumbItems } from '@/utils/workspaceBreadcrumbs';
+
+const AppBreadcrumbs = defineAsyncComponent(() => import('@/Components/UI/AppBreadcrumbs.vue'));
 
 const props = defineProps({
     showFooter: {

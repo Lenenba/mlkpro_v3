@@ -13,6 +13,15 @@
         "empty_title": "Rien n est disponible ici pour le moment",
         "empty_body": "Cette categorie devient utile des que les modules correspondants sont actives pour le workspace et le role.",
         "breadcrumbs": {
+            "label": "Fil d'Ariane",
+            "change_category": "Changer de catégorie",
+            "change_module": "Changer de module",
+            "change_record": "Changer d'élément : {name}",
+            "entity_search_placeholder": "Rechercher un autre élément...",
+            "entity_loading": "Recherche en cours...",
+            "entity_empty": "Aucun autre élément trouvé.",
+            "entity_error": "Impossible de charger les choix.",
+            "current": "Actuel",
             "create": "Creer",
             "edit": "Modifier",
             "proofs": "Preuves"

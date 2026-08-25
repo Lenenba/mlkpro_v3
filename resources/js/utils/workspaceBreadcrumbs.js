@@ -82,6 +82,34 @@ const makeItem = (key, label, href = null) => {
     return href ? { key, label, href } : { key, label };
 };
 
+const makeSiblingItems = (items = [], currentKey = null, t = (value) => value) => items.map((item) => ({
+    key: item.key,
+    label: t(item.labelKey),
+    href: safeRoute(item.routeName, item.routeParams),
+    current: item.key === currentKey,
+}));
+
+const withEntitySwitcher = (item, type, t = (value) => value) => {
+    if (!item || !type) {
+        return item;
+    }
+
+    const href = safeRoute('workspace.breadcrumb-entities.index', { type });
+    if (!href) {
+        return item;
+    }
+
+    return {
+        ...item,
+        entitySource: {
+            href,
+            type,
+            currentKey: item.key,
+        },
+        siblingsLabel: t('workspace_hub.breadcrumbs.change_record', { name: item.label }),
+    };
+};
+
 const fallbackIdLabel = (id) => {
     const normalizedId = nonEmptyString(id);
 
@@ -208,14 +236,18 @@ const buildCustomerModuleTail = (pageProps, t) => {
 
     if (route().current('customer.show')) {
         return [
-            customerBreadcrumbItem(customer, { href: null }),
+            withEntitySwitcher(
+                customerBreadcrumbItem(customer, { href: null }),
+                'customer',
+                t,
+            ),
         ].filter(Boolean);
     }
 
     return [];
 };
 
-const buildRequestsModuleTail = (pageProps) => {
+const buildRequestsModuleTail = (pageProps, t) => {
     if (!route().current('prospects.show') && !route().current('request.show')) {
         return [];
     }
@@ -227,11 +259,15 @@ const buildRequestsModuleTail = (pageProps) => {
 
     return [
         customerBreadcrumbItem(lead.customer),
-        makeItem(`request-${lead.id ?? 'current'}`, leadLabel(lead)),
+        withEntitySwitcher(
+            makeItem(`request-${lead.id ?? 'current'}`, leadLabel(lead)),
+            'prospect',
+            t,
+        ),
     ].filter(Boolean);
 };
 
-const buildServiceRequestsModuleTail = (pageProps) => {
+const buildServiceRequestsModuleTail = (pageProps, t) => {
     if (!route().current('service-requests.show')) {
         return [];
     }
@@ -243,7 +279,11 @@ const buildServiceRequestsModuleTail = (pageProps) => {
 
     return [
         customerBreadcrumbItem(serviceRequest.customer),
-        makeItem(`service-request-${serviceRequest.id ?? 'current'}`, serviceRequestLabel(serviceRequest)),
+        withEntitySwitcher(
+            makeItem(`service-request-${serviceRequest.id ?? 'current'}`, serviceRequestLabel(serviceRequest)),
+            'service_request',
+            t,
+        ),
     ].filter(Boolean);
 };
 
@@ -273,7 +313,11 @@ const buildQuotesModuleTail = (pageProps, t) => {
     if (route().current('customer.quote.show')) {
         return [
             customerBreadcrumbItem(customer),
-            makeItem(`quote-${quote.id ?? 'current'}`, quoteLabel(quote)),
+            withEntitySwitcher(
+                makeItem(`quote-${quote.id ?? 'current'}`, quoteLabel(quote)),
+                'quote',
+                t,
+            ),
         ].filter(Boolean);
     }
 
@@ -301,7 +345,11 @@ const buildSalesModuleTail = (pageProps, t) => {
     if (route().current('sales.show')) {
         return [
             customerBreadcrumbItem(sale.customer),
-            makeItem(`sale-${sale.id ?? 'current'}`, saleLabel(sale)),
+            withEntitySwitcher(
+                makeItem(`sale-${sale.id ?? 'current'}`, saleLabel(sale)),
+                'sale',
+                t,
+            ),
         ].filter(Boolean);
     }
 
@@ -323,7 +371,11 @@ const buildCampaignsModuleTail = (pageProps, t) => {
 
     if (route().current('campaigns.show')) {
         return [
-            makeItem(`campaign-${campaign.id ?? 'current'}`, campaignLabel(campaign)),
+            withEntitySwitcher(
+                makeItem(`campaign-${campaign.id ?? 'current'}`, campaignLabel(campaign)),
+                'campaign',
+                t,
+            ),
         ].filter(Boolean);
     }
 
@@ -341,13 +393,17 @@ const buildPromotionsModuleTail = (t) => {
     return [];
 };
 
-const buildPerformanceModuleTail = (pageProps) => {
+const buildPerformanceModuleTail = (pageProps, t) => {
     if (!route().current('performance.employee.show')) {
         return [];
     }
 
     return [
-        makeItem(`employee-${pageProps.employee?.id ?? 'current'}`, employeeLabel(pageProps.employee)),
+        withEntitySwitcher(
+            makeItem(`employee-${pageProps.employee?.id ?? 'current'}`, employeeLabel(pageProps.employee)),
+            'employee',
+            t,
+        ),
     ].filter(Boolean);
 };
 
@@ -385,14 +441,18 @@ const buildJobsModuleTail = (pageProps, t) => {
     if (route().current('work.show')) {
         return [
             customerBreadcrumbItem(customer),
-            makeItem(`work-${work.id ?? 'current'}`, workLabel(work)),
+            withEntitySwitcher(
+                makeItem(`work-${work.id ?? 'current'}`, workLabel(work)),
+                'work',
+                t,
+            ),
         ].filter(Boolean);
     }
 
     return [];
 };
 
-const buildTasksModuleTail = (pageProps) => {
+const buildTasksModuleTail = (pageProps, t) => {
     if (!route().current('task.show')) {
         return [];
     }
@@ -404,11 +464,15 @@ const buildTasksModuleTail = (pageProps) => {
 
     return [
         makeItem(`task-work-${task.work?.id ?? 'none'}`, workLabel(task.work), task.work?.id ? safeRoute('work.show', task.work.id) : null),
-        makeItem(`task-${task.id ?? 'current'}`, taskLabel(task)),
+        withEntitySwitcher(
+            makeItem(`task-${task.id ?? 'current'}`, taskLabel(task)),
+            'task',
+            t,
+        ),
     ].filter(Boolean);
 };
 
-const buildInvoicesModuleTail = (pageProps) => {
+const buildInvoicesModuleTail = (pageProps, t) => {
     if (!route().current('invoice.show')) {
         return [];
     }
@@ -420,11 +484,15 @@ const buildInvoicesModuleTail = (pageProps) => {
 
     return [
         customerBreadcrumbItem(invoice.customer),
-        makeItem(`invoice-${invoice.id ?? 'current'}`, invoiceLabel(invoice)),
+        withEntitySwitcher(
+            makeItem(`invoice-${invoice.id ?? 'current'}`, invoiceLabel(invoice)),
+            'invoice',
+            t,
+        ),
     ].filter(Boolean);
 };
 
-const buildExpensesModuleTail = (pageProps) => {
+const buildExpensesModuleTail = (pageProps, t) => {
     if (!route().current('expense.show')) {
         return [];
     }
@@ -435,7 +503,11 @@ const buildExpensesModuleTail = (pageProps) => {
     }
 
     return [
-        makeItem(`expense-${expense.id ?? 'current'}`, expenseLabel(expense)),
+        withEntitySwitcher(
+            makeItem(`expense-${expense.id ?? 'current'}`, expenseLabel(expense)),
+            'expense',
+            t,
+        ),
     ].filter(Boolean);
 };
 
@@ -458,7 +530,11 @@ const buildProductsModuleTail = (pageProps, t) => {
 
     if (route().current('product.show')) {
         return [
-            makeItem(`product-${product.id ?? 'current'}`, productLabel(product)),
+            withEntitySwitcher(
+                makeItem(`product-${product.id ?? 'current'}`, productLabel(product)),
+                'product',
+                t,
+            ),
         ].filter(Boolean);
     }
 
@@ -475,7 +551,11 @@ const buildPlanScansModuleTail = (pageProps, t) => {
     }
 
     return [
-        makeItem(`plan-scan-${pageProps.scan?.id ?? 'current'}`, planScanLabel(pageProps.scan)),
+        withEntitySwitcher(
+            makeItem(`plan-scan-${pageProps.scan?.id ?? 'current'}`, planScanLabel(pageProps.scan)),
+            'plan_scan',
+            t,
+        ),
     ].filter(Boolean);
 };
 
@@ -484,9 +564,9 @@ const resolveModuleTail = ({ moduleKey, pageProps, t }) => {
         case 'customers':
             return buildCustomerModuleTail(pageProps, t);
         case 'prospects':
-            return buildRequestsModuleTail(pageProps);
+            return buildRequestsModuleTail(pageProps, t);
         case 'requests':
-            return buildServiceRequestsModuleTail(pageProps);
+            return buildServiceRequestsModuleTail(pageProps, t);
         case 'quotes':
             return buildQuotesModuleTail(pageProps, t);
         case 'sales':
@@ -496,15 +576,15 @@ const resolveModuleTail = ({ moduleKey, pageProps, t }) => {
         case 'campaigns':
             return buildCampaignsModuleTail(pageProps, t);
         case 'performance':
-            return buildPerformanceModuleTail(pageProps);
+            return buildPerformanceModuleTail(pageProps, t);
         case 'jobs':
             return buildJobsModuleTail(pageProps, t);
         case 'tasks':
-            return buildTasksModuleTail(pageProps);
+            return buildTasksModuleTail(pageProps, t);
         case 'invoices':
-            return buildInvoicesModuleTail(pageProps);
+            return buildInvoicesModuleTail(pageProps, t);
         case 'expenses':
-            return buildExpensesModuleTail(pageProps);
+            return buildExpensesModuleTail(pageProps, t);
         case 'products':
             return buildProductsModuleTail(pageProps, t);
         case 'plan_scans':
@@ -520,17 +600,18 @@ export function resolveWorkspaceBreadcrumbContext({
     pageComponent = null,
     pageProps = {},
 } = {}) {
-    const categories = buildWorkspaceHubCategories({
+    const visibleCategories = buildWorkspaceHubCategories({
         account,
         planningPendingCount,
-    });
+    }).filter((category) => category.visible);
 
     const currentCategory = pageComponent === 'Workspace/CategoryHub' && pageProps?.category
-        ? (categories.find((category) => category.key === pageProps.category) || null)
-        : (categories.find((category) => routeMatches(category.match || [])) || null);
+        ? (visibleCategories.find((category) => category.key === pageProps.category) || null)
+        : (visibleCategories.find((category) => routeMatches(category.match || [])) || null);
 
     if (!currentCategory || pageComponent === 'Workspace/CategoryHub') {
         return {
+            visibleCategories,
             currentCategory,
             currentModule: null,
         };
@@ -541,6 +622,7 @@ export function resolveWorkspaceBreadcrumbContext({
     )) || null;
 
     return {
+        visibleCategories,
         currentCategory,
         currentModule,
     };
@@ -553,7 +635,7 @@ export function resolveWorkspaceBreadcrumbItems({
     pageProps = {},
     t = (value) => value,
 } = {}) {
-    const { currentCategory, currentModule } = resolveWorkspaceBreadcrumbContext({
+    const { visibleCategories, currentCategory, currentModule } = resolveWorkspaceBreadcrumbContext({
         account,
         planningPendingCount,
         pageComponent,
@@ -572,11 +654,14 @@ export function resolveWorkspaceBreadcrumbItems({
             icon: 'home',
         },
     ];
+    const categorySiblings = makeSiblingItems(visibleCategories, currentCategory.key, t);
 
     if (!currentModule) {
         items.push({
             key: currentCategory.key,
             label: t(currentCategory.labelKey),
+            siblings: categorySiblings,
+            siblingsLabel: t('workspace_hub.breadcrumbs.change_category'),
         });
 
         return items;
@@ -586,12 +671,16 @@ export function resolveWorkspaceBreadcrumbItems({
         key: currentCategory.key,
         label: t(currentCategory.labelKey),
         href: safeRoute(currentCategory.routeName, currentCategory.routeParams),
+        siblings: categorySiblings,
+        siblingsLabel: t('workspace_hub.breadcrumbs.change_category'),
     });
 
     items.push({
         key: currentModule.key,
         label: t(currentModule.labelKey),
         href: safeRoute(currentModule.routeName, currentModule.routeParams),
+        siblings: makeSiblingItems(currentCategory.modules, currentModule.key, t),
+        siblingsLabel: t('workspace_hub.breadcrumbs.change_module'),
     });
 
     return [

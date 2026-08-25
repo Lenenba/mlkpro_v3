@@ -133,6 +133,7 @@ use App\Http\Controllers\WorkChecklistController;
 use App\Http\Controllers\WorkController;
 use App\Http\Controllers\WorkMediaController;
 use App\Http\Controllers\WorkProofController;
+use App\Http\Controllers\WorkspaceBreadcrumbEntityController;
 use App\Http\Controllers\WorkspaceCategoryController;
 use App\Http\Middleware\EnsureClientUser;
 use App\Http\Middleware\EnsureInternalUser;
@@ -378,6 +379,23 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
     Route::get('/pipeline/timeline/{entityType}/{entityId}', [PipelineController::class, 'timeline'])
         ->name('pipeline.timeline');
     Route::get('/pipeline', [PipelineController::class, 'data'])->name('pipeline.data');
+    Route::get('/workspace/breadcrumb-entities/{type}', WorkspaceBreadcrumbEntityController::class)
+        ->whereIn('type', [
+            'customer',
+            'prospect',
+            'service_request',
+            'quote',
+            'sale',
+            'campaign',
+            'employee',
+            'work',
+            'task',
+            'invoice',
+            'expense',
+            'product',
+            'plan_scan',
+        ])
+        ->name('workspace.breadcrumb-entities.index');
     Route::get('/workspace-hubs/{category}', [WorkspaceCategoryController::class, 'show'])
         ->where('category', 'revenue|growth|operations|finance|catalog|workspace')
         ->name('workspace.hubs.show');
