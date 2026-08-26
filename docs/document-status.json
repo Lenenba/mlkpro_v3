@@ -1,6 +1,28 @@
 {
     "version": 1,
     "documents": {
+        "docs/MALIKIA_PULSE_BUFFER_FIRST_REFONTE_GLOBALE_2026-08-26.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "created_at": "2026-08-26",
+            "updated_at": "2026-08-26",
+            "note": "Référence active Buffer-first; implémentation conditionnée par les gates techniques, commerciales, sécurité et juridiques P0."
+        },
+        "docs/MALIKIA_PULSE_DOCUMENTATION_TECHNIQUE_2026-04-25.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "note": "Référence historique; les sections de connexion, providers et publication directs sont remplacées par la référence Buffer-first du 2026-08-26."
+        },
+        "docs/MALIKIA_PULSE_DEV_BACKLOG_2026-04-22.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "note": "Backlog historique; les tâches de publication sociale directe sont remplacées par la référence Buffer-first du 2026-08-26."
+        },
+        "docs/MALIKIA_PULSE_USER_STORY_2026-04-22.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "note": "Référence produit historique; les parcours de publication sociale directe sont remplacés par la référence Buffer-first du 2026-08-26."
+        },
         "docs/DEMO_GUIDE.md": {
             "document_status": "reference",
             "delivery_status": "not_applicable",
