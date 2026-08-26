@@ -173,6 +173,7 @@ test('it returns a serializable valid report for a coherent twelve month scenari
         'stock' => 5,
         'minimum_stock' => 2,
     ]);
+    setInvariantTimestamps($product, $reference->subDays(2));
     $warehouse = Warehouse::query()->create([
         'user_id' => $owner->id,
         'name' => 'Salon stock',
@@ -369,6 +370,35 @@ test('it reports domain violations and exposes the same report from validate or 
         expect($exception->report())->toBe($report)
             ->and($exception->jsonSerialize())->toBe($report);
     }
+});
+
+test('it rejects duplicate customer names in a demo scenario', function () {
+    $reference = CarbonImmutable::parse('2026-08-20 12:00:00', 'UTC');
+    $owner = User::factory()->create(['company_timezone' => 'UTC']);
+    $firstCustomer = createInvariantCustomer($owner, $reference->subMonth(), 'duplicate-a');
+    $secondCustomer = createInvariantCustomer($owner, $reference->subDays(10), 'duplicate-b');
+
+    foreach ([$firstCustomer, $secondCustomer] as $customer) {
+        $customer->forceFill([
+            'first_name' => 'Laurence',
+            'last_name' => 'Bélanger',
+        ])->save();
+    }
+
+    $report = app(DemoScenarioInvariantValidator::class)->validate($owner, $reference);
+    $nameCheck = $report['checks']['customer_names_are_unique'];
+
+    expect($report['valid'])->toBeFalse()
+        ->and($report['summary']['failed_checks'])->toContain('customer_names_are_unique')
+        ->and($nameCheck['valid'])->toBeFalse()
+        ->and($nameCheck['duplicate_group_count'])->toBe(1)
+        ->and($nameCheck['violations'])->toHaveCount(1)
+        ->and($nameCheck['violations'][0]['code'])->toBe('customer.name_duplicate')
+        ->and($nameCheck['violations'][0]['context']['name'])->toBe('Laurence Bélanger')
+        ->and($nameCheck['violations'][0]['context']['customer_ids'])->toBe([
+            $firstCustomer->id,
+            $secondCustomer->id,
+        ]);
 });
 
 test('demo action notification is stored with actionable center payload only', function () {

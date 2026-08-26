@@ -15,6 +15,7 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 class DemoScenarioInvariantValidator
 {
@@ -31,6 +32,7 @@ class DemoScenarioInvariantValidator
         $context = $this->loadContext($owner);
 
         $checks = [
+            'customer_names_are_unique' => $this->validateCustomerNames($context),
             'tenant_relations' => $this->validateTenantRelations($owner, $context),
             'completed_reservations_are_past' => $this->validateCompletedReservations($owner, $context, $dayStart),
             'future_reservations_are_not_completed' => $this->validateFutureReservations($owner, $context, $dayEnd),
@@ -111,7 +113,7 @@ class DemoScenarioInvariantValidator
         $ownerId = (int) ($owner->getKey() ?? 0);
         $customers = Customer::query()
             ->where('user_id', $ownerId)
-            ->get(['id', 'user_id', 'created_at']);
+            ->get(['id', 'user_id', 'first_name', 'last_name', 'created_at']);
         $customerIds = $customers->pluck('id')->all();
 
         $reservations = Reservation::query()
@@ -259,6 +261,53 @@ class DemoScenarioInvariantValidator
             'tasks',
             'transactions',
         );
+    }
+
+    /**
+     * @param  array<string, Collection<int, mixed>>  $context
+     * @return array<string, mixed>
+     */
+    private function validateCustomerNames(array $context): array
+    {
+        $customerNames = $context['customers']
+            ->map(function (Customer $customer): array {
+                $name = Str::squish(trim((string) $customer->first_name.' '.(string) $customer->last_name));
+
+                return [
+                    'customer_id' => (int) $customer->id,
+                    'name' => $name,
+                    'normalized_name' => Str::lower($name),
+                ];
+            })
+            ->filter(fn (array $customer): bool => $customer['normalized_name'] !== '');
+        $duplicateGroups = $customerNames
+            ->groupBy('normalized_name')
+            ->filter(fn (Collection $customers): bool => $customers->count() > 1);
+        $violations = $duplicateGroups
+            ->map(function (Collection $customers): array {
+                $firstCustomer = $customers->first();
+                $customerIds = $customers->pluck('customer_id')->values()->all();
+
+                return $this->violation(
+                    'customer.name_duplicate',
+                    'customer',
+                    $firstCustomer['customer_id'],
+                    'Demo customers must have distinct names so they remain unambiguous throughout the workspace.',
+                    [
+                        'name' => $firstCustomer['name'],
+                        'customer_ids' => $customerIds,
+                        'duplicate_count' => count($customerIds),
+                    ],
+                );
+            })
+            ->values()
+            ->all();
+
+        return $this->check($violations, [
+            'customer_count' => $context['customers']->count(),
+            'distinct_name_count' => $customerNames->pluck('normalized_name')->unique()->count(),
+            'duplicate_group_count' => $duplicateGroups->count(),
+        ]);
     }
 
     /**

@@ -46,6 +46,10 @@ final class DemoCustomerGenerator
         int $customerTarget,
     ): array {
         $target = max(count((array) $blueprint['client_stories']), $customerTarget);
+        if ($target > count(self::FIRST_NAMES) * count(self::LAST_NAMES)) {
+            throw new \RuntimeException('Customer name pool cannot provide unique demo identities.');
+        }
+
         $customers = collect();
         $stories = collect();
 
