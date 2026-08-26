@@ -43,7 +43,7 @@ class WorkspaceBreadcrumbEntityService
      * @return array{
      *     type: string,
      *     query: string,
-     *     items: list<array{key: string, label: string, href: string}>,
+     *     items: list<array{key: string, label: string, href: string, subtitle?: string}>,
      *     has_more: bool
      * }
      */
@@ -120,7 +120,7 @@ class WorkspaceBreadcrumbEntityService
     }
 
     /**
-     * @return array{items: list<array{key: string, label: string, href: string}>, has_more: bool}
+     * @return array{items: list<array{key: string, label: string, href: string, subtitle?: string}>, has_more: bool}
      */
     private function customers(User $actor, int $accountId, string $search, int $limit): array
     {
@@ -131,8 +131,8 @@ class WorkspaceBreadcrumbEntityService
 
         $query = Customer::query()
             ->byUser($accountId)
-            ->select(['id', 'number', 'company_name', 'first_name', 'last_name']);
-        $this->applySearch($query, ['number', 'company_name', 'first_name', 'last_name'], $search);
+            ->select(['id', 'number', 'company_name', 'first_name', 'last_name', 'email']);
+        $this->applySearch($query, ['number', 'company_name', 'first_name', 'last_name', 'email'], $search);
 
         return $this->collectItems(
             $query
@@ -150,6 +150,7 @@ class WorkspaceBreadcrumbEntityService
                     trim((string) $customer->first_name.' '.(string) $customer->last_name),
                 ),
                 route('customer.show', ['customer' => $customer->id]),
+                $this->subtitle($customer->number, $customer->email),
             ),
         );
     }
@@ -708,8 +709,8 @@ class WorkspaceBreadcrumbEntityService
     }
 
     /**
-     * @param  Closure(mixed): array{key: string, label: string, href: string}  $presenter
-     * @return array{items: list<array{key: string, label: string, href: string}>, has_more: bool}
+     * @param  Closure(mixed): array{key: string, label: string, href: string, subtitle?: string}  $presenter
+     * @return array{items: list<array{key: string, label: string, href: string, subtitle?: string}>, has_more: bool}
      */
     private function collectItems(Builder $query, int $limit, Closure $presenter): array
     {
@@ -727,15 +728,27 @@ class WorkspaceBreadcrumbEntityService
     }
 
     /**
-     * @return array{key: string, label: string, href: string}
+     * @return array{key: string, label: string, href: string, subtitle?: string}
      */
-    private function item(string $prefix, int $id, string $label, string $href): array
-    {
-        return [
+    private function item(
+        string $prefix,
+        int $id,
+        string $label,
+        string $href,
+        ?string $subtitle = null,
+    ): array {
+        $item = [
             'key' => $prefix.'-'.$id,
             'label' => $label,
             'href' => $href,
         ];
+
+        $normalizedSubtitle = trim((string) $subtitle);
+        if ($normalizedSubtitle !== '') {
+            $item['subtitle'] = $normalizedSubtitle;
+        }
+
+        return $item;
     }
 
     private function label(int $id, mixed ...$candidates): string
@@ -748,5 +761,18 @@ class WorkspaceBreadcrumbEntityService
         }
 
         return '#'.$id;
+    }
+
+    private function subtitle(mixed ...$candidates): ?string
+    {
+        $parts = [];
+        foreach ($candidates as $candidate) {
+            $part = trim((string) ($candidate ?? ''));
+            if ($part !== '' && ! in_array($part, $parts, true)) {
+                $parts[] = $part;
+            }
+        }
+
+        return $parts === [] ? null : implode(' · ', $parts);
     }
 }

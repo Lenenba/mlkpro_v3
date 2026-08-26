@@ -604,8 +604,18 @@ final class DemoFieldOperationsGenerator
         $properties = collect();
         $propertiesByCustomer = collect();
         $historyStart = $context->referenceDate->subMonths(13)->startOfMonth();
-        $firstNames = ['Laurence', 'Olivier', 'Sarah', 'Nicolas', 'Myriam', 'Thomas', 'Ariane', 'Karim', 'Sophie', 'David'];
-        $lastNames = ['Bélanger', 'Côté', 'Tremblay', 'Bouchard', 'Roy', 'Pelletier', 'Mercier', 'Haddad', 'Gagnon', 'Fortin'];
+        $firstNames = [
+            'Laurence', 'Olivier', 'Sarah', 'Nicolas', 'Myriam', 'Thomas', 'Ariane', 'Karim',
+            'Sophie', 'David', 'Isabelle', 'Marc', 'Nadia', 'Félix', 'Julie', 'Antoine',
+        ];
+        $lastNames = [
+            'Bélanger', 'Tremblay', 'Bouchard', 'Roy', 'Pelletier', 'Mercier', 'Haddad', 'Gagnon',
+            'Morin', 'Girard', 'Lefebvre', 'Dubois', 'Desjardins', 'Cloutier', 'Paquette', 'Caron',
+        ];
+        $genericCustomerTarget = $customerTarget - count($stories);
+        if ($genericCustomerTarget > count($firstNames) * count($lastNames)) {
+            throw new RuntimeException('Field operations customer name pool cannot provide unique demo identities.');
+        }
 
         for ($index = 0; $index < $customerTarget; $index++) {
             $story = $stories[$index] ?? null;
@@ -615,8 +625,11 @@ final class DemoFieldOperationsGenerator
                 ? trim((string) ($profile['contact_name'] ?? $story['name'] ?? ''))
                 : '';
             $contactParts = preg_split('/\s+/', $contactName, 2) ?: [];
-            $firstName = is_array($story) ? (string) ($contactParts[0] ?? $story['name']) : $firstNames[$index % count($firstNames)];
-            $lastName = is_array($story) ? (string) ($contactParts[1] ?? 'Client') : $lastNames[($index * 3) % count($lastNames)];
+            $genericIndex = max(0, $index - count($stories));
+            $firstNameIndex = $genericIndex % count($firstNames);
+            $lastNameIndex = ($firstNameIndex + intdiv($genericIndex, count($firstNames))) % count($lastNames);
+            $firstName = is_array($story) ? (string) ($contactParts[0] ?? $story['name']) : $firstNames[$firstNameIndex];
+            $lastName = is_array($story) ? (string) ($contactParts[1] ?? 'Client') : $lastNames[$lastNameIndex];
             $isCompanyStory = is_array($story) && (string) ($profile['client_type'] ?? '') === 'company';
             $companyName = is_array($story)
                 ? ($isCompanyStory ? (string) $story['name'] : null)

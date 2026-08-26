@@ -333,11 +333,19 @@ it('provisions the scaled Boréal Propreté volumes without temporal violations'
             'assistant',
         ])),
     ]);
+    $duplicateCustomerNames = Customer::query()
+        ->byUser((int) $workspace->owner_user_id)
+        ->get(['first_name', 'last_name'])
+        ->map(fn (Customer $customer): string => trim((string) $customer->first_name.' '.(string) $customer->last_name))
+        ->duplicates()
+        ->values()
+        ->all();
 
     expect($workspace->provisioning_status)->toBe(DemoWorkspaceProvisioner::STATUS_READY)
         ->and($workspace->data_volume)->toBe($volume)
         ->and($workspace->selected_modules)->toBe($requiredModules)
         ->and(data_get($workspace->seed_summary, 'invariant_report.violation_count'))->toBe(0)
+        ->and($duplicateCustomerNames)->toBeEmpty()
         ->and(borealPropreteScenarioDatabaseCounts((int) $workspace->owner_user_id))
         ->toBe(borealPropreteScenarioExpectedCounts($targets));
 })->with([

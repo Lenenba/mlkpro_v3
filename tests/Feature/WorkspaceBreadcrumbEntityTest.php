@@ -98,6 +98,7 @@ test('customer entities have a minimal stable payload with tenant isolation and 
     $alpha = Customer::factory()->create([
         'user_id' => $owner->id,
         'company_name' => 'Tenant Alpha',
+        'email' => 'alpha@tenant.example',
     ]);
     Customer::factory()->create([
         'user_id' => $owner->id,
@@ -121,6 +122,7 @@ test('customer entities have a minimal stable payload with tenant isolation and 
                 'key' => 'customer-'.$alpha->id,
                 'label' => 'Tenant Alpha',
                 'href' => route('customer.show', ['customer' => $alpha->id]),
+                'subtitle' => $alpha->number.' · alpha@tenant.example',
             ]],
             'has_more' => true,
         ]);
@@ -133,6 +135,43 @@ test('customer entities have a minimal stable payload with tenant isolation and 
 
     expect(collect($response->json('items'))->pluck('key')->all())
         ->not->toContain('customer-'.$foreign->id);
+});
+
+test('customer entities distinguish homonyms and can be searched by email', function () {
+    $owner = workspaceBreadcrumbOwner();
+    $first = Customer::factory()->create([
+        'user_id' => $owner->id,
+        'company_name' => null,
+        'first_name' => 'Laurence',
+        'last_name' => 'Bélanger',
+        'email' => 'laurence.01@example.test',
+    ]);
+    $second = Customer::factory()->create([
+        'user_id' => $owner->id,
+        'company_name' => null,
+        'first_name' => 'Laurence',
+        'last_name' => 'Bélanger',
+        'email' => 'laurence.02@example.test',
+    ]);
+
+    $response = $this->actingAs($owner)
+        ->getJson(workspaceBreadcrumbEntityUrl('customer', ['q' => 'Laurence']))
+        ->assertOk()
+        ->assertJsonCount(2, 'items');
+
+    expect(collect($response->json('items'))->pluck('label')->all())
+        ->toBe(['Laurence Bélanger', 'Laurence Bélanger'])
+        ->and(collect($response->json('items'))->pluck('subtitle')->all())
+        ->toBe([
+            $first->number.' · laurence.01@example.test',
+            $second->number.' · laurence.02@example.test',
+        ]);
+
+    $this->actingAs($owner)
+        ->getJson(workspaceBreadcrumbEntityUrl('customer', ['q' => 'laurence.02@example.test']))
+        ->assertOk()
+        ->assertJsonCount(1, 'items')
+        ->assertJsonPath('items.0.key', 'customer-'.$second->id);
 });
 
 test('customer entity search treats sql wildcard characters literally', function () {

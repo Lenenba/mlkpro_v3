@@ -380,6 +380,8 @@ test('remote entity switcher is a lazy searchable dialog with bounded asynchrono
     assert.match(switcher, /v-else-if="hasError"[\s\S]*?role="alert"\s+aria-live="assertive"\s+aria-atomic="true"/);
     assert.match(switcher, /v-else-if="hasLoaded && entities\.length === 0"[\s\S]*?role="status"\s+aria-live="polite"\s+aria-atomic="true"/);
     assert.match(switcher, /<Link\s+v-for="entity in entities"[\s\S]*?:href="entity\.href"[\s\S]*?data-breadcrumb-entity/);
+    assert.match(switcher, /const subtitle = item\.subtitle \?\? item\.description \?\? item\.meta \?\? '';/);
+    assert.match(switcher, /v-if="entity\.subtitle"[\s\S]*?\{\{ entity\.subtitle \}\}/);
     assert.match(switcher, /v-if="entity\.current"[\s\S]*?workspace_hub\.breadcrumbs\.current/);
     assert.match(switcher, /String\(item\.key \?\? id\) === String\(props\.source\.currentKey\)/);
 
