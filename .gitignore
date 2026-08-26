@@ -29,3 +29,9 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# Graphify generated knowledge graph
+graphify-out/
+
+# Local Graphify Codex hook
+.codex/hooks.json
