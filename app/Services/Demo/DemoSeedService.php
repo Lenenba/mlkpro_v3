@@ -18,6 +18,7 @@ use App\Models\User;
 use App\Models\Work;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 
 class DemoSeedService
 {
@@ -945,7 +946,7 @@ class DemoSeedService
             'service_demo' => DemoAccountService::TYPE_SERVICE,
             'product_demo' => DemoAccountService::TYPE_PRODUCT,
             'guided_demo' => DemoAccountService::TYPE_GUIDED,
-            default => DemoAccountService::TYPE_SERVICE,
+            default => throw new InvalidArgumentException("Unsupported demo type [{$type}]."),
         };
     }
 }

@@ -10,8 +10,10 @@ use App\Models\LoyaltyPointLedger;
 use App\Models\Product;
 use App\Models\Promotion;
 use App\Models\Quote;
+use App\Models\Request as LeadRequest;
 use App\Models\Reservation;
 use App\Models\Sale;
+use App\Models\ServiceRequest;
 use App\Models\SocialPost;
 use App\Models\Task;
 use App\Models\TeamMember;
@@ -41,6 +43,8 @@ final class DemoScenarioModuleEvidence
         'products' => 'product.index',
         'sales' => 'sales.index',
         'quotes' => 'quote.index',
+        'requests' => 'service-requests.index',
+        'jobs' => 'jobs.index',
         'tasks' => 'task.index',
         'loyalty' => 'loyalty.index',
         'campaigns' => 'campaigns.index',
@@ -166,6 +170,15 @@ final class DemoScenarioModuleEvidence
             'quotes' => fn (): array => $this->result(
                 Quote::query()->byUserWithArchived($ownerId)->count(),
                 'quotes',
+            ),
+            'requests' => fn (): array => $this->result(
+                LeadRequest::query()->byUser($ownerId)->count()
+                    + ServiceRequest::query()->byUser($ownerId)->count(),
+                'requests+service_requests',
+            ),
+            'jobs' => fn (): array => $this->result(
+                Work::query()->byUser($ownerId)->count(),
+                'works',
             ),
             'tasks' => fn (): array => $this->result(
                 Task::query()->forAccount($ownerId)->count(),

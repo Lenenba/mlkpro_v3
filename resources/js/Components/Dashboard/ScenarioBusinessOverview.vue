@@ -14,6 +14,7 @@ const props = defineProps({
 const { t, locale } = useI18n();
 const { formatCurrency } = useCurrencyFormatter();
 const metrics = computed(() => props.insights?.metrics || {});
+const isFieldOperations = computed(() => props.insights?.operating_model === 'field_operations');
 const monthly = computed(() => props.insights?.monthly || {
     labels: [],
     revenue: [],
@@ -66,7 +67,9 @@ const cards = computed(() => [
     },
     {
         key: 'today',
-        label: t('dashboard.scenario.metrics.reservations_today'),
+        label: t(isFieldOperations.value
+            ? 'dashboard.scenario.field_operations.jobs_today'
+            : 'dashboard.scenario.metrics.reservations_today'),
         value: number(metrics.value.reservations_today),
         context: t('dashboard.scenario.metrics.upcoming', { count: number(metrics.value.reservations_upcoming) }),
         tone: 'sky',
@@ -76,7 +79,9 @@ const cards = computed(() => [
     },
     {
         key: 'occupancy',
-        label: t('dashboard.scenario.metrics.occupancy'),
+        label: t(isFieldOperations.value
+            ? 'dashboard.scenario.field_operations.capacity_usage'
+            : 'dashboard.scenario.metrics.occupancy'),
         value: percent(metrics.value.occupancy_rate),
         context: t('dashboard.scenario.metrics.trailing_days', { count: 30 }),
         tone: 'violet',
@@ -96,9 +101,13 @@ const cards = computed(() => [
     },
     {
         key: 'ticket',
-        label: t('dashboard.scenario.metrics.average_ticket'),
+        label: t(isFieldOperations.value
+            ? 'dashboard.scenario.field_operations.average_job_value'
+            : 'dashboard.scenario.metrics.average_ticket'),
         value: formatCurrency(metrics.value.average_service_value || 0),
-        context: t('dashboard.scenario.metrics.completed_services'),
+        context: t(isFieldOperations.value
+            ? 'dashboard.scenario.field_operations.completed_jobs'
+            : 'dashboard.scenario.metrics.completed_services'),
         tone: 'amber',
         colorClass: 'bg-amber-500/70 dark:bg-amber-400/50',
         trend: null,
@@ -119,7 +128,9 @@ const cards = computed(() => [
     },
     {
         key: 'exceptions',
-        label: t('dashboard.scenario.metrics.service_exceptions'),
+        label: t(isFieldOperations.value
+            ? 'dashboard.scenario.field_operations.quality_incidents'
+            : 'dashboard.scenario.metrics.service_exceptions'),
         value: percent(metrics.value.no_show_rate),
         context: t('dashboard.scenario.metrics.cancellations', { value: percent(metrics.value.cancellation_rate) }),
         tone: 'orange',
@@ -224,16 +235,20 @@ const cards = computed(() => [
                     </div>
                 </div>
                 <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                    <div class="text-[10px] font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ $t('dashboard.scenario.top_employees') }}</div>
+                    <div class="text-[10px] font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                        {{ $t(isFieldOperations ? 'dashboard.scenario.field_operations.top_employees' : 'dashboard.scenario.top_employees') }}
+                    </div>
                     <div class="mt-2 space-y-1.5">
                         <div v-for="item in insights.top_employees?.slice(0, 3)" :key="item.name" class="flex items-center justify-between gap-2 text-xs">
                             <span class="truncate text-stone-700 dark:text-neutral-200">{{ item.name }}</span>
-                            <span class="shrink-0 font-semibold text-stone-500 dark:text-neutral-400">{{ number(item.reservations) }}</span>
+                            <span class="shrink-0 font-semibold text-stone-500 dark:text-neutral-400">{{ number(item.activity_count ?? item.reservations) }}</span>
                         </div>
                     </div>
                 </div>
                 <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                    <div class="text-[10px] font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ $t('dashboard.scenario.top_products') }}</div>
+                    <div class="text-[10px] font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                        {{ $t(isFieldOperations ? 'dashboard.scenario.field_operations.top_products' : 'dashboard.scenario.top_products') }}
+                    </div>
                     <div class="mt-2 space-y-1.5">
                         <div v-for="item in insights.top_products?.slice(0, 3)" :key="item.name" class="flex items-center justify-between gap-2 text-xs">
                             <span class="truncate text-stone-700 dark:text-neutral-200">{{ item.name }}</span>

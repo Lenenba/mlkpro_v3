@@ -293,6 +293,15 @@
         "cancellations": "Cancellations: {value}",
         "actions": "Actions to review",
         "action_breakdown": "{quotes} quotes · {tasks} tasks · {stock} stock · {notifications} alerts"
+      },
+      "field_operations": {
+        "jobs_today": "Jobs today",
+        "capacity_usage": "Field capacity used",
+        "average_job_value": "Average job value",
+        "completed_jobs": "Jobs completed this month",
+        "quality_incidents": "Quality incident rate",
+        "top_employees": "Most active field team",
+        "top_products": "Most-used supplies"
       }
     },
     "marketing_panel": {

@@ -1,5 +1,7 @@
 <?php
 
+use App\Services\Demo\Scenarios\BorealProprete\BorealPropreteBlueprint;
+use App\Services\Demo\Scenarios\BorealProprete\BorealPropreteScenario;
 use App\Services\Demo\Scenarios\StudioNaya\StudioNayaBlueprint;
 
 test('demo scenario volumes keep studio naya medium defaults and requested counts', function () {
@@ -140,4 +142,67 @@ test('engagement targets scale while preserving complete lifecycle contracts', f
             ->and($volumes[$volume]['social_targets'])
             ->toBe($volumes[$volume]['social_posts']);
     }
+});
+
+test('demo scenario configuration registers the boreal cleaning narrative independently', function () {
+    $configuration = require dirname(__DIR__, 2).'/config/demo_scenarios.php';
+    $scenario = $configuration['scenarios'][BorealPropreteBlueprint::KEY];
+    $previewMetrics = [
+        'employees',
+        'services',
+        'products',
+        'customers',
+        'properties',
+        'prospects',
+        'service_requests',
+        'quotes',
+        'works',
+        'tasks',
+        'work_checklist_items',
+        'work_media',
+        'invoices',
+        'payments',
+        'expenses',
+        'inventory_movements',
+    ];
+
+    expect($scenario)
+        ->toMatchArray([
+            'blueprint' => BorealPropreteBlueprint::class,
+            'generator' => BorealPropreteScenario::class,
+            'company_type' => 'services',
+            'company_sector' => 'nettoyage',
+            'seed_profile' => 'immersive',
+            'default_volume' => 'medium',
+            'available_volumes' => ['small', 'medium', 'large'],
+            'history_months' => 12,
+            'future_weeks' => 4,
+            'reference_timezone' => 'America/Toronto',
+            'preview_metrics' => $previewMetrics,
+        ])
+        ->and($scenario['required_modules'])->toBe([
+            'requests',
+            'quotes',
+            'services',
+            'jobs',
+            'tasks',
+            'planning',
+            'presence',
+            'invoices',
+            'expenses',
+            'accounting',
+            'team_members',
+            'performance',
+            'products',
+        ])
+        ->and($scenario['preview_metrics'])
+        ->not->toContain(
+            'offer_packages',
+            'campaigns',
+            'campaign_runs',
+            'campaign_recipients',
+            'campaign_events',
+            'activity_logs',
+            'team_attendances',
+        );
 });

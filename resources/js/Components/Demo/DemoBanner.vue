@@ -6,6 +6,9 @@ const page = usePage();
 const demo = computed(() => page.props.demo || {});
 const showBanner = computed(() => Boolean(demo.value?.is_demo_user || demo.value?.is_demo));
 const canReset = computed(() => Boolean(demo.value?.allow_reset));
+const resetMode = computed(() => String(demo.value?.reset_mode || 'none'));
+const showResetButton = computed(() => resetMode.value === 'legacy');
+const isManagedReset = computed(() => resetMode.value === 'managed_baseline');
 const isGuided = computed(() => Boolean(demo.value?.is_guided));
 
 const resetDemo = () => {
@@ -46,9 +49,16 @@ const restartTour = () => {
                 <div class="text-sm font-medium">
                     You are exploring the demo workspace.
                 </div>
+                <div
+                    v-if="isManagedReset"
+                    class="mt-1 text-xs text-emerald-700 dark:text-emerald-300"
+                >
+                    Reset is managed from this scenario's saved baseline.
+                </div>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <button
+                    v-if="showResetButton"
                     type="button"
                     :disabled="!canReset"
                     class="rounded-sm border border-emerald-200 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50 dark:border-emerald-500/30 dark:bg-neutral-900 dark:text-emerald-200 dark:hover:bg-neutral-800"

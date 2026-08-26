@@ -114,6 +114,37 @@ final class DemoScenarioFingerprint
                 ->get(['first_name', 'last_name', 'logo', 'tags', 'is_vip', 'loyalty_points_balance', 'created_at'])
                 ->map(fn (object $row): array => (array) $row)
                 ->pipe(fn (Collection $rows): string => $this->hashRows($rows)),
+            'properties' => DB::table('properties')
+                ->join('customers', 'customers.id', '=', 'properties.customer_id')
+                ->where('customers.user_id', $ownerId)
+                ->orderBy('customers.first_name')
+                ->orderBy('customers.last_name')
+                ->orderBy('customers.company_name')
+                ->orderBy('properties.type')
+                ->orderBy('properties.is_default')
+                ->orderBy('properties.country')
+                ->orderBy('properties.state')
+                ->orderBy('properties.city')
+                ->orderBy('properties.street1')
+                ->orderBy('properties.street2')
+                ->orderBy('properties.zip')
+                ->orderBy('properties.created_at')
+                ->get([
+                    'customers.first_name as customer_first_name',
+                    'customers.last_name as customer_last_name',
+                    'customers.company_name as customer_company_name',
+                    'properties.type',
+                    'properties.is_default',
+                    'properties.country',
+                    'properties.street1',
+                    'properties.street2',
+                    'properties.city',
+                    'properties.state',
+                    'properties.zip',
+                    'properties.created_at',
+                ])
+                ->map(fn (object $row): array => (array) $row)
+                ->pipe(fn (Collection $rows): string => $this->hashSortedRows($rows)),
             'customer_packages' => DB::table('customer_packages')
                 ->join('customers', 'customers.id', '=', 'customer_packages.customer_id')
                 ->leftJoin('offer_packages', 'offer_packages.id', '=', 'customer_packages.offer_package_id')
@@ -307,6 +338,264 @@ final class DemoScenarioFingerprint
                 ])
                 ->map(fn (object $row): array => (array) $row)
                 ->pipe(fn (Collection $rows): string => $this->hashRows($rows)),
+            'lead_requests' => DB::table('requests')
+                ->leftJoin('customers as request_customers', 'request_customers.id', '=', 'requests.customer_id')
+                ->leftJoin(
+                    'customers as converted_customers',
+                    'converted_customers.id',
+                    '=',
+                    'requests.converted_customer_id',
+                )
+                ->leftJoin(
+                    'team_members as request_assignees',
+                    'request_assignees.id',
+                    '=',
+                    'requests.assigned_team_member_id',
+                )
+                ->leftJoin('users as request_assignee_users', 'request_assignee_users.id', '=', 'request_assignees.user_id')
+                ->leftJoin('public_booking_links', 'public_booking_links.id', '=', 'requests.public_booking_link_id')
+                ->leftJoin('requests as duplicate_requests', 'duplicate_requests.id', '=', 'requests.duplicate_of_prospect_id')
+                ->leftJoin('requests as merged_requests', 'merged_requests.id', '=', 'requests.merged_into_prospect_id')
+                ->leftJoin('users as request_archivers', 'request_archivers.id', '=', 'requests.archived_by_user_id')
+                ->leftJoin('users as request_deleters', 'request_deleters.id', '=', 'requests.deleted_by_user_id')
+                ->where('requests.user_id', $ownerId)
+                ->orderBy('requests.created_at')
+                ->orderBy('requests.title')
+                ->orderBy('requests.contact_name')
+                ->orderBy('requests.status')
+                ->orderBy('requests.channel')
+                ->get([
+                    'request_customers.first_name as customer_first_name',
+                    'request_customers.last_name as customer_last_name',
+                    'request_customers.company_name as customer_company_name',
+                    'converted_customers.first_name as converted_customer_first_name',
+                    'converted_customers.last_name as converted_customer_last_name',
+                    'converted_customers.company_name as converted_customer_company_name',
+                    'request_assignee_users.name as assignee_name',
+                    'public_booking_links.name as public_booking_name',
+                    'public_booking_links.slug as public_booking_slug',
+                    'duplicate_requests.title as duplicate_title',
+                    'duplicate_requests.contact_name as duplicate_contact_name',
+                    'duplicate_requests.created_at as duplicate_created_at',
+                    'merged_requests.title as merged_title',
+                    'merged_requests.contact_name as merged_contact_name',
+                    'merged_requests.created_at as merged_created_at',
+                    'request_archivers.name as archived_by_name',
+                    'request_deleters.name as deleted_by_name',
+                    'requests.channel',
+                    'requests.status',
+                    'requests.service_type',
+                    'requests.urgency',
+                    'requests.title',
+                    'requests.description',
+                    'requests.contact_name',
+                    'requests.contact_phone',
+                    'requests.country',
+                    'requests.state',
+                    'requests.city',
+                    'requests.street1',
+                    'requests.street2',
+                    'requests.postal_code',
+                    'requests.lat',
+                    'requests.lng',
+                    'requests.is_serviceable',
+                    'requests.converted_at',
+                    'requests.first_response_at',
+                    'requests.last_activity_at',
+                    'requests.sla_due_at',
+                    'requests.triage_priority',
+                    'requests.risk_level',
+                    'requests.stale_since_at',
+                    'requests.archived_at',
+                    'requests.archive_reason',
+                    'requests.deleted_at',
+                    'requests.status_updated_at',
+                    'requests.next_follow_up_at',
+                    'requests.lost_reason',
+                    'requests.meta',
+                    'requests.created_at',
+                ])
+                ->map(function (object $row): array {
+                    $data = (array) $row;
+                    $data['meta'] = $this->normalizeMetadata($data['meta'] ?? null);
+
+                    return $data;
+                })
+                ->pipe(fn (Collection $rows): string => $this->hashSortedRows($rows)),
+            'service_requests' => DB::table('service_requests')
+                ->leftJoin(
+                    'customers as service_request_customers',
+                    'service_request_customers.id',
+                    '=',
+                    'service_requests.customer_id',
+                )
+                ->leftJoin(
+                    'requests as service_request_prospects',
+                    'service_request_prospects.id',
+                    '=',
+                    'service_requests.prospect_id',
+                )
+                ->where('service_requests.user_id', $ownerId)
+                ->orderBy('service_requests.submitted_at')
+                ->orderBy('service_requests.created_at')
+                ->orderBy('service_requests.title')
+                ->orderBy('service_requests.requester_name')
+                ->orderBy('service_requests.status')
+                ->get([
+                    'service_request_customers.first_name as customer_first_name',
+                    'service_request_customers.last_name as customer_last_name',
+                    'service_request_customers.company_name as customer_company_name',
+                    'service_request_prospects.title as prospect_title',
+                    'service_request_prospects.contact_name as prospect_contact_name',
+                    'service_request_prospects.created_at as prospect_created_at',
+                    'service_requests.source',
+                    'service_requests.channel',
+                    'service_requests.status',
+                    'service_requests.request_type',
+                    'service_requests.service_type',
+                    'service_requests.title',
+                    'service_requests.description',
+                    'service_requests.requester_name',
+                    'service_requests.requester_phone',
+                    'service_requests.street1',
+                    'service_requests.street2',
+                    'service_requests.city',
+                    'service_requests.state',
+                    'service_requests.postal_code',
+                    'service_requests.country',
+                    'service_requests.source_ref',
+                    'service_requests.source_meta',
+                    'service_requests.submitted_at',
+                    'service_requests.accepted_at',
+                    'service_requests.completed_at',
+                    'service_requests.cancelled_at',
+                    'service_requests.meta',
+                    'service_requests.created_at',
+                ])
+                ->map(function (object $row): array {
+                    $data = (array) $row;
+                    $data['source_ref'] = $this->normalizeInternalReference($data['source_ref'] ?? null);
+                    $data['source_meta'] = $this->normalizeMetadata($data['source_meta'] ?? null);
+                    $data['meta'] = $this->normalizeMetadata($data['meta'] ?? null);
+
+                    return $data;
+                })
+                ->pipe(fn (Collection $rows): string => $this->hashSortedRows($rows)),
+            'works' => DB::table('works')
+                ->join('customers as work_customers', 'work_customers.id', '=', 'works.customer_id')
+                ->leftJoin('quotes as work_quotes', 'work_quotes.id', '=', 'works.quote_id')
+                ->where('works.user_id', $ownerId)
+                ->orderBy('works.start_date')
+                ->orderBy('works.start_time')
+                ->orderBy('works.job_title')
+                ->orderBy('work_customers.first_name')
+                ->orderBy('work_customers.last_name')
+                ->get([
+                    'work_customers.first_name as customer_first_name',
+                    'work_customers.last_name as customer_last_name',
+                    'work_customers.company_name as customer_company_name',
+                    'work_quotes.number as quote_number',
+                    'work_quotes.job_title as quote_title',
+                    'work_quotes.status as quote_status',
+                    'works.number',
+                    'works.job_title',
+                    'works.instructions',
+                    'works.start_date',
+                    'works.end_date',
+                    'works.start_time',
+                    'works.end_time',
+                    'works.is_all_day',
+                    'works.later',
+                    'works.ends',
+                    'works.frequencyNumber',
+                    'works.frequency',
+                    'works.totalVisits',
+                    'works.repeatsOn',
+                    'works.type',
+                    'works.category',
+                    'works.status',
+                    'works.is_completed',
+                    'works.completed_at',
+                    'works.subtotal',
+                    'works.total',
+                    'works.billing_mode',
+                    'works.billing_cycle',
+                    'works.billing_grouping',
+                    'works.billing_delay_days',
+                    'works.billing_date_rule',
+                    'works.auto_started_at',
+                    'works.auto_completed_at',
+                    'works.start_alerted_at',
+                    'works.end_alerted_at',
+                    'works.deleted_at',
+                    'works.created_at',
+                ])
+                ->map(function (object $row): array {
+                    $data = (array) $row;
+                    $data['repeatsOn'] = $this->normalizeMetadata($data['repeatsOn'] ?? null);
+
+                    return $data;
+                })
+                ->pipe(fn (Collection $rows): string => $this->hashSortedRows($rows)),
+            'work_assignments' => DB::table('work_team_members')
+                ->join('works', 'works.id', '=', 'work_team_members.work_id')
+                ->join('customers as assigned_work_customers', 'assigned_work_customers.id', '=', 'works.customer_id')
+                ->join('team_members', 'team_members.id', '=', 'work_team_members.team_member_id')
+                ->join('users as assigned_staff_users', 'assigned_staff_users.id', '=', 'team_members.user_id')
+                ->where('works.user_id', $ownerId)
+                ->orderBy('works.start_date')
+                ->orderBy('works.start_time')
+                ->orderBy('works.job_title')
+                ->orderBy('assigned_staff_users.name')
+                ->orderBy('work_team_members.role')
+                ->get([
+                    'assigned_work_customers.first_name as customer_first_name',
+                    'assigned_work_customers.last_name as customer_last_name',
+                    'assigned_work_customers.company_name as customer_company_name',
+                    'works.number as work_number',
+                    'works.job_title as work_title',
+                    'works.start_date as work_start_date',
+                    'works.start_time as work_start_time',
+                    'assigned_staff_users.name as staff_name',
+                    'team_members.role as team_role',
+                    'team_members.title as team_title',
+                    'work_team_members.role as assignment_role',
+                ])
+                ->map(fn (object $row): array => (array) $row)
+                ->pipe(fn (Collection $rows): string => $this->hashSortedRows($rows)),
+            'work_checklists' => DB::table('work_checklist_items')
+                ->join('works', 'works.id', '=', 'work_checklist_items.work_id')
+                ->join('customers as checklist_customers', 'checklist_customers.id', '=', 'works.customer_id')
+                ->leftJoin('quotes as checklist_quotes', 'checklist_quotes.id', '=', 'work_checklist_items.quote_id')
+                ->leftJoin('quote_products', 'quote_products.id', '=', 'work_checklist_items.quote_product_id')
+                ->leftJoin('products as checklist_products', 'checklist_products.id', '=', 'quote_products.product_id')
+                ->where('works.user_id', $ownerId)
+                ->orderBy('works.start_date')
+                ->orderBy('works.start_time')
+                ->orderBy('works.job_title')
+                ->orderBy('work_checklist_items.sort_order')
+                ->orderBy('work_checklist_items.title')
+                ->get([
+                    'checklist_customers.first_name as customer_first_name',
+                    'checklist_customers.last_name as customer_last_name',
+                    'checklist_customers.company_name as customer_company_name',
+                    'works.number as work_number',
+                    'works.job_title as work_title',
+                    'works.start_date as work_start_date',
+                    'works.start_time as work_start_time',
+                    'checklist_quotes.number as quote_number',
+                    'checklist_quotes.job_title as quote_title',
+                    'checklist_products.name as source_product_name',
+                    'quote_products.description as source_line_description',
+                    'work_checklist_items.title',
+                    'work_checklist_items.description',
+                    'work_checklist_items.status',
+                    'work_checklist_items.sort_order',
+                    'work_checklist_items.completed_at',
+                    'work_checklist_items.created_at',
+                ])
+                ->map(fn (object $row): array => (array) $row)
+                ->pipe(fn (Collection $rows): string => $this->hashSortedRows($rows)),
             'expenses' => DB::table('expenses')
                 ->where('user_id', $ownerId)
                 ->orderBy('expense_date')
@@ -734,6 +1023,88 @@ final class DemoScenarioFingerprint
         return hash(
             'sha256',
             json_encode($rows->values()->all(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
+        );
+    }
+
+    /**
+     * Hash a projection as a multiset so equivalent records remain stable even
+     * when regenerated with different technical identifiers or insert order.
+     */
+    private function hashSortedRows(Collection $rows): string
+    {
+        return $this->hashRows(
+            $rows
+                ->sortBy(fn (mixed $row): string => json_encode(
+                    $row,
+                    JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE,
+                ))
+                ->values(),
+        );
+    }
+
+    /**
+     * Canonicalize JSON while removing tenant-local identifiers. Business
+     * metadata stays fingerprinted, whereas regenerated foreign keys do not.
+     */
+    private function normalizeMetadata(mixed $raw): mixed
+    {
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+
+        $value = is_string($raw)
+            ? json_decode($raw, true, 512, JSON_THROW_ON_ERROR)
+            : $raw;
+
+        return $this->normalizeMetadataValue($value);
+    }
+
+    private function normalizeMetadataValue(mixed $value): mixed
+    {
+        if (is_string($value)) {
+            return $this->normalizeInternalReference($value);
+        }
+
+        if (! is_array($value)) {
+            return $value;
+        }
+
+        if (array_is_list($value)) {
+            return array_map(
+                fn (mixed $item): mixed => $this->normalizeMetadataValue($item),
+                $value,
+            );
+        }
+
+        $normalized = [];
+        foreach ($value as $key => $item) {
+            if ($this->isTechnicalMetadataKey((string) $key)) {
+                continue;
+            }
+
+            $normalized[(string) $key] = $this->normalizeMetadataValue($item);
+        }
+        ksort($normalized, SORT_STRING);
+
+        return $normalized;
+    }
+
+    private function isTechnicalMetadataKey(string $key): bool
+    {
+        return preg_match('/(?:^id$|_id$|_ids$)/i', $key) === 1
+            || in_array(strtolower($key), ['services_sur_devis'], true);
+    }
+
+    private function normalizeInternalReference(mixed $value): mixed
+    {
+        if (! is_string($value)) {
+            return $value;
+        }
+
+        return preg_replace(
+            '/^(lead|request|prospect|customer|service|product|reservation|quote|work):\d+$/i',
+            '$1:{record}',
+            $value,
         );
     }
 }

@@ -299,11 +299,37 @@ const demoScenarioOptions = computed(() => [
     { key: '', label: 'Legacy profile generator' },
     ...(props.options.demo_scenarios || []),
 ]);
-const selectedDemoScenario = computed(() =>
-    (props.options.demo_scenarios || []).find((scenario) => scenario.key === form.scenario_key) || null,
+const scenarioLookup = computed(() =>
+    Object.fromEntries((props.options.demo_scenarios || []).map((scenario) => [scenario.key, scenario])),
 );
+const globalDataVolumes = computed(() => props.options.data_volumes || []);
+const resolveScenarioDataVolumes = (scenarioKey) => {
+    const scenarioVolumes = scenarioLookup.value[scenarioKey]?.data_volumes;
+
+    if (!Array.isArray(scenarioVolumes) || !scenarioVolumes.length) {
+        return globalDataVolumes.value;
+    }
+
+    return scenarioVolumes
+        .map((volume) => {
+            if (typeof volume !== 'string') {
+                return volume;
+            }
+
+            return globalDataVolumes.value.find((candidate) => candidate.value === volume) || {
+                value: volume,
+                label: volume,
+            };
+        })
+        .filter((volume) => Boolean(volume?.value));
+};
+const selectedDemoScenario = computed(() =>
+    scenarioLookup.value[form.scenario_key] || null,
+);
+const formDataVolumes = computed(() => resolveScenarioDataVolumes(form.scenario_key));
+const templateDataVolumes = computed(() => resolveScenarioDataVolumes(templateForm.scenario_key));
 const selectedDataVolume = computed(() =>
-    (props.options.data_volumes || []).find((volume) => volume.value === form.data_volume) || null,
+    formDataVolumes.value.find((volume) => volume.value === form.data_volume) || null,
 );
 const provisioningPreviewDescription = computed(() => (
     selectedDemoScenario.value
@@ -354,9 +380,6 @@ const templateScenarioPacks = computed(() => {
 
 const selectedScenarioPackDetails = computed(() => resolveScenarioPackDetails(form.scenario_packs || []));
 const selectedTemplateScenarioPackDetails = computed(() => resolveScenarioPackDetails(templateForm.scenario_packs || []));
-const scenarioLookup = computed(() =>
-    Object.fromEntries((props.options.demo_scenarios || []).map((scenario) => [scenario.key, scenario])),
-);
 const requiredModulesFor = (scenarioKey) => scenarioLookup.value[scenarioKey]?.required_modules || [];
 const requiredFormModules = computed(() => requiredModulesFor(form.scenario_key));
 const requiredTemplateModules = computed(() => requiredModulesFor(templateForm.scenario_key));
@@ -372,8 +395,34 @@ const ensureRequiredModules = (target, scenarioKey) => {
     target.selected_modules = [...new Set([...(target.selected_modules || []), ...requiredModules])];
 };
 
-watch(() => form.scenario_key, (scenarioKey) => ensureRequiredModules(form, scenarioKey));
-watch(() => templateForm.scenario_key, (scenarioKey) => ensureRequiredModules(templateForm, scenarioKey));
+const ensureScenarioDataVolume = (target, scenarioKey, availableVolumes, fallbackVolume) => {
+    if (!scenarioKey || !availableVolumes.length) {
+        return;
+    }
+
+    if (availableVolumes.some((volume) => volume.value === target.data_volume)) {
+        return;
+    }
+
+    const scenarioDefault = scenarioLookup.value[scenarioKey]?.default_volume;
+    target.data_volume = availableVolumes.find((volume) => volume.value === scenarioDefault)?.value
+        || availableVolumes[0]?.value
+        || fallbackVolume;
+};
+
+watch(() => form.scenario_key, (scenarioKey) => {
+    ensureRequiredModules(form, scenarioKey);
+    ensureScenarioDataVolume(form, scenarioKey, formDataVolumes.value, props.defaults.data_volume);
+});
+watch(() => templateForm.scenario_key, (scenarioKey) => {
+    ensureRequiredModules(templateForm, scenarioKey);
+    ensureScenarioDataVolume(
+        templateForm,
+        scenarioKey,
+        templateDataVolumes.value,
+        props.template_defaults.data_volume,
+    );
+});
 const selectedExtraAccessRoles = computed(() =>
     (props.options.extra_access_roles || []).filter((role) => form.extra_access_roles.includes(role.key)),
 );
@@ -975,7 +1024,7 @@ const copyAccessKit = async (workspace) => {
                                 <FloatingSelect v-model="templateForm.company_sector" :options="options.sectors" label="Industry / sector" required />
                                 <FloatingSelect v-model="templateForm.seed_profile" :options="options.seed_profiles" label="Seed profile" required option-value="value" option-label="label" />
                                 <FloatingSelect v-model="templateForm.scenario_key" :options="demoScenarioOptions" label="Narrative scenario" option-value="key" option-label="label" />
-                                <FloatingSelect v-if="templateForm.scenario_key" v-model="templateForm.data_volume" :options="options.data_volumes" label="Scenario volume" option-value="value" option-label="label" />
+                                <FloatingSelect v-if="templateForm.scenario_key" v-model="templateForm.data_volume" :options="templateDataVolumes" label="Scenario volume" option-value="value" option-label="label" />
                                 <FloatingInput v-if="templateForm.scenario_key" v-model="templateForm.reference_date" type="date" label="Reference date" />
                                 <FloatingInput v-if="templateForm.scenario_key" v-model="templateForm.random_seed" type="number" min="0" label="Random seed" />
                                 <FloatingInput v-model="templateForm.team_size" type="number" label="Target staff seats" required />
@@ -1175,7 +1224,7 @@ const copyAccessKit = async (workspace) => {
                         <div class="rounded-sm border border-violet-200 bg-violet-50 p-4 dark:border-violet-900/60 dark:bg-violet-950/30">
                             <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                                 <FloatingSelect v-model="form.scenario_key" :options="demoScenarioOptions" label="Narrative scenario" option-value="key" option-label="label" />
-                                <FloatingSelect v-if="form.scenario_key" v-model="form.data_volume" :options="options.data_volumes" label="Scenario volume" option-value="value" option-label="label" />
+                                <FloatingSelect v-if="form.scenario_key" v-model="form.data_volume" :options="formDataVolumes" label="Scenario volume" option-value="value" option-label="label" />
                                 <FloatingInput v-if="form.scenario_key" v-model="form.reference_date" type="date" label="Reference date" />
                                 <FloatingInput v-if="form.scenario_key" v-model="form.random_seed" type="number" min="0" label="Random seed" />
                             </div>

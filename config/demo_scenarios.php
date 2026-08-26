@@ -1,5 +1,7 @@
 <?php
 
+use App\Services\Demo\Scenarios\BorealProprete\BorealPropreteBlueprint;
+use App\Services\Demo\Scenarios\BorealProprete\BorealPropreteScenario;
 use App\Services\Demo\Scenarios\StudioNaya\StudioNayaBlueprint;
 use App\Services\Demo\Scenarios\StudioNaya\StudioNayaScenario;
 
@@ -145,6 +147,53 @@ return [
             ],
             'history_months' => 18,
             'future_weeks' => 6,
+            'reference_timezone' => 'America/Toronto',
+        ],
+        BorealPropreteBlueprint::KEY => [
+            'blueprint' => BorealPropreteBlueprint::class,
+            'generator' => BorealPropreteScenario::class,
+            'label' => 'Boréal Propreté Services',
+            'description' => 'Une année d’activité reliée pour une entreprise québécoise de nettoyage résidentiel et commercial.',
+            'company_type' => 'services',
+            'company_sector' => 'nettoyage',
+            'seed_profile' => 'immersive',
+            'default_volume' => BorealPropreteBlueprint::DEFAULT_VOLUME,
+            'available_volumes' => ['small', 'medium', 'large'],
+            'required_modules' => [
+                'requests',
+                'quotes',
+                'services',
+                'jobs',
+                'tasks',
+                'planning',
+                'presence',
+                'invoices',
+                'expenses',
+                'accounting',
+                'team_members',
+                'performance',
+                'products',
+            ],
+            'preview_metrics' => [
+                'employees',
+                'services',
+                'products',
+                'customers',
+                'properties',
+                'prospects',
+                'service_requests',
+                'quotes',
+                'works',
+                'tasks',
+                'work_checklist_items',
+                'work_media',
+                'invoices',
+                'payments',
+                'expenses',
+                'inventory_movements',
+            ],
+            'history_months' => BorealPropreteBlueprint::HISTORY_MONTHS,
+            'future_weeks' => BorealPropreteBlueprint::FUTURE_WEEKS,
             'reference_timezone' => 'America/Toronto',
         ],
     ],

@@ -293,6 +293,15 @@
         "cancellations": "Annulations : {value}",
         "actions": "Actions à traiter",
         "action_breakdown": "{quotes} devis · {tasks} tâches · {stock} stock · {notifications} alertes"
+      },
+      "field_operations": {
+        "jobs_today": "Interventions aujourd’hui",
+        "capacity_usage": "Capacité terrain utilisée",
+        "average_job_value": "Valeur moyenne par intervention",
+        "completed_jobs": "Interventions terminées ce mois-ci",
+        "quality_incidents": "Incidents qualité",
+        "top_employees": "Équipe la plus active",
+        "top_products": "Consommables les plus utilisés"
       }
     },
     "marketing_panel": {

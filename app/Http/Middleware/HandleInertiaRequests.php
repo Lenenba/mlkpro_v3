@@ -8,6 +8,7 @@ use App\Models\TeamMemberShift;
 use App\Models\User;
 use App\Services\Auth\SocialAuthProviderRegistry;
 use App\Services\CompanyFeatureService;
+use App\Services\Demo\DemoAccountService;
 use App\Services\Rbac\PermissionCatalog;
 use App\Services\TenantBrandingResolver;
 use App\Support\Database\UserSelects;
@@ -145,10 +146,31 @@ class HandleInertiaRequests extends Middleware
         $demoWorkspace = null;
         if ($user && ($user->is_demo || $user->is_demo_user)) {
             $demoWorkspace = DemoWorkspace::query()
+                ->withTrashed()
                 ->select(['id', 'owner_user_id', 'company_name', 'prospect_name', 'expires_at'])
                 ->where('owner_user_id', $accountOwner?->id ?? $user->accountOwnerId())
                 ->first();
         }
+
+        $isDemoSession = (bool) ($user && ($user->is_demo || $user->is_demo_user));
+        $accountDemoType = (string) ($accountOwner?->demo_type ?? $user?->demo_type ?? '');
+        $isLegacyDemo = in_array($accountDemoType, [
+            DemoAccountService::TYPE_SERVICE,
+            DemoAccountService::TYPE_PRODUCT,
+            DemoAccountService::TYPE_GUIDED,
+        ], true);
+        $demoResetMode = match (true) {
+            ! $isDemoSession => 'none',
+            $demoWorkspace !== null => 'managed_baseline',
+            $isLegacyDemo => 'legacy',
+            default => 'none',
+        };
+        $allowDemoReset = (bool) (
+            config('demo.enabled')
+            && config('demo.allow_reset')
+            && $user?->is_demo_user
+            && $demoResetMode === 'legacy'
+        );
 
         return [
             ...parent::share($request),
@@ -206,7 +228,8 @@ class HandleInertiaRequests extends Middleware
             'socialAuth' => $socialAuthProviders->publicPayload(),
             'demo' => [
                 'enabled' => (bool) config('demo.enabled'),
-                'allow_reset' => (bool) config('demo.allow_reset'),
+                'allow_reset' => $allowDemoReset,
+                'reset_mode' => $demoResetMode,
                 'is_demo' => (bool) ($user?->is_demo ?? false),
                 'is_demo_user' => (bool) ($user?->is_demo_user ?? false),
                 'demo_type' => $user?->demo_type,

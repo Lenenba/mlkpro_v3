@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\DemoTourProgress;
 use App\Models\DemoTourStep;
+use App\Models\DemoWorkspace;
 use App\Models\User;
 use App\Services\Demo\DemoAccountService;
 use App\Services\Demo\DemoContextService;
@@ -103,7 +104,21 @@ class DemoController extends Controller
             ? $user
             : User::query()->findOrFail($accountId);
 
-        $demoType = $account->demo_type ?: DemoAccountService::TYPE_SERVICE;
+        if (DemoWorkspace::query()
+            ->withTrashed()
+            ->where('owner_user_id', $account->id)
+            ->exists()) {
+            abort(409, 'Managed demo scenarios must be reset from their saved baseline.');
+        }
+
+        $demoType = (string) $account->demo_type;
+        if (! in_array($demoType, [
+            DemoAccountService::TYPE_SERVICE,
+            DemoAccountService::TYPE_PRODUCT,
+            DemoAccountService::TYPE_GUIDED,
+        ], true)) {
+            abort(409, 'This demo account does not support self-service reset.');
+        }
 
         $reset->reset($account);
         $seeds->seed($account, $demoType);
