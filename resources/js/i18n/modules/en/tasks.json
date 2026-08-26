@@ -13,6 +13,9 @@
       "schedule": "Schedule",
       "team": "Team"
     },
+    "window": {
+      "truncated": "Optimized view: {shown} of {total} tasks. Refine the filters to narrow the list."
+    },
     "team": {
       "title": "Team schedule",
       "no_members": "No team members yet."

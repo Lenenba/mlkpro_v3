@@ -13,6 +13,9 @@
       "schedule": "Planning",
       "team": "Equipe"
     },
+    "window": {
+      "truncated": "Affichage optimisé : {shown} tâches sur {total}. Affinez les filtres pour cibler la liste."
+    },
     "team": {
       "title": "Planning equipe",
       "no_members": "Aucun membre d'equipe pour le moment."

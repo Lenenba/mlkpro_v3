@@ -54,6 +54,10 @@ const props = defineProps({
         type: Number,
         default: null,
     },
+    taskWindow: {
+        type: Object,
+        default: () => ({}),
+    },
     canCreate: {
         type: Boolean,
         default: false,
@@ -111,7 +115,10 @@ const scheduleRangeSelectOptions = computed(() =>
     }))
 );
 const allowedScheduleRanges = computed(() => scheduleRangeOptions.value.map((option) => option.id));
-const scheduleRange = ref('week');
+const initialScheduleRange = allowedScheduleRanges.value.includes(props.filters?.range)
+    ? props.filters.range
+    : 'week';
+const scheduleRange = ref(initialScheduleRange);
 const fallbackStatuses = ['todo', 'in_progress', 'done', 'cancelled'];
 const fallbackPriorities = ['low', 'normal', 'high', 'urgent'];
 const openTaskStatuses = ['todo', 'in_progress'];
@@ -151,6 +158,8 @@ const setScheduleRange = (range) => {
         window.localStorage.setItem('task_schedule_range', range);
     }
     clearSelectedDate();
+    isLoading.value = true;
+    autoFilter();
 };
 
 const boardStatuses = computed(() =>
@@ -158,6 +167,16 @@ const boardStatuses = computed(() =>
 );
 
 const boardTasks = ref({});
+const taskWindowTruncated = computed(() => Boolean(props.taskWindow?.truncated));
+const hasMatchingTasks = computed(() => Number(props.taskWindow?.matching_count ?? props.count ?? 0) > 0);
+const boardStatusCount = (status) => {
+    const exactCount = Number(props.taskWindow?.status_counts?.[status]);
+    if (Number.isFinite(exactCount)) {
+        return exactCount;
+    }
+
+    return boardTasks.value?.[status]?.length || 0;
+};
 
 const toDateKey = (date) => {
     const year = date.getFullYear();
@@ -326,12 +345,38 @@ const startOfWeek = (date) => {
     return base;
 };
 
+const serverScheduleRangeBounds = () => {
+    if (props.taskWindow?.range !== scheduleRange.value) {
+        return null;
+    }
+
+    const startKey = normalizeDateKey(props.taskWindow?.range_start);
+    const endKey = normalizeDateKey(props.taskWindow?.range_end);
+    if (!startKey || !endKey) {
+        return null;
+    }
+
+    const start = new Date(`${startKey}T00:00:00`);
+    const end = new Date(`${endKey}T23:59:59.999`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+        return null;
+    }
+
+    return { start, end };
+};
+
 const scheduleRangeBounds = computed(() => {
     if (scheduleRange.value === 'all') {
         return null;
     }
+
+    const serverBounds = serverScheduleRangeBounds();
+    if (serverBounds) {
+        return serverBounds;
+    }
+
     const today = new Date();
-    const start = startOfWeek(today);
+    let start = startOfWeek(today);
     let end = new Date(start);
 
     if (scheduleRange.value === 'week') {
@@ -339,9 +384,11 @@ const scheduleRangeBounds = computed(() => {
     } else if (scheduleRange.value === '2weeks') {
         end.setDate(start.getDate() + 13);
     } else if (scheduleRange.value === 'month') {
+        start = new Date(today.getFullYear(), today.getMonth(), 1);
         end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     }
 
+    start.setHours(0, 0, 0, 0);
     end.setHours(23, 59, 59, 999);
     return { start, end };
 });
@@ -513,27 +560,7 @@ const teamColorMap = computed(() => {
 });
 const teamRowColor = (rowId) => teamColorMap.value.get(rowId) || unassignedColor;
 
-const teamRangeBounds = computed(() => {
-    if (scheduleRange.value === 'all') {
-        return null;
-    }
-    const today = new Date();
-    let start;
-    let end;
-
-    if (scheduleRange.value === 'month') {
-        start = new Date(today.getFullYear(), today.getMonth(), 1);
-        end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    } else {
-        start = startOfWeek(today);
-        end = new Date(start);
-        end.setDate(start.getDate() + (scheduleRange.value === '2weeks' ? 13 : 6));
-    }
-
-    start.setHours(0, 0, 0, 0);
-    end.setHours(23, 59, 59, 999);
-    return { start, end };
-});
+const teamRangeBounds = computed(() => scheduleRangeBounds.value);
 
 const formatTeamDayLabel = (date) => date.toLocaleDateString(undefined, {
     weekday: 'short',
@@ -750,6 +777,7 @@ const filterPayload = () => {
         priority: filterForm.priority,
         follow_up: filterForm.follow_up,
         view: viewMode.value,
+        range: scheduleRange.value,
     };
 
     Object.keys(payload).forEach((key) => {
@@ -770,7 +798,7 @@ const autoFilter = () => {
     filterTimeout = setTimeout(() => {
         isLoading.value = true;
         router.get(route('task.index'), filterPayload(), {
-            only: ['tasks', 'filters', 'stats', 'count'],
+            only: ['tasks', 'taskWindow', 'filters', 'stats', 'count'],
             preserveState: true,
             preserveScroll: true,
             replace: true,
@@ -796,7 +824,15 @@ watch(taskList, (value) => {
     }
 });
 
-if (typeof window !== 'undefined' && allowedViews.value.includes(viewMode.value) && props.filters?.view !== viewMode.value) {
+const storedViewNeedsSync = props.filters?.view !== viewMode.value;
+const storedRangeNeedsSync = ['schedule', 'team'].includes(viewMode.value)
+    && props.filters?.range !== scheduleRange.value;
+
+if (
+    typeof window !== 'undefined'
+    && allowedViews.value.includes(viewMode.value)
+    && (storedViewNeedsSync || storedRangeNeedsSync)
+) {
     autoFilter();
 }
 
@@ -1586,7 +1622,7 @@ const submitCancellation = () => {
         .transform((data) => buildStatusPayload(task, 'cancelled', data))
         .put(route('task.update', task.id), {
             preserveScroll: true,
-            only: ['tasks', 'flash'],
+            only: ['tasks', 'taskWindow', 'stats', 'count', 'flash'],
             onSuccess: closeCancellationModal,
         });
 };
@@ -1623,7 +1659,7 @@ const submitReschedule = () => {
         }))
         .put(route('task.update', task.id), {
             preserveScroll: true,
-            only: ['tasks', 'flash'],
+            only: ['tasks', 'taskWindow', 'stats', 'count', 'flash'],
             onSuccess: closeRescheduleModal,
         });
 };
@@ -1652,7 +1688,7 @@ const submitCompletion = () => {
         .transform((data) => buildStatusPayload(task, 'done', data))
         .put(route('task.update', task.id), {
             preserveScroll: true,
-            only: ['tasks', 'flash'],
+            only: ['tasks', 'taskWindow', 'stats', 'count', 'flash'],
             onSuccess,
         });
 };
@@ -1676,7 +1712,7 @@ const setTaskStatus = (task, status) => {
 
     router.put(route('task.update', task.id), payload, {
         preserveScroll: true,
-        only: ['tasks', 'flash'],
+        only: ['tasks', 'taskWindow', 'stats', 'count', 'flash'],
         onSuccess,
     });
 };
@@ -1930,6 +1966,25 @@ const submitProof = () => {
         </div>
 
         <div
+            v-if="!isLoading && taskWindowTruncated"
+            class="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+            role="status"
+            aria-live="polite"
+        >
+            <svg class="mt-0.5 size-4 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 16h.01" />
+                <path d="M12 8v4" />
+            </svg>
+            <span>
+                {{ $t('tasks.window.truncated', {
+                    shown: taskWindow.loaded_count,
+                    total: taskWindow.available_count,
+                }) }}
+            </span>
+        </div>
+
+        <div
             v-if="viewMode === 'board'"
             class="overflow-x-auto"
         >
@@ -1983,7 +2038,7 @@ const submitProof = () => {
                             </span>
                         </div>
                         <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="statusTone(status).badge">
-                            {{ boardTasks[status]?.length || 0 }}
+                            {{ boardStatusCount(status) }}
                         </span>
                     </div>
                     <draggable
@@ -2172,7 +2227,7 @@ const submitProof = () => {
         </template>
         <template v-else>
             <div class="space-y-4">
-                <div v-if="taskList.length" class="flex flex-wrap items-center justify-between gap-3 rounded-md border border-stone-200 bg-stone-50/80 px-3 py-2 text-xs text-stone-500 shadow-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
+                <div class="flex flex-wrap items-center justify-between gap-3 rounded-md border border-stone-200 bg-stone-50/80 px-3 py-2 text-xs text-stone-500 shadow-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
                     <div class="flex items-center gap-2">
                         <span class="size-2.5 rounded-sm bg-emerald-500"></span>
                         <span class="font-semibold text-stone-700 dark:text-neutral-200">
@@ -2202,7 +2257,7 @@ const submitProof = () => {
                     </div>
                 </div>
                 <div v-if="!taskList.length" class="rounded-md border border-dashed border-stone-200 bg-white/80 px-3 py-6 text-center text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
-                    {{ $t('tasks.empty.no_tasks') }}
+                    {{ hasMatchingTasks ? $t('tasks.empty.no_tasks_in_range') : $t('tasks.empty.no_tasks') }}
                 </div>
                 <div
                     v-else-if="!visibleScheduleGroups.dated.length && !visibleScheduleGroups.undated.length && !selectedDateKey"

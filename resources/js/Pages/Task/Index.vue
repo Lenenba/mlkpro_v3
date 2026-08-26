@@ -21,6 +21,10 @@ const props = defineProps({
     },
     stats: Object,
     count: Number,
+    taskWindow: {
+        type: Object,
+        default: () => ({}),
+    },
     canCreate: Boolean,
     canManage: Boolean,
     canDelete: Boolean,
@@ -49,6 +53,7 @@ const props = defineProps({
                 :prospects="prospects"
                 :works="works"
                 :count="count"
+                :taskWindow="taskWindow"
                 :canCreate="canCreate"
                 :canManage="canManage"
                 :canDelete="canDelete"
