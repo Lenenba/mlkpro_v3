@@ -98,8 +98,11 @@ Common Commands
 - php artisan migrate
 - php artisan db:seed
 - php artisan config:clear
+- npm run -s codex:mcp (compact MCP server status, without environment variables)
 - npm run dev
 - npm run build
+
+The Junie MCP launcher contains machine-specific PHP and project paths. It is intentionally kept local and can be regenerated with `php artisan boost:install` when Junie is used.
 
 Notes
 -----

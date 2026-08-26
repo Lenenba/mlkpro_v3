@@ -25,6 +25,7 @@ npm-debug.log
 yarn-error.log
 /.fleet
 /.idea
+/.junie/mcp/mcp.json
 /.nova
 /.vscode
 /.zed
