@@ -392,7 +392,7 @@ const ensureRequiredModules = (target, scenarioKey) => {
         return;
     }
 
-    target.selected_modules = [...new Set([...(target.selected_modules || []), ...requiredModules])];
+    target.selected_modules = [...requiredModules];
 };
 
 const ensureScenarioDataVolume = (target, scenarioKey, availableVolumes, fallbackVolume) => {
@@ -460,7 +460,7 @@ const stepIsValid = computed(() => {
 });
 
 const toggleModule = (key) => {
-    if (isRequiredFormModule(key)) {
+    if (form.scenario_key || isRequiredFormModule(key)) {
         return;
     }
 
@@ -470,7 +470,7 @@ const toggleModule = (key) => {
 };
 
 const toggleTemplateModule = (key) => {
-    if (isRequiredTemplateModule(key)) {
+    if (templateForm.scenario_key || isRequiredTemplateModule(key)) {
         return;
     }
 
@@ -1040,10 +1040,11 @@ const copyAccessKit = async (workspace) => {
                             </div>
                             <div class="space-y-3">
                                 <h4 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Template modules</h4>
+                                <p v-if="templateForm.scenario_key" class="text-xs text-stone-500 dark:text-neutral-400">The narrative scenario fixes this module stack so every enabled module contains demonstrable data.</p>
                                 <div v-for="[category, modules] in moduleGroups" :key="`template-${category}`" class="space-y-2">
                                     <div class="text-sm font-medium text-stone-700 dark:text-neutral-200">{{ category }}</div>
                                     <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                                        <button v-for="module in modules" :key="`template-${module.key}`" type="button" class="rounded-sm border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-75" :class="templateForm.selected_modules.includes(module.key) ? 'border-green-600 bg-green-50' : 'border-stone-200 bg-white hover:border-green-300 dark:border-neutral-700 dark:bg-neutral-900'" :disabled="isRequiredTemplateModule(module.key)" @click="toggleTemplateModule(module.key)">
+                                        <button v-for="module in modules" :key="`template-${module.key}`" type="button" class="rounded-sm border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-75" :class="templateForm.selected_modules.includes(module.key) ? 'border-green-600 bg-green-50' : 'border-stone-200 bg-white hover:border-green-300 dark:border-neutral-700 dark:bg-neutral-900'" :disabled="Boolean(templateForm.scenario_key)" @click="toggleTemplateModule(module.key)">
                                             <div class="flex items-start justify-between gap-3">
                                                 <div><div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ module.label }} <span v-if="isRequiredTemplateModule(module.key)" class="ml-1 text-[10px] font-medium uppercase tracking-wide text-violet-700 dark:text-violet-300">Required</span></div><p class="mt-1 text-xs text-stone-600 dark:text-neutral-400">{{ module.description }}</p></div>
                                                 <span class="inline-flex size-5 items-center justify-center rounded-sm border text-[11px] font-semibold" :class="templateForm.selected_modules.includes(module.key) ? 'border-green-600 bg-green-600 text-white' : 'border-stone-300 text-transparent dark:border-neutral-600'">✓</span>
@@ -1179,10 +1180,12 @@ const copyAccessKit = async (workspace) => {
                             <button type="button" class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200" @click="applyRecommendedModules">Use recommended stack</button>
                         </div>
 
+                        <p v-if="form.scenario_key" class="rounded-sm border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">The narrative scenario fixes this module stack so every enabled module contains demonstrable data.</p>
+
                         <div v-for="[category, modules] in moduleGroups" :key="category" class="space-y-3">
                             <div><h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ category }}</h3></div>
                             <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                                <button v-for="module in modules" :key="module.key" type="button" class="rounded-sm border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-75" :class="form.selected_modules.includes(module.key) ? 'border-green-600 bg-green-50' : 'border-stone-200 bg-white hover:border-green-300 dark:border-neutral-700 dark:bg-neutral-900'" :disabled="isRequiredFormModule(module.key)" @click="toggleModule(module.key)">
+                                <button v-for="module in modules" :key="module.key" type="button" class="rounded-sm border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-75" :class="form.selected_modules.includes(module.key) ? 'border-green-600 bg-green-50' : 'border-stone-200 bg-white hover:border-green-300 dark:border-neutral-700 dark:bg-neutral-900'" :disabled="Boolean(form.scenario_key)" @click="toggleModule(module.key)">
                                     <div class="flex items-start justify-between gap-3">
                                         <div><div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ module.label }} <span v-if="isRequiredFormModule(module.key)" class="ml-1 text-[10px] font-medium uppercase tracking-wide text-violet-700 dark:text-violet-300">Required</span></div><p class="mt-1 text-xs text-stone-600 dark:text-neutral-400">{{ module.description }}</p></div>
                                         <span class="inline-flex size-5 items-center justify-center rounded-sm border text-[11px] font-semibold" :class="form.selected_modules.includes(module.key) ? 'border-green-600 bg-green-600 text-white' : 'border-stone-300 text-transparent dark:border-neutral-600'">✓</span>

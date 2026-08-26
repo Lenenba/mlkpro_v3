@@ -879,6 +879,7 @@ class DemoWorkspaceProvisioner
 
         return array_replace($payload, [
             'scenario_key' => $scenarioKey,
+            'selected_modules' => $requiredModules,
             'data_volume' => $dataVolume->value,
             'reference_date' => $referenceDate,
             'random_seed' => (int) $seed,

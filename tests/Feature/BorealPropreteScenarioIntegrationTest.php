@@ -3,6 +3,7 @@
 use App\Enums\DemoDataVolume;
 use App\Jobs\ProvisionDemoWorkspaceJob;
 use App\Models\Customer;
+use App\Models\DemoWorkspace;
 use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\Payment;
@@ -288,6 +289,62 @@ function borealPropreteScenarioHistoricalMonths(int $ownerId, CarbonImmutable $r
         ->all();
 }
 
+/**
+ * @param  array<string, mixed>  $overrides
+ */
+function provisionBorealPropreteScenario(array $overrides = []): DemoWorkspace
+{
+    try {
+        return app(DemoWorkspaceProvisioner::class)->create(
+            borealPropreteScenarioIntegrationPayload($overrides),
+            borealPropreteScenarioIntegrationAdmin(),
+        );
+    } catch (DemoScenarioInvariantViolationException $exception) {
+        $reportViolations = collect($exception->report()['violations'] ?? []);
+        $violations = $reportViolations
+            ->countBy(fn (array $violation): string => (string) ($violation['code'] ?? 'unknown'))
+            ->all();
+        $samples = $reportViolations
+            ->unique(fn (array $violation): string => (string) ($violation['code'] ?? 'unknown'))
+            ->values()
+            ->all();
+
+        throw new RuntimeException(
+            $exception->getMessage().' '.json_encode([
+                'counts' => $violations,
+                'samples' => $samples,
+            ], JSON_THROW_ON_ERROR),
+            previous: $exception,
+        );
+    }
+}
+
+it('provisions the scaled Boréal Propreté volumes without temporal violations', function (DemoDataVolume $volume) {
+    $targets = BorealPropreteBlueprint::targetsForVolume($volume);
+    $requiredModules = app(DemoWorkspaceCatalog::class)
+        ->requiredModulesForScenario(BorealPropreteBlueprint::KEY);
+    $workspace = provisionBorealPropreteScenario([
+        'data_volume' => $volume->value,
+        'reference_date' => '2026-08-26',
+        'selected_modules' => array_values(array_unique([
+            ...$requiredModules,
+            'reservations',
+            'promotions',
+            'assistant',
+        ])),
+    ]);
+
+    expect($workspace->provisioning_status)->toBe(DemoWorkspaceProvisioner::STATUS_READY)
+        ->and($workspace->data_volume)->toBe($volume)
+        ->and($workspace->selected_modules)->toBe($requiredModules)
+        ->and(data_get($workspace->seed_summary, 'invariant_report.violation_count'))->toBe(0)
+        ->and(borealPropreteScenarioDatabaseCounts((int) $workspace->owner_user_id))
+        ->toBe(borealPropreteScenarioExpectedCounts($targets));
+})->with([
+    'medium' => [DemoDataVolume::Medium],
+    'large' => [DemoDataVolume::Large],
+]);
+
 it('provisions and reproducibly resets the real small Boréal Propreté scenario', function () {
     $catalog = app(DemoWorkspaceCatalog::class);
     $registry = app(DemoScenarioRegistry::class);
@@ -316,31 +373,9 @@ it('provisions and reproducibly resets the real small Boréal Propreté scenario
             'products',
         );
 
-    $admin = borealPropreteScenarioIntegrationAdmin();
     $provisioner = app(DemoWorkspaceProvisioner::class);
-    try {
-        $workspace = $provisioner->create(
-            borealPropreteScenarioIntegrationPayload(),
-            $admin,
-        );
-    } catch (DemoScenarioInvariantViolationException $exception) {
-        $reportViolations = collect($exception->report()['violations'] ?? []);
-        $violations = $reportViolations
-            ->countBy(fn (array $violation): string => (string) ($violation['code'] ?? 'unknown'))
-            ->all();
-        $samples = $reportViolations
-            ->unique(fn (array $violation): string => (string) ($violation['code'] ?? 'unknown'))
-            ->values()
-            ->all();
-
-        throw new RuntimeException(
-            $exception->getMessage().' '.json_encode([
-                'counts' => $violations,
-                'samples' => $samples,
-            ], JSON_THROW_ON_ERROR),
-            previous: $exception,
-        );
-    }
+    $workspace = provisionBorealPropreteScenario();
+    $admin = User::query()->where('email', 'boreal-scenario-admin@example.test')->firstOrFail();
     $ownerId = (int) $workspace->owner_user_id;
     $summary = (array) $workspace->seed_summary;
     $fingerprint = (string) data_get($summary, 'dataset_fingerprint');

@@ -27,3 +27,12 @@ test('the preview and scenario changes stay aligned with the selected scenario v
     assert.match(createPage, /ensureScenarioDataVolume\(form, scenarioKey, formDataVolumes\.value, props\.defaults\.data_volume\);/u);
     assert.match(createPage, /ensureScenarioDataVolume\([\s\S]*?templateDataVolumes\.value,[\s\S]*?props\.template_defaults\.data_volume,/u);
 });
+
+test('a deterministic scenario owns its exact demonstrable module stack', () => {
+    assert.match(createPage, /target\.selected_modules = \[\.\.\.requiredModules\];/u);
+    assert.match(createPage, /if \(form\.scenario_key \|\| isRequiredFormModule\(key\)\) \{/u);
+    assert.match(createPage, /if \(templateForm\.scenario_key \|\| isRequiredTemplateModule\(key\)\) \{/u);
+    assert.match(createPage, /:disabled="Boolean\(form\.scenario_key\)" @click="toggleModule\(module\.key\)"/u);
+    assert.match(createPage, /:disabled="Boolean\(templateForm\.scenario_key\)" @click="toggleTemplateModule\(module\.key\)"/u);
+    assert.match(createPage, /The narrative scenario fixes this module stack so every enabled module contains demonstrable data\./u);
+});

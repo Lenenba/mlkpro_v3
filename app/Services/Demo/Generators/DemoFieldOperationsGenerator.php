@@ -200,7 +200,7 @@ final class DemoFieldOperationsGenerator
             'demo_role' => 'scenario_owner',
         ])->save();
 
-        $this->backdate('users', (int) $owner->id, $context->referenceDate->subMonths(12)->startOfMonth());
+        $this->backdate('users', (int) $owner->id, $context->referenceDate->subMonths(13)->startOfMonth());
     }
 
     /**
@@ -603,7 +603,7 @@ final class DemoFieldOperationsGenerator
         $byStory = collect();
         $properties = collect();
         $propertiesByCustomer = collect();
-        $historyStart = $context->referenceDate->subMonths(12)->startOfMonth();
+        $historyStart = $context->referenceDate->subMonths(13)->startOfMonth();
         $firstNames = ['Laurence', 'Olivier', 'Sarah', 'Nicolas', 'Myriam', 'Thomas', 'Ariane', 'Karim', 'Sophie', 'David'];
         $lastNames = ['Bélanger', 'Côté', 'Tremblay', 'Bouchard', 'Roy', 'Pelletier', 'Mercier', 'Haddad', 'Gagnon', 'Fortin'];
 
@@ -1540,7 +1540,7 @@ final class DemoFieldOperationsGenerator
             foreach ($parts as $partIndex => $amount) {
                 $paidAt = $invoiceDate->addDays(min(25, 2 + ($partIndex * 5)));
                 if ($paidAt->gt($context->referenceDate->endOfDay())) {
-                    $paidAt = $context->referenceDate->subDays($partIndex)->setTime(13, $invoiceIndex % 60);
+                    $paidAt = $invoiceDate->addHour()->addMinutes($partIndex);
                 }
                 $payment = Payment::query()->create([
                     'invoice_id' => $invoice->id,

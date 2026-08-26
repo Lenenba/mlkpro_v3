@@ -188,9 +188,15 @@ it('refuses to provision Studio Naya when a required module is missing', functio
 it('persists scenario metadata and dispatches only opted-in workspaces through the scenario manager', function () {
     $scenario = bindScenarioIntegrationFake();
     $admin = demoScenarioIntegrationAdmin();
+    $payload = demoScenarioIntegrationPayload();
+    $payload['selected_modules'] = array_values(array_unique([
+        ...$payload['selected_modules'],
+        'jobs',
+        'requests',
+    ]));
 
     $workspace = app(DemoWorkspaceProvisioner::class)->create(
-        demoScenarioIntegrationPayload(),
+        $payload,
         $admin
     );
     $selectedModules = collect($workspace->selected_modules)->sort()->values()->all();
@@ -214,6 +220,7 @@ it('persists scenario metadata and dispatches only opted-in workspaces through t
         ->and($scenario->lastContext?->workspace->is($workspace))->toBeTrue()
         ->and($scenario->lastContext?->owner->is($workspace->owner))->toBeTrue()
         ->and($enabledFeatures)->toBe($selectedModules)
+        ->and($selectedModules)->not->toContain('jobs', 'requests')
         ->and(array_diff(
             app(DemoWorkspaceCatalog::class)->requiredModulesForScenario($workspace->scenario_key),
             $selectedModules,
