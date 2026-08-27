@@ -54,6 +54,7 @@ return [
         'social_publish' => [
             'queue' => env('ASYNC_QUEUE_SOCIAL_PUBLISH', 'social-publish'),
             'backoff' => [30, 120, 300],
+            'timeout' => 60,
         ],
     ],
 

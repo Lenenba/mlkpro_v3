@@ -2,1014 +2,1424 @@
 
 Date de cadrage : 2026-08-26
 
-Statut : architecture cible recommandée, mise en production conditionnée par les gates P0
+Révision : 6 — checkpoint de la branche dédiée Pulse/Buffer
 
-Périmètre : module tenant `social` / marque produit `Malikia Pulse`
+Baseline auditée : branche develop, commit a54169d3d096
+
+Branche de travail active : `feature/pulse-buffer-refonte`, créée depuis `develop@a54169d3d096`
+
+Statut documentaire : complet — référence active
+
+Statut de livraison : **WP0/WP0-S validés localement — gate d’indexation vert — gate de déploiement ouvert — WP1 en cours de revalidation**
+
+Statut de décision : **BLOCKED_P0**
+
+## 0. Journal d’évolution
+
+Ce journal est mis à jour à chaque étape de la refonte. Une étape n’est déclarée terminée que lorsque ses preuves techniques et ses limites sont enregistrées ici.
+
+| ID | Date | Étape | Évolution | Preuves | Statut |
+| --- | --- | --- | --- | --- | --- |
+| EV-PULSE-001 | 2026-08-26 | WP0 — stabilisation legacy | Verrous transactionnels d’approbation, dispatch après commit, retries explicites, invariant tenant, édition des publications en file verrouillée et erreurs par cible exposées dans l’interface | 100 tests Pulse / 1 322 assertions ; 7 tests Node ; build Vite ; budgets frontend ; PHPStan ; `composer qa:format` | Terminé |
+| EV-PULSE-002 | 2026-08-27 | WP1 — revalidation du contrat | Le graphe du dépôt, Nightwatch et la documentation Buffer officielle sont recontrôlés avant de choisir une tranche. Aucun incident Nightwatch ouvert. Les pages Buffer exposent désormais un contrat public plus détaillé, mais aucune preuve réelle liée au client OAuth Malikia n’est encore attachée aux BUF-P0-01 à 10. | Graphify BFS sur Buffer/OAuth/transport/outbox ; Nightwatch : 0 issue ouverte ; documentation officielle Buffer consultée ; navigateur intégré indisponible faute d’instance connectée | En cours |
+| EV-PULSE-003 | 2026-08-27 | WP0-S — sécurité OAuth et DTO | Le verifier PKCE X quitte `metadata` pour un champ chiffré dédié. Les DTO n’exposent plus la metadata brute : seuls `connection_flow` et `test_connection` sont autorisés. Tous les chemins terminaux OAuth, refresh, test et déconnexion effacent l’état, le verifier et son expiration. La lecture legacy est conservée uniquement pendant la fenêtre de migration. | Tests de chiffrement au repos, de migration aller/retour, de non-fuite Inertia et API, de fallback legacy et de nettoyage des secrets ; Graphify path service → publisher X | Validé localement |
+| EV-PULSE-004 | 2026-08-27 | WP0 — workflow, file et interface | Une publication déjà demandée ne peut plus repartir en approbation ; une approbation en attente ne peut être publiée ou programmée directement ; le worker refuse tout contenu encore en attente. Une publication déjà programmée ne peut plus redispatcher la même cible. Les contrôles UI couvrent les vrais handlers de mutation. Les contrats du job et l’isolation tenant avant dispatch sont figés par tests. | Tests approbation owner/approver, rollback et `afterCommit` ; double programmation sans mutation/dispatch ; contrats exacts tries/backoff/timeout/middleware ; tests Node des handlers et boutons | Terminé |
+| EV-PULSE-005 | 2026-08-27 | WP0-S — callback OAuth à usage unique | Le callback revendique atomiquement la connexion avant l’appel HTTP fournisseur, consomme le verifier, bloque les redémarrages concurrents et ne finalise que si le claim attendu est toujours propriétaire. La relance OAuth verrouille et relit la ligne en base : un modèle obsolète ne peut pas écraser le claim. Après expiration du lease, l’interface autorise la récupération. Une réponse ancienne ne peut plus écraser une nouvelle autorisation. Les appels OAuth portent des timeouts explicites et aucun retry automatique. | Tests de double callback réentrant, modèle obsolète, claim actif/expiré, réponse obsolète, refus fournisseur, timeout et unicité de l’appel HTTP | Validé localement |
+| EV-PULSE-006 | 2026-08-27 | WP0-S — stratégie de déploiement | Le schéma et le nouveau writer ne sont pas compatibles avec un déploiement rolling bidirectionnel : un ancien callback ne relit pas le nouveau champ dédié. Le lot courant exige donc un déploiement atomique sous maintenance ; un rolling nécessiterait un pont temporaire en trois phases. Le rollback de la migration métier ne doit être utilisé qu’avec le retour coordonné vers l’ancien code. | Revue de migration, test SQLite isolé `up → down → up`, audit des readers/writers et fenêtre OAuth de 15 minutes | Gate production ouvert |
+| EV-PULSE-007 | 2026-08-27 | Validation intégrée WP0/WP0-S | Le lot PHP, les contrats frontend et la compilation sont verts après les corrections de revue. PHPStan a été relancé hors sandbox après le blocage attendu de son port local éphémère et ne relève aucune erreur. Les deux migrations passent un cycle réel `fresh → rollback --step=2 → migrate` sur une base SQLite isolée. | 127 tests Pulse / 1 546 assertions ; 197 tests Node ; Pint sur 22 fichiers ; build Vite ; budgets frontend ; PHPStan 901/901 sans erreur ; migrations `up → down → up` | Contrôles intégrés verts |
+| EV-PULSE-008 | 2026-08-27 | Validation croisée MCP et graphe | Le graphe est reconstruit après les changements et relie le claim OAuth, le service de connexion, le publisher X, la migration et le gate documentaire. Nightwatch reste sans issue ouverte. GitHub confirme le dépôt distant et l’existence de `develop` ; aucune action distante n’est exécutée. Le navigateur intégré a été diagnostiqué mais aucune instance n’est connectée. Laravel Boost, Context7 et un MCP Buffer ne sont pas exposés dans cette session : la documentation officielle revalidée et datée reste le fallback consigné. Aucun credential ni client OAuth Buffer réel n’est disponible pour fermer WP1. | Graphify : 31 924 nœuds / 66 037 arêtes / 1 753 communautés puis requête BFS ciblée ; Nightwatch : 0 issue ouverte ; GitHub MCP : dépôt `Lenenba/mlkpro_v3`, branche `develop` ; Browser : liste vide | Terminé avec limites explicites |
+| EV-PULSE-009 | 2026-08-27 | Revue finale contradictoire | Trois relectures indépendantes identifient un écrasement possible du claim OAuth par un modèle obsolète, la récupération UI impossible après expiration du claim, un redispatch de programmation, deux handlers UI incohérents et des formulations documentaires trop absolues. Les corrections utilisent un verrou DB frais pour relancer OAuth, exposent l’activité réelle du claim, bloquent la double programmation et alignent tous les handlers concernés. | Revue backend, frontend et documentaire multi-agent ; 32 tests backend ciblés / 247 assertions ; 5 tests Node ciblés ; suite intégrée EV-PULSE-007 | Corrections et validation intégrée terminées |
+| EV-PULSE-010 | 2026-08-27 | Gate PHP obligatoire | Tous les fichiers PHP du lot, y compris les ajouts et migrations, sont complètement indexés avant le contrôle de format. Le garde-fou du dépôt sélectionne 22 fichiers depuis le merge-base `origin/develop` et Pint ne produit aucune correction. | `composer qa:format` : PASS, 22/22 fichiers ; aucun fichier PHP partiellement indexé | Terminé |
+| EV-PULSE-011 | 2026-08-27 | Isolation de la refonte | Le lot WP0/WP0-S validé est déplacé sans perte depuis `develop` vers une branche dédiée afin de poursuivre les essais et la refonte sans exposer la branche d’intégration aux travaux intermédiaires. Les 31 fichiers restent complètement indexés et le présent lot constitue le checkpoint initial de la branche. Aucune branche distante n’est créée à cette étape. | Branche locale `feature/pulse-buffer-refonte` créée depuis `develop@a54169d3d096` ; index Git conservé ; absence de fichier non indexé | Terminé |
+
+### 0.1 Gate de déploiement WP0-S
+
+Pour le seul lot de sécurité WP0-S, le code courant est **GO uniquement pour un déploiement atomique sous maintenance**. Ce GO limité ne vaut ni GO fondation Buffer, ni GO pilote, ni autorisation de mise en production globale :
+
+1. arrêter l’entrée de nouveaux callbacks OAuth et drainer les workers et nœuds web anciens ;
+2. attendre ou invalider la fenêtre OAuth engagée de 15 minutes ;
+3. déployer les deux migrations et le code dans la même fenêtre, avec la même `APP_KEY` et, en cas de rotation, les anciennes clés conservées dans `APP_PREVIOUS_KEYS` ;
+4. exécuter les contrôles de migration et de connexion, puis reprendre le trafic.
+
+Le déploiement rolling/zero-downtime du lot courant est **NO-GO** : le nouveau writer place le verifier dans le champ chiffré dédié alors que l’ancien callback ne lit que `metadata`.
+
+L’alternative rolling exige trois versions distinctes : expansion du schéma ; reader compatible et writer temporairement double ; drainage de la fenêtre de 15 minutes, nettoyage des données legacy puis suppression du double writer. Cette alternative n’est pas implémentée dans ce lot.
+
+Le `down()` de la migration de données restaure volontairement le verifier en clair dans `metadata` pour permettre un retour coordonné vers l’ancien code. Il ne constitue pas un rollback de routine et ne doit jamais être exécuté alors que le nouveau code reste en service.
+
+La preuve locale `up → down → up` utilise SQLite. Avant production, la même séquence doit être répétée sur un clone MySQL représentatif, avec sauvegarde vérifiée et contrôle de déchiffrement ; SQLite ne ferme pas ce gate fournisseur de base de données.
 
 ## 1. Décision exécutive
 
-La refonte de Malikia Pulse doit adopter **Buffer comme unique socle de diffusion vers les réseaux sociaux**.
+La direction d’architecture est approuvée :
 
-Cette décision est pertinente parce qu'elle retire de Malikia la partie la plus coûteuse et fragile du problème :
+> **Malikia Pulse reste le système éditorial et métier. Buffer devient l’unique passerelle de livraison vers les réseaux sociaux.**
 
-- les applications et validations propres à chaque réseau ;
-- les OAuth Facebook, Instagram, LinkedIn, X et futurs réseaux ;
-- les différences de publication et de formats entre plateformes ;
-- les changements fréquents d'API et de permissions ;
-- la maintenance d'un transport différent pour chaque réseau.
+La mise en production n’est pas approuvée.
 
-La cible n'est cependant pas « Buffer remplace Pulse ». La cible est :
+L’audit confirme que Pulse possède déjà un domaine éditorial réutilisable, mais qu’aucune intégration Buffer n’existe encore dans le code, le schéma, la configuration ou les tests. Le transport actif reste un scaffold de publishers directs Facebook, Instagram, LinkedIn et X.
 
-> **Malikia Pulse reste le système éditorial et métier ; Buffer devient l'unique passerelle de livraison.**
+La décision courante est donc :
 
-Malikia doit continuer à posséder :
-
-- le contenu et les brouillons ;
-- les préremplissages depuis Produits, Services, Promotions et Campagnes ;
-- la voix de marque, les modèles, la médiathèque et l'IA ;
-- les validations et permissions d'équipe ;
-- le calendrier et les intentions de programmation ;
-- l'Autopilot et ses règles ;
-- l'historique et l'audit métier.
-
-Buffer doit posséder :
-
-- la connexion effective aux réseaux sociaux ;
-- la normalisation des canaux sociaux ;
-- la dernière étape de programmation et de publication ;
-- l'adaptation aux particularités techniques des plateformes ;
-- le retour d'état disponible sur la livraison.
-
-### Recommandation finale
-
-**GO pour une architecture Buffer-first**, sous quatre conditions avant le développement complet :
-
-1. confirmer avec Buffer le quota adapté à une intégration SaaS multi-tenant ;
-2. valider un OAuth Buffer de bout en bout avec plusieurs organisations et canaux ;
-3. confirmer les possibilités de synchronisation de statut, de déduplication et de reprise ;
-4. terminer la revue juridique, sécurité, confidentialité et modèle commercial.
-
-## 2. Pourquoi le moment est favorable
-
-Buffer a lancé sa nouvelle API publique GraphQL le 27 mai 2026. Elle est disponible sur tous les plans et Buffer indique que son OAuth est géré pour les applications tierces. L'API permet notamment de créer, programmer, modifier et récupérer les publications et canaux. Elle couvre les quatre réseaux déjà visés par Pulse et plusieurs autres.
-
-Sources officielles :
-
-- [Annonce de la nouvelle API publique Buffer](https://buffer.com/resources/buffer-api-is-here/)
-- [Présentation et limites actuelles de l'API Buffer](https://support.buffer.com/en-us/articles/what-is-buffers-api-GtIYIQilz5)
-- [Documentation développeur Buffer](https://developers.buffer.com/)
-
-Cette API est récente. C'est une opportunité, mais aussi une raison de conserver une couche d'adaptation interne et de ne pas coupler le domaine Malikia directement au schéma GraphQL de Buffer.
-
-Une règle est non négociable : **utiliser uniquement la nouvelle API GraphQL `https://api.buffer.com`, jamais l'ancienne API REST**.
-
-## 3. Positionnement produit cible
-
-### Promesse simple
-
-> Créer, valider, planifier et diffuser la communication sociale d'une entreprise à partir de ses vraies données Malikia, sans gérer les contraintes techniques de chaque réseau.
-
-### Ce qui différencie Malikia Pulse de Buffer
-
-Buffer sait distribuer du contenu. Malikia connaît l'entreprise.
-
-Pulse dispose déjà des sources métier qui rendent le produit distinctif :
-
-- produits et services ;
-- promotions ;
-- campagnes ;
-- contexte sectoriel ;
-- voix de marque ;
-- rôles et validations internes ;
-- automatisations liées à l'activité de l'entreprise.
-
-La refonte doit amplifier cette différence. Elle ne doit pas reconstruire une copie du tableau de bord Buffer.
-
-### Ce qui reste hors scope
-
-Pour la première version Buffer-first, Pulse n'est pas :
-
-- une boîte de réception de commentaires et messages ;
-- un outil complet de community management ;
-- une plateforme d'analytics sociaux avancés ;
-- un remplaçant de l'interface Buffer pour administrer les comptes sociaux ;
-- une solution de connexion utilisateur à Malikia.
-
-L'API publique Buffer ne permet actuellement pas de lire ou répondre aux commentaires. Ses métriques sont annoncées comme expérimentales et non recommandées pour une application tierce de production. Les analytics audience/engagement ne doivent donc pas être promis dans le MVP.
-
-## 4. État actuel du dépôt
-
-### 4.1 Socle fonctionnel à préserver
-
-Le module est activé par la feature tenant `social` et protégé par les permissions :
-
-- `social.view` ;
-- `social.manage` ;
-- `social.publish` ;
-- `social.approve`.
-
-Les fonctionnalités métier déjà présentes comprennent :
-
-- vue d'ensemble ;
-- composeur ;
-- calendrier éditorial ;
-- voix de marque ;
-- médiathèque ;
-- campagnes Pulse ;
-- modèles ;
-- historique ;
-- Autopilot ;
-- boîte de validation ;
-- connexions de comptes.
-
-Le préremplissage depuis `product`, `service`, `promotion` et `campaign` constitue une valeur centrale à conserver.
-
-### 4.2 Utilisateurs et besoins à servir
-
-| Profil | Besoin principal | Règle d'accès |
+| Niveau | Décision | Signification |
 | --- | --- | --- |
-| Owner | Connecter Buffer, choisir les canaux, contrôler la diffusion | Accès complet au tenant |
-| Éditeur | Créer, adapter et programmer du contenu | `social.manage` et/ou `social.publish` selon l'action |
-| Approbateur | Réviser, approuver ou rejeter avant diffusion | `social.approve` |
-| Lecteur | Suivre le calendrier et l'historique | `social.view` |
+| Architecture | GO conditionnel | La séparation Pulse métier / Buffer livraison est retenue |
+| Fondation | Bloquée par P0 | Les contrats fournisseur et les risques structurants doivent être fermés |
+| Pilote | NO-GO actuel | Aucun flux Buffer fiable n’est implémenté |
+| Généralisation | NO-GO actuel | Aucune preuve de capacité, migration, sécurité ou exploitation |
 
-Les quatre permissions actuelles restent la base de la refonte. De nouveaux droits comme `social.automate` ou `social.analytics` ne doivent être ajoutés que lorsqu'ils protègent une action réellement distincte et avec une migration RBAC explicite.
+### Règles non négociables
 
-Le module `social` est aujourd'hui activé seulement dans certains plans. L'intégration Buffer ajoute aussi les limites du plan Buffer appartenant au client. La phase P0 doit donc définir séparément :
+- Aucun nouvel investissement dans un publisher social direct.
+- Aucun appel Buffer depuis le navigateur.
+- Aucun token, secret, verifier PKCE ou payload sensible dans les DTO frontend ou les logs.
+- Aucun fallback automatique vers les APIs sociales directes.
+- Aucun contenu non approuvé ne quitte Pulse.
+- Aucun retry de création distant après un résultat ambigu sans réconciliation.
+- Aucun changement de transport décidé dynamiquement par un feature flag au moment où un worker s’exécute.
+- Aucune promesse d’analytics, de commentaires ou d’engagement non couverte par le contrat public Buffer.
 
-- l'accès commercial au module Pulse dans Malikia ;
-- les quotas Malikia de contenu, IA et automatisation ;
-- les canaux et appels disponibles dans le plan Buffer du client ;
-- le comportement d'upgrade lorsque l'un des deux produits atteint sa limite.
+## 2. État réel du dépôt au point de départ
 
-### 4.3 Modèle de domaine actuel
+### 2.1 Matrice de readiness
 
-Le cœur repose notamment sur :
+| Domaine | État observé | Écart à fermer |
+| --- | --- | --- |
+| Client GraphQL Buffer | Absent | Créer un client isolé et testé |
+| OAuth Buffer | Absent | Implémenter PKCE, organisations, scopes et révocation |
+| Connexion provider | Absente | Séparer le grant Buffer des canaux |
+| Synchronisation de canaux | Absente | Découvrir, normaliser et mettre en cache les capacités |
+| Livraison | Publishers directs génériques | Remplacer par un gateway Buffer |
+| Programmation | Job Laravel retardé jusqu’à la date | Soumettre immédiatement à Buffer après approbation |
+| Outbox | Absente | Ajouter une outbox transactionnelle avec claim et lease |
+| Idempotence locale | Absente | Clé unique par cible, opération et révision |
+| Idempotence distante | Non confirmée | Gate fournisseur et protocole de timeout ambigu |
+| Réconciliation | Absente | Ajouter polling adaptatif et action manuelle |
+| Quotas | Non gérés | Budgets sur trois fenêtres et équité tenant |
+| Statuts | Éditorial, livraison et sync mélangés | Séparer les axes |
+| Médias | URL publique locale ou externe arbitraire | URL HTTPS stable avec cycle de vie |
+| UI | Onze surfaces et composants monolithiques | Simplifier et exposer la récupération par canal |
+| Tests Buffer | Aucun | Fake, contrats HTTP, concurrence, migration et E2E |
+| Observabilité Buffer | Absente | Métriques, alertes, cockpit et runbooks |
 
-- `SocialAccountConnection` ;
-- `SocialPost` ;
-- `SocialPostTarget` ;
-- `SocialPostTemplate` ;
-- `SocialApprovalRequest` ;
-- `SocialAutomationRule` et `SocialAutomationRun` ;
-- `SocialMediaAsset`.
+### 2.2 Socle métier à préserver
 
-Le choix « un post global, une cible par canal » est sain et doit rester. Il permet de suivre les succès et échecs partiels par destination.
+Pulse fournit déjà :
 
-### 4.4 Couche directe à remplacer
+- brouillons et publications ;
+- une cible par canal ;
+- préremplissage depuis produits, services, promotions et campagnes ;
+- voix de marque, modèles, médiathèque et assistance IA ;
+- calendrier et historique ;
+- approbations et permissions social.view, social.manage, social.publish et social.approve ;
+- campagnes et Autopilot ;
+- feature tenant social ;
+- états partiels par cible côté backend ;
+- chiffrement des credentials au repos.
 
-La couche actuelle comprend :
+Les modèles **SocialPost**, **SocialPostTarget**, **SocialApprovalRequest**, **SocialAutomationRule**, **SocialPostTemplate** et **SocialMediaAsset** restent les fondations métier.
 
-- `PlatformPublisherInterface` ;
-- `SocialProviderRegistry` ;
-- `AbstractPlatformPublisher` ;
-- `AbstractOauthPlatformPublisher` ;
-- `FacebookPagePlatformPublisher` ;
-- `InstagramBusinessPlatformPublisher` ;
-- `LinkedInPagePlatformPublisher` ;
-- `XProfilePlatformPublisher` ;
-- les blocs `services.social.*` de `config/services.php` ;
-- le callback OAuth public par plateforme ;
-- la logique de token, refresh et test par réseau dans `SocialAccountConnectionService`.
+### 2.3 Couche directe à remplacer
 
-L'audit du code montre que cette couche est encore principalement un scaffold : les quatre publishers utilisent le même POST générique vers une URL configurée, sans modéliser les vrais workflows propres aux réseaux ni découvrir les pages, organisations ou profils disponibles. La remplacer maintenant évite d'investir davantage dans une direction coûteuse.
+Le chemin actif est documenté par :
 
-### 4.5 Dette à corriger pendant la refonte
+- [SocialProviderRegistry](../app/Services/Social/SocialProviderRegistry.php), qui injecte quatre publishers directs ;
+- [PlatformPublisherInterface](../app/Services/Social/Contracts/PlatformPublisherInterface.php), qui mélange définition, OAuth, refresh et publication ;
+- [AbstractPlatformPublisher](../app/Services/Social/Providers/AbstractPlatformPublisher.php), qui effectue un POST générique ;
+- [AbstractOauthPlatformPublisher](../app/Services/Social/Providers/AbstractOauthPlatformPublisher.php), qui porte les échanges de token par réseau ;
+- [SocialPublishingService](../app/Services/Social/SocialPublishingService.php), qui sélectionne directement un publisher réseau ;
+- [PublishSocialPostTargetJob](../app/Jobs/PublishSocialPostTargetJob.php), qui exécute la cible.
 
-- Les statuts éditoriaux et les statuts de livraison sont mélangés.
-- Un brouillon simplement daté peut déjà être considéré comme `scheduled`.
-- Le job de publication capture les exceptions, ce qui empêche les retries de file de jouer pleinement leur rôle.
-- Il n'existe pas de verrou ou clé d'idempotence garantissant l'absence de double publication.
-- Il n'existe pas de réconciliation distante des statuts.
-- Certains dispatchs se font dans une transaction sans `afterCommit`.
-- Les routes web et API ne présentent pas exactement le même contrat.
-- Plusieurs contrôleurs répètent la résolution des droits.
-- Le frontend contient de grands composants monolithiques et des appels Axios répétés sans client Pulse central.
+Cette couche est une baseline historique directe, pas une implémentation Buffer.
 
-## 5. Ce que Buffer permet et ce qu'il ne permet pas encore
+### 2.4 Défauts critiques prouvés par l’audit
 
-### 5.1 Capacités utiles
+Cette section décrit le point de départ au commit de baseline. Les fermetures réalisées depuis sont consignées dans le journal d’évolution ; elles ne transforment pas rétroactivement cette photographie historique.
 
-La nouvelle API Buffer permet actuellement :
+#### Double publication possible
 
-- OAuth 2.0 Authorization Code avec PKCE ;
-- récupération des organisations et canaux ;
-- création et modification de publications ;
-- publication immédiate avec `shareNow` ;
-- programmation exacte avec `customScheduled` et `dueAt` ;
-- ajout à la prochaine plage Buffer avec `addToQueue` ;
-- lecture des publications programmées et envoyées ;
-- images et vidéos fournies par URL publique ;
-- paramètres spécifiques à plusieurs plateformes ;
-- brouillons et politiques d'approbation Buffer selon le compte.
+**SocialPublishingService** acceptait explicitement une cible déjà en cours de publication. Deux workers ou un crash après acceptation distante, mais avant sauvegarde locale, pouvaient produire un deuxième envoi.
 
-Réseaux annoncés par l'API : Instagram, Threads, LinkedIn, X, Facebook, TikTok, Google Business Profile, Mastodon, YouTube, Pinterest et Bluesky.
+Il n’existait alors :
 
-Références :
+- ni verrou de cible ;
+- ni claim atomique ;
+- ni clé d’idempotence ;
+- ni révision éditoriale persistée ;
+- ni recherche distante avant retry ;
+- ni état de résultat ambigu.
 
-- [Authentification OAuth Buffer](https://developers.buffer.com/guides/authentication.html)
-- [Publications et programmation](https://developers.buffer.com/guides/posts-and-scheduling.html)
-- [Référence GraphQL](https://developers.buffer.com/reference.html)
+#### Retries neutralisés
 
-### 5.2 Contraintes structurantes
+**SocialPublishingService** capturait tous les Throwable, marquait la cible failed et ne relançait pas l’exception. Les tries et backoffs déclarés dans **PublishSocialPostTargetJob** ne s’appliquaient donc pas aux erreurs réseau, 429, 5xx ou timeouts fournisseur.
 
-#### Analytics
+#### Dispatch avant commit possible
 
-L'API ne fournit pas encore un accès complet et fiable aux analytics pour les applications OAuth tierces. Pulse doit afficher uniquement des indicateurs opérationnels réellement maîtrisés :
+Autopilot pouvait appeler la publication dans une transaction alors que les connexions de queue avaient after_commit désactivé. Un worker pouvait s’exécuter avant le commit, ne pas trouver une cible, retourner silencieusement et perdre la livraison.
 
-- brouillons ;
-- à valider ;
-- programmés ;
-- envoyés ;
-- en erreur ;
-- canaux connectés ;
-- régularité du planning.
+#### Course dans l’approbation
 
-Les impressions, portée, clics et engagement ne doivent pas être simulés. Une action « Ouvrir les analyses dans Buffer » peut être proposée.
+**SocialApprovalService** déclenchait la publication avant de persister la résolution de l’approbation, sans transaction globale ni verrou. Deux approbateurs concurrents pouvaient mettre en queue la même révision.
 
-#### Engagement
+#### Invariant tenant incomplet
 
-La lecture et la réponse aux commentaires ne sont pas disponibles via l'API publique. Cette fonction reste hors scope ou renvoie vers Buffer.
+Le worker recevait seulement un identifiant de cible et ne vérifiait pas explicitement que :
 
-#### Médias
+- le post ;
+- la cible ;
+- le canal ;
+- la connexion provider ;
+- et l’organisation Buffer
 
-Buffer ne propose pas d'upload média natif via cette API. Le fichier doit être disponible à une URL :
+appartiennent tous au même tenant.
 
-- HTTPS ;
-- directe ;
-- publique sans authentification ;
-- stable jusqu'à la publication.
+#### Risque OAuth et DTO
 
-Les URL signées à courte durée peuvent provoquer l'échec d'une publication planifiée. La médiathèque Malikia doit donc produire une URL de livraison dédiée, non devinable, stable et soumise à une politique de rétention explicite.
+Le verifier PKCE du provider X était placé dans metadata, et le DTO de connexion retournait alors la metadata complète. La refonte devait passer à des DTO en liste blanche et conserver tous les secrets exclusivement côté serveur.
 
-Référence : [Hébergement des médias pour l'API Buffer](https://developers.buffer.com/guides/hosting-media.html).
+#### Contrat média insuffisant
+
+La médiathèque utilise un disque public local et accepte aussi des URL externes arbitraires. Elle ne garantit pas encore qu’un média restera publiquement accessible, en HTTPS, jusqu’à sa date de publication plus une période de grâce.
+
+#### Défauts UI observés dans la baseline
+
+- Pendant pending_approval, [SocialPostComposer](../resources/js/Pages/Social/Components/SocialPostComposer.vue) verrouillait les champs texte mais laissait [DropzoneInput](../resources/js/Components/DropzoneInput.vue) interactif. L’approbateur pouvait voir une image locale différente de la révision réellement approuvée.
+- Le backend retournait déjà le statut, la date d’échec et la raison par cible, mais [SocialPostHistory](../resources/js/Pages/Social/Components/SocialPostHistory.vue) ne les affichait pas.
+- Les capacités des réseaux étaient codées en dur dans Vue.
+- Aucun test frontend Pulse ne couvrait le responsive, l’accessibilité, la récupération ou les statuts Buffer.
+
+### 2.5 Interprétation des tests existants
+
+Lors de l’audit du 26 août 2026 :
+
+- 50 tests backend Pulse ciblés et 601 assertions étaient verts ;
+- 8 contrôles Node partagés étaient verts ;
+- le dépôt restait propre sur develop.
+
+Ces résultats prouvent la stabilité de la baseline directe. Ils ne prouvent pas l’idempotence, la réconciliation, la concurrence, la gestion des quotas ou la fiabilité Buffer.
+
+## 3. Portée et non-objectifs
+
+### 3.1 Inclus dans la refonte
+
+- connexion d’un compte Buffer appartenant au client ;
+- OAuth, organisations et canaux ;
+- activation des canaux dans Pulse ;
+- publication immédiate ;
+- programmation exacte ;
+- variantes facultatives par réseau ou canal ;
+- approbation locale avant livraison ;
+- modification et annulation lorsque Buffer le permet ;
+- réconciliation des statuts ;
+- diagnostic, reconnexion et resynchronisation ;
+- migration des brouillons, règles Autopilot, modèles et posts futurs ;
+- mode dégradé sans perte de travail éditorial ;
+- observabilité, runbooks et rollback.
+
+### 3.2 Hors scope initial
+
+- lecture ou réponse aux commentaires et messages ;
+- community management complet ;
+- analytics sociaux avancés ;
+- administration complète d’un compte Buffer ;
+- compte Buffer mutualisé détenu par Malikia ;
+- support de nouvelles plateformes avant stabilisation des quatre réseaux déjà visés ;
+- utilisation des workflows d’approbation Buffer à la place de ceux de Pulse ;
+- authentification des utilisateurs à Malikia par Google, Microsoft, Facebook ou LinkedIn.
+
+Les composants **UserSocialAccount**, **Auth\SocialAuthController**, la configuration social_auth et les routes de connexion utilisateur restent hors périmètre et doivent être préservés.
+
+## 4. Contrat public Buffer revalidé le 27 août 2026
+
+Les faits de cette section sont datés. Ils doivent être revérifiés avant chaque gate de lancement, car l’API évolue rapidement.
+
+### 4.1 Points confirmés
+
+#### API
+
+L’API publique actuelle est GraphQL sur https://api.buffer.com. La refonte ne doit jamais s’appuyer sur l’ancienne API REST.
+
+Sources :
+
+- [Documentation développeur Buffer](https://developers.buffer.com/)
+- [Présentation officielle de l’API](https://support.buffer.com/en-us/articles/what-is-buffers-api-GtIYIQilz5)
+
+#### OAuth et rotation
+
+Pour un client OAuth, Buffer exige Authorization Code avec PKCE. Le state doit être vérifié et la redirect URI doit correspondre exactement. Le scope offline_access est requis pour obtenir un refresh token.
+
+Chaque refresh token est à usage unique :
+
+- un refresh réussi invalide l’ancien token ;
+- réutiliser un ancien refresh token révoque tous les tokens associés au grant et impose une nouvelle autorisation ;
+- la durée doit être lue depuis expires_in et non codée en dur.
+
+Conséquence : un verrou distribué par grant, une transaction et un contrôle de version sont obligatoires pour le refresh.
+
+Source : [Authentification Buffer](https://developers.buffer.com/guides/authentication.html).
 
 #### Quotas
 
-Les limites documentées par client sont :
+Les limites documentées par client utilisent trois fenêtres glissantes :
 
-| Plan Buffer | 15 minutes | 24 heures | 30 jours |
+| Plan | 15 minutes | 24 heures | 30 jours |
 | --- | ---: | ---: | ---: |
 | Free | 100 | 250 | 3 000 |
 | Essentials | 100 | 250 | 7 500 |
 | Team | 100 | 500 | 15 000 |
 
-Ces valeurs sont trop importantes pour être laissées comme détail d'implémentation. Pulse devra :
+Chaque réponse GraphQL expose plusieurs headers RateLimit et RateLimit-Policy. Les politiques doivent être identifiées par leur fenêtre, et Retry-After doit être respecté sur HTTP 429.
 
-- lire les headers `RateLimit` et `RateLimit-Policy` ;
-- respecter `Retry-After` sur HTTP 429 ;
-- suivre un budget par client et par fenêtre ;
-- regrouper et paginer les synchronisations ;
-- éviter le polling agressif ;
-- obtenir de Buffer une limite adaptée à une intégration multi-tenant avant le lancement général.
+Un polling toutes les cinq minutes représente déjà 288 appels par jour avant toute autre opération. Le partage réel des buckets d’un app client OAuth entre tenants est donc un bloqueur P0.
 
-Référence : [Limites de l'API Buffer](https://developers.buffer.com/guides/api-limits.html).
+Source : [Limites de l’API Buffer](https://developers.buffer.com/guides/api-limits.html).
 
 #### Erreurs GraphQL
 
-Les erreurs fonctionnelles ou système peuvent être renvoyées dans le corps d'une réponse HTTP 200. Le client doit inspecter à la fois :
+Une mutation peut retourner une erreur typée dans data ou une erreur système dans errors sous HTTP 200. Les erreurs de transport, 401 et 429 restent traitées séparément.
 
-- les unions de mutation, dont `MutationError` ;
-- le tableau GraphQL de premier niveau `errors` ;
-- le statut HTTP, notamment 401 et 429.
+Le client doit donc interpréter :
 
-Référence : [Gestion des erreurs Buffer](https://developers.buffer.com/guides/error-handling.html).
+- le statut HTTP ;
+- le tableau GraphQL errors ;
+- le type concret de l’union de mutation ;
+- les headers de quota ;
+- un identifiant de requête lorsqu’il existe.
 
-#### Webhooks et idempotence distants
+Source : [Gestion des erreurs Buffer](https://developers.buffer.com/guides/error-handling.html).
 
-Aucun contrat public de webhook ou de clé d'idempotence n'a été identifié dans la documentation examinée le 26 août 2026. Ce point doit être confirmé avec Buffer. Tant qu'il ne l'est pas, l'architecture doit utiliser :
+#### Publication et programmation
 
-- une idempotence locale ;
-- une outbox de livraison ;
-- une réconciliation par polling maîtrisé ;
-- une action manuelle « Resynchroniser ».
+Buffer documente notamment :
 
-## 6. Principe d'architecture
+- shareNow pour une publication immédiate ;
+- customScheduled avec dueAt ISO-8601 UTC pour une heure exacte ;
+- addToQueue pour la prochaine plage disponible.
 
-```mermaid
-flowchart LR
-    A[Produits / Services / Promotions / Campagnes] --> B[Composeur et IA Pulse]
-    B --> C[Post éditorial Malikia]
-    C --> D[Validation Malikia]
-    D --> E[Outbox et cible par canal]
-    E --> F[Gateway Buffer côté serveur]
-    F --> G[API GraphQL Buffer]
-    G --> H[Canaux sociaux]
-    I[Médiathèque Malikia] -->|URL de livraison stable| G
-    G -->|statuts interrogés| J[Réconciliation]
-    J --> C
-```
+Pulse choisit architecturalement de soumettre une programmation exacte à Buffer dès son approbation. Laravel ne doit pas conserver un job dormant jusqu’à la date finale.
 
-### Règles d'autorité
+Source : [Publications et programmation](https://developers.buffer.com/guides/posts-and-scheduling.html).
 
-| Domaine | Système de référence |
+La valeur shareNow est également décrite par le type [ShareMode](https://developers.buffer.com/types/ShareMode.html).
+
+Les statuts distants documentés comprennent :
+
+- draft ;
+- needs_approval ;
+- scheduled ;
+- sending ;
+- sent ;
+- error.
+
+Source : [PostStatus](https://developers.buffer.com/types/PostStatus.html).
+
+Les publications API respectent aussi les permissions et politiques du canal Buffer. Un canal peut donc produire draft ou needs_approval. Le spike doit décider si ces canaux sont refusés dans le MVP ou supportés avec un état remote_approval_required visible ; Pulse ne doit jamais masquer une seconde approbation distante.
+
+#### Médias
+
+Buffer ne fournit pas d’endpoint d’upload pour ce flux. Le média est récupéré depuis une URL :
+
+- HTTPS ;
+- directe ;
+- publique sans authentification ;
+- stable jusqu’à la publication.
+
+Les URL signées à courte durée sont inadaptées aux publications futures.
+
+Source : [Hébergement des médias](https://developers.buffer.com/guides/hosting-media.html).
+
+#### Analytics et engagement
+
+Les métriques publiques sont encore décrites comme expérimentales et orientées vers un usage personnel par clé API. Elles ne doivent pas devenir une dépendance de production OAuth. Les commentaires ne sont pas couverts pour le MVP.
+
+Source : [Limites actuelles de l’API](https://support.buffer.com/en-us/articles/what-is-buffers-api-GtIYIQilz5).
+
+### 4.2 Capacités non documentées publiquement
+
+Au 27 août 2026, aucune garantie publique n’a été identifiée pour :
+
+- un webhook de changement de statut ;
+- une clé d’idempotence de création ;
+- un clientMutationId ou champ équivalent récupérable ;
+- une recherche garantie après un timeout ambigu ;
+- le partage exact des quotas OAuth entre tenants.
+
+Cette formulation ne signifie pas que Buffer ne possède pas ces capacités. Elle signifie qu’elles doivent être confirmées par écrit ou démontrées par le spike.
+
+Une clé locale protège Pulse contre ses propres doubles traitements. Elle ne garantit pas un exactly-once distant si Buffer a accepté la publication avant une coupure de réponse.
+
+## 5. Registre des décisions P0
+
+Toutes les lignes sont bloquantes tant qu’aucune preuve n’est attachée.
+
+| ID | Question | Preuve attendue | Responsable | État |
+| --- | --- | --- | --- | --- |
+| BUF-P0-01 | OAuth avec deux organisations et plusieurs rôles | Trace du spike, scopes et canaux visibles | Backend + produit | Ouvert |
+| BUF-P0-02 | Bucket de quota OAuth partagé entre tenants | Réponse écrite Buffer et calcul de capacité | Produit + exploitation | Ouvert |
+| BUF-P0-03 | Webhook de statut disponible ou prévu | Contrat ou réponse écrite Buffer | Backend | Ouvert |
+| BUF-P0-04 | Idempotence ou corrélation distante | Contrat, champ supporté ou protocole officiel | Backend | Ouvert |
+| BUF-P0-05 | Recherche après timeout ambigu | Test réel après acceptation sans réponse | Backend | Ouvert |
+| BUF-P0-06 | Modification, replanification et suppression par statut | Matrice testée draft à error | Backend + produit | Ouvert |
+| BUF-P0-07 | Capacités, formats, publication par notification et approbation distante | Matrice par canal, dont draft et needs_approval | Produit + frontend | Ouvert |
+| BUF-P0-08 | URL média stable et cycle de vie | Spike avec publication future et suppression différée | Backend + sécurité | Ouvert |
+| BUF-P0-09 | Usage SaaS, DPA, support et incident | Validation juridique et fournisseur | Juridique + sécurité | Ouvert |
+| BUF-P0-10 | Modèle commercial compte client | Parcours, coûts et prérequis validés | Produit | Ouvert |
+
+## 6. Systèmes de référence et invariants
+
+### 6.1 Autorité par domaine
+
+| Domaine | Source de vérité |
 | --- | --- |
-| Contenu, variantes, source métier | Malikia |
-| Voix de marque, modèles, IA | Malikia |
-| Validation et permissions | Malikia |
-| Intention de date et calendrier éditorial | Malikia |
-| Connexion technique aux réseaux | Buffer |
-| Canaux accessibles | Buffer, cache normalisé dans Malikia |
+| Contenu, variante et révision | Pulse |
+| Source produit, service, promotion ou campagne | Pulse |
+| Voix de marque, modèles et IA | Pulse |
+| Permissions et approbation | Pulse |
+| Intention de date et fuseau | Pulse |
+| Grant OAuth et organisations accessibles | Buffer, représentés localement |
+| Canaux et capacités distantes | Buffer, mis en cache dans Pulse |
 | Livraison finale | Buffer |
-| Historique métier et audit | Malikia |
-| État distant de livraison | Buffer, réconcilié dans Malikia |
-| Engagement et analytics avancés | Buffer tant que l'API publique ne les expose pas correctement |
+| Historique et audit métier | Pulse |
+| Statut distant | Buffer, réconcilié dans Pulse |
+| Analytics avancés et engagement | Hors contrat Pulse initial |
 
-### Buffer-first, pas dépendance diffuse
+### 6.2 Invariants obligatoires
 
-Le navigateur ne doit jamais appeler Buffer et ne doit jamais recevoir ses tokens. Toutes les communications passent par le serveur Malikia.
+1. Une révision approuvée ne peut produire qu’une opération create automatique par cible et génération de récupération.
+2. Une cible ne peut référencer qu’un canal, un provider et une organisation du même tenant que le post.
+3. L’approbation, le gel de la révision et l’insertion de l’outbox sont atomiques dans la même transaction.
+4. Seul le dispatch ou le traitement de l’outbox intervient après commit.
+5. Un worker réclame une entrée par compare-and-swap avec lease expirante et fencing token avant tout appel distant.
+6. Un timeout ambigu ne déclenche jamais automatiquement une nouvelle création.
+7. Le transport choisi est persisté sur la cible et l’outbox avant mise en queue.
+8. Un changement de feature flag ne change pas le transport d’une cible déjà créée.
+9. Une programmation exacte ne devient jamais silencieusement addToQueue.
+10. Un succès de mutation create signifie submitted, pas published.
+11. Published est dérivé d’un statut distant sent réconcilié.
+12. Partial_failed est un statut agrégé du post, jamais le statut d’une cible individuelle.
+13. Les credentials, tokens, verifiers et réponses sensibles restent côté serveur.
+14. Un média approuvé est immuable ; toute modification crée une nouvelle révision.
+15. Une URL média reste disponible jusqu’à la date distante plus une période de grâce définie.
+16. Aucun rollback n’active automatiquement le transport direct.
+17. Une récupération manuelle après unknown crée une nouvelle recovery_generation ou une nouvelle révision, référence l’outbox remplacée et reste auditée.
+18. Un sweeper durable retrouve périodiquement les outbox pending ou retryable et répare les leases expirées claimed ou submitting.
+19. Les canaux pouvant produire draft ou needs_approval chez Buffer sont refusés ou affichés comme remote_approval_required tant que leur politique n’est pas explicitement supportée.
 
-Une interface interne doit isoler le fournisseur, même si Buffer est le seul fournisseur de production :
+## 7. Architecture cible
 
-```php
-interface SocialDistributionGateway
-{
-    public function syncChannels(SocialProviderConnection $connection): array;
-    public function publishNow(SocialPostTarget $target): DistributionResult;
-    public function schedule(SocialPostTarget $target): DistributionResult;
-    public function update(SocialPostTarget $target): DistributionResult;
-    public function cancel(SocialPostTarget $target): DistributionResult;
-    public function status(SocialPostTarget $target): DistributionStatus;
-}
-```
+~~~mermaid
+flowchart LR
+    A[Sources métier Malikia] --> B[Composeur et variantes Pulse]
+    B --> C[Révision éditoriale]
+    C --> D[Approbation Pulse]
+    D -->|même transaction| E[Targets + Outbox]
+    E -->|après commit| F[Worker de soumission]
+    F --> G[Gateway Buffer]
+    G --> H[API GraphQL Buffer]
+    H --> I[Canaux sociaux]
+    J[Stockage média de livraison] --> H
+    H --> K[Réconciliation]
+    K --> L[Statuts locaux et historique]
+~~~
 
-Une seule implémentation est prévue : `BufferDistributionGateway`. Cette abstraction n'a pas pour but de maintenir d'autres réseaux directs ; elle empêche le domaine, les contrôleurs et le frontend de devenir dépendants du schéma Buffer.
+### 7.1 Composants et responsabilités
 
-## 7. Modèle de données cible
+| Composant cible | Responsabilité | Ne doit pas faire |
+| --- | --- | --- |
+| BufferGraphqlClient | HTTP, GraphQL, headers, timeouts et réponse brute minimale | Décider des statuts métier |
+| BufferOauthService | PKCE, state, callback et sélection d’organisation | Retourner des secrets au frontend |
+| BufferTokenService | Refresh verrouillé, transactionnel et versionné | Rafraîchir en concurrence sans lock |
+| BufferDistributionGateway | Traduire les opérations Pulse en contrat Buffer | Exposer le schéma GraphQL au domaine |
+| BufferChannelSynchronizer | Organisations, canaux, capacités et tombstones | Écraser l’historique legacy |
+| SocialDeliveryOutboxService | Créer, réclamer, relâcher et terminer les opérations | Effectuer un appel réseau dans la transaction métier |
+| SocialDeliveryReconciler | Lire le distant et résoudre les écarts | Recréer une publication inconnue |
+| SocialChannelCapabilityService | Valider texte, média et options par canal | Utiliser des limites codées en dur dans Vue |
+| SocialMediaDeliveryUrlService | Produire, tester, retenir et révoquer les URL | Utiliser une URL courte durée |
+| BufferErrorMapper | Classer les erreurs et actions utilisateur | Stocker la réponse complète sans filtrage |
+| BufferQuotaBudget | Suivre les trois fenêtres et arbitrer les appels | Affamer un tenant au profit d’un autre |
 
-Les migrations doivent être additives. Les migrations historiques déjà exécutées ne doivent jamais être supprimées ou réécrites.
+### 7.2 Contrat métier interne
 
-### 7.1 Nouvelle table `social_provider_connections`
+Le contrat exact sera figé pendant WP2. Il doit couvrir au minimum :
 
-Une connexion représente l'autorisation Buffer d'un tenant, pas un réseau individuel.
+- synchroniser les organisations ;
+- synchroniser les canaux ;
+- créer une publication immédiate ;
+- créer une publication programmée ;
+- modifier ou replanifier ;
+- annuler ou supprimer ;
+- lire un post distant ;
+- lire un ensemble de statuts ;
+- normaliser les capacités ;
+- retourner un résultat typé sans dépendance GraphQL dans le domaine.
 
-Champs recommandés :
+Une seule implémentation de production est prévue : Buffer.
 
-- `id` ;
-- `user_id` owner/tenant ;
-- `provider` avec valeur `buffer` ;
-- `external_account_id` ;
-- `external_organization_id` sélectionné ;
-- `display_name` ;
-- `credentials` chiffrés ;
-- `granted_scopes` ;
-- `status` ;
-- `token_expires_at` ;
-- `connected_at` ;
-- `last_synced_at` ;
-- `last_error_code` et `last_error_message` ;
-- `metadata` ;
+## 8. Modèle de données cible
+
+Toutes les migrations sont additives. Les migrations historiques déjà exécutées ne sont jamais réécrites.
+
+### 8.1 social_provider_connections
+
+Une ligne représente le grant Buffer d’un tenant.
+
+Champs minimaux :
+
+- id ;
+- user_id ;
+- provider, fixé à buffer ;
+- external_account_id ;
+- external_organization_id sélectionné ;
+- display_name ;
+- credentials chiffrés ;
+- granted_scopes ;
+- credential_version ;
+- status ;
+- token_expires_at ;
+- connected_at ;
+- last_synced_at ;
+- last_error_code ;
+- last_error_message expurgé ;
+- metadata en liste blanche ;
 - timestamps.
 
-Le modèle doit pouvoir supporter plusieurs connexions plus tard, mais l'UX V1 peut limiter un tenant à une connexion Buffer active.
+Contraintes :
 
-Le tenant sélectionne explicitement une organisation Buffer autorisée. Même si le token permet d'en voir plusieurs, toutes les opérations Malikia doivent rester enfermées dans l'organisation sélectionnée.
+- index par user_id et status ;
+- unicité du grant actif selon la politique V1 ;
+- aucun canal ne duplique les credentials ;
+- un refresh compare credential_version avant sauvegarde.
 
-### 7.2 Réutilisation de `social_account_connections` comme cache de canaux
+### 8.2 social_posts
 
-La table actuelle devient la représentation locale des canaux Buffer synchronisés.
+La table actuelle possède un status unique. La migration additive introduit :
 
-Ajouts recommandés :
+- editorial_status ;
+- delivery_status agrégé ;
+- sync_status agrégé ;
+- current_editorial_revision ;
+- approved_revision_id nullable ;
+- scheduled_timezone, identifiant IANA ;
+- scheduled_local_time nullable ;
+- payload_hash de la révision courante ;
+- dernière date de calcul des agrégats.
 
-- `social_provider_connection_id` ;
-- `provider = buffer` ;
-- `external_account_id` = identifiant du canal Buffer ;
-- `platform` = réseau réel, par exemple `instagram` ou `linkedin` ;
-- `channel_type` ;
-- `avatar_url` ;
-- `timezone` ;
-- `capabilities` ;
-- `provider_status` ;
-- `is_disconnected` ;
-- `is_locked` ;
-- `is_queue_paused` ;
-- `last_synced_at` ;
-- `metadata`.
+Le champ status historique reste temporairement alimenté pendant une période de compatibilité, puis devient lecture seule avant retrait. Le backfill doit distinguer ce qui est connu de ce qui est seulement déduit.
 
-Les credentials ne doivent plus être répétés sur chaque canal.
+### 8.3 social_post_revisions
 
-### 7.3 Évolution de `social_post_targets`
+Une révision approuvée doit être un snapshot immuable réel, pas seulement un entier sur le post.
 
-Une cible reste associée à un canal local et reçoit :
+Champs minimaux :
 
-- `provider = buffer` ;
-- `provider_post_id` ;
-- `idempotency_key` unique ;
-- `editorial_revision` ou hash du payload ;
-- `delivery_status` ;
-- `provider_status` ;
-- `submitted_at` ;
-- `remote_scheduled_for` ;
-- `last_synced_at` ;
-- `provider_error_code` ;
-- `provider_error_message` ;
-- `metadata`.
+- id ;
+- user_id ;
+- social_post_id ;
+- revision_number ;
+- base_content ;
+- source_snapshot ;
+- media_snapshot versionné ;
+- scheduled_for ;
+- scheduled_timezone ;
+- scheduled_local_time ;
+- payload_hash ;
+- created_by_user_id ;
+- approved_by_user_id nullable ;
+- approved_at nullable ;
+- timestamps.
 
-Le couple logique `(social_post_target_id, editorial_revision)` ne doit être envoyé qu'une fois. Un retry doit retrouver le résultat existant ou réconcilier avant de recréer une publication.
+L’approbation, les variantes et l’outbox référencent cette révision. Un objet média d’une révision approuvée ne peut pas être remplacé en place.
 
-### 7.4 Ajouter des variantes par réseau
+La cible reste stable par post et destination ; elle pointe seulement vers sa révision courante. L’association historique immuable entre une opération et une révision est portée par l’outbox.
 
-Le contenu actuel est global : le même texte, le même média et le même lien sont envoyés à toutes les cibles. Or Buffer crée une publication distincte par canal et expose des métadonnées propres aux réseaux.
+La table social_approval_requests reçoit aussi social_post_revision_id. La migration suit quatre temps :
 
-Le modèle cible doit conserver un contenu de base simple, puis autoriser une surcharge facultative par réseau ou canal :
+1. ajouter les FK nullables ;
+2. créer une révision synthétique pour chaque post existant concerné ;
+3. rattacher chaque demande d’approbation à la révision synthétique ou reconstruite appropriée ;
+4. valider les orphelins avant de rendre la FK obligatoire pour les nouvelles approbations.
 
-- texte et hashtags ;
-- média et format ;
-- lien et premier commentaire ;
-- type Instagram, thread ou métadonnées propres au réseau ;
-- résultat de validation des capacités.
+### 8.4 social_account_connections
 
-Une table `social_post_variants` ou une structure équivalente normalisée est préférable à l'enfouissement de toutes les variantes dans les métadonnées de cible. Une variante absente hérite du contenu de base. Le composeur peut ainsi rester simple par défaut et afficher « Adapter par réseau » en divulgation progressive.
+Les lignes legacy ne sont pas converties en place. Elles restent lisibles pour l’historique et le drain.
 
-### 7.5 Séparer les statuts
+De nouvelles lignes représentent les canaux Buffer et reçoivent :
 
-Le statut unique actuel doit évoluer vers trois axes :
+- social_provider_connection_id ;
+- delivery_provider ;
+- transport_generation ;
+- logical_destination_key ;
+- external_account_id, identifiant du canal Buffer ;
+- platform, réseau réel ;
+- channel_type ;
+- avatar_url ;
+- timezone ;
+- capabilities normalisées ;
+- provider_status ;
+- is_disconnected ;
+- is_locked ;
+- is_queue_paused ;
+- last_synced_at ;
+- metadata filtrée.
 
-- `editorial_status` : `draft`, `pending_approval`, `approved`, `rejected`, `archived` ;
-- `delivery_status` : `not_submitted`, `queued`, `submitted`, `scheduled`, `publishing`, `published`, `partial_failed`, `failed`, `canceled` ;
-- `sync_status` : `pending`, `synced`, `error`, `reconnect_required`.
+La stratégie d’unicité distingue les générations legacy et Buffer. Une barrière de cutover empêche aussi deux transports actifs vers la même logical_destination_key.
 
-`scheduled_for` représente toujours l'intention Malikia. `remote_scheduled_for` représente ce que Buffer a accepté.
+### 8.5 social_post_variants
 
-## 8. Parcours fonctionnels cibles
+Une variante facultative surcharge le contenu de base pour un réseau ou un canal :
 
-### 8.1 Onboarding Buffer
+- social_post_revision_id ;
+- social_account_connection_id nullable ;
+- platform nullable ;
+- text ;
+- hashtags ;
+- media_snapshot ;
+- link ;
+- channel_options ;
+- capability_validation ;
+- payload_hash ;
+- timestamps.
 
-1. L'owner clique sur « Connecter Buffer ».
-2. Malikia lance OAuth Buffer Authorization Code + PKCE.
-3. Le callback vérifie `state`, échange le code et chiffre les tokens.
-4. L'owner choisit l'organisation Buffer si plusieurs sont disponibles.
-5. Malikia synchronise les canaux.
-6. L'owner active les canaux utilisables dans Pulse.
-7. Un diagnostic affiche canaux prêts, déconnectés, verrouillés ou en pause.
+Contraintes :
 
-Scopes initiaux recommandés selon le principe du moindre privilège :
+- exactement un scope entre canal et plateforme ;
+- unicité par révision et scope ;
+- précédence canal, puis plateforme, puis contenu de base ;
+- aucun changement en place après approbation.
 
-- `account:read` ;
-- `posts:read` ;
-- `posts:write` ;
-- `offline_access`.
+Sans variante, la cible hérite du contenu de base de la révision.
 
-Ne pas demander `account:write` ni les scopes `ideas:*` tant qu'une fonctionnalité Pulse ne les utilise pas.
+### 8.6 social_post_targets
 
-Les access tokens expirent rapidement et les refresh tokens Buffer sont à rotation unique. Le refresh doit donc être protégé par un verrou distribué et enregistrer atomiquement le nouveau couple de tokens. Deux refreshs concurrents peuvent sinon révoquer la connexion.
+Une cible représente une destination éditoriale stable pour le couple post/canal. Elle n’est pas recréée pour chaque révision.
 
-### 8.2 Création et validation
+Ajouts minimaux :
 
-1. Pulse crée et sauvegarde le contenu localement.
-2. Les variantes par canal sont validées contre les capacités mises en cache.
-3. Le workflow `social.approve` reste entièrement dans Malikia.
-4. Aucun post non approuvé n'est envoyé comme publication active à Buffer.
-5. Après approbation, une entrée d'outbox est créée après commit.
+- current_revision_id ;
+- last_submitted_revision_id nullable ;
+- delivery_provider ;
+- transport_generation ;
+- logical_destination_key ;
+- current_editorial_revision ;
+- provider_post_id ;
+- provider_status ;
+- delivery_status ;
+- sync_status ;
+- submitted_at ;
+- remote_scheduled_for ;
+- last_synced_at ;
+- provider_error_code ;
+- provider_error_message expurgé ;
+- payload_hash ;
+- timestamps.
 
-Cette stratégie évite d'avoir deux systèmes d'approbation concurrents et n'impose pas le plan Team de Buffer pour utiliser le workflow d'équipe Malikia.
+L’unicité actuelle post/canal reste une règle métier. Changer de révision déplace le pointeur courant sans modifier les révisions ou outbox historiques. Une contrainte de cutover interdit aussi deux cibles actives de transports différents pour le même post et la même destination logique. Les opérations et leur association immuable à une révision sont portées par l’outbox.
 
-### 8.3 Publication immédiate
+### 8.7 social_delivery_outbox
 
-- Une cible est créée par canal.
-- Le gateway appelle `createPost` avec `mode: shareNow`.
-- L'identifiant Buffer est persisté avant toute nouvelle tentative.
-- La cible devient `submitted`, pas immédiatement `published`.
-- La réconciliation confirme ensuite `sent` ou `error`.
+L’outbox est une table, pas seulement un service.
 
-### 8.4 Programmation
+Champs minimaux :
 
-- Malikia conserve la date locale et son fuseau.
-- L'heure est convertie en UTC et envoyée avec `mode: customScheduled` et `dueAt`.
-- Buffer reçoit le post dès l'approbation ; Laravel ne garde pas un job dormant jusqu'à la date finale.
-- La date acceptée par Buffer est stockée dans `remote_scheduled_for`.
-- Toute différence est visible comme conflit de synchronisation.
+- id ;
+- user_id ;
+- social_post_target_id ;
+- social_post_revision_id ;
+- social_provider_connection_id ;
+- operation : create, update ou cancel ;
+- delivery_provider ;
+- transport_generation ;
+- logical_destination_key ;
+- external_organization_id_snapshot ;
+- external_channel_id_snapshot ;
+- editorial_revision ;
+- recovery_generation ;
+- supersedes_outbox_id nullable ;
+- idempotency_key ;
+- correlation_key nullable ;
+- payload_hash ;
+- payload chiffré ou strictement filtré ;
+- status ;
+- attempts ;
+- available_at ;
+- claimed_at ;
+- claim_expires_at ;
+- claimed_by ;
+- claim_token ;
+- claim_version ;
+- request_started_at ;
+- submitted_at ;
+- processed_at ;
+- last_error_category ;
+- last_error_code ;
+- last_error_message expurgé ;
+- timestamps.
 
-Une option distincte « Prochaine plage disponible » pourra utiliser `addToQueue`. Elle ne doit jamais remplacer silencieusement une date exacte choisie par l'utilisateur.
+Contraintes et indexes :
 
-### 8.5 Modification ou annulation
+- unicité sur idempotency_key ;
+- unicité logique cible, opération, révision et recovery_generation ;
+- index de claim sur status et available_at ;
+- index de récupération sur claim_expires_at ;
+- index tenant et cible ;
+- chaque écriture du worker compare claim_token et claim_version ;
+- FK restrictives ou stratégie explicite de conservation d’audit.
 
-Une modification après soumission doit :
+États d’outbox :
 
-- verrouiller la révision locale ;
-- mettre à jour ou annuler la publication Buffer selon son état ;
-- enregistrer l'ancien et le nouveau payload dans l'audit ;
-- réconcilier l'état final ;
-- expliquer clairement si le post est déjà trop avancé pour être modifié.
+- pending ;
+- claimed ;
+- submitting ;
+- retryable ;
+- unknown ;
+- completed ;
+- dead.
 
-### 8.6 Mode dégradé
+Transitions :
 
-Si Buffer est indisponible ou le quota presque épuisé :
-
-- Pulse continue à créer, modifier et valider les brouillons ;
-- les livraisons restent dans l'outbox locale ;
-- l'utilisateur voit « En attente de synchronisation » ;
-- aucun fallback vers les APIs sociales directes n'est exécuté ;
-- les retries respectent le backoff et `Retry-After` ;
-- une alerte opérationnelle est déclenchée.
-
-## 9. Refonte de l'expérience utilisateur
-
-Le frontend Pulse contient actuellement onze entrées principales. La refonte doit les ramener à six surfaces orientées tâches :
-
-1. **Aperçu** — état Buffer, couverture du planning, à valider, programmés, envoyés, erreurs ;
-2. **Publications** — brouillons, validation, programmées, publiées, erreurs ;
-3. **Créer** — composeur, avec Campagne et Autopilot comme modes avancés ;
-4. **Calendrier** — intentions Malikia et état de synchronisation Buffer ;
-5. **Bibliothèque** — modèles, médias et voix de marque ;
-6. **Canaux & Buffer** — connexion, organisation, synchronisation et activation des canaux.
-
-Une entrée **Analyses** ne sera ajoutée que lorsque les données sont réellement disponibles par API. Avant cela, l'Aperçu propose un lien vers Buffer.
-
-### Principes UX
-
-- un seul bouton « Connecter Buffer », pas quatre OAuth réseaux ;
-- les logos des réseaux restent visibles pour choisir les canaux ;
-- aucun token, scope brut ou identifiant technique n'est exposé dans l'interface normale ;
-- l'état éditorial et l'état de livraison sont affichés séparément ;
-- les erreurs indiquent l'action possible : resynchroniser, reconnecter, corriger le média ou réessayer ;
-- la prévisualisation reste proche du formulaire, sticky sur desktop et accessible par tiroir sur mobile ;
-- le calendrier mobile devient une vue agenda, pas une grille mensuelle de 42 cellules en colonne ;
-- les capacités et limites de format viennent du DTO serveur, pas de tableaux codés en dur dans Vue ;
-- une copie de base peut être adaptée par réseau sans obliger l'utilisateur à tout réécrire ;
-- les confirmations utilisent la modale commune, pas `window.confirm` ;
-- notices, badges, cartes et états vides utilisent les composants UI partagés.
-
-### DTO frontend de canal
-
-Le frontend reçoit un contrat stable indépendant de Buffer :
-
-```text
-id, network, name, handle, avatar_url, timezone,
-capabilities, active, connection_status, sync_status, last_synced_at
-```
-
-Il ne reçoit jamais de credentials Buffer.
-
-### Découpage des composants
-
-`SocialPostComposer.vue`, `SocialAutomationManager.vue` et `SocialAccountManager.vue` sont aujourd'hui très volumineux. La refonte doit les scinder au minimum en :
-
-- `PulseComposerForm` ;
-- `PulseChannelPicker` ;
-- `PulseSchedulePanel` ;
-- `PulseComposerActions` ;
-- `PulsePostPreview` ;
-- `PulseSuggestionsPanel` ;
-- `BufferConnectionCard` ;
-- `BufferChannelList` ;
-- `PulseDeliveryStatus`.
-
-Un client/composable Pulse unique doit centraliser les appels, erreurs, rafraîchissements et normalisations.
-
-## 10. Inventaire de conservation, transformation et retrait
-
-| Élément | Décision | Commentaire |
+| Depuis | Vers | Condition |
 | --- | --- | --- |
-| Feature tenant `social` | Conserver | Gouvernance du module |
-| Permissions `social.*` | Conserver | Workflow Malikia indépendant du plan Buffer |
-| `SocialPost` | Conserver et faire évoluer | Source de vérité éditoriale |
-| `SocialPostTarget` | Conserver et faire évoluer | Une cible par canal Buffer |
-| Approbations | Conserver | Une seule autorité : Malikia |
-| Autopilot | Conserver | Buffer intervient seulement à la livraison |
-| Voix de marque, modèles, IA | Conserver | Différenciation produit |
-| Médiathèque | Conserver et adapter | URL de livraison stable requise |
-| Calendrier et historique | Conserver | Ajouter synchronisation et conflits |
-| Préfill métier | Conserver absolument | Différenciateur principal |
-| `SocialPlatformLogo` et preview | Conserver et généraliser | Capacités pilotées par le serveur |
-| `SocialAccountConnection` | Transformer | Devient un canal Buffer cache local |
-| `SocialProviderRegistry` | Remplacer | Devient registry de capacités, pas publishers directs |
-| `SocialPublishingService` | Refactorer | Orchestrateur outbox + gateway Buffer |
-| `PublishSocialPostTargetJob` | Remplacer | Soumission idempotente + réconciliation |
-| OAuth Facebook/Instagram/LinkedIn/X de Pulse | Retirer après migration | Remplacé par un OAuth Buffer |
-| Publishers directs | Retirer après migration | Aucun fallback direct |
-| Config/env `SOCIAL_*` de publication directe | Retirer après fenêtre de retour | Révoquer aussi les secrets fournisseurs |
-| Tests publishers/OAuth directs | Réécrire | Contrats Buffer fake et HTTP |
+| pending ou retryable | claimed | Claim atomique et lease obtenue |
+| claimed | submitting | request_started_at persisté avant l’appel |
+| claimed | retryable | Échec certain avant le début de l’appel |
+| submitting | completed | Mutation reconnue, résultat et provider_post_id persistés atomiquement |
+| submitting | unknown | Effet distant possible mais résultat non prouvé |
+| retryable | dead | Nombre maximal de tentatives atteint |
+| claimed | pending | Lease expirée et request_started_at absent |
+| claimed ou submitting | unknown | Lease expirée après début possible de l’appel |
 
-### Ne surtout pas supprimer
+L’état completed clôt l’opération d’outbox. La cible porte ensuite submitted, scheduled, sending ou published. Unknown exige une réconciliation ou une décision opérateur.
 
-`UserSocialAccount`, `Auth\SocialAuthController`, `SocialAuthButtons.vue`, `config/social_auth.php` et les providers Google/Microsoft/Facebook/LinkedIn utilisés pour **se connecter à Malikia** ne font pas partie du transport Pulse.
+Les identités d’organisation, canal, destination logique et transport sont snapshotées sur l’outbox. Les credentials restent référencés par la connexion provider afin de pouvoir être rafraîchis sans modifier le routage de l’opération.
 
-La refonte Buffer ne doit pas casser le login social. Le service de suppression de données Facebook doit aussi être découplé des connexions de publication Pulse.
+### 8.8 Registre de cutover
 
-## 11. Architecture backend recommandée
+Un registre persistant doit indiquer, par tenant :
 
-### Services
+- génération de transport active ;
+- date du cutover ;
+- mapping legacy vers canal Buffer ;
+- dernière cible legacy autorisée ;
+- posts delayed encore en drain ;
+- statut du pilote ;
+- rollback demandé ou interdit ;
+- opérateur et preuve.
 
-- `SocialDistributionGateway` ;
-- `BufferDistributionGateway` ;
-- `BufferGraphqlClient` ;
-- `BufferOauthService` ;
-- `BufferTokenService` avec verrou de refresh ;
-- `BufferChannelSynchronizer` ;
-- `BufferPostMapper` ;
-- `BufferErrorMapper` ;
-- `SocialDeliveryOutboxService` ;
-- `SocialDeliveryReconciler` ;
-- `SocialChannelCapabilityService` ;
-- `SocialMediaDeliveryUrlService`.
+Ce registre est distinct de l’entitlement commercial social.
 
-### Jobs
+## 9. Machines d’état
 
-- `SyncBufferChannelsJob` ;
-- `SubmitBufferPostTargetJob` ;
-- `ReconcileBufferPostTargetJob` ;
-- `ReconcileBufferOrganizationJob` ;
-- `RefreshBufferConnectionTokenJob` si nécessaire.
+### 9.1 Éditorial
 
-Les jobs doivent :
+États du post :
 
-- être dispatchés `afterCommit` ;
-- utiliser un verrou par cible ou connexion ;
-- être idempotents ;
-- laisser remonter les exceptions retryables ;
-- distinguer erreur utilisateur, reconnexion, rate limit et panne fournisseur ;
-- journaliser sans contenu sensible ni token.
+- draft ;
+- pending_approval ;
+- approved ;
+- rejected ;
+- archived.
 
-### Routes
+Une modification d’un contenu approved crée une nouvelle révision et revient à draft ou pending_approval selon le workflow.
 
-Conserver autant que possible les routes produit `/social/...` pour limiter la casse. Remplacer les routes de comptes directs par des actions métier :
+### 9.2 Livraison d’une cible
 
-- connecter Buffer ;
-- callback Buffer ;
-- choisir une organisation ;
-- synchroniser les canaux ;
-- activer/désactiver un canal ;
-- reconnecter ou déconnecter Buffer ;
-- consulter le diagnostic de synchronisation.
+États locaux :
 
-Les routes web et API doivent utiliser les mêmes actions applicatives et DTO, avec Policies dédiées au lieu de répéter `resolveAccess` dans chaque contrôleur.
+- not_submitted ;
+- queued ;
+- submitted ;
+- scheduled ;
+- remote_approval_required ;
+- sending ;
+- published ;
+- failed ;
+- unknown ;
+- canceled.
 
-## 12. Sécurité, confidentialité et juridique
+Une cible ne prend jamais partial_failed.
 
-### Sécurité technique
+### 9.3 Agrégat du post
 
-- OAuth Authorization Code + PKCE obligatoire ;
-- `state` fort, à usage unique et expirant ;
-- client secret uniquement côté serveur ;
-- access et refresh tokens chiffrés au repos ;
-- refresh atomique et verrouillé ;
-- scopes minimaux ;
-- isolation stricte par owner/tenant et organisation Buffer sélectionnée ;
-- rotation et révocation documentées ;
-- aucun token dans les logs, exceptions, payloads Inertia ou analytics ;
-- audit de toutes les connexions, soumissions, annulations et reconnexions ;
-- suppression et export des données documentés.
+L’état de livraison du post est dérivé des cibles :
 
-### Revue fournisseur obligatoire
+- not_submitted ;
+- queued ;
+- submitted ;
+- scheduled ;
+- remote_approval_required ;
+- publishing ;
+- published ;
+- partial_failed ;
+- failed ;
+- unknown ;
+- canceled.
 
-Les [conditions API Buffer](https://buffer.com/legal) ont été mises à jour le 5 août 2026. Avant le lancement général, Malikia doit valider :
+Ordre de calcul :
 
-- l'usage autorisé pour une application SaaS multi-tenant ;
-- le DPA et le rôle de Buffer comme sous-traitant ;
-- la politique de rétention du contenu ;
-- les exigences de notification d'incident ;
-- les clauses de disponibilité, suspension et évolution de l'API ;
-- les règles de marque et la formulation « s'intègre à Buffer » ;
-- les mentions à ajouter aux conditions et à la politique de confidentialité Malikia.
+1. unknown si une cible possède un résultat distant ambigu ;
+2. partial_failed si au moins une cible est failed et une autre reste active ou a réussi ;
+3. failed si toutes les cibles non annulées ont échoué ;
+4. publishing si une cible est sending ;
+5. remote_approval_required si une cible attend une approbation Buffer supportée ;
+6. scheduled si une cible est programmée et aucune règle supérieure ne s’applique ;
+7. submitted si une cible est soumise ;
+8. queued si une cible attend la soumission ;
+9. published si toutes les cibles non annulées sont publiées ;
+10. canceled si toutes les cibles sont annulées ;
+11. not_submitted sinon.
 
-Les conditions prévoient notamment une notification rapide à Buffer, au plus tard sous 24 heures, en cas d'incident affectant les clés, secrets ou données d'utilisateurs Buffer. Le runbook d'incident Malikia doit l'intégrer.
+Une cible annulée volontairement est exclue du calcul du succès des autres cibles. Published avec une cible canceled reste donc published si toutes les destinations encore actives ont réussi.
 
-## 13. Modèle commercial recommandé
+### 9.4 Synchronisation
 
-Pour le MVP :
+États :
 
-- le client possède son compte Buffer ;
-- le client connecte ses réseaux dans Buffer ;
-- Malikia se connecte au compte Buffer par OAuth ;
-- Malikia ne revend pas de siège Buffer ;
-- le coût et les limites du plan Buffer sont transparents dans l'onboarding.
+- pending ;
+- synced ;
+- error ;
+- reconnect_required.
 
-Cette approche isole mieux les tenants et évite de placer tous les réseaux de tous les clients dans une organisation Buffer contrôlée par Malikia.
+### 9.5 Dates et fuseaux
 
-Une offre Buffer incluse ou gérée par Malikia ne doit être envisagée qu'après un accord commercial spécifique couvrant quotas, support, facturation, données et séparation des clients.
+- scheduled_for conserve l’instant de l’intention Pulse ;
+- scheduled_timezone conserve explicitement le fuseau IANA ;
+- scheduled_local_time conserve, si nécessaire, la valeur locale présentée à l’utilisateur ;
+- dueAt est envoyé en UTC ;
+- remote_scheduled_for conserve la date acceptée par Buffer ;
+- tout écart est visible dans l’UI et l’audit ;
+- les changements DST sont testés.
 
-## 14. Observabilité et exploitation
+## 10. Algorithme de livraison fiable
 
-### Données à suivre
+### 10.1 Primitive unique de gel et outbox
 
-- connexion Buffer active/reconnexion requise ;
-- canaux actifs, déconnectés, verrouillés ou en pause ;
-- âge de la dernière synchronisation ;
-- taille et âge de l'outbox ;
-- soumissions acceptées/refusées ;
-- temps entre approbation et acceptation Buffer ;
-- publications bloquées en `submitted` ou `publishing` ;
-- taux d'échec par réseau et code ;
-- quotas restants pour 15 minutes, 24 heures et 30 jours ;
-- nombre de retries et réconciliations ;
-- écarts entre `scheduled_for` et `remote_scheduled_for` ;
-- doublons détectés ou empêchés.
+Les quatre chemins suivants utilisent la même primitive transactionnelle :
 
-### Alertes minimales
+- approbation explicite ;
+- publication directe par un acteur autorisé ;
+- programmation directe par un acteur autorisé ;
+- publication Autopilot autorisée par une politique.
 
-- quota restant sous 20 %, puis 10 % ;
-- plusieurs 401 ou reconnexions requises ;
+Une publication directe matérialise une approbation implicite auditée de la révision par l’acteur autorisé. Autopilot matérialise une approbation de politique avec sa règle, sa version et son audit. Aucun de ces chemins ne contourne le gel de révision ou l’outbox.
+
+Dans une transaction :
+
+1. Verrouiller le post et la demande ou politique applicable.
+2. Revalider permissions, tenant, règle Autopilot et révision affichée.
+3. Marquer la révision approved avec le type d’approbation.
+4. Geler le snapshot de contenu et de média.
+5. Créer ou mettre à jour les cibles.
+6. Persister delivery_provider et transport_generation.
+7. Insérer une entrée d’outbox par cible.
+8. Enregistrer l’audit.
+9. Commit.
+
+Après commit seulement :
+
+10. Réveiller le traitement de l’outbox par un signal best effort.
+11. Laisser un dispatcher périodique durable balayer pending et retryable si ce signal est perdu.
+12. Laisser un reaper traiter les leases expirées : claimed sans request_started_at revient à pending ; claimed ou submitting après début possible de l’appel passe à unknown.
+
+Deux approbateurs ou deux déclencheurs concurrents doivent aboutir à une seule résolution et une seule opération create automatique par cible et génération.
+
+### 10.2 Claim et soumission
+
+Le worker :
+
+1. réclame une entrée par compare-and-swap ;
+2. attribue une lease bornée, un claim_token et une claim_version ;
+3. vérifie tenant, provider, organisation, canal et révision ;
+4. vérifie la capacité et le média ;
+5. obtient un token valide via le service verrouillé ;
+6. persiste submitting et request_started_at avant l’appel ;
+7. appelle le gateway ;
+8. persiste atomiquement provider_post_id, le résultat cible et completed en comparant le fencing token ;
+9. termine ou reprogramme l’entrée ;
+10. déclenche la réconciliation appropriée.
+
+Une lease expirée est reprise automatiquement seulement si request_started_at est absent. Si l’appel a commencé ou a pu commencer, l’entrée passe en unknown. Une opération completed ne peut jamais être réclamée de nouveau. Les écritures tardives d’un ancien worker sont refusées par claim_token et claim_version.
+
+### 10.3 Timeout ambigu
+
+Si la requête a pu atteindre Buffer mais qu’aucune réponse exploitable n’est reçue :
+
+1. marquer l’outbox et la cible unknown ;
+2. conserver idempotency_key, correlation_key et payload_hash ;
+3. ne pas rappeler create ;
+4. tenter une recherche ou réconciliation supportée par Buffer ;
+5. si aucune corrélation fiable n’existe, créer une tâche opérateur ;
+6. autoriser une nouvelle création uniquement après décision explicite et auditée ;
+7. créer alors une recovery_generation ou une révision supérieure avec supersedes_outbox_id.
+
+Le système ne promet pas exactly-once distant tant que Buffer ne fournit pas de preuve contractuelle ou de mécanisme de corrélation suffisant.
+
+### 10.4 Taxonomie des erreurs
+
+| Catégorie | Exemples | Action |
+| --- | --- | --- |
+| validation | format, capacité, média | Failed, correction utilisateur, aucun retry |
+| authentication | 401, grant révoqué | reconnect_required, pause des livraisons |
+| authorization | scope ou organisation refusée | Failed ou reconnexion selon diagnostic |
+| rate_limit | 429 | Retry après Retry-After et budget |
+| retryable | échec prouvé avant émission ou rejet garanti sans effet | Backoff borné |
+| ambiguous | timeout, 5xx ou erreur système après un create possiblement accepté | Unknown et réconciliation, aucun create aveugle |
+| permanent | canal supprimé, mutation refusée | Failed, action utilisateur |
+| unexpected | erreur GraphQL système | Lecture retryable ; create unknown si l’effet distant reste possible |
+
+La classification dépend de l’opération. Un 5xx peut être retryable pour une lecture et ambigu pour un create. Les erreurs réellement retryables remontent au worker ; elles ne sont jamais absorbées comme un échec terminal silencieux.
+
+### 10.5 Quotas et équité
+
+Le budget doit :
+
+- lire les trois fenêtres documentées ;
+- identifier chaque fenêtre par sa durée ;
+- réserver une marge pour OAuth, reconnexion et actions manuelles ;
+- répartir les appels entre tenants ;
+- ralentir le polling avant le 429 ;
+- respecter Retry-After ;
+- exposer les seuils 20 % et 10 % ;
+- empêcher un tenant bruyant de consommer tout le bucket ;
+- conserver la création et l’approbation locales lorsque Buffer est limité.
+
+### 10.6 Réconciliation
+
+La réconciliation est :
+
+- immédiate après une soumission lorsque nécessaire ;
+- plus fréquente pour submitted, sending et unknown ;
+- plus lente pour scheduled lointain ;
+- arrêtée pour les états terminaux stables ;
+- déclenchable manuellement ;
+- budgetée selon les quotas ;
+- tolérante aux événements hors ordre et aux réponses obsolètes.
+
+## 11. Parcours métier et critères d’acceptation
+
+| Parcours | Critère d’acceptation |
+| --- | --- |
+| Connexion OAuth | State consommé une seule fois, PKCE serveur, aucun secret dans le DTO |
+| Multi-organisation | L’owner choisit explicitement une organisation et ne voit que ses canaux autorisés |
+| Synchronisation | Ajout, mise à jour, déconnexion et tombstone sont idempotents |
+| Canal avec approbation Buffer | Refus explicite ou état remote_approval_required supporté et visible |
+| Création | Le brouillon ne produit aucun appel Buffer |
+| Approbation | Une seule révision gelée et une seule outbox sous concurrence |
+| Publication directe ou Autopilot | Approbation implicite ou de politique auditée dans la même transaction |
+| Publication immédiate | La cible devient submitted, puis published seulement après statut sent |
+| Programmation exacte | dueAt UTC est envoyé immédiatement et remote_scheduled_for est persisté |
+| Prochaine plage | addToQueue est une action séparée et explicite |
+| Modification | Une nouvelle révision est auditée et la mutation distante dépend du statut |
+| Annulation | L’état local ne devient canceled qu’après résultat distant ou résolution explicite |
+| Timeout ambigu | Unknown, aucun deuxième create automatique |
+| 401 | Reconnexion visible, brouillons conservés, livraisons en pause |
+| 429 | Retry-After respecté, aucune boucle agressive |
+| Média inaccessible | Échec avant soumission lorsque détectable, action corrective visible |
+| Canal supprimé | Canal désactivé localement, historique conservé |
+| Mode dégradé | Création et approbation locales continuent, outbox visible |
+| Signal après commit perdu | Le sweeper reprend l’outbox sans action utilisateur |
+
+## 12. Sécurité, confidentialité et médias
+
+### 12.1 OAuth
+
+- Authorization Code + PKCE pour le client OAuth ;
+- state fort, unique, expirant et consommé atomiquement ;
+- verifier stocké uniquement côté serveur ;
+- redirect URI en liste blanche ;
+- scopes minimaux validés par le spike ;
+- access et refresh tokens chiffrés ;
+- refresh sous verrou distribué ;
+- transaction et credential_version pour éviter l’écrasement ;
+- révocation et reconnexion auditables.
+
+### 12.2 Isolation tenant
+
+Chaque action serveur et chaque worker vérifie :
+
+- user_id du post ;
+- user_id du canal ;
+- user_id de la connexion provider ;
+- organisation Buffer sélectionnée ;
+- transport_generation ;
+- permissions de l’acteur pour les actions interactives.
+
+Une corruption de FK ou un import invalide doit échouer avant tout appel Buffer.
+
+### 12.3 DTO et logs
+
+- DTO en liste blanche ;
+- aucun credentials ou metadata brut ;
+- aucune réponse provider complète persistée par défaut ;
+- redaction des tokens, URLs sensibles, contenu et identifiants inutiles ;
+- codes d’erreur structurés ;
+- logs corrélés par IDs internes et provider_post_id ;
+- audit séparé des logs techniques.
+
+### 12.4 Médias
+
+Le service de livraison média doit fournir :
+
+- URL opaque et non devinable ;
+- HTTPS public sans cookie ni authentification ;
+- type MIME et longueur cohérents ;
+- probe avant soumission ;
+- disponibilité jusqu’à remote_scheduled_for plus une période de grâce ;
+- suppression différée ;
+- révocation et purge auditables ;
+- politique explicite de rétention et d’export.
+
+### 12.5 Juridique et fournisseur
+
+Avant GO lancement pilote :
+
+- usage SaaS multi-tenant confirmé ;
+- DPA et registre de sous-traitants mis à jour ;
+- politique de confidentialité mise à jour ;
+- suppression et export documentés ;
+- clauses de disponibilité et changement d’API comprises ;
+- règles de marque validées ;
+- runbook d’incident fournisseur approuvé.
+
+## 13. Expérience utilisateur cible
+
+### 13.1 Six surfaces
+
+1. **Aperçu** — santé Buffer, planning, validations, erreurs et quotas utiles.
+2. **Publications** — brouillons, à valider, programmées, publiées et erreurs.
+3. **Créer** — contenu de base et variantes facultatives.
+4. **Calendrier** — intention Pulse, date distante et conflits.
+5. **Bibliothèque** — médias, modèles et voix de marque.
+6. **Canaux & Buffer** — connexion, organisation, canaux et diagnostic.
+
+Campagnes et Autopilot deviennent des modes ou entrées contextuelles, pas nécessairement des destinations principales.
+
+### 13.2 Contrat frontend de canal
+
+Le serveur expose un DTO stable :
+
+| Champ | Usage |
+| --- | --- |
+| id | Identifiant local |
+| network | Réseau affiché |
+| name et handle | Identité du canal |
+| avatar_url | Présentation |
+| timezone | Programmation |
+| capabilities | Validation du composeur |
+| active | Choix Pulse |
+| connection_status | Santé du canal |
+| sync_status | État local/distant |
+| last_synced_at | Diagnostic |
+
+Aucun champ GraphQL brut ou secret OAuth n’est exposé.
+
+### 13.3 Corrections impératives
+
+- Ajouter disabled à DropzoneInput et verrouiller tout média pending_approval.
+- Afficher la révision approuvée et détecter une révision obsolète.
+- Afficher status, failure_reason et action par cible dans l’historique.
+- Afficher séparément statut éditorial, livraison et synchronisation.
+- Afficher scheduled_for, remote_scheduled_for et le fuseau.
+- Alimenter les capacités depuis le serveur.
+- Remplacer la grille mobile de 42 cellules par une vue agenda.
+- Remplacer window.confirm par la modale commune.
+- Ajouter aria-live, aria-busy, focus restauré et navigation clavier.
+- Ne jamais imbriquer bouton et lien interactifs.
+
+### 13.4 Découpage frontend
+
+Les composants monolithiques sont séparés au minimum en :
+
+- PulseComposerForm ;
+- PulseChannelPicker ;
+- PulseVariantEditor ;
+- PulseSchedulePanel ;
+- PulseComposerActions ;
+- PulsePostPreview ;
+- PulseDeliveryStatus ;
+- BufferConnectionCard ;
+- BufferOrganizationPicker ;
+- BufferChannelList ;
+- PulseRecoveryAction.
+
+Un client/composable Pulse unique centralise les appels, erreurs, refresh et normalisations.
+
+## 14. Migration et cutover
+
+### 14.1 Principes
+
+- Ne jamais convertir les connexions directes en place.
+- Créer de nouvelles lignes de canaux Buffer.
+- Conserver les connexions legacy en lecture seule pour l’historique et le drain.
+- Persister le transport sur chaque cible et outbox.
+- Ne jamais faire partir une même cible par deux transports.
+- Ne jamais réactiver automatiquement le direct pendant un rollback.
+
+### 14.2 Références à remapper
+
+Le mapping owner-validé doit couvrir :
+
+- social_automation_rules.target_connection_ids ;
+- social_post_templates.metadata.selected_target_connection_ids ;
+- brouillons actifs ;
+- posts futurs ;
+- snapshots actifs ou futurs de brouillons et modèles ;
+- données déterministes de démo.
+
+Les snapshots historiques publiés restent inchangés.
+
+Les jobs delayed déjà sérialisés ne sont jamais remappés. Ils sont inventoriés puis drainés, ou annulés et recréés explicitement après réconciliation. Les identités de routage de leurs cibles et connexions restent immuables tant que le code direct nécessaire au drain existe. Les credentials, token_expires_at et statuts de connexion restent toutefois rafraîchissables.
+
+### 14.3 Séquence
+
+1. Fermer les gates P0 fournisseur.
+2. Inventorier connexions, cibles et jobs delayed legacy.
+3. Ajouter les colonnes et FK nouvelles comme nullables, sans changer le transport.
+4. Créer les révisions synthétiques, rattacher les approbations et initialiser le pointeur courant des cibles.
+5. Backfiller delivery_provider=direct, transport_generation=direct_v1 et logical_destination_key sur les connexions et cibles legacy.
+6. Valider les orphelins et incohérences, puis activer les contraintes applicables aux nouvelles données.
+7. Figer les identités de routage déjà en queue, garder leurs credentials rafraîchissables et conserver leur worker direct pendant le drain.
+8. Déployer gateway et fake Buffer.
+9. Activer OAuth et synchronisation en lecture seule.
+10. Créer de nouvelles lignes canal Buffer.
+11. Faire valider le mapping par l’owner.
+12. Exécuter une validation de capacités en shadow, sans publication.
+13. Définir durée, seuils d’incident et critères du canary, puis signer le GO lancement pilote.
+14. Choisir un tenant pilote et persister son transport Buffer par nouvelle cible.
+15. Publier un scénario contrôlé.
+16. Réconcilier et observer.
+17. Drainer ou annuler/recréer explicitement les posts legacy delayed.
+18. Étendre le canary puis réunir les preuves du GO général.
+19. Fermer la création de connexions directes.
+20. Découpler le service de suppression de données Facebook du transport Pulse.
+21. Révoquer les secrets directs seulement après drain et fenêtre de retour.
+22. Retirer le transport direct.
+
+### 14.4 Feature flags et kill switches
+
+Séparer :
+
+- entitlement commercial social ;
+- disponibilité globale de la connexion Buffer ;
+- synchronisation de canaux ;
+- livraison Buffer ;
+- réconciliation ;
+- connexions directes en lecture seule ;
+- livraison directe interdite ;
+- état de cutover par tenant.
+
+Le flag mutable ne remplace jamais delivery_provider et transport_generation persistés.
+
+### 14.5 Rollback
+
+Le rollback :
+
+- suspend les nouvelles soumissions Buffer ;
+- conserve brouillons, approbations et outbox ;
+- laisse les opérations inconnues en réconciliation ;
+- empêche toute duplication sur le direct ;
+- ne change pas le transport des cibles existantes ;
+- exige une décision opérateur pour chaque opération ambiguë.
+
+## 15. Stratégie de tests
+
+### 15.1 Suites à préserver
+
+Conserver les tests du :
+
+- composeur ;
+- historique ;
+- calendrier ;
+- approbations ;
+- modèles ;
+- préremplissage ;
+- suggestions ;
+- voix de marque ;
+- médiathèque ;
+- campagnes ;
+- Autopilot ;
+- permissions et feature tenant.
+
+Les tests Auth/Social liés à la connexion utilisateur Malikia restent hors scope.
+
+Les tests du transport et OAuth directs sont remplacés progressivement par les contrats Buffer.
+
+### 15.2 Tests unitaires
+
+- sérialisation GraphQL ;
+- parsing data, errors et unions ;
+- mapping des statuts ;
+- mapping des capacités ;
+- calcul des clés d’idempotence ;
+- transitions d’outbox ;
+- classification des erreurs ;
+- lecture des trois fenêtres de quota ;
+- conversion fuseau vers UTC ;
+- payload hash et révision ;
+- précédence des variantes canal, plateforme et contenu de base ;
+- ordre de calcul de l’agrégat de livraison ;
+- rétention média.
+
+### 15.3 Tests Feature et concurrence
+
+- outbox insérée dans la même transaction que l’approbation ;
+- aucun dispatch avant commit ;
+- deux approbateurs concurrents ;
+- deux workers réclamant la même entrée ;
+- ancien worker refusé par le fencing token après expiration de lease ;
+- lease expirée et reprise ;
+- crash avant l’appel ;
+- crash après acceptation Buffer ;
+- timeout ambigu sans retry create ;
+- 5xx ambigu pendant create ;
+- retry interne avec même clé ;
+- récupération manuelle avec recovery_generation et supersession ;
+- commit réussi mais signal after-commit perdu, puis reprise par sweeper ;
+- worker tué après claim ou request_started_at, puis réparation par le reaper ;
+- post et canal de tenants différents ;
+- OAuth state expiré, rejoué et concurrent ;
+- deux refreshs concurrents ;
+- erreurs GraphQL sous HTTP 200 ;
+- 401, 429, Retry-After et 5xx ;
+- événements distants hors ordre ;
+- modification et annulation par statut ;
+- URL média inaccessible ou expirée ;
+- transport stable malgré un toggle ;
+- barrière anti-double sur une destination logique legacy/Buffer ;
+- migration JSON des règles et modèles ;
+- backfill des trois axes de social_posts et du fuseau IANA ;
+- révisions synthétiques et rattachement des approval requests sans orphelin ;
+- routage snapshoté malgré un changement ultérieur d’organisation sélectionnée ;
+- drain d’un delayed job legacy ;
+- rollback sans dual delivery ;
+- aucune requête réseau non simulée.
+
+### 15.4 Tests de contrat Buffer
+
+Le spike et le fake doivent couvrir :
+
+- deux organisations ;
+- plusieurs canaux ;
+- texte et média ;
+- shareNow ;
+- customScheduled et dueAt ;
+- addToQueue séparé ;
+- transitions draft à error ;
+- canal produisant needs_approval et politique remote_approval_required ;
+- edit et delete selon statut ;
+- révocation ;
+- quotas et 429 ;
+- timeout après acceptation ;
+- absence ou présence réelle d’un mécanisme de corrélation.
+
+### 15.5 Frontend et E2E
+
+- média immuable pendant approbation ;
+- erreur visible par cible ;
+- trois axes de statut ;
+- action reconnecter, resynchroniser ou corriger ;
+- capacités serveur ;
+- fuseaux et DST ;
+- agenda mobile ;
+- clavier, focus et lecteurs d’écran ;
+- parcours connecter, choisir organisation, synchroniser, créer, approuver, programmer et réconcilier ;
+- mode dégradé et rollback visible.
+
+### 15.6 Démos
+
+- fake Buffer déterministe ;
+- aucune credential réelle ;
+- aucun appel réseau ;
+- organisations, canaux, quotas et statuts reproductibles ;
+- au moins un succès, un échec récupérable et un unknown ;
+- mapping de démo vérifié.
+
+## 16. Observabilité et exploitation
+
+### 16.1 Métriques
+
+- connexion active ou reconnexion requise ;
+- canaux actifs, supprimés, verrouillés ou en pause ;
+- taille et âge maximal de l’outbox ;
+- nombre de claims expirés ;
+- cibles submitted et remote_approval_required ;
+- outbox submitting, unknown, completed et dead ;
+- temps approbation vers acceptation Buffer ;
+- temps acceptation vers sent ;
+- taux d’échec par mutation, réseau et code ;
+- quotas restants sur trois fenêtres ;
+- retries et réconciliations ;
+- écarts entre scheduled_for et remote_scheduled_for ;
+- doublons évités ou suspectés ;
+- médias inaccessibles.
+
+### 16.2 Alertes
+
+- quota sous 20 %, puis 10 % ;
+- plusieurs 401 ;
 - plusieurs 429 ;
-- outbox la plus ancienne au-delà du seuil ;
+- unknown au-delà du SLA ;
+- outbox trop ancienne ;
+- claim expiré répété ;
 - réconciliation en retard ;
-- hausse des erreurs `UNEXPECTED` ;
+- hausse des erreurs unexpected ;
 - média inaccessible ;
-- publication distante sans mapping local ou inversement.
+- post distant sans mapping local ou inversement ;
+- suspicion de double publication.
 
-### Runbooks requis
+### 16.3 Runbooks
 
 - Buffer indisponible ;
 - quota épuisé ;
 - refresh token révoqué ;
+- timeout ambigu ;
 - média inaccessible ;
-- post bloqué ou dupliqué ;
-- organisation/canal supprimé ;
+- post bloqué ou suspecté dupliqué ;
+- organisation ou canal supprimé ;
+- événement distant hors ordre ;
+- drain legacy ;
 - rollback du cutover ;
 - incident de sécurité fournisseur.
 
-## 15. Stratégie de migration sans double publication
+## 17. Lots d’implémentation
 
-### Principe
+| Lot | Dépendances | Livrables | Definition of Done |
+| --- | --- | --- | --- |
+| WP0 — stabilisation legacy | Aucune | Approval lock, afterCommit, erreurs retryables, invariant tenant, média verrouillé, erreurs par cible visibles | Régressions actuelles couvertes, aucun changement Buffer |
+| WP1 — spike Buffer | Accès fournisseur | OAuth réel, organisations, mutations, quotas, timeout, matrice edit/delete | BUF-P0-01 à 10 fermés ou NO-GO |
+| WP2 — fondation | GO fondation | Migrations, client, gateway, fake, DTO et error mapper | Contrats unitaires et migrations rollbackables |
+| WP3 — connexion et canaux | WP2 | OAuth, refresh lock, organisations, sync et capacités | Deux organisations testées, aucun secret frontend |
+| WP4 — livraison fiable | WP2 + WP3 | Outbox, claim, média, quotas, soumission et réconciliation | Tests concurrence, ambiguous et cross-tenant verts |
+| WP5 — UX | DTO WP2 + statuts WP4 | Six surfaces, composeur scindé, agenda et récupération | E2E, responsive et accessibilité verts |
+| WP6 — pilote et migration | GO lancement pilote + WP1 à WP5 | Mapping, shadow, canary, drain et rollback | Preuves réunies pour le GO général |
+| WP7 — retrait direct | GO général + drain terminé | Routes, providers, config et secrets retirés | Aucun tenant/post actif sur le direct |
 
-Les anciens tokens sociaux ne peuvent pas être transférés automatiquement à Buffer. Chaque tenant doit connecter Buffer et sélectionner ses canaux.
+Chaque lot possède :
 
-### Étapes
+- une migration ou stratégie de rollback ;
+- des tests ciblés ;
+- une preuve attachée ;
+- un propriétaire ;
+- un statut dans le journal de décision.
 
-1. **Inventorier** les connexions directes, publications futures, règles Autopilot, modèles et historiques.
-2. **Geler** la création de nouvelles connexions directes derrière un feature flag.
-3. **Déployer** la connexion Buffer et la synchronisation de canaux en lecture seule.
-4. **Créer une correspondance** `legacy_connection_id -> buffer_channel_id` validée par l'owner.
-5. **Remapper** les références actives :
-   - `social_automation_rules.target_connection_ids` ;
-   - `social_post_templates.metadata.selected_target_connection_ids` ;
-   - les snapshots associés ;
-   - les nouveaux brouillons et publications futures.
-6. **Conserver** les anciennes cibles publiées et leurs connexions legacy en lecture seule pour l'historique.
-7. **Traiter les posts déjà programmés** avec une stratégie de drain :
-   - aucun nouveau post ne part par le transport direct après le cutover ;
-   - les posts legacy déjà en file terminent sur l'ancien transport pendant une courte fenêtre ;
-   - ils ne sont pas recréés dans Buffer sans annulation et réconciliation explicites ;
-   - un registre de cutover empêche qu'une même cible parte par les deux transports.
-8. **Basculer** chaque tenant sous feature flag `buffer` après une publication test réussie.
-9. **Révoquer** les tokens et secrets directs après la fenêtre de retour.
-10. **Supprimer** le code et la configuration directs seulement lorsque tous les tenants et posts actifs sont migrés ou drainés.
+## 18. Gates GO / NO-GO
 
-### Feature flags suggérés
+### 18.1 GO fondation
 
-- `social_buffer_connection_enabled` ;
-- `social_buffer_delivery_enabled` ;
-- `social_direct_connections_read_only` ;
-- `social_direct_delivery_disabled` ;
-- `social_buffer_reconciliation_enabled`.
+- OAuth et refresh validés sur deux organisations ;
+- scopes et rôles compris ;
+- mutations et erreurs réelles comprises ;
+- quota partagé connu et capacité estimée avec marge ;
+- stratégie de timeout ambigu acceptée ;
+- usage SaaS, DPA et modèle commercial compatibles.
 
-Le rollback remet la soumission Buffer en pause et conserve les brouillons/outbox locaux. Il ne réactive pas automatiquement la publication directe sans décision opérateur, afin d'éviter les doublons.
+### 18.2 GO lancement pilote
 
-## 16. Plan de livraison
-
-### Phase P0 — preuve et décision finale
-
-Livrables :
-
-- client OAuth Buffer enregistré ;
-- spike serveur GraphQL ;
-- connexion à deux organisations de test ;
-- synchronisation de plusieurs canaux ;
-- publication texte, image, immédiate et planifiée ;
-- lecture des statuts `scheduled`, `sent` et `error` ;
-- test de révocation et refresh concurrent ;
-- test des limites et erreurs GraphQL ;
-- confirmation écrite de Buffer sur quotas SaaS, webhooks et idempotence ;
-- revue juridique/sécurité ;
-- décision sur le modèle commercial.
-
-Sortie : GO, GO conditionnel ou NO-GO documenté.
-
-### Phase P1 — fondation Buffer
-
-- migrations additives ;
-- `BufferGraphqlClient` ;
-- OAuth PKCE, chiffrement et refresh lock ;
-- connexion provider distincte des canaux ;
-- synchronisation et cache de capacités ;
-- fake Buffer déterministe pour tests et démos ;
-- observabilité quotas/erreurs.
-
-### Phase P2 — Canaux & Buffer
-
-- nouvel onboarding ;
-- choix organisation ;
-- liste et activation des canaux ;
-- diagnostic, reconnexion et synchronisation ;
-- retrait de l'UX OAuth par réseau ;
-- DTO frontend stable.
-
-### Phase P3 — livraison fiable
-
-- outbox ;
-- publication `shareNow` ;
-- programmation `customScheduled` ;
-- idempotence, locks et retries ;
-- URLs média stables ;
-- réconciliation des statuts ;
-- conflits de date et mode dégradé ;
-- cockpit opérationnel.
-
-### Phase P4 — refonte UX globale
-
-- navigation à six surfaces ;
-- page Publications unifiée ;
-- composeur scindé ;
-- calendrier desktop/mobile ;
-- Bibliothèque unifiée ;
-- badges éditoriaux/livraison/sync ;
-- accessibilité, responsive et cohérence visuelle.
-
-### Phase P5 — migration pilote puis générale
-
-- migration d'un tenant interne/démo ;
-- canary de quelques tenants ;
-- mapping assisté des canaux ;
-- remap modèles et Autopilot ;
-- drain des programmations legacy ;
-- suivi d'erreurs et support ;
-- généralisation progressive.
-
-### Phase P6 — retrait de la couche directe
-
-- suppression des publishers directs ;
-- suppression du callback par réseau ;
-- retrait des variables et secrets directs ;
-- révocation fournisseur ;
-- réécriture finale des tests ;
-- mise à jour des anciennes documentations techniques ;
-- conservation des données historiques en lecture seule.
-
-### Phase ultérieure
-
-- analytics natifs uniquement si l'API Buffer devient fiable pour OAuth tiers ;
-- engagement uniquement si une API publique le permet ;
-- nouvelles plateformes selon la matrice de capacités ;
-- intégration éventuelle des idées Buffer si elle apporte une valeur nette ;
-- accord commercial Buffer approfondi si Malikia veut inclure le service.
-
-## 17. Stratégie de tests
-
-### Tests unitaires
-
-- sérialisation des requêtes GraphQL ;
-- mapping des canaux et capacités ;
-- mapping des statuts ;
-- erreurs de mutation et erreurs GraphQL globales ;
-- calcul et lecture des quotas ;
-- rotation de refresh token ;
-- génération des clés d'idempotence ;
-- règles de variante par réseau ;
-- génération d'URL média de livraison.
-
-### Tests Feature Laravel
-
-- OAuth state/PKCE et isolation tenant ;
-- sélection d'organisation ;
-- pagination et déduplication des canaux ;
-- publication immédiate et planifiée ;
-- approbation locale avant Buffer ;
-- échecs partiels multi-canaux ;
-- retry sans double envoi ;
-- 401, 429, timeout et `UNEXPECTED` ;
-- reconnexion requise ;
-- réconciliation d'événements hors ordre ;
-- modification/annulation ;
-- média inaccessible ;
-- permissions `social.*` ;
-- migration des JSON Autopilot et modèles ;
-- drain des publications legacy ;
-- aucune requête réseau dans les scénarios de démo.
-
-### Tests frontend et E2E
-
-- `PulseChannelPicker` selon capacités ;
-- distinction statut éditorial/livraison/sync ;
-- erreurs et actions de récupération ;
-- fuseaux et reprogrammation ;
-- responsive du composeur et du calendrier ;
-- parcours Playwright : connecter Buffer -> choisir organisation -> synchroniser -> créer -> valider -> programmer -> réconcilier ;
-- parcours reconnexion et mode dégradé.
-
-### Tests à préserver
-
-Les suites relatives au composeur, historique, calendrier, approbations, modèles, préfill, suggestions, voix de marque, médias, campagnes et Autopilot doivent rester. Les suites OAuth et publishers directs sont remplacées par les contrats Buffer.
-
-Les tests `Auth/Social*` liés à la connexion à Malikia restent hors périmètre et ne doivent pas être supprimés.
-
-## 18. Démos, internationalisation et accessibilité
-
-### Démos
-
-Les scénarios de démonstration ne doivent jamais appeler Buffer ou un réseau réel.
-
-- Studio Naya contient actuellement un faux compte Instagram déconnecté et quelques posts/templates. Il devra être migré vers une connexion Buffer factice, plusieurs canaux, une validation et au moins un échec récupérable.
-- Le scénario Boréal Propreté n'alimente pas encore Pulse. Il constitue un bon cas immersif Buffer-first : avant/après chantier, entretien saisonnier, recrutement, témoignage B2B et promotion de services, toujours avec données déterministes et sans publication externe.
-- Le fake Buffer doit produire des organisations, canaux, quotas et cycles de statuts reproductibles.
-- Les invariants de démo doivent garantir zéro credential réel, zéro job externe et zéro appel réseau.
-
-### Internationalisation
-
-Pulse possède déjà des traductions FR/EN/ES. La refonte doit conserver leur parité et ajouter une revue éditoriale pour :
-
-- les accents et pluriels ;
-- les fuseaux horaires et changements d'heure ;
-- les termes « canal », « organisation », « validation », « livraison » et « synchronisation » ;
-- les messages d'erreur exploitables ;
-- les formats et restrictions propres aux réseaux.
-
-### Accessibilité et responsive
-
-- navigation clavier complète ;
-- focus visible et restauré après les modales ;
-- statut communiqué autrement que par la couleur ;
-- libellés explicites pour réseaux, erreurs et actions ;
-- contrastes conformes ;
-- composeur, liste de canaux et calendrier utilisables sur mobile ;
-- tests automatisés et revue manuelle sur les parcours critiques.
-
-## 19. Gates de lancement
-
-### Gate technique
-
-- OAuth multi-tenant validé en production-like ;
-- quotas compatibles avec le volume prévu ;
-- zéro double publication dans les tests de concurrence ;
-- réconciliation fiable ;
-- refresh token concurrent sécurisé ;
-- média stable jusqu'à la publication ;
+- outbox transactionnelle et réconciliation opérationnelles ;
+- concurrence approval, claim et refresh testée ;
+- aucune seconde création automatique après timeout ambigu ;
+- invariant tenant démontré ;
+- URL média stable démontrée ;
+- quotas et polling mesurés ;
+- observabilité et runbooks disponibles ;
 - rollback testé ;
-- fake Buffer complet pour démos/tests.
+- aucun dual delivery ;
+- durée minimale du canary et seuils d’incident fixés avant la première publication.
 
-### Gate produit
+### 18.3 GO général
 
-- onboarding compréhensible sans vocabulaire d'API ;
-- coûts et prérequis Buffer transparents ;
-- formats réellement supportés affichés par canal ;
-- calendrier et validation restent utiles même en panne Buffer ;
-- aucune promesse analytics non tenue.
+- quotas contractuellement suffisants ;
+- canary sans incident critique pendant la durée décidée ;
+- support et diagnostics validés ;
+- migration des références actives terminée ;
+- aucun post legacy à risque ;
+- sécurité, DPA, confidentialité et rétention approuvées ;
+- changelog et contract tests intégrés au processus.
 
-### Gate sécurité/juridique
+### 18.4 NO-GO
 
-- conditions API acceptées par l'entité appropriée ;
-- DPA et registre des sous-traitants mis à jour ;
-- politique de confidentialité mise à jour ;
-- gestion de suppression/export documentée ;
-- runbook d'incident sous 24 heures ;
-- secrets et tokens chiffrés/rotables ;
-- formulation de marque conforme.
+Le projet s’arrête ou change de fournisseur si :
 
-### Gate opérationnelle
+- OAuth tiers ou usage SaaS est refusé ;
+- les quotas sont insuffisants sans accord possible ;
+- le risque de timeout ambigu est jugé inacceptable et aucune corrélation n’est possible ;
+- le refresh rotatif ne peut pas être sécurisé ;
+- aucune URL média stable ne peut être garantie ;
+- les conditions juridiques sont incompatibles ;
+- l’isolation tenant ou le rollback ne peut pas être démontré ;
+- le modèle commercial ne peut pas être rendu transparent au client.
 
-- dashboards et alertes disponibles ;
-- support possède les diagnostics et runbooks ;
-- pilote canary réussi ;
-- absence de posts legacy en risque de doublon ;
-- stratégie de rollback validée.
+### 18.5 Statut courant
 
-## 20. Risques et mitigations
+**BLOCKED_P0** : architecture retenue, aucun GO fondation, pilote ou général.
+
+## 19. Risques résiduels
 
 | Risque | Impact | Mitigation |
 | --- | --- | --- |
-| Buffer devient un point unique de panne | Publication retardée | Outbox locale, mode dégradé, réconciliation, alertes |
-| Verrouillage fournisseur | Coût de sortie | Gateway interne, domaine et historique locaux, export |
-| Quotas trop faibles pour le SaaS | Blocage à l'échelle | Gate P0, accord de limite, budget et batching |
-| API récente et changeante | Régressions | Client isolé, contract tests, suivi changelog |
-| Pas de webhook public confirmé | Synchronisation lente/coûteuse | Polling adaptatif, sync manuelle, discussion fournisseur |
-| Pas d'idempotence distante confirmée | Double publication | Clé locale, lock, réconciliation avant retry |
-| Analytics incomplets | Promesse produit limitée | KPIs opérationnels + lien vers Buffer |
-| Média public requis | Risque sécurité/rétention | URL non devinable, stockage dédié, politique de cycle de vie |
-| Coût Buffer pour le client | Friction onboarding | Transparence, guide et choix de plan |
-| Compte Buffer révoqué | Livraisons bloquées | 401 -> reconnexion, alertes et brouillons préservés |
-| Mauvais mapping legacy/canal | Autopilot publie au mauvais endroit | Mapping validé par owner, dry-run et journal de migration |
-| Confusion Pulse/social login | Régression authentification | Séparation explicite du scope et tests Auth préservés |
+| Buffer point unique de panne | Retard de livraison | Outbox, mode dégradé et réconciliation |
+| Quotas partagés trop faibles | Blocage multi-tenant | Gate fournisseur, budget et équité |
+| Timeout ambigu | Double publication ou opération bloquée | Unknown, corrélation et décision opérateur |
+| API récente et changeante | Régression | Client isolé, contract tests et veille changelog |
+| Aucun webhook confirmé | Polling coûteux | Polling adaptatif et sync manuelle |
+| Refresh à usage unique | Grant révoqué | Lock, transaction et version |
+| Média public requis | Risque de confidentialité ou expiration | URL opaque, rétention et purge |
+| Mauvais mapping legacy | Publication sur le mauvais canal | Validation owner, shadow et audit |
+| Feature flag mutable | Changement de transport inattendu | Provider persisté sur cible et outbox |
+| Confusion avec le social login | Régression d’authentification | Périmètre et tests séparés |
+| Analytics incomplets | Promesse produit non tenue | KPIs opérationnels seulement |
+| Dépendance fournisseur | Coût de sortie | Gateway, données et historique locaux |
 
-## 21. Questions à fermer pendant P0
+## 20. Gouvernance documentaire
 
-1. Les quotas d'un app client OAuth sont-ils partagés entre tous les tenants Malikia et quelles limites Buffer peut-il accorder ?
-2. Buffer propose-t-il un webhook public ou prévu pour les changements de statut ?
-3. Buffer accepte-t-il une clé d'idempotence ou un champ de corrélation récupérable ?
-4. Quel est le comportement exact de modification/annulation pour chaque état de post ?
-5. Comment Buffer facture-t-il les canaux et organisations dans le modèle « compte client » ?
-6. Quels réseaux/formats nécessitent une publication par notification plutôt qu'automatique ?
-7. Quels champs de capacités sont garantis dans le contrat de canal ?
-8. Quelle rétention média et contenu Malikia doit-elle appliquer après envoi ?
-9. Quelles garanties de support, disponibilité et changement d'API sont disponibles ?
-10. Quels documents sécurité, confidentialité et DPA peuvent être obtenus ?
+Ce document est la référence active pour le transport Buffer-first.
 
-## 22. Impact sur les documents Pulse existants
+Il remplace les sections de connexion, providers et publication directs de :
 
-Ce document devient la référence active pour la refonte Buffer-first.
+- [Documentation technique Pulse](MALIKIA_PULSE_DOCUMENTATION_TECHNIQUE_2026-04-25.md) ;
+- [Backlog Pulse](MALIKIA_PULSE_DEV_BACKLOG_2026-04-22.md) ;
+- [User story Pulse](MALIKIA_PULSE_USER_STORY_2026-04-22.md).
 
-Il remplace les parties « connexion directe », « providers directs » et « publication directe » de :
+Il précise aussi la portée des documents encore à classer :
 
-- [Documentation technique Pulse 2026-04-25](MALIKIA_PULSE_DOCUMENTATION_TECHNIQUE_2026-04-25.md) ;
-- [Backlog Pulse 2026-04-22](MALIKIA_PULSE_DEV_BACKLOG_2026-04-22.md) ;
-- [User story Pulse 2026-04-22](MALIKIA_PULSE_USER_STORY_2026-04-22.md).
+- [Spécification Autopilot](MALIKIA_PULSE_AUTOPILOT_SPEC_2026-04-25.md) : intentions métier conservées, handoff vers PublishSocialPostTargetJob supersédé ;
+- [Plan AI Creative et Autopilot](MALIKIA_PULSE_AI_CREATIVE_AUTOPILOT_PLAN_2026-04-26.md) : génération et gouvernance conservées, transport direct supersédé ;
+- [Roadmap Pulse](MALIKIA_PULSE_ROADMAP_8_AMELIORATIONS_3_ETAPES_2026-04-26.md) : intentions produit à remapper sur les lots WP0 à WP7.
 
-Les intentions produit, l'Autopilot, l'IA, les intégrations métier, la gouvernance tenant et les permissions restent valables. Les anciens documents sont conservés comme historique et ne doivent pas être utilisés pour ajouter un nouveau publisher social direct.
+Le document [Social Auth + onboarding](SOCIAL_AUTH_ONBOARDING_USER_STORY_2026-04-23.md) reste hors scope.
 
-## 23. Conclusion
+Leur classement effectif doit être enregistré dans document-status.json puis vérifié par le générateur d’index. Le fichier 00_INDEX.md ne doit jamais être édité à la main.
 
-Le passage à Buffer est une bonne décision parce qu'il concentre l'effort de Malikia sur sa vraie valeur : comprendre l'entreprise, transformer son activité en contenu, organiser le travail d'équipe et rendre la communication régulière.
+Toute nouvelle modification Pulse doit respecter :
 
-La règle d'architecture à retenir est simple :
+- aucun publisher direct supplémentaire ;
+- aucune réécriture des migrations historiques ;
+- aucun couplage du domaine au schéma GraphQL ;
+- aucun statut de livraison inventé dans le frontend ;
+- aucune garantie exactly-once sans preuve ;
+- aucune suppression du social login ou de la suppression de données Facebook sans découplage explicite.
 
-> **Malikia décide quoi publier, pour qui, quand et avec quelle validation. Buffer se charge de le livrer aux réseaux.**
+## 21. Journal de décisions
 
-Cette séparation réduit fortement le coût d'accès aux réseaux sans sacrifier le produit. Elle doit être mise en œuvre avec un gateway interne, une migration progressive, une idempotence locale, une réconciliation fiable et une validation contractuelle des quotas avant le lancement général.
+| ID | Décision | Statut | Preuve | Responsable | Date |
+| --- | --- | --- | --- | --- | --- |
+| ADR-PULSE-001 | Buffer devient l’unique transport cible | Acceptée sous gates P0 | Ce document | À assigner | 2026-08-26 |
+| ADR-PULSE-002 | Pulse conserve contenu, approbation et historique | Acceptée | Audit du domaine | À assigner | 2026-08-26 |
+| ADR-PULSE-003 | Aucun fallback direct automatique | Acceptée | Invariant 16 | À assigner | 2026-08-26 |
+| ADR-PULSE-004 | Outbox insérée dans la transaction métier | Acceptée | Invariant 3 | À assigner | 2026-08-26 |
+| ADR-PULSE-005 | Timeout ambigu sans retry create | Acceptée | Section 10.3 | À assigner | 2026-08-26 |
+| ADR-PULSE-006 | Compte Buffer détenu par le client pour le MVP | À valider P0 | BUF-P0-10 | Produit | — |
+| ADR-PULSE-007 | Polling tant qu’aucun webhook n’est confirmé | À valider P0 | BUF-P0-03 | Backend | — |
+| ADR-PULSE-008 | Analytics avancés hors MVP | Acceptée | Contrat public Buffer | Produit | 2026-08-26 |
+| ADR-PULSE-009 | WP0-S se déploie atomiquement sous maintenance ; le rolling exige un pont en trois phases | Acceptée pour le lot courant | Gate 0.1 et EV-PULSE-006 | DevOps | 2026-08-27 |
+
+## 22. Conclusion
+
+La valeur de Pulse n’est pas le transport social. Sa valeur est de transformer les données réelles d’une entreprise en contenu cohérent, validé, planifié et traçable.
+
+Buffer peut retirer à Malikia la maintenance des intégrations réseau, mais seulement si la livraison est traitée comme un système distribué soumis aux quotas, aux erreurs ambiguës, à la rotation de tokens et à la réconciliation.
+
+La règle finale est :
+
+> **Pulse décide quoi publier, sur quels canaux, quand et après quelle validation. Buffer exécute la livraison. L’outbox et la réconciliation rendent l’incertitude visible, bloquent le retry automatique ambigu et réduisent le risque de double publication, sans garantir l’exactly-once distant.**
+
+WP0-S est fermé sur le plan du code et des validations locales. Son gate de déploiement production reste ouvert jusqu’à l’approbation opérationnelle, la répétition MySQL et l’exécution de la procédure atomique retenue par ADR-PULSE-009. Si le rolling devient une exigence, cette décision devra être rouverte et le pont en trois phases implémenté. En parallèle, WP1 doit encore produire des preuves authentifiées propres au client OAuth Buffer Malikia. Les fondations métier WP2, le pilote et le cutover restent interdits avant la fermeture documentée de ces gates P0.

@@ -219,7 +219,7 @@ const statusClass = (status) => {
         return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300';
     }
 
-    if (status === 'partial_failed' || status === 'failed') {
+    if (status === 'partial_failed' || status === 'failed' || status === 'canceled') {
         return 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300';
     }
 
@@ -232,6 +232,23 @@ const statusClass = (status) => {
     }
 
     return 'border-stone-200 bg-stone-50 text-stone-700 dark:border-neutral-700 dark:bg-neutral-800/70 dark:text-neutral-300';
+};
+
+const targetStatusLabel = (status) => {
+    const normalizedStatus = String(status || 'pending');
+    const key = `social.history_manager.target_statuses.${normalizedStatus}`;
+    const translated = t(key);
+
+    return translated === key ? normalizedStatus : translated;
+};
+
+const canEditPost = (post) => {
+    if (typeof post?.is_editable === 'boolean') {
+        return post.is_editable;
+    }
+
+    return ['draft', 'scheduled'].includes(String(post?.status || ''))
+        && !post?.metadata?.publish_requested_at;
 };
 
 const qualityClass = (status) => ({
@@ -603,7 +620,7 @@ const resolveApproval = async (post, decision) => {
 
                     <div v-if="canManage || canApprove" class="flex flex-wrap gap-2">
                         <SecondaryButton
-                            v-if="canManage && (post.status === 'draft' || post.status === 'scheduled')"
+                            v-if="canManage && canEditPost(post)"
                             type="button"
                             :disabled="busy"
                             @click="openDraft(post)"
@@ -666,12 +683,26 @@ const resolveApproval = async (post, decision) => {
                                 :key="target.id"
                                 class="rounded-2xl border border-stone-200 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
                             >
-                                <div class="font-medium text-stone-900 dark:text-neutral-100">
-                                    {{ target.label || t('social.history_manager.empty_value') }}
+                                <div class="flex flex-wrap items-start justify-between gap-2">
+                                    <div class="font-medium text-stone-900 dark:text-neutral-100">
+                                        {{ target.label || t('social.history_manager.empty_value') }}
+                                    </div>
+                                    <span
+                                        class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold"
+                                        :class="statusClass(target.status)"
+                                    >
+                                        {{ targetStatusLabel(target.status) }}
+                                    </span>
                                 </div>
                                 <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
                                     {{ target.provider_label || target.platform || t('social.history_manager.empty_value') }}
                                 </div>
+                                <p
+                                    v-if="target.failure_reason"
+                                    class="mt-2 rounded-xl border border-rose-200 bg-rose-50 px-2 py-1.5 text-xs text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300"
+                                >
+                                    {{ t('social.history_manager.target_failure_reason', { reason: target.failure_reason }) }}
+                                </p>
                             </div>
                         </div>
                         <div v-else class="mt-3 text-sm text-stone-500 dark:text-neutral-400">

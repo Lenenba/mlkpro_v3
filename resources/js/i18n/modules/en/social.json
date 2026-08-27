@@ -387,6 +387,15 @@
         "updated_at": "Updated"
       },
       "targets_title": "Targets",
+      "target_statuses": {
+        "pending": "Pending",
+        "scheduled": "Scheduled",
+        "publishing": "Publishing",
+        "published": "Published",
+        "failed": "Failed",
+        "canceled": "Canceled"
+      },
+      "target_failure_reason": "Failure: {reason}",
       "no_targets": "No connected target is currently attached to this copy.",
       "empty_title": "No Pulse post yet in this history",
       "empty_description": "Publish, schedule, or save a first draft to start building the reusable Pulse history.",
@@ -900,6 +909,7 @@
       "statuses": {
         "draft": "Draft",
         "pending": "Pending",
+        "authorizing": "Connecting",
         "connected": "Connected",
         "error": "Error",
         "reconnect_required": "Reconnect required",

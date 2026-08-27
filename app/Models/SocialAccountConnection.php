@@ -28,6 +28,8 @@ class SocialAccountConnection extends Model
 
     public const STATUS_PENDING = 'pending';
 
+    public const STATUS_AUTHORIZING = 'authorizing';
+
     public const STATUS_CONNECTED = 'connected';
 
     public const STATUS_ERROR = 'error';
@@ -54,6 +56,7 @@ class SocialAccountConnection extends Model
         'last_synced_at',
         'token_expires_at',
         'oauth_state',
+        'oauth_code_verifier',
         'oauth_state_expires_at',
         'last_error',
         'metadata',
@@ -62,6 +65,7 @@ class SocialAccountConnection extends Model
     protected $hidden = [
         'credentials',
         'oauth_state',
+        'oauth_code_verifier',
     ];
 
     protected function casts(): array
@@ -71,6 +75,7 @@ class SocialAccountConnection extends Model
             'permissions' => 'array',
             'metadata' => 'array',
             'is_active' => 'boolean',
+            'oauth_code_verifier' => 'encrypted',
             'connected_at' => 'datetime',
             'last_synced_at' => 'datetime',
             'token_expires_at' => 'datetime',
@@ -101,6 +106,7 @@ class SocialAccountConnection extends Model
         return [
             self::STATUS_DRAFT,
             self::STATUS_PENDING,
+            self::STATUS_AUTHORIZING,
             self::STATUS_CONNECTED,
             self::STATUS_ERROR,
             self::STATUS_RECONNECT_REQUIRED,

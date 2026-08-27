@@ -11,6 +11,7 @@ use App\Support\NotificationDispatcher;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class SocialApprovalService
@@ -25,65 +26,75 @@ class SocialApprovalService
     public function submit(User $owner, User $actor, SocialPost $post, array $payload = []): SocialPost
     {
         $this->assertOwnership($owner, $post);
-        $this->assertSubmittable($post);
 
-        $post->loadMissing(['targets.socialAccountConnection', 'latestApprovalRequest']);
+        $postId = DB::transaction(function () use ($owner, $actor, $post, $payload): int {
+            $lockedPost = $this->lockedPost($owner, $post);
+            $this->assertSubmittable($lockedPost);
+            $lockedPost->load(['targets.socialAccountConnection']);
 
-        if ($post->targets->isEmpty()) {
-            throw ValidationException::withMessages([
-                'post' => 'Add at least one connected Pulse target before submitting this post for approval.',
-            ]);
-        }
+            if ($lockedPost->targets->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'post' => 'Add at least one connected Pulse target before submitting this post for approval.',
+                ]);
+            }
 
-        if ((string) $post->latestApprovalRequest?->status === SocialApprovalRequest::STATUS_PENDING) {
-            throw ValidationException::withMessages([
-                'post' => 'This Pulse post is already waiting for approval.',
-            ]);
-        }
+            if ((string) $this->latestApprovalRequestForUpdate($lockedPost)?->status === SocialApprovalRequest::STATUS_PENDING) {
+                throw ValidationException::withMessages([
+                    'post' => 'This Pulse post is already waiting for approval.',
+                ]);
+            }
 
-        $requestedAt = now();
-        $requestedMode = $post->scheduled_for ? 'scheduled' : 'immediate';
-        $note = $this->nullableString($payload, 'note');
+            $requestedAt = now();
+            $requestedMode = $lockedPost->scheduled_for ? 'scheduled' : 'immediate';
+            $note = $this->nullableString($payload, 'note');
 
-        $approvalRequest = $post->approvalRequests()->create([
-            'requested_by_user_id' => $actor->id,
-            'status' => SocialApprovalRequest::STATUS_PENDING,
-            'note' => $note,
-            'requested_at' => $requestedAt,
-            'metadata' => array_filter([
-                'requested_mode' => $requestedMode,
-                'scheduled_for' => optional($post->scheduled_for)->toIso8601String(),
-            ], fn ($value) => $value !== null),
-        ]);
-
-        $post->forceFill([
-            'updated_by_user_id' => $actor->id,
-            'status' => SocialPost::STATUS_PENDING_APPROVAL,
-            'failed_at' => null,
-            'failure_reason' => null,
-            'metadata' => $this->mergeApprovalMetadata($post, [
-                'status' => SocialApprovalRequest::STATUS_PENDING,
-                'request_id' => $approvalRequest->id,
-                'requested_at' => $requestedAt->toIso8601String(),
+            $approvalRequest = $lockedPost->approvalRequests()->create([
                 'requested_by_user_id' => $actor->id,
-                'requested_mode' => $requestedMode,
+                'status' => SocialApprovalRequest::STATUS_PENDING,
                 'note' => $note,
-                'approved_at' => null,
-                'approved_by_user_id' => null,
-                'rejected_at' => null,
-                'rejected_by_user_id' => null,
-            ], [
-                'publish_mode',
-                'publish_requested_at',
-                'publish_requested_by_user_id',
-                'queued_targets_count',
-            ]),
-        ])->save();
+                'requested_at' => $requestedAt,
+                'metadata' => array_filter([
+                    'requested_mode' => $requestedMode,
+                    'scheduled_for' => optional($lockedPost->scheduled_for)->toIso8601String(),
+                ], fn ($value) => $value !== null),
+            ]);
 
-        $submittedPost = $post->fresh($this->postRelationsWithRuleAndOwner());
-        $this->notifyApprovers($owner, $submittedPost, $approvalRequest);
+            $lockedPost->forceFill([
+                'updated_by_user_id' => $actor->id,
+                'status' => SocialPost::STATUS_PENDING_APPROVAL,
+                'failed_at' => null,
+                'failure_reason' => null,
+                'metadata' => $this->mergeApprovalMetadata($lockedPost, [
+                    'status' => SocialApprovalRequest::STATUS_PENDING,
+                    'request_id' => $approvalRequest->id,
+                    'requested_at' => $requestedAt->toIso8601String(),
+                    'requested_by_user_id' => $actor->id,
+                    'requested_mode' => $requestedMode,
+                    'note' => $note,
+                    'approved_at' => null,
+                    'approved_by_user_id' => null,
+                    'rejected_at' => null,
+                    'rejected_by_user_id' => null,
+                ], [
+                    'publish_mode',
+                    'publish_requested_at',
+                    'publish_requested_by_user_id',
+                    'queued_targets_count',
+                ]),
+            ])->save();
 
-        return $submittedPost->fresh($this->postRelations());
+            $this->notifyApproversAfterCommit(
+                (int) $owner->id,
+                (int) $lockedPost->id,
+                (int) $approvalRequest->id
+            );
+
+            return (int) $lockedPost->id;
+        });
+
+        return SocialPost::query()
+            ->with($this->postRelations())
+            ->findOrFail($postId);
     }
 
     /**
@@ -93,57 +104,63 @@ class SocialApprovalService
     {
         $this->assertOwnership($owner, $post);
 
-        $post->loadMissing($this->postRelations());
-        $approvalRequest = $this->pendingApprovalRequest($post);
-        $approvedAt = now();
-        $note = $this->nullableString($payload, 'note') ?? $approvalRequest->note;
-        $requestedMode = (string) data_get(
-            $approvalRequest->metadata,
-            'requested_mode',
-            $post->scheduled_for ? 'scheduled' : 'immediate'
-        );
-        $resolvedMode = $this->resolveApprovalMode($payload['mode'] ?? null, $requestedMode);
+        $postId = DB::transaction(function () use ($owner, $actor, $post, $payload): int {
+            $lockedPost = $this->lockedPost($owner, $post);
+            $lockedPost->load(['targets.socialAccountConnection']);
+            $approvalRequest = $this->pendingApprovalRequestForUpdate($lockedPost);
+            $approvedAt = now();
+            $note = $this->nullableString($payload, 'note') ?? $approvalRequest->note;
+            $requestedMode = (string) data_get(
+                $approvalRequest->metadata,
+                'requested_mode',
+                $lockedPost->scheduled_for ? 'scheduled' : 'immediate'
+            );
+            $resolvedMode = $this->resolveApprovalMode($payload['mode'] ?? null, $requestedMode);
 
-        if ($resolvedMode === 'scheduled') {
-            $post->forceFill([
-                'scheduled_for' => $this->resolveScheduledFor($post, $payload, $approvedAt),
+            $lockedPost->forceFill([
+                'scheduled_for' => $resolvedMode === 'scheduled'
+                    ? $this->resolveScheduledFor($lockedPost, $payload, $approvedAt)
+                    : null,
             ])->save();
-        } else {
-            $post->forceFill([
-                'scheduled_for' => null,
-            ])->save();
-        }
 
-        $queuedPost = $resolvedMode === 'scheduled'
-            ? $this->publishingService->schedule($owner, $actor, $post)
-            : $this->publishingService->publishNow($owner, $actor, $post);
-
-        $approvalRequest->forceFill([
-            'status' => SocialApprovalRequest::STATUS_APPROVED,
-            'resolved_by_user_id' => $actor->id,
-            'approved_at' => $approvedAt,
-            'rejected_at' => null,
-            'note' => $note,
-            'metadata' => array_merge((array) ($approvalRequest->metadata ?? []), [
-                'resolved_mode' => $resolvedMode,
-            ]),
-        ])->save();
-
-        $queuedPost->forceFill([
-            'metadata' => $this->mergeApprovalMetadata($queuedPost, [
+            $approvalRequest->forceFill([
                 'status' => SocialApprovalRequest::STATUS_APPROVED,
-                'request_id' => $approvalRequest->id,
-                'requested_mode' => $requestedMode,
-                'resolved_mode' => $resolvedMode,
-                'approved_at' => $approvedAt->toIso8601String(),
-                'approved_by_user_id' => $actor->id,
+                'resolved_by_user_id' => $actor->id,
+                'approved_at' => $approvedAt,
                 'rejected_at' => null,
-                'rejected_by_user_id' => null,
                 'note' => $note,
-            ]),
-        ])->save();
+                'metadata' => array_merge((array) ($approvalRequest->metadata ?? []), [
+                    'resolved_mode' => $resolvedMode,
+                ]),
+            ])->save();
 
-        return $queuedPost->fresh($this->postRelations());
+            $lockedPost->forceFill([
+                'status' => $resolvedMode === 'scheduled'
+                    ? SocialPost::STATUS_SCHEDULED
+                    : SocialPost::STATUS_DRAFT,
+                'metadata' => $this->mergeApprovalMetadata($lockedPost, [
+                    'status' => SocialApprovalRequest::STATUS_APPROVED,
+                    'request_id' => $approvalRequest->id,
+                    'requested_mode' => $requestedMode,
+                    'resolved_mode' => $resolvedMode,
+                    'approved_at' => $approvedAt->toIso8601String(),
+                    'approved_by_user_id' => $actor->id,
+                    'rejected_at' => null,
+                    'rejected_by_user_id' => null,
+                    'note' => $note,
+                ]),
+            ])->save();
+
+            $queuedPost = $resolvedMode === 'scheduled'
+                ? $this->publishingService->schedule($owner, $actor, $lockedPost)
+                : $this->publishingService->publishNow($owner, $actor, $lockedPost);
+
+            return (int) $queuedPost->id;
+        });
+
+        return SocialPost::query()
+            ->with($this->postRelations())
+            ->findOrFail($postId);
     }
 
     /**
@@ -153,45 +170,51 @@ class SocialApprovalService
     {
         $this->assertOwnership($owner, $post);
 
-        $post->loadMissing($this->postRelations());
-        $approvalRequest = $this->pendingApprovalRequest($post);
-        $rejectedAt = now();
-        $note = $this->nullableString($payload, 'note');
-        $requestedMode = (string) data_get(
-            $approvalRequest->metadata,
-            'requested_mode',
-            $post->scheduled_for ? 'scheduled' : 'immediate'
-        );
-        $restoredStatus = $requestedMode === 'scheduled'
-            ? SocialPost::STATUS_SCHEDULED
-            : SocialPost::STATUS_DRAFT;
+        $postId = DB::transaction(function () use ($owner, $actor, $post, $payload): int {
+            $lockedPost = $this->lockedPost($owner, $post);
+            $approvalRequest = $this->pendingApprovalRequestForUpdate($lockedPost);
+            $rejectedAt = now();
+            $note = $this->nullableString($payload, 'note');
+            $requestedMode = (string) data_get(
+                $approvalRequest->metadata,
+                'requested_mode',
+                $lockedPost->scheduled_for ? 'scheduled' : 'immediate'
+            );
+            $restoredStatus = $requestedMode === 'scheduled'
+                ? SocialPost::STATUS_SCHEDULED
+                : SocialPost::STATUS_DRAFT;
 
-        $approvalRequest->forceFill([
-            'status' => SocialApprovalRequest::STATUS_REJECTED,
-            'resolved_by_user_id' => $actor->id,
-            'approved_at' => null,
-            'rejected_at' => $rejectedAt,
-            'note' => $note,
-        ])->save();
-
-        $post->forceFill([
-            'updated_by_user_id' => $actor->id,
-            'status' => $restoredStatus,
-            'failed_at' => null,
-            'failure_reason' => null,
-            'metadata' => $this->mergeApprovalMetadata($post, [
+            $approvalRequest->forceFill([
                 'status' => SocialApprovalRequest::STATUS_REJECTED,
-                'request_id' => $approvalRequest->id,
-                'requested_mode' => $requestedMode,
+                'resolved_by_user_id' => $actor->id,
                 'approved_at' => null,
-                'approved_by_user_id' => null,
-                'rejected_at' => $rejectedAt->toIso8601String(),
-                'rejected_by_user_id' => $actor->id,
+                'rejected_at' => $rejectedAt,
                 'note' => $note,
-            ]),
-        ])->save();
+            ])->save();
 
-        return $post->fresh($this->postRelations());
+            $lockedPost->forceFill([
+                'updated_by_user_id' => $actor->id,
+                'status' => $restoredStatus,
+                'failed_at' => null,
+                'failure_reason' => null,
+                'metadata' => $this->mergeApprovalMetadata($lockedPost, [
+                    'status' => SocialApprovalRequest::STATUS_REJECTED,
+                    'request_id' => $approvalRequest->id,
+                    'requested_mode' => $requestedMode,
+                    'approved_at' => null,
+                    'approved_by_user_id' => null,
+                    'rejected_at' => $rejectedAt->toIso8601String(),
+                    'rejected_by_user_id' => $actor->id,
+                    'note' => $note,
+                ]),
+            ])->save();
+
+            return (int) $lockedPost->id;
+        });
+
+        return SocialPost::query()
+            ->with($this->postRelations())
+            ->findOrFail($postId);
     }
 
     private function assertOwnership(User $owner, SocialPost $post): void
@@ -203,6 +226,12 @@ class SocialApprovalService
 
     private function assertSubmittable(SocialPost $post): void
     {
+        if (filled(data_get($post->metadata, 'publish_requested_at'))) {
+            throw ValidationException::withMessages([
+                'post' => 'This Pulse post has already been queued for publication.',
+            ]);
+        }
+
         if ((string) $post->status === SocialPost::STATUS_PENDING_APPROVAL) {
             throw ValidationException::withMessages([
                 'post' => 'This Pulse post is already waiting for approval.',
@@ -231,9 +260,27 @@ class SocialApprovalService
         }
     }
 
-    private function pendingApprovalRequest(SocialPost $post): SocialApprovalRequest
+    private function lockedPost(User $owner, SocialPost $post): SocialPost
     {
-        $approvalRequest = $post->latestApprovalRequest;
+        return SocialPost::query()
+            ->byUser((int) $owner->id)
+            ->whereKey($post->getKey())
+            ->lockForUpdate()
+            ->firstOrFail();
+    }
+
+    private function latestApprovalRequestForUpdate(SocialPost $post): ?SocialApprovalRequest
+    {
+        return SocialApprovalRequest::query()
+            ->where('social_post_id', $post->id)
+            ->latest('id')
+            ->lockForUpdate()
+            ->first();
+    }
+
+    private function pendingApprovalRequestForUpdate(SocialPost $post): SocialApprovalRequest
+    {
+        $approvalRequest = $this->latestApprovalRequestForUpdate($post);
 
         if (! $approvalRequest || (string) $approvalRequest->status !== SocialApprovalRequest::STATUS_PENDING) {
             throw ValidationException::withMessages([
@@ -242,6 +289,23 @@ class SocialApprovalService
         }
 
         return $approvalRequest;
+    }
+
+    private function notifyApproversAfterCommit(int $ownerId, int $postId, int $approvalRequestId): void
+    {
+        DB::afterCommit(function () use ($ownerId, $postId, $approvalRequestId): void {
+            $owner = User::query()->find($ownerId);
+            $post = SocialPost::query()
+                ->with($this->postRelationsWithRuleAndOwner())
+                ->find($postId);
+            $approvalRequest = SocialApprovalRequest::query()->find($approvalRequestId);
+
+            if (! $owner || ! $post || ! $approvalRequest) {
+                return;
+            }
+
+            $this->notifyApprovers($owner, $post, $approvalRequest);
+        });
     }
 
     private function resolveApprovalMode(mixed $candidate, string $fallback): string

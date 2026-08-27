@@ -9,6 +9,7 @@ use App\Models\SocialPostTarget;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class SocialPostService
@@ -224,19 +225,30 @@ class SocialPostService
     public function updateDraft(User $owner, User $actor, SocialPost $post, array $payload): SocialPost
     {
         $this->assertOwnership($owner, $post);
-        $this->assertEditable($post);
 
-        $targetConnections = $this->resolveTargetConnections($owner, (array) ($payload['target_connection_ids'] ?? []));
-        $attributes = $this->postAttributes($owner, $actor, $payload, $targetConnections);
+        $postId = DB::transaction(function () use ($owner, $actor, $post, $payload): int {
+            $lockedPost = $this->lockedPost($owner, $post);
+            $this->assertEditable($lockedPost);
 
-        $post->forceFill([
-            ...$attributes,
-            'created_by_user_id' => $post->created_by_user_id ?: $actor->id,
-        ])->save();
+            $targetConnections = $this->resolveTargetConnections(
+                $owner,
+                (array) ($payload['target_connection_ids'] ?? [])
+            );
+            $attributes = $this->postAttributes($owner, $actor, $payload, $targetConnections);
 
-        $this->syncTargets($post, $targetConnections, $attributes['status']);
+            $lockedPost->forceFill([
+                ...$attributes,
+                'created_by_user_id' => $lockedPost->created_by_user_id ?: $actor->id,
+            ])->save();
 
-        return $post->fresh(['targets.socialAccountConnection']);
+            $this->syncTargets($lockedPost, $targetConnections, $attributes['status']);
+
+            return (int) $lockedPost->id;
+        });
+
+        return SocialPost::query()
+            ->with(['targets.socialAccountConnection'])
+            ->findOrFail($postId);
     }
 
     /**
@@ -245,32 +257,40 @@ class SocialPostService
     public function rescheduleDraft(User $owner, User $actor, SocialPost $post, array $payload): SocialPost
     {
         $this->assertOwnership($owner, $post);
-        $this->assertEditable($post);
 
-        $scheduledFor = $this->nullableDateTime($payload, 'scheduled_for');
-        if ($scheduledFor instanceof Carbon && $scheduledFor->lessThanOrEqualTo(now())) {
-            throw ValidationException::withMessages([
-                'scheduled_for' => 'Choose a future date before scheduling this Pulse post.',
-            ]);
-        }
+        $postId = DB::transaction(function () use ($owner, $actor, $post, $payload): int {
+            $lockedPost = $this->lockedPost($owner, $post);
+            $this->assertEditable($lockedPost);
 
-        $status = $scheduledFor instanceof Carbon
-            ? SocialPost::STATUS_SCHEDULED
-            : SocialPost::STATUS_DRAFT;
+            $scheduledFor = $this->nullableDateTime($payload, 'scheduled_for');
+            if ($scheduledFor instanceof Carbon && $scheduledFor->lessThanOrEqualTo(now())) {
+                throw ValidationException::withMessages([
+                    'scheduled_for' => 'Choose a future date before scheduling this Pulse post.',
+                ]);
+            }
 
-        $post->forceFill([
-            'updated_by_user_id' => $actor->id,
-            'status' => $status,
-            'scheduled_for' => $scheduledFor,
-            'metadata' => array_merge((array) ($post->metadata ?? []), [
-                'calendar_rescheduled_at' => now()->toIso8601String(),
-                'calendar_rescheduled_by_user_id' => $actor->id,
-            ]),
-        ])->save();
+            $status = $scheduledFor instanceof Carbon
+                ? SocialPost::STATUS_SCHEDULED
+                : SocialPost::STATUS_DRAFT;
 
-        $this->syncExistingTargetStatus($post, $status);
+            $lockedPost->forceFill([
+                'updated_by_user_id' => $actor->id,
+                'status' => $status,
+                'scheduled_for' => $scheduledFor,
+                'metadata' => array_merge((array) ($lockedPost->metadata ?? []), [
+                    'calendar_rescheduled_at' => now()->toIso8601String(),
+                    'calendar_rescheduled_by_user_id' => $actor->id,
+                ]),
+            ])->save();
 
-        return $post->fresh(['targets.socialAccountConnection']);
+            $this->syncExistingTargetStatus($lockedPost, $status);
+
+            return (int) $lockedPost->id;
+        });
+
+        return SocialPost::query()
+            ->with(['targets.socialAccountConnection'])
+            ->findOrFail($postId);
     }
 
     /**
@@ -374,6 +394,8 @@ class SocialPostService
             'published_at' => optional($post->published_at)->toIso8601String(),
             'failed_at' => optional($post->failed_at)->toIso8601String(),
             'failure_reason' => $post->failure_reason,
+            'is_queued_publication' => $this->isQueuedPublication($post),
+            'is_editable' => $this->isEditable($post),
             'selected_target_connection_ids' => $post->targets
                 ->pluck('social_account_connection_id')
                 ->filter()
@@ -453,16 +475,11 @@ class SocialPostService
     {
         $payload = $this->payload($post);
         $calendarAt = $this->calendarDateFor($post);
-        $isQueuedPublication = (bool) data_get($post->metadata, 'publish_requested_at');
 
         return array_merge($payload, [
             'calendar_at' => optional($calendarAt)->toIso8601String(),
             'calendar_bucket' => $this->calendarBucketFor($post),
-            'can_reschedule' => in_array((string) $post->status, [
-                SocialPost::STATUS_DRAFT,
-                SocialPost::STATUS_SCHEDULED,
-            ], true) && ! $isQueuedPublication,
-            'is_queued_publication' => $isQueuedPublication,
+            'can_reschedule' => $this->isEditable($post),
         ]);
     }
 
@@ -509,6 +526,15 @@ class SocialPostService
         }
     }
 
+    private function lockedPost(User $owner, SocialPost $post): SocialPost
+    {
+        return SocialPost::query()
+            ->byUser((int) $owner->id)
+            ->whereKey($post->getKey())
+            ->lockForUpdate()
+            ->firstOrFail();
+    }
+
     private function assertEditable(SocialPost $post): void
     {
         if ((string) $post->status === SocialPost::STATUS_PENDING_APPROVAL) {
@@ -517,14 +543,26 @@ class SocialPostService
             ]);
         }
 
-        $publishRequestedAt = data_get($post->metadata, 'publish_requested_at');
-        if (! $publishRequestedAt) {
+        if ($this->isEditable($post)) {
             return;
         }
 
         throw ValidationException::withMessages([
             'post' => 'This Pulse post is already queued or published. Duplicate it instead of editing the live record.',
         ]);
+    }
+
+    private function isQueuedPublication(SocialPost $post): bool
+    {
+        return (bool) data_get($post->metadata, 'publish_requested_at');
+    }
+
+    private function isEditable(SocialPost $post): bool
+    {
+        return in_array((string) $post->status, [
+            SocialPost::STATUS_DRAFT,
+            SocialPost::STATUS_SCHEDULED,
+        ], true) && ! $this->isQueuedPublication($post);
     }
 
     private function createEditableCopy(User $owner, User $actor, SocialPost $source, string $mode): SocialPost

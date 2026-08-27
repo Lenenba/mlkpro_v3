@@ -387,6 +387,15 @@
         "updated_at": "Mis a jour le"
       },
       "targets_title": "Cibles",
+      "target_statuses": {
+        "pending": "En attente",
+        "scheduled": "Programmee",
+        "publishing": "Publication en cours",
+        "published": "Publiee",
+        "failed": "Echec",
+        "canceled": "Annulee"
+      },
+      "target_failure_reason": "Echec : {reason}",
       "no_targets": "Aucune cible connectee n est actuellement rattachee a cette copie.",
       "empty_title": "Aucun post Pulse dans cet historique",
       "empty_description": "Publiez, programmez ou enregistrez un premier brouillon pour commencer a construire l historique reutilisable de Pulse.",
@@ -900,6 +909,7 @@
       "statuses": {
         "draft": "Brouillon",
         "pending": "En attente",
+        "authorizing": "Connexion en cours",
         "connected": "Connecte",
         "error": "Erreur",
         "reconnect_required": "Reconnexion requise",

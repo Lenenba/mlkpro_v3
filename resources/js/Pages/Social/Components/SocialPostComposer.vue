@@ -301,10 +301,23 @@ const statusClass = (status) => {
 
 const previewStatus = computed(() => t(`social.composer_manager.statuses.${currentStatus.value}`));
 
-const isQueuedPublication = computed(() => Boolean(draftSnapshot.value?.metadata?.publish_requested_at));
+const isQueuedPublication = computed(() => (
+    typeof draftSnapshot.value?.is_queued_publication === 'boolean'
+        ? draftSnapshot.value.is_queued_publication
+        : Boolean(draftSnapshot.value?.metadata?.publish_requested_at)
+));
 const approvalRequest = computed(() => draftSnapshot.value?.approval_request || null);
 const isApprovalLocked = computed(() => currentStatus.value === 'pending_approval');
-const isEditDisabled = computed(() => !canManage.value || busy.value || isApprovalLocked.value);
+const isServerLocked = computed(() => Boolean(
+    draftSnapshot.value && draftSnapshot.value.is_editable === false
+));
+const isEditDisabled = computed(() => (
+    !canManage.value
+    || busy.value
+    || isApprovalLocked.value
+    || isQueuedPublication.value
+    || isServerLocked.value
+));
 const sourceDisplayName = computed(() => sourceDisplayLabelFor(sourceReference.value));
 const sourceHref = computed(() => sourceHrefFor(sourceReference.value));
 const hasSuggestions = computed(() => (
@@ -335,6 +348,10 @@ const approvalRequestDate = computed(() => (
 const imageInputModel = computed({
     get: () => imageFile.value || String(form.value.image_url || '').trim() || null,
     set: (value) => {
+        if (isEditDisabled.value) {
+            return;
+        }
+
         if (value instanceof File) {
             imageFile.value = value;
             form.value.image_url = '';
@@ -698,6 +715,10 @@ const applyPrefill = (prefill, { announce = true } = {}) => {
 };
 
 const clearSourceReference = () => {
+    if (isEditDisabled.value) {
+        return;
+    }
+
     sourceReference.value = null;
     error.value = '';
     info.value = '';
@@ -802,7 +823,7 @@ const load = async () => {
 };
 
 const toggleTarget = (accountId) => {
-    if (!canManage.value) {
+    if (isEditDisabled.value) {
         return;
     }
 
@@ -850,7 +871,7 @@ const loadSuggestions = async () => {
 };
 
 const applyCaptionSuggestion = (caption) => {
-    if (!canManage.value) {
+    if (isEditDisabled.value) {
         return;
     }
 
@@ -860,7 +881,7 @@ const applyCaptionSuggestion = (caption) => {
 };
 
 const appendHashtagsToText = () => {
-    if (!canManage.value) {
+    if (isEditDisabled.value) {
         return;
     }
 
@@ -870,7 +891,7 @@ const appendHashtagsToText = () => {
 };
 
 const applyCtaSuggestion = (cta) => {
-    if (!canManage.value) {
+    if (isEditDisabled.value) {
         return;
     }
 
@@ -880,7 +901,7 @@ const applyCtaSuggestion = (cta) => {
 };
 
 const addCustomHashtag = () => {
-    if (!canManage.value) {
+    if (isEditDisabled.value) {
         return;
     }
 
@@ -899,7 +920,7 @@ const addCustomHashtag = () => {
 };
 
 const removeHashtag = (hashtag) => {
-    if (!canManage.value) {
+    if (isEditDisabled.value) {
         return;
     }
 
@@ -1005,7 +1026,7 @@ const templatePayload = (name) => {
 };
 
 const saveDraft = async ({ quiet = false } = {}) => {
-    if (!canManage.value) {
+    if (isEditDisabled.value) {
         return null;
     }
 
@@ -1047,7 +1068,7 @@ const submit = async () => {
 };
 
 const submitApprovalRequest = async () => {
-    if (!canSubmitForApproval.value) {
+    if (!canSubmitForApproval.value || isEditDisabled.value) {
         return;
     }
 
@@ -1089,7 +1110,7 @@ const submitApprovalRequest = async () => {
 };
 
 const saveAsTemplate = async () => {
-    if (!canManage.value) {
+    if (!canManage.value || isEditDisabled.value) {
         return;
     }
 
@@ -1249,7 +1270,7 @@ const resolveApproval = async (decision) => {
                     </SecondaryButton>
                 </Link>
 
-                <SecondaryButton type="button" :disabled="busy" @click="clearSourceReference">
+                <SecondaryButton type="button" :disabled="isEditDisabled" @click="clearSourceReference">
                     {{ t('social.composer_manager.actions.clear_source') }}
                 </SecondaryButton>
             </div>
@@ -1328,6 +1349,7 @@ const resolveApproval = async (decision) => {
                         <DropzoneInput
                             v-model="imageInputModel"
                             :label="t('social.composer_manager.fields.image_file')"
+                            :disabled="isEditDisabled"
                         />
 
                         <SocialMediaAssetPicker
@@ -1369,13 +1391,13 @@ const resolveApproval = async (decision) => {
                     </div>
 
                     <div class="mt-4 flex flex-wrap items-center gap-2">
-                        <PrimaryButton type="button" :disabled="busy || !canManage || isApprovalLocked" @click="submit">
+                        <PrimaryButton type="button" :disabled="isEditDisabled" @click="submit">
                             {{ activeDraftId ? t('social.composer_manager.actions.update_draft') : t('social.composer_manager.actions.save_draft') }}
                         </PrimaryButton>
                         <PrimaryButton
                             v-if="canSubmitForApproval"
                             type="button"
-                            :disabled="busy || isLoading || currentStatus === 'publishing' || currentStatus === 'published' || currentStatus === 'pending_approval'"
+                            :disabled="isLoading || isEditDisabled"
                             @click="submitApprovalRequest"
                         >
                             {{ t('social.composer_manager.actions.submit_for_approval') }}
@@ -1461,7 +1483,7 @@ const resolveApproval = async (decision) => {
                                     <div class="mt-4">
                                         <SecondaryButton
                                             type="button"
-                                            :disabled="busy || !canManage || isApprovalLocked"
+                                            :disabled="isEditDisabled"
                                             @click="applyCaptionSuggestion(caption)"
                                         >
                                             {{ t('social.composer_manager.actions.apply_caption') }}
@@ -1485,7 +1507,7 @@ const resolveApproval = async (decision) => {
 
                                     <SecondaryButton
                                         type="button"
-                                        :disabled="busy || !canManage || isApprovalLocked || !suggestions.hashtags.length"
+                                        :disabled="isEditDisabled || !suggestions.hashtags.length"
                                         @click="appendHashtagsToText"
                                     >
                                         {{ t('social.composer_manager.actions.append_hashtags') }}
@@ -1502,7 +1524,7 @@ const resolveApproval = async (decision) => {
                                         <button
                                             type="button"
                                             class="text-stone-400 transition hover:text-rose-500 dark:text-neutral-500 dark:hover:text-rose-300"
-                                            :disabled="!canManage || isApprovalLocked"
+                                            :disabled="isEditDisabled"
                                             @click="removeHashtag(hashtag)"
                                         >
                                             ×
@@ -1517,7 +1539,7 @@ const resolveApproval = async (decision) => {
                                         :disabled="isEditDisabled"
                                     />
 
-                                    <SecondaryButton type="button" :disabled="busy || !canManage || isApprovalLocked" @click="addCustomHashtag">
+                                    <SecondaryButton type="button" :disabled="isEditDisabled" @click="addCustomHashtag">
                                         {{ t('social.composer_manager.actions.add_hashtag') }}
                                     </SecondaryButton>
                                 </div>
@@ -1548,7 +1570,7 @@ const resolveApproval = async (decision) => {
                                         <div class="mt-4">
                                             <SecondaryButton
                                                 type="button"
-                                                :disabled="busy || !canManage || isApprovalLocked"
+                                                :disabled="isEditDisabled"
                                                 @click="applyCtaSuggestion(cta)"
                                             >
                                                 {{ t('social.composer_manager.actions.append_cta') }}
@@ -1593,7 +1615,7 @@ const resolveApproval = async (decision) => {
                             :disabled="isEditDisabled"
                         />
 
-                        <PrimaryButton type="button" :disabled="busy || !canManage || isApprovalLocked" @click="saveAsTemplate">
+                        <PrimaryButton type="button" :disabled="isEditDisabled" @click="saveAsTemplate">
                             {{ t('social.composer_manager.actions.save_as_template') }}
                         </PrimaryButton>
                     </div>
@@ -1664,7 +1686,7 @@ const resolveApproval = async (decision) => {
                             :class="form.target_connection_ids.includes(Number(account.id))
                                 ? 'border-sky-600 bg-sky-50 dark:border-sky-500 dark:bg-sky-500/10'
                                 : 'border-stone-200 bg-stone-50 hover:border-sky-300 dark:border-neutral-700 dark:bg-neutral-800/70 dark:hover:border-sky-500/40'"
-                            :disabled="!canManage || busy || isApprovalLocked"
+                            :disabled="isEditDisabled"
                             @click="toggleTarget(account.id)"
                         >
                             <div class="flex items-start justify-between gap-3">

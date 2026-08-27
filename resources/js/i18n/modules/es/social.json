@@ -387,6 +387,15 @@
         "updated_at": "Actualizado"
       },
       "targets_title": "Destinos",
+      "target_statuses": {
+        "pending": "Pendiente",
+        "scheduled": "Programado",
+        "publishing": "Publicando",
+        "published": "Publicado",
+        "failed": "Fallido",
+        "canceled": "Cancelado"
+      },
+      "target_failure_reason": "Fallo: {reason}",
       "no_targets": "Ningun destino conectado esta actualmente asociado a esta copia.",
       "empty_title": "Todavia no hay posts Pulse en este historial",
       "empty_description": "Publica, programa o guarda un primer borrador para empezar a construir el historial reutilizable de Pulse.",
@@ -900,6 +909,7 @@
       "statuses": {
         "draft": "Borrador",
         "pending": "Pendiente",
+        "authorizing": "Conectando",
         "connected": "Conectada",
         "error": "Error",
         "reconnect_required": "Reconectar",

@@ -6,6 +6,7 @@ use App\Services\Social\SocialProviderRegistry;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 uses(RefreshDatabase::class);
@@ -28,6 +29,7 @@ it('adds pulse social account connections table with expected columns', function
             'last_synced_at',
             'token_expires_at',
             'oauth_state',
+            'oauth_code_verifier',
             'oauth_state_expires_at',
             'last_error',
             'metadata',
@@ -63,6 +65,7 @@ it('persists and casts social account connection fields', function () {
         'last_synced_at' => $lastSyncedAt,
         'token_expires_at' => $tokenExpiresAt,
         'oauth_state' => 'oauth-state-123',
+        'oauth_code_verifier' => 'pkce-verifier-123',
         'oauth_state_expires_at' => $oauthStateExpiresAt,
         'metadata' => [
             'provider_label' => 'Instagram Business',
@@ -96,9 +99,89 @@ it('persists and casts social account connection fields', function () {
         ->and($freshConnection->last_synced_at?->equalTo($lastSyncedAt))->toBeTrue()
         ->and($freshConnection->token_expires_at?->equalTo($tokenExpiresAt))->toBeTrue()
         ->and($freshConnection->oauth_state)->toBe('oauth-state-123')
+        ->and($freshConnection->oauth_code_verifier)->toBe('pkce-verifier-123')
         ->and($freshConnection->oauth_state_expires_at?->equalTo($oauthStateExpiresAt))->toBeTrue()
+        ->and($freshConnection->toArray())->not->toHaveKey('oauth_code_verifier')
         ->and($owner->socialAccountConnections->first()?->is($connection))->toBeTrue()
         ->and($connection->user->is($owner))->toBeTrue();
+
+    $rawVerifier = (string) DB::table('social_account_connections')
+        ->where('id', $connection->id)
+        ->value('oauth_code_verifier');
+
+    expect($rawVerifier)
+        ->not->toBe('pkce-verifier-123')
+        ->not->toContain('pkce-verifier-123')
+        ->and(SocialAccountConnection::allowedStatuses())
+        ->toContain(SocialAccountConnection::STATUS_AUTHORIZING);
+});
+
+it('moves legacy pkce verifiers out of metadata and rolls the backfill back safely', function () {
+    $owner = User::factory()->create(['company_type' => 'services']);
+    $connection = SocialAccountConnection::query()->create([
+        'user_id' => $owner->id,
+        'platform' => SocialAccountConnection::PLATFORM_X,
+        'label' => 'Legacy X profile',
+        'status' => SocialAccountConnection::STATUS_PENDING,
+        'metadata' => [
+            'connection_flow' => 'oauth',
+            'oauth_code_verifier' => 'legacy-pkce-verifier',
+        ],
+    ]);
+
+    $migration = require database_path('migrations/2026_08_27_150053_migrate_social_oauth_code_verifiers_from_metadata.php');
+
+    $migration->up();
+    $migration->up();
+
+    $migrated = $connection->fresh();
+    $rawVerifier = (string) DB::table('social_account_connections')
+        ->where('id', $connection->id)
+        ->value('oauth_code_verifier');
+
+    expect($migrated->oauth_code_verifier)->toBe('legacy-pkce-verifier')
+        ->and($migrated->metadata)->toBe(['connection_flow' => 'oauth'])
+        ->and($rawVerifier)->not->toContain('legacy-pkce-verifier');
+
+    $migration->down();
+
+    $rolledBack = $connection->fresh();
+
+    expect($rolledBack->oauth_code_verifier)->toBeNull()
+        ->and($rolledBack->metadata)->toBe([
+            'connection_flow' => 'oauth',
+            'oauth_code_verifier' => 'legacy-pkce-verifier',
+        ]);
+});
+
+it('keeps a dedicated pkce verifier while scrubbing a stale legacy metadata value', function () {
+    $owner = User::factory()->create(['company_type' => 'services']);
+    $connection = SocialAccountConnection::query()->create([
+        'user_id' => $owner->id,
+        'platform' => SocialAccountConnection::PLATFORM_X,
+        'label' => 'Concurrent X profile',
+        'status' => SocialAccountConnection::STATUS_PENDING,
+        'oauth_code_verifier' => 'current-dedicated-verifier',
+        'metadata' => [
+            'connection_flow' => 'oauth',
+            'oauth_code_verifier' => 'stale-legacy-verifier',
+        ],
+    ]);
+    $rawVerifier = DB::table('social_account_connections')
+        ->where('id', $connection->id)
+        ->value('oauth_code_verifier');
+
+    $migration = require database_path('migrations/2026_08_27_150053_migrate_social_oauth_code_verifiers_from_metadata.php');
+
+    $migration->up();
+
+    $migrated = $connection->fresh();
+
+    expect($migrated->oauth_code_verifier)->toBe('current-dedicated-verifier')
+        ->and($migrated->metadata)->toBe(['connection_flow' => 'oauth'])
+        ->and(DB::table('social_account_connections')
+            ->where('id', $connection->id)
+            ->value('oauth_code_verifier'))->toBe($rawVerifier);
 });
 
 it('allows multiple social accounts on the same platform but blocks duplicate external accounts for one tenant', function () {

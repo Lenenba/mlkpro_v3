@@ -9,11 +9,11 @@ use App\Services\Social\SocialPostVisualPreviewService;
 use App\Services\TenantBrandingResolver;
 use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class SocialApprovalRequestedNotification extends Notification implements ShouldQueue
+class SocialApprovalRequestedNotification extends Notification implements ShouldQueueAfterCommit
 {
     use Queueable;
 

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { resizeImageFile, MEDIA_LIMITS } from '@/utils/media';
 
@@ -19,6 +19,7 @@ const props = defineProps({
     type: Array,
     default: () => ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'],
   },
+  disabled: Boolean,
 });
 
 // Événements
@@ -26,7 +27,7 @@ const emit = defineEmits(['update:modelValue']); // Événement pour mettre à j
 
 const file = computed({
   get: () => props.modelValue, // Obtenir le fichier depuis v-model
-  set: (value) => emit('update:modelValue', value), // Mettre à jour le fichier dans le parent
+  set: (value) => !props.disabled && emit('update:modelValue', value),
 });
 
 const input = ref(null); // Référence pour l'élément input de fichier
@@ -95,7 +96,7 @@ const updatePreview = (value) => {
 };
 
 const processSelectedFile = async (selectedFile, resetInput = null) => {
-  if (!selectedFile) {
+  if (props.disabled || !selectedFile) {
     return;
   }
 
@@ -126,6 +127,10 @@ const processSelectedFile = async (selectedFile, resetInput = null) => {
     maxDimension: MEDIA_LIMITS.maxImageDimension,
     maxBytes: MEDIA_LIMITS.maxImageBytes,
   });
+  if (props.disabled) {
+    return;
+  }
+
   if (result.error) {
     errorMessage.value = localizedResizeError(result.error);
     if (resetInput) {
@@ -136,12 +141,7 @@ const processSelectedFile = async (selectedFile, resetInput = null) => {
 
   const processedFile = result.file;
   file.value = processedFile;
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    preview.value = e.target.result;
-  };
-  reader.readAsDataURL(processedFile);
+  updatePreview(processedFile);
 
   const interval = setInterval(() => {
     if (progress.value >= 100) {
@@ -153,19 +153,27 @@ const processSelectedFile = async (selectedFile, resetInput = null) => {
 };
 
 // Fonction pour gérer le changement de fichier
-const handleFileChange = async (event) => {
-  await processSelectedFile(event.target.files[0], event.target);
+const handleFileChange = (event) => {
+  processSelectedFile(event.target.files[0], event.target);
 };
 
 // Fonction pour déclencher l'ouverture du champ <input>
 const triggerFileInput = () => {
+  if (props.disabled) {
+    return;
+  }
+
   if (input.value) {
-    input.value.click(); // Déclenche l'événement "click" sur l'élément input
+    input.value.click();
   }
 };
 
 // Fonction pour supprimer le fichier
 const removeFile = () => {
+  if (props.disabled) {
+    return;
+  }
+
   file.value = null; // Supprimer le fichier
   preview.value = null; // Supprimer l'aper‡u
   progress.value = 0; // R‚initialiser la progression
@@ -178,6 +186,11 @@ const removeFile = () => {
 
 const handleDragOver = (event) => {
   event.preventDefault();
+
+  if (props.disabled) {
+    return;
+  }
+
   isDragging.value = true;
 };
 
@@ -185,28 +198,16 @@ const handleDragLeave = () => {
   isDragging.value = false;
 };
 
-const handleDrop = async (event) => {
+const handleDrop = (event) => {
   event.preventDefault();
   isDragging.value = false;
 
   const droppedFile = event.dataTransfer?.files?.[0];
-  await processSelectedFile(droppedFile);
+  processSelectedFile(droppedFile);
 };
 
 
-// Initialiser l'aperçu si une image est déjà définie dans le modèle
-onMounted(() => {
-  if (typeof props.modelValue === 'string' && props.modelValue.trim() !== '') {
-    preview.value = props.modelValue; // Affiche l'image existante
-  }
-});
-
-watch(
-  () => props.modelValue,
-  (value) => {
-    updatePreview(value);
-  }
-);
+watch(() => props.modelValue, updatePreview, { immediate: true });
 </script>
 
 <template>
@@ -235,6 +236,7 @@ watch(
           <div class="flex items-center gap-2">
             <button
               type="button"
+              :disabled="disabled"
               @click="triggerFileInput"
               class="rounded-sm border border-stone-300 bg-white px-2 py-1 text-xs font-semibold text-stone-700 transition hover:bg-stone-50 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
             >
@@ -242,6 +244,7 @@ watch(
             </button>
             <button
               type="button"
+              :disabled="disabled"
               @click="removeFile"
               class="rounded-sm border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-300 dark:hover:bg-rose-950/50"
             >
@@ -275,14 +278,18 @@ watch(
     <!-- Bouton pour ajouter un fichier -->
     <div
       v-else
-      class="cursor-pointer p-12 flex justify-center border border-dashed rounded-sm transition"
-      :class="isDragging
-        ? 'border-stone-500 bg-stone-100 dark:border-neutral-400 dark:bg-neutral-700'
-        : 'border-stone-300 bg-white dark:border-neutral-600 dark:bg-neutral-800'"
+      class="p-12 flex justify-center border border-dashed rounded-sm transition"
+      :class="[
+        isDragging
+          ? 'border-stone-500 bg-stone-100 dark:border-neutral-400 dark:bg-neutral-700'
+          : 'border-stone-300 bg-white dark:border-neutral-600 dark:bg-neutral-800',
+        disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
+      ]"
       @click="triggerFileInput"
       @dragover="handleDragOver"
       @dragleave="handleDragLeave"
       @drop="handleDrop"
+      :aria-disabled="disabled"
     >
       <div class="text-center">
         <span
@@ -323,6 +330,8 @@ watch(
     <input
       type="file"
       :accept="acceptedFileTypes"
+      :disabled="disabled"
+      :aria-disabled="disabled"
       class="sr-only"
       @change="handleFileChange"
       ref="input"

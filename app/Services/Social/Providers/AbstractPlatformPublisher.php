@@ -2,6 +2,7 @@
 
 namespace App\Services\Social\Providers;
 
+use App\Exceptions\Social\RetryableSocialPublishingException;
 use App\Models\SocialAccountConnection;
 use App\Services\Social\Contracts\PlatformPublisherInterface;
 use Illuminate\Support\Carbon;
@@ -101,6 +102,13 @@ abstract class AbstractPlatformPublisher implements PlatformPublisherInterface
             ->timeout($this->publishTimeout())
             ->withToken($accessToken)
             ->post($publishUrl, $this->publishRequestData($connection, $payload));
+
+        if ($response->status() === 429) {
+            throw new RetryableSocialPublishingException($this->publishResponseMessage(
+                $response->json() ?? [],
+                sprintf('%s temporarily rate limited this Pulse publication.', $this->label())
+            ));
+        }
 
         if (! $response->successful()) {
             throw ValidationException::withMessages([
