@@ -2,13 +2,13 @@
 
 Date de cadrage : 2026-08-26
 
-Révision : 28 — preuve distante WP1-H enregistrée
+Révision : 29 — checkpoint WP1-H publié et vérifié
 
 Baseline auditée : branche develop, commit a54169d3d096
 
 Branche de travail active : `feature/pulse-buffer-refonte`, créée depuis `develop@a54169d3d096`
 
-Branche distante : `origin/feature/pulse-buffer-refonte`, checkpoint fonctionnel WP1-F/WP1-G `a0cbad7aa51d`; preuve WP1-H en cours de publication
+Branche distante : `origin/feature/pulse-buffer-refonte`, checkpoint probatoire WP1-H `5ffcc685cb3e`
 
 Statut documentaire : complet — référence active
 
@@ -59,6 +59,7 @@ Ce journal est mis à jour à chaque étape de la refonte. Une étape n’est d�
 | EV-PULSE-035 | 2026-08-27 | Publication et vérification distante WP1-F/WP1-G | Le checkpoint fonctionnel est publié uniquement sur la branche feature. GitHub confirme le SHA complet, les huit fichiers attendus et un écart d'un commit depuis le checkpoint WP1-E. Nightwatch ne signale aucun incident ouvert sur `Malikia pro dev`. `develop` et `main` restent inchangées. | GitHub : `a0cbad7aa51dd679b3813d3ae92cd5773c64bc33`, comparaison `ahead 1 / behind 0`, 8 fichiers ; Nightwatch : 0 incident ouvert | Checkpoint fonctionnel publié ; edit distant et move restent à prouver dans une future tranche autorisée |
 | EV-PULSE-036 | 2026-08-27 | WP1-H — preuve distante edit et move Facebook | Un préflight sans empreinte s'arrête avant journal et mutation après avoir confirmé le schéma, un compte, une organisation, une seule Page Facebook éligible et la capacité requise. L'unique cycle ensuite autorisé crée un brouillon Facebook `post`, l'édite avec la même metadata minimale et conserve tous les invariants de non-publication. `movePostInQueue`, documenté expérimental par Buffer, refuse ensuite le brouillon avec un `VoidMutationError` typé ; ce refus est définitif, non ambigu et non rejoué. Le `finally` effectue une seule suppression, la lecture suivante confirme `NOT_FOUND`, puis le journal privé et le verrou disparaissent. | HTTP 200 à chaque étape ; create/edit `PostActionSuccess`, move `VoidMutationError` classé `draft_move_rejected`, delete `DeletePostSuccess`, vérification `NOT_FOUND` ; aucun retry, identifiant conservé, objet résiduel ni besoin de réconciliation | Preuve réelle create/edit/delete acquise ; move sur brouillon explicitement refusé ; preuves partielles BUF-P0-06/07, tous les gates restent ouverts |
 | EV-PULSE-037 | 2026-08-27 | Validation et hygiène WP1-H | Deux audits indépendants confirment les gates, l'absence de retry distant, la suppression unique, la redaction des sorties et la valeur de la couverture. L'audit de code mort ne démontre aucun nouvel élément supprimable dans les harnais ou leurs tests ; la branche `VoidMutationError` est au contraire prouvée vivante par l'essai réel. La documentation Buffer officielle est revalidée et Nightwatch ne signale aucun incident ouvert. Aucun fichier PHP n'est modifié dans cette tranche documentaire. | Lifecycle 72/72, probe 96/96, combinés 168/168 ; Node complet 365/365 ; `node --check`, JSON, index de 232 documents et `git diff --check` verts ; Graphify 32 130 nœuds ; Nightwatch : 0 incident ouvert | Zéro suppression spéculative ; preuve et documents prêts à committer sur la branche feature |
+| EV-PULSE-038 | 2026-08-27 | Publication et vérification distante WP1-H | La preuve distante, la vue visuelle, le statut documentaire et l'index sont publiés uniquement sur la branche feature. GitHub confirme le commit probatoire complet, exactement quatre fichiers et un écart d'un commit depuis le checkpoint WP1-F/WP1-G. Nightwatch ne signale aucun incident ouvert ; `develop` et `main` restent inchangées. | GitHub : `5ffcc685cb3e6dcfe29c97231894b3ae9a0d78fe`, comparaison `ahead 1 / behind 0`, 4 fichiers ; Nightwatch : 0 incident ouvert | Checkpoint WP1-H publié ; branche feature prête pour la prochaine tranche P0 |
 
 ### 0.1 Gate de déploiement WP0-S
 
