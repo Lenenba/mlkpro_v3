@@ -1,12 +1,19 @@
 {
     "version": 1,
     "documents": {
+        "docs/MALIKIA_PULSE_AVANCEMENT_VISUEL.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "created_at": "2026-08-27",
+            "updated_at": "2026-08-27",
+            "note": "Vue visuelle synthétique des étapes Buffer-first terminées et restantes."
+        },
         "docs/MALIKIA_PULSE_BUFFER_FIRST_REFONTE_GLOBALE_2026-08-26.md": {
             "document_status": "complete",
-            "delivery_status": "planned",
+            "delivery_status": "in_progress",
             "created_at": "2026-08-26",
-            "updated_at": "2026-08-26",
-            "note": "Référence active Buffer-first; implémentation conditionnée par les gates techniques, commerciales, sécurité et juridiques P0."
+            "updated_at": "2026-08-27",
+            "note": "Référence active Buffer-first; WP1-F prouvé, WP1-G préparé localement et gates P0 encore ouverts."
         },
         "docs/MALIKIA_PULSE_DOCUMENTATION_TECHNIQUE_2026-04-25.md": {
             "document_status": "reference",

@@ -169,6 +169,13 @@ const SAFE_MUTATION_RESPONSE_TYPES = new Set([
     'UnexpectedError',
     'VoidMutationError',
 ]);
+const AMBIGUOUS_MUTATION_REQUEST_CLASSIFICATIONS = new Set([
+    'invalid_json',
+    'response_stream_unavailable',
+    'response_too_large',
+    'timeout',
+    'transport_error',
+]);
 const DEFINITIVE_CREATE_REJECTION_TYPES = new Set([
     'InvalidInputError',
     'LimitReachedError',
@@ -851,6 +858,19 @@ function hasExactFacebookPostMetadata(value) {
         && value.type === 'post';
 }
 
+function hasExactFacebookPostMetadataInput(value) {
+    return hasExactKeys(value, ['facebook'])
+        && hasExactKeys(value.facebook, ['type'])
+        && value.facebook.type === 'post';
+}
+
+function isAmbiguousMutationRequest(request) {
+    return AMBIGUOUS_MUTATION_REQUEST_CLASSIFICATIONS.has(request.classification)
+        || (request.classification === 'http_error'
+            && request.http_status >= 500
+            && request.http_status < 600);
+}
+
 function validateFixedMutationRequest(query, variables) {
     const input = variables?.input;
     const values = isObject(input) ? Object.values(input) : [];
@@ -877,17 +897,16 @@ function validateFixedMutationRequest(query, variables) {
             && Array.isArray(input.assets)
             && input.assets.length === 0
             && nullableString(input.channelId) !== null
-            && hasExactKeys(input.metadata, ['facebook'])
-            && hasExactKeys(input.metadata.facebook, ['type'])
-            && input.metadata.facebook.type === 'post'
+            && hasExactFacebookPostMetadataInput(input.metadata)
             && input.mode === 'addToQueue'
             && input.needsApproval === false
             && input.saveToDraft === true
             && input.schedulingType === 'automatic'
             && nullableString(input.text)?.startsWith('[MALIKIA WP1-C TEMP DRAFT - DO NOT PUBLISH] ')
         : query === BUFFER_WP1_EDIT_FACEBOOK_DRAFT_MUTATION
-            ? hasExactKeys(input, ['id', 'saveToDraft', 'text'])
+            ? hasExactKeys(input, ['id', 'metadata', 'saveToDraft', 'text'])
                 && nullableString(input.id) !== null
+                && hasExactFacebookPostMetadataInput(input.metadata)
                 && input.saveToDraft === true
                 && nullableString(input.text)?.endsWith(' - EDITED')
             : query === BUFFER_WP1_MOVE_FACEBOOK_DRAFT_MUTATION
@@ -1042,10 +1061,14 @@ function normalizePostAction(request, field, secret) {
     const responseType = safeMutationResponseType(payload?.__typename, secret);
 
     if (!isObject(payload) || responseType === null) {
+        const requestFailed = request.classification !== 'success';
+
         return {
             id: salvagedId,
-            kind: 'invalid_payload',
-            step: mutationStep(request, { outcome: 'invalid_payload' }),
+            kind: requestFailed ? 'request_failure' : 'invalid_payload',
+            step: requestFailed
+                ? mutationStep(request)
+                : mutationStep(request, { outcome: 'invalid_payload' }),
         };
     }
     if (responseType !== 'PostActionSuccess') {
@@ -1216,7 +1239,11 @@ function normalizeInspectedDraft(
         id: exactDraft ? id : null,
         kind: exactDraft ? 'draft' : 'invalid',
         step: mutationStep(request, {
-            outcome: exactDraft ? 'draft_confirmed' : 'inspection_unconfirmed',
+            outcome: exactDraft
+                ? 'draft_confirmed'
+                : request.classification === 'success'
+                    ? 'inspection_unconfirmed'
+                    : request.classification,
         }),
     };
 }
@@ -1741,6 +1768,7 @@ export async function executeBufferWp1FacebookDraftLifecycle({
                 variables: {
                     input: {
                         id: createdPostId,
+                        metadata: { facebook: { type: 'post' } },
                         saveToDraft: true,
                         text: editedText,
                     },
@@ -1766,7 +1794,7 @@ export async function executeBufferWp1FacebookDraftLifecycle({
                 result.steps.edit.outcome = editAction.kind === 'success'
                     ? 'draft_invariant_failed'
                     : result.steps.edit.outcome;
-                result.classification = editRequest.classification === 'timeout'
+                result.classification = isAmbiguousMutationRequest(editRequest)
                     ? 'edit_outcome_unknown'
                     : 'edit_failed';
 
@@ -1823,7 +1851,7 @@ export async function executeBufferWp1FacebookDraftLifecycle({
                 result.steps.move.outcome = moveAction.kind === 'success'
                     ? 'draft_invariant_failed'
                     : result.steps.move.outcome;
-                result.classification = moveRequest.classification === 'timeout'
+                result.classification = isAmbiguousMutationRequest(moveRequest)
                     ? 'move_outcome_unknown'
                     : 'move_failed';
             }

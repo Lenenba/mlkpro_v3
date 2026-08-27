@@ -11,6 +11,12 @@ use Illuminate\Support\Facades\Schema;
 
 uses(RefreshDatabase::class);
 
+it('keeps only active social account model helpers', function () {
+    expect(method_exists(SocialAccountConnection::class, 'allowedPlatforms'))->toBeTrue()
+        ->and(method_exists(SocialAccountConnection::class, 'allowedStatuses'))->toBeTrue()
+        ->and(method_exists(SocialAccountConnection::class, 'allowedAuthMethods'))->toBeFalse();
+});
+
 it('adds pulse social account connections table with expected columns', function () {
     expect(Schema::hasTable('social_account_connections'))->toBeTrue()
         ->and(Schema::hasColumns('social_account_connections', [

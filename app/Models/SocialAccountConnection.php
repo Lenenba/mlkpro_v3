@@ -93,14 +93,6 @@ class SocialAccountConnection extends Model
         ];
     }
 
-    public static function allowedAuthMethods(): array
-    {
-        return [
-            self::AUTH_METHOD_OAUTH,
-            self::AUTH_METHOD_MANUAL,
-        ];
-    }
-
     public static function allowedStatuses(): array
     {
         return [

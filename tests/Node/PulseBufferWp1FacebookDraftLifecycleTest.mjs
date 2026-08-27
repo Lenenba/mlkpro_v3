@@ -59,6 +59,45 @@ function jsonResponse(payload, status = 200, headers = QUOTA_HEADERS) {
     });
 }
 
+function invalidJsonResponse(status = 200) {
+    return new Response('{invalid-json', {
+        status,
+        headers: {
+            'Content-Type': 'application/json',
+            ...QUOTA_HEADERS,
+        },
+    });
+}
+
+function responseWithoutStream(status = 200) {
+    return new Response(null, {
+        status,
+        headers: {
+            'Content-Type': 'application/json',
+            ...QUOTA_HEADERS,
+        },
+    });
+}
+
+function oversizedResponse(status = 200) {
+    return new Response('x'.repeat((1024 * 1024) + 1), {
+        status,
+        headers: {
+            'Content-Type': 'application/json',
+            ...QUOTA_HEADERS,
+        },
+    });
+}
+
+function rejectedRequest(name = 'Error') {
+    return async () => {
+        const error = new Error('sanitized simulated request failure');
+        error.name = name;
+
+        throw error;
+    };
+}
+
 function healthyChannel(overrides = {}) {
     return {
         id: CHANNEL_ID,
@@ -442,7 +481,12 @@ test('the WP1-C cycle sends only fixed draft mutations and deletes after a typed
         },
     });
     assert.deepEqual(bodies[1].variables, {
-        input: { id: POST_ID, saveToDraft: true, text: EDITED_TEXT },
+        input: {
+            id: POST_ID,
+            metadata: { facebook: { type: 'post' } },
+            saveToDraft: true,
+            text: EDITED_TEXT,
+        },
     });
     assert.deepEqual(bodies[2].variables, { input: { id: POST_ID, position: 'bottom' } });
     assert.deepEqual(bodies[3].variables, { input: { id: POST_ID } });
@@ -1096,31 +1140,94 @@ test('the WP1-C final lifecycle result redacts a token colliding with an interna
     assert.equal(JSON.stringify(result).includes('cleanup_failed'), false);
 });
 
-test('the WP1-C cycle reports an ambiguous create timeout without retrying', async () => {
+test('the WP1-F cycle aborts a timed-out create request and never retries it', { timeout: 2500 }, async () => {
     const probe = createProbe();
     const recoveryJournal = createMemoryRecoveryJournal();
+    let observedSignal = null;
     const scriptedFetch = createScriptedFetch([
-        async () => {
-            const error = new Error('connection aborted after send');
-            error.name = 'AbortError';
-            throw error;
-        },
+        async (_url, options) => new Promise((_resolve, reject) => {
+            observedSignal = options.signal;
+            options.signal.addEventListener('abort', () => {
+                const error = new Error('sanitized simulated timeout');
+                error.name = 'AbortError';
+                reject(error);
+            }, { once: true });
+        }),
     ]);
 
     const result = await executeLifecycle({
         fetchImpl: scriptedFetch.fetchImpl,
         probeImpl: probe.probeImpl,
         recoveryJournal,
+        timeoutMs: 1000,
     });
 
     assert.equal(result.classification, 'create_outcome_unknown');
+    assert.equal(result.steps.create.outcome, 'timeout');
     assert.equal(result.cleanup.state, 'creation_outcome_unknown');
     assert.equal(result.cleanup.manual_reconciliation_required, true);
     assert.equal(result.draft_marker, DRAFT_MARKER);
+    assert.equal(observedSignal?.aborted, true);
     assert.equal(scriptedFetch.requests.length, 1);
     assert.equal(recoveryJournal.record.state, 'creation_outcome_unknown');
     assert.equal(recoveryJournal.record.post_id, null);
     assert.deepEqual(recoveryJournal.events, ['acquire', 'begin', 'update', 'release']);
+});
+
+test('the WP1-F cycle treats every ambiguous create response as unknown', async (t) => {
+    const cases = [
+        {
+            expectedOutcome: 'transport_error',
+            name: 'transport failure',
+            response: rejectedRequest(),
+        },
+        {
+            expectedOutcome: 'http_error',
+            name: 'HTTP 500',
+            response: jsonResponse({ data: null }, 500),
+        },
+        {
+            expectedOutcome: 'invalid_json',
+            name: 'invalid JSON',
+            response: invalidJsonResponse(),
+        },
+        {
+            expectedOutcome: 'response_stream_unavailable',
+            name: 'response without stream',
+            response: responseWithoutStream(),
+        },
+        {
+            expectedOutcome: 'response_too_large',
+            name: 'oversized response',
+            response: oversizedResponse(),
+        },
+    ];
+
+    for (const testCase of cases) {
+        await t.test(testCase.name, async () => {
+            const probe = createProbe();
+            const recoveryJournal = createMemoryRecoveryJournal();
+            const scriptedFetch = createScriptedFetch([testCase.response]);
+
+            const result = await executeLifecycle({
+                fetchImpl: scriptedFetch.fetchImpl,
+                probeImpl: probe.probeImpl,
+                recoveryJournal,
+            });
+
+            assert.equal(result.classification, 'create_outcome_unknown');
+            assert.equal(result.steps.create.outcome, testCase.expectedOutcome);
+            assert.equal(result.steps.edit.attempted, false);
+            assert.equal(result.steps.move.attempted, false);
+            assert.equal(result.steps.delete.attempted, false);
+            assert.equal(result.cleanup.attempted, false);
+            assert.equal(result.cleanup.manual_reconciliation_required, true);
+            assert.equal(recoveryJournal.record.state, 'creation_outcome_unknown');
+            assert.equal(recoveryJournal.record.post_id, null);
+            assert.equal(scriptedFetch.requests.length, 1);
+            assert.equal(JSON.stringify(result).includes(ACCESS_TOKEN), false);
+        });
+    }
 });
 
 test('the WP1-C cycle salvages a partial create ID only for its single cleanup attempt', async () => {
@@ -1154,6 +1261,48 @@ test('the WP1-C cycle salvages a partial create ID only for its single cleanup a
     assert.deepEqual(JSON.parse(scriptedFetch.requests[1].options.body).variables, {
         input: { id: POST_ID },
     });
+});
+
+test('the WP1-F cycle uses an ID from a non-success create response only for cleanup', async () => {
+    const probe = createProbe();
+    const recoveryJournal = createMemoryRecoveryJournal();
+    const scriptedFetch = createScriptedFetch([
+        jsonResponse({
+            data: {
+                createPost: {
+                    __typename: 'PostActionSuccess',
+                    post: safePost(),
+                },
+            },
+        }, 500),
+        deleteSuccess(),
+        deleteNotFoundVerification(),
+    ]);
+
+    const result = await executeLifecycle({
+        fetchImpl: scriptedFetch.fetchImpl,
+        probeImpl: probe.probeImpl,
+        recoveryJournal,
+    });
+
+    assert.equal(result.classification, 'create_partial_response');
+    assert.equal(result.steps.create.outcome, 'partial_success');
+    assert.equal(result.steps.create.http_status, 500);
+    assert.equal(result.steps.edit.attempted, false);
+    assert.equal(result.steps.move.attempted, false);
+    assert.equal(result.cleanup.confirmed, true);
+    assert.equal(result.cleanup.recovery_journal_cleared, true);
+    assert.equal(recoveryJournal.record, null);
+    assert.equal(scriptedFetch.requests.length, 3);
+    assert.deepEqual(
+        scriptedFetch.requests.map((request) => JSON.parse(request.options.body).query),
+        [
+            BUFFER_WP1_CREATE_FACEBOOK_DRAFT_MUTATION,
+            BUFFER_WP1_DELETE_FACEBOOK_DRAFT_MUTATION,
+            BUFFER_WP1_VERIFY_FACEBOOK_DRAFT_DELETED_QUERY,
+        ],
+    );
+    assert.equal(JSON.stringify(result).includes(POST_ID), false);
 });
 
 test('the WP1-C cycle salvages a created ID even when the response typename is missing or invalid', async () => {
@@ -1493,6 +1642,95 @@ test('the WP1-C cycle deletes exactly once after edit or move failures and never
     }
 });
 
+test('the WP1-F cycle treats ambiguous edit and move results as unknown and cleans once', async (t) => {
+    const failures = [
+        {
+            expectedOutcome: 'timeout',
+            name: 'timeout',
+            response: () => rejectedRequest('AbortError'),
+        },
+        {
+            expectedOutcome: 'transport_error',
+            name: 'transport failure',
+            response: () => rejectedRequest(),
+        },
+        {
+            expectedOutcome: 'http_error',
+            name: 'HTTP 500',
+            response: () => jsonResponse({ data: null }, 500),
+        },
+        {
+            expectedOutcome: 'invalid_json',
+            name: 'invalid JSON',
+            response: () => invalidJsonResponse(),
+        },
+        {
+            expectedOutcome: 'response_stream_unavailable',
+            name: 'response without stream',
+            response: () => responseWithoutStream(),
+        },
+        {
+            expectedOutcome: 'response_too_large',
+            name: 'oversized response',
+            response: () => oversizedResponse(),
+        },
+    ];
+
+    for (const stage of ['edit', 'move']) {
+        for (const failure of failures) {
+            await t.test(`${stage}: ${failure.name}`, async () => {
+                const probe = createProbe();
+                const recoveryJournal = createMemoryRecoveryJournal();
+                const responses = [postAction('createPost', safePost())];
+                if (stage === 'move') {
+                    responses.push(postAction('editPost', safePost({ text: EDITED_TEXT })));
+                }
+                responses.push(
+                    failure.response(),
+                    deleteSuccess(),
+                    deleteNotFoundVerification(),
+                );
+                const scriptedFetch = createScriptedFetch(responses);
+
+                const result = await executeLifecycle({
+                    fetchImpl: scriptedFetch.fetchImpl,
+                    probeImpl: probe.probeImpl,
+                    recoveryJournal,
+                });
+
+                assert.equal(result.classification, `${stage}_outcome_unknown`);
+                assert.equal(result.steps[stage].outcome, failure.expectedOutcome);
+                assert.equal(result.cleanup.confirmed, true);
+                assert.equal(result.cleanup.recovery_journal_cleared, true);
+                assert.equal(recoveryJournal.record, null);
+                assert.equal(result.steps.delete.outcome, 'deleted');
+                assert.equal(result.steps.verify_delete.outcome, 'not_found_confirmed');
+
+                const queries = scriptedFetch.requests.map((request) => (
+                    JSON.parse(request.options.body).query
+                ));
+                assert.equal(queries.filter((query) => (
+                    query === BUFFER_WP1_CREATE_FACEBOOK_DRAFT_MUTATION
+                )).length, 1);
+                assert.equal(queries.filter((query) => (
+                    query === BUFFER_WP1_EDIT_FACEBOOK_DRAFT_MUTATION
+                )).length, 1);
+                assert.equal(queries.filter((query) => (
+                    query === BUFFER_WP1_MOVE_FACEBOOK_DRAFT_MUTATION
+                )).length, stage === 'move' ? 1 : 0);
+                assert.equal(queries.filter((query) => (
+                    query === BUFFER_WP1_DELETE_FACEBOOK_DRAFT_MUTATION
+                )).length, 1);
+                assert.equal(queries.filter((query) => (
+                    query === BUFFER_WP1_VERIFY_FACEBOOK_DRAFT_DELETED_QUERY
+                )).length, 1);
+                assert.equal(JSON.stringify(result).includes(ACCESS_TOKEN), false);
+                assert.equal(JSON.stringify(result).includes(POST_ID), false);
+            });
+        }
+    }
+});
+
 test('the WP1-C cleanup uses a fresh signal and requires reconciliation for every unconfirmed delete', async () => {
     const probe = createProbe();
     const recoveryJournal = createMemoryRecoveryJournal();
@@ -1683,6 +1921,40 @@ test('the WP1-C cleanup-only path inspects the exact draft before one delete and
     assert.equal(JSON.stringify(result).includes(POST_ID), false);
 });
 
+test('the WP1-F cleanup-only path recovers a draft before its first edit', async () => {
+    const probe = createProbe();
+    const recoveryJournal = createMemoryRecoveryJournal({
+        activeRecord: recoveryRecord(),
+    });
+    const scriptedFetch = createScriptedFetch([
+        jsonResponse({ data: { post: safePost({ text: INITIAL_TEXT }) } }),
+        deleteSuccess(),
+        deleteNotFoundVerification(),
+    ]);
+
+    const result = await executeCleanup({
+        fetchImpl: scriptedFetch.fetchImpl,
+        probeImpl: probe.probeImpl,
+        recoveryJournal,
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.classification, 'cleanup_confirmed');
+    assert.equal(result.steps.inspect.outcome, 'draft_confirmed');
+    assert.equal(result.cleanup.confirmed, true);
+    assert.equal(result.cleanup.recovery_journal_cleared, true);
+    assert.equal(recoveryJournal.record, null);
+    assert.deepEqual(recoveryJournal.events, ['acquire', 'read', 'complete', 'release']);
+    assert.deepEqual(
+        scriptedFetch.requests.map((request) => JSON.parse(request.options.body).query),
+        [
+            BUFFER_WP1_INSPECT_FACEBOOK_DRAFT_QUERY,
+            BUFFER_WP1_DELETE_FACEBOOK_DRAFT_MUTATION,
+            BUFFER_WP1_VERIFY_FACEBOOK_DRAFT_DELETED_QUERY,
+        ],
+    );
+});
+
 test('the WP1-C cleanup-only path clears an already absent draft without deleting again', async () => {
     const probe = createProbe();
     const recoveryJournal = createMemoryRecoveryJournal({
@@ -1812,6 +2084,93 @@ test('the WP1-C cleanup-only path preserves the journal when inspection is not t
         assert.equal(recoveryJournal.record.post_id, POST_ID);
         assert.deepEqual(recoveryJournal.events, ['acquire', 'read', 'release']);
         assert.equal(scriptedFetch.requests.length, 1);
+    }
+});
+
+test('the WP1-F cleanup-only path fails closed on ambiguous inspect, delete, or verification', async (t) => {
+    const cases = [
+        {
+            expectedClassification: 'cleanup_inspection_unconfirmed',
+            expectedOutcomes: {
+                delete: 'not_attempted',
+                inspect: 'transport_error',
+                verify_delete: 'not_attempted',
+            },
+            expectedQueries: [BUFFER_WP1_INSPECT_FACEBOOK_DRAFT_QUERY],
+            expectedState: 'recovery_required',
+            name: 'inspect transport failure',
+            responses: () => [rejectedRequest()],
+        },
+        {
+            expectedClassification: 'cleanup_failed',
+            expectedOutcomes: {
+                delete: 'http_error',
+                inspect: 'draft_confirmed',
+                verify_delete: 'not_attempted',
+            },
+            expectedQueries: [
+                BUFFER_WP1_INSPECT_FACEBOOK_DRAFT_QUERY,
+                BUFFER_WP1_DELETE_FACEBOOK_DRAFT_MUTATION,
+            ],
+            expectedState: 'delete_unconfirmed',
+            name: 'delete HTTP 500',
+            responses: () => [
+                jsonResponse({ data: { post: safePost({ text: EDITED_TEXT }) } }),
+                jsonResponse({ data: null }, 500),
+            ],
+        },
+        {
+            expectedClassification: 'cleanup_failed',
+            expectedOutcomes: {
+                delete: 'deleted',
+                inspect: 'draft_confirmed',
+                verify_delete: 'invalid_json',
+            },
+            expectedQueries: [
+                BUFFER_WP1_INSPECT_FACEBOOK_DRAFT_QUERY,
+                BUFFER_WP1_DELETE_FACEBOOK_DRAFT_MUTATION,
+                BUFFER_WP1_VERIFY_FACEBOOK_DRAFT_DELETED_QUERY,
+            ],
+            expectedState: 'delete_verification_unconfirmed',
+            name: 'verification invalid JSON',
+            responses: () => [
+                jsonResponse({ data: { post: safePost({ text: EDITED_TEXT }) } }),
+                deleteSuccess(),
+                invalidJsonResponse(),
+            ],
+        },
+    ];
+
+    for (const testCase of cases) {
+        await t.test(testCase.name, async () => {
+            const probe = createProbe();
+            const activeRecord = recoveryRecord();
+            const recoveryJournal = createMemoryRecoveryJournal({ activeRecord });
+            const scriptedFetch = createScriptedFetch(testCase.responses());
+
+            const result = await executeCleanup({
+                fetchImpl: scriptedFetch.fetchImpl,
+                probeImpl: probe.probeImpl,
+                recoveryJournal,
+            });
+
+            assert.equal(result.classification, testCase.expectedClassification);
+            assert.equal(result.cleanup.confirmed, false);
+            assert.equal(result.cleanup.manual_reconciliation_required, true);
+            assert.equal(result.cleanup.recovery_journal_cleared, false);
+            assert.equal(result.cleanup.state, testCase.expectedState);
+            assert.deepEqual(recoveryJournal.record, activeRecord);
+            assert.deepEqual(recoveryJournal.events, ['acquire', 'read', 'release']);
+            for (const [step, outcome] of Object.entries(testCase.expectedOutcomes)) {
+                assert.equal(result.steps[step].outcome, outcome);
+            }
+            assert.deepEqual(
+                scriptedFetch.requests.map((request) => JSON.parse(request.options.body).query),
+                testCase.expectedQueries,
+            );
+            assert.equal(JSON.stringify(result).includes(ACCESS_TOKEN), false);
+            assert.equal(JSON.stringify(result).includes(POST_ID), false);
+        });
     }
 });
 

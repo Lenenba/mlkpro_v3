@@ -10,13 +10,14 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 
 | En cours | Bloqués | À faire | Terminés | Références | Archivés | À classer | Total |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 48 | 0 | 24 | 6 | 63 | 0 | 90 | 231 |
+| 50 | 0 | 23 | 6 | 63 | 0 | 90 | 232 |
 
 ## Derniers documents créés
 
 | Créé le | Modifié le | Suivi | Document |
 | --- | --- | --- | --- |
-| 2026-08-26 | 2026-08-26 | À faire | [MALIKIA_PULSE_BUFFER_FIRST_REFONTE_GLOBALE_2026-08-26.md](MALIKIA_PULSE_BUFFER_FIRST_REFONTE_GLOBALE_2026-08-26.md) |
+| 2026-08-27 | 2026-08-27 | En cours | [MALIKIA_PULSE_AVANCEMENT_VISUEL.md](MALIKIA_PULSE_AVANCEMENT_VISUEL.md) |
+| 2026-08-26 | 2026-08-27 | En cours | [MALIKIA_PULSE_BUFFER_FIRST_REFONTE_GLOBALE_2026-08-26.md](MALIKIA_PULSE_BUFFER_FIRST_REFONTE_GLOBALE_2026-08-26.md) |
 | 2026-08-21 | 2026-08-21 | Terminé | [audits/customers/2026-08-21-customer-experience-step-1.md](audits/customers/2026-08-21-customer-experience-step-1.md) |
 | 2026-08-21 | 2026-08-21 | Terminé | [audits/customers/2026-08-21-customer-experience-step-2.md](audits/customers/2026-08-21-customer-experience-step-2.md) |
 | 2026-08-21 | 2026-08-21 | Terminé | [audits/customers/2026-08-21-customer-experience-step-3.md](audits/customers/2026-08-21-customer-experience-step-3.md) |
@@ -35,13 +36,13 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G05/README.md](demo/video-library/captures/G05/README.md) |
 | 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G06/capture-session.md](demo/video-library/captures/G06/capture-session.md) |
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G06/README.md](demo/video-library/captures/G06/README.md) |
-| 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G07/capture-session.md](demo/video-library/captures/G07/capture-session.md) |
 
 ## Derniers documents modifiés
 
 | Modifié le | Créé le | Suivi | Document |
 | --- | --- | --- | --- |
-| 2026-08-26 | 2026-08-26 | À faire | [MALIKIA_PULSE_BUFFER_FIRST_REFONTE_GLOBALE_2026-08-26.md](MALIKIA_PULSE_BUFFER_FIRST_REFONTE_GLOBALE_2026-08-26.md) |
+| 2026-08-27 | 2026-08-27 | En cours | [MALIKIA_PULSE_AVANCEMENT_VISUEL.md](MALIKIA_PULSE_AVANCEMENT_VISUEL.md) |
+| 2026-08-27 | 2026-08-26 | En cours | [MALIKIA_PULSE_BUFFER_FIRST_REFONTE_GLOBALE_2026-08-26.md](MALIKIA_PULSE_BUFFER_FIRST_REFONTE_GLOBALE_2026-08-26.md) |
 | 2026-08-21 | 2026-08-21 | Terminé | [audits/customers/2026-08-21-customer-experience-step-1.md](audits/customers/2026-08-21-customer-experience-step-1.md) |
 | 2026-08-21 | 2026-08-21 | Terminé | [audits/customers/2026-08-21-customer-experience-step-2.md](audits/customers/2026-08-21-customer-experience-step-2.md) |
 | 2026-08-21 | 2026-08-21 | Terminé | [audits/customers/2026-08-21-customer-experience-step-3.md](audits/customers/2026-08-21-customer-experience-step-3.md) |
@@ -60,7 +61,6 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 | 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G03/capture-session.md](demo/video-library/captures/G03/capture-session.md) |
 | 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G03/README.md](demo/video-library/captures/G03/README.md) |
 | 2026-08-11 | 2026-08-11 | À faire | [demo/video-library/captures/G04/capture-session.md](demo/video-library/captures/G04/capture-session.md) |
-| 2026-08-11 | 2026-08-11 | En cours | [demo/video-library/captures/G04/README.md](demo/video-library/captures/G04/README.md) |
 
 ## Sous-dossiers
 
@@ -75,6 +75,8 @@ Le suivi et l’état du document sont séparés : un document peut être comple
 
 | Créé le | Modifié le | Document | Titre | État du document | Source | Note |
 | --- | --- | --- | --- | --- | --- | --- |
+| 2026-08-27 | 2026-08-27 | [MALIKIA_PULSE_AVANCEMENT_VISUEL.md](MALIKIA_PULSE_AVANCEMENT_VISUEL.md) | Malikia Pulse — avancement visuel | Complet | Classement manuel | Vue visuelle synthétique des étapes Buffer-first terminées et restantes. |
+| 2026-08-26 | 2026-08-27 | [MALIKIA_PULSE_BUFFER_FIRST_REFONTE_GLOBALE_2026-08-26.md](MALIKIA_PULSE_BUFFER_FIRST_REFONTE_GLOBALE_2026-08-26.md) | Malikia Pulse — refonte globale Buffer-first | Complet | Classement manuel | Référence active Buffer-first; WP1-F prouvé, WP1-G préparé localement et gates P0 encore ouverts. |
 | 2026-08-06 | 2026-08-11 | [DEMO_VIDEO_SALON_COIFFURE.md](DEMO_VIDEO_SALON_COIFFURE.md) | Démo vidéo — Salon de coiffure / beauté | Complet | Classement manuel | Reference metier Salon Eclat; les validations Stripe et integrations externes restent ouvertes. |
 | 2026-04-24 | 2026-04-25 | [PROSPECTS_MODULE_DEV_BACKLOG_2026-04-24.md](PROSPECTS_MODULE_DEV_BACKLOG_2026-04-24.md) | Module Prospects - plan de dev pas a pas | Complet | Classement manuel | PROSPECT-702 et plusieurs flux de fermeture restent partiels. |
 | 2026-04-13 | 2026-04-13 | [PLATFORM_BULK_ACTIONS_USER_STORY.md](PLATFORM_BULK_ACTIONS_USER_STORY.md) | Platform Bulk Actions - User Story | Complet | Classement manuel | Socle partiellement livre; generalisation multi-modules encore incomplete. |
@@ -90,7 +92,6 @@ _Aucun document._
 
 | Créé le | Modifié le | Document | Titre | État du document | Source | Note |
 | --- | --- | --- | --- | --- | --- | --- |
-| 2026-08-26 | 2026-08-26 | [MALIKIA_PULSE_BUFFER_FIRST_REFONTE_GLOBALE_2026-08-26.md](MALIKIA_PULSE_BUFFER_FIRST_REFONTE_GLOBALE_2026-08-26.md) | Malikia Pulse — refonte globale Buffer-first | Complet | Classement manuel | Référence active Buffer-first; implémentation conditionnée par les gates techniques, commerciales, sécurité et juridiques P0. |
 | 2026-04-10 | 2026-04-10 | [PRICING_STRUCTURE_REDESIGN_USER_STORY.md](PRICING_STRUCTURE_REDESIGN_USER_STORY.md) | Pricing Structure Redesign - User Story | Complet | Classement manuel | Conception figee pour implementation; livraison produit non terminee. |
 | 2026-04-08 | 2026-04-08 | [MOBILE_API_PHASE_0_DISCOVERY_FREEZE.md](MOBILE_API_PHASE_0_DISCOVERY_FREEZE.md) | Mobile API Phase 0 - Discovery Freeze | Complet | Classement manuel | Document de decouverte fige; implementation produit encore a planifier. |
 
