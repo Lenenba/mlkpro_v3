@@ -2,9 +2,9 @@
 
 **État au 27 août 2026 : `WP2A_LOCAL_VALIDATED` · `ACCOUNT_OWNER_PAYER_WORKING_ASSUMPTION` · `PRE_WP2B_INVENTORY_LOCAL_VALIDATED` · `WP2B_SCHEMA_GATE_PENDING` · `P0_GATES_OPEN` · `NO_GO_BUFFER_RUNTIME/PILOT/PRODUCTION`**
 
-**Checkpoint distant : `feature/pulse-buffer-refonte@7725e16ef5e6`**
+**Checkpoint distant : `feature/pulse-buffer-refonte@84fab9fafc39`**
 
-**Lot local à publier : outil CLI pré-WP2-B + inventaire agrégé de la base MySQL locale courante**
+**Dernier lot publié : outil CLI pré-WP2-B + inventaire agrégé de la base MySQL locale courante**
 
 ```mermaid
 flowchart LR
