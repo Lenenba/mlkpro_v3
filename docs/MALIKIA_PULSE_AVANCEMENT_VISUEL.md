@@ -14,15 +14,16 @@ flowchart LR
         D1E["WP1-E — Contrat post Facebook<br/>facebook.type=post préparé<br/>et validé localement"]
         D1F["WP1-F — Preuve Facebook réelle<br/>Brouillon créé, edit refusé,<br/>suppression confirmée"]
         D1G["WP1-G — Édition durcie<br/>Metadata exacte, ambiguïtés<br/>et reprise couvertes localement"]
-        DQ["Hygiène du code<br/>Seul élément mort démontré supprimé,<br/>aucune suppression spéculative"]
+        D1H["WP1-H — Preuve edit réelle<br/>Create/edit/delete confirmés,<br/>move draft refusé proprement"]
+        DQ["Hygiène du code<br/>Audit WP1-H répété,<br/>aucun nouveau code mort démontré"]
 
-        D0 --> D1A --> D1B --> D1C --> D1D --> D1E --> D1F --> D1G --> DQ
+        D0 --> D1A --> D1B --> D1C --> D1D --> D1E --> D1F --> D1G --> D1H --> DQ
     end
 
     subgraph TODO["⏳ RESTE À FAIRE"]
         direction TB
         T0["Fin WP0<br/>Répétition MySQL, approbation opérationnelle<br/>et déploiement atomique"]
-        T1["Fin WP1<br/>Autoriser et valider edit puis move Facebook,<br/>puis fermer BUF-P0-01 à 10"]
+        T1["Fin WP1<br/>Qualifier le refus du move draft,<br/>compléter la matrice et statuer sur BUF-P0-01 à 10"]
         T2["WP2 — Fondation<br/>Migrations, client Buffer, gateway,<br/>fake, DTO et gestion des erreurs"]
         T3["WP3 — Connexion et canaux<br/>OAuth Buffer, refresh, organisations,<br/>synchronisation et capacités"]
         T4["WP4 — Livraison fiable<br/>Outbox, quotas, médias,<br/>soumission et réconciliation"]

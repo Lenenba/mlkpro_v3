@@ -6,14 +6,14 @@
             "delivery_status": "in_progress",
             "created_at": "2026-08-27",
             "updated_at": "2026-08-27",
-            "note": "Vue visuelle synthétique des étapes Buffer-first terminées et restantes."
+            "note": "Vue visuelle synthétique : WP1-H confirme create/edit/delete Facebook et le refus propre du move draft ; gates P0 restants."
         },
         "docs/MALIKIA_PULSE_BUFFER_FIRST_REFONTE_GLOBALE_2026-08-26.md": {
             "document_status": "complete",
             "delivery_status": "in_progress",
             "created_at": "2026-08-26",
             "updated_at": "2026-08-27",
-            "note": "Référence active Buffer-first; WP1-F prouvé, WP1-G préparé localement et gates P0 encore ouverts."
+            "note": "Référence active Buffer-first ; WP1-H prouve create/edit/delete Facebook, documente le refus du move draft et conserve tous les gates P0 ouverts."
         },
         "docs/MALIKIA_PULSE_DOCUMENTATION_TECHNIQUE_2026-04-25.md": {
             "document_status": "reference",

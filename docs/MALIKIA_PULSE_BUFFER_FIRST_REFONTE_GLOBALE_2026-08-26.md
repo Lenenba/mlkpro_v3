@@ -2,17 +2,17 @@
 
 Date de cadrage : 2026-08-26
 
-Révision : 27 — checkpoint WP1-F/WP1-G publié et vérifié
+Révision : 28 — preuve distante WP1-H enregistrée
 
 Baseline auditée : branche develop, commit a54169d3d096
 
 Branche de travail active : `feature/pulse-buffer-refonte`, créée depuis `develop@a54169d3d096`
 
-Branche distante : `origin/feature/pulse-buffer-refonte`, checkpoint fonctionnel WP1-F/WP1-G `a0cbad7aa51d`
+Branche distante : `origin/feature/pulse-buffer-refonte`, checkpoint fonctionnel WP1-F/WP1-G `a0cbad7aa51d`; preuve WP1-H en cours de publication
 
 Statut documentaire : complet — référence active
 
-Statut de livraison : **WP0/WP0-S validés localement — gate d’indexation vert — gate de déploiement ouvert — WP1-A/WP1-B/WP1-D authentifiés en lecture seule — WP1-F prouve la création d'un brouillon Facebook standard et sa suppression confirmée, mais l'édition est refusée — WP1-G prépare localement l'édition avec la metadata Facebook exacte ; aucun nouvel essai distant n'est autorisé dans ce lot**
+Statut de livraison : **WP0/WP0-S validés localement — gate d’indexation vert — gate de déploiement ouvert — WP1-A/WP1-B/WP1-D authentifiés en lecture seule — WP1-H prouve réellement create, edit et delete sur un brouillon Facebook standard ; `movePostInQueue`, expérimental, refuse ce brouillon de façon typée et le nettoyage est confirmé — tous les gates BUF-P0 restent ouverts**
 
 Statut de décision : **BLOCKED_P0**
 
@@ -57,6 +57,8 @@ Ce journal est mis à jour à chaque étape de la refonte. Une étape n’est d�
 | EV-PULSE-033 | 2026-08-27 | Hygiène — retrait de code mort | L'audit des imports, appels directs, callables, usages réflexifs, routes, payloads, tests, documentation et relations Graphify ne démontre aucun élément mort dans les deux harnais Buffer. Une seule méthode historique du modèle social n'a jamais eu de consommateur : `SocialAccountConnection::allowedAuthMethods()`. Elle est retirée sans supprimer les constantes d'authentification toujours actives. Les providers, routes et configurations sociales directes restent nécessaires jusqu'à la bascule WP7. | Recherche dépôt et historique Git ; Graphify ; test de surface du modèle ; 37 tests sociaux / 340 assertions | Un seul élément inutile supprimé ; aucune suppression spéculative ; audit à répéter à chaque tranche |
 | EV-PULSE-034 | 2026-08-27 | Validation intégrée WP1-F/WP1-G | Le lot local, le retrait de code mort et les deux documents d'avancement passent les gates du dépôt. PHPStan nécessite uniquement son port local éphémère hors sandbox et termine sans erreur. Le graphe partagé est reconstruit après les changements. | Node 365/365 ; 37 tests PHP / 340 assertions ; PHPStan 901/901 ; `composer qa:format` 22/22 ; Pint 2/2 ; build Vite, budgets frontend et index de 232 documents verts ; Graphify 32 130 nœuds / 66 529 arêtes / 1 790 communautés | Prêt à indexer, committer et pousser uniquement sur la branche feature |
 | EV-PULSE-035 | 2026-08-27 | Publication et vérification distante WP1-F/WP1-G | Le checkpoint fonctionnel est publié uniquement sur la branche feature. GitHub confirme le SHA complet, les huit fichiers attendus et un écart d'un commit depuis le checkpoint WP1-E. Nightwatch ne signale aucun incident ouvert sur `Malikia pro dev`. `develop` et `main` restent inchangées. | GitHub : `a0cbad7aa51dd679b3813d3ae92cd5773c64bc33`, comparaison `ahead 1 / behind 0`, 8 fichiers ; Nightwatch : 0 incident ouvert | Checkpoint fonctionnel publié ; edit distant et move restent à prouver dans une future tranche autorisée |
+| EV-PULSE-036 | 2026-08-27 | WP1-H — preuve distante edit et move Facebook | Un préflight sans empreinte s'arrête avant journal et mutation après avoir confirmé le schéma, un compte, une organisation, une seule Page Facebook éligible et la capacité requise. L'unique cycle ensuite autorisé crée un brouillon Facebook `post`, l'édite avec la même metadata minimale et conserve tous les invariants de non-publication. `movePostInQueue`, documenté expérimental par Buffer, refuse ensuite le brouillon avec un `VoidMutationError` typé ; ce refus est définitif, non ambigu et non rejoué. Le `finally` effectue une seule suppression, la lecture suivante confirme `NOT_FOUND`, puis le journal privé et le verrou disparaissent. | HTTP 200 à chaque étape ; create/edit `PostActionSuccess`, move `VoidMutationError` classé `draft_move_rejected`, delete `DeletePostSuccess`, vérification `NOT_FOUND` ; aucun retry, identifiant conservé, objet résiduel ni besoin de réconciliation | Preuve réelle create/edit/delete acquise ; move sur brouillon explicitement refusé ; preuves partielles BUF-P0-06/07, tous les gates restent ouverts |
+| EV-PULSE-037 | 2026-08-27 | Validation et hygiène WP1-H | Deux audits indépendants confirment les gates, l'absence de retry distant, la suppression unique, la redaction des sorties et la valeur de la couverture. L'audit de code mort ne démontre aucun nouvel élément supprimable dans les harnais ou leurs tests ; la branche `VoidMutationError` est au contraire prouvée vivante par l'essai réel. La documentation Buffer officielle est revalidée et Nightwatch ne signale aucun incident ouvert. Aucun fichier PHP n'est modifié dans cette tranche documentaire. | Lifecycle 72/72, probe 96/96, combinés 168/168 ; Node complet 365/365 ; `node --check`, JSON, index de 232 documents et `git diff --check` verts ; Graphify 32 130 nœuds ; Nightwatch : 0 incident ouvert | Zéro suppression spéculative ; preuve et documents prêts à committer sur la branche feature |
 
 ### 0.1 Gate de déploiement WP0-S
 
@@ -527,7 +529,17 @@ Dans WP1-E, edit omettait la metadata et devait prouver sa conservation uniqueme
 
 L'unique cycle autorisé pour WP1-F confirme successivement : preflight vert, create d'un brouillon Facebook `post` conforme, refus typé de l'edit, arrêt avant move, suppression unique puis lecture `NOT_FOUND`. Le journal de récupération est effacé seulement après cette dernière confirmation. Aucun objet distant, identifiant, verrou ou besoin de réconciliation ne subsiste.
 
-WP1-G ne retente pas le cycle. Le contrat local renvoie désormais sur edit la même metadata Facebook minimale que celle acceptée au create. Il traite aussi toute issue réseau ou réponse inexploitable comme ambiguë, interdit les retries automatiques et conserve le journal dès qu'une suppression ne peut pas être confirmée. Un prochain essai distant restera une tranche distincte et explicitement autorisée.
+WP1-G ne retente pas le cycle. Le contrat local renvoie désormais sur edit la même metadata Facebook minimale que celle acceptée au create. Il traite aussi toute issue réseau ou réponse inexploitable comme ambiguë, interdit les retries automatiques et conserve le journal dès qu'une suppression ne peut pas être confirmée. La tranche distante distincte WP1-H ci-dessous exécute ensuite ce contrat une seule fois.
+
+### 5.7 Preuve distante WP1-H — edit confirmé, move draft refusé
+
+WP1-H exécute une seule fois le contrat préparé par WP1-G. Le préflight initial est volontairement privé d'empreinte cible : il confirme les capacités et la cible unique, puis s'arrête avec `target_confirmation_required` avant tout journal ou document de mutation. L'empreinte fraîche est ensuite fournie uniquement au processus du cycle, sans être enregistrée dans Git.
+
+Le cycle réel confirme que Buffer accepte l'édition du brouillon Facebook lorsque l'input edit renvoie exactement `metadata.facebook.type=post`. Le post reste `draft`, sur le même canal, avec le texte édité exact, sans date, envoi, partage ou lien externe. Cette preuve comportementale remplace l'hypothèse encore ouverte après WP1-F.
+
+La mutation expérimentale `movePostInQueue(position: bottom)` répond ensuite par un `VoidMutationError`. Le résultat est classé `draft_move_rejected` : Buffer a répondu de façon typée, donc le harnais ne le traite ni comme une issue inconnue ni comme une réussite. Le move n'est pas rejoué. La suppression unique et sa vérification `NOT_FOUND` réussissent, sans objet distant, journal, verrou ou réconciliation manuelle résiduelle.
+
+Cette tranche apporte une preuve partielle à `BUF-P0-06` pour create/edit/delete au statut draft et à `BUF-P0-07` pour le format Facebook `post`. Elle ne ferme aucun gate : la matrice des autres statuts, la replanification, l'approbation et les autres canaux restent à couvrir. La prochaine décision technique doit qualifier ce refus et déterminer si le déplacement d'un brouillon doit être modélisé comme capacité non disponible pour ce flux, sans inventer de contournement ni démarrer WP2 avant la décision GO/NO-GO P0.
 
 ## 6. Systèmes de référence et invariants
 
