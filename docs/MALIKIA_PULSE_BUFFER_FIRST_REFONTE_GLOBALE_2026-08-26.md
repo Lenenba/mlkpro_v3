@@ -2,13 +2,13 @@
 
 Date de cadrage : 2026-08-26
 
-Révision : 16 — checkpoint WP1-B prêt à committer sur la branche dédiée
+Révision : 17 — checkpoint WP1-B publié et vérifié sur la branche dédiée
 
 Baseline auditée : branche develop, commit a54169d3d096
 
 Branche de travail active : `feature/pulse-buffer-refonte`, créée depuis `develop@a54169d3d096`
 
-Branche distante : `origin/feature/pulse-buffer-refonte`, dernier checkpoint publié avant WP1-B `b8b1e995`
+Branche distante : `origin/feature/pulse-buffer-refonte`, checkpoint fonctionnel WP1-B `55840503e975`
 
 Statut documentaire : complet — référence active
 
@@ -42,6 +42,7 @@ Ce journal est mis à jour à chaque étape de la refonte. Une étape n’est d�
 | EV-PULSE-018 | 2026-08-27 | WP1-B — contrat GraphQL authentifié | Une introspection fixe et strictement read-only confirme le schéma réellement exposé au credential : signatures exactes de `post`, `posts`, `createPost`, `editPost`, `deletePost` et `movePostInQueue`, types, nullabilités et valeurs par défaut des 14 champs Create/Edit, unions d’erreur et enums de programmation. Le normalizer refuse les suppressions, dépréciations, doublons, noms/kinds/wrappers incohérents, changements de type/défaut et nouveaux champs/arguments obligatoires sans défaut, tout en tolérant les ajouts GraphQL compatibles. Buffer ne renvoie aucun header de quota sur l’introspection ; cette exception est limitée à l’opération `schema`, tandis que `account` et `channels` exigent toujours les trois fenêtres. Aucun document de mutation n’est envoyé. | Appel réel : HTTP 200, 0 erreur GraphQL, contrat classé `success`, 0 fenêtre de quota sur l’introspection ; 59/59 tests ciblés ; contre-revues contrat, sécurité et couverture | Preuve contractuelle read-only acquise ; BUF-P0-05/06/07 toujours ouverts faute de comportement de mutation réel |
 | EV-PULSE-019 | 2026-08-27 | Validation intégrée WP1-B | Trois revues indépendantes concluent sans finding reproductible après correction de tous les cas adversariaux : dérives de signature/type/nullabilité/défaut, dépréciations, doublons, kinds contextuels, wrappers impossibles, noms GraphQL invalides, ajout obligatoire incompatible, arguments CLI dupliqués et collision du marqueur de redaction. Le probe authentifié final reste vert et le graphe partagé est reconstruit. | 59/59 ciblés ; 256/256 Node complets ; build Vite, budgets frontend et index de 231 documents verts ; Graphify : 32 013 nœuds / 66 241 arêtes / 1 769 communautés ; revues contrat, sécurité et tests : VERT | Prêt pour gate Git/PHP et checkpoint WP1-B ; aucun BUF-P0 fermé |
 | EV-PULSE-020 | 2026-08-27 | Gate final du checkpoint WP1-B | Le lot WP1-B est limité au harness read-only, à son test Node et au journal central. Les trois fichiers sont complètement indexés ; aucun `.env`, token, identifiant distant, request ID, partition key ou corps Buffer brut n’entre dans le commit. Le gate PHP obligatoire réinspecte les 22 fichiers PHP déjà commités depuis `origin/develop` sans correction. | `composer qa:format` : PASS 22/22 ; `git diff --check` et `git diff --cached --check` : PASS ; 3 fichiers indexés | Prêt à committer et pousser uniquement `feature/pulse-buffer-refonte` |
+| EV-PULSE-021 | 2026-08-27 | Publication et vérification distante WP1-B | Le checkpoint fonctionnel WP1-B est publié uniquement sur la branche dédiée. GitHub confirme le SHA complet, un commit d’avance sur le checkpoint authentifié précédent et exactement les trois fichiers attendus. Le suivi local/distant est synchronisé. Nightwatch ne signale aucun incident ouvert sur `Malikia pro dev`. `develop` et `main` ne sont ni modifiés ni ciblés. | GitHub : `55840503e97501fa81562d8a545f9abbad336883`, comparaison `ahead 1 / behind 0`, 3 fichiers ; Git `0/0` ; Nightwatch : 0 incident ouvert | Checkpoint WP1-B publié ; tous les BUF-P0 restent ouverts |
 
 ### 0.1 Gate de déploiement WP0-S
 
