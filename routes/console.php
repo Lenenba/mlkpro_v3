@@ -69,6 +69,7 @@ use App\Services\ServiceRequests\LegacyServiceRequestBackfillAnalysisService;
 use App\Services\ServiceRequests\LegacyServiceRequestBackfillService;
 use App\Services\ServiceRequests\LegacyServiceRequestBackfillVerificationService;
 use App\Services\SmsNotificationService;
+use App\Services\Social\LegacySocialInventoryService;
 use App\Services\Social\SocialAutomationRunnerService;
 use App\Services\StripePlanEnvSyncService;
 use App\Services\StripePlanPriceProvisioner;
@@ -2169,6 +2170,76 @@ Artisan::command(
         return 0;
     }
 )->purpose('Generate due Malikia Pulse automation candidates');
+
+Artisan::command(
+    'pulse:buffer:inventory-legacy
+        {--json : Output the aggregate inventory as JSON}
+        {--confirm-read-only-scan : Confirm the authorized all-tenant aggregate scan}',
+    function (LegacySocialInventoryService $inventoryService): int {
+        if (! (bool) $this->option('confirm-read-only-scan')) {
+            $this->error(
+                'Legacy Pulse inventory requires explicit operator confirmation. '
+                .'Use --confirm-read-only-scan only on an authorized local database, clone, or environment.'
+            );
+
+            return 1;
+        }
+
+        $inventory = $inventoryService->inventory();
+
+        if ((bool) $this->option('json')) {
+            $this->line(json_encode($inventory, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT));
+
+            return 0;
+        }
+
+        $this->info('Pulse Buffer legacy inventory (read-only, aggregate only)');
+        $this->table(['Scope', 'Total', 'Attention'], [
+            [
+                'Connections',
+                $inventory['connections']['total'],
+                $inventory['connections']['active'].' active',
+            ],
+            [
+                'Targets',
+                $inventory['targets']['total'],
+                $inventory['targets']['without_connection'].' without connection; '
+                    .$inventory['targets']['cross_tenant'].' cross-tenant',
+            ],
+            [
+                'Automation references',
+                $inventory['references']['automation_rules']['references'],
+                $inventory['references']['automation_rules']['missing_references'].' missing; '
+                    .$inventory['references']['automation_rules']['cross_tenant_references'].' cross-tenant; '
+                    .$inventory['references']['automation_rules']['malformed_records'].' malformed record; '
+                    .$inventory['references']['automation_rules']['invalid_references'].' invalid; '
+                    .$inventory['references']['automation_rules']['duplicate_references'].' duplicate',
+            ],
+            [
+                'Template references',
+                $inventory['references']['post_templates']['references'],
+                $inventory['references']['post_templates']['missing_references'].' missing; '
+                    .$inventory['references']['post_templates']['cross_tenant_references'].' cross-tenant; '
+                    .$inventory['references']['post_templates']['malformed_records'].' malformed record; '
+                    .$inventory['references']['post_templates']['invalid_references'].' invalid; '
+                    .$inventory['references']['post_templates']['duplicate_references'].' duplicate',
+            ],
+            [
+                'Queued publications',
+                $inventory['queued_publications']['total'] ?? 'not measurable',
+                $inventory['queued_publications']['measurable']
+                    ? $inventory['queued_publications']['ready'].' ready; '
+                        .$inventory['queued_publications']['delayed'].' delayed; '
+                        .$inventory['queued_publications']['active_reserved'].' active reservation; '
+                        .$inventory['queued_publications']['expired_reserved'].' expired reservation; '
+                        .$inventory['queued_publications']['unparseable_candidates'].' unparseable candidate'
+                    : $inventory['queued_publications']['reason'],
+            ],
+        ]);
+
+        return 0;
+    }
+)->purpose('Inventory legacy Pulse routing references without reading credentials');
 
 Artisan::command('campaigns:vip-auto-sync {--account_id=} {--dry-run}', function (VipService $vipService): int {
     $accountId = $this->option('account_id');

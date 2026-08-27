@@ -2,7 +2,7 @@
 
 Date de cadrage : 2026-08-26
 
-Révision : 33 — WP2-A contract/fake validé localement
+Révision : 34 — inventaire legacy pré-WP2-B validé sur la base locale courante
 
 Baseline auditée : branche develop, commit a54169d3d096
 
@@ -12,9 +12,9 @@ Branche distante : `origin/feature/pulse-buffer-refonte`, checkpoint WP2-A `7725
 
 Statut documentaire : complet — référence active
 
-Statut de livraison : **WP0/WP0-S validés localement — gate d’indexation vert — gate de déploiement ouvert — WP1-A/WP1-B/WP1-D authentifiés en lecture seule — WP1-H prouve réellement create, edit et delete sur un brouillon Facebook standard — WP1-I qualifie `move@draft` comme frontière négative provisoire — WP2-A contract/fake est validé localement ; cette tranche ne lit, n’accepte et ne transmet aucun credential et ne produit aucun trafic Buffer — tous les gates BUF-P0 restent ouverts pour le runtime Buffer, le pilote et la production selon leur portée**
+Statut de livraison : **WP0/WP0-S validés localement — gate d’indexation vert — gate de déploiement ouvert — WP1-A/WP1-B/WP1-D authentifiés en lecture seule — WP1-H prouve réellement create, edit et delete sur un brouillon Facebook standard — WP1-I qualifie `move@draft` comme frontière négative provisoire — WP2-A contract/fake est validé localement — l’outil CLI pré-WP2-B et son exécution agrégée sur la base MySQL locale courante sont validés, sans migration, backfill ou transport Buffer — tous les gates BUF-P0 restent ouverts pour le runtime Buffer, le pilote et la production selon leur portée**
 
-Statut de décision : **GO_WP2A_CONTRACT_FAKE_LOCAL_ONLY · WP2A_LOCAL_VALIDATED · P0_GATES_OPEN · NO_GO_BUFFER_RUNTIME · NO_GO_BUFFER_PILOT · NO_GO_BUFFER_PRODUCTION**
+Statut de décision : **GO_WP2A_CONTRACT_FAKE_LOCAL_ONLY · WP2A_LOCAL_VALIDATED · ACCOUNT_OWNER_PAYER_WORKING_ASSUMPTION · PRE_WP2B_INVENTORY_LOCAL_VALIDATED · P0_GATES_OPEN · WP2B_SCHEMA_GATE_PENDING · NO_GO_BUFFER_RUNTIME · NO_GO_BUFFER_PILOT · NO_GO_BUFFER_PRODUCTION**
 
 ## 0. Journal d’évolution
 
@@ -66,8 +66,10 @@ Ce journal est mis à jour à chaque étape de la refonte. Une étape n’est d�
 | EV-PULSE-042 | 2026-08-27 | Découplage du gate de construction WP2-A | L'instruction exacte de Jules — « si tu na pas besoin de moi pour le passer je te donne le go pour continuer » — autorise la poursuite dans le périmètre borné de la section 18.1. Seuls le port métier provider-neutral, ses DTO/résultats minimaux et un fake déterministe peuvent être développés et testés sur la branche feature. WP2-A ne lit, n'accepte et ne transmet aucun credential ; il n'ajoute aucun appel Buffer réel, schéma, route, job, binding runtime, pilote, cutover ou production. Les dix BUF-P0 restent ouverts et ne sont pas présentés comme fermés. | GO utilisateur borné par la section 18.1 ; Graphify sur les gates et la fondation ; deux audits indépendants | `GO_WP2A_CONTRACT_FAKE_LOCAL_ONLY` accepté ; runtime Buffer, pilote et production toujours NO-GO |
 | EV-PULSE-043 | 2026-08-27 | WP2-A — contrat/fake local | Un port de création social provider-neutral relie un DTO text-only à un résultat strictement `submitted` ou `unknown`. Les factories imposent tenant et connexion locale positifs, routage organisation/canal, texte et clé d'idempotence non vides, mode immédiat ou programmé et instants UTC immuables. Le fake reste dans le test, consomme ses résultats en FIFO, enregistre les appels exacts et échoue fermé. La contre-revue a supprimé le statut `rejected` sans taxonomie, remplacé la blacklist de secrets par une allowlist exacte et neutralisé le nom de connexion afin de ne pas anticiper WP2-B. Aucun client/appel HTTP, accès DB, config, route, job, événement ou binding runtime n'est ajouté. | 9 tests WP2-A / 57 assertions ; 26 tests sociaux ciblés / 187 assertions ; Pint sur 4 fichiers ; PHPStan 904/904 sans erreur ; Graphify 32 165 nœuds / 66 584 arêtes / 1 805 communautés et sous-graphe WP2-A de 25 nœuds / 44 arêtes ; deux contre-revues sans blocant résiduel | WP2-A validé localement ; aucun BUF-P0 fermé, WP2-C/runtime Buffer toujours NO-GO |
 | EV-PULSE-044 | 2026-08-27 | Publication et vérification distante WP2-A | Les checkpoints de décision et d'implémentation WP2-A sont publiés uniquement sur la branche feature. GitHub confirme le commit fonctionnel complet et une tête distante strictement identique ; le suivi Git local/distant est synchronisé. Nightwatch ne signale aucun incident ouvert sur `Malikia pro dev`. `develop` et `main` restent inchangées et non ciblées. | GitHub : `7725e16ef5e6abcc41bca6be7404b97e699a3c10`, comparaison branche `ahead 0 / behind 0` ; Git `0/0` ; Nightwatch : 0 incident ouvert | Checkpoint WP2-A publié ; prochaine construction Buffer toujours soumise aux gates WP2-B/WP2-C |
+| EV-PULSE-045 | 2026-08-27 | Hypothèse propriétaire/payeur du compte Buffer | Le GO général de poursuite permet d'avancer sur l'inventaire avec l'option recommandée comme hypothèse de cadrage : chaque client détiendrait et paierait son propre compte Buffer. Jules n'a pas encore formulé ce choix de manière explicite ; il ne s'agit donc pas d'une validation produit. `BUF-P0-10` reste ouvert sur le propriétaire/payeur, le prix, le plan, la capacité, les prérequis et le parcours. | GO utilisateur du 27 août 2026 ; hypothèse annoncée avant la tranche ; ADR-PULSE-006 | Hypothèse de travail seulement ; confirmation produit et preuves commerciales toujours ouvertes |
+| EV-PULSE-046 | 2026-08-27 | Pré-WP2-B — outil et inventaire legacy local | La commande opérateur `pulse:buffer:inventory-legacy` produit un relevé agrégé et borné des connexions, cibles, références connues d'automations/modèles et jobs exacts `PublishSocialPostTargetJob` de la queue configurée `social-publish`. Le domaine est lu dans une transaction, les références sont traitées par lots de 500, les réservations expirées sont distinguées et tout candidat de queue préfiltré mais illisible est signalé. La queue est capturée séparément en un passage et n'est pas prétendue atomique avec le domaine lorsqu'elle utilise une autre connexion. Aucune valeur de ligne, credential ou identifiant distant n'est exposée : la sortie contient seulement des agrégats, des libellés plateforme/statut et des métadonnées techniques de capture/queue. Chaque exécution exige la confirmation opérateur `--confirm-read-only-scan`, indépendamment de `APP_ENV` ou de l'option globale `--env`, et reste réservée à une base locale, un clone ou un environnement approuvé. L'exécution read-only sur la base MySQL locale courante relève 1 connexion Instagram déconnectée/inactive, 18 cibles dont 5 futures, 0 orpheline, 0 écart tenant, 0 référence legacy active ou malformée et 0 job de publication en queue. Cette base locale ne remplace pas un clone représentatif. | 6 tests SQLite / 98 assertions ; PHPStan ciblé sans erreur ; Pint 3/3 ; commande MySQL locale read-only ; deux contre-revues | Outil et base locale courante inventoriés ; test automatisé/clone MySQL représentatif et WP2-B schéma restent à faire ; aucun BUF-P0 fermé |
 
-Les statuts inscrits dans les événements antérieurs sont historiques. EV-PULSE-042 remplace leur verdict de construction WP2 sans fermer ni requalifier aucun BUF-P0.
+Les statuts inscrits dans les événements antérieurs sont historiques. EV-PULSE-042 remplace leur verdict de construction WP2-A. EV-PULSE-045 consigne une hypothèse de cadrage et ne ferme ni ne requalifie `BUF-P0-10`.
 
 ### 0.1 Gate de déploiement WP0-S
 
@@ -92,9 +94,9 @@ La direction d’architecture est approuvée :
 
 > **Malikia Pulse reste le système éditorial et métier. Buffer devient l’unique passerelle de livraison vers les réseaux sociaux.**
 
-La mise en production n’est pas approuvée.
+La mise en production n’est pas approuvée. L'hypothèse MVP courante est que chaque client détient et paie son propre compte Buffer ; elle doit encore être confirmée formellement avec les coûts, le plan requis, la capacité et les prérequis.
 
-L’audit confirme que Pulse possède déjà un domaine éditorial réutilisable. Seul le contrat/fake local WP2-A existe côté Buffer : aucun runtime, transport, schéma, configuration ou binding Buffer n’est actif. Le transport actif reste un scaffold de publishers directs Facebook, Instagram, LinkedIn et X.
+L’audit confirme que Pulse possède déjà un domaine éditorial réutilisable. Le contrat/fake local WP2-A et un outil CLI read-only d'inventaire legacy existent ; aucun transport, schéma, migration, backfill, configuration ou binding Buffer n’est actif. Le transport actif reste un scaffold de publishers directs Facebook, Instagram, LinkedIn et X.
 
 La décision courante est donc :
 
@@ -102,7 +104,9 @@ La décision courante est donc :
 | --- | --- | --- |
 | Architecture | GO | La séparation Pulse métier / Buffer livraison est retenue |
 | Construction WP2-A contract/fake locale | Validée localement | Port, DTO/résultat et fake déterministe testés ; WP2-A ne lit, n'accepte et ne transmet aucun credential et ne produit aucun trafic Buffer |
-| Runtime Buffer WP2-C/WP3/WP4 | NO-GO actuel | Les gates P0 applicables restent ouverts ; aucune route, aucun worker, client HTTP ou binding Buffer actif. Les harnais WP1 restent gouvernés par leurs autorisations distinctes |
+| Pré-WP2-B inventaire legacy | Validé sur la base locale courante | CLI agrégé read-only, tests et exécution MySQL locale verts ; un clone représentatif et les queues non database restent à couvrir avant migration |
+| Construction WP2-B schéma | Gate local en attente | Aucun champ, modèle de routage, migration ou backfill Buffer n'est créé dans cette tranche |
+| Runtime Buffer WP2-C/WP3/WP4 | NO-GO actuel | Les gates P0 applicables restent ouverts ; aucune route HTTP Buffer, aucun worker, client HTTP ou binding Buffer actif. Les harnais WP1 restent gouvernés par leurs autorisations distinctes |
 | Pilote | NO-GO actuel | Aucun flux Buffer fiable n’est implémenté ni autorisé |
 | Généralisation | NO-GO actuel | Aucune preuve complète de capacité, migration, sécurité ou exploitation |
 
@@ -397,7 +401,7 @@ Le harness WP1-A conserve donc simultanément le statut HTTP, le tableau `errors
 
 ## 5. Registre des décisions P0
 
-Toutes les lignes restent ouvertes. Elles ne bloquent plus la construction locale de WP2-A contract/fake, mais elles bloquent la phase indiquée tant que la preuve attendue n'est pas attachée.
+Toutes les lignes restent ouvertes. Elles ne bloquent plus la construction locale de WP2-A contract/fake, mais elles bloquent la phase indiquée tant que la preuve attendue n'est pas attachée, sauf exception locale et réversible explicitement bornée dans la colonne « Phase bloquée » et en section 18.2. Après confirmation propriétaire/payeur, le seul gate local WP2-B peut ainsi laisser ouvertes les autres preuves commerciales de `BUF-P0-10` sans autoriser d'intégration distante, de pilote ou de production.
 
 | ID | Question | Preuve attendue | Responsable | Phase bloquée | État |
 | --- | --- | --- | --- | --- | --- |
@@ -410,7 +414,7 @@ Toutes les lignes restent ouvertes. Elles ne bloquent plus la construction local
 | BUF-P0-07 | Capacités, formats, publication par notification et approbation distante | Matrice par canal, dont draft et needs_approval | Produit + frontend | Activation produit et pilote | Ouvert — format Facebook `post` et refus provisoire `move@draft/bottom` observés; autres capacités, canaux et approbation non prouvés |
 | BUF-P0-08 | URL média stable et cycle de vie | Spike avec publication future et suppression différée | Backend + sécurité | Pilote média | Ouvert |
 | BUF-P0-09 | Usage SaaS, DPA, support et incident | Validation juridique et fournisseur | Juridique + sécurité | Intégration distante, pilote et production | Ouvert |
-| BUF-P0-10 | Modèle commercial compte client | Parcours, coûts et prérequis validés | Produit | WP2-B schéma, WP2-C/runtime Buffer, pilote, production et généralisation | Ouvert |
+| BUF-P0-10 | Modèle commercial compte client | Propriétaire/payeur, parcours, prix/plan, capacité et prérequis validés | Produit | WP2-B schéma jusqu'au GO local séparé, WP2-C/runtime Buffer, pilote, production et généralisation | Ouvert — compte détenu/payé par chaque client retenu comme hypothèse de cadrage, sans confirmation produit formelle |
 
 ### 5.1 Harness probatoire WP1-A
 
@@ -578,6 +582,29 @@ La décision WP1-I est volontairement bornée :
 
 Le prochain contrat probatoire doit isoler un post réellement en file d'attente. Il ne sera exécutable qu'avec un canal de test empêchant matériellement une publication accidentelle — par exemple une file dédiée et maîtrisée — ainsi qu'un préflight de créneau, une suppression garantie et une autorisation distincte. Tant que ces préconditions ne sont pas réunies, `BUF-P0-06` et `BUF-P0-07` restent ouverts : l'essai distant, l'activation produit et le pilote restent interdits, tandis que WP2-A contract/fake peut avancer uniquement en mode local et réversible.
 
+### 5.9 Pré-WP2-B — inventaire legacy borné
+
+La commande opérateur `php artisan pulse:buffer:inventory-legacy --json --confirm-read-only-scan` inventorie uniquement :
+
+- les agrégats des connexions et cibles sociales ;
+- les cibles sans connexion résolue, les écarts de tenant et les cibles futures ;
+- `social_automation_rules.target_connection_ids` et `social_post_templates.metadata.selected_target_connection_ids`, y compris références manquantes, cross-tenant, invalides ou dupliquées ;
+- les jobs dont le `displayName` exact est `PublishSocialPostTargetJob` sur la queue configurée `social-publish`, avec séparation ready, delayed, réservation active et réservation expirée.
+
+Les lectures du domaine s'effectuent dans une transaction et les références sont traitées par lots bornés. La queue est un relevé indépendant en un seul passage ; la sortie déclare explicitement qu'il n'existe pas d'atomicité inter-source. Pour une queue non database ou une table absente, le résultat est non mesurable. La commande n'inventorie pas Redis, SQS, des snapshots JSON inconnus ou une ancienne queue renommée. Aucune valeur de ligne n'est exposée ; aucun credential ni identifiant distant n'est sélectionné ou exposé. Seuls des agrégats, des libellés plateforme/statut et des métadonnées techniques de capture/queue sont affichés. Seuls les candidats de queue préfiltrés par le nom de classe sont décodés et comptés comme illisibles. Chaque exécution, locale comprise, exige `--confirm-read-only-scan` : l'autorisation explicite ne dépend donc ni de `APP_ENV`, ni de l'option Artisan globale `--env`. L'opérateur ne doit la fournir que pour une base locale, un clone ou un environnement approuvé.
+
+L'exécution sur la base MySQL locale courante donne :
+
+| Domaine | Résultat agrégé local |
+| --- | --- |
+| Connexions | 1 Instagram, déconnectée et inactive |
+| Cibles | 18 au total : 6 pending, 6 published, 6 scheduled ; 5 scheduled dans le futur |
+| Intégrité cible | 0 sans connexion résolue ; 0 cross-tenant |
+| Références automation/template | 0 référence active, manquante, cross-tenant, invalide ou dupliquée ; 4 templates sans destination persistée |
+| Queue `social-publish` | 0 job exact, 0 candidat illisible |
+
+Ce relevé prouve le fonctionnement manuel sur la base MySQL locale courante et les tests automatisés couvrent SQLite. Il ne prouve pas un test automatisé MySQL, l'état d'un clone représentatif ni celui de la production. Avant WP2-B schéma, il reste à exécuter le même format sur le clone choisi, compléter séparément toute queue non database et approuver un gate local borné pour les migrations/backfills.
+
 ## 6. Systèmes de référence et invariants
 
 ### 6.1 Autorité par domaine
@@ -674,7 +701,7 @@ Toutes les migrations sont additives. Les migrations historiques déjà exécut�
 
 ### 8.1 social_provider_connections
 
-Une ligne représente le grant Buffer d’un tenant.
+Dans l'hypothèse MVP courante, une ligne représente le grant du compte Buffer détenu et payé par le tenant client. La confirmation du modèle, les coûts, le plan, la capacité et les prérequis restent soumis à `BUF-P0-10`.
 
 Champs minimaux :
 
@@ -1285,28 +1312,30 @@ Les jobs delayed déjà sérialisés ne sont jamais remappés. Ils sont inventor
 ### 14.3 Séquence
 
 1. WP2-A terminé localement : port métier provider-neutral, DTO/résultat minimal et fake déterministe de test, sans trafic Buffer ni binding runtime.
-2. Inventorier connexions, cibles et jobs delayed legacy.
-3. Ouvrir WP2-B seulement après la décision BUF-P0-10, puis préparer et tester localement les colonnes et FK nouvelles comme nullables, sans les déployer ni changer le transport.
-4. Créer les révisions synthétiques, rattacher les approbations et initialiser le pointeur courant des cibles dans des tests de migration réversibles.
-5. Préparer le backfill `delivery_provider=direct`, `transport_generation=direct_v1` et `logical_destination_key` sur les connexions et cibles legacy.
-6. Valider les orphelins et incohérences, puis préparer les contraintes applicables aux nouvelles données.
-7. Figer les identités de routage déjà en queue, garder leurs credentials rafraîchissables et conserver leur worker direct pendant le futur drain.
-8. Fermer les gates P0 applicables avant toute activation ou intégration Buffer distante.
-9. Construire puis déployer le client HTTP, le mapper GraphQL et le gateway Buffer concret uniquement après le GO d'intégration distante ; le fake reste local aux tests.
-10. Activer OAuth et synchronisation en lecture seule.
-11. Créer de nouvelles lignes canal Buffer.
-12. Faire valider le mapping par l’owner.
-13. Exécuter une validation de capacités en shadow, sans publication.
-14. Définir durée, seuils d’incident et critères du canary, puis signer le GO lancement pilote.
-15. Choisir un tenant pilote et persister son transport Buffer par nouvelle cible.
-16. Publier un scénario contrôlé.
-17. Réconcilier et observer.
-18. Drainer ou annuler/recréer explicitement les posts legacy delayed.
-19. Étendre le canary puis réunir les preuves du GO général.
-20. Fermer la création de connexions directes.
-21. Découpler le service de suppression de données Facebook du transport Pulse.
-22. Révoquer les secrets directs seulement après drain et fenêtre de retour.
-23. Retirer le transport direct.
+2. Préparer, tester et exécuter l'inventaire agrégé sur la base locale courante — terminé ; aucun credential ou identifiant distant n'est exposé.
+3. Exécuter le même format sur un clone MySQL représentatif, consigner les anomalies et compléter séparément les queues non database ou anciennes queues renommées.
+4. Confirmer formellement l'hypothèse propriétaire/payeur puis accorder un `GO_WP2B_SCHEMA_LOCAL_ONLY` distinct après revue de cet inventaire ; coûts, plan, capacité et prérequis restent ouverts dans `BUF-P0-10` pour les phases distantes.
+5. Préparer et tester localement les colonnes et FK nouvelles comme nullables, sans les déployer ni changer le transport.
+6. Créer les révisions synthétiques, rattacher les approbations et initialiser le pointeur courant des cibles dans des tests de migration réversibles.
+7. Préparer le backfill `delivery_provider=direct`, `transport_generation=direct_v1` et `logical_destination_key` sur les connexions et cibles legacy.
+8. Valider les orphelins et incohérences, puis préparer les contraintes applicables aux nouvelles données.
+9. Figer les identités de routage déjà en queue, garder leurs credentials rafraîchissables et conserver leur worker direct pendant le futur drain.
+10. Fermer les gates P0 applicables avant toute activation ou intégration Buffer distante.
+11. Construire puis déployer le client HTTP, le mapper GraphQL et le gateway Buffer concret uniquement après le GO d'intégration distante ; le fake reste local aux tests.
+12. Activer OAuth et synchronisation en lecture seule.
+13. Créer de nouvelles lignes canal Buffer.
+14. Faire valider le mapping par l’owner.
+15. Exécuter une validation de capacités en shadow, sans publication.
+16. Définir durée, seuils d’incident et critères du canary, puis signer le GO lancement pilote.
+17. Choisir un tenant pilote et persister son transport Buffer par nouvelle cible.
+18. Publier un scénario contrôlé.
+19. Réconcilier et observer.
+20. Drainer ou annuler/recréer explicitement les posts legacy delayed.
+21. Étendre le canary puis réunir les preuves du GO général.
+22. Fermer la création de connexions directes.
+23. Découpler le service de suppression de données Facebook du transport Pulse.
+24. Révoquer les secrets directs seulement après drain et fenêtre de retour.
+25. Retirer le transport direct.
 
 ### 14.4 Feature flags et kill switches
 
@@ -1503,7 +1532,8 @@ Dans WP2-A, le fake prouve uniquement que le contrat local peut représenter une
 | WP0 — stabilisation legacy | Aucune | Approval lock, afterCommit, erreurs retryables, invariant tenant, média verrouillé, erreurs par cible visibles | Régressions actuelles couvertes, aucun changement Buffer |
 | WP1 — spike Buffer | Accès fournisseur | OAuth réel, organisations, mutations, quotas, timeout, matrice edit/delete | Les BUF-P0 reçoivent leurs preuves avant la phase distante qu'ils bloquent, ou cette phase passe NO-GO |
 | WP2-A — contrat/fake local | `GO_WP2A_CONTRACT_FAKE_LOCAL_ONLY` | Port métier provider-neutral, DTO/résultat minimal et fake déterministe dans les tests | Contrat unitaire testé ; aucun credential, client ou appel HTTP, persistance DB, config, route, job ou binding runtime |
-| WP2-B — fondation de données | WP2-A + décision BUF-P0-10 | Migrations, backfill et modèles de routage | Migrations réversibles, isolation tenant et stratégie de rollback prouvées |
+| Pré-WP2-B — inventaire legacy | WP2-A | Outil CLI agrégé read-only, base locale puis clone représentatif | Couverture bornée documentée ; aucun credential exposé, migration ou backfill ; anomalies et limites consignées |
+| WP2-B — fondation de données | WP2-A + `GO_WP2B_SCHEMA_LOCAL_ONLY` | Migrations, backfill et modèles de routage | Migrations réversibles, isolation tenant et stratégie de rollback prouvées |
 | WP2-C — transport Buffer | WP2-A + GO runtime Buffer | Client HTTP, mapper GraphQL et gateway concret | Suite de conformance et erreurs distantes réelles couvertes ; activation toujours explicite |
 | WP3 — connexion et canaux | WP2-B + WP2-C + GO runtime Buffer | OAuth, refresh lock, organisations, sync et capacités | Deux organisations testées, aucun secret frontend |
 | WP4 — livraison fiable | WP2-B + WP2-C + WP3 + gates de mutation/média | Outbox, claim, média, quotas, soumission et réconciliation | Tests concurrence, ambiguous et cross-tenant verts |
@@ -1532,7 +1562,21 @@ Le GO accordé couvre uniquement la construction locale de WP2-A si toutes les c
 - état `unknown` explicite, sans donnée affirmant un succès ; le futur worker devra interdire tout retry automatique d'une création ambiguë ;
 - aucun pilote, cutover, retrait du direct ou activation de WP2-B/WP2-C/WP3/WP4 distante.
 
-### 18.2 GO intégration Buffer distante
+### 18.2 Gate local WP2-B schéma
+
+Le passage à `GO_WP2B_SCHEMA_LOCAL_ONLY` exige :
+
+- la confirmation produit explicite du modèle propriétaire/payeur du compte client ;
+- le même inventaire exécuté sur un clone MySQL représentatif, avec résultat archivé sous forme agrégée et sans donnée sensible ;
+- zéro référence manquante, invalide, dupliquée ou cross-tenant non expliquée, ou un plan de correction testé avant backfill ;
+- l'inventaire explicite de toute queue non database et des anciennes queues susceptibles de contenir un job social delayed ;
+- un design de première migration limité aux champs de transport legacy qui seront consommés immédiatement par les sélecteurs et le worker existants ;
+- un plan de backfill et rollback `direct` / `direct_v1`, avec matrice de tests SQLite/MySQL et sans grant, canal ou credential Buffer dormant ;
+- aucun client HTTP, appel Buffer, binding de gateway concret, changement de transport, déploiement, pilote ou cutover.
+
+Après confirmation du propriétaire/payeur, ce gate peut être accordé sans fermer les autres preuves commerciales de `BUF-P0-10`, car il ne couvre que la préparation locale et réversible du schéma direct. Il n'est pas encore accordé dans le présent checkpoint.
+
+### 18.3 GO intégration Buffer distante
 
 - OAuth et refresh validés sur deux organisations ;
 - scopes et rôles compris ;
@@ -1545,7 +1589,7 @@ Le GO accordé couvre uniquement la construction locale de WP2-A si toutes les c
 
 Tous les BUF-P0 dont la phase bloquée contient le runtime distant doivent être fermés pour le périmètre activé. Toute phase dont un gate reste ouvert demeure explicitement NO-GO.
 
-### 18.3 GO lancement pilote
+### 18.4 GO lancement pilote
 
 - outbox transactionnelle et réconciliation opérationnelles ;
 - concurrence approval, claim et refresh testée ;
@@ -1558,7 +1602,7 @@ Tous les BUF-P0 dont la phase bloquée contient le runtime distant doivent être
 - aucun dual delivery ;
 - durée minimale du canary et seuils d’incident fixés avant la première publication.
 
-### 18.4 GO général
+### 18.5 GO général
 
 - quotas contractuellement suffisants ;
 - canary sans incident critique pendant la durée décidée ;
@@ -1568,7 +1612,7 @@ Tous les BUF-P0 dont la phase bloquée contient le runtime distant doivent être
 - sécurité, DPA, confidentialité et rétention approuvées ;
 - changelog et contract tests intégrés au processus.
 
-### 18.5 NO-GO
+### 18.6 NO-GO
 
 Le projet s’arrête ou change de fournisseur si :
 
@@ -1581,9 +1625,9 @@ Le projet s’arrête ou change de fournisseur si :
 - l’isolation tenant ou le rollback ne peut pas être démontré ;
 - le modèle commercial ne peut pas être rendu transparent au client.
 
-### 18.6 Statut courant
+### 18.7 Statut courant
 
-**GO_WP2A_CONTRACT_FAKE_LOCAL_ONLY · WP2A_LOCAL_VALIDATED · P0_GATES_OPEN · NO_GO_BUFFER_RUNTIME · NO_GO_BUFFER_PILOT · NO_GO_BUFFER_PRODUCTION** : le contrat/fake local et réversible est validé. `NO_GO_BUFFER_RUNTIME` vise le runtime Laravel WP2-C/WP3/WP4 et ne révoque pas les harnais WP1 soumis à leurs propres autorisations. Les dix gates P0 restent ouverts et continuent d'interdire les phases Buffer indiquées au registre de la section 5.
+**GO_WP2A_CONTRACT_FAKE_LOCAL_ONLY · WP2A_LOCAL_VALIDATED · ACCOUNT_OWNER_PAYER_WORKING_ASSUMPTION · PRE_WP2B_INVENTORY_LOCAL_VALIDATED · P0_GATES_OPEN · WP2B_SCHEMA_GATE_PENDING · NO_GO_BUFFER_RUNTIME · NO_GO_BUFFER_PILOT · NO_GO_BUFFER_PRODUCTION** : le contrat/fake et l'outil d'inventaire local sont validés. Le compte détenu/payé par chaque client reste une hypothèse à confirmer ; `BUF-P0-10` est entièrement ouvert. Aucun `GO_WP2B_SCHEMA_LOCAL_ONLY` n'est encore inscrit. `NO_GO_BUFFER_RUNTIME` vise WP2-C/WP3/WP4 et ne révoque pas les harnais WP1 soumis à leurs propres autorisations. Les dix gates P0 restent ouverts selon leur portée.
 
 ## 19. Risques résiduels
 
@@ -1640,7 +1684,7 @@ Toute nouvelle modification Pulse doit respecter :
 | ADR-PULSE-003 | Aucun fallback direct automatique | Acceptée | Invariant 16 | À assigner | 2026-08-26 |
 | ADR-PULSE-004 | Outbox insérée dans la transaction métier | Acceptée | Invariant 3 | À assigner | 2026-08-26 |
 | ADR-PULSE-005 | Timeout ambigu sans retry create | Acceptée | Section 10.3 | À assigner | 2026-08-26 |
-| ADR-PULSE-006 | Compte Buffer détenu par le client pour le MVP | À valider P0 | BUF-P0-10 | Produit | — |
+| ADR-PULSE-006 | Chaque client détiendrait et paierait son propre compte Buffer pour le MVP | Hypothèse recommandée ; confirmation produit, coûts, plan, capacité et prérequis ouverts | EV-PULSE-045 + BUF-P0-10 | Produit | 2026-08-27 |
 | ADR-PULSE-007 | Polling tant qu’aucun webhook n’est confirmé | À valider P0 | BUF-P0-03 | Backend | — |
 | ADR-PULSE-008 | Analytics avancés hors MVP | Acceptée | Contrat public Buffer | Produit | 2026-08-26 |
 | ADR-PULSE-009 | WP0-S se déploie atomiquement sous maintenance ; le rolling exige un pont en trois phases | Acceptée pour le lot courant | Gate 0.1 et EV-PULSE-006 | DevOps | 2026-08-27 |
