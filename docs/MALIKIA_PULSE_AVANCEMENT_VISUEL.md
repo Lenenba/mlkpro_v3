@@ -2,6 +2,8 @@
 
 **État au 27 août 2026 : `WP2A_LOCAL_VALIDATED` · `P0_GATES_OPEN` · `NO_GO_BUFFER_RUNTIME/PILOT/PRODUCTION`**
 
+**Checkpoint distant : `feature/pulse-buffer-refonte@7725e16ef5e6`**
+
 ```mermaid
 flowchart LR
     subgraph DONE["✅ ÉTAPES TERMINÉES"]
