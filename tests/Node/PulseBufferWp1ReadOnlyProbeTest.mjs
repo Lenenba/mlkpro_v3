@@ -6,6 +6,7 @@ import {
     BUFFER_WP1_ACCOUNT_QUERY,
     BUFFER_WP1_API_URL,
     BUFFER_WP1_CHANNELS_QUERY,
+    BUFFER_WP1_SCHEMA_QUERY,
     executeBufferWp1Probe,
     runBufferWp1ProbeCli,
     splitRepeatedRateLimitHeader,
@@ -24,6 +25,212 @@ const BUFFER_QUOTA_HEADERS = {
         '"3000-in-30days";q=3000;w=2592000;pk=:bucket:',
     ].join(', '),
 };
+
+const INTROSPECTION_TYPE_KINDS = new Map([
+    ['AssetInput', 'INPUT_OBJECT'],
+    ['CreatePostInput', 'INPUT_OBJECT'],
+    ['DeletePostInput', 'INPUT_OBJECT'],
+    ['EditPostInput', 'INPUT_OBJECT'],
+    ['MovePostInQueueInput', 'INPUT_OBJECT'],
+    ['PostInput', 'INPUT_OBJECT'],
+    ['PostInputMetaData', 'INPUT_OBJECT'],
+    ['PostsInput', 'INPUT_OBJECT'],
+    ['PostApprovalChange', 'ENUM'],
+    ['QueuePosition', 'ENUM'],
+    ['SchedulingType', 'ENUM'],
+    ['ShareMode', 'ENUM'],
+    ['DeletePostPayload', 'UNION'],
+    ['MovePostInQueuePayload', 'UNION'],
+    ['PostActionPayload', 'UNION'],
+    ['Post', 'OBJECT'],
+    ['PostsResults', 'OBJECT'],
+]);
+
+function introspectionType(type) {
+    if (type.endsWith('!')) {
+        return { kind: 'NON_NULL', name: null, ofType: introspectionType(type.slice(0, -1)) };
+    }
+    if (type.startsWith('[') && type.endsWith(']')) {
+        return { kind: 'LIST', name: null, ofType: introspectionType(type.slice(1, -1)) };
+    }
+
+    return {
+        kind: INTROSPECTION_TYPE_KINDS.get(type) ?? 'SCALAR',
+        name: type,
+        ofType: null,
+    };
+}
+
+function introspectionInput(name, type = 'String', defaultValue = null) {
+    return { defaultValue, name, type: introspectionType(type) };
+}
+
+function introspectionField(name, argumentTypes, outputType) {
+    return {
+        args: Object.entries(argumentTypes).map(([argumentName, argumentType]) => (
+            introspectionInput(argumentName, argumentType)
+        )),
+        deprecationReason: null,
+        isDeprecated: false,
+        name,
+        type: introspectionType(outputType),
+    };
+}
+
+function inputContract(name, fieldTypes) {
+    return {
+        enumValues: null,
+        inputFields: fieldTypes.map(([fieldName, fieldType, defaultValue = null]) => (
+            introspectionInput(fieldName, fieldType, defaultValue)
+        )),
+        kind: 'INPUT_OBJECT',
+        name,
+        possibleTypes: null,
+    };
+}
+
+function unionContract(name, possibleTypeNames) {
+    return {
+        enumValues: null,
+        inputFields: null,
+        kind: 'UNION',
+        name,
+        possibleTypes: possibleTypeNames.map((possibleTypeName) => ({
+            kind: 'OBJECT',
+            name: possibleTypeName,
+        })),
+    };
+}
+
+function enumContract(name, enumValueNames) {
+    return {
+        enumValues: enumValueNames.map((enumValueName) => ({
+            deprecationReason: null,
+            isDeprecated: false,
+            name: enumValueName,
+        })),
+        inputFields: null,
+        kind: 'ENUM',
+        name,
+        possibleTypes: null,
+    };
+}
+
+function schemaPayload() {
+    return {
+        data: {
+            createPostInput: inputContract('CreatePostInput', [
+                ['aiAssisted', 'Boolean'],
+                ['assets', '[AssetInput!]!', '[]'],
+                ['channelId', 'ChannelId!'],
+                ['draftId', 'DraftId'],
+                ['dueAt', 'DateTime'],
+                ['ideaId', 'IdeaId'],
+                ['metadata', 'PostInputMetaData'],
+                ['mode', 'ShareMode!'],
+                ['needsApproval', 'Boolean!', 'false'],
+                ['saveToDraft', 'Boolean'],
+                ['schedulingType', 'SchedulingType!'],
+                ['source', 'String'],
+                ['tagIds', '[TagId!]'],
+                ['text', 'String'],
+            ]),
+            deletePostInput: inputContract('DeletePostInput', [['id', 'PostId!']]),
+            deletePostPayload: unionContract('DeletePostPayload', [
+                'DeletePostSuccess',
+                'VoidMutationError',
+            ]),
+            editPostInput: inputContract('EditPostInput', [
+                ['aiAssisted', 'Boolean'],
+                ['approvalChange', 'PostApprovalChange'],
+                ['assets', '[AssetInput!]'],
+                ['draftId', 'DraftId'],
+                ['dueAt', 'DateTime'],
+                ['id', 'PostId!'],
+                ['ideaId', 'IdeaId'],
+                ['metadata', 'PostInputMetaData'],
+                ['mode', 'ShareMode'],
+                ['saveToDraft', 'Boolean'],
+                ['schedulingType', 'SchedulingType'],
+                ['source', 'String'],
+                ['tagIds', '[TagId!]'],
+                ['text', 'String'],
+            ]),
+            movePostInQueueInput: inputContract('MovePostInQueueInput', [
+                ['id', 'PostId!'],
+                ['position', 'QueuePosition!'],
+            ]),
+            movePostInQueuePayload: unionContract('MovePostInQueuePayload', [
+                'PostActionSuccess',
+                'VoidMutationError',
+            ]),
+            mutationRoot: {
+                fields: [
+                    introspectionField(
+                        'createPost',
+                        { input: 'CreatePostInput!' },
+                        'PostActionPayload!',
+                    ),
+                    introspectionField(
+                        'deletePost',
+                        { input: 'DeletePostInput!' },
+                        'DeletePostPayload!',
+                    ),
+                    introspectionField(
+                        'editPost',
+                        { input: 'EditPostInput!' },
+                        'PostActionPayload!',
+                    ),
+                    introspectionField(
+                        'movePostInQueue',
+                        { input: 'MovePostInQueueInput!' },
+                        'MovePostInQueuePayload!',
+                    ),
+                ],
+                kind: 'OBJECT',
+                name: 'Mutation',
+            },
+            postActionPayload: unionContract('PostActionPayload', [
+                'PostActionSuccess',
+                'NotFoundError',
+                'UnauthorizedError',
+                'UnexpectedError',
+                'RestProxyError',
+                'LimitReachedError',
+                'InvalidInputError',
+            ]),
+            postApprovalChange: enumContract('PostApprovalChange', ['request', 'revert']),
+            queuePosition: enumContract('QueuePosition', ['bottom', 'top']),
+            postStatus: enumContract('PostStatus', [
+                'draft',
+                'error',
+                'needs_approval',
+                'scheduled',
+                'sending',
+                'sent',
+            ]),
+            queryRoot: {
+                fields: [
+                    introspectionField('post', { input: 'PostInput!' }, 'Post!'),
+                    introspectionField(
+                        'posts',
+                        { after: 'String', first: 'Int', input: 'PostsInput!' },
+                        'PostsResults!',
+                    ),
+                ],
+                kind: 'OBJECT',
+                name: 'Query',
+            },
+            schedulingType: enumContract('SchedulingType', ['automatic', 'notification']),
+            shareMode: enumContract('ShareMode', [
+                'addToQueue',
+                'customScheduled',
+                'shareNext',
+                'shareNow',
+            ]),
+        },
+    };
+}
 
 function jsonResponse(payload, status = 200, headers = {}) {
     return new Response(JSON.stringify(payload), {
@@ -175,6 +382,421 @@ test('the channel probe binds the organization as a GraphQL variable without ena
     }]);
 });
 
+test('the schema probe sends one fixed introspection query and normalizes the mutation contract', async () => {
+    const requests = [];
+    const result = await executeProbe({
+        accessToken: ACCESS_TOKEN,
+        schema: true,
+        fetchImpl: async (url, options) => {
+            requests.push({ url, options });
+
+            return jsonResponse(schemaPayload());
+        },
+    });
+
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].url, BUFFER_WP1_API_URL);
+    const requestBody = JSON.parse(requests[0].options.body);
+    assert.equal(requestBody.query, BUFFER_WP1_SCHEMA_QUERY);
+    assert.deepEqual(requestBody.variables, {});
+    assert.match(requestBody.query.trim(), /^query\s/u);
+    assert.doesNotMatch(requestBody.query, /^\s*mutation\b/u);
+    const operationDefinition = requestBody.query.split('\n\nfragment ')[0];
+    const rootSelectionLines = operationDefinition.split('\n')
+        .filter((line) => /^  \S/u.test(line) && line.trim() !== '}');
+    assert.ok(rootSelectionLines.length > 0);
+    for (const rootSelectionLine of rootSelectionLines) {
+        assert.match(
+            rootSelectionLine,
+            /^  [_A-Za-z][_0-9A-Za-z]*:\s*__type\(name:\s*"[_A-Za-z][_0-9A-Za-z]*"\)\s*\{$/u,
+        );
+    }
+    assert.equal(result.ok, true);
+    assert.equal(result.operation, 'schema');
+    assert.equal(result.classification, 'success');
+    assert.deepEqual(result.quota.rate_limits, []);
+    assert.deepEqual(result.quota.rate_limit_policies, []);
+    assert.deepEqual(
+        result.data.schema_contract.mutation_fields.map((field) => field.name),
+        ['createPost', 'deletePost', 'editPost', 'movePostInQueue'],
+    );
+    assert.deepEqual(
+        result.data.schema_contract.types.shareMode.enum_values.map((enumValue) => enumValue.name),
+        ['addToQueue', 'customScheduled', 'shareNext', 'shareNow'],
+    );
+    assert.deepEqual(
+        Object.fromEntries(result.data.schema_contract.types.createPostInput.input_fields.map((field) => (
+            [field.name, field.type]
+        ))),
+        {
+            aiAssisted: 'Boolean',
+            assets: '[AssetInput!]!',
+            channelId: 'ChannelId!',
+            draftId: 'DraftId',
+            dueAt: 'DateTime',
+            ideaId: 'IdeaId',
+            metadata: 'PostInputMetaData',
+            mode: 'ShareMode!',
+            needsApproval: 'Boolean!',
+            saveToDraft: 'Boolean',
+            schedulingType: 'SchedulingType!',
+            source: 'String',
+            tagIds: '[TagId!]',
+            text: 'String',
+        },
+    );
+    assert.deepEqual(
+        Object.fromEntries(result.data.schema_contract.types.createPostInput.input_fields.map((field) => (
+            [field.name, field.default_value]
+        ))),
+        {
+            aiAssisted: null,
+            assets: '[]',
+            channelId: null,
+            draftId: null,
+            dueAt: null,
+            ideaId: null,
+            metadata: null,
+            mode: null,
+            needsApproval: 'false',
+            saveToDraft: null,
+            schedulingType: null,
+            source: null,
+            tagIds: null,
+            text: null,
+        },
+    );
+    assert.deepEqual(
+        result.data.schema_contract.types.queuePosition.enum_values.map((enumValue) => enumValue.name),
+        ['bottom', 'top'],
+    );
+    assert.equal(JSON.stringify(result).includes(ACCESS_TOKEN), false);
+});
+
+test('the schema probe fails closed on incompatible removals and deprecations', async (t) => {
+    const cases = [
+        {
+            name: 'required mutation removed',
+            mutate(payload) {
+                payload.data.mutationRoot.fields = payload.data.mutationRoot.fields
+                    .filter((field) => field.name !== 'deletePost');
+            },
+        },
+        {
+            name: 'required union member removed',
+            mutate(payload) {
+                payload.data.postActionPayload.possibleTypes = payload.data.postActionPayload.possibleTypes
+                    .filter((possibleType) => possibleType.name !== 'InvalidInputError');
+            },
+        },
+        {
+            name: 'required enum value removed',
+            mutate(payload) {
+                payload.data.shareMode.enumValues = payload.data.shareMode.enumValues
+                    .filter((enumValue) => enumValue.name !== 'shareNow');
+            },
+        },
+        {
+            name: 'required enum value deprecated',
+            mutate(payload) {
+                const shareNow = payload.data.shareMode.enumValues
+                    .find((enumValue) => enumValue.name === 'shareNow');
+                shareNow.isDeprecated = true;
+                shareNow.deprecationReason = 'retired';
+            },
+        },
+        {
+            name: 'required query deprecated',
+            mutate(payload) {
+                const posts = payload.data.queryRoot.fields.find((field) => field.name === 'posts');
+                posts.isDeprecated = true;
+                posts.deprecationReason = 'retired';
+            },
+        },
+        {
+            name: 'required mutation deprecated',
+            mutate(payload) {
+                const createPost = payload.data.mutationRoot.fields
+                    .find((field) => field.name === 'createPost');
+                createPost.isDeprecated = true;
+                createPost.deprecationReason = 'retired';
+            },
+        },
+    ];
+
+    for (const testCase of cases) {
+        await t.test(testCase.name, async () => {
+            const payload = schemaPayload();
+            testCase.mutate(payload);
+            const result = await executeProbe({
+                accessToken: ACCESS_TOKEN,
+                schema: true,
+                fetchImpl: async () => jsonResponse(payload),
+            });
+
+            assert.equal(result.ok, false);
+            assert.equal(result.classification, 'invalid_payload');
+            assert.equal(result.data.schema_contract, null);
+        });
+    }
+});
+
+test('the schema probe distinguishes compatible additions from breaking required inputs', async (t) => {
+    await t.test('accepts optional or defaulted additions', async () => {
+        const payload = schemaPayload();
+        payload.data.createPostInput.inputFields.push(
+            introspectionInput('futureOptional', 'String'),
+            introspectionInput('futureDefaulted', 'Boolean!', 'false'),
+        );
+        const createPost = payload.data.mutationRoot.fields
+            .find((field) => field.name === 'createPost');
+        createPost.args.push(
+            introspectionInput('futureOptional', 'String'),
+            introspectionInput('futureDefaulted', 'Boolean!', 'false'),
+        );
+        payload.data.shareMode.enumValues.push({
+            deprecationReason: null,
+            isDeprecated: false,
+            name: 'futureMode',
+        });
+        payload.data.postActionPayload.possibleTypes.push({ kind: 'OBJECT', name: 'FutureError' });
+
+        const result = await executeProbe({
+            accessToken: ACCESS_TOKEN,
+            schema: true,
+            fetchImpl: async () => jsonResponse(payload),
+        });
+
+        assert.equal(result.ok, true);
+        assert.equal(result.classification, 'success');
+    });
+
+    const breakingCases = [
+        {
+            name: 'known input type changed',
+            mutate(payload) {
+                const channelId = payload.data.createPostInput.inputFields
+                    .find((field) => field.name === 'channelId');
+                channelId.type = introspectionType('Boolean!');
+            },
+        },
+        {
+            name: 'new required input has no default',
+            mutate(payload) {
+                payload.data.createPostInput.inputFields.push(
+                    introspectionInput('futureRequired', 'String!'),
+                );
+            },
+        },
+        {
+            name: 'new required root argument has no default',
+            mutate(payload) {
+                const createPost = payload.data.mutationRoot.fields
+                    .find((field) => field.name === 'createPost');
+                createPost.args.push(introspectionInput('futureRequired', 'String!'));
+            },
+        },
+        {
+            name: 'mutation return type changed',
+            mutate(payload) {
+                const createPost = payload.data.mutationRoot.fields
+                    .find((field) => field.name === 'createPost');
+                createPost.type = introspectionType('DeletePostPayload!');
+            },
+        },
+        {
+            name: 'required mutation argument removed',
+            mutate(payload) {
+                const createPost = payload.data.mutationRoot.fields
+                    .find((field) => field.name === 'createPost');
+                createPost.args = [];
+            },
+        },
+        {
+            name: 'required query argument type changed',
+            mutate(payload) {
+                const post = payload.data.queryRoot.fields.find((field) => field.name === 'post');
+                post.args[0].type = introspectionType('PostsInput!');
+            },
+        },
+        {
+            name: 'known input default changed',
+            mutate(payload) {
+                const saveToDraft = payload.data.createPostInput.inputFields
+                    .find((field) => field.name === 'saveToDraft');
+                saveToDraft.defaultValue = 'true';
+            },
+        },
+        {
+            name: 'known query argument default changed',
+            mutate(payload) {
+                const posts = payload.data.queryRoot.fields.find((field) => field.name === 'posts');
+                const first = posts.args.find((argument) => argument.name === 'first');
+                first.defaultValue = '1000';
+            },
+        },
+    ];
+
+    for (const testCase of breakingCases) {
+        await t.test(testCase.name, async () => {
+            const payload = schemaPayload();
+            testCase.mutate(payload);
+            const result = await executeProbe({
+                accessToken: ACCESS_TOKEN,
+                schema: true,
+                fetchImpl: async () => jsonResponse(payload),
+            });
+
+            assert.equal(result.ok, false);
+            assert.equal(result.classification, 'invalid_payload');
+        });
+    }
+});
+
+test('the schema probe rejects duplicate, malformed, or incoherent introspection structures', async (t) => {
+    const cases = [
+        {
+            name: 'duplicate root field',
+            mutate(payload) {
+                payload.data.mutationRoot.fields.push(payload.data.mutationRoot.fields[0]);
+            },
+        },
+        {
+            name: 'duplicate enum value',
+            mutate(payload) {
+                payload.data.shareMode.enumValues.push(payload.data.shareMode.enumValues[0]);
+            },
+        },
+        {
+            name: 'input object exposes enum values',
+            mutate(payload) {
+                payload.data.createPostInput.enumValues = [];
+            },
+        },
+        {
+            name: 'named type kind is invalid',
+            mutate(payload) {
+                const channelId = payload.data.createPostInput.inputFields
+                    .find((field) => field.name === 'channelId');
+                channelId.type.ofType.kind = 'INVALID_KIND';
+            },
+        },
+        {
+            name: 'known scalar is disguised as an input object',
+            mutate(payload) {
+                const channelId = payload.data.createPostInput.inputFields
+                    .find((field) => field.name === 'channelId');
+                channelId.type.ofType.kind = 'INPUT_OBJECT';
+            },
+        },
+        {
+            name: 'known input object is disguised as a scalar',
+            mutate(payload) {
+                const post = payload.data.queryRoot.fields.find((field) => field.name === 'post');
+                post.args[0].type.ofType.kind = 'SCALAR';
+            },
+        },
+        {
+            name: 'wrapper exposes an impossible name',
+            mutate(payload) {
+                const channelId = payload.data.createPostInput.inputFields
+                    .find((field) => field.name === 'channelId');
+                channelId.type.name = 'ImpossibleWrapperName';
+            },
+        },
+        {
+            name: 'named type exposes an impossible nested type',
+            mutate(payload) {
+                const channelId = payload.data.createPostInput.inputFields
+                    .find((field) => field.name === 'channelId');
+                channelId.type.ofType.ofType = introspectionType('String');
+            },
+        },
+        {
+            name: 'non-null wraps another non-null',
+            mutate(payload) {
+                payload.data.createPostInput.inputFields.push({
+                    defaultValue: '"safe"',
+                    name: 'futureDefaulted',
+                    type: {
+                        kind: 'NON_NULL',
+                        name: null,
+                        ofType: {
+                            kind: 'NON_NULL',
+                            name: null,
+                            ofType: introspectionType('String'),
+                        },
+                    },
+                });
+            },
+        },
+        {
+            name: 'output-only union is used as an input',
+            mutate(payload) {
+                payload.data.createPostInput.inputFields.push({
+                    defaultValue: null,
+                    name: 'futureUnion',
+                    type: { kind: 'UNION', name: 'FutureUnion', ofType: null },
+                });
+            },
+        },
+        {
+            name: 'input object is used as a query output',
+            mutate(payload) {
+                payload.data.queryRoot.fields.push({
+                    args: [],
+                    deprecationReason: null,
+                    isDeprecated: false,
+                    name: 'futureQuery',
+                    type: { kind: 'INPUT_OBJECT', name: 'FutureInput', ofType: null },
+                });
+            },
+        },
+        {
+            name: 'input field has an invalid GraphQL name',
+            mutate(payload) {
+                payload.data.createPostInput.inputFields.push(
+                    introspectionInput('bad-name', 'String'),
+                );
+            },
+        },
+        {
+            name: 'enum value has an invalid GraphQL name',
+            mutate(payload) {
+                payload.data.shareMode.enumValues.push({
+                    deprecationReason: null,
+                    isDeprecated: false,
+                    name: 'bad-value',
+                });
+            },
+        },
+        {
+            name: 'union member has an invalid GraphQL name',
+            mutate(payload) {
+                payload.data.postActionPayload.possibleTypes.push({
+                    kind: 'OBJECT',
+                    name: 'bad-type',
+                });
+            },
+        },
+    ];
+
+    for (const testCase of cases) {
+        await t.test(testCase.name, async () => {
+            const payload = schemaPayload();
+            testCase.mutate(payload);
+            const result = await executeProbe({
+                accessToken: ACCESS_TOKEN,
+                schema: true,
+                fetchImpl: async () => jsonResponse(payload),
+            });
+
+            assert.equal(result.ok, false);
+            assert.equal(result.classification, 'invalid_payload');
+        });
+    }
+});
+
 test('the WP1 probe classifies GraphQL errors even when Buffer returns HTTP 200', async () => {
     let requestCount = 0;
     const reflectedMessage = `Not authorized: ${ACCESS_TOKEN}`;
@@ -259,6 +881,32 @@ test('the WP1 probe redacts the exact token from every remote evidence field', a
     assert.equal(result.graphql_errors[0].window, '[REDACTED]');
     assert.equal(result.data.account.name, 'Account [REDACTED]');
     assert.equal(JSON.stringify(result).includes(ACCESS_TOKEN), false);
+});
+
+test('the WP1 probe redaction marker never reintroduces a colliding token', async (t) => {
+    for (const collidingToken of ['REDACTED', '[REDACTED]']) {
+        await t.test(collidingToken, async () => {
+            const result = await executeProbe({
+                accessToken: collidingToken,
+                fetchImpl: async () => jsonResponse({
+                    data: {
+                        account: {
+                            id: collidingToken,
+                            name: collidingToken,
+                            organizations: [{ id: 'organization-1', name: collidingToken }],
+                            connectedApps: [],
+                        },
+                    },
+                }, 200, {
+                    ...BUFFER_QUOTA_HEADERS,
+                    'X-Request-Id': collidingToken,
+                }),
+            });
+
+            assert.equal(result.ok, true);
+            assert.equal(JSON.stringify(result).includes(collidingToken), false);
+        });
+    }
 });
 
 test('the WP1 probe rejects incomplete success payloads instead of inventing channel state', async () => {
@@ -609,6 +1257,14 @@ test('the WP1 probe validates direct execution environment and timeout before HT
         { environment: 'staging', timeoutMs: 5000, code: 'NON_LOCAL_ENVIRONMENT_FORBIDDEN' },
         { environment: 'testing', timeoutMs: '5000junk', code: 'TIMEOUT_MS_INVALID' },
         { environment: 'testing', timeoutMs: '1000.9', code: 'TIMEOUT_MS_INVALID' },
+        { environment: 'testing', timeoutMs: 5000, schema: 'yes', code: 'SCHEMA_FLAG_INVALID' },
+        {
+            environment: 'testing',
+            organizationId: 'organization-1',
+            timeoutMs: 5000,
+            schema: true,
+            code: 'ARGUMENT_COMBINATION_INVALID',
+        },
     ];
 
     for (const testCase of cases) {
@@ -618,6 +1274,8 @@ test('the WP1 probe validates direct execution environment and timeout before HT
             executeBufferWp1Probe({
                 accessToken: ACCESS_TOKEN,
                 environment: testCase.environment,
+                organizationId: testCase.organizationId,
+                schema: testCase.schema,
                 timeoutMs: testCase.timeoutMs,
                 fetchImpl: async () => {
                     requestCount += 1;
@@ -726,6 +1384,99 @@ test('the WP1 CLI refuses an organization flag without an exact identifier', asy
 
     assert.equal(exitCode, 1);
     assert.equal(JSON.parse(output).code, 'ORGANIZATION_ID_REQUIRED');
+});
+
+test('the WP1 CLI refuses conflicting or duplicate selector arguments before HTTP', async () => {
+    const cases = [
+        { argv: ['--schema', '--organization=organization-1'], code: 'ARGUMENT_COMBINATION_INVALID' },
+        { argv: ['--schema', '--schema'], code: 'ARGUMENT_DUPLICATE' },
+        {
+            argv: ['--organization=organization-1', '--organization', 'organization-2'],
+            code: 'ARGUMENT_DUPLICATE',
+        },
+    ];
+
+    for (const testCase of cases) {
+        let output = '';
+        let requestCount = 0;
+        const exitCode = await runBufferWp1ProbeCli({
+            argv: testCase.argv,
+            env: {
+                APP_ENV: 'local',
+                BUFFER_WP1_PROBE_ENABLED: 'true',
+                BUFFER_WP1_PROBE_ACCESS_TOKEN: ACCESS_TOKEN,
+            },
+            fetchImpl: async () => {
+                requestCount += 1;
+                return jsonResponse({ data: {} });
+            },
+            stdout: (value) => {
+                output += value;
+            },
+            stderr: (value) => {
+                output += value;
+            },
+        });
+
+        assert.equal(exitCode, 1);
+        assert.equal(requestCount, 0);
+        assert.equal(JSON.parse(output).code, testCase.code);
+    }
+});
+
+test('the WP1 CLI wires the schema flag to the fixed introspection query', async () => {
+    let output = '';
+    let requestBody = null;
+    const exitCode = await runBufferWp1ProbeCli({
+        argv: ['--schema'],
+        env: {
+            APP_ENV: 'local',
+            BUFFER_WP1_PROBE_ENABLED: 'true',
+            BUFFER_WP1_PROBE_ACCESS_TOKEN: ACCESS_TOKEN,
+        },
+        fetchImpl: async (_url, options) => {
+            requestBody = JSON.parse(options.body);
+
+            return jsonResponse(schemaPayload());
+        },
+        stdout: (value) => {
+            output += value;
+        },
+        stderr: (value) => {
+            output += value;
+        },
+    });
+
+    assert.equal(exitCode, 0);
+    assert.equal(requestBody.query, BUFFER_WP1_SCHEMA_QUERY);
+    assert.equal(JSON.parse(output).operation, 'schema');
+    assert.equal(output.includes(ACCESS_TOKEN), false);
+});
+
+test('the WP1 CLI exits non-zero when the authenticated schema contract drifts', async () => {
+    const payload = schemaPayload();
+    payload.data.queuePosition.enumValues = payload.data.queuePosition.enumValues
+        .filter((enumValue) => enumValue.name !== 'top');
+    let output = '';
+    const exitCode = await runBufferWp1ProbeCli({
+        argv: ['--schema'],
+        env: {
+            APP_ENV: 'local',
+            BUFFER_WP1_PROBE_ENABLED: 'true',
+            BUFFER_WP1_PROBE_ACCESS_TOKEN: ACCESS_TOKEN,
+        },
+        fetchImpl: async () => jsonResponse(payload),
+        stdout: (value) => {
+            output += value;
+        },
+        stderr: (value) => {
+            output += value;
+        },
+    });
+
+    assert.equal(exitCode, 1);
+    assert.equal(JSON.parse(output).classification, 'invalid_payload');
+    assert.equal(output.includes(ACCESS_TOKEN), false);
 });
 
 test('the WP1 CLI prints successful evidence without exposing its access token', async () => {

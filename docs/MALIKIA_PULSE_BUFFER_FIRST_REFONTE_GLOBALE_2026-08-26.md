@@ -2,17 +2,17 @@
 
 Date de cadrage : 2026-08-26
 
-Révision : 13 — premières preuves Buffer authentifiées en lecture seule
+Révision : 16 — checkpoint WP1-B prêt à committer sur la branche dédiée
 
 Baseline auditée : branche develop, commit a54169d3d096
 
 Branche de travail active : `feature/pulse-buffer-refonte`, créée depuis `develop@a54169d3d096`
 
-Branche distante : `origin/feature/pulse-buffer-refonte`, checkpoint `2514561f81a89130fe0e6a796cc11ed841a02643`
+Branche distante : `origin/feature/pulse-buffer-refonte`, dernier checkpoint publié avant WP1-B `b8b1e995`
 
 Statut documentaire : complet — référence active
 
-Statut de livraison : **WP0/WP0-S validés localement — gate d’indexation vert — gate de déploiement ouvert — WP1-A authentifié en lecture seule, preuves multi-organisation, mutations et défaillances toujours requises**
+Statut de livraison : **WP0/WP0-S validés localement — gate d’indexation vert — gate de déploiement ouvert — WP1-A/WP1-B authentifiés en lecture seule, preuves multi-organisation, comportements de mutation et défaillances toujours requis**
 
 Statut de décision : **BLOCKED_P0**
 
@@ -39,6 +39,9 @@ Ce journal est mis à jour à chaque étape de la refonte. Une étape n’est d�
 | EV-PULSE-015 | 2026-08-27 | Gate final du checkpoint WP1-A | Les six fichiers du lot WP1-A sont complètement indexés sans inclure de credential ni de sortie Buffer. Le contrôle PHP obligatoire réinspecte également les 22 fichiers PHP déjà commités sur la branche depuis `origin/develop`; aucun fichier PHP sale, partiellement indexé ou supprimé hors index n’est présent. | `composer qa:format` : PASS 22/22 ; `vendor/bin/pint --dirty` : PASS 0 fichier sale ; `git diff --check` et `git diff --cached --check` : PASS | Prêt à commiter et pousser uniquement `feature/pulse-buffer-refonte` |
 | EV-PULSE-016 | 2026-08-27 | Publication de la branche et gate d’accès WP1 | Les deux checkpoints sont publiés sur la branche distante dédiée sans modifier `develop` ni `main`. GitHub confirme la branche et le SHA de tête ; le suivi local/distant est strictement synchronisé. Nightwatch ne signale aucun incident ouvert sur `Malikia pro dev`. La vérification locale, limitée à des booléens sans afficher de secret, confirme que la sonde est désactivée et qu’aucun token WP1 n’est configuré ; aucun appel Buffer réel n’est donc tenté. | GitHub : branche `feature/pulse-buffer-refonte`, tête `2514561f81a89130fe0e6a796cc11ed841a02643` ; Git `0/0` ; Nightwatch : 0 incident ouvert ; `BUFFER_WP1_PROBE_ENABLED=false`, token absent | Branche publiée ; collecte authentifiée et tous les BUF-P0 toujours en attente |
 | EV-PULSE-017 | 2026-08-27 | Premières preuves authentifiées Buffer | Deux exécutions séparées du harness interrogent réellement `account`, puis `channels` pour l’unique organisation visible. Les deux réponses sont HTTP 200 sans erreur GraphQL. Le compte expose une organisation, aucun client connecté observable et trois canaux sains : Instagram business, LinkedIn page et Facebook page. Les permissions visibles couvrent la publication sur les trois réseaux, mais elles ne prouvent aucune mutation Buffer. Les trois fenêtres de quota décrémentent d’une unité entre les deux appels sous la même partition opaque. Aucun identifiant, nom de canal, request ID, partition key, token ou corps brut n’est conservé dans le dépôt. | `account` : succès, ~559 ms ; `channels` : succès, ~255 ms ; quotas observés : 100/15 min, 250/jour, 3 000/30 jours ; compteurs 99→98, 249→248, 2 999→2 998 ; 1 organisation / 3 canaux | Preuve partielle BUF-P0-01 et BUF-P0-02 ; tous les gates restent ouverts |
+| EV-PULSE-018 | 2026-08-27 | WP1-B — contrat GraphQL authentifié | Une introspection fixe et strictement read-only confirme le schéma réellement exposé au credential : signatures exactes de `post`, `posts`, `createPost`, `editPost`, `deletePost` et `movePostInQueue`, types, nullabilités et valeurs par défaut des 14 champs Create/Edit, unions d’erreur et enums de programmation. Le normalizer refuse les suppressions, dépréciations, doublons, noms/kinds/wrappers incohérents, changements de type/défaut et nouveaux champs/arguments obligatoires sans défaut, tout en tolérant les ajouts GraphQL compatibles. Buffer ne renvoie aucun header de quota sur l’introspection ; cette exception est limitée à l’opération `schema`, tandis que `account` et `channels` exigent toujours les trois fenêtres. Aucun document de mutation n’est envoyé. | Appel réel : HTTP 200, 0 erreur GraphQL, contrat classé `success`, 0 fenêtre de quota sur l’introspection ; 59/59 tests ciblés ; contre-revues contrat, sécurité et couverture | Preuve contractuelle read-only acquise ; BUF-P0-05/06/07 toujours ouverts faute de comportement de mutation réel |
+| EV-PULSE-019 | 2026-08-27 | Validation intégrée WP1-B | Trois revues indépendantes concluent sans finding reproductible après correction de tous les cas adversariaux : dérives de signature/type/nullabilité/défaut, dépréciations, doublons, kinds contextuels, wrappers impossibles, noms GraphQL invalides, ajout obligatoire incompatible, arguments CLI dupliqués et collision du marqueur de redaction. Le probe authentifié final reste vert et le graphe partagé est reconstruit. | 59/59 ciblés ; 256/256 Node complets ; build Vite, budgets frontend et index de 231 documents verts ; Graphify : 32 013 nœuds / 66 241 arêtes / 1 769 communautés ; revues contrat, sécurité et tests : VERT | Prêt pour gate Git/PHP et checkpoint WP1-B ; aucun BUF-P0 fermé |
+| EV-PULSE-020 | 2026-08-27 | Gate final du checkpoint WP1-B | Le lot WP1-B est limité au harness read-only, à son test Node et au journal central. Les trois fichiers sont complètement indexés ; aucun `.env`, token, identifiant distant, request ID, partition key ou corps Buffer brut n’entre dans le commit. Le gate PHP obligatoire réinspecte les 22 fichiers PHP déjà commités depuis `origin/develop` sans correction. | `composer qa:format` : PASS 22/22 ; `git diff --check` et `git diff --cached --check` : PASS ; 3 fichiers indexés | Prêt à committer et pousser uniquement `feature/pulse-buffer-refonte` |
 
 ### 0.1 Gate de déploiement WP0-S
 
@@ -396,7 +399,7 @@ Garde-fous :
 - une seule requête par exécution, sans retry ;
 - réponse lue en flux et bornée à 1 Mio ;
 - messages d’erreur hashés et masquage exact du token sur tous les champs distants normalisés ;
-- trois périodes de quota distinctes exigées et appariées entre `RateLimit` et `RateLimit-Policy` par leur label et leur `w` ;
+- trois périodes de quota distinctes exigées et appariées entre `RateLimit` et `RateLimit-Policy` par leur label et leur `w` pour `account` et `channels` ; l’introspection `schema`, qui n’émet pas ces headers en pratique, conserve leur absence comme preuve sans invalider un contrat valide ;
 - aucune mutation, persistance, tâche planifiée ou route web ;
 - sortie brute considérée éphémère et interdite de commit.
 
@@ -405,8 +408,9 @@ Parcours opérateur lorsque des credentials de spike seront disponibles :
 1. utiliser Node.js 20.6 ou plus récent et placer les variables WP1 uniquement dans le `.env` local non versionné ;
 2. exécuter `npm run pulse:buffer:probe` pour relever le compte, les organisations, le client connecté, les scopes et les headers de quota ;
 3. exécuter `npm run pulse:buffer:probe -- --organization=<id>` séparément pour chaque organisation autorisée ;
-4. pseudonymiser la preuve avant d’en reporter le résumé dans ce journal ;
-5. laisser tous les BUF-P0 ouverts tant que les rôles, mutations, timeouts ambigus, quotas inter-tenants, médias, aspects juridiques et modèle commercial ne sont pas démontrés.
+4. exécuter `npm run pulse:buffer:probe -- --schema` séparément pour contrôler le contrat GraphQL sans mutation ;
+5. pseudonymiser la preuve avant d’en reporter le résumé dans ce journal ;
+6. laisser tous les BUF-P0 ouverts tant que les rôles, mutations, timeouts ambigus, quotas inter-tenants, médias, aspects juridiques et modèle commercial ne sont pas démontrés.
 
 Les tests du harness utilisent uniquement des réponses simulées et bloquent toute requête inattendue. Ils valident le format de la sonde, pas le comportement réel du client OAuth Malikia chez Buffer.
 
@@ -433,6 +437,42 @@ Portée probatoire :
 - aucun 429 réel, mutation, média, webhook, timeout ambigu, approbation distante ou cycle edit/delete n’est testé.
 
 Les identifiants de compte, organisation et canal, les noms, request IDs, partition keys et valeurs de token restent volontairement hors de ce document et hors de Git.
+
+### 5.3 Preuve authentifiée WP1-B — contrat de schéma
+
+La collecte réelle du 2026-08-27 utilise une seule opération `query PulseBufferSchemaProbe` composée exclusivement de sélections d’introspection `__type`. Elle n’embarque aucune variable, aucun identifiant métier et aucun document `mutation`.
+
+Contrats racine observés :
+
+| Opération | Argument(s) | Retour |
+| --- | --- | --- |
+| `post` | `input: PostInput!` | `Post!` |
+| `posts` | `after: String`, `first: Int`, `input: PostsInput!` | `PostsResults!` |
+| `createPost` | `input: CreatePostInput!` | `PostActionPayload!` |
+| `editPost` | `input: EditPostInput!` | `PostActionPayload!` |
+| `deletePost` | `input: DeletePostInput!` | `DeletePostPayload!` |
+| `movePostInQueue` | `input: MovePostInQueueInput!` | `MovePostInQueuePayload!` |
+
+Le schéma authentifié confirme également :
+
+- les 14 champs de `CreatePostInput`, dont `assets: [AssetInput!]! = []`, `channelId: ChannelId!`, `mode: ShareMode!`, `needsApproval: Boolean! = false` et `schedulingType: SchedulingType!` ;
+- les 14 champs de `EditPostInput`, avec `id: PostId!` et les variantes éditables nullable ;
+- `DeletePostInput.id: PostId!` et `MovePostInQueueInput.position: QueuePosition!` ;
+- `QueuePosition = bottom | top`, `ShareMode = addToQueue | customScheduled | shareNext | shareNow`, `SchedulingType = automatic | notification`, `PostApprovalChange = request | revert` ;
+- `PostStatus = draft | error | needs_approval | scheduled | sending | sent` ;
+- les unions typées de succès et d’erreurs nécessaires aux opérations Create/Edit/Delete/Move.
+
+Le résultat réel est HTTP 200, sans erreur GraphQL et classé `success`. Contrairement aux lectures `account` et `channels`, cette introspection ne contient ni `RateLimit` ni `RateLimit-Policy`. Le harness conserve donc des tableaux de quota vides pour cette opération seulement ; il ne transforme pas cette absence en quota supposé et ne relâche pas le gate des deux opérations métier.
+
+Portée probatoire :
+
+- l’existence et la forme des lectures et mutations sont désormais démontrées pour ce credential ;
+- cette introspection ne démontre ni autorisation effective, ni effet, ni statut final, ni idempotence, ni comportement après timeout d’une mutation ;
+- `BUF-P0-05`, `BUF-P0-06` et `BUF-P0-07` reçoivent une base contractuelle, mais restent ouverts jusqu’à une matrice comportementale réelle explicitement autorisée ;
+- tous les autres `BUF-P0` restent inchangés ;
+- aucune création, édition, replanification, suppression ou publication distante n’a été effectuée.
+
+Aucun request ID, token, identifiant de compte/organisation/canal, partition key ou corps brut n’est conservé dans Git.
 
 ## 6. Systèmes de référence et invariants
 
