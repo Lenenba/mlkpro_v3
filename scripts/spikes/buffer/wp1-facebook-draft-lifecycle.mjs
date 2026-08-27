@@ -26,6 +26,12 @@ export const BUFFER_WP1_CREATE_FACEBOOK_DRAFT_MUTATION = `mutation PulseBufferCr
         channelService
         dueAt
         externalLink
+        metadata {
+          __typename
+          ... on FacebookPostMetadata {
+            type
+          }
+        }
         schedulingType
         sentAt
         sharedNow
@@ -50,6 +56,12 @@ export const BUFFER_WP1_EDIT_FACEBOOK_DRAFT_MUTATION = `mutation PulseBufferEdit
         channelService
         dueAt
         externalLink
+        metadata {
+          __typename
+          ... on FacebookPostMetadata {
+            type
+          }
+        }
         schedulingType
         sentAt
         sharedNow
@@ -74,6 +86,12 @@ export const BUFFER_WP1_MOVE_FACEBOOK_DRAFT_MUTATION = `mutation PulseBufferMove
         channelService
         dueAt
         externalLink
+        metadata {
+          __typename
+          ... on FacebookPostMetadata {
+            type
+          }
+        }
         schedulingType
         sentAt
         sharedNow
@@ -113,6 +131,12 @@ export const BUFFER_WP1_INSPECT_FACEBOOK_DRAFT_QUERY = `query PulseBufferInspect
     channelService
     dueAt
     externalLink
+    metadata {
+      __typename
+      ... on FacebookPostMetadata {
+        type
+      }
+    }
     schedulingType
     sentAt
     sharedNow
@@ -177,6 +201,10 @@ const EXPECTED_POST_DELETE_CLEANUP_CAPABILITY = {
     delete_payload: 'DeletePostPayload!',
     delete_root_field: 'deletePost',
     inspect_input: 'PostInput!',
+    inspect_metadata_field: 'metadata:PostMetadata',
+    inspect_metadata_member: 'FacebookPostMetadata',
+    inspect_metadata_type_field: 'type:PostType!',
+    inspect_metadata_type_value: 'post',
     inspect_output: 'Post!',
     inspect_root_field: 'post',
 };
@@ -817,6 +845,12 @@ function hasExactKeys(value, expectedKeys) {
         && Object.keys(value).sort().join('\0') === [...expectedKeys].sort().join('\0');
 }
 
+function hasExactFacebookPostMetadata(value) {
+    return hasExactKeys(value, ['__typename', 'type'])
+        && value.__typename === 'FacebookPostMetadata'
+        && value.type === 'post';
+}
+
 function validateFixedMutationRequest(query, variables) {
     const input = variables?.input;
     const values = isObject(input) ? Object.values(input) : [];
@@ -825,13 +859,15 @@ function validateFixedMutationRequest(query, variables) {
         fail('MUTATION_VARIABLE_SAFETY_VIOLATION');
     }
 
-    const valid = query === BUFFER_WP1_VERIFY_FACEBOOK_DRAFT_DELETED_QUERY
+    const valid = hasExactKeys(variables, ['input'])
+        && (query === BUFFER_WP1_VERIFY_FACEBOOK_DRAFT_DELETED_QUERY
         || query === BUFFER_WP1_INSPECT_FACEBOOK_DRAFT_QUERY
         ? hasExactKeys(input, ['id']) && nullableString(input.id) !== null
         : query === BUFFER_WP1_CREATE_FACEBOOK_DRAFT_MUTATION
         ? hasExactKeys(input, [
             'assets',
             'channelId',
+            'metadata',
             'mode',
             'needsApproval',
             'saveToDraft',
@@ -841,6 +877,9 @@ function validateFixedMutationRequest(query, variables) {
             && Array.isArray(input.assets)
             && input.assets.length === 0
             && nullableString(input.channelId) !== null
+            && hasExactKeys(input.metadata, ['facebook'])
+            && hasExactKeys(input.metadata.facebook, ['type'])
+            && input.metadata.facebook.type === 'post'
             && input.mode === 'addToQueue'
             && input.needsApproval === false
             && input.saveToDraft === true
@@ -857,7 +896,7 @@ function validateFixedMutationRequest(query, variables) {
                     && input.position === 'bottom'
                 : query === BUFFER_WP1_DELETE_FACEBOOK_DRAFT_MUTATION
                     ? hasExactKeys(input, ['id']) && nullableString(input.id) !== null
-                    : false;
+                    : false);
 
     if (!valid) {
         fail('MUTATION_VARIABLE_SAFETY_VIOLATION');
@@ -1043,6 +1082,7 @@ function normalizePostAction(request, field, secret) {
     const externalLink = post?.externalLink === undefined
         ? undefined
         : post.externalLink === null ? null : nullableString(post.externalLink);
+    const facebookPostMetadata = hasExactFacebookPostMetadata(post?.metadata);
     const schedulingType = post?.schedulingType === undefined
         ? null
         : nullableString(post.schedulingType);
@@ -1067,6 +1107,7 @@ function normalizePostAction(request, field, secret) {
         channelService,
         dueAt,
         externalLink,
+        facebookPostMetadata,
         id,
         kind: request.classification === 'success' ? 'success' : 'partial_success',
         schedulingType,
@@ -1163,6 +1204,7 @@ function normalizeInspectedDraft(
         && post.channelService === 'facebook'
         && post.dueAt === null
         && post.externalLink === null
+        && hasExactFacebookPostMetadata(post.metadata)
         && post.schedulingType === 'automatic'
         && post.sentAt === null
         && post.sharedNow === false
@@ -1215,10 +1257,16 @@ function schemaProbeClassification(result, profile, capabilityName) {
     const expectedCapability = capabilityName === 'facebook_create_metadata'
         ? EXPECTED_FACEBOOK_CREATE_METADATA_CAPABILITY
         : EXPECTED_POST_DELETE_CLEANUP_CAPABILITY;
+    const outputCapabilityIsValid = profile !== 'full'
+        || hasExactStringCapability(
+            contract?.capabilities?.post_delete_cleanup,
+            EXPECTED_POST_DELETE_CLEANUP_CAPABILITY,
+        );
 
     return isObject(contract)
         && contract.profile === profile
         && hasExactStringCapability(capability, expectedCapability)
+        && outputCapabilityIsValid
         ? 'success'
         : 'invalid_payload';
 }
@@ -1591,6 +1639,7 @@ export async function executeBufferWp1FacebookDraftLifecycle({
                     input: {
                         assets: [],
                         channelId,
+                        metadata: { facebook: { type: 'post' } },
                         mode: 'addToQueue',
                         needsApproval: false,
                         saveToDraft: true,
@@ -1657,6 +1706,7 @@ export async function executeBufferWp1FacebookDraftLifecycle({
                 || createAction.channelService !== 'facebook'
                 || createAction.dueAt !== null
                 || createAction.externalLink !== null
+                || createAction.facebookPostMetadata !== true
                 || createAction.schedulingType !== 'automatic'
                 || createAction.sentAt !== null
                 || createAction.sharedNow !== false
@@ -1707,6 +1757,7 @@ export async function executeBufferWp1FacebookDraftLifecycle({
                 || editAction.channelService !== 'facebook'
                 || editAction.dueAt !== null
                 || editAction.externalLink !== null
+                || editAction.facebookPostMetadata !== true
                 || editAction.schedulingType !== 'automatic'
                 || editAction.sentAt !== null
                 || editAction.sharedNow !== false
@@ -1759,6 +1810,7 @@ export async function executeBufferWp1FacebookDraftLifecycle({
                 && moveAction.channelService === 'facebook'
                 && moveAction.dueAt === null
                 && moveAction.externalLink === null
+                && moveAction.facebookPostMetadata === true
                 && moveAction.schedulingType === 'automatic'
                 && moveAction.sentAt === null
                 && moveAction.sharedNow === false

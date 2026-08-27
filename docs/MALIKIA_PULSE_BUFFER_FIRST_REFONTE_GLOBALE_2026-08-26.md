@@ -2,17 +2,17 @@
 
 Date de cadrage : 2026-08-26
 
-Révision : 23 — checkpoint WP1-C/WP1-D publié et vérifié
+Révision : 24 — préparation locale WP1-E, aucune troisième mutation
 
 Baseline auditée : branche develop, commit a54169d3d096
 
 Branche de travail active : `feature/pulse-buffer-refonte`, créée depuis `develop@a54169d3d096`
 
-Branche distante : `origin/feature/pulse-buffer-refonte`, checkpoint fonctionnel WP1-C/WP1-D `9cdaa02cf139`
+Branche distante : `origin/feature/pulse-buffer-refonte`, checkpoint WP1-C/WP1-D `b38c74aebabf`
 
 Statut documentaire : complet — référence active
 
-Statut de livraison : **WP0/WP0-S validés localement — gate d’indexation vert — gate de déploiement ouvert — WP1-A/WP1-B/WP1-D authentifiés en lecture seule — deux create WP1-C refusés sans objet distant ; metadata Facebook valide mais causalité non prouvée, aucun troisième essai autorisé**
+Statut de livraison : **WP0/WP0-S validés localement — gate d’indexation vert — gate de déploiement ouvert — WP1-A/WP1-B/WP1-D authentifiés en lecture seule — deux create WP1-C refusés sans objet distant — WP1-E préparé uniquement en local ; causalité metadata non prouvée et aucun troisième essai exécuté ou autorisé**
 
 Statut de décision : **BLOCKED_P0**
 
@@ -50,6 +50,7 @@ Ce journal est mis à jour à chaque étape de la refonte. Une étape n’est d�
 | EV-PULSE-026 | 2026-08-27 | WP1-D — introspection Facebook durcie | La requête fixe read-only couvre désormais `PostInputMetaData`, `FacebookPostMetadataInput` et `PostTypeFacebook`. Le normalizer verrouille les onze entrées metadata connues, les quatre champs Facebook, leurs kinds, wrappers, valeurs par défaut et l'enum actif `post/reel/story`, tout en tolérant les ajouts optionnels ou munis d'un défaut. Une contre-revue a reproduit un cas où l'ancien marqueur de redaction pouvait recomposer un token court ; les deux harness utilisent maintenant un marqueur non collisionnel et recontrôlent le résultat. Le contrat expose deux capacités structurées : `facebook_create_metadata` pour le preflight de création et un profil minimal `post_delete_cleanup`, afin qu'une dérive metadata n'empêche jamais le nettoyage d'un brouillon journalisé. Un faux succès, une mauvaise opération, un profil incorrect ou une capacité vide sont refusés avant journal et HTTP. | 86/86 tests du probe read-only ; 44/44 tests du lifecycle ; 130/130 combinés ; reproduction `RE`/`RREE`, aliases absents, kinds falsifiés, wrappers, dépréciations, contrat vide et indépendance du cleanup couverts ; contre-revue sécurité GO lecture seule | Prêt pour une introspection authentifiée unique ; mutation NO-GO |
 | EV-PULSE-027 | 2026-08-27 | WP1-D — preuve Facebook authentifiée | Une unique introspection authentifiée, sans variable métier ni document `mutation`, confirme HTTP 200 et le contrat complet. `CreatePostInput.metadata` reste nullable ; `PostInputMetaData.facebook` reste nullable ; si l'objet Facebook est fourni, son champ `type: PostTypeFacebook!` est obligatoire et accepte `post`, `reel` ou `story`. Pour un futur brouillon texte, `{facebook: {type: post}}` constitue donc un candidat minimal bien formé, mais pas la cause démontrée des deux `InvalidInputError`. Le premier lancement confiné n'a pas atteint Buffer (`transport_error`) ; le lancement réseau explicitement autorisé a réussi. Aucun create, edit, move, delete, publication ou objet distant n'est produit. | Introspection réelle : HTTP 200, `success`, ~284 ms, aucune erreur GraphQL et aucun header quota ; aucun identifiant distant, request ID, token ou corps brut conservé dans Git | Contrat Facebook acquis ; hypothèse d'input à préparer séparément ; BUF-P0-06/07 restent ouverts et aucun troisième essai n'est autorisé |
 | EV-PULSE-028 | 2026-08-27 | Validation et publication WP1-C/WP1-D | Le harness de cycle Facebook, l'introspection metadata, les protections de redaction, les profils de capacité et leurs tests sont publiés uniquement sur la branche feature. GitHub confirme le commit, exactement sept fichiers et un écart `ahead 1 / behind 0` depuis le checkpoint WP1-B. Nightwatch ne signale aucun incident ouvert sur `Malikia pro dev`. La régression complète couvre 327 tests Node ; le build Vite, les budgets frontend, l'index documentaire et Graphify sont verts. Tous les fichiers du lot sont indexés avant le gate PHP, qui réinspecte les 22 fichiers PHP de la branche sans correction. | GitHub : `9cdaa02cf139877252f4423be229e38ca4bcba61`, 7 fichiers, `ahead 1 / behind 0` ; Nightwatch : 0 incident ouvert ; Node 327/327 ; build/budgets/docs verts ; Graphify : 32 116 nœuds / 66 502 arêtes / 1 791 communautés ; `composer qa:format` PASS 22/22 ; diff Git vert | Checkpoint fonctionnel et journal publiés ; `develop` et `main` inchangées |
+| EV-PULSE-029 | 2026-08-27 | WP1-E — contrat Facebook post préparé | Le futur input create est fermé sur l'unique ajout `metadata.facebook.type=post`, sans annotation, premier commentaire, lien ni média. Les retours create/edit/move et l'inspection cleanup sélectionnent la même branche typée `FacebookPostMetadata` et exigent exactement `__typename=FacebookPostMetadata` et `type=post`, en plus de tous les invariants draft existants. Le preflight read-only verrouille maintenant la chaîne de sortie `Post.metadata → PostMetadata → FacebookPostMetadata.type → PostType.post` dans les profils `full` et `cleanup`; le profil cleanup reste indépendant de `CreatePostInput`, `PostInputMetaData`, `FacebookPostMetadataInput` et `PostTypeFacebook`. Les réponses nulles, incomplètes, élargies, d'un autre réseau ou d'un autre type échouent fermées; après un ID créé, elles conservent la suppression unique et sa vérification, tandis qu'une inspection non exacte préserve le journal sans supprimer. Cette tranche n'exécute aucun appel authentifié ni document de mutation. | Documentation Buffer officielle revalidée ; trois contre-revues GO ; probe read-only 96/96, lifecycle 47/47, combinés 143/143 ; Node complet 340/340 ; build, budgets frontend et index de 231 documents verts ; Graphify 32 121 nœuds | Préparé localement, non exécuté ; hypothèse causale toujours ouverte et troisième create toujours non autorisé |
 
 ### 0.1 Gate de déploiement WP0-S
 
@@ -497,10 +498,24 @@ Le seul candidat minimal cohérent avec un brouillon Facebook texte est donc `me
 
 Le probe sépare désormais deux profils :
 
-- `full` exige le contrat complet et la capacité structurée `facebook_create_metadata` avant toute création ;
-- `cleanup` exige seulement les contrats exacts `post` et `deletePost`, afin qu'une dérive sans rapport avec la suppression ne bloque pas la récupération d'un brouillon déjà journalisé.
+- `full` exige le contrat complet, la capacité structurée `facebook_create_metadata` et la chaîne de sortie metadata avant toute création ;
+- `cleanup` ignore toute dérive du contrat d'input de création, mais exige `post`, `deletePost` et la chaîne de sortie strictement nécessaire pour confirmer qu'un objet journalisé reste un post Facebook standard avant de le supprimer.
 
 Le gate mutation local reste désactivé et aucune empreinte de cible n'est configurée après cette collecte. Aucun objet distant n'est actif ou à réconcilier.
+
+### 5.5 Préparation locale WP1-E — post Facebook standard
+
+WP1-E transforme le candidat de forme confirmé par WP1-D en contrat local exécutable, sans l'envoyer à Buffer. La variable create conserve toutes les valeurs déjà isolées et ajoute uniquement :
+
+```text
+metadata.facebook.type=post
+```
+
+La liste blanche interdit toute autre clé sous `metadata` et `facebook`. Les documents create, edit, move et inspect demandent tous la branche de sortie minimale `FacebookPostMetadata.type`; un succès n'est accepté que si le serveur retourne exactement le type Facebook `post`. Edit ne renvoie pas la metadata en entrée et doit donc prouver sa conservation en sortie. Move reste limité à l'identifiant et à la position `bottom` et doit fournir la même preuve.
+
+Le profil `cleanup` ne dépend toujours d'aucun type d'input create. Il valide uniquement le contrat de lecture/suppression et les quatre maillons de sortie nécessaires à l'inspection. Si l'objet inspecté n'a pas la metadata exacte, aucune suppression n'est tentée et le journal est conservé pour réconciliation. Si un create avait déjà retourné un identifiant avant une réponse metadata invalide, le `finally` conserve au contraire l'unique tentative de suppression et la vérification `NOT_FOUND` minimale.
+
+Cette préparation ne démontre pas que l'absence de metadata a causé les deux `InvalidInputError`. Aucun appel authentifié, create, edit, move, delete ou publication n'est exécuté dans WP1-E. Un troisième create réel demeure soumis à une autorisation distincte et explicite après validation complète du lot.
 
 ## 6. Systèmes de référence et invariants
 

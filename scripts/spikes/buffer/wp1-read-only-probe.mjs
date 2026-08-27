@@ -72,6 +72,18 @@ export const BUFFER_WP1_SCHEMA_QUERY = `query PulseBufferSchemaProbe {
   facebookPostMetadataInput: __type(name: "FacebookPostMetadataInput") {
     ...PulseBufferContractType
   }
+  post: __type(name: "Post") {
+    ...PulseBufferContractType
+  }
+  postMetadata: __type(name: "PostMetadata") {
+    ...PulseBufferContractType
+  }
+  facebookPostMetadata: __type(name: "FacebookPostMetadata") {
+    ...PulseBufferContractType
+  }
+  postType: __type(name: "PostType") {
+    ...PulseBufferContractType
+  }
   postTypeFacebook: __type(name: "PostTypeFacebook") {
     ...PulseBufferContractType
   }
@@ -120,6 +132,9 @@ fragment PulseBufferRootField on __Field {
 fragment PulseBufferContractType on __Type {
   name
   kind
+  fields(includeDeprecated: true) {
+    ...PulseBufferRootField
+  }
   inputFields {
     name
     defaultValue
@@ -191,6 +206,7 @@ const BUFFER_NAMED_TYPE_KIND_REQUIREMENTS = new Map([
     ['CreatePostInput', 'INPUT_OBJECT'],
     ['DeletePostInput', 'INPUT_OBJECT'],
     ['EditPostInput', 'INPUT_OBJECT'],
+    ['FacebookPostMetadata', 'OBJECT'],
     ['FacebookPostMetadataInput', 'INPUT_OBJECT'],
     ['GoogleBusinessPostMetadataInput', 'INPUT_OBJECT'],
     ['InstagramPostMetadataInput', 'INPUT_OBJECT'],
@@ -215,6 +231,8 @@ const BUFFER_NAMED_TYPE_KIND_REQUIREMENTS = new Map([
     ['MovePostInQueuePayload', 'UNION'],
     ['PostActionPayload', 'UNION'],
     ['Post', 'OBJECT'],
+    ['PostMetadata', 'UNION'],
+    ['PostType', 'ENUM'],
     ['PostsResults', 'OBJECT'],
     ['Boolean', 'SCALAR'],
     ['ChannelId', 'SCALAR'],
@@ -291,6 +309,11 @@ const BUFFER_SCHEMA_REQUIREMENTS = {
             type: 'PostTypeFacebook!',
         },
     },
+    facebookPostMetadata: {
+        kind: 'OBJECT',
+        name: 'FacebookPostMetadata',
+        outputFields: { type: 'PostType!' },
+    },
     movePostInQueueInput: {
         kind: 'INPUT_OBJECT',
         name: 'MovePostInQueueInput',
@@ -335,6 +358,21 @@ const BUFFER_SCHEMA_REQUIREMENTS = {
             twitter: 'TwitterPostMetadataInput',
             youtube: 'YoutubePostMetadataInput',
         },
+    },
+    post: {
+        kind: 'OBJECT',
+        name: 'Post',
+        outputFields: { metadata: 'PostMetadata' },
+    },
+    postMetadata: {
+        kind: 'UNION',
+        name: 'PostMetadata',
+        possibleTypes: ['FacebookPostMetadata'],
+    },
+    postType: {
+        enumValues: ['post'],
+        kind: 'ENUM',
+        name: 'PostType',
     },
     postTypeFacebook: {
         enumValues: ['post', 'reel', 'story'],
@@ -384,6 +422,10 @@ const BUFFER_SCHEMA_PROFILES = {
                 delete_payload: 'DeletePostPayload!',
                 delete_root_field: 'deletePost',
                 inspect_input: 'PostInput!',
+                inspect_metadata_field: 'metadata:PostMetadata',
+                inspect_metadata_member: 'FacebookPostMetadata',
+                inspect_metadata_type_field: 'type:PostType!',
+                inspect_metadata_type_value: 'post',
                 inspect_output: 'Post!',
                 inspect_root_field: 'post',
             },
@@ -395,6 +437,10 @@ const BUFFER_SCHEMA_PROFILES = {
         requirements: {
             deletePostInput: BUFFER_SCHEMA_REQUIREMENTS.deletePostInput,
             deletePostPayload: BUFFER_SCHEMA_REQUIREMENTS.deletePostPayload,
+            facebookPostMetadata: BUFFER_SCHEMA_REQUIREMENTS.facebookPostMetadata,
+            post: BUFFER_SCHEMA_REQUIREMENTS.post,
+            postMetadata: BUFFER_SCHEMA_REQUIREMENTS.postMetadata,
+            postType: BUFFER_SCHEMA_REQUIREMENTS.postType,
         },
     },
     full: {
@@ -410,6 +456,10 @@ const BUFFER_SCHEMA_PROFILES = {
                 delete_payload: 'DeletePostPayload!',
                 delete_root_field: 'deletePost',
                 inspect_input: 'PostInput!',
+                inspect_metadata_field: 'metadata:PostMetadata',
+                inspect_metadata_member: 'FacebookPostMetadata',
+                inspect_metadata_type_field: 'type:PostType!',
+                inspect_metadata_type_value: 'post',
                 inspect_output: 'Post!',
                 inspect_root_field: 'post',
             },
@@ -926,12 +976,12 @@ function normalizeInputValues(value) {
     return inputValues.sort((left, right) => left.name.localeCompare(right.name));
 }
 
-function normalizeRootType(value, expectedName) {
-    if (!isObject(value) || !Array.isArray(value.fields)) {
+function normalizeOutputFields(value) {
+    if (!Array.isArray(value)) {
         return null;
     }
 
-    const fields = value.fields.filter(isObject).map((field) => ({
+    const fields = value.filter(isObject).map((field) => ({
         arguments: normalizeInputValues(field.args),
         deprecation_reason: optionalIntrospectionString(field.deprecationReason),
         is_deprecated: nullableBoolean(field.isDeprecated),
@@ -939,9 +989,7 @@ function normalizeRootType(value, expectedName) {
         type: normalizeTypeReference(field.type, BUFFER_OUTPUT_NAMED_TYPE_KINDS),
     }));
 
-    if (graphqlName(value.name) !== expectedName
-        || nullableString(value.kind) !== 'OBJECT'
-        || fields.length !== value.fields.length
+    if (fields.length !== value.length
         || new Set(fields.map((field) => field.name)).size !== fields.length
         || fields.some((field) => (
             field.arguments === null
@@ -954,6 +1002,22 @@ function normalizeRootType(value, expectedName) {
     }
 
     return fields.sort((left, right) => left.name.localeCompare(right.name));
+}
+
+function normalizeRootType(value, expectedName) {
+    if (!isObject(value)) {
+        return null;
+    }
+
+    const fields = normalizeOutputFields(value.fields);
+
+    if (graphqlName(value.name) !== expectedName
+        || nullableString(value.kind) !== 'OBJECT'
+        || fields === null) {
+        return null;
+    }
+
+    return fields;
 }
 
 function normalizePossibleTypes(value) {
@@ -1008,9 +1072,16 @@ function normalizeContractType(value) {
         input_fields: null,
         kind: nullableString(value.kind),
         name: graphqlName(value.name),
+        output_fields: null,
         possible_types: null,
     };
 
+    if (value.fields !== null) {
+        normalized.output_fields = normalizeOutputFields(value.fields);
+        if (normalized.output_fields === null) {
+            return null;
+        }
+    }
     if (value.inputFields !== null) {
         normalized.input_fields = normalizeInputValues(value.inputFields);
         if (normalized.input_fields === null) {
@@ -1037,18 +1108,27 @@ function normalizeContractType(value) {
     const hasCoherentShape = (
         normalized.kind === 'INPUT_OBJECT'
         && normalized.input_fields !== null
+        && normalized.output_fields === null
         && normalized.possible_types === null
         && normalized.enum_values === null
     ) || (
         normalized.kind === 'UNION'
         && normalized.input_fields === null
+        && normalized.output_fields === null
         && normalized.possible_types !== null
         && normalized.enum_values === null
     ) || (
         normalized.kind === 'ENUM'
         && normalized.input_fields === null
+        && normalized.output_fields === null
         && normalized.possible_types === null
         && normalized.enum_values !== null
+    ) || (
+        normalized.kind === 'OBJECT'
+        && normalized.input_fields === null
+        && normalized.output_fields !== null
+        && normalized.possible_types === null
+        && normalized.enum_values === null
     );
 
     return hasCoherentShape ? normalized : null;
@@ -1099,6 +1179,24 @@ function hasCompatibleInputFields(inputFields, requiredFields, requiredDefaults 
     ));
 }
 
+function hasCompatibleOutputFields(outputFields, requiredFields) {
+    if (!Array.isArray(outputFields)) {
+        return false;
+    }
+
+    const fieldsByName = new Map(outputFields.map((outputField) => (
+        [outputField.name, outputField]
+    )));
+
+    return Object.entries(requiredFields).every(([name, type]) => {
+        const field = fieldsByName.get(name);
+
+        return field?.type === type
+            && field.is_deprecated === false
+            && field.arguments.every(isOmissibleInputValue);
+    });
+}
+
 function hasActiveEnumValues(enumValues, requiredValues) {
     if (!Array.isArray(enumValues)) {
         return false;
@@ -1142,6 +1240,10 @@ function normalizeSchemaContract(value, profileName) {
                 requirement.inputFields,
                 requirement.inputDefaults,
             )) {
+            return null;
+        }
+        if (requirement.outputFields !== undefined
+            && !hasCompatibleOutputFields(type.output_fields, requirement.outputFields)) {
             return null;
         }
         if (requirement.possibleTypes !== undefined && !includesEvery(

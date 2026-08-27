@@ -103,6 +103,10 @@ function schemaContract(profile) {
                     delete_payload: 'DeletePostPayload!',
                     delete_root_field: 'deletePost',
                     inspect_input: 'PostInput!',
+                    inspect_metadata_field: 'metadata:PostMetadata',
+                    inspect_metadata_member: 'FacebookPostMetadata',
+                    inspect_metadata_type_field: 'type:PostType!',
+                    inspect_metadata_type_value: 'post',
                     inspect_output: 'Post!',
                     inspect_root_field: 'post',
                 },
@@ -119,6 +123,10 @@ function schemaContract(profile) {
                     delete_payload: 'DeletePostPayload!',
                     delete_root_field: 'deletePost',
                     inspect_input: 'PostInput!',
+                    inspect_metadata_field: 'metadata:PostMetadata',
+                    inspect_metadata_member: 'FacebookPostMetadata',
+                    inspect_metadata_type_field: 'type:PostType!',
+                    inspect_metadata_type_value: 'post',
                     inspect_output: 'Post!',
                     inspect_root_field: 'post',
                 },
@@ -189,6 +197,10 @@ function safePost({ id = POST_ID, text = INITIAL_TEXT, ...overrides } = {}) {
         channelService: 'facebook',
         dueAt: null,
         externalLink: null,
+        metadata: {
+            __typename: 'FacebookPostMetadata',
+            type: 'post',
+        },
         schedulingType: 'automatic',
         sentAt: null,
         sharedNow: false,
@@ -421,6 +433,7 @@ test('the WP1-C cycle sends only fixed draft mutations and deletes after a typed
         input: {
             assets: [],
             channelId: CHANNEL_ID,
+            metadata: { facebook: { type: 'post' } },
             mode: 'addToQueue',
             needsApproval: false,
             saveToDraft: true,
@@ -443,6 +456,17 @@ test('the WP1-C cycle sends only fixed draft mutations and deletes after a typed
         assert.doesNotMatch(document, /shareNow|shareNext|customScheduled/u);
         assert.equal(document.includes(CHANNEL_ID), false);
         assert.equal(document.includes(POST_ID), false);
+    }
+    for (const document of [
+        BUFFER_WP1_CREATE_FACEBOOK_DRAFT_MUTATION,
+        BUFFER_WP1_EDIT_FACEBOOK_DRAFT_MUTATION,
+        BUFFER_WP1_MOVE_FACEBOOK_DRAFT_MUTATION,
+        BUFFER_WP1_INSPECT_FACEBOOK_DRAFT_QUERY,
+    ]) {
+        assert.match(
+            document,
+            /metadata\s*\{\s*__typename\s*\.\.\. on FacebookPostMetadata\s*\{\s*type\s*\}\s*\}/u,
+        );
     }
 
     const serialized = JSON.stringify(result);
@@ -628,6 +652,9 @@ test('the WP1-C preflight fails closed for an unavailable contract or ambiguous 
 });
 
 test('the WP1-C preflight rejects empty, wrong-operation, or wrong-profile schema success', async (t) => {
+    const incompleteOutputContract = schemaContract('full');
+    delete incompleteOutputContract.capabilities.post_delete_cleanup
+        .inspect_metadata_type_value;
     const cases = [
         {
             name: 'empty schema contract',
@@ -654,6 +681,15 @@ test('the WP1-C preflight rejects empty, wrong-operation, or wrong-profile schem
                 ok: true,
                 classification: 'success',
                 data: { schema_contract: schemaContract('cleanup') },
+            },
+        },
+        {
+            name: 'incomplete metadata output capability',
+            result: {
+                operation: 'schema',
+                ok: true,
+                classification: 'success',
+                data: { schema_contract: incompleteOutputContract },
             },
         },
     ];
@@ -1191,6 +1227,120 @@ test('the WP1-C cycle deletes immediately when create violates a draft safety in
     }
 });
 
+test('the WP1-E cycle rejects missing, widened, cross-service, or non-post metadata at every stage', async () => {
+    const cases = [
+        {
+            classification: 'create_draft_invariant_failed',
+            responses: [
+                postAction('createPost', safePost({ metadata: undefined })),
+                deleteSuccess(),
+                deleteNotFoundVerification(),
+            ],
+            step: 'create',
+        },
+        {
+            classification: 'create_draft_invariant_failed',
+            responses: [
+                postAction('createPost', safePost({ metadata: null })),
+                deleteSuccess(),
+                deleteNotFoundVerification(),
+            ],
+            step: 'create',
+        },
+        {
+            classification: 'create_draft_invariant_failed',
+            responses: [
+                postAction('createPost', safePost({ metadata: { type: 'post' } })),
+                deleteSuccess(),
+                deleteNotFoundVerification(),
+            ],
+            step: 'create',
+        },
+        {
+            classification: 'create_draft_invariant_failed',
+            responses: [
+                postAction('createPost', safePost({
+                    metadata: { __typename: 'FacebookPostMetadata' },
+                })),
+                deleteSuccess(),
+                deleteNotFoundVerification(),
+            ],
+            step: 'create',
+        },
+        {
+            classification: 'create_draft_invariant_failed',
+            responses: [
+                postAction('createPost', safePost({
+                    metadata: {
+                        __typename: 'FacebookPostMetadata',
+                        firstComment: null,
+                        type: 'post',
+                    },
+                })),
+                deleteSuccess(),
+                deleteNotFoundVerification(),
+            ],
+            step: 'create',
+        },
+        {
+            classification: 'edit_failed',
+            responses: [
+                postAction('createPost', safePost()),
+                postAction('editPost', safePost({
+                    metadata: {
+                        __typename: 'InstagramPostMetadata',
+                        type: 'post',
+                    },
+                    text: EDITED_TEXT,
+                })),
+                deleteSuccess(),
+                deleteNotFoundVerification(),
+            ],
+            step: 'edit',
+        },
+        {
+            classification: 'move_failed',
+            responses: [
+                postAction('createPost', safePost()),
+                postAction('editPost', safePost({ text: EDITED_TEXT })),
+                postAction('movePostInQueue', safePost({
+                    metadata: {
+                        __typename: 'FacebookPostMetadata',
+                        type: 'reel',
+                    },
+                    text: EDITED_TEXT,
+                })),
+                deleteSuccess(),
+                deleteNotFoundVerification(),
+            ],
+            step: 'move',
+        },
+    ];
+
+    for (const testCase of cases) {
+        const probe = createProbe();
+        const scriptedFetch = createScriptedFetch([...testCase.responses]);
+        const recoveryJournal = createMemoryRecoveryJournal();
+        const result = await executeLifecycle({
+            fetchImpl: scriptedFetch.fetchImpl,
+            probeImpl: probe.probeImpl,
+            recoveryJournal,
+        });
+
+        assert.equal(result.classification, testCase.classification);
+        assert.equal(result.steps[testCase.step].outcome, 'draft_invariant_failed');
+        assert.equal(result.cleanup.confirmed, true);
+        assert.equal(result.cleanup.recovery_journal_cleared, true);
+        assert.equal(recoveryJournal.record, null);
+        assert.equal(scriptedFetch.requests.filter((request) => (
+            JSON.parse(request.options.body).query === BUFFER_WP1_DELETE_FACEBOOK_DRAFT_MUTATION
+        )).length, 1);
+        assert.equal(scriptedFetch.requests.filter((request) => (
+            JSON.parse(request.options.body).query === BUFFER_WP1_VERIFY_FACEBOOK_DRAFT_DELETED_QUERY
+        )).length, 1);
+    }
+});
+
 test('the WP1-C cycle stops after incomplete create quota evidence but still deletes', async () => {
     const probe = createProbe();
     const createWithoutQuota = postAction('createPost', safePost());
@@ -1454,6 +1604,42 @@ test('the WP1-C cleanup rejects mixed GraphQL errors beside NOT_FOUND', async ()
     assert.equal(scriptedFetch.requests.length, 5);
 });
 
+test('the WP1-E cleanup preserves its journal when the metadata output capability is incomplete', async () => {
+    const incompleteContract = schemaContract('cleanup');
+    delete incompleteContract.capabilities.post_delete_cleanup.inspect_metadata_member;
+    const recoveryJournal = createMemoryRecoveryJournal({
+        activeRecord: recoveryRecord(),
+    });
+    let probeCount = 0;
+    let requestCount = 0;
+
+    const result = await executeCleanup({
+        fetchImpl: async () => {
+            requestCount += 1;
+            return jsonResponse({});
+        },
+        probeImpl: async () => {
+            probeCount += 1;
+
+            return {
+                operation: 'schema',
+                ok: true,
+                classification: 'success',
+                data: { schema_contract: incompleteContract },
+            };
+        },
+        recoveryJournal,
+    });
+
+    assert.equal(result.classification, 'schema_contract_unavailable');
+    assert.equal(result.preflight.schema, 'invalid_payload');
+    assert.equal(result.cleanup.recovery_journal_cleared, false);
+    assert.equal(recoveryJournal.record.post_id, POST_ID);
+    assert.deepEqual(recoveryJournal.events, ['acquire', 'read', 'release']);
+    assert.equal(probeCount, 1);
+    assert.equal(requestCount, 0);
+});
+
 test('the WP1-C cleanup-only path inspects the exact draft before one delete and verification', async () => {
     const probe = createProbe({
         schemaClassifications: {
@@ -1582,6 +1768,29 @@ test('the WP1-C cleanup-only path preserves the journal when inspection is not t
         safePost({ channelId: 'different-channel', text: EDITED_TEXT }),
         safePost({ status: 'scheduled', text: EDITED_TEXT }),
         safePost({ text: 'different text' }),
+        safePost({ metadata: undefined, text: EDITED_TEXT }),
+        safePost({ metadata: null, text: EDITED_TEXT }),
+        safePost({ metadata: { type: 'post' }, text: EDITED_TEXT }),
+        safePost({
+            metadata: { __typename: 'FacebookPostMetadata' },
+            text: EDITED_TEXT,
+        }),
+        safePost({
+            metadata: { __typename: 'InstagramPostMetadata', type: 'post' },
+            text: EDITED_TEXT,
+        }),
+        safePost({
+            metadata: { __typename: 'FacebookPostMetadata', type: 'reel' },
+            text: EDITED_TEXT,
+        }),
+        safePost({
+            metadata: {
+                __typename: 'FacebookPostMetadata',
+                firstComment: null,
+                type: 'post',
+            },
+            text: EDITED_TEXT,
+        }),
     ]) {
         const probe = createProbe();
         const recoveryJournal = createMemoryRecoveryJournal({

@@ -33,6 +33,7 @@ const INTROSPECTION_TYPE_KINDS = new Map([
     ['CreatePostInput', 'INPUT_OBJECT'],
     ['DeletePostInput', 'INPUT_OBJECT'],
     ['EditPostInput', 'INPUT_OBJECT'],
+    ['FacebookPostMetadata', 'OBJECT'],
     ['FacebookPostMetadataInput', 'INPUT_OBJECT'],
     ['GoogleBusinessPostMetadataInput', 'INPUT_OBJECT'],
     ['InstagramPostMetadataInput', 'INPUT_OBJECT'],
@@ -43,6 +44,8 @@ const INTROSPECTION_TYPE_KINDS = new Map([
     ['PinterestPostMetadataInput', 'INPUT_OBJECT'],
     ['PostInput', 'INPUT_OBJECT'],
     ['PostInputMetaData', 'INPUT_OBJECT'],
+    ['PostMetadata', 'UNION'],
+    ['PostType', 'ENUM'],
     ['PostsInput', 'INPUT_OBJECT'],
     ['PostApprovalChange', 'ENUM'],
     ['PostTypeFacebook', 'ENUM'],
@@ -94,6 +97,7 @@ function introspectionField(name, argumentTypes, outputType) {
 function inputContract(name, fieldTypes) {
     return {
         enumValues: null,
+        fields: null,
         inputFields: fieldTypes.map(([fieldName, fieldType, defaultValue = null]) => (
             introspectionInput(fieldName, fieldType, defaultValue)
         )),
@@ -106,6 +110,7 @@ function inputContract(name, fieldTypes) {
 function unionContract(name, possibleTypeNames) {
     return {
         enumValues: null,
+        fields: null,
         inputFields: null,
         kind: 'UNION',
         name,
@@ -123,8 +128,22 @@ function enumContract(name, enumValueNames) {
             isDeprecated: false,
             name: enumValueName,
         })),
+        fields: null,
         inputFields: null,
         kind: 'ENUM',
+        name,
+        possibleTypes: null,
+    };
+}
+
+function objectContract(name, fieldTypes) {
+    return {
+        enumValues: null,
+        fields: fieldTypes.map(([fieldName, fieldType]) => (
+            introspectionField(fieldName, {}, fieldType)
+        )),
+        inputFields: null,
+        kind: 'OBJECT',
         name,
         possibleTypes: null,
     };
@@ -176,6 +195,9 @@ function schemaPayload() {
                 ['linkAttachment', 'LinkAttachmentInput'],
                 ['type', 'PostTypeFacebook!'],
             ]),
+            facebookPostMetadata: objectContract('FacebookPostMetadata', [
+                ['type', 'PostType!'],
+            ]),
             movePostInQueueInput: inputContract('MovePostInQueueInput', [
                 ['id', 'PostId!'],
                 ['position', 'QueuePosition!'],
@@ -220,6 +242,7 @@ function schemaPayload() {
                 'InvalidInputError',
             ]),
             postApprovalChange: enumContract('PostApprovalChange', ['request', 'revert']),
+            post: objectContract('Post', [['metadata', 'PostMetadata']]),
             postInputMetaData: inputContract('PostInputMetaData', [
                 ['bluesky', 'BlueskyPostMetadataInput'],
                 ['facebook', 'FacebookPostMetadataInput'],
@@ -232,6 +255,19 @@ function schemaPayload() {
                 ['tiktok', 'TikTokPostMetadataInput'],
                 ['twitter', 'TwitterPostMetadataInput'],
                 ['youtube', 'YoutubePostMetadataInput'],
+            ]),
+            postMetadata: unionContract('PostMetadata', ['FacebookPostMetadata']),
+            postType: enumContract('PostType', [
+                'carousel',
+                'event',
+                'ghost_post',
+                'offer',
+                'post',
+                'reel',
+                'short',
+                'story',
+                'thread',
+                'whats_new',
             ]),
             postTypeFacebook: enumContract('PostTypeFacebook', ['post', 'reel', 'story']),
             queuePosition: enumContract('QueuePosition', ['bottom', 'top']),
@@ -554,6 +590,25 @@ test('the schema probe sends one fixed introspection query and normalizes the mu
         ),
         ['post', 'reel', 'story'],
     );
+    assert.equal(
+        result.data.schema_contract.types.post.output_fields
+            .find((field) => field.name === 'metadata')?.type,
+        'PostMetadata',
+    );
+    assert.deepEqual(
+        result.data.schema_contract.types.postMetadata.possible_types,
+        ['FacebookPostMetadata'],
+    );
+    assert.equal(
+        result.data.schema_contract.types.facebookPostMetadata.output_fields
+            .find((field) => field.name === 'type')?.type,
+        'PostType!',
+    );
+    assert.equal(
+        result.data.schema_contract.types.postType.enum_values
+            .find((enumValue) => enumValue.name === 'post')?.is_deprecated,
+        false,
+    );
     assert.deepEqual(
         result.data.schema_contract.types.queuePosition.enum_values.map((enumValue) => enumValue.name),
         ['bottom', 'top'],
@@ -583,6 +638,10 @@ test('the cleanup schema profile ignores create metadata drift but keeps post an
     assert.deepEqual(Object.keys(result.data.schema_contract.types), [
         'deletePostInput',
         'deletePostPayload',
+        'facebookPostMetadata',
+        'post',
+        'postMetadata',
+        'postType',
     ]);
     assert.deepEqual(
         result.data.schema_contract.capabilities.post_delete_cleanup,
@@ -591,10 +650,97 @@ test('the cleanup schema profile ignores create metadata drift but keeps post an
             delete_payload: 'DeletePostPayload!',
             delete_root_field: 'deletePost',
             inspect_input: 'PostInput!',
+            inspect_metadata_field: 'metadata:PostMetadata',
+            inspect_metadata_member: 'FacebookPostMetadata',
+            inspect_metadata_type_field: 'type:PostType!',
+            inspect_metadata_type_value: 'post',
             inspect_output: 'Post!',
             inspect_root_field: 'post',
         },
     );
+});
+
+test('the cleanup schema profile fails closed when Facebook metadata output drifts', async (t) => {
+    const cases = [
+        {
+            name: 'Post metadata field is removed',
+            mutate(payload) {
+                payload.data.post.fields = [];
+            },
+        },
+        {
+            name: 'Post metadata field type changes',
+            mutate(payload) {
+                payload.data.post.fields[0].type = introspectionType('String');
+            },
+        },
+        {
+            name: 'Post metadata field is deprecated',
+            mutate(payload) {
+                payload.data.post.fields[0].isDeprecated = true;
+                payload.data.post.fields[0].deprecationReason = 'retired';
+            },
+        },
+        {
+            name: 'Facebook metadata leaves the union',
+            mutate(payload) {
+                payload.data.postMetadata.possibleTypes = [];
+            },
+        },
+        {
+            name: 'Facebook metadata type field is removed',
+            mutate(payload) {
+                payload.data.facebookPostMetadata.fields = [];
+            },
+        },
+        {
+            name: 'Facebook metadata type loses its non-null wrapper',
+            mutate(payload) {
+                payload.data.facebookPostMetadata.fields[0].type = introspectionType('PostType');
+            },
+        },
+        {
+            name: 'Facebook metadata type gains a required argument',
+            mutate(payload) {
+                payload.data.facebookPostMetadata.fields[0].args.push(
+                    introspectionInput('futureRequired', 'String!'),
+                );
+            },
+        },
+        {
+            name: 'Post enum removes post',
+            mutate(payload) {
+                payload.data.postType.enumValues = payload.data.postType.enumValues
+                    .filter((enumValue) => enumValue.name !== 'post');
+            },
+        },
+        {
+            name: 'Post enum deprecates post',
+            mutate(payload) {
+                const post = payload.data.postType.enumValues
+                    .find((enumValue) => enumValue.name === 'post');
+                post.isDeprecated = true;
+                post.deprecationReason = 'retired';
+            },
+        },
+    ];
+
+    for (const testCase of cases) {
+        await t.test(testCase.name, async () => {
+            const payload = schemaPayload();
+            testCase.mutate(payload);
+            const result = await executeProbe({
+                accessToken: ACCESS_TOKEN,
+                schema: true,
+                schemaProfile: 'cleanup',
+                fetchImpl: async () => jsonResponse(payload),
+            });
+
+            assert.equal(result.ok, false);
+            assert.equal(result.classification, 'invalid_payload');
+            assert.equal(result.data.schema_contract, null);
+        });
+    }
 });
 
 test('the schema probe fails closed on incompatible removals and deprecations', async (t) => {
@@ -752,6 +898,21 @@ test('the schema probe distinguishes compatible additions from breaking required
             isDeprecated: false,
             name: 'futureFacebookType',
         });
+        payload.data.post.fields.push(
+            introspectionField('futureMetadataSummary', {}, 'String'),
+        );
+        payload.data.facebookPostMetadata.fields.push(
+            introspectionField('futureFacebookOutput', {}, 'String'),
+        );
+        payload.data.postMetadata.possibleTypes.push({
+            kind: 'OBJECT',
+            name: 'FuturePostMetadata',
+        });
+        payload.data.postType.enumValues.push({
+            deprecationReason: null,
+            isDeprecated: false,
+            name: 'futurePostType',
+        });
         payload.data.postActionPayload.possibleTypes.push({ kind: 'OBJECT', name: 'FutureError' });
 
         const result = await executeProbe({
@@ -765,6 +926,18 @@ test('the schema probe distinguishes compatible additions from breaking required
         assert.ok(
             result.data.schema_contract.types.postTypeFacebook.enum_values
                 .some((enumValue) => enumValue.name === 'futureFacebookType'),
+        );
+        assert.ok(
+            result.data.schema_contract.types.post.output_fields
+                .some((field) => field.name === 'futureMetadataSummary'),
+        );
+        assert.ok(
+            result.data.schema_contract.types.postMetadata.possible_types
+                .includes('FuturePostMetadata'),
+        );
+        assert.ok(
+            result.data.schema_contract.types.postType.enum_values
+                .some((enumValue) => enumValue.name === 'futurePostType'),
         );
     });
 
