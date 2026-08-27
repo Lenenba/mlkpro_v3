@@ -2,7 +2,7 @@
 
 Date de cadrage : 2026-08-26
 
-Révision : 29 — checkpoint WP1-H publié et vérifié
+Révision : 30 — décision de capacité WP1-I qualifiée localement
 
 Baseline auditée : branche develop, commit a54169d3d096
 
@@ -12,7 +12,7 @@ Branche distante : `origin/feature/pulse-buffer-refonte`, checkpoint probatoire 
 
 Statut documentaire : complet — référence active
 
-Statut de livraison : **WP0/WP0-S validés localement — gate d’indexation vert — gate de déploiement ouvert — WP1-A/WP1-B/WP1-D authentifiés en lecture seule — WP1-H prouve réellement create, edit et delete sur un brouillon Facebook standard ; `movePostInQueue`, expérimental, refuse ce brouillon de façon typée et le nettoyage est confirmé — tous les gates BUF-P0 restent ouverts**
+Statut de livraison : **WP0/WP0-S validés localement — gate d’indexation vert — gate de déploiement ouvert — WP1-A/WP1-B/WP1-D authentifiés en lecture seule — WP1-H prouve réellement create, edit et delete sur un brouillon Facebook standard — WP1-I qualifie `move@draft` comme frontière négative provisoire, typée et non retryable pour le seul tuple observé ; replanification et autres statuts restent non prouvés — tous les gates BUF-P0 restent ouverts**
 
 Statut de décision : **BLOCKED_P0**
 
@@ -60,6 +60,8 @@ Ce journal est mis à jour à chaque étape de la refonte. Une étape n’est d�
 | EV-PULSE-036 | 2026-08-27 | WP1-H — preuve distante edit et move Facebook | Un préflight sans empreinte s'arrête avant journal et mutation après avoir confirmé le schéma, un compte, une organisation, une seule Page Facebook éligible et la capacité requise. L'unique cycle ensuite autorisé crée un brouillon Facebook `post`, l'édite avec la même metadata minimale et conserve tous les invariants de non-publication. `movePostInQueue`, documenté expérimental par Buffer, refuse ensuite le brouillon avec un `VoidMutationError` typé ; ce refus est définitif, non ambigu et non rejoué. Le `finally` effectue une seule suppression, la lecture suivante confirme `NOT_FOUND`, puis le journal privé et le verrou disparaissent. | HTTP 200 à chaque étape ; create/edit `PostActionSuccess`, move `VoidMutationError` classé `draft_move_rejected`, delete `DeletePostSuccess`, vérification `NOT_FOUND` ; aucun retry, identifiant conservé, objet résiduel ni besoin de réconciliation | Preuve réelle create/edit/delete acquise ; move sur brouillon explicitement refusé ; preuves partielles BUF-P0-06/07, tous les gates restent ouverts |
 | EV-PULSE-037 | 2026-08-27 | Validation et hygiène WP1-H | Deux audits indépendants confirment les gates, l'absence de retry distant, la suppression unique, la redaction des sorties et la valeur de la couverture. L'audit de code mort ne démontre aucun nouvel élément supprimable dans les harnais ou leurs tests ; la branche `VoidMutationError` est au contraire prouvée vivante par l'essai réel. La documentation Buffer officielle est revalidée et Nightwatch ne signale aucun incident ouvert. Aucun fichier PHP n'est modifié dans cette tranche documentaire. | Lifecycle 72/72, probe 96/96, combinés 168/168 ; Node complet 365/365 ; `node --check`, JSON, index de 232 documents et `git diff --check` verts ; Graphify 32 130 nœuds ; Nightwatch : 0 incident ouvert | Zéro suppression spéculative ; preuve et documents prêts à committer sur la branche feature |
 | EV-PULSE-038 | 2026-08-27 | Publication et vérification distante WP1-H | La preuve distante, la vue visuelle, le statut documentaire et l'index sont publiés uniquement sur la branche feature. GitHub confirme le commit probatoire complet, exactement quatre fichiers et un écart d'un commit depuis le checkpoint WP1-F/WP1-G. Nightwatch ne signale aucun incident ouvert ; `develop` et `main` restent inchangées. | GitHub : `5ffcc685cb3e6dcfe29c97231894b3ae9a0d78fe`, comparaison `ahead 1 / behind 0`, 4 fichiers ; Nightwatch : 0 incident ouvert | Checkpoint WP1-H publié ; branche feature prête pour la prochaine tranche P0 |
+| EV-PULSE-039 | 2026-08-27 | WP1-I — qualification de `move@draft` | La documentation officielle distingue le brouillon, non programmé tant qu'il n'est pas explicitement planifié, du post réellement présent dans une file. `movePostInQueue` est une opération expérimentale, limitée par son contrat aux posts en file. Croisée avec l'unique réponse réelle HTTP 200 `VoidMutationError`, cette distinction qualifie le refus comme frontière de capacité négative provisoire pour le seul tuple observé : Page Facebook sélectionnée, statut `draft`, position `bottom`. Le harnais conserve donc `draft_move_rejected`, `ok=false`, zéro retry et zéro fallback ; il ne généralise pas le refus au canal, aux autres statuts, à `top` ou à Buffer entier. | Documentation Buffer officielle `Create Draft Post`, `EditPostInput` et référence `movePostInQueue` revalidée ; Graphify relie mutation, normalizer, test et gates ; deux audits indépendants convergents | Décision locale acquise ; preuves partielles BUF-P0-06/07 ; tous les gates restent ouverts et WP2 bloqué |
+| EV-PULSE-040 | 2026-08-27 | Validation et hygiène WP1-I | Le contrat existant reste inchangé et toutes ses branches de move sont conservées : le refus `VoidMutationError` est vivant en réel, tandis que le succès, les réponses ambiguës et les autres erreurs typées restent couverts pour détecter une dérive future. Deux audits indépendants ne démontrent aucun nouvel import, symbole, test ou chemin supprimable ; aucune suppression spéculative n'est effectuée. La tranche ne modifie aucun fichier PHP et n'exécute aucune mutation Buffer. | Buffer ciblé 168/168 ; Node complet 365/365 ; `node --check`, JSON, index de 232 documents et `git diff --check` verts ; Graphify actualisé ; Nightwatch : 0 incident ouvert | Décision et documentation prêtes à committer uniquement sur la branche feature ; zéro nouveau code mort démontré |
 
 ### 0.1 Gate de déploiement WP0-S
 
@@ -397,8 +399,8 @@ Toutes les lignes sont bloquantes tant qu’aucune preuve n’est attachée.
 | BUF-P0-03 | Webhook de statut disponible ou prévu | Contrat ou réponse écrite Buffer | Backend | Ouvert |
 | BUF-P0-04 | Idempotence ou corrélation distante | Contrat, champ supporté ou protocole officiel | Backend | Ouvert |
 | BUF-P0-05 | Recherche après timeout ambigu | Test réel après acceptation sans réponse | Backend | Ouvert |
-| BUF-P0-06 | Modification, replanification et suppression par statut | Matrice testée draft à error | Backend + produit | Ouvert |
-| BUF-P0-07 | Capacités, formats, publication par notification et approbation distante | Matrice par canal, dont draft et needs_approval | Produit + frontend | Ouvert |
+| BUF-P0-06 | Modification, replanification et suppression par statut | Matrice testée draft à error | Backend + produit | Ouvert — edit/delete prouvés uniquement sur `draft`; move de file, replanification et autres statuts non prouvés |
+| BUF-P0-07 | Capacités, formats, publication par notification et approbation distante | Matrice par canal, dont draft et needs_approval | Produit + frontend | Ouvert — format Facebook `post` et refus provisoire `move@draft/bottom` observés; autres capacités, canaux et approbation non prouvés |
 | BUF-P0-08 | URL média stable et cycle de vie | Spike avec publication future et suppression différée | Backend + sécurité | Ouvert |
 | BUF-P0-09 | Usage SaaS, DPA, support et incident | Validation juridique et fournisseur | Juridique + sécurité | Ouvert |
 | BUF-P0-10 | Modèle commercial compte client | Parcours, coûts et prérequis validés | Produit | Ouvert |
@@ -540,7 +542,34 @@ Le cycle réel confirme que Buffer accepte l'édition du brouillon Facebook lors
 
 La mutation expérimentale `movePostInQueue(position: bottom)` répond ensuite par un `VoidMutationError`. Le résultat est classé `draft_move_rejected` : Buffer a répondu de façon typée, donc le harnais ne le traite ni comme une issue inconnue ni comme une réussite. Le move n'est pas rejoué. La suppression unique et sa vérification `NOT_FOUND` réussissent, sans objet distant, journal, verrou ou réconciliation manuelle résiduelle.
 
-Cette tranche apporte une preuve partielle à `BUF-P0-06` pour create/edit/delete au statut draft et à `BUF-P0-07` pour le format Facebook `post`. Elle ne ferme aucun gate : la matrice des autres statuts, la replanification, l'approbation et les autres canaux restent à couvrir. La prochaine décision technique doit qualifier ce refus et déterminer si le déplacement d'un brouillon doit être modélisé comme capacité non disponible pour ce flux, sans inventer de contournement ni démarrer WP2 avant la décision GO/NO-GO P0.
+Cette tranche apporte une preuve partielle à `BUF-P0-06` pour create/edit/delete au statut draft et à `BUF-P0-07` pour le format Facebook `post`. Elle ne ferme aucun gate : la matrice des autres statuts, la replanification, l'approbation et les autres canaux restent à couvrir. WP1-I qualifie ce refus dans la section suivante, sans inventer de contournement ni démarrer WP2 avant la décision GO/NO-GO P0.
+
+### 5.8 Décision WP1-I — capacité bornée par statut
+
+La documentation Buffer officielle établit deux faits distincts :
+
+- [`saveToDraft=true`](https://developers.buffer.com/examples/create-draft-post.html) conserve le post au statut `draft` et ne le programme pas avant une action explicite ;
+- [`movePostInQueue`](https://developers.buffer.com/reference.html) est une mutation expérimentale décrite pour un post déjà présent dans la file, vers `top` ou `bottom`. Elle réordonne la file et ne revalide pas le contenu ; elle n'est pas une preuve de replanification.
+
+Le contrat [`EditPostInput`](https://developers.buffer.com/types/EditPostInput.html) permet séparément de conserver un post en brouillon avec `saveToDraft=true`, ou de modifier son mode et sa date. Ces opérations ne doivent donc pas être fusionnées sous une capacité générique « déplacer/replanifier ».
+
+La décision WP1-I est volontairement bornée :
+
+- le résultat réel `VoidMutationError` reste `draft_move_rejected`, `ok=false`, définitif, non ambigu et non retryable pour cet appel ;
+- la seule frontière négative observée est `Facebook Page + status=draft + position=bottom` ; le message distant n'étant pas conservé et le type d'erreur n'exposant aucun code métier structuré, aucune cause plus précise n'est affirmée ;
+- le produit ne doit pas proposer un réordonnancement de file à un post encore `draft` ; les capacités devront être évaluées par statut, opération et canal dans le futur modèle WP2 ;
+- le même tuple ne doit pas être rejoué sans nouvel élément contractuel et nouvelle autorisation ; aucune mutation distante n'est exécutée par WP1-I ;
+- la branche de succès du harnais reste nécessaire pour détecter une évolution du contrat et pour la future matrice des posts réellement en file. Elle est couverte et n'est pas du code mort.
+
+| Opération | Statut/cible observé | Verdict WP1-I | Portée restante |
+| --- | --- | --- | --- |
+| Créer un brouillon | Facebook Page, `post`, `draft` | Succès réel confirmé | Autres formats, canaux et statuts |
+| Modifier un brouillon | Facebook Page, `post`, `draft` | Succès réel confirmé avec metadata exacte | Replanification, approbation et autres statuts |
+| Déplacer vers `bottom` | Facebook Page, `post`, `draft` | Refus typé observé ; frontière négative provisoire | Post réellement en file, `top`, autres canaux |
+| Supprimer et vérifier | Facebook Page, `post`, `draft` | Succès réel et `NOT_FOUND` confirmé | Suppression par autres statuts |
+| Replanifier | Non testé | Inconnu | Matrice complète requise |
+
+Le prochain contrat probatoire doit isoler un post réellement en file d'attente. Il ne sera exécutable qu'avec un canal de test empêchant matériellement une publication accidentelle — par exemple une file dédiée et maîtrisée — ainsi qu'un préflight de créneau, une suppression garantie et une autorisation distincte. Tant que ces préconditions ne sont pas réunies, `BUF-P0-06` et `BUF-P0-07` restent ouverts et WP2 ne démarre pas.
 
 ## 6. Systèmes de référence et invariants
 
@@ -1588,6 +1617,7 @@ Toute nouvelle modification Pulse doit respecter :
 | ADR-PULSE-007 | Polling tant qu’aucun webhook n’est confirmé | À valider P0 | BUF-P0-03 | Backend | — |
 | ADR-PULSE-008 | Analytics avancés hors MVP | Acceptée | Contrat public Buffer | Produit | 2026-08-26 |
 | ADR-PULSE-009 | WP0-S se déploie atomiquement sous maintenance ; le rolling exige un pont en trois phases | Acceptée pour le lot courant | Gate 0.1 et EV-PULSE-006 | DevOps | 2026-08-27 |
+| ADR-PULSE-010 | Les capacités Buffer sont bornées par statut/opération/canal ; `move@draft/bottom` reste une frontière négative provisoire et ne vaut ni replanification ni incapacité globale | Acceptée pour WP1 ; à reconfirmer sur un post réellement en file | WP1-I, BUF-P0-06/07 | Backend + produit | 2026-08-27 |
 
 ## 22. Conclusion
 
