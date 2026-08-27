@@ -1,6 +1,6 @@
 # Malikia Pulse — avancement visuel
 
-**État au 27 août 2026 : `BLOCKED_P0`**
+**État au 27 août 2026 : `GO_WP2_CONDITIONAL_LOCAL_ONLY` · `P0_GATES_OPEN` · `NO_GO_REMOTE/PILOT/PRODUCTION`**
 
 ```mermaid
 flowchart LR
@@ -21,22 +21,27 @@ flowchart LR
         D0 --> D1A --> D1B --> D1C --> D1D --> D1E --> D1F --> D1G --> D1H --> D1I --> DQ
     end
 
-    subgraph TODO["⏳ RESTE À FAIRE"]
+    subgraph CONDITIONAL["🟠 AUTORISÉ SOUS CONDITIONS"]
+        direction TB
+        C2["WP2 — Fondation locale<br/>Contrats, DTO, fake et erreurs<br/>désactivés, réversibles, zéro trafic Buffer"]
+    end
+
+    subgraph TODO["⏳ RESTE À FAIRE / GATES DISTANTS"]
         direction TB
         T0["Fin WP0<br/>Répétition MySQL, approbation opérationnelle<br/>et déploiement atomique"]
-        T1["Fin WP1<br/>Prouver replanification et autres statuts/canaux,<br/>puis statuer sur BUF-P0-01 à 10"]
-        T2["WP2 — Fondation<br/>Migrations, client Buffer, gateway,<br/>fake, DTO et gestion des erreurs"]
+        T1["Fin WP1 / BUF-P0<br/>Prouver replanification, accès, quotas,<br/>médias, juridique et modèle commercial"]
         T3["WP3 — Connexion et canaux<br/>OAuth Buffer, refresh, organisations,<br/>synchronisation et capacités"]
         T4["WP4 — Livraison fiable<br/>Outbox, quotas, médias,<br/>soumission et réconciliation"]
         T5["WP5 — Expérience Buffer<br/>Six surfaces, composeur scindé,<br/>agenda, récupération et E2E"]
         T6["WP6 — Pilote et migration<br/>Mapping, shadow, canary,<br/>drain et rollback"]
         T7["WP7 — Retrait du direct<br/>Supprimer routes, providers,<br/>configuration et secrets legacy"]
 
-        T0 --> T2
-        T1 --> T2
-        T2 --> T3 --> T4 --> T5 --> T6 --> T7
+        T1 --> T3
+        T3 --> T4 --> T5 --> T6 --> T7
     end
 
     DQ -. prochaine étape .-> T0
     DQ -. prochaine étape .-> T1
+    DQ --> C2
+    C2 -. après GO distant .-> T3
 ```
