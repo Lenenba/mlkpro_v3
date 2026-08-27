@@ -1,6 +1,6 @@
 # Malikia Pulse — avancement visuel
 
-**État au 27 août 2026 : `GO_WP2_CONDITIONAL_LOCAL_ONLY` · `P0_GATES_OPEN` · `NO_GO_REMOTE/PILOT/PRODUCTION`**
+**État au 27 août 2026 : `WP2A_LOCAL_VALIDATED` · `P0_GATES_OPEN` · `NO_GO_BUFFER_RUNTIME/PILOT/PRODUCTION`**
 
 ```mermaid
 flowchart LR
@@ -16,32 +16,39 @@ flowchart LR
         D1G["WP1-G — Édition durcie<br/>Metadata exacte, ambiguïtés<br/>et reprise couvertes localement"]
         D1H["WP1-H — Preuve edit réelle<br/>Create/edit/delete confirmés,<br/>move draft refusé proprement"]
         D1I["WP1-I — Capacité par statut<br/>move@draft = frontière négative<br/>provisoire, typée et non retryable"]
-        DQ["Hygiène du code<br/>Audit WP1-I répété,<br/>aucun nouveau code mort démontré"]
+        DQ["Hygiène du code<br/>Statut spéculatif retiré,<br/>aucun code mort restant démontré"]
+        D2["WP2-A — Contrat/fake local<br/>Port et DTO/résultat text-only,<br/>fake déterministe, 9 tests verts"]
 
-        D0 --> D1A --> D1B --> D1C --> D1D --> D1E --> D1F --> D1G --> D1H --> D1I --> DQ
-    end
-
-    subgraph CONDITIONAL["🟠 AUTORISÉ SOUS CONDITIONS"]
-        direction TB
-        C2["WP2 — Fondation locale<br/>Contrats, DTO, fake et erreurs<br/>désactivés, réversibles, zéro trafic Buffer"]
+        D0 --> D1A --> D1B --> D1C --> D1D --> D1E --> D1F --> D1G --> D1H --> D1I --> DQ --> D2
     end
 
     subgraph TODO["⏳ RESTE À FAIRE / GATES DISTANTS"]
         direction TB
         T0["Fin WP0<br/>Répétition MySQL, approbation opérationnelle<br/>et déploiement atomique"]
-        T1["Fin WP1 / BUF-P0<br/>Prouver replanification, accès, quotas,<br/>médias, juridique et modèle commercial"]
+        T1["Fin WP1 / preuves BUF-P0<br/>Prouver replanification, accès, quotas,<br/>médias, juridique et modèle commercial"]
+        GR["Gate runtime Buffer<br/>Webhook ou polling accepté,<br/>corrélation/idempotence et P0 applicables"]
+        GP["Gate pilote / production<br/>Médias, juridique, capacité,<br/>modèle commercial et canary"]
+        T2B["WP2-B — Fondation de données<br/>Migrations et backfill après<br/>décision BUF-P0-10"]
+        T2C["WP2-C — Transport Buffer<br/>Client HTTP, mapper GraphQL<br/>et gateway concret"]
         T3["WP3 — Connexion et canaux<br/>OAuth Buffer, refresh, organisations,<br/>synchronisation et capacités"]
         T4["WP4 — Livraison fiable<br/>Outbox, quotas, médias,<br/>soumission et réconciliation"]
         T5["WP5 — Expérience Buffer<br/>Six surfaces, composeur scindé,<br/>agenda, récupération et E2E"]
         T6["WP6 — Pilote et migration<br/>Mapping, shadow, canary,<br/>drain et rollback"]
         T7["WP7 — Retrait du direct<br/>Supprimer routes, providers,<br/>configuration et secrets legacy"]
 
-        T1 --> T3
+        T1 --> GR
+        T1 --> GP
+        T1 -. décision P0-10 .-> GR
+        GR --> T2C
+        T2B --> T3
+        T2C --> T3
         T3 --> T4 --> T5 --> T6 --> T7
+        GP --> T6
     end
 
-    DQ -. prochaine étape .-> T0
-    DQ -. prochaine étape .-> T1
-    DQ --> C2
-    C2 -. après GO distant .-> T3
+    D2 -. prochaine étape .-> T0
+    D2 -. prochaines preuves .-> T1
+    D2 -. prérequis local .-> T2B
+    D2 -. prérequis local .-> T2C
+    T1 -. décision P0-10 .-> T2B
 ```
