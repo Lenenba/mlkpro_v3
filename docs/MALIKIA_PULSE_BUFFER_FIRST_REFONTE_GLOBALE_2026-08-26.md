@@ -2,13 +2,13 @@
 
 Date de cadrage : 2026-08-26
 
-Révision : 30 — décision de capacité WP1-I qualifiée localement
+Révision : 31 — checkpoint WP1-I publié et vérifié
 
 Baseline auditée : branche develop, commit a54169d3d096
 
 Branche de travail active : `feature/pulse-buffer-refonte`, créée depuis `develop@a54169d3d096`
 
-Branche distante : `origin/feature/pulse-buffer-refonte`, checkpoint probatoire WP1-H `5ffcc685cb3e`
+Branche distante : `origin/feature/pulse-buffer-refonte`, checkpoint de décision WP1-I `c2d071a0948e`
 
 Statut documentaire : complet — référence active
 
@@ -62,6 +62,7 @@ Ce journal est mis à jour à chaque étape de la refonte. Une étape n’est d�
 | EV-PULSE-038 | 2026-08-27 | Publication et vérification distante WP1-H | La preuve distante, la vue visuelle, le statut documentaire et l'index sont publiés uniquement sur la branche feature. GitHub confirme le commit probatoire complet, exactement quatre fichiers et un écart d'un commit depuis le checkpoint WP1-F/WP1-G. Nightwatch ne signale aucun incident ouvert ; `develop` et `main` restent inchangées. | GitHub : `5ffcc685cb3e6dcfe29c97231894b3ae9a0d78fe`, comparaison `ahead 1 / behind 0`, 4 fichiers ; Nightwatch : 0 incident ouvert | Checkpoint WP1-H publié ; branche feature prête pour la prochaine tranche P0 |
 | EV-PULSE-039 | 2026-08-27 | WP1-I — qualification de `move@draft` | La documentation officielle distingue le brouillon, non programmé tant qu'il n'est pas explicitement planifié, du post réellement présent dans une file. `movePostInQueue` est une opération expérimentale, limitée par son contrat aux posts en file. Croisée avec l'unique réponse réelle HTTP 200 `VoidMutationError`, cette distinction qualifie le refus comme frontière de capacité négative provisoire pour le seul tuple observé : Page Facebook sélectionnée, statut `draft`, position `bottom`. Le harnais conserve donc `draft_move_rejected`, `ok=false`, zéro retry et zéro fallback ; il ne généralise pas le refus au canal, aux autres statuts, à `top` ou à Buffer entier. | Documentation Buffer officielle `Create Draft Post`, `EditPostInput` et référence `movePostInQueue` revalidée ; Graphify relie mutation, normalizer, test et gates ; deux audits indépendants convergents | Décision locale acquise ; preuves partielles BUF-P0-06/07 ; tous les gates restent ouverts et WP2 bloqué |
 | EV-PULSE-040 | 2026-08-27 | Validation et hygiène WP1-I | Le contrat existant reste inchangé et toutes ses branches de move sont conservées : le refus `VoidMutationError` est vivant en réel, tandis que le succès, les réponses ambiguës et les autres erreurs typées restent couverts pour détecter une dérive future. Deux audits indépendants ne démontrent aucun nouvel import, symbole, test ou chemin supprimable ; aucune suppression spéculative n'est effectuée. La tranche ne modifie aucun fichier PHP et n'exécute aucune mutation Buffer. | Buffer ciblé 168/168 ; Node complet 365/365 ; `node --check`, JSON, index de 232 documents et `git diff --check` verts ; Graphify actualisé ; Nightwatch : 0 incident ouvert | Décision et documentation prêtes à committer uniquement sur la branche feature ; zéro nouveau code mort démontré |
+| EV-PULSE-041 | 2026-08-27 | Publication et vérification distante WP1-I | La décision de capacité, la matrice P0, l'ADR, la vue visuelle, le statut documentaire et l'index sont publiés uniquement sur la branche feature. GitHub confirme le checkpoint complet, exactement quatre fichiers et un écart d'un commit depuis WP1-H. Nightwatch ne signale aucun incident ouvert ; `develop` et `main` restent inchangées. | GitHub : `c2d071a0948ef93818a93cdbd9f1425d2507abbe`, comparaison `ahead 1 / behind 0`, 4 fichiers ; Nightwatch : 0 incident ouvert | Checkpoint WP1-I publié ; branche feature prête pour la préparation sûre d'un essai sur post réellement en file |
 
 ### 0.1 Gate de déploiement WP0-S
 
