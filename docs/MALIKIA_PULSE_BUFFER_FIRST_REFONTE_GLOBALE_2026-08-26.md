@@ -2,7 +2,7 @@
 
 Date de cadrage : 2026-08-26
 
-Révision : 6 — checkpoint de la branche dédiée Pulse/Buffer
+Révision : 11 — gate final du checkpoint WP1-A
 
 Baseline auditée : branche develop, commit a54169d3d096
 
@@ -10,7 +10,7 @@ Branche de travail active : `feature/pulse-buffer-refonte`, créée depuis `deve
 
 Statut documentaire : complet — référence active
 
-Statut de livraison : **WP0/WP0-S validés localement — gate d’indexation vert — gate de déploiement ouvert — WP1 en cours de revalidation**
+Statut de livraison : **WP0/WP0-S validés localement — gate d’indexation vert — gate de déploiement ouvert — harness WP1-A validé localement, preuves authentifiées toujours requises**
 
 Statut de décision : **BLOCKED_P0**
 
@@ -31,6 +31,10 @@ Ce journal est mis à jour à chaque étape de la refonte. Une étape n’est d�
 | EV-PULSE-009 | 2026-08-27 | Revue finale contradictoire | Trois relectures indépendantes identifient un écrasement possible du claim OAuth par un modèle obsolète, la récupération UI impossible après expiration du claim, un redispatch de programmation, deux handlers UI incohérents et des formulations documentaires trop absolues. Les corrections utilisent un verrou DB frais pour relancer OAuth, exposent l’activité réelle du claim, bloquent la double programmation et alignent tous les handlers concernés. | Revue backend, frontend et documentaire multi-agent ; 32 tests backend ciblés / 247 assertions ; 5 tests Node ciblés ; suite intégrée EV-PULSE-007 | Corrections et validation intégrée terminées |
 | EV-PULSE-010 | 2026-08-27 | Gate PHP obligatoire | Tous les fichiers PHP du lot, y compris les ajouts et migrations, sont complètement indexés avant le contrôle de format. Le garde-fou du dépôt sélectionne 22 fichiers depuis le merge-base `origin/develop` et Pint ne produit aucune correction. | `composer qa:format` : PASS, 22/22 fichiers ; aucun fichier PHP partiellement indexé | Terminé |
 | EV-PULSE-011 | 2026-08-27 | Isolation de la refonte | Le lot WP0/WP0-S validé est déplacé sans perte depuis `develop` vers une branche dédiée afin de poursuivre les essais et la refonte sans exposer la branche d’intégration aux travaux intermédiaires. Les 31 fichiers restent complètement indexés et le présent lot constitue le checkpoint initial de la branche. Aucune branche distante n’est créée à cette étape. | Branche locale `feature/pulse-buffer-refonte` créée depuis `develop@a54169d3d096` ; index Git conservé ; absence de fichier non indexé | Terminé |
+| EV-PULSE-012 | 2026-08-27 | Régression complète de branche | La suite PHP complète confirme l’absence de régression Pulse. Deux échecs déterministes hors périmètre subsistent depuis la baseline : `ProductSalesKpiTest` appelle la route inexistante `service.show` et `SavedSegmentUiPhaseThreeTest` attend 200 mais reçoit 403. Les tests et les routes/contrôleurs concernés sont inchangés entre `develop` et le checkpoint Pulse ; ils ne sont pas corrigés dans cette branche sans élargissement explicite du scope. | Suite complète : 1 613 tests verts / 19 323 assertions, 2 échecs ; relance isolée : 11 tests verts / 78 assertions, mêmes 2 échecs ; `git diff develop...HEAD` limité aux 31 fichiers Pulse | Pulse vert ; gate global bloqué par 2 défauts baseline hors scope |
+| EV-PULSE-013 | 2026-08-27 | WP1-A — harness probatoire read-only | Un spike Node isolé prépare la collecte de preuves authentifiées sans démarrer le client de production WP2. Il ne contient que les requêtes publiques `account` et `channels`, exige un environnement explicitement local, lit le token uniquement depuis l’environnement, interdit tout document de mutation, ne persiste rien et n’effectue aucun retry. Les messages distants sont hashés après masquage et toute occurrence exacte du token est masquée dans l’enveloppe. Les trois politiques de quota sont parsées, appariées par label et validées sur les périodes 900/86 400/2 592 000 secondes sans figer les quotas du plan. Aucun appel Buffer réel n’est exécuté dans cette étape. | 20 tests Node ciblés : contrats publics et nullabilité, payloads et `errors` fail-closed, quotas manquants/dupliqués/désalignés/malformés et plan-dépendants, HTTP 200/401/429, timeout réellement aborté, flux > 1 Mio, environnements, arguments et masquage global ; suite Node complète : 217/217 | Harness validé localement ; aucun BUF-P0 fermé |
+| EV-PULSE-014 | 2026-08-27 | Validation intégrée WP1-A | Trois relectures indépendantes couvrent le contrat Buffer public, la sécurité de la sonde et la valeur des tests. Les constats reproduits ont été fermés : aucune valeur distante ne peut réémettre exactement le token, une clé GraphQL `errors` présente doit être une liste non vide valide, les nullabilités suivent le schéma public, le corps est borné en flux et les trois quotas cohérents sont obligatoires. Le graphe du dépôt inclut désormais le harness et ses relations sans démarrer WP2. | Revue finale contractuelle sans blocant ; revue sécurité sans blocant, puis deux durcissements complémentaires couverts par tests ; 20/20 ciblés, 217/217 Node, build Vite vert, budgets frontend verts, index docs vert ; Graphify : 31 979 nœuds / 66 156 arêtes / 1 769 communautés | Prêt pour le gate Git/PHP et le checkpoint de branche |
+| EV-PULSE-015 | 2026-08-27 | Gate final du checkpoint WP1-A | Les six fichiers du lot WP1-A sont complètement indexés sans inclure de credential ni de sortie Buffer. Le contrôle PHP obligatoire réinspecte également les 22 fichiers PHP déjà commités sur la branche depuis `origin/develop`; aucun fichier PHP sale, partiellement indexé ou supprimé hors index n’est présent. | `composer qa:format` : PASS 22/22 ; `vendor/bin/pint --dirty` : PASS 0 fichier sale ; `git diff --check` et `git diff --cached --check` : PASS | Prêt à commiter et pousser uniquement `feature/pulse-buffer-refonte` |
 
 ### 0.1 Gate de déploiement WP0-S
 
@@ -348,6 +352,15 @@ Cette formulation ne signifie pas que Buffer ne possède pas ces capacités. Ell
 
 Une clé locale protège Pulse contre ses propres doubles traitements. Elle ne garantit pas un exactly-once distant si Buffer a accepté la publication avant une coupure de réponse.
 
+### 4.3 Contradictions documentaires à mesurer au runtime
+
+Deux formulations officielles ne doivent pas être résolues par hypothèse :
+
+- le guide d’erreurs indique que les erreurs GraphQL utilisent HTTP 200 ;
+- le guide des quotas documente explicitement HTTP 429 avec `Retry-After` et `extensions.window`.
+
+Le harness WP1-A conserve donc simultanément le statut HTTP, le tableau `errors`, `Retry-After`, les valeurs répétées de `RateLimit` et de `RateLimit-Policy`, ainsi qu’un identifiant de requête lorsqu’il existe. Aucun statut de transport n’est déduit du seul corps GraphQL.
+
 ## 5. Registre des décisions P0
 
 Toutes les lignes sont bloquantes tant qu’aucune preuve n’est attachée.
@@ -364,6 +377,34 @@ Toutes les lignes sont bloquantes tant qu’aucune preuve n’est attachée.
 | BUF-P0-08 | URL média stable et cycle de vie | Spike avec publication future et suppression différée | Backend + sécurité | Ouvert |
 | BUF-P0-09 | Usage SaaS, DPA, support et incident | Validation juridique et fournisseur | Juridique + sécurité | Ouvert |
 | BUF-P0-10 | Modèle commercial compte client | Parcours, coûts et prérequis validés | Produit | Ouvert |
+
+### 5.1 Harness probatoire WP1-A
+
+Le harness temporaire [wp1-read-only-probe.mjs](../scripts/spikes/buffer/wp1-read-only-probe.mjs) reste hors du runtime Laravel et ne constitue ni le client GraphQL, ni le gateway, ni le fake Buffer prévus en WP2.
+
+Garde-fous :
+
+- endpoint figé à `https://api.buffer.com` et redirections refusées ;
+- environnement obligatoire et limité à `local`, `development`, `test` ou `testing` dans `APP_ENV`/`NODE_ENV` ; toute valeur de production, staging ou inconnue est refusée ;
+- activation explicite par `BUFFER_WP1_PROBE_ENABLED=true` ;
+- token lu depuis `BUFFER_WP1_PROBE_ACCESS_TOKEN`, jamais depuis un argument CLI ;
+- timeout borné entre 1 et 30 secondes ;
+- une seule requête par exécution, sans retry ;
+- réponse lue en flux et bornée à 1 Mio ;
+- messages d’erreur hashés et masquage exact du token sur tous les champs distants normalisés ;
+- trois périodes de quota distinctes exigées et appariées entre `RateLimit` et `RateLimit-Policy` par leur label et leur `w` ;
+- aucune mutation, persistance, tâche planifiée ou route web ;
+- sortie brute considérée éphémère et interdite de commit.
+
+Parcours opérateur lorsque des credentials de spike seront disponibles :
+
+1. utiliser Node.js 20.6 ou plus récent et placer les variables WP1 uniquement dans le `.env` local non versionné ;
+2. exécuter `npm run pulse:buffer:probe` pour relever le compte, les organisations, le client connecté, les scopes et les headers de quota ;
+3. exécuter `npm run pulse:buffer:probe -- --organization=<id>` séparément pour chaque organisation autorisée ;
+4. pseudonymiser la preuve avant d’en reporter le résumé dans ce journal ;
+5. laisser tous les BUF-P0 ouverts tant que les rôles, mutations, timeouts ambigus, quotas inter-tenants, médias, aspects juridiques et modèle commercial ne sont pas démontrés.
+
+Les tests du harness utilisent uniquement des réponses simulées et bloquent toute requête inattendue. Ils valident le format de la sonde, pas le comportement réel du client OAuth Malikia chez Buffer.
 
 ## 6. Systèmes de référence et invariants
 
