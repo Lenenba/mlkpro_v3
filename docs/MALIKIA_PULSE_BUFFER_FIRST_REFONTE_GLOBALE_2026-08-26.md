@@ -2,7 +2,7 @@
 
 Date de cadrage : 2026-08-26
 
-Révision : 12 — branche distante publiée, collecte authentifiée en attente
+Révision : 13 — premières preuves Buffer authentifiées en lecture seule
 
 Baseline auditée : branche develop, commit a54169d3d096
 
@@ -12,7 +12,7 @@ Branche distante : `origin/feature/pulse-buffer-refonte`, checkpoint `2514561f81
 
 Statut documentaire : complet — référence active
 
-Statut de livraison : **WP0/WP0-S validés localement — gate d’indexation vert — gate de déploiement ouvert — harness WP1-A validé localement, preuves authentifiées toujours requises**
+Statut de livraison : **WP0/WP0-S validés localement — gate d’indexation vert — gate de déploiement ouvert — WP1-A authentifié en lecture seule, preuves multi-organisation, mutations et défaillances toujours requises**
 
 Statut de décision : **BLOCKED_P0**
 
@@ -38,6 +38,7 @@ Ce journal est mis à jour à chaque étape de la refonte. Une étape n’est d�
 | EV-PULSE-014 | 2026-08-27 | Validation intégrée WP1-A | Trois relectures indépendantes couvrent le contrat Buffer public, la sécurité de la sonde et la valeur des tests. Les constats reproduits ont été fermés : aucune valeur distante ne peut réémettre exactement le token, une clé GraphQL `errors` présente doit être une liste non vide valide, les nullabilités suivent le schéma public, le corps est borné en flux et les trois quotas cohérents sont obligatoires. Le graphe du dépôt inclut désormais le harness et ses relations sans démarrer WP2. | Revue finale contractuelle sans blocant ; revue sécurité sans blocant, puis deux durcissements complémentaires couverts par tests ; 20/20 ciblés, 217/217 Node, build Vite vert, budgets frontend verts, index docs vert ; Graphify : 31 979 nœuds / 66 156 arêtes / 1 769 communautés | Prêt pour le gate Git/PHP et le checkpoint de branche |
 | EV-PULSE-015 | 2026-08-27 | Gate final du checkpoint WP1-A | Les six fichiers du lot WP1-A sont complètement indexés sans inclure de credential ni de sortie Buffer. Le contrôle PHP obligatoire réinspecte également les 22 fichiers PHP déjà commités sur la branche depuis `origin/develop`; aucun fichier PHP sale, partiellement indexé ou supprimé hors index n’est présent. | `composer qa:format` : PASS 22/22 ; `vendor/bin/pint --dirty` : PASS 0 fichier sale ; `git diff --check` et `git diff --cached --check` : PASS | Prêt à commiter et pousser uniquement `feature/pulse-buffer-refonte` |
 | EV-PULSE-016 | 2026-08-27 | Publication de la branche et gate d’accès WP1 | Les deux checkpoints sont publiés sur la branche distante dédiée sans modifier `develop` ni `main`. GitHub confirme la branche et le SHA de tête ; le suivi local/distant est strictement synchronisé. Nightwatch ne signale aucun incident ouvert sur `Malikia pro dev`. La vérification locale, limitée à des booléens sans afficher de secret, confirme que la sonde est désactivée et qu’aucun token WP1 n’est configuré ; aucun appel Buffer réel n’est donc tenté. | GitHub : branche `feature/pulse-buffer-refonte`, tête `2514561f81a89130fe0e6a796cc11ed841a02643` ; Git `0/0` ; Nightwatch : 0 incident ouvert ; `BUFFER_WP1_PROBE_ENABLED=false`, token absent | Branche publiée ; collecte authentifiée et tous les BUF-P0 toujours en attente |
+| EV-PULSE-017 | 2026-08-27 | Premières preuves authentifiées Buffer | Deux exécutions séparées du harness interrogent réellement `account`, puis `channels` pour l’unique organisation visible. Les deux réponses sont HTTP 200 sans erreur GraphQL. Le compte expose une organisation, aucun client connecté observable et trois canaux sains : Instagram business, LinkedIn page et Facebook page. Les permissions visibles couvrent la publication sur les trois réseaux, mais elles ne prouvent aucune mutation Buffer. Les trois fenêtres de quota décrémentent d’une unité entre les deux appels sous la même partition opaque. Aucun identifiant, nom de canal, request ID, partition key, token ou corps brut n’est conservé dans le dépôt. | `account` : succès, ~559 ms ; `channels` : succès, ~255 ms ; quotas observés : 100/15 min, 250/jour, 3 000/30 jours ; compteurs 99→98, 249→248, 2 999→2 998 ; 1 organisation / 3 canaux | Preuve partielle BUF-P0-01 et BUF-P0-02 ; tous les gates restent ouverts |
 
 ### 0.1 Gate de déploiement WP0-S
 
@@ -408,6 +409,30 @@ Parcours opérateur lorsque des credentials de spike seront disponibles :
 5. laisser tous les BUF-P0 ouverts tant que les rôles, mutations, timeouts ambigus, quotas inter-tenants, médias, aspects juridiques et modèle commercial ne sont pas démontrés.
 
 Les tests du harness utilisent uniquement des réponses simulées et bloquent toute requête inattendue. Ils valident le format de la sonde, pas le comportement réel du client OAuth Malikia chez Buffer.
+
+### 5.2 Preuve authentifiée WP1-A — résumé pseudonymisé
+
+La collecte réelle du 2026-08-27 utilise deux requêtes GraphQL séparées et strictement read-only. Aucun fichier de réponse n’est créé.
+
+Constats observés :
+
+- `account` répond HTTP 200 sans erreur GraphQL et expose une seule organisation pseudonymisée `ORG-01` ;
+- `connectedApps` est vide, donc le client OAuth et ses scopes propres ne sont pas observables par cette lecture ;
+- `channels` répond HTTP 200 sans erreur GraphQL et expose trois canaux pseudonymisés : Instagram business, LinkedIn page et Facebook page ;
+- les trois canaux sont connectés, non verrouillés, avec file active et timezone `America/Toronto` ;
+- les scopes réseau comprennent la publication Instagram, l’écriture sociale LinkedIn et la gestion des publications de page Facebook ;
+- les actions visibles comprennent la consultation de publication et la gestion des mises à jour/plannings, sans démontrer le nom ni le comportement d’une mutation GraphQL ;
+- les quotas réels sont 100 requêtes/15 minutes, 250/jour et 3 000/30 jours ; chaque appel consomme une unité dans chacune des trois fenêtres ;
+- la partition de quota opaque reste identique entre `account` et `channels` pour ce credential.
+
+Portée probatoire :
+
+- `BUF-P0-01` reçoit une preuve authentifiée partielle — une organisation et trois canaux visibles — mais reste ouvert car le critère exige deux organisations, plusieurs rôles et les scopes du client ;
+- `BUF-P0-02` reçoit une preuve authentifiée partielle — même partition et décrément partagé entre deux opérations — mais reste ouvert faute de test inter-tenant, de réponse écrite Buffer et de calcul de capacité ;
+- `BUF-P0-03` à `BUF-P0-10` ne sont pas avancés par ces lectures ;
+- aucun 429 réel, mutation, média, webhook, timeout ambigu, approbation distante ou cycle edit/delete n’est testé.
+
+Les identifiants de compte, organisation et canal, les noms, request IDs, partition keys et valeurs de token restent volontairement hors de ce document et hors de Git.
 
 ## 6. Systèmes de référence et invariants
 
