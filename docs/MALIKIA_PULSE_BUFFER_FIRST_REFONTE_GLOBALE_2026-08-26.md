@@ -2,13 +2,13 @@
 
 Date de cadrage : 2026-08-26
 
-Révision : 26 — preuve distante WP1-F et préparation locale WP1-G
+Révision : 27 — checkpoint WP1-F/WP1-G publié et vérifié
 
 Baseline auditée : branche develop, commit a54169d3d096
 
 Branche de travail active : `feature/pulse-buffer-refonte`, créée depuis `develop@a54169d3d096`
 
-Branche distante : `origin/feature/pulse-buffer-refonte`, checkpoint fonctionnel WP1-E `d08ee404cb0a`
+Branche distante : `origin/feature/pulse-buffer-refonte`, checkpoint fonctionnel WP1-F/WP1-G `a0cbad7aa51d`
 
 Statut documentaire : complet — référence active
 
@@ -56,6 +56,7 @@ Ce journal est mis à jour à chaque étape de la refonte. Une étape n’est d�
 | EV-PULSE-032 | 2026-08-27 | WP1-G — préparation locale edit Facebook | L'input edit est fermé sur l'ajout minimal `metadata.facebook.type=post`, sans modifier les autres variables ni les invariants draft. Les mutations dont l'issue peut être ambiguë — timeout, transport, réponse 5xx, JSON invalide, flux absent ou réponse surdimensionnée — sont classées inconnues sans retry. La reprise couvre le brouillon avant sa première édition ; create avec identifiant récupérable n'utilise cet identifiant que pour le cleanup ; inspect, delete et verify restent fail-closed. | Lifecycle 72/72, probe 96/96, combinés 168/168 ; Node complet 365/365 ; `node --check` ; Graphify incrémental ; aucune requête réseau | Préparé localement ; hypothèse edit non prouvée ; aucun nouvel essai distant autorisé |
 | EV-PULSE-033 | 2026-08-27 | Hygiène — retrait de code mort | L'audit des imports, appels directs, callables, usages réflexifs, routes, payloads, tests, documentation et relations Graphify ne démontre aucun élément mort dans les deux harnais Buffer. Une seule méthode historique du modèle social n'a jamais eu de consommateur : `SocialAccountConnection::allowedAuthMethods()`. Elle est retirée sans supprimer les constantes d'authentification toujours actives. Les providers, routes et configurations sociales directes restent nécessaires jusqu'à la bascule WP7. | Recherche dépôt et historique Git ; Graphify ; test de surface du modèle ; 37 tests sociaux / 340 assertions | Un seul élément inutile supprimé ; aucune suppression spéculative ; audit à répéter à chaque tranche |
 | EV-PULSE-034 | 2026-08-27 | Validation intégrée WP1-F/WP1-G | Le lot local, le retrait de code mort et les deux documents d'avancement passent les gates du dépôt. PHPStan nécessite uniquement son port local éphémère hors sandbox et termine sans erreur. Le graphe partagé est reconstruit après les changements. | Node 365/365 ; 37 tests PHP / 340 assertions ; PHPStan 901/901 ; `composer qa:format` 22/22 ; Pint 2/2 ; build Vite, budgets frontend et index de 232 documents verts ; Graphify 32 130 nœuds / 66 529 arêtes / 1 790 communautés | Prêt à indexer, committer et pousser uniquement sur la branche feature |
+| EV-PULSE-035 | 2026-08-27 | Publication et vérification distante WP1-F/WP1-G | Le checkpoint fonctionnel est publié uniquement sur la branche feature. GitHub confirme le SHA complet, les huit fichiers attendus et un écart d'un commit depuis le checkpoint WP1-E. Nightwatch ne signale aucun incident ouvert sur `Malikia pro dev`. `develop` et `main` restent inchangées. | GitHub : `a0cbad7aa51dd679b3813d3ae92cd5773c64bc33`, comparaison `ahead 1 / behind 0`, 8 fichiers ; Nightwatch : 0 incident ouvert | Checkpoint fonctionnel publié ; edit distant et move restent à prouver dans une future tranche autorisée |
 
 ### 0.1 Gate de déploiement WP0-S
 
