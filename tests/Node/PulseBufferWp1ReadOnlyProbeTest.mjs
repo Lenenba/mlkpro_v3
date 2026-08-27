@@ -27,18 +27,32 @@ const BUFFER_QUOTA_HEADERS = {
 };
 
 const INTROSPECTION_TYPE_KINDS = new Map([
+    ['AnnotationInputFacebook', 'INPUT_OBJECT'],
     ['AssetInput', 'INPUT_OBJECT'],
+    ['BlueskyPostMetadataInput', 'INPUT_OBJECT'],
     ['CreatePostInput', 'INPUT_OBJECT'],
     ['DeletePostInput', 'INPUT_OBJECT'],
     ['EditPostInput', 'INPUT_OBJECT'],
+    ['FacebookPostMetadataInput', 'INPUT_OBJECT'],
+    ['GoogleBusinessPostMetadataInput', 'INPUT_OBJECT'],
+    ['InstagramPostMetadataInput', 'INPUT_OBJECT'],
+    ['LinkedInPostMetadataInput', 'INPUT_OBJECT'],
+    ['LinkAttachmentInput', 'INPUT_OBJECT'],
+    ['MastodonPostMetadataInput', 'INPUT_OBJECT'],
     ['MovePostInQueueInput', 'INPUT_OBJECT'],
+    ['PinterestPostMetadataInput', 'INPUT_OBJECT'],
     ['PostInput', 'INPUT_OBJECT'],
     ['PostInputMetaData', 'INPUT_OBJECT'],
     ['PostsInput', 'INPUT_OBJECT'],
     ['PostApprovalChange', 'ENUM'],
+    ['PostTypeFacebook', 'ENUM'],
     ['QueuePosition', 'ENUM'],
     ['SchedulingType', 'ENUM'],
     ['ShareMode', 'ENUM'],
+    ['ThreadsPostMetadataInput', 'INPUT_OBJECT'],
+    ['TikTokPostMetadataInput', 'INPUT_OBJECT'],
+    ['TwitterPostMetadataInput', 'INPUT_OBJECT'],
+    ['YoutubePostMetadataInput', 'INPUT_OBJECT'],
     ['DeletePostPayload', 'UNION'],
     ['MovePostInQueuePayload', 'UNION'],
     ['PostActionPayload', 'UNION'],
@@ -156,6 +170,12 @@ function schemaPayload() {
                 ['tagIds', '[TagId!]'],
                 ['text', 'String'],
             ]),
+            facebookPostMetadataInput: inputContract('FacebookPostMetadataInput', [
+                ['annotations', '[AnnotationInputFacebook!]'],
+                ['firstComment', 'String'],
+                ['linkAttachment', 'LinkAttachmentInput'],
+                ['type', 'PostTypeFacebook!'],
+            ]),
             movePostInQueueInput: inputContract('MovePostInQueueInput', [
                 ['id', 'PostId!'],
                 ['position', 'QueuePosition!'],
@@ -200,6 +220,20 @@ function schemaPayload() {
                 'InvalidInputError',
             ]),
             postApprovalChange: enumContract('PostApprovalChange', ['request', 'revert']),
+            postInputMetaData: inputContract('PostInputMetaData', [
+                ['bluesky', 'BlueskyPostMetadataInput'],
+                ['facebook', 'FacebookPostMetadataInput'],
+                ['google', 'GoogleBusinessPostMetadataInput'],
+                ['instagram', 'InstagramPostMetadataInput'],
+                ['linkedin', 'LinkedInPostMetadataInput'],
+                ['mastodon', 'MastodonPostMetadataInput'],
+                ['pinterest', 'PinterestPostMetadataInput'],
+                ['threads', 'ThreadsPostMetadataInput'],
+                ['tiktok', 'TikTokPostMetadataInput'],
+                ['twitter', 'TwitterPostMetadataInput'],
+                ['youtube', 'YoutubePostMetadataInput'],
+            ]),
+            postTypeFacebook: enumContract('PostTypeFacebook', ['post', 'reel', 'story']),
             queuePosition: enumContract('QueuePosition', ['bottom', 'top']),
             postStatus: enumContract('PostStatus', [
                 'draft',
@@ -414,6 +448,16 @@ test('the schema probe sends one fixed introspection query and normalizes the mu
     assert.equal(result.ok, true);
     assert.equal(result.operation, 'schema');
     assert.equal(result.classification, 'success');
+    assert.equal(result.data.schema_contract.profile, 'full');
+    assert.deepEqual(
+        result.data.schema_contract.capabilities.facebook_create_metadata,
+        {
+            facebook_field: 'facebook:FacebookPostMetadataInput',
+            metadata_input: 'PostInputMetaData',
+            post_type_field: 'type:PostTypeFacebook!',
+            post_types: ['post', 'reel', 'story'],
+        },
+    );
     assert.deepEqual(result.quota.rate_limits, []);
     assert.deepEqual(result.quota.rate_limit_policies, []);
     assert.deepEqual(
@@ -467,14 +511,119 @@ test('the schema probe sends one fixed introspection query and normalizes the mu
         },
     );
     assert.deepEqual(
+        Object.fromEntries(
+            result.data.schema_contract.types.facebookPostMetadataInput.input_fields.map((field) => (
+                [field.name, { default: field.default_value, type: field.type }]
+            )),
+        ),
+        {
+            annotations: { default: null, type: '[AnnotationInputFacebook!]' },
+            firstComment: { default: null, type: 'String' },
+            linkAttachment: { default: null, type: 'LinkAttachmentInput' },
+            type: { default: null, type: 'PostTypeFacebook!' },
+        },
+    );
+    assert.equal(
+        result.data.schema_contract.types.postInputMetaData.input_fields
+            .find((field) => field.name === 'facebook')?.type,
+        'FacebookPostMetadataInput',
+    );
+    assert.deepEqual(
+        Object.fromEntries(
+            result.data.schema_contract.types.postInputMetaData.input_fields.map((field) => (
+                [field.name, { default: field.default_value, type: field.type }]
+            )),
+        ),
+        {
+            bluesky: { default: null, type: 'BlueskyPostMetadataInput' },
+            facebook: { default: null, type: 'FacebookPostMetadataInput' },
+            google: { default: null, type: 'GoogleBusinessPostMetadataInput' },
+            instagram: { default: null, type: 'InstagramPostMetadataInput' },
+            linkedin: { default: null, type: 'LinkedInPostMetadataInput' },
+            mastodon: { default: null, type: 'MastodonPostMetadataInput' },
+            pinterest: { default: null, type: 'PinterestPostMetadataInput' },
+            threads: { default: null, type: 'ThreadsPostMetadataInput' },
+            tiktok: { default: null, type: 'TikTokPostMetadataInput' },
+            twitter: { default: null, type: 'TwitterPostMetadataInput' },
+            youtube: { default: null, type: 'YoutubePostMetadataInput' },
+        },
+    );
+    assert.deepEqual(
+        result.data.schema_contract.types.postTypeFacebook.enum_values.map(
+            (enumValue) => enumValue.name,
+        ),
+        ['post', 'reel', 'story'],
+    );
+    assert.deepEqual(
         result.data.schema_contract.types.queuePosition.enum_values.map((enumValue) => enumValue.name),
         ['bottom', 'top'],
     );
     assert.equal(JSON.stringify(result).includes(ACCESS_TOKEN), false);
 });
 
+test('the cleanup schema profile ignores create metadata drift but keeps post and delete exact', async () => {
+    const payload = schemaPayload();
+    payload.data.postInputMetaData = null;
+    payload.data.facebookPostMetadataInput = null;
+    payload.data.postTypeFacebook = null;
+    payload.data.mutationRoot.fields = payload.data.mutationRoot.fields
+        .filter((field) => field.name !== 'createPost');
+
+    const result = await executeProbe({
+        accessToken: ACCESS_TOKEN,
+        schema: true,
+        schemaProfile: 'cleanup',
+        fetchImpl: async () => jsonResponse(payload),
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.operation, 'schema');
+    assert.equal(result.classification, 'success');
+    assert.equal(result.data.schema_contract.profile, 'cleanup');
+    assert.deepEqual(Object.keys(result.data.schema_contract.types), [
+        'deletePostInput',
+        'deletePostPayload',
+    ]);
+    assert.deepEqual(
+        result.data.schema_contract.capabilities.post_delete_cleanup,
+        {
+            delete_input: 'DeletePostInput!',
+            delete_payload: 'DeletePostPayload!',
+            delete_root_field: 'deletePost',
+            inspect_input: 'PostInput!',
+            inspect_output: 'Post!',
+            inspect_root_field: 'post',
+        },
+    );
+});
+
 test('the schema probe fails closed on incompatible removals and deprecations', async (t) => {
     const cases = [
+        ...['postInputMetaData', 'facebookPostMetadataInput', 'postTypeFacebook'].map((alias) => ({
+            name: `${alias} introspection type is absent`,
+            mutate(payload) {
+                payload.data[alias] = null;
+            },
+        })),
+        ...[
+            'bluesky',
+            'facebook',
+            'google',
+            'instagram',
+            'linkedin',
+            'mastodon',
+            'pinterest',
+            'threads',
+            'tiktok',
+            'twitter',
+            'youtube',
+        ].map((metadataField) => ({
+            name: `${metadataField} metadata entry removed`,
+            mutate(payload) {
+                payload.data.postInputMetaData.inputFields = payload.data.postInputMetaData.inputFields
+                    .filter((field) => field.name !== metadataField);
+            },
+        })),
         {
             name: 'required mutation removed',
             mutate(payload) {
@@ -503,6 +652,30 @@ test('the schema probe fails closed on incompatible removals and deprecations', 
                     .find((enumValue) => enumValue.name === 'shareNow');
                 shareNow.isDeprecated = true;
                 shareNow.deprecationReason = 'retired';
+            },
+        },
+        {
+            name: 'required Facebook post type removed',
+            mutate(payload) {
+                payload.data.facebookPostMetadataInput.inputFields = payload.data
+                    .facebookPostMetadataInput.inputFields
+                    .filter((field) => field.name !== 'type');
+            },
+        },
+        {
+            name: 'required Facebook enum value removed',
+            mutate(payload) {
+                payload.data.postTypeFacebook.enumValues = payload.data.postTypeFacebook.enumValues
+                    .filter((enumValue) => enumValue.name !== 'post');
+            },
+        },
+        {
+            name: 'required Facebook enum value deprecated',
+            mutate(payload) {
+                const post = payload.data.postTypeFacebook.enumValues
+                    .find((enumValue) => enumValue.name === 'post');
+                post.isDeprecated = true;
+                post.deprecationReason = 'retired';
             },
         },
         {
@@ -548,6 +721,21 @@ test('the schema probe distinguishes compatible additions from breaking required
             introspectionInput('futureOptional', 'String'),
             introspectionInput('futureDefaulted', 'Boolean!', 'false'),
         );
+        payload.data.facebookPostMetadataInput.inputFields.push(
+            introspectionInput('futureFacebookOptional', 'String'),
+            introspectionInput('futureFacebookDefaulted', 'Boolean!', 'false'),
+        );
+        payload.data.postInputMetaData.inputFields.push(
+            {
+                defaultValue: null,
+                name: 'futureNetwork',
+                type: {
+                    kind: 'INPUT_OBJECT',
+                    name: 'FutureNetworkPostMetadataInput',
+                    ofType: null,
+                },
+            },
+        );
         const createPost = payload.data.mutationRoot.fields
             .find((field) => field.name === 'createPost');
         createPost.args.push(
@@ -559,6 +747,11 @@ test('the schema probe distinguishes compatible additions from breaking required
             isDeprecated: false,
             name: 'futureMode',
         });
+        payload.data.postTypeFacebook.enumValues.push({
+            deprecationReason: null,
+            isDeprecated: false,
+            name: 'futureFacebookType',
+        });
         payload.data.postActionPayload.possibleTypes.push({ kind: 'OBJECT', name: 'FutureError' });
 
         const result = await executeProbe({
@@ -569,6 +762,10 @@ test('the schema probe distinguishes compatible additions from breaking required
 
         assert.equal(result.ok, true);
         assert.equal(result.classification, 'success');
+        assert.ok(
+            result.data.schema_contract.types.postTypeFacebook.enum_values
+                .some((enumValue) => enumValue.name === 'futureFacebookType'),
+        );
     });
 
     const breakingCases = [
@@ -581,9 +778,33 @@ test('the schema probe distinguishes compatible additions from breaking required
             },
         },
         {
+            name: 'Facebook post type loses non-null wrapper',
+            mutate(payload) {
+                const type = payload.data.facebookPostMetadataInput.inputFields
+                    .find((field) => field.name === 'type');
+                type.type = introspectionType('PostTypeFacebook');
+            },
+        },
+        {
+            name: 'Facebook metadata type changed',
+            mutate(payload) {
+                const facebook = payload.data.postInputMetaData.inputFields
+                    .find((field) => field.name === 'facebook');
+                facebook.type = introspectionType('String');
+            },
+        },
+        {
             name: 'new required input has no default',
             mutate(payload) {
                 payload.data.createPostInput.inputFields.push(
+                    introspectionInput('futureRequired', 'String!'),
+                );
+            },
+        },
+        {
+            name: 'new required Facebook metadata has no default',
+            mutate(payload) {
+                payload.data.facebookPostMetadataInput.inputFields.push(
                     introspectionInput('futureRequired', 'String!'),
                 );
             },
@@ -694,6 +915,38 @@ test('the schema probe rejects duplicate, malformed, or incoherent introspection
             mutate(payload) {
                 const post = payload.data.queryRoot.fields.find((field) => field.name === 'post');
                 post.args[0].type.ofType.kind = 'SCALAR';
+            },
+        },
+        {
+            name: 'Facebook metadata input is disguised as a scalar',
+            mutate(payload) {
+                const facebook = payload.data.postInputMetaData.inputFields
+                    .find((field) => field.name === 'facebook');
+                facebook.type.kind = 'SCALAR';
+            },
+        },
+        {
+            name: 'Facebook post type enum is disguised as a scalar',
+            mutate(payload) {
+                const type = payload.data.facebookPostMetadataInput.inputFields
+                    .find((field) => field.name === 'type');
+                type.type.ofType.kind = 'SCALAR';
+            },
+        },
+        {
+            name: 'Facebook annotation input is disguised as a scalar',
+            mutate(payload) {
+                const annotations = payload.data.facebookPostMetadataInput.inputFields
+                    .find((field) => field.name === 'annotations');
+                annotations.type.ofType.ofType.kind = 'SCALAR';
+            },
+        },
+        {
+            name: 'Facebook annotation item loses its non-null wrapper',
+            mutate(payload) {
+                const annotations = payload.data.facebookPostMetadataInput.inputFields
+                    .find((field) => field.name === 'annotations');
+                annotations.type.ofType = introspectionType('AnnotationInputFacebook');
             },
         },
         {
@@ -907,6 +1160,58 @@ test('the WP1 probe redaction marker never reintroduces a colliding token', asyn
             assert.equal(JSON.stringify(result).includes(collidingToken), false);
         });
     }
+});
+
+test('the WP1 probe redaction cannot recombine secret fragments around a replacement', async () => {
+    const collidingToken = 'RE';
+    const result = await executeProbe({
+        accessToken: collidingToken,
+        fetchImpl: async () => jsonResponse({
+            data: {
+                account: {
+                    id: 'account-1',
+                    name: 'RREE',
+                    organizations: [{ id: 'organization-1', name: 'Workspace' }],
+                    connectedApps: [],
+                },
+            },
+        }, 200, BUFFER_QUOTA_HEADERS),
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.data.account.name, 'R*E');
+    assert.equal(JSON.stringify(result).includes(collidingToken), false);
+});
+
+test('the schema probe redacts recombining fragments from defaults and deprecation reasons', async () => {
+    const collidingToken = 'RE';
+    const payload = schemaPayload();
+    payload.data.facebookPostMetadataInput.inputFields.push(
+        introspectionInput('futureOptional', 'String', '"RREE"'),
+    );
+    const futureMutation = introspectionField('futureMutation', {}, 'String');
+    futureMutation.isDeprecated = true;
+    futureMutation.deprecationReason = 'RREE';
+    payload.data.mutationRoot.fields.push(futureMutation);
+
+    const result = await executeProbe({
+        accessToken: collidingToken,
+        schema: true,
+        fetchImpl: async () => jsonResponse(payload),
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(
+        result.data.schema_contract.types.facebookPostMetadataInput.input_fields
+            .find((field) => field.name === 'futureOptional')?.default_value,
+        '"R*E"',
+    );
+    assert.equal(
+        result.data.schema_contract.mutation_fields
+            .find((field) => field.name === 'futureMutation')?.deprecation_reason,
+        'R*E',
+    );
+    assert.equal(JSON.stringify(result).includes(collidingToken), false);
 });
 
 test('the WP1 probe rejects incomplete success payloads instead of inventing channel state', async () => {
@@ -1260,6 +1565,19 @@ test('the WP1 probe validates direct execution environment and timeout before HT
         { environment: 'testing', timeoutMs: 5000, schema: 'yes', code: 'SCHEMA_FLAG_INVALID' },
         {
             environment: 'testing',
+            timeoutMs: 5000,
+            schema: true,
+            schemaProfile: 'unknown',
+            code: 'SCHEMA_PROFILE_INVALID',
+        },
+        {
+            environment: 'testing',
+            timeoutMs: 5000,
+            schemaProfile: 'cleanup',
+            code: 'ARGUMENT_COMBINATION_INVALID',
+        },
+        {
+            environment: 'testing',
             organizationId: 'organization-1',
             timeoutMs: 5000,
             schema: true,
@@ -1276,6 +1594,7 @@ test('the WP1 probe validates direct execution environment and timeout before HT
                 environment: testCase.environment,
                 organizationId: testCase.organizationId,
                 schema: testCase.schema,
+                schemaProfile: testCase.schemaProfile,
                 timeoutMs: testCase.timeoutMs,
                 fetchImpl: async () => {
                     requestCount += 1;

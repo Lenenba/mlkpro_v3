@@ -66,6 +66,15 @@ export const BUFFER_WP1_SCHEMA_QUERY = `query PulseBufferSchemaProbe {
   movePostInQueueInput: __type(name: "MovePostInQueueInput") {
     ...PulseBufferContractType
   }
+  postInputMetaData: __type(name: "PostInputMetaData") {
+    ...PulseBufferContractType
+  }
+  facebookPostMetadataInput: __type(name: "FacebookPostMetadataInput") {
+    ...PulseBufferContractType
+  }
+  postTypeFacebook: __type(name: "PostTypeFacebook") {
+    ...PulseBufferContractType
+  }
   postActionPayload: __type(name: "PostActionPayload") {
     ...PulseBufferContractType
   }
@@ -176,18 +185,32 @@ const BUFFER_OUTPUT_NAMED_TYPE_KINDS = new Set([
     'UNION',
 ]);
 const BUFFER_NAMED_TYPE_KIND_REQUIREMENTS = new Map([
+    ['AnnotationInputFacebook', 'INPUT_OBJECT'],
     ['AssetInput', 'INPUT_OBJECT'],
+    ['BlueskyPostMetadataInput', 'INPUT_OBJECT'],
     ['CreatePostInput', 'INPUT_OBJECT'],
     ['DeletePostInput', 'INPUT_OBJECT'],
     ['EditPostInput', 'INPUT_OBJECT'],
+    ['FacebookPostMetadataInput', 'INPUT_OBJECT'],
+    ['GoogleBusinessPostMetadataInput', 'INPUT_OBJECT'],
+    ['InstagramPostMetadataInput', 'INPUT_OBJECT'],
+    ['LinkedInPostMetadataInput', 'INPUT_OBJECT'],
+    ['LinkAttachmentInput', 'INPUT_OBJECT'],
+    ['MastodonPostMetadataInput', 'INPUT_OBJECT'],
     ['MovePostInQueueInput', 'INPUT_OBJECT'],
+    ['PinterestPostMetadataInput', 'INPUT_OBJECT'],
     ['PostInput', 'INPUT_OBJECT'],
     ['PostInputMetaData', 'INPUT_OBJECT'],
     ['PostsInput', 'INPUT_OBJECT'],
     ['PostApprovalChange', 'ENUM'],
+    ['PostTypeFacebook', 'ENUM'],
     ['QueuePosition', 'ENUM'],
     ['SchedulingType', 'ENUM'],
     ['ShareMode', 'ENUM'],
+    ['ThreadsPostMetadataInput', 'INPUT_OBJECT'],
+    ['TikTokPostMetadataInput', 'INPUT_OBJECT'],
+    ['TwitterPostMetadataInput', 'INPUT_OBJECT'],
+    ['YoutubePostMetadataInput', 'INPUT_OBJECT'],
     ['DeletePostPayload', 'UNION'],
     ['MovePostInQueuePayload', 'UNION'],
     ['PostActionPayload', 'UNION'],
@@ -258,6 +281,16 @@ const BUFFER_SCHEMA_REQUIREMENTS = {
             text: 'String',
         },
     },
+    facebookPostMetadataInput: {
+        kind: 'INPUT_OBJECT',
+        name: 'FacebookPostMetadataInput',
+        inputFields: {
+            annotations: '[AnnotationInputFacebook!]',
+            firstComment: 'String',
+            linkAttachment: 'LinkAttachmentInput',
+            type: 'PostTypeFacebook!',
+        },
+    },
     movePostInQueueInput: {
         kind: 'INPUT_OBJECT',
         name: 'MovePostInQueueInput',
@@ -285,6 +318,28 @@ const BUFFER_SCHEMA_REQUIREMENTS = {
         enumValues: ['request', 'revert'],
         kind: 'ENUM',
         name: 'PostApprovalChange',
+    },
+    postInputMetaData: {
+        kind: 'INPUT_OBJECT',
+        name: 'PostInputMetaData',
+        inputFields: {
+            bluesky: 'BlueskyPostMetadataInput',
+            facebook: 'FacebookPostMetadataInput',
+            google: 'GoogleBusinessPostMetadataInput',
+            instagram: 'InstagramPostMetadataInput',
+            linkedin: 'LinkedInPostMetadataInput',
+            mastodon: 'MastodonPostMetadataInput',
+            pinterest: 'PinterestPostMetadataInput',
+            threads: 'ThreadsPostMetadataInput',
+            tiktok: 'TikTokPostMetadataInput',
+            twitter: 'TwitterPostMetadataInput',
+            youtube: 'YoutubePostMetadataInput',
+        },
+    },
+    postTypeFacebook: {
+        enumValues: ['post', 'reel', 'story'],
+        kind: 'ENUM',
+        name: 'PostTypeFacebook',
     },
     queuePosition: {
         enumValues: ['bottom', 'top'],
@@ -321,6 +376,50 @@ const BUFFER_QUERY_FIELD_REQUIREMENTS = [
         output: 'PostsResults!',
     },
 ];
+const BUFFER_SCHEMA_PROFILES = {
+    cleanup: {
+        capabilities: {
+            post_delete_cleanup: {
+                delete_input: 'DeletePostInput!',
+                delete_payload: 'DeletePostPayload!',
+                delete_root_field: 'deletePost',
+                inspect_input: 'PostInput!',
+                inspect_output: 'Post!',
+                inspect_root_field: 'post',
+            },
+        },
+        mutationFields: BUFFER_MUTATION_FIELD_REQUIREMENTS
+            .filter((requirement) => requirement.name === 'deletePost'),
+        queryFields: BUFFER_QUERY_FIELD_REQUIREMENTS
+            .filter((requirement) => requirement.name === 'post'),
+        requirements: {
+            deletePostInput: BUFFER_SCHEMA_REQUIREMENTS.deletePostInput,
+            deletePostPayload: BUFFER_SCHEMA_REQUIREMENTS.deletePostPayload,
+        },
+    },
+    full: {
+        capabilities: {
+            facebook_create_metadata: {
+                facebook_field: 'facebook:FacebookPostMetadataInput',
+                metadata_input: 'PostInputMetaData',
+                post_type_field: 'type:PostTypeFacebook!',
+                post_types: ['post', 'reel', 'story'],
+            },
+            post_delete_cleanup: {
+                delete_input: 'DeletePostInput!',
+                delete_payload: 'DeletePostPayload!',
+                delete_root_field: 'deletePost',
+                inspect_input: 'PostInput!',
+                inspect_output: 'Post!',
+                inspect_root_field: 'post',
+            },
+        },
+        mutationFields: BUFFER_MUTATION_FIELD_REQUIREMENTS,
+        queryFields: BUFFER_QUERY_FIELD_REQUIREMENTS,
+        requirements: BUFFER_SCHEMA_REQUIREMENTS,
+    },
+};
+const BUFFER_SCHEMA_PROFILE_NAMES = new Set(Object.keys(BUFFER_SCHEMA_PROFILES));
 
 export class BufferWp1ProbeFailure extends Error {
     constructor(code) {
@@ -349,7 +448,19 @@ function graphqlName(value) {
 }
 
 function secretRedactionMarker(secret) {
-    return '[REDACTED]'.includes(secret) ? '' : '[REDACTED]';
+    return ['[REDACTED]', '[FILTERED]', '*', '']
+        .find((candidate) => !candidate.includes(secret)) ?? '';
+}
+
+function redactSecretFromString(value, secret) {
+    if (!value.includes(secret)) {
+        return value;
+    }
+
+    const marker = secretRedactionMarker(secret);
+    const redacted = value.split(secret).join(marker);
+
+    return redacted.includes(secret) ? marker : redacted;
 }
 
 function nullableBoolean(value) {
@@ -364,6 +475,16 @@ function requiredAccessToken(value) {
     }
 
     return token;
+}
+
+function normalizedSchemaProfile(value) {
+    const profile = nullableString(value);
+
+    if (profile === null || !BUFFER_SCHEMA_PROFILE_NAMES.has(profile)) {
+        fail('SCHEMA_PROFILE_INVALID');
+    }
+
+    return profile;
 }
 
 function normalizedOrganizationId(value) {
@@ -567,7 +688,7 @@ function normalizeGraphqlErrors(value, isPresent, secret) {
             code,
             window,
             message_sha256: createHash('sha256')
-                .update(message.split(secret).join(secretRedactionMarker(secret)))
+                .update(redactSecretFromString(message, secret))
                 .digest('hex'),
         };
     });
@@ -990,26 +1111,27 @@ function hasActiveEnumValues(enumValues, requiredValues) {
     ));
 }
 
-function normalizeSchemaContract(value) {
+function normalizeSchemaContract(value, profileName) {
     if (!isObject(value)) {
         return null;
     }
 
+    const profile = BUFFER_SCHEMA_PROFILES[profileName];
     const queryFields = normalizeRootType(value.queryRoot, 'Query');
     const mutationFields = normalizeRootType(value.mutationRoot, 'Mutation');
     if (queryFields === null
         || mutationFields === null
-        || !BUFFER_QUERY_FIELD_REQUIREMENTS.every((requirement) => (
+        || !profile.queryFields.every((requirement) => (
             hasCompatibleRootField(queryFields, requirement)
         ))
-        || !BUFFER_MUTATION_FIELD_REQUIREMENTS.every((requirement) => (
+        || !profile.mutationFields.every((requirement) => (
             hasCompatibleRootField(mutationFields, requirement)
         ))) {
         return null;
     }
 
     const types = {};
-    for (const [alias, requirement] of Object.entries(BUFFER_SCHEMA_REQUIREMENTS)) {
+    for (const [alias, requirement] of Object.entries(profile.requirements)) {
         const type = normalizeContractType(value[alias]);
         if (type === null || type.name !== requirement.name || type.kind !== requirement.kind) {
             return null;
@@ -1037,7 +1159,9 @@ function normalizeSchemaContract(value) {
     }
 
     return {
+        capabilities: profile.capabilities,
         mutation_fields: mutationFields,
+        profile: profileName,
         query_fields: queryFields,
         types,
     };
@@ -1111,9 +1235,7 @@ function resultEnvelope({
 
 function redactSecret(value, secret) {
     if (typeof value === 'string') {
-        return value.includes(secret)
-            ? value.split(secret).join(secretRedactionMarker(secret))
-            : value;
+        return redactSecretFromString(value, secret);
     }
     if (Array.isArray(value)) {
         return value.map((item) => redactSecret(item, secret));
@@ -1136,18 +1258,23 @@ export async function executeBufferWp1Probe({
     environment,
     organizationId = null,
     schema = false,
+    schemaProfile = 'full',
     timeoutMs = 10000,
     fetchImpl = globalThis.fetch,
 } = {}) {
     validatedProbeEnvironments([environment]);
     const token = requiredAccessToken(accessToken);
     const normalizedOrganization = normalizedOrganizationId(organizationId);
+    const normalizedProfile = normalizedSchemaProfile(schemaProfile);
     const normalizedRequestTimeout = normalizedTimeout(timeoutMs);
 
     if (typeof schema !== 'boolean') {
         fail('SCHEMA_FLAG_INVALID');
     }
     if (schema && normalizedOrganization !== null) {
+        fail('ARGUMENT_COMBINATION_INVALID');
+    }
+    if (!schema && normalizedProfile !== 'full') {
         fail('ARGUMENT_COMBINATION_INVALID');
     }
 
@@ -1240,7 +1367,7 @@ export async function executeBufferWp1Probe({
         ? { account: normalizeAccount(payload?.data?.account) }
         : operation === 'channels'
             ? { channels: normalizeChannels(payload?.data?.channels) }
-            : { schema_contract: normalizeSchemaContract(payload?.data) };
+            : { schema_contract: normalizeSchemaContract(payload?.data, normalizedProfile) };
     const validData = operation === 'account'
         ? data.account !== null
         : operation === 'channels' ? data.channels !== null : data.schema_contract !== null;
