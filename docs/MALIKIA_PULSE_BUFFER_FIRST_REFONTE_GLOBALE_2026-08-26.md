@@ -2,11 +2,13 @@
 
 Date de cadrage : 2026-08-26
 
-Révision : 11 — gate final du checkpoint WP1-A
+Révision : 12 — branche distante publiée, collecte authentifiée en attente
 
 Baseline auditée : branche develop, commit a54169d3d096
 
 Branche de travail active : `feature/pulse-buffer-refonte`, créée depuis `develop@a54169d3d096`
+
+Branche distante : `origin/feature/pulse-buffer-refonte`, checkpoint `2514561f81a89130fe0e6a796cc11ed841a02643`
 
 Statut documentaire : complet — référence active
 
@@ -35,6 +37,7 @@ Ce journal est mis à jour à chaque étape de la refonte. Une étape n’est d�
 | EV-PULSE-013 | 2026-08-27 | WP1-A — harness probatoire read-only | Un spike Node isolé prépare la collecte de preuves authentifiées sans démarrer le client de production WP2. Il ne contient que les requêtes publiques `account` et `channels`, exige un environnement explicitement local, lit le token uniquement depuis l’environnement, interdit tout document de mutation, ne persiste rien et n’effectue aucun retry. Les messages distants sont hashés après masquage et toute occurrence exacte du token est masquée dans l’enveloppe. Les trois politiques de quota sont parsées, appariées par label et validées sur les périodes 900/86 400/2 592 000 secondes sans figer les quotas du plan. Aucun appel Buffer réel n’est exécuté dans cette étape. | 20 tests Node ciblés : contrats publics et nullabilité, payloads et `errors` fail-closed, quotas manquants/dupliqués/désalignés/malformés et plan-dépendants, HTTP 200/401/429, timeout réellement aborté, flux > 1 Mio, environnements, arguments et masquage global ; suite Node complète : 217/217 | Harness validé localement ; aucun BUF-P0 fermé |
 | EV-PULSE-014 | 2026-08-27 | Validation intégrée WP1-A | Trois relectures indépendantes couvrent le contrat Buffer public, la sécurité de la sonde et la valeur des tests. Les constats reproduits ont été fermés : aucune valeur distante ne peut réémettre exactement le token, une clé GraphQL `errors` présente doit être une liste non vide valide, les nullabilités suivent le schéma public, le corps est borné en flux et les trois quotas cohérents sont obligatoires. Le graphe du dépôt inclut désormais le harness et ses relations sans démarrer WP2. | Revue finale contractuelle sans blocant ; revue sécurité sans blocant, puis deux durcissements complémentaires couverts par tests ; 20/20 ciblés, 217/217 Node, build Vite vert, budgets frontend verts, index docs vert ; Graphify : 31 979 nœuds / 66 156 arêtes / 1 769 communautés | Prêt pour le gate Git/PHP et le checkpoint de branche |
 | EV-PULSE-015 | 2026-08-27 | Gate final du checkpoint WP1-A | Les six fichiers du lot WP1-A sont complètement indexés sans inclure de credential ni de sortie Buffer. Le contrôle PHP obligatoire réinspecte également les 22 fichiers PHP déjà commités sur la branche depuis `origin/develop`; aucun fichier PHP sale, partiellement indexé ou supprimé hors index n’est présent. | `composer qa:format` : PASS 22/22 ; `vendor/bin/pint --dirty` : PASS 0 fichier sale ; `git diff --check` et `git diff --cached --check` : PASS | Prêt à commiter et pousser uniquement `feature/pulse-buffer-refonte` |
+| EV-PULSE-016 | 2026-08-27 | Publication de la branche et gate d’accès WP1 | Les deux checkpoints sont publiés sur la branche distante dédiée sans modifier `develop` ni `main`. GitHub confirme la branche et le SHA de tête ; le suivi local/distant est strictement synchronisé. Nightwatch ne signale aucun incident ouvert sur `Malikia pro dev`. La vérification locale, limitée à des booléens sans afficher de secret, confirme que la sonde est désactivée et qu’aucun token WP1 n’est configuré ; aucun appel Buffer réel n’est donc tenté. | GitHub : branche `feature/pulse-buffer-refonte`, tête `2514561f81a89130fe0e6a796cc11ed841a02643` ; Git `0/0` ; Nightwatch : 0 incident ouvert ; `BUFFER_WP1_PROBE_ENABLED=false`, token absent | Branche publiée ; collecte authentifiée et tous les BUF-P0 toujours en attente |
 
 ### 0.1 Gate de déploiement WP0-S
 
