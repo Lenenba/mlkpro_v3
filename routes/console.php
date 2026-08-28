@@ -2239,12 +2239,21 @@ Artisan::command(
         }
 
         $failedAutomationJobs = $inventory['failed_pulse_jobs']['by_workload']['social_automation'];
+        $logicalDestinationKeyReadiness = $inventory['connections']['logical_destination_key_readiness'];
 
         $this->table(['Scope', 'Total', 'Attention'], [
             [
                 'Connections',
                 $inventory['connections']['total'],
                 $inventory['connections']['active'].' active',
+            ],
+            [
+                'Logical destination keys',
+                $logicalDestinationKeyReadiness['evaluated'],
+                $logicalDestinationKeyReadiness['derivable'].' derivable; '
+                    .$logicalDestinationKeyReadiness['derivation_failures'].' derivation failures; '
+                    .$logicalDestinationKeyReadiness['duplicate_or_collision_groups']
+                    .' duplicate/collision groups',
             ],
             [
                 'Targets',

@@ -17,6 +17,8 @@ use JsonException;
 
 class LegacySocialInventoryService
 {
+    private const CONNECTION_IDENTITY_CHUNK_SIZE = 500;
+
     private const PULSE_JOB_CLASSES = [
         'social_automation' => GenerateSocialPostCandidateJob::class,
         'social_publish' => PublishSocialPostTargetJob::class,
@@ -34,6 +36,10 @@ class LegacySocialInventoryService
         'representative-clone',
         'unspecified',
     ];
+
+    public function __construct(
+        private readonly SocialLogicalDestinationKeyService $logicalDestinationKeys,
+    ) {}
 
     /**
      * @param  list<string>  $declaredQueueScopes
@@ -371,7 +377,13 @@ class LegacySocialInventoryService
      *     active: int,
      *     connected: int,
      *     by_platform: array<string, int>,
-     *     by_status: array<string, int>
+     *     by_status: array<string, int>,
+     *     logical_destination_key_readiness: array{
+     *         evaluated: int,
+     *         derivable: int,
+     *         derivation_failures: int,
+     *         duplicate_or_collision_groups: int
+     *     }
      * }
      */
     private function connectionInventory(): array
@@ -382,6 +394,12 @@ class LegacySocialInventoryService
             'connected' => 0,
             'by_platform' => [],
             'by_status' => [],
+            'logical_destination_key_readiness' => [
+                'evaluated' => 0,
+                'derivable' => 0,
+                'derivation_failures' => 0,
+                'duplicate_or_collision_groups' => 0,
+            ],
         ];
 
         $connections = DB::table('social_account_connections')
@@ -406,6 +424,49 @@ class LegacySocialInventoryService
 
         ksort($inventory['by_platform']);
         ksort($inventory['by_status']);
+
+        $seenLogicalDestinationKeys = [];
+        $duplicateOrCollisionKeys = [];
+
+        DB::table('social_account_connections')
+            ->select(['id', 'user_id', 'platform', 'external_account_id'])
+            ->chunkById(
+                self::CONNECTION_IDENTITY_CHUNK_SIZE,
+                function (Collection $connections) use (
+                    &$inventory,
+                    &$seenLogicalDestinationKeys,
+                    &$duplicateOrCollisionKeys,
+                ): void {
+                    foreach ($connections as $connection) {
+                        $inventory['logical_destination_key_readiness']['evaluated']++;
+
+                        try {
+                            $logicalDestinationKey = $this->logicalDestinationKeys
+                                ->deriveForLegacyConnection(
+                                    tenantId: (string) $connection->user_id,
+                                    platform: (string) $connection->platform,
+                                    externalAccountId: (string) $connection->external_account_id,
+                                );
+                        } catch (InvalidArgumentException) {
+                            $inventory['logical_destination_key_readiness']['derivation_failures']++;
+
+                            continue;
+                        }
+
+                        $inventory['logical_destination_key_readiness']['derivable']++;
+
+                        if (array_key_exists($logicalDestinationKey, $seenLogicalDestinationKeys)) {
+                            $duplicateOrCollisionKeys[$logicalDestinationKey] = true;
+                        }
+
+                        $seenLogicalDestinationKeys[$logicalDestinationKey] = true;
+                    }
+                },
+                'id'
+            );
+
+        $inventory['logical_destination_key_readiness']['duplicate_or_collision_groups'] =
+            count($duplicateOrCollisionKeys);
 
         return $inventory;
     }

@@ -1,14 +1,14 @@
 # Malikia Pulse — avancement visuel
 
-**État au 28 août 2026 : `RISK_PROPORTIONATE_VALIDATION_ACCEPTED` · `THREE_MACRO_STEPS_ACCEPTED` · `REPRESENTATIVE_CLONE_STRATEGY_ACCEPTED` · `BUFFER_SUPPORT_CONTACT_SENT` · `MACRO_STEP_1_IN_PROGRESS` · `WP2A_LOCAL_VALIDATED` · `ACCOUNT_OWNER_PAYER_CONFIRMED` · `BUFFER_COMMERCIAL_BASELINE_DOCUMENTED` · `BUFFER_LOGICAL_REQUEST_EVIDENCE_INSTRUMENTED` · `LOGICAL_DESTINATION_KEY_CONTRACT_FROZEN` · `PRE_WP2B_INVENTORY_LOCAL_VALIDATED` · `PRE_WP2B_PULSE_JOB_INVENTORY_LOCAL_VALIDATED` · `PRE_WP2B_QUEUE_SCOPE_TOOLING_VALIDATED` · `PRE_WP2B_MULTI_SCOPE_MANIFEST_LOCAL_VALIDATED` · `PRE_WP2B_MULTI_SCOPE_MATRIX_VALIDATED` · `MYSQL_COMPATIBILITY_GATE_VALIDATED` · `PR140_CI_HARDENING_IMPLEMENTED` · `PR140_CI_VALIDATED` · `WP2B_SCHEMA_GATE_PENDING` · `P0_GATES_OPEN` · `NO_GO_BUFFER_RUNTIME` · `NO_GO_BUFFER_PILOT` · `NO_GO_BUFFER_PRODUCTION`**
+**État au 28 août 2026 : `RISK_PROPORTIONATE_VALIDATION_ACCEPTED` · `THREE_MACRO_STEPS_ACCEPTED` · `REPRESENTATIVE_CLONE_STRATEGY_ACCEPTED` · `BUFFER_SUPPORT_CONTACT_SENT` · `MACRO_STEP_1_IN_PROGRESS` · `WP2A_LOCAL_VALIDATED` · `ACCOUNT_OWNER_PAYER_CONFIRMED` · `BUFFER_COMMERCIAL_BASELINE_DOCUMENTED` · `BUFFER_LOGICAL_REQUEST_EVIDENCE_INSTRUMENTED` · `LOGICAL_DESTINATION_KEY_CONTRACT_FROZEN` · `LOGICAL_DESTINATION_KEY_CANONICALIZER_LOCAL_VALIDATED` · `PRE_WP2B_IDENTITY_READINESS_LOCAL_VALIDATED` · `PRE_WP2B_INVENTORY_LOCAL_VALIDATED` · `PRE_WP2B_PULSE_JOB_INVENTORY_LOCAL_VALIDATED` · `PRE_WP2B_QUEUE_SCOPE_TOOLING_VALIDATED` · `PRE_WP2B_MULTI_SCOPE_MANIFEST_LOCAL_VALIDATED` · `PRE_WP2B_MULTI_SCOPE_MATRIX_VALIDATED` · `MYSQL_COMPATIBILITY_GATE_VALIDATED` · `PR140_CI_HARDENING_IMPLEMENTED` · `PR140_CI_VALIDATED` · `WP2B_SCHEMA_GATE_PENDING` · `P0_GATES_OPEN` · `NO_GO_BUFFER_RUNTIME` · `NO_GO_BUFFER_PILOT` · `NO_GO_BUFFER_PRODUCTION`**
 
 **Livraison : [PR #140](https://github.com/Lenenba/mlkpro_v3/pull/140) — `feature/pulse-buffer-refonte` → `develop`**
 
 **Lot de durcissement CI couvert par la PR #140 : environnement de test protégé, couverture MySQL étendue, build déterministe et bundle initial allégé**
 
-**Validation distante acquise pour `fdc4c146` : workflow `quality` #411 vert — `laravel-quality`, `laravel-quality-mysql` et `browser-smoke` réussis ; la PR reste ouverte, fusionnable vers `develop` et n'est pas déclarée fusionnée**
+**Validation distante acquise pour `42c2ef94` : workflow `quality` #412 vert — `laravel-quality`, `laravel-quality-mysql` et `browser-smoke` réussis ; la PR reste ouverte, fusionnable vers `develop` et n'est pas déclarée fusionnée**
 
-**Gate PHP global du checkpoint Étape 1 : 1 723 tests / 20 018 assertions — aucune régression détectée**
+**Gate PHP global du checkpoint précédent : 1 723 tests / 20 018 assertions. Lot courant : 27 tests unitaires / 53 assertions, inventaire SQLite 32 / 381, matrice ciblée SQLite et MySQL 59 / 434 et PHPStan 914/914 ; validation distante laissée à Jules.**
 
 **Pilotage actif : exactement 3 macro-étapes ; l’Étape 1 est en cours. Les WP et BUF-P0 restent la traçabilité technique, pas des étapes supplémentaires.**
 
@@ -34,12 +34,13 @@ flowchart LR
         DC["BUF-P0-10 — Base commerciale<br/>Essentials recommandé côté client,<br/>question quota envoyée à Buffer"]
         DJ["BUF-P0-10 — Compteur logique local<br/>8 opérations cycle, 6 cleanup-only,<br/>redaction et erreur de verrou couvertes"]
         DV["Durcissement CI PR #140<br/>Tests DB isolés et gate MySQL étendue,<br/>build déterministe et bundle initial allégé"]
-        DG["PR #140 — validations distantes<br/>quality #411 sur fdc4c146 : Laravel,<br/>MySQL et navigateur verts"]
+        DG["PR #140 — validations distantes<br/>quality #412 sur 42c2ef94 : Laravel,<br/>MySQL et navigateur verts"]
         DE["Pré-WP2-B — manifeste v2 additif<br/>Publications + automation, failed_jobs,<br/>redaction et attestation séparée"]
-        DL["Inventaire Pulse ciblé — local<br/>29 tests / 360 assertions, SQLite + MySQL<br/>2 scopes MySQL mesurables et vides"]
-        DX["Gate PHP global — checkpoint courant<br/>1 723 tests et 20 018 assertions,<br/>aucune régression détectée"]
+        DL["EV-PULSE-065 — checkpoint précédent<br/>29 tests / 360 assertions, SQLite + MySQL<br/>2 scopes MySQL mesurables et vides"]
+        DX["Gate PHP global — checkpoint précédent<br/>1 723 tests et 20 018 assertions,<br/>aucune régression détectée"]
+        DK["Identité logique exécutable — local<br/>Canonicaliseur unique + préflight agrégé<br/>SQLite/MySQL verts, aucune clé exposée"]
 
-        D0 --> D1A --> D1B --> D1C --> D1D --> D1E --> D1F --> D1G --> D1H --> D1I --> DQ --> D2 --> DI --> DM --> DS --> DC --> DJ --> DV --> DG --> DE --> DL --> DX
+        D0 --> D1A --> D1B --> D1C --> D1D --> D1E --> D1F --> D1G --> D1H --> D1I --> DQ --> D2 --> DI --> DM --> DS --> DC --> DJ --> DV --> DG --> DE --> DL --> DX --> DK
     end
 
     subgraph PLAN["🎯 PILOTAGE ACTIF — EXACTEMENT 3 MACRO-ÉTAPES"]
@@ -50,20 +51,22 @@ flowchart LR
         M1 --> M2 --> M3
     end
 
-    DX --> M1
+    DK --> M1
 ```
 
 ## Critères binaires et points humains
 
 ### Étape 1/3 — sortie unique : `WP2B_SCHEMA_LOCAL_GREEN=true`
 
-- [x] Outil d’inventaire agrégé, matrice MySQL et CI validés.
+- [x] Outil d’inventaire agrégé et matrice MySQL validés ; checkpoint `42c2ef94` confirmé par quality #412.
 - [x] Stratégie de clone pseudonymisé et validation proportionnée acceptées ; question quota multi-client envoyée à Buffer sans secret.
 - [x] Relevé MySQL **local** reconfirmé : 2 scopes database mesurables (`social-automation`, `social-publish`), 0 job Pulse exact ou illisible en queue, 0 `failed_job` Pulse exact ou illisible et 0 anomalie de référence/tenant. Cette preuve n’est pas représentative et la liste des queues n’est pas attestée complète.
 - [ ] Clone MySQL représentatif inventorié et preuve agrégée archivée.
 - [ ] Liste complète des queues courantes, externes et anciennes attestée ; chaque scope possède une preuve.
 - [ ] Chaque `failed_job` et anomalie possède une décision testée : drain, archivage, correction ou interdiction de retry.
 - [x] Contrat final de `logical_destination_key` figé, avec préimage et vecteur reproductibles, sans migration.
+- [x] Canonicaliseur unique consommé par l’inventaire read-only : 27 tests unitaires / 53 assertions, inventaire SQLite 32 / 381, matrice ciblée SQLite et MySQL 59 / 434 ; scan local 1/1 dérivable, 0 échec et 0 groupe doublon/collision, sans clé ni préimage en sortie.
+- [ ] Le clone atteste la cardinalité et un budget mémoire compatible avec la déduplication exacte O(N), ou impose une déduplication externe avant le scan représentatif.
 - [ ] Plan final de backfill/rollback ajusté aux faits du clone représentatif.
 - [ ] L’opérateur atteste la source représentative et la liste complète des queues ; cette attestation est une preuve, pas une revue supplémentaire.
 - [ ] **H1 — unique validation humaine de l’étape 1 :** Jules accorde ou refuse `GO_WP2B_SCHEMA_LOCAL_ONLY` sur le dossier représentatif complet.

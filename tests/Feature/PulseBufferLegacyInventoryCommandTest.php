@@ -285,6 +285,12 @@ it('inventories legacy pulse routing without exposing credentials or remote iden
             'connected' => 1,
             'by_platform' => ['facebook' => 2],
             'by_status' => ['connected' => 1, 'draft' => 1],
+            'logical_destination_key_readiness' => [
+                'evaluated' => 2,
+                'derivable' => 2,
+                'derivation_failures' => 0,
+                'duplicate_or_collision_groups' => 0,
+            ],
         ])
         ->targets->toMatchArray([
             'total' => 4,
@@ -431,6 +437,8 @@ it('inventories legacy pulse routing without exposing credentials or remote iden
     expect($humanOutput)
         ->toContain('Queued publications (database:social-publish)')
         ->toContain('Queued automation candidates (database:social-automation)')
+        ->toContain('Logical destination keys')
+        ->toContain('2 derivable; 0 derivation failures; 0 duplicate/collision groups')
         ->toContain('Failed publication jobs')
         ->toContain('Failed automation candidate jobs')
         ->toContain('retry qualification required')
@@ -438,6 +446,168 @@ it('inventories legacy pulse routing without exposing credentials or remote iden
         ->toContain('1 malformed record; 2 invalid; 1 duplicate')
         ->toContain('1 malformed record; 1 invalid; 0 duplicate')
         ->toContain('2 ready; 1 delayed; 1 active reservation; 1 expired reservation; 1 unparseable candidate');
+});
+
+it('reports logical destination readiness without exposing keys or native identifiers', function () {
+    config()->set('queue.default', 'database');
+
+    $owner = User::factory()->create(['company_type' => 'services']);
+    $otherOwner = User::factory()->create(['company_type' => 'services']);
+
+    foreach ([
+        [$owner->id, ' Page/Été'],
+        [$owner->id, '  Page/Été'],
+        [$owner->id, '   Page/Été'],
+        [$owner->id, ' Other/Page'],
+        [$owner->id, '  Other/Page'],
+        [$owner->id, 'Tenant-shared'],
+        [$otherOwner->id, 'Tenant-shared'],
+        [$owner->id, null],
+        [$owner->id, '   '],
+    ] as $index => [$userId, $externalAccountId]) {
+        SocialAccountConnection::query()->create([
+            'user_id' => $userId,
+            'platform' => SocialAccountConnection::PLATFORM_FACEBOOK,
+            'label' => 'Logical identity '.($index + 1),
+            'external_account_id' => $externalAccountId,
+            'status' => SocialAccountConnection::STATUS_DRAFT,
+            'is_active' => false,
+        ]);
+    }
+
+    $identityRowsBeforeScan = DB::table('social_account_connections')
+        ->select(['id', 'user_id', 'platform', 'external_account_id'])
+        ->orderBy('id')
+        ->get();
+
+    $exitCode = Artisan::call('pulse:buffer:inventory-legacy', [
+        '--json' => true,
+        '--confirm-read-only-scan' => true,
+    ]);
+    $jsonOutput = Artisan::output();
+    $inventory = json_decode($jsonOutput, true, 512, JSON_THROW_ON_ERROR);
+
+    expect($exitCode)->toBe(0)
+        ->and($inventory['connections']['logical_destination_key_readiness'])->toBe([
+            'evaluated' => 9,
+            'derivable' => 7,
+            'derivation_failures' => 2,
+            'duplicate_or_collision_groups' => 2,
+        ])
+        ->and($jsonOutput)
+        ->not->toContain('Page/Été')
+        ->not->toContain('Other/Page')
+        ->not->toContain('Tenant-shared')
+        ->not->toContain('ldk:v1:');
+
+    Artisan::call('pulse:buffer:inventory-legacy', ['--confirm-read-only-scan' => true]);
+    $humanOutput = Artisan::output();
+
+    expect($humanOutput)
+        ->toContain('Logical destination keys')
+        ->toContain('7 derivable; 2 derivation failures; 2 duplicate/collision groups')
+        ->not->toContain('Page/Été')
+        ->not->toContain('Other/Page')
+        ->not->toContain('Tenant-shared')
+        ->not->toContain('ldk:v1:');
+
+    expect(DB::table('social_account_connections')
+        ->select(['id', 'user_id', 'platform', 'external_account_id'])
+        ->orderBy('id')
+        ->get())->toEqual($identityRowsBeforeScan);
+});
+
+it('keeps identical native destinations isolated across tenants', function () {
+    config()->set('queue.default', 'database');
+
+    $owners = User::factory()
+        ->count(2)
+        ->create(['company_type' => 'services']);
+
+    foreach ($owners as $index => $owner) {
+        SocialAccountConnection::query()->create([
+            'user_id' => $owner->id,
+            'platform' => SocialAccountConnection::PLATFORM_FACEBOOK,
+            'label' => 'Tenant identity '.($index + 1),
+            'external_account_id' => 'same-native-page',
+            'status' => SocialAccountConnection::STATUS_DRAFT,
+            'is_active' => false,
+        ]);
+    }
+
+    $exitCode = Artisan::call('pulse:buffer:inventory-legacy', [
+        '--json' => true,
+        '--confirm-read-only-scan' => true,
+    ]);
+    $inventory = json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($exitCode)->toBe(0)
+        ->and($inventory['connections']['logical_destination_key_readiness'])->toBe([
+            'evaluated' => 2,
+            'derivable' => 2,
+            'derivation_failures' => 0,
+            'duplicate_or_collision_groups' => 0,
+        ]);
+});
+
+it('detects one logical destination duplicate group across connection chunks', function () {
+    config()->set('queue.default', 'database');
+
+    $owner = User::factory()->create(['company_type' => 'services']);
+    $timestamp = now();
+    $connections = [];
+
+    for ($index = 0; $index < 500; $index++) {
+        $connections[] = [
+            'user_id' => $owner->id,
+            'platform' => SocialAccountConnection::PLATFORM_FACEBOOK,
+            'label' => 'Chunk identity '.($index + 1),
+            'external_account_id' => $index === 0 ? 'cross-chunk-page' : 'unique-page-'.$index,
+            'status' => SocialAccountConnection::STATUS_DRAFT,
+            'is_active' => false,
+            'created_at' => $timestamp,
+            'updated_at' => $timestamp,
+        ];
+    }
+
+    $connections[] = [
+        'user_id' => $owner->id,
+        'platform' => SocialAccountConnection::PLATFORM_FACEBOOK,
+        'label' => 'Chunk identity 501',
+        'external_account_id' => ' cross-chunk-page',
+        'status' => SocialAccountConnection::STATUS_DRAFT,
+        'is_active' => false,
+        'created_at' => $timestamp,
+        'updated_at' => $timestamp,
+    ];
+    $connections[] = [
+        'user_id' => $owner->id,
+        'platform' => SocialAccountConnection::PLATFORM_FACEBOOK,
+        'label' => 'Chunk identity 502',
+        'external_account_id' => '  cross-chunk-page',
+        'status' => SocialAccountConnection::STATUS_DRAFT,
+        'is_active' => false,
+        'created_at' => $timestamp,
+        'updated_at' => $timestamp,
+    ];
+
+    foreach (array_chunk($connections, 100) as $connectionChunk) {
+        DB::table('social_account_connections')->insert($connectionChunk);
+    }
+
+    $exitCode = Artisan::call('pulse:buffer:inventory-legacy', [
+        '--json' => true,
+        '--confirm-read-only-scan' => true,
+    ]);
+    $inventory = json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($exitCode)->toBe(0)
+        ->and($inventory['connections']['logical_destination_key_readiness'])->toBe([
+            'evaluated' => 502,
+            'derivable' => 502,
+            'derivation_failures' => 0,
+            'duplicate_or_collision_groups' => 1,
+        ]);
 });
 
 it('captures every declared queue scope in one evidence manifest', function () {
