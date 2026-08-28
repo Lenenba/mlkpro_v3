@@ -2,11 +2,9 @@
 
 **État au 27 août 2026 : `WP2A_LOCAL_VALIDATED` · `ACCOUNT_OWNER_PAYER_CONFIRMED` · `PRE_WP2B_INVENTORY_LOCAL_VALIDATED` · `MYSQL_COMPATIBILITY_GATE_VALIDATED` · `WP2B_SCHEMA_GATE_PENDING` · `P0_GATES_OPEN` · `NO_GO_BUFFER_RUNTIME/PILOT/PRODUCTION`**
 
-**Checkpoint distant : `feature/pulse-buffer-refonte@84fab9fafc39`**
+**Checkpoint distant : `feature/pulse-buffer-refonte@4296d46774fa`**
 
-**Dernier lot publié : outil CLI pré-WP2-B + inventaire agrégé de la base MySQL locale courante**
-
-**Lot courant validé localement : vraie matrice MySQL CI, garde de base isolée et nettoyage de code mort Pulse**
+**Dernier lot publié : décision compte Buffer détenu/payé par le client + vraie matrice MySQL CI + garde de base isolée + nettoyage de code mort Pulse**
 
 ```mermaid
 flowchart LR

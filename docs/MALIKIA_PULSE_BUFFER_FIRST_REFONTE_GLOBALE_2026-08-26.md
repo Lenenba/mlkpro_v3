@@ -2,13 +2,13 @@
 
 Date de cadrage : 2026-08-26
 
-Révision : 37 — propriétaire/payeur confirmé ; gate de compatibilité MySQL réel validé
+Révision : 38 — checkpoint décision client et compatibilité MySQL publié
 
 Baseline auditée : branche develop, commit a54169d3d096
 
 Branche de travail active : `feature/pulse-buffer-refonte`, créée depuis `develop@a54169d3d096`
 
-Branche distante : `origin/feature/pulse-buffer-refonte`, checkpoint pré-WP2-B `84fab9fafc39`
+Branche distante : `origin/feature/pulse-buffer-refonte`, checkpoint décision client et compatibilité MySQL `4296d46774fa`
 
 Statut documentaire : complet — référence active
 
@@ -72,7 +72,9 @@ Ce journal est mis à jour à chaque étape de la refonte. Une étape n’est d�
 | EV-PULSE-048 | 2026-08-27 | Décision produit propriétaire/payeur | Jules confirme explicitement que chaque client possède et paie son propre compte Buffer et retient cette option comme meilleure solution pour le MVP. La partie propriétaire/payeur de `BUF-P0-10` est acquise et ADR-PULSE-006 devient acceptée pour le MVP. Le prix, le plan requis, la capacité, les prérequis et le parcours client restent ouverts pour le runtime distant, le pilote, la production et la généralisation. Cette décision seule ne vaut ni `GO_WP2B_SCHEMA_LOCAL_ONLY`, ni autorisation d'appel Buffer. | Confirmation utilisateur explicite du 27 août 2026 ; ADR-PULSE-006 ; BUF-P0-10 | Propriétaire/payeur confirmé ; clone représentatif, preuve MySQL et gate schéma toujours en attente |
 | EV-PULSE-049 | 2026-08-27 | Compatibilité MySQL réelle et revue WP2-B | La CI dite MySQL était en réalité forcée sur SQLite par `phpunit.xml`. Les valeurs SQLite restent les valeurs sûres par défaut, mais une exécution explicitement configurée peut désormais utiliser MySQL. Un garde pré-migration refuse tout environnement autre que `testing` et toute base sans marqueur `test`, `testing` ou `ci`; un second garde compare le driver résolu au driver attendu. Le runner MySQL Windows porte le même invariant et la CI appelle Pest directement avec 512 Mo. L’inventaire Pulse rejoint la matrice MySQL. Le rejeu isolé local sur `mlkpro_v3_wp2b_test` confirme 171 tests et 1 618 assertions sur le driver `mysql`; la base temporaire est ensuite supprimée et son absence vérifiée. La matrice ciblée SQLite confirme 21 tests et 114 assertions. Deux revues indépendantes bornent la future migration à trois champs de transport nullable sans défaut sur connexions et cibles, avec backfill fail-closed; aucun index n'est ajouté sans inventaire représentatif et `EXPLAIN`. Une branche `provider_label` strictement identique a été retirée et 22 tests sociaux / 236 assertions confirment le contrat. Le rejeu SQLite global termine avec 1 644 tests verts et reproduit deux échecs historiques hors Pulse et hors fichiers modifiés : le test `ProductSalesKpiTest` appelle la route absente `service.show`, et `SavedSegmentUiPhaseThreeTest` attend un accès membre désormais refusé par le résolveur de répertoire client. Aucun appel Buffer, migration ou backfill n’est introduit. | Vraie matrice MySQL locale ; garde-fous positifs/négatifs ; revues consommateurs et migration/backfill ; tests sociaux ciblés ; replay global diagnostiqué | Gate d’exécution MySQL acquis ; clone représentatif et queues externes/anciennes toujours requis avant le GO schéma |
 
-Les statuts inscrits dans les événements antérieurs sont historiques. EV-PULSE-042 remplace leur verdict de construction WP2-A. EV-PULSE-048 remplace l'hypothèse de cadrage d'EV-PULSE-045 pour le seul propriétaire/payeur ; les autres preuves de `BUF-P0-10` restent ouvertes. EV-PULSE-049 ferme le défaut du runner MySQL, mais ne transforme pas la base locale synthétique en clone représentatif.
+| EV-PULSE-050 | 2026-08-27 | Publication et vérification distante décision/MySQL | La décision propriétaire/payeur, le vrai runner MySQL, ses garde-fous, la couverture d’inventaire et le nettoyage de la branche morte Pulse sont publiés uniquement sur la branche feature. GitHub confirme le SHA fonctionnel exact et les onze fichiers attendus, avec un seul commit d’avance sur le checkpoint pré-WP2-B. Le suivi Git local/distant est synchronisé. Aucun statut ni workflow GitHub n’est rapporté pour ce push de branche feature ; Nightwatch ne signale aucun incident ouvert sur `Malikia pro dev`. `develop` et `main` restent inchangées et non ciblées. | GitHub : `4296d46774fadec44761b80d18573d74fdc90ebb`, comparaison depuis `d7e55f6e2915ec43e9a1b6eadc344008a5452e11` : `ahead 1 / behind 0`, 11 fichiers ; Git `0/0` ; MySQL 171 tests / 1 618 assertions ; SQLite ciblé 21/114 ; social ciblé 22/236 ; PHPStan 905/905 ; `composer qa:format` 32/32 ; Nightwatch : 0 incident ouvert | Checkpoint fonctionnel publié ; clone représentatif et queues externes/anciennes restent requis avant le GO schéma |
+
+Les statuts inscrits dans les événements antérieurs sont historiques. EV-PULSE-042 remplace leur verdict de construction WP2-A. EV-PULSE-048 remplace l'hypothèse de cadrage d'EV-PULSE-045 pour le seul propriétaire/payeur ; les autres preuves de `BUF-P0-10` restent ouvertes. EV-PULSE-049 ferme le défaut du runner MySQL, mais ne transforme pas la base locale synthétique en clone représentatif. EV-PULSE-050 publie ce lot fonctionnel sans accorder le gate schéma.
 
 ### 0.1 Gate de déploiement WP0-S
 
