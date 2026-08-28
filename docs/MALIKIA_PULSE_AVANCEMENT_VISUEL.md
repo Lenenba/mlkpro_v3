@@ -2,9 +2,9 @@
 
 **État au 28 août 2026 : `WP2A_LOCAL_VALIDATED` · `ACCOUNT_OWNER_PAYER_CONFIRMED` · `BUFFER_COMMERCIAL_BASELINE_DOCUMENTED` · `PRE_WP2B_INVENTORY_LOCAL_VALIDATED` · `PRE_WP2B_QUEUE_SCOPE_TOOLING_VALIDATED` · `MYSQL_COMPATIBILITY_GATE_VALIDATED` · `WP2B_SCHEMA_GATE_PENDING` · `P0_GATES_OPEN` · `NO_GO_BUFFER_RUNTIME/PILOT/PRODUCTION`**
 
-**Checkpoint distant avant le lot courant : `feature/pulse-buffer-refonte@075348282bbe`**
+**Checkpoint distant : `feature/pulse-buffer-refonte@63fbb4ca94cf`**
 
-**Lot courant local : prix/plans Buffer, minimum client `Essentials` recommandé, prérequis et parcours Facebook-only**
+**Dernier lot publié : prix/plans Buffer, minimum client `Essentials` recommandé, prérequis et parcours Facebook-only**
 
 ```mermaid
 flowchart LR
