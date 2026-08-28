@@ -217,10 +217,12 @@ const EXPECTED_POST_DELETE_CLEANUP_CAPABILITY = {
 };
 
 export class BufferWp1FacebookDraftFailure extends Error {
-    constructor(code) {
+    constructor(code, { requestEvidence = null, operation = null } = {}) {
         super(code);
         this.name = 'BufferWp1FacebookDraftFailure';
         this.code = code;
+        this.requestEvidence = requestEvidence;
+        this.operation = operation;
     }
 }
 
@@ -600,8 +602,56 @@ function redactSecret(value, secret) {
     return value;
 }
 
+function apiRequestEvidence(result) {
+    const preflight = result?.preflight ?? {};
+    const steps = result?.steps ?? {};
+    const preflightAttempted = (value) => typeof value === 'string' && value !== 'not_attempted';
+    const stepAttempted = (name) => steps[name]?.attempted === true ? 1 : 0;
+    const operations = {
+        schema: preflightAttempted(preflight.schema) ? 1 : 0,
+        account: preflightAttempted(preflight.account) ? 1 : 0,
+        channels: preflightAttempted(preflight.channels) ? 1 : 0,
+        create: stepAttempted('create'),
+        edit: stepAttempted('edit'),
+        move: stepAttempted('move'),
+        inspect: stepAttempted('inspect'),
+        delete: stepAttempted('delete'),
+        verify_delete: stepAttempted('verify_delete'),
+    };
+    const cleanupOnly = result?.operation === 'facebook_draft_cleanup';
+    const phases = {
+        preflight: operations.schema + operations.account + operations.channels,
+        lifecycle: cleanupOnly ? 0 : operations.create + operations.edit + operations.move,
+        cleanup: cleanupOnly ? 0 : operations.delete + operations.verify_delete,
+        reconciliation: cleanupOnly
+            ? operations.inspect + operations.delete + operations.verify_delete
+            : 0,
+    };
+
+    return {
+        counting_basis: 'logical_graphql_attempts',
+        total_attempted: Object.values(phases).reduce((total, count) => total + count, 0),
+        phases,
+        operations,
+    };
+}
+
+function withApiRequestEvidence(result) {
+    return {
+        ...result,
+        api_request_evidence: apiRequestEvidence(result),
+    };
+}
+
 function safeLifecycleResult(result, secret) {
-    return redactSecret(result, secret);
+    return redactSecret(withApiRequestEvidence(result), secret);
+}
+
+function recoveryLockReleaseFailure(result) {
+    return new BufferWp1FacebookDraftFailure('RECOVERY_LOCK_RELEASE_FAILED', {
+        operation: result.operation,
+        requestEvidence: apiRequestEvidence(result),
+    });
 }
 
 function safeMutationResponseType(value, secret) {
@@ -1936,7 +1986,11 @@ export async function executeBufferWp1FacebookDraftLifecycle({
 
         return safeLifecycleResult(result, token);
     } finally {
-        await journal.release();
+        try {
+            await journal.release();
+        } catch {
+            throw recoveryLockReleaseFailure(result);
+        }
     }
 }
 
@@ -1979,13 +2033,14 @@ export async function executeBufferWp1FacebookDraftCleanup({
     validateMutationDocuments();
     const journal = validatedCleanupRecoveryJournal(recoveryJournal);
     let lockAcquired = false;
+    let result = baseCleanupResult(null);
 
     try {
         await journal.acquire();
         lockAcquired = true;
 
         const record = validatedRecoveryRecord(await journal.read(), token);
-        const result = baseCleanupResult(record.draftMarker);
+        result = baseCleanupResult(record.draftMarker);
         const initialText = `[MALIKIA WP1-C TEMP DRAFT - DO NOT PUBLISH] ${record.draftMarker}`;
         const editedText = `${initialText} - EDITED`;
 
@@ -2221,7 +2276,11 @@ export async function executeBufferWp1FacebookDraftCleanup({
         return safeLifecycleResult(result, token);
     } finally {
         if (lockAcquired) {
-            await journal.release();
+            try {
+                await journal.release();
+            } catch {
+                throw recoveryLockReleaseFailure(result);
+            }
         }
     }
 }
@@ -2294,10 +2353,14 @@ function parseArguments(argv) {
     return { confirmation, help: false, mode: cleanupOnly ? 'cleanup' : 'lifecycle' };
 }
 
-function safeConfigurationFailure(code) {
-    return {
+function safeCliFailure(code, {
+    operation = 'facebook_draft_lifecycle',
+    requestEvidence = null,
+    secret = null,
+} = {}) {
+    const result = {
         schema_version: 1,
-        operation: 'facebook_draft_lifecycle',
+        operation,
         safety: {
             automatic_retries: 0,
             draft_only: true,
@@ -2305,9 +2368,16 @@ function safeConfigurationFailure(code) {
             production_allowed: false,
         },
         ok: false,
-        classification: 'configuration_error',
+        classification: code === 'RECOVERY_LOCK_RELEASE_FAILED'
+            ? 'recovery_lock_release_failed'
+            : 'configuration_error',
         code,
     };
+    const failure = requestEvidence === null
+        ? withApiRequestEvidence(result)
+        : { ...result, api_request_evidence: requestEvidence };
+
+    return secret === null ? failure : redactSecret(failure, secret);
 }
 
 function writeJson(writer, value) {
@@ -2360,6 +2430,7 @@ export async function runBufferWp1FacebookDraftLifecycleCli({
     stderr = (value) => process.stderr.write(value),
 } = {}) {
     let signals = null;
+    let operation = 'facebook_draft_lifecycle';
 
     try {
         const arguments_ = parseArguments(argv);
@@ -2368,6 +2439,10 @@ export async function runBufferWp1FacebookDraftLifecycleCli({
             stdout('Usage: npm run pulse:buffer:facebook-draft-lifecycle -- (--execute-facebook-draft-lifecycle | --cleanup-only) --confirm-delete-temporary-draft=DELETE_TEMPORARY_FACEBOOK_DRAFT_AFTER_TEST\n');
             return 0;
         }
+
+        operation = arguments_.mode === 'cleanup'
+            ? 'facebook_draft_cleanup'
+            : 'facebook_draft_lifecycle';
 
         const environments = validatedEnvironments([env.APP_ENV, env.NODE_ENV]);
         if (!enabled(env.BUFFER_WP1_PROBE_ENABLED)) {
@@ -2406,7 +2481,15 @@ export async function runBufferWp1FacebookDraftLifecycleCli({
             || error instanceof BufferWp1ProbeFailure
             ? error.code
             : 'MUTATION_PROBE_CONFIGURATION_FAILED';
-        writeJson(stderr, safeConfigurationFailure(code));
+        writeJson(stderr, safeCliFailure(code, {
+            operation: error instanceof BufferWp1FacebookDraftFailure
+                ? error.operation ?? operation
+                : operation,
+            requestEvidence: error instanceof BufferWp1FacebookDraftFailure
+                ? error.requestEvidence
+                : null,
+            secret: nullableString(env.BUFFER_WP1_PROBE_ACCESS_TOKEN),
+        }));
 
         return 1;
     } finally {

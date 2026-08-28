@@ -6,14 +6,14 @@
             "delivery_status": "in_progress",
             "created_at": "2026-08-27",
             "updated_at": "2026-08-28",
-            "note": "Vue visuelle synthétique : WP2-A, la décision de compte Buffer client, le gate MySQL, le ciblage des queues et la base commerciale Facebook-only sont publiés sur la branche feature. Essentials est recommandé côté client en production et Free reste borné au pilote. Le plan fournisseur et le quota OAuth multi-client, le parcours pilote, le clone représentatif et WP2-B schéma restent à valider."
+            "note": "Vue visuelle synthétique : WP2-A, la décision de compte Buffer client, le gate MySQL, le ciblage des queues et la base commerciale Facebook-only sont publiés sur la branche feature. Le lot courant instrumente localement 8 opérations logiques pour le cycle WP1 complet et 6 pour cleanup-only, conserve ces preuves sur erreur de verrou et expurge les erreurs sans les confondre avec une consommation fournisseur. Le quota OAuth multi-client, le budget runtime réel, le parcours pilote, le clone représentatif et WP2-B schéma restent à valider."
         },
         "docs/MALIKIA_PULSE_BUFFER_FIRST_REFONTE_GLOBALE_2026-08-26.md": {
             "document_status": "complete",
             "delivery_status": "in_progress",
             "created_at": "2026-08-26",
             "updated_at": "2026-08-28",
-            "note": "Référence active Buffer-first ; propriétaire/payeur, prix, prérequis Facebook-only et recommandation Essentials sont publiés sur la branche feature. Free reste réservé au pilote borné. Le plan fournisseur et la capacité de l'app OAuth multi-client, le parcours pilote, le clone représentatif, les queues réelles et WP2-B schéma restent en attente."
+            "note": "Référence active Buffer-first ; propriétaire/payeur, prix, prérequis Facebook-only et recommandation Essentials sont publiés sur la branche feature. Le compteur local d'opérations GraphQL logiques est durci sur les erreurs de verrou et de redaction, et le protocole de question fournisseur est préparé sans appel distant. La consommation runtime réelle, la capacité OAuth multi-client, le parcours pilote, le clone représentatif, les queues réelles et WP2-B schéma restent en attente."
         },
         "docs/MALIKIA_PULSE_DOCUMENTATION_TECHNIQUE_2026-04-25.md": {
             "document_status": "reference",

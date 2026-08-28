@@ -318,7 +318,7 @@ function createScriptedFetch(responses) {
     return { fetchImpl, requests };
 }
 
-function createMemoryRecoveryJournal({ activeRecord = null } = {}) {
+function createMemoryRecoveryJournal({ activeRecord = null, releaseError = false } = {}) {
     const events = [];
     let record = activeRecord;
     let locked = false;
@@ -357,6 +357,9 @@ function createMemoryRecoveryJournal({ activeRecord = null } = {}) {
         async release() {
             events.push('release');
             locked = false;
+            if (releaseError) {
+                throw new Error('sanitized simulated release failure');
+            }
         },
         async update(value) {
             events.push('update');
@@ -425,7 +428,7 @@ function successfulResponses({
 }
 
 test('the WP1-C cycle sends only fixed draft mutations and deletes after a typed move rejection', async () => {
-    const probe = createProbe();
+    const probe = createProbe({ remaining: 8 });
     const scriptedFetch = createScriptedFetch(successfulResponses({
         move: typedAction('movePostInQueue'),
     }));
@@ -439,6 +442,7 @@ test('the WP1-C cycle sends only fixed draft mutations and deletes after a typed
 
     assert.equal(result.ok, false);
     assert.equal(result.classification, 'draft_move_rejected');
+    assert.equal(result.preflight.mutation_capacity_available, true);
     assert.equal(result.steps.move.outcome, 'draft_move_rejected');
     assert.deepEqual(result.cleanup, {
         attempted: true,
@@ -459,6 +463,27 @@ test('the WP1-C cycle sends only fixed draft mutations and deletes after a typed
     assert.equal(probe.calls[1].schema, undefined);
     assert.equal(probe.calls[2].organizationId, ORGANIZATION_ID);
     assert.equal(scriptedFetch.requests.length, 5);
+    assert.deepEqual(result.api_request_evidence, {
+        counting_basis: 'logical_graphql_attempts',
+        total_attempted: 8,
+        phases: {
+            preflight: 3,
+            lifecycle: 3,
+            cleanup: 2,
+            reconciliation: 0,
+        },
+        operations: {
+            schema: 1,
+            account: 1,
+            channels: 1,
+            create: 1,
+            edit: 1,
+            move: 1,
+            inspect: 0,
+            delete: 1,
+            verify_delete: 1,
+        },
+    });
 
     const bodies = scriptedFetch.requests.map((request) => JSON.parse(request.options.body));
     assert.deepEqual(bodies.map((body) => body.query), [
@@ -655,7 +680,43 @@ test('the WP1-C CLI refuses unsafe, disabled, duplicate, or unconfirmed executio
         assert.equal(output.includes(ACCESS_TOKEN), false);
         assert.equal(probeCount, 0);
         assert.equal(requestCount, 0);
+        assert.equal(JSON.parse(output).api_request_evidence.total_attempted, 0);
     }
+});
+
+test('the WP1-C CLI redacts a token that collides with request evidence on configuration failure', async () => {
+    const collidingToken = 'logical_graphql_attempts';
+    let output = '';
+
+    const exitCode = await runBufferWp1FacebookDraftLifecycleCli({
+        argv: [
+            '--execute-facebook-draft-lifecycle',
+            `--confirm-delete-temporary-draft=${BUFFER_WP1_FACEBOOK_DRAFT_CONFIRMATION}`,
+        ],
+        env: {
+            APP_ENV: 'local',
+            BUFFER_WP1_MUTATION_PROBE_ENABLED: 'true',
+            BUFFER_WP1_PROBE_ACCESS_TOKEN: collidingToken,
+            BUFFER_WP1_PROBE_ENABLED: 'true',
+            BUFFER_WP1_PROBE_TIMEOUT_MS: 'invalid',
+            BUFFER_WP1_FACEBOOK_TARGET_FINGERPRINT: TARGET_FINGERPRINT,
+        },
+        fetchImpl: async () => assert.fail('HTTP must not run after invalid configuration'),
+        probeImpl: async () => assert.fail('probes must not run after invalid configuration'),
+        stderr: (value) => {
+            output += value;
+        },
+        stdout: (value) => {
+            output += value;
+        },
+    });
+
+    const result = JSON.parse(output);
+    assert.equal(exitCode, 1);
+    assert.equal(result.code, 'TIMEOUT_MS_INVALID');
+    assert.equal(result.api_request_evidence.total_attempted, 0);
+    assert.equal(result.api_request_evidence.counting_basis, '[REDACTED]');
+    assert.equal(output.includes(collidingToken), false);
 });
 
 test('the WP1-C preflight fails closed for an unavailable contract or ambiguous organization', async () => {
@@ -815,6 +876,13 @@ test('the WP1-C preflight binds the real mutation target to an explicit opaque f
         assert.equal(result.preflight.target_fingerprint_matched, false);
         assert.equal(result.steps.create.attempted, false);
         assert.equal(requestCount, 0);
+        assert.equal(result.api_request_evidence.total_attempted, 3);
+        assert.deepEqual(result.api_request_evidence.phases, {
+            preflight: 3,
+            lifecycle: 0,
+            cleanup: 0,
+            reconciliation: 0,
+        });
     }
 });
 
@@ -971,7 +1039,7 @@ test('the WP1-C operation lock serializes the lifecycle against cleanup-only', a
 });
 
 test('the WP1-C preflight keeps an eight-request safety reserve in every quota window', async () => {
-    for (const remaining of [0, 1, 2, 3, 4, 7]) {
+    for (const remaining of [0, 1, 2, 3, 4, 5, 6, 7]) {
         const probe = createProbe({ remaining });
         let requestCount = 0;
         const result = await executeLifecycle({
@@ -1004,6 +1072,13 @@ test('the WP1-C cycle treats a typed create rejection as definitive and never re
     assert.equal(result.steps.create.message_sha256.length, 64);
     assert.equal(result.cleanup.attempted, false);
     assert.equal(scriptedFetch.requests.length, 1);
+    assert.equal(result.api_request_evidence.total_attempted, 4);
+    assert.deepEqual(result.api_request_evidence.phases, {
+        preflight: 3,
+        lifecycle: 1,
+        cleanup: 0,
+        reconciliation: 0,
+    });
     assert.equal(JSON.stringify(result).includes(ACCESS_TOKEN), false);
 });
 
@@ -1225,6 +1300,7 @@ test('the WP1-F cycle treats every ambiguous create response as unknown', async 
             assert.equal(recoveryJournal.record.state, 'creation_outcome_unknown');
             assert.equal(recoveryJournal.record.post_id, null);
             assert.equal(scriptedFetch.requests.length, 1);
+            assert.equal(result.api_request_evidence.total_attempted, 4);
             assert.equal(JSON.stringify(result).includes(ACCESS_TOKEN), false);
         });
     }
@@ -1705,6 +1781,10 @@ test('the WP1-F cycle treats ambiguous edit and move results as unknown and clea
                 assert.equal(recoveryJournal.record, null);
                 assert.equal(result.steps.delete.outcome, 'deleted');
                 assert.equal(result.steps.verify_delete.outcome, 'not_found_confirmed');
+                assert.equal(
+                    result.api_request_evidence.total_attempted,
+                    stage === 'move' ? 8 : 7,
+                );
 
                 const queries = scriptedFetch.requests.map((request) => (
                     JSON.parse(request.options.body).query
@@ -1906,8 +1986,30 @@ test('the WP1-C cleanup-only path inspects the exact draft before one delete and
     assert.equal(result.cleanup.confirmed, true);
     assert.equal(result.cleanup.recovery_journal_cleared, true);
     assert.equal(probe.calls[0].schemaProfile, 'cleanup');
+    assert.equal(probe.calls.length, 3);
     assert.equal(recoveryJournal.record, null);
     assert.deepEqual(recoveryJournal.events, ['acquire', 'read', 'complete', 'release']);
+    assert.deepEqual(result.api_request_evidence, {
+        counting_basis: 'logical_graphql_attempts',
+        total_attempted: 6,
+        phases: {
+            preflight: 3,
+            lifecycle: 0,
+            cleanup: 0,
+            reconciliation: 3,
+        },
+        operations: {
+            schema: 1,
+            account: 1,
+            channels: 1,
+            create: 0,
+            edit: 0,
+            move: 0,
+            inspect: 1,
+            delete: 1,
+            verify_delete: 1,
+        },
+    });
 
     const bodies = scriptedFetch.requests.map((request) => JSON.parse(request.options.body));
     assert.deepEqual(bodies.map((body) => body.query), [
@@ -1972,6 +2074,7 @@ test('the WP1-C cleanup-only path clears an already absent draft without deletin
     assert.equal(result.classification, 'cleanup_already_confirmed');
     assert.equal(result.cleanup.confirmed, true);
     assert.equal(scriptedFetch.requests.length, 1);
+    assert.equal(result.api_request_evidence.total_attempted, 4);
     assert.deepEqual(recoveryJournal.events, ['acquire', 'read', 'complete', 'release']);
 });
 
@@ -2097,6 +2200,7 @@ test('the WP1-F cleanup-only path fails closed on ambiguous inspect, delete, or 
                 verify_delete: 'not_attempted',
             },
             expectedQueries: [BUFFER_WP1_INSPECT_FACEBOOK_DRAFT_QUERY],
+            expectedRequestEvidence: 4,
             expectedState: 'recovery_required',
             name: 'inspect transport failure',
             responses: () => [rejectedRequest()],
@@ -2112,6 +2216,7 @@ test('the WP1-F cleanup-only path fails closed on ambiguous inspect, delete, or 
                 BUFFER_WP1_INSPECT_FACEBOOK_DRAFT_QUERY,
                 BUFFER_WP1_DELETE_FACEBOOK_DRAFT_MUTATION,
             ],
+            expectedRequestEvidence: 5,
             expectedState: 'delete_unconfirmed',
             name: 'delete HTTP 500',
             responses: () => [
@@ -2131,6 +2236,7 @@ test('the WP1-F cleanup-only path fails closed on ambiguous inspect, delete, or 
                 BUFFER_WP1_DELETE_FACEBOOK_DRAFT_MUTATION,
                 BUFFER_WP1_VERIFY_FACEBOOK_DRAFT_DELETED_QUERY,
             ],
+            expectedRequestEvidence: 6,
             expectedState: 'delete_verification_unconfirmed',
             name: 'verification invalid JSON',
             responses: () => [
@@ -2167,6 +2273,10 @@ test('the WP1-F cleanup-only path fails closed on ambiguous inspect, delete, or 
             assert.deepEqual(
                 scriptedFetch.requests.map((request) => JSON.parse(request.options.body).query),
                 testCase.expectedQueries,
+            );
+            assert.equal(
+                result.api_request_evidence.total_attempted,
+                testCase.expectedRequestEvidence,
             );
             assert.equal(JSON.stringify(result).includes(ACCESS_TOKEN), false);
             assert.equal(JSON.stringify(result).includes(POST_ID), false);
@@ -2269,6 +2379,126 @@ test('the WP1-C cleanup-only CLI uses only the recovery path', async () => {
     assert.equal(output.includes(ACCESS_TOKEN), false);
     assert.equal(output.includes(POST_ID), false);
     assert.equal(scriptedFetch.requests.length, 3);
+});
+
+test('the WP1-C cleanup-only CLI labels an early journal failure as cleanup', async () => {
+    const recoveryJournal = createMemoryRecoveryJournal();
+    let output = '';
+    let probeCount = 0;
+    let requestCount = 0;
+
+    const exitCode = await runBufferWp1FacebookDraftLifecycleCli({
+        argv: [
+            '--cleanup-only',
+            `--confirm-delete-temporary-draft=${BUFFER_WP1_FACEBOOK_DRAFT_CONFIRMATION}`,
+        ],
+        env: {
+            APP_ENV: 'local',
+            BUFFER_WP1_MUTATION_PROBE_ENABLED: 'true',
+            BUFFER_WP1_PROBE_ACCESS_TOKEN: ACCESS_TOKEN,
+            BUFFER_WP1_PROBE_ENABLED: 'true',
+            BUFFER_WP1_PROBE_TIMEOUT_MS: '1000',
+            BUFFER_WP1_FACEBOOK_TARGET_FINGERPRINT: TARGET_FINGERPRINT,
+        },
+        fetchImpl: async () => {
+            requestCount += 1;
+            return jsonResponse({});
+        },
+        probeImpl: async () => {
+            probeCount += 1;
+            return {};
+        },
+        recoveryJournal,
+        stderr: (value) => {
+            output += value;
+        },
+        stdout: (value) => {
+            output += value;
+        },
+    });
+
+    const result = JSON.parse(output);
+    assert.equal(exitCode, 1);
+    assert.equal(result.code, 'RECOVERY_JOURNAL_NOT_FOUND');
+    assert.equal(result.classification, 'configuration_error');
+    assert.equal(result.operation, 'facebook_draft_cleanup');
+    assert.equal(result.api_request_evidence.total_attempted, 0);
+    assert.equal(probeCount, 0);
+    assert.equal(requestCount, 0);
+    assert.deepEqual(recoveryJournal.events, ['acquire', 'read', 'release']);
+});
+
+test('the WP1-C CLI preserves logical request evidence when journal release fails', async (t) => {
+    const cases = [
+        {
+            activeRecord: null,
+            arguments: ['--execute-facebook-draft-lifecycle'],
+            expectedOperation: 'facebook_draft_lifecycle',
+            expectedRequestEvidence: 8,
+            responses: successfulResponses(),
+        },
+        {
+            activeRecord: recoveryRecord(),
+            arguments: ['--cleanup-only'],
+            expectedOperation: 'facebook_draft_cleanup',
+            expectedRequestEvidence: 6,
+            responses: [
+                jsonResponse({ data: { post: safePost({ text: EDITED_TEXT }) } }),
+                deleteSuccess(),
+                deleteNotFoundVerification(),
+            ],
+        },
+    ];
+
+    for (const testCase of cases) {
+        await t.test(testCase.expectedOperation, async () => {
+            const probe = createProbe({ remaining: 8 });
+            const scriptedFetch = createScriptedFetch(testCase.responses);
+            const recoveryJournal = createMemoryRecoveryJournal({
+                activeRecord: testCase.activeRecord,
+                releaseError: true,
+            });
+            let output = '';
+
+            const exitCode = await runBufferWp1FacebookDraftLifecycleCli({
+                argv: [
+                    ...testCase.arguments,
+                    `--confirm-delete-temporary-draft=${BUFFER_WP1_FACEBOOK_DRAFT_CONFIRMATION}`,
+                ],
+                env: {
+                    APP_ENV: 'local',
+                    BUFFER_WP1_MUTATION_PROBE_ENABLED: 'true',
+                    BUFFER_WP1_PROBE_ACCESS_TOKEN: ACCESS_TOKEN,
+                    BUFFER_WP1_PROBE_ENABLED: 'true',
+                    BUFFER_WP1_PROBE_TIMEOUT_MS: '1000',
+                    BUFFER_WP1_FACEBOOK_TARGET_FINGERPRINT: TARGET_FINGERPRINT,
+                },
+                fetchImpl: scriptedFetch.fetchImpl,
+                probeImpl: probe.probeImpl,
+                recoveryJournal,
+                runId: RUN_ID,
+                stderr: (value) => {
+                    output += value;
+                },
+                stdout: (value) => {
+                    output += value;
+                },
+            });
+
+            const result = JSON.parse(output);
+            assert.equal(exitCode, 1);
+            assert.equal(result.classification, 'recovery_lock_release_failed');
+            assert.equal(result.code, 'RECOVERY_LOCK_RELEASE_FAILED');
+            assert.equal(result.operation, testCase.expectedOperation);
+            assert.equal(
+                result.api_request_evidence.total_attempted,
+                testCase.expectedRequestEvidence,
+            );
+            assert.equal(output.includes(ACCESS_TOKEN), false);
+            assert.equal(output.includes(POST_ID), false);
+            assert.equal(recoveryJournal.events.at(-1), 'release');
+        });
+    }
 });
 
 test('the WP1-C CLI exits zero only for a fully cleaned lifecycle and prints no remote identifier', async () => {
