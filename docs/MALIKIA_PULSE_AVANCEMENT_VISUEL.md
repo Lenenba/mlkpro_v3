@@ -8,7 +8,7 @@
 
 **Validation distante acquise pour `42c2ef94` : workflow `quality` #412 vert — `laravel-quality`, `laravel-quality-mysql` et `browser-smoke` réussis ; la PR reste ouverte, fusionnable vers `develop` et n'est pas déclarée fusionnée**
 
-**Checkpoint fonctionnel précédent `0f6f04c4` publié sans surveillance CI ; validation distante de ce checkpoint et du lot courant laissée à Jules.**
+**Checkpoint fonctionnel courant `25f6fb4a` publié sans surveillance CI ; validation distante de ce checkpoint et du lot courant laissée à Jules.**
 
 **Gate PHP global du checkpoint précédent : 1 723 tests / 20 018 assertions. Lot courant : 27 tests unitaires / 53 assertions, inventaire SQLite 33 / 402, matrice ciblée SQLite et MySQL 60 / 455 et PHPStan 914/914 ; validation distante laissée à Jules.**
 
@@ -31,7 +31,7 @@ flowchart LR
         DQ["Hygiène du code<br/>Statut spéculatif et branche morte retirés,<br/>suppressions incertaines différées au clone"]
         D2["WP2-A — Contrat/fake local<br/>Port et DTO/résultat text-only,<br/>fake déterministe, 9 tests verts"]
         DI["Pré-WP2-B — Inventaire legacy<br/>CLI agrégé read-only validé<br/>2 workloads / 2 queues locales inspectés"]
-        DM["Gate MySQL réel<br/>Driver vérifié, base isolée protégée,<br/>171 tests et 1 618 assertions"]
+        DM["EV-PULSE-049 — gate MySQL initial<br/>Driver vérifié, base isolée protégée,<br/>171 tests et 1 618 assertions"]
         DS["Ciblage de queue explicite<br/>Queue database renommée mesurable,<br/>queue externe identifiée sans connexion"]
         DC["BUF-P0-10 — Base commerciale<br/>Essentials recommandé côté client,<br/>question quota envoyée à Buffer"]
         DJ["BUF-P0-10 — Compteur logique local<br/>8 opérations cycle, 6 cleanup-only,<br/>redaction et erreur de verrou couvertes"]
@@ -63,9 +63,9 @@ flowchart LR
 
 - [x] Outil d’inventaire agrégé et matrice MySQL validés ; checkpoint `42c2ef94` confirmé par quality #412.
 - [x] Stratégie de clone pseudonymisé et validation proportionnée acceptées ; question quota multi-client envoyée à Buffer sans secret.
-- [x] Relevé MySQL **local** reconfirmé : 2 scopes database mesurables (`social-automation`, `social-publish`), 0 job Pulse exact ou illisible en queue, 0 `failed_job` Pulse exact ou illisible et 0 anomalie de référence/tenant. Cette preuve n’est pas représentative et la liste des queues n’est pas attestée complète.
+- [x] Relevé MySQL **local** reconfirmé à 20:19:09 UTC : 1 connexion Instagram déconnectée/inactive et dérivable, 18 cibles sans anomalie tenant, 2 scopes database mesurables (`social-automation`, `social-publish`), 0 job Pulse exact ou illisible en queue et 0 `failed_job` Pulse exact ou illisible. Cette preuve n’est pas représentative et la liste des queues n’est pas attestée complète.
 - [x] Configuration Laravel effective projetée sans noms bruts : 2 workloads configurés, chacun référencé par exactement 1 profil production déclaratif ; historique suivi sans renommage de classe ou valeur par défaut.
-- [ ] Processus réellement déployés, overrides d’environnement présents/passés et canari worker attestés par l’exploitation ; la configuration applicative seule ne les prouve pas.
+- [ ] Processus réellement déployés, overrides d’environnement présents/passés et canari worker attestés par l’exploitation ; la configuration applicative seule ne les prouve pas. L’attestation doit aussi exclure un backlog historique, car le worker de développement suivi n’a couvert `social-publish` qu’à partir du 27 juillet.
 - [ ] Clone MySQL représentatif inventorié et preuve agrégée archivée.
 - [ ] Liste complète des queues courantes, externes et anciennes attestée ; chaque scope possède une preuve.
 - [ ] Chaque `failed_job` et anomalie possède une décision testée : drain, archivage, correction ou interdiction de retry.
