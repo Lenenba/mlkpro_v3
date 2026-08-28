@@ -9,6 +9,7 @@ use App\Support\QueueWorkload;
 use Illuminate\Database\Connection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 use JsonException;
 
 class LegacySocialInventoryService
@@ -28,8 +29,10 @@ class LegacySocialInventoryService
      *     queued_publications: array<string, mixed>
      * }
      */
-    public function inventory(): array
+    public function inventory(?string $queueConnection = null, ?string $queue = null): array
     {
+        $queueScope = $this->resolveQueueScope($queueConnection, $queue);
+
         $domainInventory = DB::connection()->transaction(function (): array {
             return [
                 'connections' => $this->connectionInventory(),
@@ -59,7 +62,41 @@ class LegacySocialInventoryService
                 'cross_source_atomic' => false,
             ],
             ...$domainInventory,
-            'queued_publications' => $this->queuedPublicationInventory(),
+            'queued_publications' => $this->queuedPublicationInventory($queueScope),
+        ];
+    }
+
+    /**
+     * @return array{queue_connection: string, driver: string, queue: string}
+     */
+    private function resolveQueueScope(?string $queueConnection, ?string $queue): array
+    {
+        $resolvedQueueConnection = trim($queueConnection ?? (string) config('queue.default'));
+        if (! preg_match('/\A[A-Za-z0-9][A-Za-z0-9_-]{0,190}\z/', $resolvedQueueConnection)) {
+            throw new InvalidArgumentException('Queue connection must use only letters, numbers, underscores, or hyphens.');
+        }
+
+        $definition = config("queue.connections.{$resolvedQueueConnection}");
+        if (! is_array($definition)) {
+            throw new InvalidArgumentException("Queue connection [{$resolvedQueueConnection}] is not configured.");
+        }
+
+        $driver = trim((string) ($definition['driver'] ?? ''));
+        if ($driver === '') {
+            throw new InvalidArgumentException("Queue connection [{$resolvedQueueConnection}] does not define a driver.");
+        }
+
+        $resolvedQueue = trim($queue ?? QueueWorkload::queue('social_publish'));
+        if ($resolvedQueue === '' || preg_match('/[\x00-\x1F\x7F]/', $resolvedQueue) === 1) {
+            throw new InvalidArgumentException(
+                'Queue name must be non-empty and cannot contain control characters.'
+            );
+        }
+
+        return [
+            'queue_connection' => $resolvedQueueConnection,
+            'driver' => $driver,
+            'queue' => $resolvedQueue,
         ];
     }
 
@@ -326,6 +363,7 @@ class LegacySocialInventoryService
     }
 
     /**
+     * @param  array{queue_connection: string, driver: string, queue: string}  $queueScope
      * @return array{
      *     measurable: bool,
      *     queue_connection: string,
@@ -340,11 +378,11 @@ class LegacySocialInventoryService
      *     unparseable_candidates: int|null
      * }
      */
-    private function queuedPublicationInventory(): array
+    private function queuedPublicationInventory(array $queueScope): array
     {
-        $queueConnection = (string) config('queue.default');
-        $driver = (string) config("queue.connections.{$queueConnection}.driver");
-        $queue = QueueWorkload::queue('social_publish');
+        $queueConnection = $queueScope['queue_connection'];
+        $driver = $queueScope['driver'];
+        $queue = $queueScope['queue'];
 
         if ($driver !== 'database') {
             return $this->unmeasurableQueueInventory(

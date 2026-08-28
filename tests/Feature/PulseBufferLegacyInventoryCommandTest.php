@@ -250,6 +250,7 @@ it('inventories legacy pulse routing without exposing credentials or remote iden
     $humanOutput = Artisan::output();
 
     expect($humanOutput)
+        ->toContain('Queued publications (database:social-publish)')
         ->toContain('1 malformed record; 2 invalid; 1 duplicate')
         ->toContain('1 malformed record; 1 invalid; 0 duplicate')
         ->toContain('2 ready; 1 delayed; 1 active reservation; 1 expired reservation; 1 unparseable candidate');
@@ -278,6 +279,148 @@ it('reports an unmeasurable queue without inspecting non-database payloads', fun
         'expired_reserved' => null,
         'unparseable_candidates' => null,
     ]);
+});
+
+it('inventories an explicitly selected legacy database queue', function () {
+    config()->set('queue.connections.legacy_database', [
+        'driver' => 'database',
+        'connection' => null,
+        'table' => 'jobs',
+        'queue' => 'legacy-default',
+        'retry_after' => 90,
+        'after_commit' => false,
+    ]);
+    $nowTimestamp = now()->timestamp;
+    DB::table('jobs')->insert([
+        'queue' => 'legacy-social-publish',
+        'payload' => json_encode(['displayName' => PublishSocialPostTargetJob::class]),
+        'attempts' => 0,
+        'reserved_at' => null,
+        'available_at' => $nowTimestamp + 300,
+        'created_at' => $nowTimestamp,
+    ]);
+
+    $exitCode = Artisan::call('pulse:buffer:inventory-legacy', [
+        '--json' => true,
+        '--queue-connection' => 'legacy_database',
+        '--queue' => 'legacy-social-publish',
+        '--confirm-read-only-scan' => true,
+    ]);
+    $inventory = json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($exitCode)->toBe(0)
+        ->and($inventory['queued_publications'])->toMatchArray([
+            'measurable' => true,
+            'queue_connection' => 'legacy_database',
+            'driver' => 'database',
+            'queue' => 'legacy-social-publish',
+            'reason' => null,
+            'total' => 1,
+            'ready' => 0,
+            'delayed' => 1,
+            'active_reserved' => 0,
+            'expired_reserved' => 0,
+            'unparseable_candidates' => 0,
+        ]);
+});
+
+it('reports an explicitly selected external queue without exposing or opening its connection', function () {
+    config()->set('queue.connections.legacy_sqs', [
+        'driver' => 'sqs',
+        'key' => 'secret-legacy-key',
+        'secret' => 'secret-legacy-token',
+        'queue' => 'legacy-default',
+    ]);
+
+    $exitCode = Artisan::call('pulse:buffer:inventory-legacy', [
+        '--json' => true,
+        '--queue-connection' => 'legacy_sqs',
+        '--queue' => 'legacy-social-publish',
+        '--confirm-read-only-scan' => true,
+    ]);
+    $output = Artisan::output();
+    $inventory = json_decode($output, true, 512, JSON_THROW_ON_ERROR);
+
+    expect($exitCode)->toBe(0)
+        ->and($inventory['queued_publications'])->toBe([
+            'measurable' => false,
+            'queue_connection' => 'legacy_sqs',
+            'driver' => 'sqs',
+            'queue' => 'legacy-social-publish',
+            'reason' => 'queue_driver_not_database',
+            'total' => null,
+            'ready' => null,
+            'delayed' => null,
+            'active_reserved' => null,
+            'expired_reserved' => null,
+            'unparseable_candidates' => null,
+        ])
+        ->and($output)
+        ->not->toContain('secret-legacy-key')
+        ->not->toContain('secret-legacy-token');
+});
+
+it('fails closed for an unknown explicit queue connection', function () {
+    $exitCode = Artisan::call('pulse:buffer:inventory-legacy', [
+        '--json' => true,
+        '--queue-connection' => 'missing_legacy_connection',
+        '--queue' => 'legacy-social-publish',
+        '--confirm-read-only-scan' => true,
+    ]);
+    $output = Artisan::output();
+
+    expect($exitCode)->toBe(1)
+        ->and($output)
+        ->toContain('Invalid queue scope')
+        ->toContain('Queue connection [missing_legacy_connection] is not configured.')
+        ->not->toContain('Pulse Buffer legacy inventory');
+});
+
+it('fails closed for an invalid explicit queue connection name', function () {
+    $exitCode = Artisan::call('pulse:buffer:inventory-legacy', [
+        '--json' => true,
+        '--queue-connection' => 'legacy.connection',
+        '--queue' => 'legacy-social-publish',
+        '--confirm-read-only-scan' => true,
+    ]);
+    $output = Artisan::output();
+
+    expect($exitCode)->toBe(1)
+        ->and($output)
+        ->toContain('Queue connection must use only letters, numbers, underscores, or hyphens.')
+        ->not->toContain('Pulse Buffer legacy inventory');
+});
+
+it('fails closed when an explicit queue connection has no driver', function () {
+    config()->set('queue.connections.legacy_driverless', ['queue' => 'legacy-social-publish']);
+
+    $exitCode = Artisan::call('pulse:buffer:inventory-legacy', [
+        '--json' => true,
+        '--queue-connection' => 'legacy_driverless',
+        '--queue' => 'legacy-social-publish',
+        '--confirm-read-only-scan' => true,
+    ]);
+    $output = Artisan::output();
+
+    expect($exitCode)->toBe(1)
+        ->and($output)
+        ->toContain('Queue connection [legacy_driverless] does not define a driver.')
+        ->not->toContain('Pulse Buffer legacy inventory');
+});
+
+it('fails closed when an explicit queue name contains control characters', function () {
+    $exitCode = Artisan::call('pulse:buffer:inventory-legacy', [
+        '--json' => true,
+        '--queue-connection' => 'database',
+        '--queue' => "legacy\nsocial",
+        '--confirm-read-only-scan' => true,
+    ]);
+    $output = Artisan::output();
+
+    expect($exitCode)->toBe(1)
+        ->and($output)
+        ->toContain('Queue name must be non-empty and cannot contain control characters.')
+        ->not->toContain('Pulse Buffer legacy inventory');
 });
 
 it('fails closed when the configured database queue table is unavailable', function () {

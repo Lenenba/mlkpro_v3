@@ -2174,6 +2174,8 @@ Artisan::command(
 Artisan::command(
     'pulse:buffer:inventory-legacy
         {--json : Output the aggregate inventory as JSON}
+        {--queue-connection= : Configured queue connection to inspect; defaults to queue.default}
+        {--queue= : Queue name to inspect; defaults to the social_publish workload queue}
         {--confirm-read-only-scan : Confirm the authorized all-tenant aggregate scan}',
     function (LegacySocialInventoryService $inventoryService): int {
         if (! (bool) $this->option('confirm-read-only-scan')) {
@@ -2185,7 +2187,19 @@ Artisan::command(
             return 1;
         }
 
-        $inventory = $inventoryService->inventory();
+        $queueConnection = $this->option('queue-connection');
+        $queue = $this->option('queue');
+
+        try {
+            $inventory = $inventoryService->inventory(
+                queueConnection: is_string($queueConnection) ? $queueConnection : null,
+                queue: is_string($queue) ? $queue : null,
+            );
+        } catch (InvalidArgumentException|LogicException $exception) {
+            $this->error('Invalid queue scope: '.$exception->getMessage());
+
+            return 1;
+        }
 
         if ((bool) $this->option('json')) {
             $this->line(json_encode($inventory, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT));
@@ -2225,7 +2239,9 @@ Artisan::command(
                     .$inventory['references']['post_templates']['duplicate_references'].' duplicate',
             ],
             [
-                'Queued publications',
+                'Queued publications ('
+                    .$inventory['queued_publications']['queue_connection'].':'
+                    .$inventory['queued_publications']['queue'].')',
                 $inventory['queued_publications']['total'] ?? 'not measurable',
                 $inventory['queued_publications']['measurable']
                     ? $inventory['queued_publications']['ready'].' ready; '

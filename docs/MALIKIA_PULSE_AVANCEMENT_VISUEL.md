@@ -1,10 +1,12 @@
 # Malikia Pulse — avancement visuel
 
-**État au 27 août 2026 : `WP2A_LOCAL_VALIDATED` · `ACCOUNT_OWNER_PAYER_CONFIRMED` · `PRE_WP2B_INVENTORY_LOCAL_VALIDATED` · `MYSQL_COMPATIBILITY_GATE_VALIDATED` · `WP2B_SCHEMA_GATE_PENDING` · `P0_GATES_OPEN` · `NO_GO_BUFFER_RUNTIME/PILOT/PRODUCTION`**
+**État au 28 août 2026 : `WP2A_LOCAL_VALIDATED` · `ACCOUNT_OWNER_PAYER_CONFIRMED` · `PRE_WP2B_INVENTORY_LOCAL_VALIDATED` · `PRE_WP2B_QUEUE_SCOPE_TOOLING_VALIDATED` · `MYSQL_COMPATIBILITY_GATE_VALIDATED` · `WP2B_SCHEMA_GATE_PENDING` · `P0_GATES_OPEN` · `NO_GO_BUFFER_RUNTIME/PILOT/PRODUCTION`**
 
 **Checkpoint distant : `feature/pulse-buffer-refonte@4296d46774fa`**
 
 **Dernier lot publié : décision compte Buffer détenu/payé par le client + vraie matrice MySQL CI + garde de base isolée + nettoyage de code mort Pulse**
+
+**Lot courant validé localement : ciblage explicite d’une queue ancienne/externe + refus fail-closed + matrice SQLite/MySQL**
 
 ```mermaid
 flowchart LR
@@ -24,8 +26,9 @@ flowchart LR
         D2["WP2-A — Contrat/fake local<br/>Port et DTO/résultat text-only,<br/>fake déterministe, 9 tests verts"]
         DI["Pré-WP2-B — Inventaire legacy<br/>CLI agrégé read-only validé<br/>base MySQL locale inventoriée"]
         DM["Gate MySQL réel<br/>Driver vérifié, base isolée protégée,<br/>171 tests et 1 618 assertions"]
+        DS["Ciblage de queue explicite<br/>Queue database renommée mesurable,<br/>queue externe identifiée sans connexion"]
 
-        D0 --> D1A --> D1B --> D1C --> D1D --> D1E --> D1F --> D1G --> D1H --> D1I --> DQ --> D2 --> DI --> DM
+        D0 --> D1A --> D1B --> D1C --> D1D --> D1E --> D1F --> D1G --> D1H --> D1I --> DQ --> D2 --> DI --> DM --> DS
     end
 
     subgraph TODO["⏳ RESTE À FAIRE / GATES LOCAUX ET DISTANTS"]
@@ -34,7 +37,7 @@ flowchart LR
         T1["Fin WP1 / preuves BUF-P0<br/>Prouver replanification, accès, quotas,<br/>médias, juridique, coûts et prérequis"]
         GR["Gate runtime Buffer<br/>Webhook ou polling accepté,<br/>corrélation/idempotence et P0 applicables"]
         GP["Gate pilote / production<br/>Médias, juridique, capacité,<br/>modèle commercial et canary"]
-        TI["Inventaire représentatif<br/>Clone MySQL + queues non database,<br/>anomalies qualifiées avant migration"]
+        TI["Inventaire représentatif<br/>Clone MySQL + liste/preuves des queues réelles,<br/>anomalies qualifiées avant migration"]
         T2B["WP2-B — Fondation de données<br/>Migrations et backfill après inventaire clone<br/>et gate schéma local"]
         T2C["WP2-C — Transport Buffer<br/>Client HTTP, mapper GraphQL<br/>et gateway concret"]
         T3["WP3 — Connexion et canaux<br/>OAuth Buffer, refresh, organisations,<br/>synchronisation et capacités"]
@@ -53,7 +56,7 @@ flowchart LR
         GP --> T6
     end
 
-    DM -. prochaine validation .-> TI
+    DS -. prochaine validation .-> TI
     DI -. fin WP0 .-> T0
     DI -. prochaines preuves .-> T1
 ```
