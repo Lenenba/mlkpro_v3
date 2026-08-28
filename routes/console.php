@@ -2178,8 +2178,8 @@ Artisan::command(
     'pulse:buffer:inventory-legacy
         {--json : Output the aggregate inventory as JSON}
         {--source-context=unspecified : Operator-declared source: local, representative-clone, approved-environment, or unspecified}
-        {--queue-scope=* : Explicit connection:queue scopes to inspect; repeat for current and legacy queues}
-        {--confirm-queue-scope-list-complete : Assert that every current and legacy social publication queue is declared}
+        {--queue-scope=* : Explicit connection:queue scopes to inspect; repeat for current and legacy Pulse queues}
+        {--confirm-queue-scope-list-complete : Assert that every current and legacy Pulse queue is declared}
         {--confirm-read-only-scan : Confirm the authorized all-tenant aggregate scan}',
     function (LegacySocialInventoryService $inventoryService): int {
         if (! (bool) $this->option('confirm-read-only-scan')) {
@@ -2213,22 +2213,32 @@ Artisan::command(
         }
 
         $this->info('Pulse Buffer legacy inventory (read-only, aggregate only)');
-        $queueRows = array_map(
-            static fn (array $queueInventory): array => [
-                'Queued publications ('
-                    .$queueInventory['queue_connection'].':'
-                    .$queueInventory['queue_label'].')',
-                $queueInventory['total'] ?? 'not measurable',
-                $queueInventory['measurable']
-                    ? $queueInventory['ready'].' ready; '
-                        .$queueInventory['delayed'].' delayed; '
-                        .$queueInventory['active_reserved'].' active reservation; '
-                        .$queueInventory['expired_reserved'].' expired reservation; '
-                        .$queueInventory['unparseable_candidates'].' unparseable candidate'
-                    : $queueInventory['reason'],
-            ],
-            $inventory['queue_scope_manifest']['scopes'],
-        );
+        $queueRows = [];
+        $queueWorkloadLabels = [
+            'social_publish' => 'Queued publications',
+            'social_automation' => 'Queued automation candidates',
+        ];
+
+        foreach ($inventory['queue_scope_manifest']['scopes'] as $queueInventory) {
+            foreach ($queueWorkloadLabels as $workload => $label) {
+                $workloadInventory = $queueInventory['jobs_by_workload'][$workload];
+                $queueRows[] = [
+                    $label.' ('
+                        .$queueInventory['queue_connection'].':'
+                        .$queueInventory['queue_label'].')',
+                    $workloadInventory['total'] ?? 'not measurable',
+                    $queueInventory['measurable']
+                        ? $workloadInventory['ready'].' ready; '
+                            .$workloadInventory['delayed'].' delayed; '
+                            .$workloadInventory['active_reserved'].' active reservation; '
+                            .$workloadInventory['expired_reserved'].' expired reservation; '
+                            .$workloadInventory['unparseable_candidates'].' unparseable candidate'
+                        : $queueInventory['reason'],
+                ];
+            }
+        }
+
+        $failedAutomationJobs = $inventory['failed_pulse_jobs']['by_workload']['social_automation'];
 
         $this->table(['Scope', 'Total', 'Attention'], [
             [
@@ -2266,14 +2276,26 @@ Artisan::command(
                 $inventory['failed_publications']['measurable']
                     ? $inventory['failed_publications']['unparseable_candidates'].' unparseable candidate; '
                         .($inventory['failed_publications']['total'] > 0
+                            || $inventory['failed_publications']['unparseable_candidates'] > 0
                             ? 'retry qualification required'
                             : 'no retryable legacy publication found')
                     : $inventory['failed_publications']['reason'],
             ],
+            [
+                'Failed automation candidate jobs',
+                $failedAutomationJobs['total'] ?? 'not measurable',
+                $inventory['failed_pulse_jobs']['measurable']
+                    ? $failedAutomationJobs['unparseable_candidates'].' unparseable candidate; '
+                        .($failedAutomationJobs['total'] > 0
+                            || $failedAutomationJobs['unparseable_candidates'] > 0
+                            ? 'manual retry qualification required'
+                            : 'no retryable legacy automation found')
+                    : $inventory['failed_pulse_jobs']['reason'],
+            ],
             ...$queueRows,
         ]);
         $this->line(sprintf(
-            'Queue scope manifest: %d inspected; %d measurable; %d unmeasurable; %s; %s; %s.',
+            'Queue scope manifest: %d inspected; %d measurable; %d unmeasurable; %s; %s; %s; %s.',
             $inventory['queue_scope_manifest']['scope_count'],
             $inventory['queue_scope_manifest']['measurable_scope_count'],
             $inventory['queue_scope_manifest']['unmeasurable_scope_count'],
@@ -2283,9 +2305,14 @@ Artisan::command(
             $inventory['queue_scope_manifest']['unmeasurable_scope_count'] > 0
                 ? 'external queue evidence required'
                 : 'all inspected scopes measurable',
-            ! $inventory['failed_publications']['measurable']
+            $inventory['queue_scope_manifest']['requires_job_policy'] === null
+                ? 'queued-job policy evidence incomplete'
+                : ($inventory['queue_scope_manifest']['requires_job_policy']
+                    ? 'queued-job policy qualification required'
+                    : 'queued-job evidence complete'),
+            ! $inventory['failed_pulse_jobs']['measurable']
                 ? 'failed-job evidence required'
-                : ($inventory['failed_publications']['total'] > 0
+                : ($inventory['failed_pulse_jobs']['requires_job_policy']
                     ? 'failed-job retry qualification required'
                     : 'failed-job evidence measurable')
         ));

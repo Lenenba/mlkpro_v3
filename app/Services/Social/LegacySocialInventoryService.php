@@ -2,11 +2,13 @@
 
 namespace App\Services\Social;
 
+use App\Jobs\GenerateSocialPostCandidateJob;
 use App\Jobs\PublishSocialPostTargetJob;
 use App\Models\SocialAccountConnection;
 use App\Models\SocialPostTarget;
 use App\Support\QueueWorkload;
 use Illuminate\Database\Connection;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -15,6 +17,11 @@ use JsonException;
 
 class LegacySocialInventoryService
 {
+    private const PULSE_JOB_CLASSES = [
+        'social_automation' => GenerateSocialPostCandidateJob::class,
+        'social_publish' => PublishSocialPostTargetJob::class,
+    ];
+
     private const MAX_QUEUE_SCOPES = 32;
 
     private const MAX_QUEUE_NAME_LENGTH = 255;
@@ -42,17 +49,21 @@ class LegacySocialInventoryService
      *         domain: string,
      *         queue_scopes: string,
      *         failed_publications: string,
+     *         failed_pulse_jobs: string,
      *         cross_source_atomic: bool
      *     },
      *     connections: array<string, mixed>,
      *     targets: array<string, mixed>,
      *     references: array<string, mixed>,
      *     failed_publications: array<string, mixed>,
+     *     failed_pulse_jobs: array<string, mixed>,
      *     queue_scope_manifest: array{
      *         operator_attested_complete_scope_list: bool,
+     *         recognized_job_workloads: list<string>,
      *         scope_count: int,
      *         measurable_scope_count: int,
      *         unmeasurable_scope_count: int,
+     *         requires_job_policy: bool|null,
      *         scopes: list<array<string, mixed>>
      *     }
      * }
@@ -94,15 +105,29 @@ class LegacySocialInventoryService
         });
 
         $queueInventories = array_map(
-            fn (array $queueScope): array => $this->queuedPublicationInventory($queueScope),
+            fn (array $queueScope): array => $this->queuedSocialJobInventory($queueScope),
             $queueScopes,
         );
         $measurableScopeCount = count(array_filter(
             $queueInventories,
             static fn (array $queueInventory): bool => $queueInventory['measurable'],
         ));
-        $failedPublicationInventory = $this->failedPublicationInventory();
+        $failedPulseJobInventory = $this->failedPulseJobInventory();
         $captureCompletedAt = now('UTC')->toIso8601String();
+        $queuedJobsObserved = count(array_filter(
+            $queueInventories,
+            static fn (array $queueInventory): bool => $queueInventory['measurable']
+                && count(array_filter(
+                    $queueInventory['jobs_by_workload'],
+                    static fn (array $workloadInventory): bool => $workloadInventory['total'] > 0
+                        || $workloadInventory['unparseable_candidates'] > 0,
+                )) > 0,
+        )) > 0;
+        $queueEvidenceComplete = $completeQueueScopeListAttested
+            && $measurableScopeCount === count($queueInventories);
+        $queuedJobsRequirePolicy = $queuedJobsObserved
+            ? true
+            : ($queueEvidenceComplete ? false : null);
 
         return [
             'schema_version' => 'pulse_legacy_inventory_v2',
@@ -116,15 +141,19 @@ class LegacySocialInventoryService
                 'domain' => 'transactional',
                 'queue_scopes' => 'sequential_independent_passes',
                 'failed_publications' => 'independent_single_pass',
+                'failed_pulse_jobs' => 'independent_single_pass',
                 'cross_source_atomic' => false,
             ],
             ...$domainInventory,
-            'failed_publications' => $failedPublicationInventory,
+            'failed_publications' => $this->failedPublicationProjection($failedPulseJobInventory),
+            'failed_pulse_jobs' => $failedPulseJobInventory,
             'queue_scope_manifest' => [
                 'operator_attested_complete_scope_list' => $completeQueueScopeListAttested,
+                'recognized_job_workloads' => array_keys(self::PULSE_JOB_CLASSES),
                 'scope_count' => count($queueInventories),
                 'measurable_scope_count' => $measurableScopeCount,
                 'unmeasurable_scope_count' => count($queueInventories) - $measurableScopeCount,
+                'requires_job_policy' => $queuedJobsRequirePolicy,
                 'scopes' => $queueInventories,
             ],
         ];
@@ -151,7 +180,17 @@ class LegacySocialInventoryService
         }
 
         if ($declaredQueueScopes === []) {
-            return [$this->resolveQueueScope(null, null)];
+            $defaultQueueConnection = (string) config('queue.default');
+            $currentQueueScopes = [];
+
+            foreach (array_keys(self::PULSE_JOB_CLASSES) as $workload) {
+                $currentQueueScopes[] = $this->resolveQueueScope(
+                    $defaultQueueConnection,
+                    QueueWorkload::queue($workload),
+                );
+            }
+
+            return $this->normalizeQueueScopes($currentQueueScopes, false);
         }
 
         $queueScopes = [];
@@ -171,6 +210,21 @@ class LegacySocialInventoryService
             $queueScopes[] = $this->resolveQueueScope($scopeParts[0], $scopeParts[1]);
         }
 
+        $queueScopes = $this->normalizeQueueScopes($queueScopes, true);
+
+        if ($completeQueueScopeListAttested) {
+            $this->assertCurrentPulseQueuesDeclared($queueScopes);
+        }
+
+        return $queueScopes;
+    }
+
+    /**
+     * @param  list<array{queue_connection: string, driver: string, queue: string, queue_label: string}>  $queueScopes
+     * @return list<array{queue_connection: string, driver: string, queue: string, queue_label: string}>
+     */
+    private function normalizeQueueScopes(array $queueScopes, bool $rejectDuplicates): array
+    {
         usort($queueScopes, static function (array $left, array $right): int {
             return [$left['queue_connection'], $left['queue']]
                 <=> [$right['queue_connection'], $right['queue']];
@@ -178,29 +232,71 @@ class LegacySocialInventoryService
 
         $uniqueScopes = [];
         $uniqueDatabaseScopes = [];
+        $normalizedScopes = [];
         foreach ($queueScopes as $queueScope) {
             $scopeKey = $queueScope['queue_connection']."\0".$queueScope['queue'];
             if (array_key_exists($scopeKey, $uniqueScopes)) {
-                throw new InvalidArgumentException('Each queue scope must be declared only once.');
-            }
+                if ($rejectDuplicates) {
+                    throw new InvalidArgumentException('Each queue scope must be declared only once.');
+                }
 
-            $uniqueScopes[$scopeKey] = true;
-
-            $databaseScopeKey = $this->databaseQueueScopeKey($queueScope);
-            if ($databaseScopeKey === null) {
                 continue;
             }
 
-            if (array_key_exists($databaseScopeKey, $uniqueDatabaseScopes)) {
-                throw new InvalidArgumentException(
-                    'Database queue scopes must not alias the same connection, table, and queue.'
-                );
+            $databaseScopeKey = $this->databaseQueueScopeKey($queueScope);
+            if ($databaseScopeKey !== null && array_key_exists($databaseScopeKey, $uniqueDatabaseScopes)) {
+                if ($rejectDuplicates) {
+                    throw new InvalidArgumentException(
+                        'Database queue scopes must not alias the same connection, table, and queue.'
+                    );
+                }
+
+                continue;
             }
 
-            $uniqueDatabaseScopes[$databaseScopeKey] = true;
+            $uniqueScopes[$scopeKey] = true;
+            if ($databaseScopeKey !== null) {
+                $uniqueDatabaseScopes[$databaseScopeKey] = true;
+            }
+            $normalizedScopes[] = $queueScope;
         }
 
-        return $queueScopes;
+        return $normalizedScopes;
+    }
+
+    /**
+     * @param  list<array{queue_connection: string, driver: string, queue: string, queue_label: string}>  $queueScopes
+     */
+    private function assertCurrentPulseQueuesDeclared(array $queueScopes): void
+    {
+        $defaultQueueConnection = (string) config('queue.default');
+
+        foreach (array_keys(self::PULSE_JOB_CLASSES) as $workload) {
+            $expectedScope = $this->resolveQueueScope(
+                $defaultQueueConnection,
+                QueueWorkload::queue($workload),
+            );
+            $expectedDatabaseScopeKey = $this->databaseQueueScopeKey($expectedScope);
+            $isDeclared = count(array_filter(
+                $queueScopes,
+                function (array $queueScope) use ($expectedScope, $expectedDatabaseScopeKey): bool {
+                    $databaseScopeKey = $this->databaseQueueScopeKey($queueScope);
+
+                    if ($expectedDatabaseScopeKey !== null && $databaseScopeKey !== null) {
+                        return hash_equals($expectedDatabaseScopeKey, $databaseScopeKey);
+                    }
+
+                    return $queueScope['queue_connection'] === $expectedScope['queue_connection']
+                        && $queueScope['queue'] === $expectedScope['queue'];
+                },
+            )) > 0;
+
+            if (! $isDeclared) {
+                throw new InvalidArgumentException(
+                    "Complete queue scope attestation is missing current Pulse workload [{$workload}]."
+                );
+            }
+        }
     }
 
     /**
@@ -544,10 +640,11 @@ class LegacySocialInventoryService
      *     delayed: int|null,
      *     active_reserved: int|null,
      *     expired_reserved: int|null,
-     *     unparseable_candidates: int|null
+     *     unparseable_candidates: int|null,
+     *     jobs_by_workload: array<string, array<string, int|null>>
      * }
      */
-    private function queuedPublicationInventory(array $queueScope): array
+    private function queuedSocialJobInventory(array $queueScope): array
     {
         $queueConnection = $queueScope['queue_connection'];
         $driver = $queueScope['driver'];
@@ -598,7 +695,8 @@ class LegacySocialInventoryService
      *     delayed: int,
      *     active_reserved: int,
      *     expired_reserved: int,
-     *     unparseable_candidates: int
+     *     unparseable_candidates: int,
+     *     jobs_by_workload: array<string, array<string, int>>
      * }
      */
     private function databaseQueueInventory(
@@ -609,63 +707,67 @@ class LegacySocialInventoryService
         string $queue,
         string $queueLabel,
     ): array {
-        $inventory = [
-            'measurable' => true,
-            'queue_connection' => $queueConnection,
-            'driver' => $driver,
-            'queue_label' => $queueLabel,
-            'reason' => null,
-            'total' => 0,
-            'ready' => 0,
-            'delayed' => 0,
-            'active_reserved' => 0,
-            'expired_reserved' => 0,
-            'unparseable_candidates' => 0,
-        ];
+        $jobsByWorkload = $this->emptyQueuedWorkloadInventories();
         $nowTimestamp = now()->timestamp;
         $retryAfter = max(1, (int) config("queue.connections.{$queueConnection}.retry_after", 90));
         $expiredBefore = $nowTimestamp - $retryAfter;
         $candidates = $connection->table($table)
             ->select(['id', 'payload', 'available_at', 'reserved_at'])
             ->where('queue', $queue)
-            ->where('payload', 'like', '%'.class_basename(PublishSocialPostTargetJob::class).'%')
+            ->where(function (Builder $query): void {
+                foreach (array_values(self::PULSE_JOB_CLASSES) as $index => $jobClass) {
+                    $method = $index === 0 ? 'where' : 'orWhere';
+                    $query->{$method}('payload', 'like', '%'.class_basename($jobClass).'%');
+                }
+            })
             ->orderBy('id')
             ->cursor();
 
         foreach ($candidates as $candidate) {
-            $isPublication = $this->isSocialPublicationPayload($candidate->payload);
-            if ($isPublication === null) {
-                $inventory['unparseable_candidates']++;
+            $classification = $this->classifySocialJobPayload($candidate->payload);
+            if (! $classification['parseable']) {
+                foreach ($this->candidateWorkloads($candidate->payload) as $workload) {
+                    $jobsByWorkload[$workload]['unparseable_candidates']++;
+                }
 
                 continue;
             }
 
-            if (! $isPublication) {
+            $workload = $classification['workload'];
+            if ($workload === null) {
                 continue;
             }
 
-            $inventory['total']++;
+            $jobsByWorkload[$workload]['total']++;
             $reservedAt = $candidate->reserved_at;
 
             if ($reservedAt !== null) {
                 if ((int) $reservedAt <= $expiredBefore) {
-                    $inventory['ready']++;
-                    $inventory['expired_reserved']++;
+                    $jobsByWorkload[$workload]['ready']++;
+                    $jobsByWorkload[$workload]['expired_reserved']++;
                 } else {
-                    $inventory['active_reserved']++;
+                    $jobsByWorkload[$workload]['active_reserved']++;
                 }
 
                 continue;
             }
 
             if ((int) $candidate->available_at > $nowTimestamp) {
-                $inventory['delayed']++;
+                $jobsByWorkload[$workload]['delayed']++;
             } else {
-                $inventory['ready']++;
+                $jobsByWorkload[$workload]['ready']++;
             }
         }
 
-        return $inventory;
+        return [
+            'measurable' => true,
+            'queue_connection' => $queueConnection,
+            'driver' => $driver,
+            'queue_label' => $queueLabel,
+            'reason' => null,
+            ...$jobsByWorkload['social_publish'],
+            'jobs_by_workload' => $jobsByWorkload,
+        ];
     }
 
     /**
@@ -674,14 +776,16 @@ class LegacySocialInventoryService
      *     driver: string,
      *     reason: string|null,
      *     total: int|null,
-     *     unparseable_candidates: int|null
+     *     unparseable_candidates: int|null,
+     *     requires_job_policy: bool|null,
+     *     by_workload: array<string, array{total: int|null, unparseable_candidates: int|null}>
      * }
      */
-    private function failedPublicationInventory(): array
+    private function failedPulseJobInventory(): array
     {
         $definition = config('queue.failed');
         if (! is_array($definition)) {
-            return $this->unmeasurableFailedPublicationInventory(
+            return $this->unmeasurableFailedSocialJobInventory(
                 'unknown',
                 'failed_queue_configuration_invalid',
             );
@@ -689,7 +793,7 @@ class LegacySocialInventoryService
 
         $driver = trim((string) ($definition['driver'] ?? ''));
         if (! in_array($driver, ['database', 'database-uuids'], true)) {
-            return $this->unmeasurableFailedPublicationInventory(
+            return $this->unmeasurableFailedSocialJobInventory(
                 $driver !== '' ? $driver : 'unknown',
                 'failed_queue_driver_not_database',
             );
@@ -700,7 +804,7 @@ class LegacySocialInventoryService
         $connection = DB::connection($databaseConnection !== '' ? $databaseConnection : null);
 
         if ($table === '' || ! $connection->getSchemaBuilder()->hasTable($table)) {
-            return $this->unmeasurableFailedPublicationInventory(
+            return $this->unmeasurableFailedSocialJobInventory(
                 $driver,
                 'failed_queue_table_unavailable',
             );
@@ -712,39 +816,139 @@ class LegacySocialInventoryService
             'reason' => null,
             'total' => 0,
             'unparseable_candidates' => 0,
+            'requires_job_policy' => false,
+            'by_workload' => $this->emptyFailedWorkloadInventories(),
         ];
         $candidates = $connection->table($table)
             ->select(['id', 'payload'])
-            ->where('payload', 'like', '%'.class_basename(PublishSocialPostTargetJob::class).'%')
+            ->where(function (Builder $query): void {
+                foreach (array_values(self::PULSE_JOB_CLASSES) as $index => $jobClass) {
+                    $method = $index === 0 ? 'where' : 'orWhere';
+                    $query->{$method}('payload', 'like', '%'.class_basename($jobClass).'%');
+                }
+            })
             ->orderBy('id')
             ->cursor();
 
         foreach ($candidates as $candidate) {
-            $isPublication = $this->isSocialPublicationPayload($candidate->payload);
-            if ($isPublication === null) {
+            $classification = $this->classifySocialJobPayload($candidate->payload);
+            if (! $classification['parseable']) {
                 $inventory['unparseable_candidates']++;
+                foreach ($this->candidateWorkloads($candidate->payload) as $workload) {
+                    $inventory['by_workload'][$workload]['unparseable_candidates']++;
+                }
 
                 continue;
             }
 
-            if ($isPublication) {
-                $inventory['total']++;
+            $workload = $classification['workload'];
+            if ($workload === null) {
+                continue;
             }
+
+            $inventory['total']++;
+            $inventory['by_workload'][$workload]['total']++;
         }
+
+        $inventory['requires_job_policy'] = $inventory['total'] > 0
+            || $inventory['unparseable_candidates'] > 0;
 
         return $inventory;
     }
 
-    private function isSocialPublicationPayload(mixed $rawPayload): ?bool
+    /**
+     * @return array{parseable: bool, workload: string|null}
+     */
+    private function classifySocialJobPayload(mixed $rawPayload): array
     {
         try {
             $payload = json_decode((string) $rawPayload, true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException) {
-            return null;
+            return ['parseable' => false, 'workload' => null];
         }
 
-        return is_array($payload)
-            && ($payload['displayName'] ?? null) === PublishSocialPostTargetJob::class;
+        if (! is_array($payload)) {
+            return ['parseable' => true, 'workload' => null];
+        }
+
+        $displayName = $payload['displayName'] ?? null;
+        $workload = array_search($displayName, self::PULSE_JOB_CLASSES, true);
+
+        return [
+            'parseable' => true,
+            'workload' => is_string($workload) ? $workload : null,
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function candidateWorkloads(mixed $rawPayload): array
+    {
+        $payload = (string) $rawPayload;
+        $workloads = [];
+
+        foreach (self::PULSE_JOB_CLASSES as $workload => $jobClass) {
+            if (Str::contains($payload, class_basename($jobClass), true)) {
+                $workloads[] = $workload;
+            }
+        }
+
+        return $workloads;
+    }
+
+    /**
+     * @return array<string, array{
+     *     total: int,
+     *     ready: int,
+     *     delayed: int,
+     *     active_reserved: int,
+     *     expired_reserved: int,
+     *     unparseable_candidates: int
+     * }>
+     */
+    private function emptyQueuedWorkloadInventories(): array
+    {
+        return array_fill_keys(array_keys(self::PULSE_JOB_CLASSES), [
+            'total' => 0,
+            'ready' => 0,
+            'delayed' => 0,
+            'active_reserved' => 0,
+            'expired_reserved' => 0,
+            'unparseable_candidates' => 0,
+        ]);
+    }
+
+    /**
+     * @return array<string, array{total: int, unparseable_candidates: int}>
+     */
+    private function emptyFailedWorkloadInventories(): array
+    {
+        return array_fill_keys(array_keys(self::PULSE_JOB_CLASSES), [
+            'total' => 0,
+            'unparseable_candidates' => 0,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $failedPulseJobs
+     * @return array{
+     *     measurable: bool,
+     *     driver: string,
+     *     reason: string|null,
+     *     total: int|null,
+     *     unparseable_candidates: int|null
+     * }
+     */
+    private function failedPublicationProjection(array $failedPulseJobs): array
+    {
+        return [
+            'measurable' => $failedPulseJobs['measurable'],
+            'driver' => $failedPulseJobs['driver'],
+            'reason' => $failedPulseJobs['reason'],
+            'total' => $failedPulseJobs['by_workload']['social_publish']['total'],
+            'unparseable_candidates' => $failedPulseJobs['by_workload']['social_publish']['unparseable_candidates'],
+        ];
     }
 
     /**
@@ -753,10 +957,12 @@ class LegacySocialInventoryService
      *     driver: string,
      *     reason: string,
      *     total: null,
-     *     unparseable_candidates: null
+     *     unparseable_candidates: null,
+     *     requires_job_policy: null,
+     *     by_workload: array<string, array{total: null, unparseable_candidates: null}>
      * }
      */
-    private function unmeasurableFailedPublicationInventory(string $driver, string $reason): array
+    private function unmeasurableFailedSocialJobInventory(string $driver, string $reason): array
     {
         return [
             'measurable' => false,
@@ -764,6 +970,11 @@ class LegacySocialInventoryService
             'reason' => $reason,
             'total' => null,
             'unparseable_candidates' => null,
+            'requires_job_policy' => null,
+            'by_workload' => array_fill_keys(array_keys(self::PULSE_JOB_CLASSES), [
+                'total' => null,
+                'unparseable_candidates' => null,
+            ]),
         ];
     }
 
@@ -779,7 +990,8 @@ class LegacySocialInventoryService
      *     delayed: null,
      *     active_reserved: null,
      *     expired_reserved: null,
-     *     unparseable_candidates: null
+     *     unparseable_candidates: null,
+     *     jobs_by_workload: array<string, array<string, null>>
      * }
      */
     private function unmeasurableQueueInventory(
@@ -800,6 +1012,14 @@ class LegacySocialInventoryService
             'active_reserved' => null,
             'expired_reserved' => null,
             'unparseable_candidates' => null,
+            'jobs_by_workload' => array_fill_keys(array_keys(self::PULSE_JOB_CLASSES), [
+                'total' => null,
+                'ready' => null,
+                'delayed' => null,
+                'active_reserved' => null,
+                'expired_reserved' => null,
+                'unparseable_candidates' => null,
+            ]),
         ];
     }
 }
