@@ -6,14 +6,14 @@
             "delivery_status": "in_progress",
             "created_at": "2026-08-27",
             "updated_at": "2026-08-28",
-            "note": "Vue visuelle synthétique : WP2-A, le modèle de compte Buffer payé par chaque client, la base commerciale Facebook-only, le compteur logique 8/6 et les validations distantes de la PR #140 au checkpoint b11a9f35 sont acquis. Le manifeste pré-WP2-B v2 couvre les scopes explicites, failed_jobs, la provenance et la fenêtre de capture sans ouvrir les drivers externes ; ses matrices locales PHP, MySQL, Node et navigateur sont vertes. Le clone représentatif, les preuves des queues externes ou anciennes, leur politique de retry et le gate WP2-B schéma restent à valider."
+            "note": "Vue visuelle synthétique : WP2-A, le modèle de compte Buffer payé par chaque client, la base commerciale Facebook-only et le compteur logique 8/6 sont acquis. Le manifeste pré-WP2-B v2 couvre les scopes explicites, failed_jobs, la provenance et la fenêtre de capture sans ouvrir les drivers externes ; le checkpoint 652e61f1 passe les validations distantes Laravel, MySQL, Node et navigateur de la PR #140. Le clone représentatif, les preuves des queues externes ou anciennes, leur politique de retry et le gate WP2-B schéma restent à valider."
         },
         "docs/MALIKIA_PULSE_BUFFER_FIRST_REFONTE_GLOBALE_2026-08-26.md": {
             "document_status": "complete",
             "delivery_status": "in_progress",
             "created_at": "2026-08-26",
             "updated_at": "2026-08-28",
-            "note": "Référence active Buffer-first ; propriétaire/payeur, prix, prérequis Facebook-only, recommandation Essentials, compteur logique et validation CI de la PR #140 au checkpoint b11a9f35 sont acquis. Le manifeste d'inventaire v2 multi-scopes et failed_jobs est validé sur les matrices locales PHP, MySQL, Node et navigateur, sans transport Buffer ni migration. La consommation runtime réelle, la capacité OAuth multi-client, le parcours pilote, le clone représentatif, les queues externes ou anciennes, le contrat final de destination logique et WP2-B schéma restent en attente."
+            "note": "Référence active Buffer-first ; propriétaire/payeur, prix, prérequis Facebook-only, recommandation Essentials et compteur logique sont acquis. Le manifeste d'inventaire v2 multi-scopes et failed_jobs est validé localement et par la CI de la PR #140 au checkpoint 652e61f1, sans transport Buffer ni migration. La consommation runtime réelle, la capacité OAuth multi-client, le parcours pilote, le clone représentatif, les queues externes ou anciennes, le contrat final de destination logique et WP2-B schéma restent en attente."
         },
         "docs/MALIKIA_PULSE_DOCUMENTATION_TECHNIQUE_2026-04-25.md": {
             "document_status": "reference",

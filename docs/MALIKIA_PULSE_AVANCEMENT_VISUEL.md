@@ -6,7 +6,7 @@
 
 **Lot de durcissement CI couvert par la PR #140 : environnement de test protégé, couverture MySQL étendue, build déterministe et bundle initial allégé**
 
-**Validation distante acquise pour `b11a9f35` : workflow `quality` #408 vert — Laravel, MySQL et navigateur ; la PR reste ouverte et n'est pas déclarée fusionnée**
+**Validation distante acquise pour `652e61f1` : workflow `quality` #409 vert — 1 716 tests PHP, 217 tests MySQL, 372 tests Node et 26 scénarios navigateur ; la PR reste ouverte et n'est pas déclarée fusionnée**
 
 ```mermaid
 flowchart LR
@@ -30,7 +30,7 @@ flowchart LR
         DC["BUF-P0-10 — Base commerciale<br/>Prix officiels et prérequis documentés,<br/>Essentials recommandé côté client"]
         DJ["BUF-P0-10 — Compteur logique local<br/>8 opérations cycle, 6 cleanup-only,<br/>redaction et erreur de verrou couvertes"]
         DV["Durcissement CI PR #140<br/>Tests DB isolés et gate MySQL étendue,<br/>build déterministe et bundle initial allégé"]
-        DG["PR #140 — validations distantes<br/>quality #408 : Laravel, MySQL<br/>et navigateur verts"]
+        DG["PR #140 — validations distantes<br/>quality #409 sur 652e61f1 : Laravel,<br/>MySQL, Node et navigateur verts"]
         DE["Pré-WP2-B — manifeste v2<br/>Scopes explicites, failed_jobs, horodatage,<br/>redaction et attestation séparée"]
         DL["Manifeste v2 — matrices locales<br/>1 716 PHP, 217 MySQL, 372 Node<br/>et 26 scénarios navigateur verts"]
 
