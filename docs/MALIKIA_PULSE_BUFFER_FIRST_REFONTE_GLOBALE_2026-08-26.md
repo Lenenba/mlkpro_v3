@@ -2,19 +2,19 @@
 
 Date de cadrage : 2026-08-26
 
-Révision : 40 — ciblage explicite des queues legacy publié
+Révision : 41 — référence commerciale Buffer et parcours Facebook-only documentés localement
 
 Baseline auditée : branche develop, commit a54169d3d096
 
 Branche de travail active : `feature/pulse-buffer-refonte`, créée depuis `develop@a54169d3d096`
 
-Branche distante : `origin/feature/pulse-buffer-refonte`, checkpoint ciblage explicite des queues legacy `f12f64ff9997`
+Branche distante : `origin/feature/pulse-buffer-refonte`, checkpoint documentaire `075348282bbe` ; lot commercial courant encore local
 
 Statut documentaire : complet — référence active
 
-Statut de livraison : **WP0/WP0-S validés localement — gate d’indexation vert — gate de déploiement ouvert — WP1-A/WP1-B/WP1-D authentifiés en lecture seule — WP1-H prouve réellement create, edit et delete sur un brouillon Facebook standard — WP1-I qualifie `move@draft` comme frontière négative provisoire — WP2-A contract/fake est validé localement — l’outil CLI pré-WP2-B, son ciblage explicite de queues connues, son exécution agrégée locale et sa matrice automatisée sur un vrai MySQL sont validés, sans migration, backfill ou transport Buffer — tous les gates BUF-P0 restent ouverts pour le runtime Buffer, le pilote et la production selon leur portée**
+Statut de livraison : **WP0/WP0-S validés localement — gate d’indexation vert — gate de déploiement ouvert — WP1-A/WP1-B/WP1-D authentifiés en lecture seule — WP1-H prouve réellement create, edit et delete sur un brouillon Facebook standard — WP1-I qualifie `move@draft` comme frontière négative provisoire — WP2-A contract/fake est validé localement — l’outil CLI pré-WP2-B, son ciblage explicite de queues connues, son exécution agrégée locale et sa matrice automatisée sur un vrai MySQL sont validés — la référence commerciale officielle, le minimum client `Essentials` recommandé et les prérequis Facebook-only sont documentés sans les confondre avec une preuve de capacité multi-client — aucune migration, aucun backfill et aucun transport Buffer ne sont ajoutés — tous les gates BUF-P0 restent ouverts pour le runtime Buffer, le pilote et la production selon leur portée**
 
-Statut de décision : **GO_WP2A_CONTRACT_FAKE_LOCAL_ONLY · WP2A_LOCAL_VALIDATED · ACCOUNT_OWNER_PAYER_CONFIRMED · PRE_WP2B_INVENTORY_LOCAL_VALIDATED · PRE_WP2B_QUEUE_SCOPE_TOOLING_VALIDATED · MYSQL_COMPATIBILITY_GATE_VALIDATED · P0_GATES_OPEN · WP2B_SCHEMA_GATE_PENDING · NO_GO_BUFFER_RUNTIME · NO_GO_BUFFER_PILOT · NO_GO_BUFFER_PRODUCTION**
+Statut de décision : **GO_WP2A_CONTRACT_FAKE_LOCAL_ONLY · WP2A_LOCAL_VALIDATED · ACCOUNT_OWNER_PAYER_CONFIRMED · BUFFER_COMMERCIAL_BASELINE_DOCUMENTED · PRE_WP2B_INVENTORY_LOCAL_VALIDATED · PRE_WP2B_QUEUE_SCOPE_TOOLING_VALIDATED · MYSQL_COMPATIBILITY_GATE_VALIDATED · P0_GATES_OPEN · WP2B_SCHEMA_GATE_PENDING · NO_GO_BUFFER_RUNTIME · NO_GO_BUFFER_PILOT · NO_GO_BUFFER_PRODUCTION**
 
 ## 0. Journal d’évolution
 
@@ -74,8 +74,9 @@ Ce journal est mis à jour à chaque étape de la refonte. Une étape n’est d�
 | EV-PULSE-050 | 2026-08-27 | Publication et vérification distante décision/MySQL | La décision propriétaire/payeur, le vrai runner MySQL, ses garde-fous, la couverture d’inventaire et le nettoyage de la branche morte Pulse sont publiés uniquement sur la branche feature. GitHub confirme le SHA fonctionnel exact et les onze fichiers attendus, avec un seul commit d’avance sur le checkpoint pré-WP2-B. Le suivi Git local/distant est synchronisé. Aucun statut ni workflow GitHub n’est rapporté pour ce push de branche feature ; Nightwatch ne signale aucun incident ouvert sur `Malikia pro dev`. `develop` et `main` restent inchangées et non ciblées. | GitHub : `4296d46774fadec44761b80d18573d74fdc90ebb`, comparaison depuis `d7e55f6e2915ec43e9a1b6eadc344008a5452e11` : `ahead 1 / behind 0`, 11 fichiers ; Git `0/0` ; MySQL 171 tests / 1 618 assertions ; SQLite ciblé 21/114 ; social ciblé 22/236 ; PHPStan 905/905 ; `composer qa:format` 32/32 ; Nightwatch : 0 incident ouvert | Checkpoint fonctionnel publié ; clone représentatif et queues externes/anciennes restent requis avant le GO schéma |
 | EV-PULSE-051 | 2026-08-28 | Pré-WP2-B — ciblage explicite des queues legacy | La commande d’inventaire accepte désormais une connexion configurée et un nom de queue explicites via `--queue-connection` et `--queue`, tout en conservant la queue sociale courante par défaut. Une queue `database` renommée est inspectée avec les mêmes agrégats bornés ; une queue externe est déclarée non mesurable sans instancier son driver ni ouvrir de connexion. Les connexions inconnues, sans driver ou aux noms invalides et les noms de queue contenant des caractères de contrôle sont refusés avant le scan du domaine. La sortie humaine identifie le couple inspecté et la sortie JSON n’expose aucune option sensible de la connexion. Aucun nom de queue n’est découvert automatiquement : l’opérateur doit encore fournir la liste exhaustive issue du clone et des environnements concernés. Aucun appel Buffer, migration ou backfill n’est ajouté. | 12 tests / 139 assertions sur SQLite puis sur MySQL réel isolé ; base `mlkpro_v3_wp2b_test` supprimée et absence vérifiée ; PHPStan 905/905 ; Pint 3/3 ; documentation Laravel 12 des options Artisan revalidée | Outil de ciblage unitaire validé localement ; clone représentatif et preuves effectives des queues externes/anciennes toujours requis avant le GO schéma |
 | EV-PULSE-052 | 2026-08-28 | Publication et vérification distante du ciblage de queues | Le ciblage explicite de queues legacy, ses refus fail-closed, ses tests MySQL/SQLite et les documents d’avancement sont publiés uniquement sur la branche feature. GitHub confirme le SHA fonctionnel exact, les sept fichiers attendus et un seul commit d’avance sur le checkpoint documentaire précédent. Le suivi Git local/distant est synchronisé. Aucun statut ni workflow GitHub n’est rapporté pour ce push de branche feature ; Nightwatch ne signale aucun incident ouvert sur `Malikia pro dev`. `develop` et `main` restent inchangées et non ciblées. | GitHub : `f12f64ff9997abc12943a1f64a5da9bb39a4727f`, comparaison depuis `483fd63f022fc4274a67fa917ba64ae6dac8fbaa` : `ahead 1 / behind 0`, 7 fichiers ; Git `0/0` ; SQLite et MySQL ciblés 12 tests / 139 assertions chacun ; Pulse/social 43/432 ; PHPStan 905/905 ; `composer qa:format` 32/32 ; Nightwatch : 0 incident ouvert | Checkpoint fonctionnel publié ; inventaire effectif du clone et des queues réelles toujours requis avant le GO schéma |
+| EV-PULSE-053 | 2026-08-28 | BUF-P0-10 — référence commerciale et parcours Facebook-only | Les pages officielles Buffer confirment une facturation par canal, l’accès API sur tous les plans, les files et quotas publiés, ainsi que le parcours OAuth tiers. Pour une Page Facebook, `Essentials` devient le minimum **recommandé** côté client en production : 6 USD/mois en facturation mensuelle ou 60 USD/an pour un canal et 5 000 publications planifiées par canal. `Free` reste admissible seulement pour un pilote borné à une Page, dix publications planifiées en file et une charge API mesurée. `Team` n’est pas le choix client par défaut tant que Pulse reste l’autorité d’approbation, mais peut rester nécessaire pour la collaboration Buffer ou, côté organisation qui enregistre l’app Malikia, pour davantage d’app clients et de quota. Le client doit disposer d’un compte Buffer actif, connecter une Page Facebook au moyen d’un profil Meta ayant le contrôle total et accepter les permissions demandées. Malikia doit enregistrer son propre app client OAuth, publier sa politique de confidentialité, déclarer ses redirect URI et utiliser Authorization Code + PKCE avec scopes minimaux et refresh token rotatif à usage unique. L’aide Buffer indique que le quota de chaque app client dépend du plan de l’organisation où il a été créé ; elle ne précise pas publiquement si plusieurs grants OAuth de cet app partagent exactement le même bucket. Le paiement du compte de chaque client ne prouve donc pas la capacité agrégée de l’app Malikia. Une page marketing isolée affiche encore 100 requêtes/jour pour `Free`, alors que la référence développeur, la page tarifaire, l’aide opérationnelle et les headers authentifiés d’EV-PULSE-017 convergent vers 250 ; les headers runtime restent l’autorité. Aucun code produit n’est ajouté ou modifié et aucune suppression spéculative de code mort n’est effectuée. | Sources officielles consultées le 28 août 2026 : [tarifs](https://buffer.com/pricing), [plans et fonctionnalités](https://support.buffer.com/en-us/articles/buffer-pricing-and-features-6pJrOPuzIt), [facturation USD et taxes](https://support.buffer.com/en-us/articles/why-was-i-charged-that-your-bill-taxes-and-vat-explained-YMilE1mo8m), [limites API](https://developers.buffer.com/guides/api-limits.html), [aide quotas par client](https://support.buffer.com/en-us/articles/troubleshooting-buffers-api-VgBuQXUCDI), [OAuth](https://developers.buffer.com/guides/authentication.html), [création de l'app client](https://support.buffer.com/en-us/articles/how-to-create-your-buffer-api-key-ShIgYVwM6j), [connexion Facebook](https://support.buffer.com/en-us/articles/connecting-your-facebook-page-to-buffer-8ORoqKxtzm), [limites de file](https://support.buffer.com/en-us/articles/how-many-posts-can-i-schedule-in-advance-Kmy2IEecqm) et [limites quotidiennes](https://support.buffer.com/en-us/articles/daily-posting-limits-kJ0JtpsdvD) ; Graphify ciblé ; Context7 et MCP Buffer non exposés dans cette session | Référence décisionnelle datée ; recommandation partageable avec réserves ; capacité OAuth multi-client, charge réelle et parcours pilote encore à valider |
 
-Les statuts inscrits dans les événements antérieurs sont historiques. EV-PULSE-042 remplace leur verdict de construction WP2-A. EV-PULSE-048 remplace l'hypothèse de cadrage d'EV-PULSE-045 pour le seul propriétaire/payeur ; les autres preuves de `BUF-P0-10` restent ouvertes. EV-PULSE-049 ferme le défaut du runner MySQL, mais ne transforme pas la base locale synthétique en clone représentatif. EV-PULSE-050 publie ce lot fonctionnel sans accorder le gate schéma. EV-PULSE-051 prépare l’inventaire explicite de chaque queue connue sans prétendre les découvrir ou les mesurer à distance. EV-PULSE-052 publie cette préparation sans fermer le gate schéma.
+Les statuts inscrits dans les événements antérieurs sont historiques. EV-PULSE-042 remplace leur verdict de construction WP2-A. EV-PULSE-048 remplace l'hypothèse de cadrage d'EV-PULSE-045 pour le seul propriétaire/payeur. EV-PULSE-049 ferme le défaut du runner MySQL, mais ne transforme pas la base locale synthétique en clone représentatif. EV-PULSE-050 publie ce lot fonctionnel sans accorder le gate schéma. EV-PULSE-051 prépare l’inventaire explicite de chaque queue connue sans prétendre les découvrir ou les mesurer à distance. EV-PULSE-052 publie cette préparation sans fermer le gate schéma. EV-PULSE-053 documente les prix, le plan recommandé et les prérequis de `BUF-P0-10`, mais ne vaut ni confirmation de capacité OAuth multi-client, ni validation du parcours pilote.
 
 ### 0.1 Gate de déploiement WP0-S
 
@@ -100,7 +101,7 @@ La direction d’architecture est approuvée :
 
 > **Malikia Pulse reste le système éditorial et métier. Buffer devient l’unique passerelle de livraison vers les réseaux sociaux.**
 
-La mise en production n’est pas approuvée. Le modèle MVP confirmé impose que chaque client détienne et paie son propre compte Buffer ; les coûts, le plan requis, la capacité, les prérequis et le parcours restent à valider.
+La mise en production n’est pas approuvée. Le modèle MVP confirmé impose que chaque client détienne et paie son propre compte Buffer. La référence de prix et de capacité publiée le 28 août 2026 est documentée, `Essentials` est recommandé comme minimum **côté client** pour une Page Facebook en production et `Free` est limité à un pilote borné. Le plan de l'organisation qui enregistrera l'app OAuth Malikia, le partage de son quota entre grants, la charge réelle par livraison et le parcours client de bout en bout restent à valider.
 
 L’audit confirme que Pulse possède déjà un domaine éditorial réutilisable. Le contrat/fake local WP2-A et un outil CLI read-only d'inventaire legacy existent ; aucun transport, schéma, migration, backfill, configuration ou binding Buffer n’est actif. Le transport actif reste un scaffold de publishers directs Facebook, Instagram, LinkedIn et X.
 
@@ -420,7 +421,7 @@ Toutes les lignes restent ouvertes ou partiellement ouvertes. Elles ne bloquent 
 | BUF-P0-07 | Capacités, formats, publication par notification et approbation distante | Matrice par canal, dont draft et needs_approval | Produit + frontend | Activation produit et pilote | Ouvert — format Facebook `post` et refus provisoire `move@draft/bottom` observés; autres capacités, canaux et approbation non prouvés |
 | BUF-P0-08 | URL média stable et cycle de vie | Spike avec publication future et suppression différée | Backend + sécurité | Pilote média | Ouvert |
 | BUF-P0-09 | Usage SaaS, DPA, support et incident | Validation juridique et fournisseur | Juridique + sécurité | Intégration distante, pilote et production | Ouvert |
-| BUF-P0-10 | Modèle commercial compte client | Propriétaire/payeur, parcours, prix/plan, capacité et prérequis validés | Produit | WP2-B schéma jusqu'au GO local séparé, WP2-C/runtime Buffer, pilote, production et généralisation | Partiellement fermé — propriétaire/payeur confirmé : chaque client possède et paie son compte ; parcours, prix/plan, capacité et prérequis ouverts |
+| BUF-P0-10 | Modèle commercial compte client | Propriétaire/payeur, parcours, prix/plan, capacité et prérequis validés | Produit | WP2-B schéma jusqu'au GO local séparé, WP2-C/runtime Buffer, pilote, production et généralisation | Partiellement fermé — propriétaire/payeur confirmé ; prix officiels, prérequis et recommandation `Essentials` documentés au 28 août 2026 ; quota OAuth multi-client, charge réelle, acceptation du plan et parcours pilote ouverts |
 
 ### 5.1 Harness probatoire WP1-A
 
@@ -621,6 +622,61 @@ L'exécution sur la base MySQL locale courante donne :
 
 Ce relevé prouve le fonctionnement manuel sur la base MySQL locale courante. La commande complète et le ciblage explicite passent aussi leurs tests automatisés sur SQLite et MySQL isolé. Ces preuves ne décrivent toujours ni l'état d'un clone représentatif ni celui de la production. Avant WP2-B schéma, il reste à exécuter le même format sur le clone choisi pour chaque couple de queue connu, compléter séparément toute queue non database, qualifier les anomalies et approuver un gate local borné pour les migrations/backfills.
 
+### 5.10 Base commerciale Facebook-only — référence du 28 août 2026
+
+**Décision utile :** chaque tenant client conserve la propriété et la facturation de son compte Buffer. Pour le périmètre MVP d'une seule Page Facebook, `Essentials` est le minimum recommandé côté client en production ; `Free` est une option de pilote à faible volume, pas une promesse de capacité ; `Team` n'est pas le choix client par défaut tant que Pulse porte seul la création, l'approbation et l'audit. `Team` peut néanmoins devenir nécessaire pour des collaborateurs Buffer ou pour augmenter les app clients et quotas de l'organisation fournisseur qui enregistrera l'app Malikia.
+
+Les prix ci-dessous sont ceux affichés en dollars américains par Buffer au 28 août 2026, hors taxes et remises particulières. Buffer confirme que tous ses abonnements sont facturés en USD et indique que sa grille a été mise à jour en novembre 2025. Le calculateur [Pricing](https://buffer.com/pricing) et la page [facturation et taxes](https://support.buffer.com/en-us/articles/why-was-i-charged-that-your-bill-taxes-and-vat-explained-YMilE1mo8m) doivent être relus au moment où le client souscrit : aucun montant ne sera codé en dur ni encaissé par Malikia.
+
+| Plan du compte client | Coût affiché pour 1 canal Facebook | File planifiée par canal | Position MVP côté client |
+| --- | --- | --- | --- |
+| `Free` | 0 USD | 10 publications simultanément en file | Pilote borné seulement : une Page, charge mesurée et dix publications au maximum en file |
+| `Essentials` | 6 USD/mois, ou 60 USD/an | 5 000 selon la fair use policy | **Minimum recommandé en production** pour retirer la limite de dix publications en file |
+| `Team` | 12 USD/mois, ou 120 USD/an | 5 000 selon la fair use policy | À retenir si le client utilise aussi les collaborateurs, rôles ou approbations de Buffer |
+
+La capacité API est une décision distincte portée par le plan de l'organisation qui crée l'app client OAuth, selon l'[aide opérationnelle Buffer](https://support.buffer.com/en-us/articles/troubleshooting-buffers-api-VgBuQXUCDI) :
+
+| Plan de l'organisation qui crée l'app client | App clients créables | Quota / 15 min | Quota / 24 h | Quota / 30 j |
+| --- | ---: | ---: | ---: | ---: |
+| `Free` | 1 | 100 | 250 | 3 000 |
+| `Essentials` | 3 | 100 | 250 | 7 500 |
+| `Team` | 5 | 100 | 500 | 15 000 |
+
+Points de capacité à ne pas confondre :
+
+- un compte `Free` accepte jusqu'à trois canaux connectés, mais garde une limite à vie de huit canaux distincts déjà connectés ; cette limite historique disparaît sur les plans payants ;
+- Facebook est borné par Buffer à 35 publications par fenêtre glissante de 24 heures, indépendamment du nombre de publications stockées en file ; Pulse pourra retenir une limite produit inférieure ;
+- le profil de quota authentifié d'EV-PULSE-017 — 100/15 min, 250/24 h et 3 000/30 j — correspond à la grille `Free` actuelle, sans prouver le libellé d'abonnement du compte testé ;
+- la page marketing [Buffer API](https://buffer.com/api) annonce encore 100 requêtes/24 h pour `Free`, tandis que la [référence développeur](https://developers.buffer.com/guides/api-limits.html), la page de prix, l'aide opérationnelle et la preuve réelle convergent vers 250 ; le preflight doit toujours lire les trois headers `RateLimit-Policy` effectifs et ne jamais déduire un quota du seul nom du plan ;
+- les quotas sont annoncés **par app client** et l'aide Buffer les rattache au plan de l'organisation où cet app client est créé. La documentation publique consultée ne précise pas si tous les grants OAuth d'un même app client partagent exactement le même bucket. Le modèle « chaque client paie son compte » n'établit donc pas que chaque grant OAuth de Malikia reçoit un bucket indépendant. Cette question reste dans `BUF-P0-02` et doit recevoir une réponse écrite de Buffer ou une preuve contrôlée avant le runtime multi-tenant ;
+- le nombre de requêtes consommées par une livraison Pulse complète — préflight, création, lecture de statut, réconciliation et éventuelle correction — n'est pas encore mesuré. Les quotas ne peuvent pas être convertis honnêtement en « publications par client » avant cette mesure.
+
+Une sensibilité purement illustrative montre pourquoi le bucket OAuth doit être clarifié. Le cycle probatoire WP1-C réservait huit requêtes pour couvrir son scénario complet et son nettoyage. En divisant chaque fenêtre officielle par cette réserve, sans prétendre qu'elle représente le futur runtime, un unique app client pourrait au plus démarrer le nombre entier de cycles suivant :
+
+| Plan de l'organisation qui crée l'app client | Cycles de preuve / 15 min | Cycles de preuve / 24 h | Cycles de preuve / 30 j |
+| --- | ---: | ---: | ---: |
+| `Free` | 12 | 31 | 375 |
+| `Essentials` | 12 | 31 | 937 |
+| `Team` | 12 | 62 | 1 875 |
+
+Ces divisions arrondies à l'entier inférieur ne sont ni une prévision de trafic, ni un engagement de publications : le cycle WP1 inclut des opérations de test absentes d'une livraison normale, tandis que la réconciliation de production ajoutera d'autres lectures. Elles démontrent seulement que le plan payé par chaque tenant ne suffit pas à dimensionner un app client Malikia potentiellement partagé.
+
+Parcours client cible, à valider ensuite par un essai de bout en bout :
+
+1. le client crée ou utilise son propre compte et son organisation Buffer, choisit son plan et règle Buffer directement ;
+2. dans Buffer, il connecte une **Page Facebook**, jamais un profil personnel ou professionnel, au moyen d'un profil Meta ayant le contrôle total de la Page et, le cas échéant, du Business Portfolio ; il conserve toutes les permissions demandées pendant le consentement Meta ;
+3. Malikia [enregistre séparément un app client OAuth](https://support.buffer.com/en-us/articles/how-to-create-your-buffer-api-key-ShIgYVwM6j) côté fournisseur avec nom, politique de confidentialité publique et redirect URI exactes ; l'application serveur utilise Authorization Code + PKCE et ne place jamais le secret dans le navigateur ;
+4. depuis Pulse, le client autorise uniquement `account:read`, `posts:read`, `posts:write` et `offline_access`, puis sélectionne explicitement son organisation et l'unique Page Facebook autorisée ; les scopes supplémentaires restent interdits tant qu'un besoin prouvé ne les exige pas ;
+5. Pulse vérifie côté serveur le compte, l'organisation, le canal, les permissions de publication, les [`OrganizationLimits`](https://developers.buffer.com/types/OrganizationLimits.html) et les trois fenêtres de quota avant d'accepter la connexion ; les access tokens expirant après une heure et les refresh tokens étant rotatifs et à usage unique, leur stockage chiffré, leur version et leur renouvellement sous verrou restent obligatoires ;
+6. avant le pilote, l'écran récapitule que Buffer facture le client, affiche le plan observé ou `inconnu`, les limites effectives, le canal sélectionné, l'état de reconnexion et un lien vers le tarif officiel ; Malikia ne garantit ni le prix futur ni une capacité supérieure aux headers observés.
+
+Il reste quatre preuves avant de considérer la partie opérationnelle de `BUF-P0-10` validée :
+
+1. réponse écrite de Buffer sur le partage du bucket d'un app client OAuth entre plusieurs comptes clients et voie d'augmentation des limites ;
+2. budget mesuré de requêtes par livraison et par cycle de réconciliation Facebook ;
+3. parcours pilote complet avec un compte client représentatif, incluant connexion Meta → Buffer → Pulse, expiration/refresh, reconnexion et downgrade ;
+4. acceptation produit finale du seuil `Free` admis en pilote et du minimum `Essentials` en production.
+
 ## 6. Systèmes de référence et invariants
 
 ### 6.1 Autorité par domaine
@@ -717,7 +773,7 @@ Toutes les migrations sont additives. Les migrations historiques déjà exécut�
 
 ### 8.1 social_provider_connections
 
-Dans le modèle MVP confirmé, une ligne représente le grant du compte Buffer détenu et payé par le tenant client. Les coûts, le plan, la capacité, le parcours et les prérequis restent soumis à `BUF-P0-10`.
+Dans le modèle MVP confirmé, une ligne représente le grant du compte Buffer détenu et payé par le tenant client. La grille officielle et le minimum `Essentials` recommandé sont documentés en section 5.10. Le plan observé, les limites effectives, la capacité de l'app client OAuth et la validation du parcours restent soumis à `BUF-P0-10`.
 
 Champs minimaux :
 
@@ -1330,7 +1386,7 @@ Les jobs delayed déjà sérialisés ne sont jamais remappés. Ils sont inventor
 1. WP2-A terminé localement : port métier provider-neutral, DTO/résultat minimal et fake déterministe de test, sans trafic Buffer ni binding runtime.
 2. Préparer, tester et exécuter l'inventaire agrégé sur la base locale courante — terminé ; aucun credential ou identifiant distant n'est exposé.
 3. Exécuter le même format sur un clone MySQL représentatif, consigner les anomalies et compléter séparément les queues non database ou anciennes queues renommées.
-4. Propriétaire/payeur confirmé par EV-PULSE-048 ; accorder un `GO_WP2B_SCHEMA_LOCAL_ONLY` distinct seulement après revue de l'inventaire représentatif ; coûts, plan, capacité et prérequis restent ouverts dans `BUF-P0-10` pour les phases distantes.
+4. Propriétaire/payeur confirmé par EV-PULSE-048 et base commerciale documentée par EV-PULSE-053 ; accorder un `GO_WP2B_SCHEMA_LOCAL_ONLY` distinct seulement après revue de l'inventaire représentatif ; quota OAuth multi-client, charge réelle et parcours pilote restent ouverts dans `BUF-P0-10` pour les phases distantes.
 5. Préparer et tester localement les colonnes et FK nouvelles comme nullables, sans les déployer ni changer le transport.
 6. Créer les révisions synthétiques, rattacher les approbations et initialiser le pointeur courant des cibles dans des tests de migration réversibles.
 7. Préparer le backfill `delivery_provider=direct`, `transport_generation=direct_v1` et `logical_destination_key` sur les connexions et cibles legacy.
@@ -1598,6 +1654,7 @@ La confirmation propriétaire/payeur, le runner MySQL réel, la revue du design/
 - scopes et rôles compris ;
 - mutations et erreurs réelles comprises pour le périmètre Facebook retenu ;
 - quota partagé connu et capacité estimée avec marge ;
+- plan client accepté pour le pilote, prix présenté comme externe et capacité effective contrôlée par headers ;
 - stratégie de timeout ambigu acceptée ;
 - webhook prouvé ou stratégie de polling formellement acceptée ;
 - stratégie de corrélation/idempotence distante acceptée ;
@@ -1643,7 +1700,7 @@ Le projet s’arrête ou change de fournisseur si :
 
 ### 18.7 Statut courant
 
-**GO_WP2A_CONTRACT_FAKE_LOCAL_ONLY · WP2A_LOCAL_VALIDATED · ACCOUNT_OWNER_PAYER_CONFIRMED · PRE_WP2B_INVENTORY_LOCAL_VALIDATED · MYSQL_COMPATIBILITY_GATE_VALIDATED · P0_GATES_OPEN · WP2B_SCHEMA_GATE_PENDING · NO_GO_BUFFER_RUNTIME · NO_GO_BUFFER_PILOT · NO_GO_BUFFER_PRODUCTION** : le contrat/fake, l'outil d'inventaire local et son exécution automatisée sur un vrai MySQL sont validés. Chaque client possède et paie son compte Buffer ; la partie propriétaire/payeur de `BUF-P0-10` est fermée, tandis que ses preuves commerciales et opérationnelles restent ouvertes. Aucun `GO_WP2B_SCHEMA_LOCAL_ONLY` n'est encore inscrit : il manque le clone représentatif et les queues externes ou anciennes. `NO_GO_BUFFER_RUNTIME` vise WP2-C/WP3/WP4 et ne révoque pas les harnais WP1 soumis à leurs propres autorisations. Les gates P0 restent ouverts selon leur portée.
+**GO_WP2A_CONTRACT_FAKE_LOCAL_ONLY · WP2A_LOCAL_VALIDATED · ACCOUNT_OWNER_PAYER_CONFIRMED · BUFFER_COMMERCIAL_BASELINE_DOCUMENTED · PRE_WP2B_INVENTORY_LOCAL_VALIDATED · PRE_WP2B_QUEUE_SCOPE_TOOLING_VALIDATED · MYSQL_COMPATIBILITY_GATE_VALIDATED · P0_GATES_OPEN · WP2B_SCHEMA_GATE_PENDING · NO_GO_BUFFER_RUNTIME · NO_GO_BUFFER_PILOT · NO_GO_BUFFER_PRODUCTION** : le contrat/fake, l'outil d'inventaire local et son exécution automatisée sur un vrai MySQL sont validés. Chaque client possède et paie son compte Buffer ; les prix officiels, les prérequis Facebook et la recommandation `Essentials` sont documentés, tandis que le quota OAuth multi-client, la charge réelle et le parcours pilote restent ouverts. Aucun `GO_WP2B_SCHEMA_LOCAL_ONLY` n'est encore inscrit : il manque le clone représentatif et les queues externes ou anciennes. `NO_GO_BUFFER_RUNTIME` vise WP2-C/WP3/WP4 et ne révoque pas les harnais WP1 soumis à leurs propres autorisations. Les gates P0 restent ouverts selon leur portée.
 
 ## 19. Risques résiduels
 
@@ -1700,12 +1757,13 @@ Toute nouvelle modification Pulse doit respecter :
 | ADR-PULSE-003 | Aucun fallback direct automatique | Acceptée | Invariant 16 | À assigner | 2026-08-26 |
 | ADR-PULSE-004 | Outbox insérée dans la transaction métier | Acceptée | Invariant 3 | À assigner | 2026-08-26 |
 | ADR-PULSE-005 | Timeout ambigu sans retry create | Acceptée | Section 10.3 | À assigner | 2026-08-26 |
-| ADR-PULSE-006 | Chaque client détient et paie son propre compte Buffer pour le MVP | Acceptée pour le MVP ; coûts, plan, capacité, parcours et prérequis ouverts | EV-PULSE-048 + BUF-P0-10 | Produit | 2026-08-27 |
+| ADR-PULSE-006 | Chaque client détient et paie son propre compte Buffer pour le MVP | Acceptée pour le MVP ; référence commerciale documentée ; capacité OAuth et parcours pilote ouverts | EV-PULSE-048 + EV-PULSE-053 + BUF-P0-10 | Produit | 2026-08-27 |
 | ADR-PULSE-007 | Polling tant qu’aucun webhook n’est confirmé | À valider P0 | BUF-P0-03 | Backend | — |
 | ADR-PULSE-008 | Analytics avancés hors MVP | Acceptée | Contrat public Buffer | Produit | 2026-08-26 |
 | ADR-PULSE-009 | WP0-S se déploie atomiquement sous maintenance ; le rolling exige un pont en trois phases | Acceptée pour le lot courant | Gate 0.1 et EV-PULSE-006 | DevOps | 2026-08-27 |
 | ADR-PULSE-010 | Les capacités Buffer sont bornées par statut/opération/canal ; `move@draft/bottom` reste une frontière négative provisoire et ne vaut ni replanification ni incapacité globale | Acceptée pour WP1 ; à reconfirmer sur un post réellement en file | WP1-I, BUF-P0-06/07 | Backend + produit | 2026-08-27 |
 | ADR-PULSE-011 | Découpler WP2-A contract/fake local des gates du runtime Buffer et du lancement | Acceptée ; périmètre `CONTRACT_FAKE_LOCAL_ONLY` obligatoire | EV-PULSE-042 et section 18.1 | Jules + backend | 2026-08-27 |
+| ADR-PULSE-012 | Recommander `Essentials` comme minimum client de production Facebook-only ; réserver `Free` au pilote borné ; garder `Team` comme option de collaboration client ou de capacité fournisseur | Proposée ; acceptation produit finale après preuve de capacité et pilote | EV-PULSE-053 + BUF-P0-02/10 | Produit | 2026-08-28 |
 
 ## 22. Conclusion
 

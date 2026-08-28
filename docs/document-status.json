@@ -6,14 +6,14 @@
             "delivery_status": "in_progress",
             "created_at": "2026-08-27",
             "updated_at": "2026-08-28",
-            "note": "Vue visuelle synthétique : WP2-A, la décision de compte Buffer client, le gate MySQL et le ciblage explicite d'une queue ancienne/externe sont publiés sur la branche feature. Le clone représentatif, la liste et les preuves effectives des queues réelles, puis WP2-B schéma restent à faire."
+            "note": "Vue visuelle synthétique : WP2-A, la décision de compte Buffer client, le gate MySQL et le ciblage explicite des queues sont acquis. La base commerciale Facebook-only est documentée localement : Essentials est recommandé côté client en production, Free reste borné au pilote. Le plan fournisseur et le quota OAuth multi-client, le parcours pilote, le clone représentatif et WP2-B schéma restent à valider."
         },
         "docs/MALIKIA_PULSE_BUFFER_FIRST_REFONTE_GLOBALE_2026-08-26.md": {
             "document_status": "complete",
             "delivery_status": "in_progress",
             "created_at": "2026-08-26",
             "updated_at": "2026-08-28",
-            "note": "Référence active Buffer-first ; le propriétaire/payeur, le gate MySQL et le ciblage explicite d'une queue ancienne/externe sont publiés sur la branche feature. Le clone représentatif, la liste et les preuves effectives des queues réelles et WP2-B schéma restent en attente, ainsi que les preuves commerciales restantes de BUF-P0-10."
+            "note": "Référence active Buffer-first ; propriétaire/payeur confirmé, prix et prérequis Facebook-only documentés, Essentials recommandé côté client en production et Free réservé au pilote borné. Le plan fournisseur et la capacité de l'app OAuth multi-client, le parcours pilote, le clone représentatif, les queues réelles et WP2-B schéma restent en attente."
         },
         "docs/MALIKIA_PULSE_DOCUMENTATION_TECHNIQUE_2026-04-25.md": {
             "document_status": "reference",
