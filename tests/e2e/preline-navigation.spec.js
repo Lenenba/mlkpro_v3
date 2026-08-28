@@ -34,7 +34,7 @@ test('Preline reinitializes the mobile sidebar after an Inertia navigation', asy
     await expect(sidebarToggle).toHaveAttribute('aria-expanded', 'false');
 
     await sidebarToggle.click();
-    await expect(sidebar).toBeVisible();
+    await expect(sidebar).toHaveClass(/\bopened\b/);
     await expect(sidebarToggle).toHaveAttribute('aria-expanded', 'true');
 
     await page.keyboard.press('Escape');

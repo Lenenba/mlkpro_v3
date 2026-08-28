@@ -1,12 +1,12 @@
 # Malikia Pulse — avancement visuel
 
-**État au 28 août 2026 : `WP2A_LOCAL_VALIDATED` · `ACCOUNT_OWNER_PAYER_CONFIRMED` · `BUFFER_COMMERCIAL_BASELINE_DOCUMENTED` · `BUFFER_LOGICAL_REQUEST_EVIDENCE_INSTRUMENTED` · `PRE_WP2B_INVENTORY_LOCAL_VALIDATED` · `PRE_WP2B_QUEUE_SCOPE_TOOLING_VALIDATED` · `MYSQL_COMPATIBILITY_GATE_VALIDATED` · `WP2B_SCHEMA_GATE_PENDING` · `P0_GATES_OPEN` · `NO_GO_BUFFER_RUNTIME` · `NO_GO_BUFFER_PILOT` · `NO_GO_BUFFER_PRODUCTION`**
+**État au 28 août 2026 : `WP2A_LOCAL_VALIDATED` · `ACCOUNT_OWNER_PAYER_CONFIRMED` · `BUFFER_COMMERCIAL_BASELINE_DOCUMENTED` · `BUFFER_LOGICAL_REQUEST_EVIDENCE_INSTRUMENTED` · `PRE_WP2B_INVENTORY_LOCAL_VALIDATED` · `PRE_WP2B_QUEUE_SCOPE_TOOLING_VALIDATED` · `MYSQL_COMPATIBILITY_GATE_VALIDATED` · `PR140_CI_HARDENING_IMPLEMENTED` · `CI_DELIVERY_GATED` · `WP2B_SCHEMA_GATE_PENDING` · `P0_GATES_OPEN` · `NO_GO_BUFFER_RUNTIME` · `NO_GO_BUFFER_PILOT` · `NO_GO_BUFFER_PRODUCTION`**
 
-**Checkpoint distant : `feature/pulse-buffer-refonte@879d4a130b52`**
+**Livraison : [PR #140](https://github.com/Lenenba/mlkpro_v3/pull/140) — `feature/pulse-buffer-refonte` → `develop`**
 
-**Dernier lot publié : compteur d'opérations GraphQL logiques, redaction des erreurs et conservation des preuves sur erreur de verrou**
+**Lot de durcissement CI couvert par la PR #140 : environnement de test protégé, couverture MySQL étendue, build déterministe et bundle initial allégé**
 
-**Vérification distante : 6 fichiers attendus, branche synchronisée, aucun incident Nightwatch ouvert**
+**Gate de livraison : aucune validation distante n'est présumée ; la fusion exige le succès de la suite globale, des gates PHP et de tous les contrôles GitHub applicables**
 
 ```mermaid
 flowchart LR
@@ -29,8 +29,9 @@ flowchart LR
         DS["Ciblage de queue explicite<br/>Queue database renommée mesurable,<br/>queue externe identifiée sans connexion"]
         DC["BUF-P0-10 — Base commerciale<br/>Prix officiels et prérequis documentés,<br/>Essentials recommandé côté client"]
         DJ["BUF-P0-10 — Compteur logique local<br/>8 opérations cycle, 6 cleanup-only,<br/>redaction et erreur de verrou couvertes"]
+        DV["Durcissement CI PR #140<br/>Tests DB isolés et gate MySQL étendue,<br/>build déterministe et bundle initial allégé"]
 
-        D0 --> D1A --> D1B --> D1C --> D1D --> D1E --> D1F --> D1G --> D1H --> D1I --> DQ --> D2 --> DI --> DM --> DS --> DC --> DJ
+        D0 --> D1A --> D1B --> D1C --> D1D --> D1E --> D1F --> D1G --> D1H --> D1I --> DQ --> D2 --> DI --> DM --> DS --> DC --> DJ --> DV
     end
 
     subgraph TODO["⏳ RESTE À FAIRE / GATES LOCAUX ET DISTANTS"]
@@ -48,6 +49,7 @@ flowchart LR
         T5["WP5 — Expérience Buffer<br/>Six surfaces, composeur scindé,<br/>agenda, récupération et E2E"]
         T6["WP6 — Pilote et migration<br/>Mapping, shadow, canary,<br/>drain et rollback"]
         T7["WP7 — Retrait du direct<br/>Supprimer routes, providers,<br/>configuration et secrets legacy"]
+        TG["Gate de livraison PR #140<br/>Suite globale, gates PHP et contrôles GitHub<br/>requis avant fusion vers develop"]
 
         T1 --> GR
         T1 --> GP
@@ -65,4 +67,5 @@ flowchart LR
     DJ -. preuve fournisseur et pilote .-> TC
     DI -. fin WP0 .-> T0
     DI -. prochaines preuves .-> T1
+    DV -. validation de livraison .-> TG
 ```

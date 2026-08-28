@@ -324,7 +324,8 @@ test('the reservation calendar remains responsive, accessible and visually infor
     assert.match(calendar, /extendedProps\??\.source/);
     assert.match(calendar, /extendedProps\.outcome_review_required_at/);
     assert.match(calendar, /reservations\.outcome_review\.badge/);
-    assert.match(calendar, /outline-amber-400/);
+    assert.match(calendar, /ring-amber-600/);
+    assert.match(calendar, /event\?\.requiresOutcomeReview && !isSelected/);
     assert.match(calendar, /(?:const\s+personInitials\s*=|function\s+personInitials\s*\()/);
     assert.match(calendar, /(?:const\s+eventAccessibleLabel\s*=|function\s+eventAccessibleLabel\s*\()/);
     assert.match(calendar, /export const indexReservationEventsByDay/);

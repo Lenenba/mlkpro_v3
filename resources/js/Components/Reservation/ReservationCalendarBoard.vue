@@ -713,14 +713,16 @@ const clickEvent = (event) => {
     emit('event-click', event.original || event);
 };
 
-const eventClasses = (event) => [
-    ...reservationStatusEventClasses(getEventStatus(event), {
-        selected: selectedKey.value !== null && selectedKey.value === event.key,
-    }),
-    ...(event?.requiresOutcomeReview
-        ? ['outline', 'outline-2', 'outline-offset-1', 'outline-amber-400', 'dark:outline-amber-300']
-        : []),
-];
+const eventClasses = (event) => {
+    const isSelected = selectedKey.value !== null && selectedKey.value === event.key;
+
+    return [
+        ...reservationStatusEventClasses(getEventStatus(event), { selected: isSelected }),
+        ...(event?.requiresOutcomeReview && !isSelected
+            ? ['ring-2', 'ring-amber-600', 'dark:ring-amber-300']
+            : []),
+    ];
+};
 </script>
 
 <template>

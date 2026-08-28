@@ -1,12 +1,18 @@
 <script setup>
-import { computed, watch } from 'vue';
-import DropzoneInput from '@/Components/DropzoneInput.vue';
+import { computed, defineAsyncComponent, watch } from 'vue';
 import InputError from '@/Components/InputError.vue';
+import AsyncDropzonePlaceholder from '@/Components/AsyncDropzonePlaceholder.vue';
 import {
     customerIconPresetsForType,
     defaultCustomerIconForType,
 } from '@/utils/iconPresets';
 import { useI18n } from 'vue-i18n';
+
+const DropzoneInput = defineAsyncComponent({
+    loader: () => import('@/Components/DropzoneInput.vue'),
+    loadingComponent: AsyncDropzonePlaceholder,
+    delay: 0,
+});
 
 const props = defineProps({
     clientType: {

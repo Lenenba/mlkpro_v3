@@ -507,7 +507,7 @@ const submit = async () => {
         </div>
 
         <div class="flex justify-end gap-2">
-            <button type="button" :data-hs-overlay="overlayId || undefined"
+            <button type="button" @click="closeOverlay"
                 class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
                 {{ $t('customers.actions.cancel') }}
             </button>

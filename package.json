@@ -12,7 +12,7 @@
         "docs:index:check": "node scripts/generate-doc-index.mjs --check",
         "pulse:buffer:facebook-draft-lifecycle": "node --env-file=.env scripts/spikes/buffer/wp1-facebook-draft-lifecycle.mjs",
         "pulse:buffer:probe": "node --env-file=.env scripts/spikes/buffer/wp1-read-only-probe.mjs",
-        "qa:build": "npm run build",
+        "qa:build": "php artisan view:clear && npm run build",
         "qa:capacity-runner": "node --test tests/Node/P0006CapacityRunnerTest.mjs",
         "qa:node": "node --test tests/Node/*.mjs",
         "qa:frontend-budgets": "node scripts/check-frontend-budgets.mjs",

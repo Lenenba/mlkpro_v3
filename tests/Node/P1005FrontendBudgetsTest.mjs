@@ -15,6 +15,27 @@ import {
 
 const projectRoot = resolve('.');
 const budgetConfig = JSON.parse(readFileSync(resolve(projectRoot, 'config/frontend-budgets.json'), 'utf8'));
+const packageConfig = JSON.parse(readFileSync(resolve(projectRoot, 'package.json'), 'utf8'));
+const productQuickForm = readFileSync(
+    resolve(projectRoot, 'resources/js/Components/QuickCreate/ProductQuickForm.vue'),
+    'utf8',
+);
+const serviceQuickForm = readFileSync(
+    resolve(projectRoot, 'resources/js/Components/QuickCreate/ServiceQuickForm.vue'),
+    'utf8',
+);
+const customerMediaFields = readFileSync(
+    resolve(projectRoot, 'resources/js/Components/Customer/CustomerMediaFields.vue'),
+    'utf8',
+);
+const customerQuickForm = readFileSync(
+    resolve(projectRoot, 'resources/js/Components/QuickCreate/CustomerQuickForm.vue'),
+    'utf8',
+);
+const quickCreateModals = readFileSync(
+    resolve(projectRoot, 'resources/js/Components/QuickCreate/QuickCreateModals.vue'),
+    'utf8',
+);
 
 const writeAsset = (directory, asset, contents) => {
     const path = join(directory, asset);
@@ -41,6 +62,42 @@ test('keeps a versioned, bounded profile for the seven P1-005 routes and local s
                 assert.ok(route.baseline[family][metric] <= route.maximum[family][metric]);
             });
         });
+    });
+});
+
+test('clears compiled Blade views before the budgeted frontend build', () => {
+    const qualityBuild = packageConfig.scripts?.['qa:build'] || '';
+    const clearViewsPosition = qualityBuild.indexOf('php artisan view:clear');
+    const buildPosition = qualityBuild.indexOf('npm run build');
+
+    assert.ok(clearViewsPosition >= 0);
+    assert.ok(buildPosition > clearViewsPosition);
+});
+
+test('keeps the image dropzone outside the initial quick-create bundle', () => {
+    [productQuickForm, serviceQuickForm, customerMediaFields].forEach((source) => {
+        assert.match(source, /loader: \(\) => import\('@\/Components\/DropzoneInput\.vue'\)/u);
+        assert.match(source, /loadingComponent: AsyncDropzonePlaceholder/u);
+        assert.match(source, /delay: 0/u);
+        assert.doesNotMatch(source, /import DropzoneInput from '@\/Components\/DropzoneInput\.vue'/u);
+    });
+
+    [
+        ['customerModalOpened', 'handleCustomerModalOpen', 'CustomerQuickForm'],
+        ['productModalOpened', 'handleProductModalOpen', 'ProductQuickForm'],
+        ['serviceModalOpened', 'handleServiceModalOpen', 'ServiceQuickForm'],
+    ].forEach(([openedState, openHandler, formComponent]) => {
+        assert.match(quickCreateModals, new RegExp(`const ${openedState} = ref\\(false\\);`, 'u'));
+        assert.match(
+            quickCreateModals,
+            new RegExp(`const ${openHandler} = \\(\\) => \\{\\s+${openedState}\\.value = true;`, 'u'),
+        );
+        assert.match(quickCreateModals, new RegExp(`@open="${openHandler}"`, 'u'));
+        assert.match(quickCreateModals, new RegExp(`<${formComponent}\\s+v-if="${openedState}"`, 'u'));
+    });
+
+    [customerQuickForm, productQuickForm, serviceQuickForm].forEach((source) => {
+        assert.match(source, /<button type="button" @click="closeOverlay"/u);
     });
 });
 

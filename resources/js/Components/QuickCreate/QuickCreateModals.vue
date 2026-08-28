@@ -50,6 +50,9 @@ const requestProspectsLoaded = ref(false);
 const quoteCustomersLoaded = ref(false);
 const categoriesLoaded = ref(false);
 const serviceOptionsLoaded = ref(false);
+const customerModalOpened = ref(false);
+const productModalOpened = ref(false);
+const serviceModalOpened = ref(false);
 
 const { t } = useI18n();
 
@@ -336,11 +339,26 @@ const handleCategoryCreated = (category) => {
 
     categoriesLoaded.value = true;
 };
+
+const handleCustomerModalOpen = () => {
+    customerModalOpened.value = true;
+};
+
+const handleProductModalOpen = () => {
+    productModalOpened.value = true;
+    ensureCategoriesLoaded();
+};
+
+const handleServiceModalOpen = () => {
+    serviceModalOpened.value = true;
+    ensureServiceOptionsLoaded();
+};
 </script>
 
 <template>
-    <Modal :title="$t('quick_create.new_customer')" :id="'hs-quick-create-customer'">
+    <Modal :title="$t('quick_create.new_customer')" :id="'hs-quick-create-customer'" @open="handleCustomerModalOpen">
         <CustomerQuickForm
+            v-if="customerModalOpened"
             :overlay-id="'#hs-quick-create-customer'"
             :submit-label="$t('quick_create.create_customer')"
             :close-on-success="true"
@@ -348,7 +366,7 @@ const handleCategoryCreated = (category) => {
         />
     </Modal>
 
-    <Modal v-if="canProducts" :title="$t('quick_create.new_product')" :id="'hs-quick-create-product'" @open="ensureCategoriesLoaded">
+    <Modal v-if="canProducts" :title="$t('quick_create.new_product')" :id="'hs-quick-create-product'" @open="handleProductModalOpen">
         <div v-if="loadingCategories" class="text-sm text-stone-500 dark:text-neutral-400">
             {{ $t('quick_create.loading_categories') }}
         </div>
@@ -357,6 +375,7 @@ const handleCategoryCreated = (category) => {
         </div>
         <div v-else>
             <ProductQuickForm
+                v-if="productModalOpened"
                 :categories="categories"
                 :overlay-id="'#hs-quick-create-product'"
                 @category-created="handleCategoryCreated"
@@ -364,7 +383,7 @@ const handleCategoryCreated = (category) => {
         </div>
     </Modal>
 
-    <Modal v-if="canServices" :title="$t('quick_create.new_service')" :id="'hs-quick-create-service'" @open="ensureServiceOptionsLoaded">
+    <Modal v-if="canServices" :title="$t('quick_create.new_service')" :id="'hs-quick-create-service'" @open="handleServiceModalOpen">
         <div v-if="loadingServiceOptions" class="text-sm text-stone-500 dark:text-neutral-400">
             {{ $t('quick_create.loading_categories') }}
         </div>
@@ -373,6 +392,7 @@ const handleCategoryCreated = (category) => {
         </div>
         <div v-else>
             <ServiceQuickForm
+                v-if="serviceModalOpened"
                 :categories="categories"
                 :material-products="materialProducts"
                 :overlay-id="'#hs-quick-create-service'"
