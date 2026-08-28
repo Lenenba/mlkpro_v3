@@ -1,6 +1,6 @@
 # Malikia Pulse — avancement visuel
 
-**État au 28 août 2026 : `RISK_PROPORTIONATE_VALIDATION_ACCEPTED` · `THREE_MACRO_STEPS_ACCEPTED` · `REPRESENTATIVE_CLONE_STRATEGY_ACCEPTED` · `BUFFER_SUPPORT_CONTACT_SENT` · `MACRO_STEP_1_IN_PROGRESS` · `WP2A_LOCAL_VALIDATED` · `ACCOUNT_OWNER_PAYER_CONFIRMED` · `BUFFER_COMMERCIAL_BASELINE_DOCUMENTED` · `BUFFER_LOGICAL_REQUEST_EVIDENCE_INSTRUMENTED` · `LOGICAL_DESTINATION_KEY_CONTRACT_FROZEN` · `LOGICAL_DESTINATION_KEY_CANONICALIZER_LOCAL_VALIDATED` · `PRE_WP2B_IDENTITY_READINESS_LOCAL_VALIDATED` · `PRE_WP2B_INVENTORY_LOCAL_VALIDATED` · `PRE_WP2B_PULSE_JOB_INVENTORY_LOCAL_VALIDATED` · `PRE_WP2B_QUEUE_SCOPE_TOOLING_VALIDATED` · `PRE_WP2B_MULTI_SCOPE_MANIFEST_LOCAL_VALIDATED` · `PRE_WP2B_MULTI_SCOPE_MATRIX_VALIDATED` · `MYSQL_COMPATIBILITY_GATE_VALIDATED` · `PR140_CI_HARDENING_IMPLEMENTED` · `PR140_CI_VALIDATED` · `WP2B_SCHEMA_GATE_PENDING` · `P0_GATES_OPEN` · `NO_GO_BUFFER_RUNTIME` · `NO_GO_BUFFER_PILOT` · `NO_GO_BUFFER_PRODUCTION`**
+**État au 28 août 2026 : `RISK_PROPORTIONATE_VALIDATION_ACCEPTED` · `THREE_MACRO_STEPS_ACCEPTED` · `REPRESENTATIVE_CLONE_STRATEGY_ACCEPTED` · `BUFFER_SUPPORT_CONTACT_SENT` · `MACRO_STEP_1_IN_PROGRESS` · `WP2A_LOCAL_VALIDATED` · `ACCOUNT_OWNER_PAYER_CONFIRMED` · `BUFFER_COMMERCIAL_BASELINE_DOCUMENTED` · `BUFFER_LOGICAL_REQUEST_EVIDENCE_INSTRUMENTED` · `LOGICAL_DESTINATION_KEY_CONTRACT_FROZEN` · `LOGICAL_DESTINATION_KEY_CANONICALIZER_LOCAL_VALIDATED` · `PRE_WP2B_IDENTITY_READINESS_LOCAL_VALIDATED` · `PULSE_CONFIGURED_TOPOLOGY_LOCAL_VALIDATED` · `PRE_WP2B_INVENTORY_LOCAL_VALIDATED` · `PRE_WP2B_PULSE_JOB_INVENTORY_LOCAL_VALIDATED` · `PRE_WP2B_QUEUE_SCOPE_TOOLING_VALIDATED` · `PRE_WP2B_MULTI_SCOPE_MANIFEST_LOCAL_VALIDATED` · `PRE_WP2B_MULTI_SCOPE_MATRIX_VALIDATED` · `MYSQL_COMPATIBILITY_GATE_VALIDATED` · `PR140_CI_HARDENING_IMPLEMENTED` · `PR140_CI_VALIDATED` · `WP2B_SCHEMA_GATE_PENDING` · `P0_GATES_OPEN` · `NO_GO_BUFFER_RUNTIME` · `NO_GO_BUFFER_PILOT` · `NO_GO_BUFFER_PRODUCTION`**
 
 **Livraison : [PR #140](https://github.com/Lenenba/mlkpro_v3/pull/140) — `feature/pulse-buffer-refonte` → `develop`**
 
@@ -8,7 +8,9 @@
 
 **Validation distante acquise pour `42c2ef94` : workflow `quality` #412 vert — `laravel-quality`, `laravel-quality-mysql` et `browser-smoke` réussis ; la PR reste ouverte, fusionnable vers `develop` et n'est pas déclarée fusionnée**
 
-**Gate PHP global du checkpoint précédent : 1 723 tests / 20 018 assertions. Lot courant : 27 tests unitaires / 53 assertions, inventaire SQLite 32 / 381, matrice ciblée SQLite et MySQL 59 / 434 et PHPStan 914/914 ; validation distante laissée à Jules.**
+**Checkpoint fonctionnel précédent `0f6f04c4` publié sans surveillance CI ; validation distante de ce checkpoint et du lot courant laissée à Jules.**
+
+**Gate PHP global du checkpoint précédent : 1 723 tests / 20 018 assertions. Lot courant : 27 tests unitaires / 53 assertions, inventaire SQLite 33 / 402, matrice ciblée SQLite et MySQL 60 / 455 et PHPStan 914/914 ; validation distante laissée à Jules.**
 
 **Pilotage actif : exactement 3 macro-étapes ; l’Étape 1 est en cours. Les WP et BUF-P0 restent la traçabilité technique, pas des étapes supplémentaires.**
 
@@ -39,8 +41,9 @@ flowchart LR
         DL["EV-PULSE-065 — checkpoint précédent<br/>29 tests / 360 assertions, SQLite + MySQL<br/>2 scopes MySQL mesurables et vides"]
         DX["Gate PHP global — checkpoint précédent<br/>1 723 tests et 20 018 assertions,<br/>aucune régression détectée"]
         DK["Identité logique exécutable — local<br/>Canonicaliseur unique + préflight agrégé<br/>SQLite/MySQL verts, aucune clé exposée"]
+        DN["Topologie Pulse configurée — local<br/>2 workloads + profils déclaratifs,<br/>queues empreintées, déploiement non prouvé"]
 
-        D0 --> D1A --> D1B --> D1C --> D1D --> D1E --> D1F --> D1G --> D1H --> D1I --> DQ --> D2 --> DI --> DM --> DS --> DC --> DJ --> DV --> DG --> DE --> DL --> DX --> DK
+        D0 --> D1A --> D1B --> D1C --> D1D --> D1E --> D1F --> D1G --> D1H --> D1I --> DQ --> D2 --> DI --> DM --> DS --> DC --> DJ --> DV --> DG --> DE --> DL --> DX --> DK --> DN
     end
 
     subgraph PLAN["🎯 PILOTAGE ACTIF — EXACTEMENT 3 MACRO-ÉTAPES"]
@@ -51,7 +54,7 @@ flowchart LR
         M1 --> M2 --> M3
     end
 
-    DK --> M1
+    DN --> M1
 ```
 
 ## Critères binaires et points humains
@@ -61,11 +64,13 @@ flowchart LR
 - [x] Outil d’inventaire agrégé et matrice MySQL validés ; checkpoint `42c2ef94` confirmé par quality #412.
 - [x] Stratégie de clone pseudonymisé et validation proportionnée acceptées ; question quota multi-client envoyée à Buffer sans secret.
 - [x] Relevé MySQL **local** reconfirmé : 2 scopes database mesurables (`social-automation`, `social-publish`), 0 job Pulse exact ou illisible en queue, 0 `failed_job` Pulse exact ou illisible et 0 anomalie de référence/tenant. Cette preuve n’est pas représentative et la liste des queues n’est pas attestée complète.
+- [x] Configuration Laravel effective projetée sans noms bruts : 2 workloads configurés, chacun référencé par exactement 1 profil production déclaratif ; historique suivi sans renommage de classe ou valeur par défaut.
+- [ ] Processus réellement déployés, overrides d’environnement présents/passés et canari worker attestés par l’exploitation ; la configuration applicative seule ne les prouve pas.
 - [ ] Clone MySQL représentatif inventorié et preuve agrégée archivée.
 - [ ] Liste complète des queues courantes, externes et anciennes attestée ; chaque scope possède une preuve.
 - [ ] Chaque `failed_job` et anomalie possède une décision testée : drain, archivage, correction ou interdiction de retry.
 - [x] Contrat final de `logical_destination_key` figé, avec préimage et vecteur reproductibles, sans migration.
-- [x] Canonicaliseur unique consommé par l’inventaire read-only : 27 tests unitaires / 53 assertions, inventaire SQLite 32 / 381, matrice ciblée SQLite et MySQL 59 / 434 ; scan local 1/1 dérivable, 0 échec et 0 groupe doublon/collision, sans clé ni préimage en sortie.
+- [x] Canonicaliseur unique consommé par l’inventaire read-only : 27 tests unitaires / 53 assertions, inventaire SQLite 33 / 402, matrice ciblée SQLite et MySQL 60 / 455 ; scan local 1/1 dérivable, 0 échec et 0 groupe doublon/collision, sans clé ni préimage en sortie.
 - [ ] Le clone atteste la cardinalité et un budget mémoire compatible avec la déduplication exacte O(N), ou impose une déduplication externe avant le scan représentatif.
 - [ ] Plan final de backfill/rollback ajusté aux faits du clone représentatif.
 - [ ] L’opérateur atteste la source représentative et la liste complète des queues ; cette attestation est une preuve, pas une revue supplémentaire.

@@ -2240,6 +2240,7 @@ Artisan::command(
 
         $failedAutomationJobs = $inventory['failed_pulse_jobs']['by_workload']['social_automation'];
         $logicalDestinationKeyReadiness = $inventory['connections']['logical_destination_key_readiness'];
+        $configuredPulseTopology = $inventory['configured_pulse_topology'];
 
         $this->table(['Scope', 'Total', 'Attention'], [
             [
@@ -2254,6 +2255,13 @@ Artisan::command(
                     .$logicalDestinationKeyReadiness['derivation_failures'].' derivation failures; '
                     .$logicalDestinationKeyReadiness['duplicate_or_collision_groups']
                     .' duplicate/collision groups',
+            ],
+            [
+                'Configured Pulse topology',
+                $configuredPulseTopology['workload_count'],
+                $configuredPulseTopology['configured_workload_count'].' configured; '
+                    .$configuredPulseTopology['exactly_one_production_worker_profile_count']
+                    .' exactly-one production worker profiles; deployed runtime not proven',
             ],
             [
                 'Targets',

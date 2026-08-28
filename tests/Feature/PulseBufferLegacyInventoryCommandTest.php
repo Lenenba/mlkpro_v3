@@ -279,6 +279,26 @@ it('inventories legacy pulse routing without exposing credentials or remote iden
             'failed_pulse_jobs' => 'independent_single_pass',
             'cross_source_atomic' => false,
         ])
+        ->configured_pulse_topology->toBe([
+            'evidence_scope' => 'effective_application_configuration_only',
+            'deployed_runtime_proven' => false,
+            'requires_external_attestation' => true,
+            'workload_count' => 2,
+            'configured_workload_count' => 2,
+            'exactly_one_production_worker_profile_count' => 2,
+            'workloads' => [
+                'social_automation' => [
+                    'configured' => true,
+                    'queue_fingerprint' => 'sha256:8db59705b795beb074cd4773046886afc53c383d51872fadba6dc9a30f925f63',
+                    'production_worker_profile_count' => 1,
+                ],
+                'social_publish' => [
+                    'configured' => true,
+                    'queue_fingerprint' => 'sha256:d739d94688fffc74171d4236c59bd7afee680606baf29d49f2c31076e542f71b',
+                    'production_worker_profile_count' => 1,
+                ],
+            ],
+        ])
         ->connections->toMatchArray([
             'total' => 2,
             'active' => 1,
@@ -437,6 +457,8 @@ it('inventories legacy pulse routing without exposing credentials or remote iden
     expect($humanOutput)
         ->toContain('Queued publications (database:social-publish)')
         ->toContain('Queued automation candidates (database:social-automation)')
+        ->toContain('Configured Pulse topology')
+        ->toContain('2 configured; 2 exactly-one production worker profiles; deployed runtime not proven')
         ->toContain('Logical destination keys')
         ->toContain('2 derivable; 0 derivation failures; 0 duplicate/collision groups')
         ->toContain('Failed publication jobs')
@@ -1383,6 +1405,52 @@ it('redacts unsafe queue identifiers while preserving external queue evidence', 
     expect($exitCode)->toBe(0)
         ->and($inventory['queue_scope_manifest']['scopes'][0]['queue_label'])
         ->toMatch('/\Asha256:[a-f0-9]{64}\z/')
+        ->and($output)
+        ->not->toContain($unsafeQueue)
+        ->not->toContain('123456789012');
+});
+
+it('reports configured pulse topology without claiming deployed worker evidence', function () {
+    config()->set('queue.default', 'database');
+    $unsafeQueue = 'https://sqs.us-east-1.amazonaws.com/123456789012/private-pulse-publish';
+    $redactedQueueLabel = 'sha256:d93246701cac286fd3aebe365b80a1c167eb9bd8d34942b958c37bbc54c417fb';
+    config()->set('async.workloads.social_publish.queue', $unsafeQueue);
+    config()->set('async.workers.social.workloads', ['social_publish']);
+    config()->set('async.workers.social_duplicate', [
+        'environment' => 'production',
+        'workloads' => ['social_publish'],
+    ]);
+
+    $exitCode = Artisan::call('pulse:buffer:inventory-legacy', [
+        '--json' => true,
+        '--confirm-read-only-scan' => true,
+    ]);
+    $output = Artisan::output();
+    $inventory = json_decode($output, true, 512, JSON_THROW_ON_ERROR);
+
+    expect($exitCode)->toBe(0)
+        ->and($inventory['configured_pulse_topology'])->toMatchArray([
+            'evidence_scope' => 'effective_application_configuration_only',
+            'deployed_runtime_proven' => false,
+            'requires_external_attestation' => true,
+            'workload_count' => 2,
+            'configured_workload_count' => 2,
+            'exactly_one_production_worker_profile_count' => 0,
+            'workloads' => [
+                'social_automation' => [
+                    'configured' => true,
+                    'queue_fingerprint' => 'sha256:8db59705b795beb074cd4773046886afc53c383d51872fadba6dc9a30f925f63',
+                    'production_worker_profile_count' => 0,
+                ],
+                'social_publish' => [
+                    'configured' => true,
+                    'queue_fingerprint' => $redactedQueueLabel,
+                    'production_worker_profile_count' => 2,
+                ],
+            ],
+        ])
+        ->and($inventory['configured_pulse_topology']['workloads']['social_publish']['queue_fingerprint'])
+        ->toBe($redactedQueueLabel)
         ->and($output)
         ->not->toContain($unsafeQueue)
         ->not->toContain('123456789012');

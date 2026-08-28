@@ -61,6 +61,19 @@ class LegacySocialInventoryService
      *     connections: array<string, mixed>,
      *     targets: array<string, mixed>,
      *     references: array<string, mixed>,
+     *     configured_pulse_topology: array{
+     *         evidence_scope: string,
+     *         deployed_runtime_proven: bool,
+     *         requires_external_attestation: bool,
+     *         workload_count: int,
+     *         configured_workload_count: int,
+     *         exactly_one_production_worker_profile_count: int,
+     *         workloads: array<string, array{
+     *             configured: bool,
+     *             queue_fingerprint: string|null,
+     *             production_worker_profile_count: int
+     *         }>
+     *     },
      *     failed_publications: array<string, mixed>,
      *     failed_pulse_jobs: array<string, mixed>,
      *     queue_scope_manifest: array{
@@ -151,6 +164,7 @@ class LegacySocialInventoryService
                 'cross_source_atomic' => false,
             ],
             ...$domainInventory,
+            'configured_pulse_topology' => $this->configuredPulseTopology(),
             'failed_publications' => $this->failedPublicationProjection($failedPulseJobInventory),
             'failed_pulse_jobs' => $failedPulseJobInventory,
             'queue_scope_manifest' => [
@@ -369,6 +383,64 @@ class LegacySocialInventoryService
         }
 
         return 'sha256:'.hash('sha256', $queue);
+    }
+
+    /**
+     * @return array{
+     *     evidence_scope: string,
+     *     deployed_runtime_proven: bool,
+     *     requires_external_attestation: bool,
+     *     workload_count: int,
+     *     configured_workload_count: int,
+     *     exactly_one_production_worker_profile_count: int,
+     *     workloads: array<string, array{
+     *         configured: bool,
+     *         queue_fingerprint: string|null,
+     *         production_worker_profile_count: int
+     *     }>
+     * }
+     */
+    private function configuredPulseTopology(): array
+    {
+        $asyncTopology = QueueWorkload::inventory();
+        $workloads = [];
+        $configuredWorkloadCount = 0;
+        $exactlyOneProductionWorkerProfileCount = 0;
+
+        foreach (array_keys(self::PULSE_JOB_CLASSES) as $workload) {
+            $configuredQueue = trim($asyncTopology['workloads'][$workload] ?? '');
+            $productionWorkerProfileCount = count(array_filter(
+                $asyncTopology['workers'],
+                static fn (array $worker): bool => $worker['environment'] === 'production'
+                    && in_array($workload, $worker['workloads'], true),
+            ));
+
+            if ($configuredQueue !== '') {
+                $configuredWorkloadCount++;
+            }
+
+            if ($configuredQueue !== '' && $productionWorkerProfileCount === 1) {
+                $exactlyOneProductionWorkerProfileCount++;
+            }
+
+            $workloads[$workload] = [
+                'configured' => $configuredQueue !== '',
+                'queue_fingerprint' => $configuredQueue === ''
+                    ? null
+                    : 'sha256:'.hash('sha256', $configuredQueue),
+                'production_worker_profile_count' => $productionWorkerProfileCount,
+            ];
+        }
+
+        return [
+            'evidence_scope' => 'effective_application_configuration_only',
+            'deployed_runtime_proven' => false,
+            'requires_external_attestation' => true,
+            'workload_count' => count($workloads),
+            'configured_workload_count' => $configuredWorkloadCount,
+            'exactly_one_production_worker_profile_count' => $exactlyOneProductionWorkerProfileCount,
+            'workloads' => $workloads,
+        ];
     }
 
     /**
