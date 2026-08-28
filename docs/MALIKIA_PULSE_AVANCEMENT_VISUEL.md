@@ -8,6 +8,8 @@
 
 **Validation distante acquise pour `652e61f1` : workflow `quality` #409 vert — 1 716 tests PHP, 217 tests MySQL, 372 tests Node et 26 scénarios navigateur ; la PR reste ouverte et n'est pas déclarée fusionnée**
 
+**Gate PHP global stabilisé localement : 1 717 tests / 19 904 assertions — les diagnostics Stripe restent canoniques sous une locale numérique à virgule ; aucun comportement Pulse/Buffer n’est modifié**
+
 ```mermaid
 flowchart LR
     subgraph DONE["✅ ÉTAPES TERMINÉES"]
@@ -33,8 +35,9 @@ flowchart LR
         DG["PR #140 — validations distantes<br/>quality #409 sur 652e61f1 : Laravel,<br/>MySQL, Node et navigateur verts"]
         DE["Pré-WP2-B — manifeste v2<br/>Scopes explicites, failed_jobs, horodatage,<br/>redaction et attestation séparée"]
         DL["Manifeste v2 — matrices locales<br/>1 716 PHP, 217 MySQL, 372 Node<br/>et 26 scénarios navigateur verts"]
+        DX["Gate PHP global — locale stable<br/>1 717 tests et 19 904 assertions,<br/>aucun changement fonctionnel Pulse"]
 
-        D0 --> D1A --> D1B --> D1C --> D1D --> D1E --> D1F --> D1G --> D1H --> D1I --> DQ --> D2 --> DI --> DM --> DS --> DC --> DJ --> DV --> DG --> DE --> DL
+        D0 --> D1A --> D1B --> D1C --> D1D --> D1E --> D1F --> D1G --> D1H --> D1I --> DQ --> D2 --> DI --> DM --> DS --> DC --> DJ --> DV --> DG --> DE --> DL --> DX
     end
 
     subgraph TODO["⏳ RESTE À FAIRE / GATES LOCAUX ET DISTANTS"]

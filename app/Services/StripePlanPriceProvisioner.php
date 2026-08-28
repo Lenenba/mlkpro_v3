@@ -562,7 +562,7 @@ class StripePlanPriceProvisioner
 
         if (count($amountMatches) > 1) {
             throw new RuntimeException(sprintf(
-                'Multiple active %s Stripe prices matched plan [%s] currency [%s] using %s for %.2f. Configure [%s] or remove duplicate prices in Stripe.',
+                'Multiple active %s Stripe prices matched plan [%s] currency [%s] using %s for %.2F. Configure [%s] or remove duplicate prices in Stripe.',
                 $this->periodLabel($billingPeriod),
                 $planCode,
                 $currencyCode,
