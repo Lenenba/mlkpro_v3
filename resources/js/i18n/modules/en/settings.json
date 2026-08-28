@@ -154,6 +154,13 @@
           "one_hour": "1 hour before"
         }
       },
+      "past_reconciliation": {
+        "title": "Past reservation follow-up",
+        "description": "Flags reservations whose end time and grace period have passed without a final outcome.",
+        "signal_only_badge": "Signal only",
+        "enabled": "Enable automatic follow-up for this company",
+        "safety_notice": "The system does not change status, apply no-show fees, or contact the client. It only creates an audited internal alert for review."
+      },
       "queue": {
         "assignment_modes": {
           "per_staff": "Per staff queue",
@@ -193,6 +200,8 @@
         "deposit_amount": "Deposit amount",
         "no_show_fee_enabled": "Enable no-show fee",
         "no_show_fee_amount": "No-show fee amount",
+        "past_reservation_grace_minutes": "Delay before flagging (minutes)",
+        "past_reservation_max_catchup_days": "Normal catch-up window (days)",
         "allow_client_cancel": "Allow client cancellation",
         "allow_client_reschedule": "Allow client reschedule"
       },

@@ -1,9 +1,11 @@
 <?php
 
+use App\Jobs\CloseExpiredWalkInsForAccountJob;
 use App\Jobs\ComputeInterestScoresJob;
 use App\Jobs\ProvisionDemoWorkspaceJob;
 use App\Jobs\QueueTopologyCanaryJob;
 use App\Jobs\ReconcileDeliveryReportsJob;
+use App\Jobs\ReconcilePastReservationsForAccountJob;
 use App\Mail\DemoWorkspaceAccessMail;
 use App\Models\ActivityLog;
 use App\Models\Customer;
@@ -60,7 +62,8 @@ use App\Services\Prospects\ProspectCustomerMigrationVerificationService;
 use App\Services\ProspectStaleReminderService;
 use App\Services\PublicCopySyncService;
 use App\Services\QueueHealthService;
-use App\Services\Reservation\ExpiredReservationAutoCloser;
+use App\Services\Reservation\ExpiredWalkInAutoCloser;
+use App\Services\Reservation\PastReservationOutcomeReconciler;
 use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationNotificationService;
 use App\Services\ReservationQueueService;
@@ -2714,7 +2717,7 @@ Artisan::command('reservations:queue-alerts', function (
     ReservationAvailabilityService $availabilityService
 ): int {
     $accountIds = ReservationSetting::query()
-        ->whereNull('team_member_id')
+        ->accountDefault()
         ->where('business_preset', 'salon')
         ->where('queue_mode_enabled', true)
         ->pluck('account_id')
@@ -2739,29 +2742,107 @@ Artisan::command('reservations:queue-alerts', function (
     return 0;
 })->purpose('Refresh queue metrics and dispatch queue ETA alerts');
 
-Artisan::command('reservations:auto-close-expired {--account_id=} {--dry-run}', function (
-    ExpiredReservationAutoCloser $autoCloser
+Artisan::command('reservations:reconcile-past {--account_id=} {--dry-run}', function (
+    PastReservationOutcomeReconciler $reconciler
 ): int {
-    $accountId = $this->option('account_id');
-    $accountId = is_numeric($accountId) ? (int) $accountId : null;
+    $accountOption = $this->option('account_id');
+    $accountId = null;
+    if ($accountOption !== null && $accountOption !== '') {
+        if (! ctype_digit((string) $accountOption) || (int) $accountOption <= 0) {
+            $this->error('The --account_id option must be a positive integer.');
 
-    $summary = $autoCloser->closeExpired($accountId, (bool) $this->option('dry-run'));
+            return 1;
+        }
+
+        $accountId = (int) $accountOption;
+    }
+
+    $enabledSettings = ReservationSetting::query()
+        ->select(['id', 'account_id'])
+        ->accountDefault()
+        ->where('past_reservation_reconciliation_enabled', true)
+        ->when($accountId !== null, fn ($query) => $query->where('account_id', $accountId))
+        ->orderBy('id');
+
+    if ((bool) $this->option('dry-run')) {
+        $checked = 0;
+        $eligible = 0;
+        foreach ($enabledSettings->lazyById(100) as $setting) {
+            $enabledAccountId = (int) $setting->account_id;
+            $summary = $reconciler->reconcile($enabledAccountId, true);
+            $checked += $summary['checked'];
+            $eligible += $summary['eligible'];
+        }
+
+        $this->info("Dry run: checked {$checked} reservation(s); would flag {$eligible} for internal review.");
+
+        return 0;
+    }
+
+    $dispatched = 0;
+    foreach ($enabledSettings->lazyById(100) as $setting) {
+        $enabledAccountId = (int) $setting->account_id;
+        ReconcilePastReservationsForAccountJob::dispatch($enabledAccountId);
+        $dispatched++;
+    }
+
+    $this->info(sprintf('Dispatched past reservation reconciliation for %d account(s).', $dispatched));
+
+    return 0;
+})->purpose('Flag past active reservations for tenant-scoped human outcome review');
+
+Artisan::command('reservations:auto-close-expired-walk-ins {--account_id=} {--dry-run} {--dispatch}', function (
+    ExpiredWalkInAutoCloser $autoCloser
+): int {
+    $accountOption = $this->option('account_id');
+    $accountId = null;
+    if ($accountOption !== null && $accountOption !== '') {
+        if (! ctype_digit((string) $accountOption) || (int) $accountOption <= 0) {
+            $this->error('The --account_id option must be a positive integer.');
+
+            return 1;
+        }
+
+        $accountId = (int) $accountOption;
+    }
+
+    $dryRun = (bool) $this->option('dry-run');
+    $accountIds = $accountId !== null
+        ? collect([$accountId])
+        : $autoCloser->candidateAccountIds();
+
+    if ((bool) $this->option('dispatch') && ! $dryRun) {
+        $dispatched = 0;
+        foreach ($accountIds as $candidateAccountId) {
+            CloseExpiredWalkInsForAccountJob::dispatch((int) $candidateAccountId);
+            $dispatched++;
+        }
+
+        $this->info("Dispatched expired walk-in cleanup for {$dispatched} account(s).");
+
+        return 0;
+    }
+
+    $summary = [
+        'checked' => 0,
+        'eligible' => 0,
+        'closed' => 0,
+        'dry_run' => $dryRun,
+    ];
+    foreach ($accountIds as $candidateAccountId) {
+        $accountSummary = $autoCloser->closeExpired((int) $candidateAccountId, $dryRun);
+        foreach (['checked', 'eligible', 'closed'] as $key) {
+            $summary[$key] += $accountSummary[$key];
+        }
+    }
 
     $count = $summary['dry_run'] ? $summary['eligible'] : $summary['closed'];
     $prefix = $summary['dry_run'] ? 'Dry run: would auto-close' : 'Auto-closed';
-    $this->info("{$prefix} {$count} expired reservation(s).");
-    $walkInCount = $summary['dry_run'] ? $summary['walk_in_eligible'] : $summary['walk_in_closed'];
-    $this->info("{$prefix} {$walkInCount} expired walk-in ticket(s).");
-    $this->line(
-        "checked={$summary['checked']}, eligible={$summary['eligible']}, queue_items_closed={$summary['queue_items_closed']}, "
-        ."skipped_today_or_future={$summary['skipped_today_or_future']}, skipped_checked_in={$summary['skipped_checked_in']}, "
-        ."skipped_arrived_queue={$summary['skipped_arrived_queue']}, walk_in_checked={$summary['walk_in_checked']}, "
-        ."walk_in_eligible={$summary['walk_in_eligible']}, walk_in_skipped_today_or_future={$summary['walk_in_skipped_today_or_future']}, "
-        ."walk_in_skipped_in_service={$summary['walk_in_skipped_in_service']}"
-    );
+    $this->info("{$prefix} {$count} expired walk-in ticket(s).");
+    $this->line("checked={$summary['checked']}, eligible={$summary['eligible']}");
 
     return 0;
-})->purpose('Automatically close past reservations and walk-in tickets that were not completed or handled');
+})->purpose('Close unserved walk-in queue tickets after their local business day');
 
 Artisan::command('notifications:retry-failed
     {--notification=App\\Notifications\\InviteUserNotification : Fully-qualified notification class filter}
@@ -4134,7 +4215,14 @@ Schedule::command('prospects:stale-reminders')->hourlyAt(20)->withoutOverlapping
 Schedule::command('support:sla-reminders')->hourly();
 Schedule::command('reservations:notifications')->everyFifteenMinutes();
 Schedule::command('reservations:queue-alerts')->everyFiveMinutes()->withoutOverlapping();
-Schedule::command('reservations:auto-close-expired')->dailyAt('02:20')->withoutOverlapping();
+Schedule::command('reservations:reconcile-past')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping(10)
+    ->onOneServer();
+Schedule::command('reservations:auto-close-expired-walk-ins --dispatch')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping(30)
+    ->onOneServer();
 Schedule::command('offer-packages:automation')->hourlyAt(5)->withoutOverlapping();
 Schedule::command('campaigns:automations')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('social:run-automations')->everyFifteenMinutes()->withoutOverlapping();

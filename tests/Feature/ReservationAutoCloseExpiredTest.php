@@ -1,14 +1,17 @@
 <?php
 
 use App\Models\Reservation;
-use App\Models\ReservationCheckIn;
 use App\Models\ReservationQueueItem;
+use App\Models\ReservationStatusTransition;
 use App\Models\TeamMember;
 use App\Models\User;
-use App\Services\Reservation\ExpiredReservationAutoCloser;
+use App\Services\Reservation\ExpiredWalkInAutoCloser;
+use App\Services\Reservation\ReservationQueueGraceNoShowMarker;
+use App\Services\ReservationNotificationService;
 use App\Services\ReservationQueueService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 
 uses(RefreshDatabase::class);
@@ -72,198 +75,6 @@ function autoCloseWalkInTicket(User $account, TeamMember $teamMember, Carbon $cr
     return $ticket->fresh();
 }
 
-it('auto-closes a past active reservation as no-show the next local day', function (): void {
-    Carbon::setTestNow(Carbon::parse('2026-05-15 08:00:00', 'UTC'));
-
-    $account = autoCloseAccount();
-    $teamMember = autoCloseTeamMember($account);
-    $reservation = autoCloseReservation(
-        $account,
-        $teamMember,
-        Carbon::parse('2026-05-14 14:00:00', 'America/Toronto')
-    );
-
-    $this->artisan('reservations:auto-close-expired')
-        ->expectsOutputToContain('Auto-closed 1 expired reservation(s).')
-        ->assertExitCode(0);
-
-    $reservation->refresh();
-
-    expect($reservation->status)->toBe(Reservation::STATUS_NO_SHOW)
-        ->and($reservation->auto_closed_at)->not->toBeNull()
-        ->and($reservation->auto_closed_reason)->toBe(ExpiredReservationAutoCloser::EXPIRED_REASON)
-        ->and(data_get($reservation->metadata, 'auto_close.reason'))->toBe(ExpiredReservationAutoCloser::EXPIRED_REASON)
-        ->and(Reservation::query()->active()->whereKey($reservation->id)->exists())->toBeFalse();
-});
-
-it('does not change completed or cancelled past reservations', function (): void {
-    Carbon::setTestNow(Carbon::parse('2026-05-15 08:00:00', 'UTC'));
-
-    $account = autoCloseAccount();
-    $teamMember = autoCloseTeamMember($account);
-    $startsAt = Carbon::parse('2026-05-14 09:00:00', 'America/Toronto');
-    $completed = autoCloseReservation($account, $teamMember, $startsAt, [
-        'status' => Reservation::STATUS_COMPLETED,
-    ]);
-    $cancelled = autoCloseReservation($account, $teamMember, $startsAt, [
-        'status' => Reservation::STATUS_CANCELLED,
-        'cancelled_at' => Carbon::parse('2026-05-14 08:00:00', 'America/Toronto')->utc(),
-    ]);
-
-    $this->artisan('reservations:auto-close-expired')
-        ->expectsOutputToContain('Auto-closed 0 expired reservation(s).')
-        ->assertExitCode(0);
-
-    expect($completed->refresh()->status)->toBe(Reservation::STATUS_COMPLETED)
-        ->and($completed->auto_closed_at)->toBeNull()
-        ->and($cancelled->refresh()->status)->toBe(Reservation::STATUS_CANCELLED)
-        ->and($cancelled->auto_closed_at)->toBeNull();
-});
-
-it('does not close today or future reservations', function (): void {
-    Carbon::setTestNow(Carbon::parse('2026-05-15 16:00:00', 'UTC'));
-
-    $account = autoCloseAccount();
-    $teamMember = autoCloseTeamMember($account);
-    $today = autoCloseReservation(
-        $account,
-        $teamMember,
-        Carbon::parse('2026-05-15 09:00:00', 'America/Toronto')
-    );
-    $future = autoCloseReservation(
-        $account,
-        $teamMember,
-        Carbon::parse('2026-05-16 09:00:00', 'America/Toronto')
-    );
-
-    $this->artisan('reservations:auto-close-expired')
-        ->expectsOutputToContain('Auto-closed 0 expired reservation(s).')
-        ->assertExitCode(0);
-
-    expect($today->refresh()->status)->toBe(Reservation::STATUS_CONFIRMED)
-        ->and($future->refresh()->status)->toBe(Reservation::STATUS_CONFIRMED);
-});
-
-it('is idempotent once a stale reservation is auto-closed', function (): void {
-    Carbon::setTestNow(Carbon::parse('2026-05-15 08:00:00', 'UTC'));
-
-    $account = autoCloseAccount();
-    $teamMember = autoCloseTeamMember($account);
-    $reservation = autoCloseReservation(
-        $account,
-        $teamMember,
-        Carbon::parse('2026-05-14 10:00:00', 'America/Toronto')
-    );
-
-    $this->artisan('reservations:auto-close-expired')
-        ->expectsOutputToContain('Auto-closed 1 expired reservation(s).')
-        ->assertExitCode(0);
-    $firstClosedAt = $reservation->refresh()->auto_closed_at?->toIso8601String();
-
-    Carbon::setTestNow(Carbon::parse('2026-05-15 09:00:00', 'UTC'));
-
-    $this->artisan('reservations:auto-close-expired')
-        ->expectsOutputToContain('Auto-closed 0 expired reservation(s).')
-        ->assertExitCode(0);
-
-    expect($reservation->refresh()->status)->toBe(Reservation::STATUS_NO_SHOW)
-        ->and($reservation->auto_closed_at?->toIso8601String())->toBe($firstClosedAt);
-});
-
-it('respects the reservation timezone before closing', function (): void {
-    Carbon::setTestNow(Carbon::parse('2026-05-15 03:30:00', 'UTC'));
-
-    $account = autoCloseAccount(['company_timezone' => 'America/Toronto']);
-    $teamMember = autoCloseTeamMember($account);
-    $reservation = autoCloseReservation(
-        $account,
-        $teamMember,
-        Carbon::parse('2026-05-14 09:00:00', 'America/Toronto')
-    );
-
-    $this->artisan('reservations:auto-close-expired')
-        ->expectsOutputToContain('Auto-closed 0 expired reservation(s).')
-        ->assertExitCode(0);
-
-    expect($reservation->refresh()->status)->toBe(Reservation::STATUS_CONFIRMED);
-
-    Carbon::setTestNow(Carbon::parse('2026-05-15 04:30:00', 'UTC'));
-
-    $this->artisan('reservations:auto-close-expired')
-        ->expectsOutputToContain('Auto-closed 1 expired reservation(s).')
-        ->assertExitCode(0);
-
-    expect($reservation->refresh()->status)->toBe(Reservation::STATUS_NO_SHOW);
-});
-
-it('does not auto-close reservations with check-in or active queue arrival state', function (): void {
-    Carbon::setTestNow(Carbon::parse('2026-05-15 08:00:00', 'UTC'));
-
-    $account = autoCloseAccount();
-    $teamMember = autoCloseTeamMember($account);
-    $startsAt = Carbon::parse('2026-05-14 09:00:00', 'America/Toronto');
-    $checkedInReservation = autoCloseReservation($account, $teamMember, $startsAt);
-    $queuedReservation = autoCloseReservation($account, $teamMember, $startsAt);
-
-    $checkedInQueueItem = ReservationQueueItem::query()->create([
-        'account_id' => $account->id,
-        'reservation_id' => $checkedInReservation->id,
-        'team_member_id' => $teamMember->id,
-        'item_type' => ReservationQueueItem::TYPE_APPOINTMENT,
-        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
-        'checked_in_at' => Carbon::parse('2026-05-14 08:55:00', 'America/Toronto')->utc(),
-    ]);
-    ReservationCheckIn::query()->create([
-        'account_id' => $account->id,
-        'reservation_queue_item_id' => $checkedInQueueItem->id,
-        'reservation_id' => $checkedInReservation->id,
-        'checked_in_at' => Carbon::parse('2026-05-14 08:55:00', 'America/Toronto')->utc(),
-        'channel' => 'kiosk',
-    ]);
-    ReservationQueueItem::query()->create([
-        'account_id' => $account->id,
-        'reservation_id' => $queuedReservation->id,
-        'team_member_id' => $teamMember->id,
-        'item_type' => ReservationQueueItem::TYPE_APPOINTMENT,
-        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
-        'checked_in_at' => Carbon::parse('2026-05-14 08:55:00', 'America/Toronto')->utc(),
-    ]);
-
-    $this->artisan('reservations:auto-close-expired')
-        ->expectsOutputToContain('Auto-closed 0 expired reservation(s).')
-        ->assertExitCode(0);
-
-    expect($checkedInReservation->refresh()->status)->toBe(Reservation::STATUS_CONFIRMED)
-        ->and($queuedReservation->refresh()->status)->toBe(Reservation::STATUS_CONFIRMED);
-});
-
-it('syncs not-arrived queue appointments when a reservation is auto-closed', function (): void {
-    Carbon::setTestNow(Carbon::parse('2026-05-15 08:00:00', 'UTC'));
-
-    $account = autoCloseAccount();
-    $teamMember = autoCloseTeamMember($account);
-    $reservation = autoCloseReservation(
-        $account,
-        $teamMember,
-        Carbon::parse('2026-05-14 09:00:00', 'America/Toronto')
-    );
-    $queueItem = ReservationQueueItem::query()->create([
-        'account_id' => $account->id,
-        'reservation_id' => $reservation->id,
-        'team_member_id' => $teamMember->id,
-        'item_type' => ReservationQueueItem::TYPE_APPOINTMENT,
-        'status' => ReservationQueueItem::STATUS_NOT_ARRIVED,
-    ]);
-
-    $this->artisan('reservations:auto-close-expired')
-        ->expectsOutputToContain('Auto-closed 1 expired reservation(s).')
-        ->assertExitCode(0);
-
-    expect($reservation->refresh()->status)->toBe(Reservation::STATUS_NO_SHOW)
-        ->and($queueItem->refresh()->status)->toBe(ReservationQueueItem::STATUS_NO_SHOW)
-        ->and($queueItem->finished_at)->not->toBeNull();
-});
-
 it('syncs the reservation when queue grace expiry marks an appointment no-show', function (): void {
     Notification::fake();
     Carbon::setTestNow(Carbon::parse('2026-05-15 08:00:00', 'UTC'));
@@ -285,6 +96,57 @@ it('syncs the reservation when queue grace expiry marks an appointment no-show',
         'call_expires_at' => Carbon::parse('2026-05-15 07:55:00', 'UTC'),
     ]);
 
+    $settings = [
+        'business_preset' => 'salon',
+        'queue_mode_enabled' => true,
+        'queue_no_show_on_grace_expiry' => true,
+        'queue_dispatch_mode' => ReservationQueueService::DISPATCH_MODE_FIFO_WITH_APPOINTMENT_PRIORITY,
+        'queue_assignment_mode' => ReservationQueueService::ASSIGNMENT_MODE_GLOBAL_PULL,
+        'buffer_minutes' => 0,
+    ];
+
+    app(ReservationQueueService::class)->refreshMetrics($account->id, $settings);
+    app(ReservationQueueService::class)->refreshMetrics($account->id, $settings);
+
+    $audit = ReservationStatusTransition::query()->sole();
+
+    expect($queueItem->refresh()->status)->toBe(ReservationQueueItem::STATUS_NO_SHOW)
+        ->and($reservation->refresh()->status)->toBe(Reservation::STATUS_NO_SHOW)
+        ->and($reservation->auto_closed_reason)->toBe(ReservationQueueGraceNoShowMarker::REASON)
+        ->and($audit->actor_type)->toBe(ReservationStatusTransition::ACTOR_SYSTEM)
+        ->and($audit->source)->toBe(Reservation::STATUS_CHANGE_SOURCE_QUEUE_GRACE)
+        ->and($audit->reason_code)->toBe('queue_grace_expired')
+        ->and(ReservationStatusTransition::query()->count())->toBe(1);
+});
+
+it('does not announce a missed turn when queue grace aligns with a human completion', function (): void {
+    Carbon::setTestNow(Carbon::parse('2026-05-15 08:00:00', 'UTC'));
+
+    $account = autoCloseAccount();
+    $teamMember = autoCloseTeamMember($account);
+    $reservation = autoCloseReservation(
+        $account,
+        $teamMember,
+        Carbon::parse('2026-05-15 08:30:00', 'America/Toronto'),
+        ['status' => Reservation::STATUS_COMPLETED]
+    );
+    $queueItem = ReservationQueueItem::query()->create([
+        'account_id' => $account->id,
+        'reservation_id' => $reservation->id,
+        'team_member_id' => $teamMember->id,
+        'item_type' => ReservationQueueItem::TYPE_APPOINTMENT,
+        'status' => ReservationQueueItem::STATUS_CALLED,
+        'called_at' => Carbon::parse('2026-05-15 07:50:00', 'UTC'),
+        'call_expires_at' => Carbon::parse('2026-05-15 07:55:00', 'UTC'),
+    ]);
+    $notifications = \Mockery::mock(ReservationNotificationService::class);
+    $notifications->shouldReceive('handleQueueEvent')
+        ->once()
+        ->withArgs(fn (ReservationQueueItem $item, string $event): bool => (int) $item->id === (int) $queueItem->id
+            && $event === 'queue_status_changed')
+        ->andReturn(true);
+    app()->instance(ReservationNotificationService::class, $notifications);
+
     app(ReservationQueueService::class)->refreshMetrics($account->id, [
         'business_preset' => 'salon',
         'queue_mode_enabled' => true,
@@ -294,9 +156,50 @@ it('syncs the reservation when queue grace expiry marks an appointment no-show',
         'buffer_minutes' => 0,
     ]);
 
-    expect($queueItem->refresh()->status)->toBe(ReservationQueueItem::STATUS_NO_SHOW)
-        ->and($reservation->refresh()->status)->toBe(Reservation::STATUS_NO_SHOW)
-        ->and($reservation->auto_closed_reason)->toBe(ExpiredReservationAutoCloser::QUEUE_GRACE_REASON);
+    expect($queueItem->refresh()->status)->toBe(ReservationQueueItem::STATUS_DONE)
+        ->and($reservation->refresh()->status)->toBe(Reservation::STATUS_COMPLETED);
+});
+
+it('defers multi-item refresh and notifications until the outer transaction commits', function (): void {
+    Carbon::setTestNow(Carbon::parse('2026-05-15 08:00:00', 'UTC'));
+
+    $account = autoCloseAccount();
+    $transitioned = ReservationQueueItem::query()->create([
+        'account_id' => $account->id,
+        'item_type' => ReservationQueueItem::TYPE_TICKET,
+        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+        'checked_in_at' => now('UTC')->subMinutes(10),
+    ]);
+    $expired = ReservationQueueItem::query()->create([
+        'account_id' => $account->id,
+        'item_type' => ReservationQueueItem::TYPE_TICKET,
+        'status' => ReservationQueueItem::STATUS_CALLED,
+        'called_at' => now('UTC')->subMinutes(7),
+        'call_expires_at' => now('UTC')->subMinute(),
+    ]);
+    $notifications = \Mockery::mock(ReservationNotificationService::class);
+    $notifications->shouldNotReceive('handleQueueEvent');
+    app()->instance(ReservationNotificationService::class, $notifications);
+    $queueService = app(ReservationQueueService::class);
+    $settings = [
+        'business_preset' => 'salon',
+        'queue_mode_enabled' => true,
+        'queue_no_show_on_grace_expiry' => false,
+        'queue_dispatch_mode' => ReservationQueueService::DISPATCH_MODE_FIFO_WITH_APPOINTMENT_PRIORITY,
+        'queue_assignment_mode' => ReservationQueueService::ASSIGNMENT_MODE_GLOBAL_PULL,
+        'buffer_minutes' => 0,
+    ];
+
+    expect(fn () => DB::transaction(function () use ($queueService, $transitioned, $expired, $account, $settings): void {
+        $queueService->transition($transitioned, 'skip', $account, $settings);
+
+        expect($expired->refresh()->status)->toBe(ReservationQueueItem::STATUS_CALLED);
+
+        throw new RuntimeException('rollback queue transition');
+    }))->toThrow(RuntimeException::class, 'rollback queue transition');
+
+    expect($transitioned->refresh()->status)->toBe(ReservationQueueItem::STATUS_CHECKED_IN)
+        ->and($expired->refresh()->status)->toBe(ReservationQueueItem::STATUS_CALLED);
 });
 
 it('auto-closes a previous-day active walk-in ticket as no-show', function (): void {
@@ -315,7 +218,7 @@ it('auto-closes a previous-day active walk-in ticket as no-show', function (): v
         ]
     );
 
-    $this->artisan('reservations:auto-close-expired')
+    $this->artisan('reservations:auto-close-expired-walk-ins')
         ->expectsOutputToContain('Auto-closed 1 expired walk-in ticket(s).')
         ->assertExitCode(0);
 
@@ -323,11 +226,11 @@ it('auto-closes a previous-day active walk-in ticket as no-show', function (): v
 
     expect($ticket->status)->toBe(ReservationQueueItem::STATUS_NO_SHOW)
         ->and($ticket->finished_at)->not->toBeNull()
-        ->and(data_get($ticket->metadata, 'auto_close.reason'))->toBe(ExpiredReservationAutoCloser::WALK_IN_EXPIRED_REASON)
+        ->and(data_get($ticket->metadata, 'auto_close.reason'))->toBe(ExpiredWalkInAutoCloser::EXPIRED_REASON)
         ->and(data_get($ticket->metadata, 'auto_close.previous_status'))->toBe(ReservationQueueItem::STATUS_SKIPPED)
         ->and(ReservationQueueItem::query()->active()->whereKey($ticket->id)->exists())->toBeFalse();
 
-    $this->artisan('reservations:auto-close-expired')
+    $this->artisan('reservations:auto-close-expired-walk-ins')
         ->expectsOutputToContain('Auto-closed 0 expired walk-in ticket(s).')
         ->assertExitCode(0);
 });
@@ -343,7 +246,7 @@ it('respects account timezone before auto-closing walk-in tickets', function ():
         Carbon::parse('2026-05-14 09:00:00', 'America/Toronto')
     );
 
-    $this->artisan('reservations:auto-close-expired')
+    $this->artisan('reservations:auto-close-expired-walk-ins')
         ->expectsOutputToContain('Auto-closed 0 expired walk-in ticket(s).')
         ->assertExitCode(0);
 
@@ -351,7 +254,7 @@ it('respects account timezone before auto-closing walk-in tickets', function ():
 
     Carbon::setTestNow(Carbon::parse('2026-05-15 04:30:00', 'UTC'));
 
-    $this->artisan('reservations:auto-close-expired')
+    $this->artisan('reservations:auto-close-expired-walk-ins')
         ->expectsOutputToContain('Auto-closed 1 expired walk-in ticket(s).')
         ->assertExitCode(0);
 
@@ -373,7 +276,7 @@ it('does not mark an in-service stale walk-in as no-show', function (): void {
         ]
     );
 
-    $this->artisan('reservations:auto-close-expired')
+    $this->artisan('reservations:auto-close-expired-walk-ins')
         ->expectsOutputToContain('Auto-closed 0 expired walk-in ticket(s).')
         ->assertExitCode(0);
 

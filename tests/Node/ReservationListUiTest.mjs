@@ -158,6 +158,8 @@ test('reservation list is flat, responsive, accessible, and resilient', () => {
     assert.match(component, /emit\('set-sort', reservationListSortValue/u);
     assert.match(component, /emit\('per-page', normalizeDataTablePerPage/u);
     assert.match(component, /ReservationStatusBadge/u);
+    assert.match(component, /reservation\.outcome_review_required_at/u);
+    assert.match(component, /reservations\.outcome_review\.badge/u);
     assert.match(component, /EntityAvatar/u);
     assert.match(component, /reservationListServiceName/u);
     assert.match(component, /reservationListSourceKey/u);

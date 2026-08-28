@@ -6,6 +6,11 @@
     "calendar": {
       "loading": "Loading reservations..."
     },
+    "outcome_review": {
+      "badge": "Needs review",
+      "title": "Confirm the reservation outcome",
+      "description": "This past reservation has no reliable final status. Manually choose Completed, No-show, or Cancelled based on what actually happened."
+    },
     "list": {
       "title": "At a glance",
       "subtitle": "Scan services, clients, and team members without losing context.",

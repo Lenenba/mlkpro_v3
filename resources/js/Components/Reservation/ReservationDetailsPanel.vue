@@ -609,6 +609,22 @@ const panelDescription = computed(() =>
                 </div>
 
                 <div v-else-if="reservation" class="space-y-6 px-5 py-6 sm:px-7 sm:py-7">
+                    <section
+                        v-if="reservation.outcome_review_required_at"
+                        class="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-950 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100"
+                        role="status"
+                    >
+                        <AlertTriangle aria-hidden="true" class="mt-0.5 h-5 w-5 shrink-0" />
+                        <div>
+                            <h2 class="text-sm font-semibold">
+                                {{ t('reservations.outcome_review.title') }}
+                            </h2>
+                            <p class="mt-1 text-sm leading-5 opacity-90">
+                                {{ t('reservations.outcome_review.description') }}
+                            </p>
+                        </div>
+                    </section>
+
                     <section aria-labelledby="reservation-schedule-title">
                         <div class="mb-3 flex items-center gap-2">
                             <CalendarDays aria-hidden="true" class="h-4 w-4 text-emerald-600 dark:text-emerald-400" />

@@ -16,11 +16,13 @@ use App\Models\Product;
 use App\Models\Reservation;
 use App\Models\ReservationQueueItem;
 use App\Models\ReservationReview;
+use App\Models\ReservationStatusTransition;
 use App\Models\ReservationWaitlist;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Services\BillingPlanService;
 use App\Services\BillingSubscriptionService;
+use App\Services\Reservation\ReservationStatusTransitionService;
 use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationIntentGuardService;
 use App\Services\ReservationNotificationService;
@@ -39,7 +41,8 @@ class ClientReservationController extends Controller
         private readonly ReservationAvailabilityService $availabilityService,
         private readonly ReservationNotificationService $notificationService,
         private readonly ReservationQueueService $queueService,
-        private readonly ReservationIntentGuardService $intentGuard
+        private readonly ReservationIntentGuardService $intentGuard,
+        private readonly ReservationStatusTransitionService $statusTransitions
     ) {}
 
     public function book(Request $request)
@@ -347,6 +350,10 @@ class ClientReservationController extends Controller
             abort(404);
         }
 
+        $expectedStatusVersion = (int) $reservation->status_version;
+        $expectedScheduleVersion = (int) $reservation->schedule_version;
+        $expectedMutationVersion = (int) $reservation->mutation_version;
+
         if (! $reservation->canBeCancelled()) {
             throw ValidationException::withMessages([
                 'reservation' => ['This reservation cannot be cancelled.'],
@@ -369,13 +376,34 @@ class ClientReservationController extends Controller
             ]);
         }
 
-        $reservation->update([
-            'status' => Reservation::STATUS_CANCELLED,
-            'cancelled_at' => now(),
-            'cancelled_by_user_id' => $user->id,
-            'cancel_reason' => $request->validated('reason'),
-            'metadata' => $this->availabilityService->metadataForStatusTransition($reservation, Reservation::STATUS_CANCELLED),
-        ]);
+        $transition = $this->statusTransitions->transition(
+            $reservation,
+            Reservation::STATUS_CANCELLED,
+            ReservationStatusTransition::ACTOR_USER,
+            $user,
+            Reservation::STATUS_CHANGE_SOURCE_CLIENT_PORTAL,
+            'client_cancelled',
+            $request->validated('reason'),
+            [
+                'cancelled_at' => now(),
+                'cancelled_by_user_id' => $user->id,
+                'cancel_reason' => $request->validated('reason'),
+                'metadata' => $this->availabilityService->metadataForStatusTransition($reservation, Reservation::STATUS_CANCELLED),
+                'auto_closed_at' => null,
+                'auto_closed_reason' => null,
+            ],
+            allowedFromStatuses: Reservation::ACTIVE_STATUSES,
+            expectedStatusVersion: $expectedStatusVersion,
+            expectedScheduleVersion: $expectedScheduleVersion,
+            expectedMutationVersion: $expectedMutationVersion
+        );
+        if (! $transition->performed) {
+            throw ValidationException::withMessages([
+                'reservation' => ['This reservation changed while it was being cancelled. Refresh and try again.'],
+            ]);
+        }
+
+        $reservation = $transition->reservation;
         $this->notificationService->handleCancelled($reservation->fresh(), $user);
 
         return response()->json([
@@ -421,12 +449,15 @@ class ClientReservationController extends Controller
         }
 
         $validated = $request->validated();
-        $reservation = $this->availabilityService->reschedule($reservation, [
+        $reschedule = $this->availabilityService->reschedule($reservation, [
             ...$validated,
             'status' => Reservation::STATUS_PENDING,
             'source' => Reservation::SOURCE_CLIENT,
         ], $user);
-        $this->notificationService->handleRescheduled($reservation, $user);
+        $reservation = $reschedule->reservation;
+        if ($reschedule->scheduleChanged) {
+            $this->notificationService->handleRescheduled($reservation, $user);
+        }
 
         return response()->json([
             'message' => 'Reservation rescheduled.',

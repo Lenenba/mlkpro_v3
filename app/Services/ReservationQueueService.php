@@ -11,17 +11,21 @@ use App\Models\Reservation;
 use App\Models\ReservationCheckIn;
 use App\Models\ReservationQueueItem;
 use App\Models\ReservationResource;
+use App\Models\ReservationStatusTransition;
 use App\Models\TeamMember;
 use App\Models\TeamMemberAttendance;
 use App\Models\User;
 use App\Services\OfferPackages\CustomerPackageService;
-use App\Services\Reservation\ExpiredReservationAutoCloser;
+use App\Services\Reservation\ReservationQueueGraceNoShowMarker;
+use App\Services\Reservation\ReservationStatusTransitionService;
 use App\Support\ReservationPresetResolver;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class ReservationQueueService
 {
@@ -39,7 +43,8 @@ class ReservationQueueService
         private readonly ReservationAvailabilityService $availabilityService,
         private readonly ReservationNotificationService $notificationService,
         private readonly ReservationIntentGuardService $intentGuard,
-        private readonly ExpiredReservationAutoCloser $expiredReservationAutoCloser,
+        private readonly ReservationQueueGraceNoShowMarker $queueGraceNoShowMarker,
+        private readonly ReservationStatusTransitionService $statusTransitions,
         private readonly CustomerPackageService $customerPackageService
     ) {}
 
@@ -142,7 +147,7 @@ class ReservationQueueService
         $clientUserId = isset($payload['client_user_id']) ? (int) $payload['client_user_id'] : null;
         $this->intentGuard->ensureCanCreateTicket($accountId, $clientId, $clientUserId, $settings);
 
-        return DB::transaction(function () use ($accountId, $payload, $actor, $settings, $clientId, $clientUserId) {
+        $item = DB::transaction(function () use ($accountId, $payload, $actor, $settings, $clientId, $clientUserId) {
             $serviceId = isset($payload['service_id']) ? (int) $payload['service_id'] : null;
             $teamMemberId = isset($payload['team_member_id']) ? (int) $payload['team_member_id'] : null;
             if ($teamMemberId) {
@@ -211,24 +216,23 @@ class ReservationQueueService
                 ], 'Kiosk ticket created');
             }
 
-            $this->refreshMetrics($accountId, $settings);
-
-            $freshItem = $item->fresh([
-                'teamMember.user:id,name',
-                'service:id,name',
-                'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
-                'client.portalUser:id,name,email,phone_number',
-                'clientUser:id,name,email,phone_number',
-            ]) ?: $item;
-
-            $this->notificationService->handleQueueEvent(
-                $freshItem,
-                'queue_ticket_created',
-                $actor
-            );
-
-            return $freshItem;
+            return $item;
         });
+
+        $this->queueTicketCreatedAfterCommit(
+            $accountId,
+            (int) $item->id,
+            (int) $actor->id,
+            $settings
+        );
+
+        return $item->fresh([
+            'teamMember.user:id,name',
+            'service:id,name',
+            'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
+            'client.portalUser:id,name,email,phone_number',
+            'clientUser:id,name,email,phone_number',
+        ]) ?: $item;
     }
 
     public function transition(
@@ -242,8 +246,15 @@ class ReservationQueueService
         $this->ensureQueueFeatureEnabled($settings);
         $action = strtolower(trim($action));
 
-        return DB::transaction(function () use ($item, $action, $actor, $settings, $context) {
-            $locked = ReservationQueueItem::query()->whereKey($item->id)->lockForUpdate()->firstOrFail();
+        /**
+         * @var array{item: ReservationQueueItem, previous_status: string, next_status: string, notify_status_change: bool} $result
+         */
+        $result = DB::transaction(function () use ($item, $action, $actor, $settings, $context): array {
+            $locked = ReservationQueueItem::query()
+                ->forAccount((int) $item->account_id)
+                ->whereKey($item->id)
+                ->lockForUpdate()
+                ->firstOrFail();
             $terminal = [
                 ReservationQueueItem::STATUS_DONE,
                 ReservationQueueItem::STATUS_CANCELLED,
@@ -384,7 +395,7 @@ class ReservationQueueService
             $locked->fill($payload)->save();
             $nextStatus = (string) ($payload['status'] ?? $locked->status);
             if ($nextStatus === ReservationQueueItem::STATUS_DONE) {
-                $this->completeLinkedReservation($locked, $actor);
+                $this->completeLinkedReservation($locked, $actor, $context);
             }
             if (in_array($action, ['check_in', 'still_here'], true)) {
                 $this->recordCheckIn($locked, $actor, $action === 'still_here' ? 'still_here' : ((string) ($context['channel'] ?? 'staff')));
@@ -402,8 +413,6 @@ class ReservationQueueService
                 ], 'Kiosk queue transition');
             }
 
-            $this->refreshMetrics((int) $locked->account_id, $settings);
-
             $updated = $locked->fresh([
                 'teamMember.user:id,name',
                 'service:id,name,price,currency_code,tax_rate',
@@ -418,25 +427,150 @@ class ReservationQueueService
             ]) ?: $locked;
 
             $nextStatus = (string) ($payload['status'] ?? $updated->status);
-            if (
-                $previousStatus !== $nextStatus
-                && ! in_array($action, ['pre_call', 'call'], true)
-            ) {
-                $this->notificationService->handleQueueEvent(
-                    $updated,
-                    'queue_status_changed',
-                    $actor,
-                    [
-                        'from_status' => $previousStatus,
-                        'to_status' => $nextStatus,
-                    ]
-                );
-            }
-
             $this->syncAttendanceStatusForQueueTransition($updated, $previousStatus, $nextStatus);
 
-            return $updated;
+            return [
+                'item' => $updated,
+                'previous_status' => $previousStatus,
+                'next_status' => $nextStatus,
+                'notify_status_change' => ! ($context['suppress_notifications'] ?? false)
+                    && $previousStatus !== $nextStatus
+                    && ! in_array($action, ['pre_call', 'call'], true),
+            ];
         });
+
+        $this->queueTransitionEffectsAfterCommit(
+            (int) $result['item']->account_id,
+            (int) $result['item']->id,
+            (int) $actor->id,
+            $settings,
+            (string) $result['previous_status'],
+            (string) $result['next_status'],
+            (bool) $result['notify_status_change']
+        );
+
+        return $result['item']->fresh([
+            'teamMember.user:id,name',
+            'service:id,name,price,currency_code,tax_rate',
+            'checkoutPayment:id,reservation_queue_item_id,amount,currency_code,tip_amount,charged_total,status,paid_at',
+            'reservation:id,starts_at,status',
+            'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
+            'client.portalUser:id,name,email,phone_number',
+            'clientUser:id,name,email,phone_number',
+            'reservation.client:id,first_name,last_name,company_name,email,phone,portal_user_id',
+            'reservation.client.portalUser:id,name,email,phone_number',
+            'reservation.clientUser:id,name,email,phone_number',
+        ]) ?: $result['item'];
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     */
+    private function queueTicketCreatedAfterCommit(
+        int $accountId,
+        int $itemId,
+        int $actorId,
+        array $settings
+    ): void {
+        DB::afterCommit(function () use ($accountId, $itemId, $actorId, $settings): void {
+            $this->refreshQueueMetricsSafely($accountId, $settings, $itemId);
+
+            $item = ReservationQueueItem::query()
+                ->forAccount($accountId)
+                ->with([
+                    'teamMember.user:id,name',
+                    'service:id,name',
+                    'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
+                    'client.portalUser:id,name,email,phone_number',
+                    'clientUser:id,name,email,phone_number',
+                ])
+                ->find($itemId);
+            $actor = User::query()->find($actorId);
+            if (! $item || ! $actor) {
+                return;
+            }
+
+            $this->notificationService->handleQueueEvent($item, 'queue_ticket_created', $actor);
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     */
+    private function queueTransitionEffectsAfterCommit(
+        int $accountId,
+        int $itemId,
+        int $actorId,
+        array $settings,
+        string $previousStatus,
+        string $nextStatus,
+        bool $notifyStatusChange
+    ): void {
+        DB::afterCommit(function () use (
+            $accountId,
+            $itemId,
+            $actorId,
+            $settings,
+            $previousStatus,
+            $nextStatus,
+            $notifyStatusChange
+        ): void {
+            $this->refreshQueueMetricsSafely($accountId, $settings, $itemId);
+            if (! $notifyStatusChange) {
+                return;
+            }
+
+            $item = $this->queueItemForNotification($accountId, $itemId);
+            $actor = User::query()->find($actorId);
+            if (! $item || ! $actor) {
+                return;
+            }
+
+            $this->notificationService->handleQueueEvent(
+                $item,
+                'queue_status_changed',
+                $actor,
+                [
+                    'from_status' => $previousStatus,
+                    'to_status' => $nextStatus,
+                ]
+            );
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     */
+    private function refreshQueueMetricsSafely(int $accountId, array $settings, int $triggerItemId): void
+    {
+        try {
+            $this->refreshMetrics($accountId, $settings);
+        } catch (Throwable $exception) {
+            Log::warning('Unable to refresh reservation queue metrics after commit.', [
+                'account_id' => $accountId,
+                'queue_item_id' => $triggerItemId,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+    }
+
+    private function queueItemForNotification(int $accountId, int $itemId): ?ReservationQueueItem
+    {
+        return ReservationQueueItem::query()
+            ->forAccount($accountId)
+            ->with([
+                'service:id,name',
+                'teamMember.user:id,name,email',
+                'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
+                'client.portalUser:id,name,email,phone_number',
+                'clientUser:id,name,email,phone_number',
+                'reservation:id,starts_at,status,team_member_id,client_id,client_user_id',
+                'reservation.client:id,first_name,last_name,company_name,email,phone,portal_user_id',
+                'reservation.client.portalUser:id,name,email,phone_number',
+                'reservation.clientUser:id,name,email,phone_number',
+                'reservation.teamMember.user:id,name,email',
+            ])
+            ->find($itemId);
     }
 
     /**
@@ -577,7 +711,10 @@ class ReservationQueueService
         return (bool) ($checkout['requires_payment'] ?? false);
     }
 
-    private function completeLinkedReservation(ReservationQueueItem $item, User $actor): void
+    /**
+     * @param  array<string, mixed>  $context
+     */
+    private function completeLinkedReservation(ReservationQueueItem $item, User $actor, array $context = []): void
     {
         if (! $item->reservation_id) {
             return;
@@ -596,26 +733,86 @@ class ReservationQueueService
             return;
         }
 
-        $previousStatus = (string) $reservation->status;
-        $reservation->update([
-            'status' => Reservation::STATUS_COMPLETED,
-            'cancelled_at' => null,
-            'cancelled_by_user_id' => null,
-            'cancel_reason' => null,
-            'metadata' => $this->availabilityService->metadataForStatusTransition(
-                $reservation,
-                Reservation::STATUS_COMPLETED
-            ),
-        ]);
+        $expectedStatusVersion = (int) $reservation->status_version;
+        $expectedScheduleVersion = (int) $reservation->schedule_version;
+        $expectedMutationVersion = (int) $reservation->mutation_version;
+        $isIntegration = ($context['transition_source'] ?? null) === Reservation::STATUS_CHANGE_SOURCE_STRIPE_WEBHOOK;
+        $transition = $this->statusTransitions->transition(
+            $reservation,
+            Reservation::STATUS_COMPLETED,
+            $isIntegration
+                ? ReservationStatusTransition::ACTOR_INTEGRATION
+                : ReservationStatusTransition::ACTOR_USER,
+            $isIntegration ? null : $actor,
+            $isIntegration
+                ? Reservation::STATUS_CHANGE_SOURCE_STRIPE_WEBHOOK
+                : Reservation::STATUS_CHANGE_SOURCE_QUEUE_STAFF,
+            'queue_service_completed',
+            'Reservation completed from the service queue.',
+            [
+                'cancelled_at' => null,
+                'cancelled_by_user_id' => null,
+                'cancel_reason' => null,
+                'metadata' => $this->availabilityService->metadataForStatusTransition(
+                    $reservation,
+                    Reservation::STATUS_COMPLETED
+                ),
+                'auto_closed_at' => null,
+                'auto_closed_reason' => null,
+            ],
+            allowedFromStatuses: Reservation::ACTIVE_STATUSES,
+            expectedStatusVersion: $expectedStatusVersion,
+            expectedScheduleVersion: $expectedScheduleVersion,
+            expectedMutationVersion: $expectedMutationVersion
+        );
+        if (! $transition->performed) {
+            if ((string) $transition->reservation->status !== Reservation::STATUS_COMPLETED) {
+                throw ValidationException::withMessages([
+                    'queue' => ['The linked reservation changed while the queue item was being completed.'],
+                ]);
+            }
+
+            return;
+        }
+
+        $reservation = $transition->reservation;
 
         $this->customerPackageService->consumeForReservation($actor, $reservation);
         $this->syncPublicBookingProspectCompletion($reservation);
-        $reservation->load([
-            'teamMember.user:id,name',
-            'client:id,first_name,last_name,company_name',
-            'service:id,name,price',
-        ]);
-        $this->notificationService->handleStatusChanged($reservation, $actor, $previousStatus);
+        if ($context['suppress_notifications'] ?? false) {
+            return;
+        }
+
+        $this->reservationStatusNotificationAfterCommit(
+            (int) $reservation->account_id,
+            (int) $reservation->id,
+            (int) $actor->id,
+            $transition->previousStatus
+        );
+    }
+
+    private function reservationStatusNotificationAfterCommit(
+        int $accountId,
+        int $reservationId,
+        int $actorId,
+        string $previousStatus
+    ): void {
+        DB::afterCommit(function () use ($accountId, $reservationId, $actorId, $previousStatus): void {
+            $reservation = Reservation::query()
+                ->forAccount($accountId)
+                ->with([
+                    'teamMember.user:id,name',
+                    'client:id,first_name,last_name,company_name',
+                    'service:id,name,price',
+                ])
+                ->find($reservationId);
+            $actor = User::query()->find($actorId);
+            if (! $reservation || ! $actor) {
+                return;
+            }
+
+            $this->notificationService->handleStatusChanged($reservation, $actor, $previousStatus);
+        });
     }
 
     private function syncPublicBookingProspectCompletion(Reservation $reservation): void
@@ -1758,63 +1955,140 @@ class ReservationQueueService
 
     private function expireGraceItems(int $accountId, array $settings): void
     {
+        $nowUtc = now('UTC');
         $expired = ReservationQueueItem::query()
             ->forAccount($accountId)
             ->where('status', ReservationQueueItem::STATUS_CALLED)
             ->whereNotNull('call_expires_at')
-            ->where('call_expires_at', '<', now('UTC'))
-            ->get();
+            ->where('call_expires_at', '<', $nowUtc)
+            ->orderBy('id')
+            ->pluck('id');
 
-        foreach ($expired as $item) {
-            $previousStatus = (string) $item->status;
-            if (($settings['queue_no_show_on_grace_expiry'] ?? false) && $item->item_type === ReservationQueueItem::TYPE_APPOINTMENT) {
-                $expiredAt = now('UTC');
-                $item->update([
-                    'status' => ReservationQueueItem::STATUS_NO_SHOW,
-                    'finished_at' => $expiredAt,
-                    'call_expires_at' => null,
-                ]);
+        foreach ($expired as $itemId) {
+            $this->expireGraceItem(
+                $accountId,
+                (int) $itemId,
+                $settings,
+                $nowUtc
+            );
+        }
+    }
 
-                if ($item->reservation_id) {
-                    $this->expiredReservationAutoCloser->markReservationNoShowFromQueueGrace((int) $item->reservation_id, $expiredAt);
-                }
-            } else {
-                $item->update([
-                    'status' => ReservationQueueItem::STATUS_SKIPPED,
-                    'skipped_at' => now('UTC'),
-                    'call_expires_at' => null,
-                ]);
+    /**
+     * @param  array<string, mixed>  $settings
+     */
+    private function expireGraceItem(
+        int $accountId,
+        int $itemId,
+        array $settings,
+        CarbonInterface $nowUtc
+    ): bool {
+        return DB::transaction(function () use ($accountId, $itemId, $settings, $nowUtc): bool {
+            $item = ReservationQueueItem::query()
+                ->forAccount($accountId)
+                ->whereKey($itemId)
+                ->lockForUpdate()
+                ->first();
+
+            if (
+                ! $item
+                || $item->status !== ReservationQueueItem::STATUS_CALLED
+                || $item->call_expires_at === null
+                || $item->call_expires_at->gte($nowUtc)
+            ) {
+                return false;
             }
 
-            $freshItem = $item->fresh([
-                'service:id,name',
-                'teamMember.user:id,name,email',
-                'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
-                'client.portalUser:id,name,email,phone_number',
-                'clientUser:id,name,email,phone_number',
-                'reservation:id,starts_at,status,team_member_id,client_id,client_user_id',
-                'reservation.client:id,first_name,last_name,company_name,email,phone,portal_user_id',
-                'reservation.client.portalUser:id,name,email,phone_number',
-                'reservation.clientUser:id,name,email,phone_number',
-                'reservation.teamMember.user:id,name,email',
-            ]) ?: $item;
+            $previousStatus = (string) $item->status;
+            $notifyGraceExpired = true;
+            if (
+                ($settings['queue_no_show_on_grace_expiry'] ?? false)
+                && $item->item_type === ReservationQueueItem::TYPE_APPOINTMENT
+            ) {
+                $nextQueueStatus = ReservationQueueItem::STATUS_NO_SHOW;
+                if ($item->reservation_id) {
+                    $markedNoShow = $this->queueGraceNoShowMarker->mark(
+                        $accountId,
+                        (int) $item->reservation_id,
+                        $nowUtc
+                    );
+                    if (! $markedNoShow) {
+                        $notifyGraceExpired = false;
+                        $reservationStatus = Reservation::query()
+                            ->forAccount($accountId)
+                            ->whereKey($item->reservation_id)
+                            ->value('status');
+                        $nextQueueStatus = match ($reservationStatus) {
+                            Reservation::STATUS_COMPLETED => ReservationQueueItem::STATUS_DONE,
+                            Reservation::STATUS_CANCELLED, Reservation::STATUS_EXPIRED => ReservationQueueItem::STATUS_CANCELLED,
+                            Reservation::STATUS_NO_SHOW => ReservationQueueItem::STATUS_NO_SHOW,
+                            default => null,
+                        };
 
-            $this->syncAttendanceStatusForQueueTransition(
-                $freshItem,
+                        if ($nextQueueStatus === null) {
+                            return false;
+                        }
+                    }
+                }
+
+                $item->forceFill([
+                    'status' => $nextQueueStatus,
+                    'finished_at' => $nowUtc,
+                    'call_expires_at' => null,
+                ])->save();
+            } else {
+                $item->forceFill([
+                    'status' => ReservationQueueItem::STATUS_SKIPPED,
+                    'skipped_at' => $nowUtc,
+                    'call_expires_at' => null,
+                ])->save();
+            }
+
+            $nextStatus = (string) $item->status;
+            $this->syncAttendanceStatusForQueueTransition($item, $previousStatus, $nextStatus);
+            $this->queueGraceEffectsAfterCommit(
+                $accountId,
+                (int) $item->id,
                 $previousStatus,
-                (string) $freshItem->status
+                $nextStatus,
+                $notifyGraceExpired
             );
 
-            $this->notificationService->handleQueueEvent($freshItem, 'queue_grace_expired');
+            return true;
+        }, 3);
+    }
+
+    private function queueGraceEffectsAfterCommit(
+        int $accountId,
+        int $itemId,
+        string $previousStatus,
+        string $nextStatus,
+        bool $notifyGraceExpired
+    ): void {
+        DB::afterCommit(function () use (
+            $accountId,
+            $itemId,
+            $previousStatus,
+            $nextStatus,
+            $notifyGraceExpired
+        ): void {
+            $item = $this->queueItemForNotification($accountId, $itemId);
+            if (! $item) {
+                return;
+            }
+
+            if ($notifyGraceExpired) {
+                $this->notificationService->handleQueueEvent($item, 'queue_grace_expired');
+            }
             $this->notificationService->handleQueueEvent(
-                $freshItem,
+                $item,
                 'queue_status_changed',
                 null,
                 [
                     'from_status' => $previousStatus,
-                    'to_status' => (string) $freshItem->status,
+                    'to_status' => $nextStatus,
                 ]
             );
-        }
+        });
     }
 }

@@ -714,7 +714,17 @@ const setMobilePerPage = (event) => {
                                 </span>
                             </td>
                             <td class="px-4 py-3 align-middle">
-                                <ReservationStatusBadge :status="reservation.status" size="sm" />
+                                <div class="flex flex-col items-start gap-1.5">
+                                    <ReservationStatusBadge :status="reservation.status" size="sm" />
+                                    <span
+                                        v-if="reservation.outcome_review_required_at"
+                                        class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[0.6875rem] font-semibold text-amber-800 dark:bg-amber-500/15 dark:text-amber-200"
+                                        :title="$t('reservations.outcome_review.description')"
+                                    >
+                                        <TriangleAlert class="h-3 w-3" aria-hidden="true" />
+                                        {{ $t('reservations.outcome_review.badge') }}
+                                    </span>
+                                </div>
                             </td>
                             <td class="px-4 py-3 text-end align-middle">
                                 <AdminDataTableActions
@@ -783,7 +793,16 @@ const setMobilePerPage = (event) => {
                                 {{ formatTimeRange(reservation) }}
                             </span>
                         </button>
-                        <ReservationStatusBadge :status="reservation.status" size="sm" />
+                        <div class="flex flex-col items-end gap-1.5">
+                            <ReservationStatusBadge :status="reservation.status" size="sm" />
+                            <span
+                                v-if="reservation.outcome_review_required_at"
+                                class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[0.6875rem] font-semibold text-amber-800 dark:bg-amber-500/15 dark:text-amber-200"
+                            >
+                                <TriangleAlert class="h-3 w-3" aria-hidden="true" />
+                                {{ $t('reservations.outcome_review.badge') }}
+                            </span>
+                        </div>
                     </div>
 
                     <div class="p-3.5">

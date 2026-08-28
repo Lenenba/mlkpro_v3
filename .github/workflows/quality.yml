@@ -157,6 +157,7 @@ jobs:
             tests/Feature/DemoTypeDatabaseCompatibilityTest.php \
             tests/Feature/ExpenseModuleTest.php \
             tests/Feature/ReservationModuleTest.php \
+            tests/Feature/ReservationPastOutcomeReconciliationTest.php \
             tests/Feature/ReservationKioskPublicEndpointsTest.php \
             tests/Feature/PublicBookingLinksTest.php \
             tests/Feature/PlanEntitlementSyncCommandTest.php \

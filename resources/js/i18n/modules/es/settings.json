@@ -199,6 +199,17 @@
         "team_members": "Miembros del equipo",
         "weekly_rules": "Reglas semanales",
         "exceptions": "Excepciones"
+      },
+      "past_reconciliation": {
+        "title": "Seguimiento de reservas pasadas",
+        "description": "Marca las reservas cuya hora de fin y período de gracia ya pasaron sin resultado final.",
+        "signal_only_badge": "Solo aviso",
+        "enabled": "Activar el seguimiento automático para esta empresa",
+        "safety_notice": "El sistema no cambia el estado, no aplica cargos por ausencia y no contacta al cliente. Solo crea una alerta interna auditada para revisar."
+      },
+      "fields": {
+        "past_reservation_grace_minutes": "Espera antes del aviso (minutos)",
+        "past_reservation_max_catchup_days": "Ventana normal de recuperación (días)"
       }
     },
     "billing": {

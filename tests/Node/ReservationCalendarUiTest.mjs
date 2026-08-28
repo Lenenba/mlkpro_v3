@@ -299,6 +299,10 @@ test('calendar navigation copy is complete and parameterized in every locale', (
             `${locale} is missing reservations.calendar.loading`
         );
         assert.ok(
+            reservationMessages.reservations?.outcome_review?.badge?.trim(),
+            `${locale} is missing reservations.outcome_review.badge`
+        );
+        assert.ok(
             reservationMessages.reservations?.view?.calendar?.trim(),
             `${locale} is missing reservations.view.calendar`
         );
@@ -318,6 +322,9 @@ test('the reservation calendar remains responsive, accessible and visually infor
     assert.match(calendar, /extendedProps\??\.client_name/);
     assert.match(calendar, /extendedProps\??\.team_member_name/);
     assert.match(calendar, /extendedProps\??\.source/);
+    assert.match(calendar, /extendedProps\.outcome_review_required_at/);
+    assert.match(calendar, /reservations\.outcome_review\.badge/);
+    assert.match(calendar, /outline-amber-400/);
     assert.match(calendar, /(?:const\s+personInitials\s*=|function\s+personInitials\s*\()/);
     assert.match(calendar, /(?:const\s+eventAccessibleLabel\s*=|function\s+eventAccessibleLabel\s*\()/);
     assert.match(calendar, /export const indexReservationEventsByDay/);

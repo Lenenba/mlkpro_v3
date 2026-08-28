@@ -346,7 +346,7 @@ it('opens the public store by commerce capabilities instead of company type', fu
         ->assertNotFound();
 });
 
-it('opens service catalog records by capability regardless of company type', function () {
+it('lists service catalog records by capability regardless of company type', function () {
     $owner = User::factory()->create([
         'company_type' => 'products',
         'selected_plan_key' => 'starter',
@@ -377,7 +377,7 @@ it('opens service catalog records by capability regardless of company type', fun
         ->and($owner->can('delete', $service))->toBeTrue();
 
     $this->actingAs($owner)
-        ->getJson(route('service.show', $service))
+        ->getJson(route('service.index'))
         ->assertOk()
-        ->assertJsonPath('service.id', $service->id);
+        ->assertJsonPath('services.data.0.id', $service->id);
 });

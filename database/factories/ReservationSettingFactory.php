@@ -19,6 +19,7 @@ class ReservationSettingFactory extends Factory
         return [
             'account_id' => User::factory(),
             'team_member_id' => null,
+            'account_default_marker' => ReservationSetting::ACCOUNT_DEFAULT_MARKER,
             'business_preset' => 'service_general',
             'buffer_minutes' => 10,
             'slot_interval_minutes' => 30,
@@ -38,6 +39,10 @@ class ReservationSettingFactory extends Factory
             'deposit_amount' => 0,
             'no_show_fee_enabled' => false,
             'no_show_fee_amount' => 0,
+            'past_reservation_reconciliation_enabled' => false,
+            'past_reservation_reconciliation_mode' => ReservationSetting::PAST_RECONCILIATION_MODE_SIGNAL_ONLY,
+            'past_reservation_grace_minutes' => 120,
+            'past_reservation_max_catchup_days' => 7,
         ];
     }
 

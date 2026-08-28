@@ -176,6 +176,8 @@ test('the reservation detail panel is a responsive accessible drawer with resili
     assert.doesNotMatch(mediaSurface, /bg-gradient-to-|(?:dark:)?(?:from|via|to)-(?:emerald|teal|amber|stone|neutral|white)/);
     assert.match(panel, /EntityAvatar/);
     assert.match(panel, /ReservationStatusBadge/);
+    assert.match(panel, /reservation\.outcome_review_required_at/);
+    assert.match(panel, /reservations\.outcome_review\.description/);
     assert.match(panel, /client_notes/);
     assert.match(panel, /prospect/);
     assert.match(panel, /cancel_reason/);

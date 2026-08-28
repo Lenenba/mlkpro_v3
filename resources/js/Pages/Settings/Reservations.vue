@@ -154,6 +154,10 @@ const form = useForm({
         deposit_amount: props.accountSettings?.deposit_amount ?? 0,
         no_show_fee_enabled: Boolean(props.accountSettings?.no_show_fee_enabled ?? false),
         no_show_fee_amount: props.accountSettings?.no_show_fee_amount ?? 0,
+        past_reservation_reconciliation_enabled: Boolean(props.accountSettings?.past_reservation_reconciliation_enabled ?? false),
+        past_reservation_reconciliation_mode: props.accountSettings?.past_reservation_reconciliation_mode ?? 'signal_only',
+        past_reservation_grace_minutes: props.accountSettings?.past_reservation_grace_minutes ?? 120,
+        past_reservation_max_catchup_days: props.accountSettings?.past_reservation_max_catchup_days ?? 7,
     },
     team_settings: (props.teamSettings || []).map((item) => ({
         team_member_id: String(item.team_member_id),
@@ -762,6 +766,10 @@ const submit = () => {
             deposit_amount: Math.max(0, Number(data.account_settings?.deposit_amount || 0)),
             no_show_fee_enabled: Boolean(data.account_settings?.no_show_fee_enabled),
             no_show_fee_amount: Math.max(0, Number(data.account_settings?.no_show_fee_amount || 0)),
+            past_reservation_reconciliation_enabled: Boolean(data.account_settings?.past_reservation_reconciliation_enabled),
+            past_reservation_reconciliation_mode: 'signal_only',
+            past_reservation_grace_minutes: Math.max(0, Number(data.account_settings?.past_reservation_grace_minutes ?? 120)),
+            past_reservation_max_catchup_days: Math.max(1, Number(data.account_settings?.past_reservation_max_catchup_days || 7)),
         };
 
         const kioskImage = data.account_settings?.kiosk_image;
@@ -942,6 +950,61 @@ const submit = () => {
                             {{ $t('settings.reservations.fields.no_show_fee_enabled') }}
                         </label>
                     </div>
+                    </section>
+
+                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div class="max-w-3xl">
+                                <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ $t('settings.reservations.past_reconciliation.title') }}
+                                </h2>
+                                <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('settings.reservations.past_reconciliation.description') }}
+                                </p>
+                            </div>
+                            <span class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200">
+                                {{ $t('settings.reservations.past_reconciliation.signal_only_badge') }}
+                            </span>
+                        </div>
+
+                        <div class="mt-4 flex flex-col gap-4">
+                            <label class="inline-flex items-center gap-2 text-sm font-medium text-stone-700 dark:text-neutral-200">
+                                <input
+                                    v-model="form.account_settings.past_reservation_reconciliation_enabled"
+                                    type="checkbox"
+                                    class="rounded border-stone-300"
+                                >
+                                {{ $t('settings.reservations.past_reconciliation.enabled') }}
+                            </label>
+
+                            <div
+                                v-if="form.account_settings.past_reservation_reconciliation_enabled"
+                                class="grid gap-3 md:grid-cols-2"
+                            >
+                                <FloatingInput
+                                    v-model="form.account_settings.past_reservation_grace_minutes"
+                                    type="number"
+                                    min="0"
+                                    max="10080"
+                                    :label="$t('settings.reservations.fields.past_reservation_grace_minutes')"
+                                />
+                                <FloatingInput
+                                    v-model="form.account_settings.past_reservation_max_catchup_days"
+                                    type="number"
+                                    min="1"
+                                    max="365"
+                                    :label="$t('settings.reservations.fields.past_reservation_max_catchup_days')"
+                                />
+                            </div>
+
+                            <div class="rounded-sm border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-100">
+                                {{ $t('settings.reservations.past_reconciliation.safety_notice') }}
+                            </div>
+
+                            <InputError :message="form.errors['account_settings.past_reservation_reconciliation_enabled']" />
+                            <InputError :message="form.errors['account_settings.past_reservation_grace_minutes']" />
+                            <InputError :message="form.errors['account_settings.past_reservation_max_catchup_days']" />
+                        </div>
                     </section>
 
                     <section v-if="isSalonPreset" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">

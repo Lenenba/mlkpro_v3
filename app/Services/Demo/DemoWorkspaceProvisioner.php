@@ -2967,36 +2967,26 @@ class DemoWorkspaceProvisioner
         $settings['queue_dispatch_mode'] = ReservationQueueService::DISPATCH_MODE_FIFO;
         $settings['queue_assignment_mode'] = ReservationQueueService::ASSIGNMENT_MODE_PER_STAFF;
 
-        $originalNotifications = $owner->company_notification_settings;
-        $mutedNotifications = is_array($originalNotifications) ? $originalNotifications : [];
-        $mutedNotifications['reservations'] = array_replace(
-            (array) ($mutedNotifications['reservations'] ?? []),
-            ['enabled' => false]
+        $awaitingPayment = app(ReservationQueueService::class)->transition(
+            $ticket->fresh(),
+            'finish',
+            $owner,
+            $settings,
+            ['suppress_notifications' => true]
         );
-        $owner->forceFill(['company_notification_settings' => $mutedNotifications])->saveQuietly();
-
-        try {
-            $awaitingPayment = app(ReservationQueueService::class)->transition(
-                $ticket->fresh(),
-                'finish',
-                $owner,
-                $settings
-            );
-            app(ReservationQueueCheckoutService::class)->checkout(
-                $awaitingPayment,
-                [
-                    'method' => 'cash',
-                    'tip_enabled' => true,
-                    'tip_mode' => 'percent',
-                    'tip_percent' => 18,
-                    'reference' => 'DEMO-ECLAT-CASH-001',
-                ],
-                $owner,
-                $settings
-            );
-        } finally {
-            $owner->forceFill(['company_notification_settings' => $originalNotifications])->saveQuietly();
-        }
+        app(ReservationQueueCheckoutService::class)->checkout(
+            $awaitingPayment,
+            [
+                'method' => 'cash',
+                'tip_enabled' => true,
+                'tip_mode' => 'percent',
+                'tip_percent' => 18,
+                'reference' => 'DEMO-ECLAT-CASH-001',
+            ],
+            $owner,
+            $settings,
+            ['suppress_notifications' => true]
+        );
 
         return [
             'completed_checkouts' => 1,

@@ -121,6 +121,8 @@ class BuildStaffReservationDetailData
             'cancel_reason' => $reservation->cancel_reason,
             'auto_closed_at' => $reservation->auto_closed_at?->toIso8601String(),
             'auto_closed_reason' => $reservation->auto_closed_reason,
+            'outcome_review_required_at' => $reservation->outcome_review_required_at?->toIso8601String(),
+            'outcome_review_reason_code' => $reservation->outcome_review_reason_code,
             'created_at' => $reservation->created_at?->toIso8601String(),
             'updated_at' => $reservation->updated_at?->toIso8601String(),
             'client' => $this->clientData($reservation->client),

@@ -13,6 +13,7 @@ use App\Models\Reservation;
 use App\Models\ReservationQueueItem;
 use App\Models\ReservationResource;
 use App\Models\ReservationResourceAllocation;
+use App\Models\ReservationStatusTransition;
 use App\Models\ReservationWaitlist;
 use App\Models\TeamMember;
 use App\Models\TeamMemberAttendance;
@@ -23,6 +24,7 @@ use App\Queries\Reservations\BuildStaffReservationIndexData;
 use App\Services\BillingPlanService;
 use App\Services\BillingSubscriptionService;
 use App\Services\OfferPackages\CustomerPackageService;
+use App\Services\Reservation\ReservationStatusTransitionService;
 use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationNotificationService;
 use App\Services\ReservationQueueCheckoutService;
@@ -45,7 +47,8 @@ class StaffReservationController extends Controller
         private readonly ReservationNotificationService $notificationService,
         private readonly ReservationQueueService $queueService,
         private readonly ReservationQueueCheckoutService $queueCheckoutService,
-        private readonly CustomerPackageService $customerPackageService
+        private readonly CustomerPackageService $customerPackageService,
+        private readonly ReservationStatusTransitionService $statusTransitions
     ) {}
 
     public function index(Request $request)
@@ -305,8 +308,11 @@ class StaffReservationController extends Controller
         $this->ensureManualReservationActionsAvailable($account);
 
         $validated = $request->validated();
-        $reservation = $this->availabilityService->reschedule($reservation, $validated, $user);
-        $this->notificationService->handleRescheduled($reservation, $user);
+        $reschedule = $this->availabilityService->reschedule($reservation, $validated, $user);
+        $reservation = $reschedule->reservation;
+        if ($reschedule->scheduleChanged) {
+            $this->notificationService->handleRescheduled($reservation, $user);
+        }
 
         $reservation->load([
             'teamMember.user:id,name',
@@ -364,10 +370,13 @@ class StaffReservationController extends Controller
             ]);
         }
 
-        $previousStatus = $reservation->status;
+        $expectedStatusVersion = (int) $reservation->status_version;
+        $expectedScheduleVersion = (int) $reservation->schedule_version;
+        $expectedMutationVersion = (int) $reservation->mutation_version;
         $payload = [
-            'status' => $validated['status'],
             'metadata' => $this->availabilityService->metadataForStatusTransition($reservation, (string) $validated['status']),
+            'auto_closed_at' => null,
+            'auto_closed_reason' => null,
         ];
 
         if ($validated['status'] === Reservation::STATUS_CANCELLED) {
@@ -380,7 +389,28 @@ class StaffReservationController extends Controller
             $payload['cancel_reason'] = null;
         }
 
-        $reservation->update($payload);
+        $transition = $this->statusTransitions->transition(
+            $reservation,
+            (string) $validated['status'],
+            ReservationStatusTransition::ACTOR_USER,
+            $user,
+            Reservation::STATUS_CHANGE_SOURCE_STAFF_UI,
+            'manual_status_update',
+            $validated['reason'] ?? null,
+            $payload,
+            recordSameStatus: true,
+            expectedStatusVersion: $expectedStatusVersion,
+            expectedScheduleVersion: $expectedScheduleVersion,
+            expectedMutationVersion: $expectedMutationVersion
+        );
+        if (! $transition->performed) {
+            throw ValidationException::withMessages([
+                'status' => ['This reservation changed while you were updating it. Refresh and try again.'],
+            ]);
+        }
+
+        $reservation = $transition->reservation;
+        $previousStatus = $transition->previousStatus;
         if ($previousStatus !== (string) $validated['status']) {
             if ($validated['status'] === Reservation::STATUS_COMPLETED) {
                 $this->customerPackageService->consumeForReservation($user, $reservation);

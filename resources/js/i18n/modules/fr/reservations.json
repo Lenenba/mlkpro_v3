@@ -6,6 +6,11 @@
     "calendar": {
       "loading": "Chargement des réservations..."
     },
+    "outcome_review": {
+      "badge": "À traiter",
+      "title": "Issue de la réservation à confirmer",
+      "description": "Cette réservation passée n’a pas de statut final fiable. Choisissez manuellement Terminée, Absence client ou Annulée selon ce qui s’est réellement produit."
+    },
     "list": {
       "title": "Vue d’ensemble",
       "subtitle": "Parcourez rapidement les services, les clients et les membres de l’équipe.",

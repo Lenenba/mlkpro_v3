@@ -6,6 +6,11 @@
     "calendar": {
       "loading": "Cargando reservas..."
     },
+    "outcome_review": {
+      "badge": "Revisar",
+      "title": "Confirme el resultado de la reserva",
+      "description": "Esta reserva pasada no tiene un estado final fiable. Seleccione manualmente Completada, Ausencia o Cancelada según lo que ocurrió."
+    },
     "list": {
       "title": "Vista general",
       "subtitle": "Consulte rápidamente los servicios, los clientes y los miembros del equipo.",

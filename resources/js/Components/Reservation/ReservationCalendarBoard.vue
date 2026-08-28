@@ -387,6 +387,7 @@ const parsedEvents = computed(() => (props.events || [])
             personInitials: personInitials(teamMemberName || clientName),
             source: extendedProps.source || '',
             status: extendedProps.status || 'slot',
+            requiresOutcomeReview: Boolean(extendedProps.outcome_review_required_at),
             startAt: start,
             endAt: end,
             original: event,
@@ -415,9 +416,13 @@ const getEventStatusLabel = (event) => {
     const key = `reservations.status.${status}`;
     const translated = t(key);
 
-    return translated === key
+    const statusLabel = translated === key
         ? status.replaceAll('_', ' ').replace(/\b\p{L}/gu, (letter) => letter.toLocaleUpperCase())
         : translated;
+
+    return event?.requiresOutcomeReview
+        ? `${statusLabel} · ${t('reservations.outcome_review.badge')}`
+        : statusLabel;
 };
 
 const getEventSourceLabel = (event) => {
@@ -708,9 +713,14 @@ const clickEvent = (event) => {
     emit('event-click', event.original || event);
 };
 
-const eventClasses = (event) => reservationStatusEventClasses(getEventStatus(event), {
-    selected: selectedKey.value !== null && selectedKey.value === event.key,
-});
+const eventClasses = (event) => [
+    ...reservationStatusEventClasses(getEventStatus(event), {
+        selected: selectedKey.value !== null && selectedKey.value === event.key,
+    }),
+    ...(event?.requiresOutcomeReview
+        ? ['outline', 'outline-2', 'outline-offset-1', 'outline-amber-400', 'dark:outline-amber-300']
+        : []),
+];
 </script>
 
 <template>

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Reservation;
 
 use App\Models\AvailabilityException;
+use App\Models\ReservationSetting;
 use App\Support\ReservationPresetResolver;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -42,6 +43,14 @@ class ReservationSettingsRequest extends FormRequest
             'account_settings.deposit_amount' => ['nullable', 'numeric', 'min:0', 'max:10000'],
             'account_settings.no_show_fee_enabled' => ['nullable', 'boolean'],
             'account_settings.no_show_fee_amount' => ['nullable', 'numeric', 'min:0', 'max:10000'],
+            'account_settings.past_reservation_reconciliation_enabled' => ['nullable', 'boolean'],
+            'account_settings.past_reservation_reconciliation_mode' => [
+                'nullable',
+                'string',
+                Rule::in([ReservationSetting::PAST_RECONCILIATION_MODE_SIGNAL_ONLY]),
+            ],
+            'account_settings.past_reservation_grace_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
+            'account_settings.past_reservation_max_catchup_days' => ['nullable', 'integer', 'min:1', 'max:365'],
 
             'team_settings' => ['nullable', 'array'],
             'team_settings.*.team_member_id' => [

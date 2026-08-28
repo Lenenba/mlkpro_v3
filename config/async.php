@@ -56,6 +56,11 @@ return [
             'backoff' => [30, 120, 300],
             'timeout' => 60,
         ],
+        'reservation_reconciliation' => [
+            'queue' => env('ASYNC_QUEUE_RESERVATION_RECONCILIATION', 'reservation-reconciliation'),
+            'backoff' => [60, 300, 900],
+            'timeout' => 120,
+        ],
     ],
 
     'workers' => [
@@ -74,6 +79,7 @@ return [
                 'campaigns_maintenance',
                 'social_publish',
                 'social_automation',
+                'reservation_reconciliation',
             ],
         ],
         'operations' => [
@@ -85,6 +91,7 @@ return [
                 'leads',
                 'works',
                 'demos',
+                'reservation_reconciliation',
             ],
         ],
         'plan-scans' => [

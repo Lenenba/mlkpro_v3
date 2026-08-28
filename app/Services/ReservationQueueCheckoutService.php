@@ -26,15 +26,19 @@ class ReservationQueueCheckoutService
     ) {}
 
     /**
+     * @param  array<string, mixed>  $attributes
+     * @param  array<string, mixed>  $settings
+     * @param  array<string, mixed>  $context
      * @return array<string, mixed>
      */
     public function checkout(
         ReservationQueueItem $item,
         array $attributes,
         User $actor,
-        array $settings
+        array $settings,
+        array $context = []
     ): array {
-        $result = DB::transaction(function () use ($item, $attributes, $actor, $settings): array {
+        $result = DB::transaction(function () use ($item, $attributes, $actor, $settings, $context): array {
             $locked = ReservationQueueItem::query()
                 ->with([
                     'service:id,user_id,name,price,currency_code,tax_rate',
@@ -66,9 +70,13 @@ class ReservationQueueCheckoutService
 
                 $queueItem = (string) $locked->status === ReservationQueueItem::STATUS_DONE
                     ? $locked
-                    : $this->queueService->transition($locked, 'done', $actor, $settings, [
-                        'checkout_settled' => true,
-                    ]);
+                    : $this->queueService->transition(
+                        $locked,
+                        'done',
+                        $actor,
+                        $settings,
+                        array_replace($context, ['checkout_settled' => true])
+                    );
 
                 return [
                     'queue_item' => $queueItem,
@@ -166,9 +174,13 @@ class ReservationQueueCheckoutService
             $this->tipAllocationService->syncForPayment($payment);
             $previousInvoiceStatus = $invoice->status;
             $invoice->refreshPaymentStatus();
-            $queueItem = $this->queueService->transition($locked, 'done', $actor, $settings, [
-                'checkout_settled' => true,
-            ]);
+            $queueItem = $this->queueService->transition(
+                $locked,
+                'done',
+                $actor,
+                $settings,
+                array_replace($context, ['checkout_settled' => true])
+            );
 
             ActivityLog::record($actor, $payment, 'queue_checkout_completed', [
                 'account_id' => (int) $locked->account_id,

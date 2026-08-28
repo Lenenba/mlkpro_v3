@@ -59,7 +59,10 @@ class CustomerController extends Controller
         if (! $user) {
             abort(403);
         }
-        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
+        [$accountOwner, $accountId] = $this->resolveCustomerAccount(
+            $user,
+            allowCustomerView: true
+        );
         $canEdit = $user->id === $accountId;
         $canManageSavedSegments = (int) $user->id === (int) $user->accountOwnerId();
         $featureService = app(CompanyFeatureService::class);
@@ -1331,7 +1334,8 @@ class CustomerController extends Controller
     private function resolveCustomerAccount(
         User $user,
         bool $allowPos = false,
-        bool $requireCustomerCreation = false
+        bool $requireCustomerCreation = false,
+        bool $allowCustomerView = false
     ): array {
         $ownerId = $user->accountOwnerId();
         $owner = $ownerId === $user->id
@@ -1374,7 +1378,9 @@ class CustomerController extends Controller
                         || $membership->role === 'admin'
                         || $membership->hasPermission('customers.create')
                     );
-                if (! $canUseSalesDirectory && ! $canUseReservationDirectory) {
+                $canViewCustomerDirectory = $allowCustomerView
+                    && $membership->hasPermission('customers.view');
+                if (! $canUseSalesDirectory && ! $canUseReservationDirectory && ! $canViewCustomerDirectory) {
                     abort(403);
                 }
             }

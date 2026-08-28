@@ -9,6 +9,7 @@ use App\Models\Customer;
 use App\Models\CustomerPackage;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\Reservation;
 use App\Models\ReservationQueueItem;
 use App\Models\ReservationQueuePaymentAttempt;
 use App\Models\User;
@@ -1226,6 +1227,7 @@ class StripeInvoiceService
 
         $updated = app(ReservationQueueService::class)->transition($queueItem, 'done', $owner, $settings, [
             'checkout_settled' => true,
+            'transition_source' => Reservation::STATUS_CHANGE_SOURCE_STRIPE_WEBHOOK,
         ]);
         if ((string) $updated->status !== ReservationQueueItem::STATUS_DONE) {
             throw new StripeQueueCheckoutVerificationException(
