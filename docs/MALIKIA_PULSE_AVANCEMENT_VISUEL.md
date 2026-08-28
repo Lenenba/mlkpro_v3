@@ -2,11 +2,11 @@
 
 **État au 28 août 2026 : `WP2A_LOCAL_VALIDATED` · `ACCOUNT_OWNER_PAYER_CONFIRMED` · `BUFFER_COMMERCIAL_BASELINE_DOCUMENTED` · `BUFFER_LOGICAL_REQUEST_EVIDENCE_INSTRUMENTED` · `PRE_WP2B_INVENTORY_LOCAL_VALIDATED` · `PRE_WP2B_QUEUE_SCOPE_TOOLING_VALIDATED` · `MYSQL_COMPATIBILITY_GATE_VALIDATED` · `WP2B_SCHEMA_GATE_PENDING` · `P0_GATES_OPEN` · `NO_GO_BUFFER_RUNTIME` · `NO_GO_BUFFER_PILOT` · `NO_GO_BUFFER_PRODUCTION`**
 
-**Checkpoint distant : `feature/pulse-buffer-refonte@63fbb4ca94cf`**
+**Checkpoint distant : `feature/pulse-buffer-refonte@879d4a130b52`**
 
-**Dernier lot publié : prix/plans Buffer, minimum client `Essentials` recommandé, prérequis et parcours Facebook-only**
+**Dernier lot publié : compteur d'opérations GraphQL logiques, redaction des erreurs et conservation des preuves sur erreur de verrou**
 
-**Lot courant validé localement : compteur d'opérations GraphQL logiques, preuves conservées sur erreur de verrou et protocole fournisseur**
+**Vérification distante : 6 fichiers attendus, branche synchronisée, aucun incident Nightwatch ouvert**
 
 ```mermaid
 flowchart LR
