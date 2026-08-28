@@ -9,29 +9,71 @@ use App\Support\QueueWorkload;
 use Illuminate\Database\Connection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 use JsonException;
 
 class LegacySocialInventoryService
 {
+    private const MAX_QUEUE_SCOPES = 32;
+
+    private const MAX_QUEUE_NAME_LENGTH = 255;
+
     private const REFERENCE_CHUNK_SIZE = 500;
 
+    private const SOURCE_CONTEXTS = [
+        'approved-environment',
+        'local',
+        'representative-clone',
+        'unspecified',
+    ];
+
     /**
+     * @param  list<string>  $declaredQueueScopes
      * @return array{
      *     schema_version: string,
      *     scope: string,
      *     read_only: bool,
      *     sensitive_fields: string,
-     *     capture: array{domain: string, queued_publications: string, cross_source_atomic: bool},
+     *     capture: array{
+     *         started_at: string,
+     *         completed_at: string,
+     *         operator_declared_source_context: string,
+     *         domain: string,
+     *         queue_scopes: string,
+     *         failed_publications: string,
+     *         cross_source_atomic: bool
+     *     },
      *     connections: array<string, mixed>,
      *     targets: array<string, mixed>,
      *     references: array<string, mixed>,
-     *     queued_publications: array<string, mixed>
+     *     failed_publications: array<string, mixed>,
+     *     queue_scope_manifest: array{
+     *         operator_attested_complete_scope_list: bool,
+     *         scope_count: int,
+     *         measurable_scope_count: int,
+     *         unmeasurable_scope_count: int,
+     *         scopes: list<array<string, mixed>>
+     *     }
      * }
      */
-    public function inventory(?string $queueConnection = null, ?string $queue = null): array
-    {
-        $queueScope = $this->resolveQueueScope($queueConnection, $queue);
+    public function inventory(
+        array $declaredQueueScopes = [],
+        bool $completeQueueScopeListAttested = false,
+        string $sourceContext = 'unspecified',
+    ): array {
+        $sourceContext = trim($sourceContext);
+        if (! in_array($sourceContext, self::SOURCE_CONTEXTS, true)) {
+            throw new InvalidArgumentException(
+                'Inventory source context must be approved-environment, local, representative-clone, or unspecified.'
+            );
+        }
+
+        $queueScopes = $this->resolveQueueScopes(
+            $declaredQueueScopes,
+            $completeQueueScopeListAttested,
+        );
+        $captureStartedAt = now('UTC')->toIso8601String();
 
         $domainInventory = DB::connection()->transaction(function (): array {
             return [
@@ -51,23 +93,138 @@ class LegacySocialInventoryService
             ];
         });
 
+        $queueInventories = array_map(
+            fn (array $queueScope): array => $this->queuedPublicationInventory($queueScope),
+            $queueScopes,
+        );
+        $measurableScopeCount = count(array_filter(
+            $queueInventories,
+            static fn (array $queueInventory): bool => $queueInventory['measurable'],
+        ));
+        $failedPublicationInventory = $this->failedPublicationInventory();
+        $captureCompletedAt = now('UTC')->toIso8601String();
+
         return [
-            'schema_version' => 'pulse_legacy_inventory_v1',
+            'schema_version' => 'pulse_legacy_inventory_v2',
             'scope' => 'all_tenants_aggregate',
             'read_only' => true,
             'sensitive_fields' => 'excluded',
             'capture' => [
+                'started_at' => $captureStartedAt,
+                'completed_at' => $captureCompletedAt,
+                'operator_declared_source_context' => $sourceContext,
                 'domain' => 'transactional',
-                'queued_publications' => 'independent_single_pass',
+                'queue_scopes' => 'sequential_independent_passes',
+                'failed_publications' => 'independent_single_pass',
                 'cross_source_atomic' => false,
             ],
             ...$domainInventory,
-            'queued_publications' => $this->queuedPublicationInventory($queueScope),
+            'failed_publications' => $failedPublicationInventory,
+            'queue_scope_manifest' => [
+                'operator_attested_complete_scope_list' => $completeQueueScopeListAttested,
+                'scope_count' => count($queueInventories),
+                'measurable_scope_count' => $measurableScopeCount,
+                'unmeasurable_scope_count' => count($queueInventories) - $measurableScopeCount,
+                'scopes' => $queueInventories,
+            ],
         ];
     }
 
     /**
-     * @return array{queue_connection: string, driver: string, queue: string}
+     * @param  list<string>  $declaredQueueScopes
+     * @return list<array{queue_connection: string, driver: string, queue: string, queue_label: string}>
+     */
+    private function resolveQueueScopes(
+        array $declaredQueueScopes,
+        bool $completeQueueScopeListAttested,
+    ): array {
+        if ($completeQueueScopeListAttested && $declaredQueueScopes === []) {
+            throw new InvalidArgumentException(
+                'A complete queue scope attestation requires at least one explicit --queue-scope value.'
+            );
+        }
+
+        if (count($declaredQueueScopes) > self::MAX_QUEUE_SCOPES) {
+            throw new InvalidArgumentException(
+                'No more than '.self::MAX_QUEUE_SCOPES.' queue scopes may be declared.'
+            );
+        }
+
+        if ($declaredQueueScopes === []) {
+            return [$this->resolveQueueScope(null, null)];
+        }
+
+        $queueScopes = [];
+
+        foreach ($declaredQueueScopes as $declaredQueueScope) {
+            if (! is_string($declaredQueueScope)) {
+                throw new InvalidArgumentException('Queue scopes must be strings.');
+            }
+
+            $scopeParts = explode(':', $declaredQueueScope, 2);
+            if (count($scopeParts) !== 2) {
+                throw new InvalidArgumentException(
+                    'Queue scopes must use the connection:queue format.'
+                );
+            }
+
+            $queueScopes[] = $this->resolveQueueScope($scopeParts[0], $scopeParts[1]);
+        }
+
+        usort($queueScopes, static function (array $left, array $right): int {
+            return [$left['queue_connection'], $left['queue']]
+                <=> [$right['queue_connection'], $right['queue']];
+        });
+
+        $uniqueScopes = [];
+        $uniqueDatabaseScopes = [];
+        foreach ($queueScopes as $queueScope) {
+            $scopeKey = $queueScope['queue_connection']."\0".$queueScope['queue'];
+            if (array_key_exists($scopeKey, $uniqueScopes)) {
+                throw new InvalidArgumentException('Each queue scope must be declared only once.');
+            }
+
+            $uniqueScopes[$scopeKey] = true;
+
+            $databaseScopeKey = $this->databaseQueueScopeKey($queueScope);
+            if ($databaseScopeKey === null) {
+                continue;
+            }
+
+            if (array_key_exists($databaseScopeKey, $uniqueDatabaseScopes)) {
+                throw new InvalidArgumentException(
+                    'Database queue scopes must not alias the same connection, table, and queue.'
+                );
+            }
+
+            $uniqueDatabaseScopes[$databaseScopeKey] = true;
+        }
+
+        return $queueScopes;
+    }
+
+    /**
+     * @param  array{queue_connection: string, driver: string, queue: string, queue_label: string}  $queueScope
+     */
+    private function databaseQueueScopeKey(array $queueScope): ?string
+    {
+        if ($queueScope['driver'] !== 'database') {
+            return null;
+        }
+
+        $definition = config("queue.connections.{$queueScope['queue_connection']}");
+        if (! is_array($definition)) {
+            return null;
+        }
+
+        $databaseConnection = trim((string) ($definition['connection'] ?? config('database.default')));
+        $table = trim((string) ($definition['table'] ?? 'jobs'));
+
+        return $databaseConnection."\0".$table."\0".Str::lower($queueScope['queue']);
+    }
+
+    /**
+     * @return array{queue_connection: string, driver: string, queue: string, queue_label: string}
      */
     private function resolveQueueScope(?string $queueConnection, ?string $queue): array
     {
@@ -87,9 +244,11 @@ class LegacySocialInventoryService
         }
 
         $resolvedQueue = trim($queue ?? QueueWorkload::queue('social_publish'));
-        if ($resolvedQueue === '' || preg_match('/[\x00-\x1F\x7F]/', $resolvedQueue) === 1) {
+        if ($resolvedQueue === ''
+            || Str::length($resolvedQueue) > self::MAX_QUEUE_NAME_LENGTH
+            || preg_match('/[\x00-\x1F\x7F]/', $resolvedQueue) === 1) {
             throw new InvalidArgumentException(
-                'Queue name must be non-empty and cannot contain control characters.'
+                'Queue name must be non-empty, at most 255 characters, and cannot contain control characters.'
             );
         }
 
@@ -97,7 +256,17 @@ class LegacySocialInventoryService
             'queue_connection' => $resolvedQueueConnection,
             'driver' => $driver,
             'queue' => $resolvedQueue,
+            'queue_label' => $this->queueEvidenceLabel($resolvedQueue),
         ];
+    }
+
+    private function queueEvidenceLabel(string $queue): string
+    {
+        if (preg_match('/\A[A-Za-z0-9][A-Za-z0-9._-]*\z/', $queue) === 1) {
+            return $queue;
+        }
+
+        return 'sha256:'.hash('sha256', $queue);
     }
 
     /**
@@ -363,12 +532,12 @@ class LegacySocialInventoryService
     }
 
     /**
-     * @param  array{queue_connection: string, driver: string, queue: string}  $queueScope
+     * @param  array{queue_connection: string, driver: string, queue: string, queue_label: string}  $queueScope
      * @return array{
      *     measurable: bool,
      *     queue_connection: string,
      *     driver: string,
-     *     queue: string,
+     *     queue_label: string,
      *     reason: string|null,
      *     total: int|null,
      *     ready: int|null,
@@ -383,12 +552,13 @@ class LegacySocialInventoryService
         $queueConnection = $queueScope['queue_connection'];
         $driver = $queueScope['driver'];
         $queue = $queueScope['queue'];
+        $queueLabel = $queueScope['queue_label'];
 
         if ($driver !== 'database') {
             return $this->unmeasurableQueueInventory(
                 $queueConnection,
                 $driver,
-                $queue,
+                $queueLabel,
                 'queue_driver_not_database'
             );
         }
@@ -401,12 +571,19 @@ class LegacySocialInventoryService
             return $this->unmeasurableQueueInventory(
                 $queueConnection,
                 $driver,
-                $queue,
+                $queueLabel,
                 'queue_table_unavailable'
             );
         }
 
-        return $this->databaseQueueInventory($connection, $table, $queueConnection, $driver, $queue);
+        return $this->databaseQueueInventory(
+            $connection,
+            $table,
+            $queueConnection,
+            $driver,
+            $queue,
+            $queueLabel,
+        );
     }
 
     /**
@@ -414,7 +591,7 @@ class LegacySocialInventoryService
      *     measurable: true,
      *     queue_connection: string,
      *     driver: string,
-     *     queue: string,
+     *     queue_label: string,
      *     reason: null,
      *     total: int,
      *     ready: int,
@@ -430,12 +607,13 @@ class LegacySocialInventoryService
         string $queueConnection,
         string $driver,
         string $queue,
+        string $queueLabel,
     ): array {
         $inventory = [
             'measurable' => true,
             'queue_connection' => $queueConnection,
             'driver' => $driver,
-            'queue' => $queue,
+            'queue_label' => $queueLabel,
             'reason' => null,
             'total' => 0,
             'ready' => 0,
@@ -455,16 +633,14 @@ class LegacySocialInventoryService
             ->cursor();
 
         foreach ($candidates as $candidate) {
-            try {
-                $payload = json_decode((string) $candidate->payload, true, 512, JSON_THROW_ON_ERROR);
-            } catch (JsonException) {
+            $isPublication = $this->isSocialPublicationPayload($candidate->payload);
+            if ($isPublication === null) {
                 $inventory['unparseable_candidates']++;
 
                 continue;
             }
 
-            if (! is_array($payload)
-                || ($payload['displayName'] ?? null) !== PublishSocialPostTargetJob::class) {
+            if (! $isPublication) {
                 continue;
             }
 
@@ -494,10 +670,109 @@ class LegacySocialInventoryService
 
     /**
      * @return array{
+     *     measurable: bool,
+     *     driver: string,
+     *     reason: string|null,
+     *     total: int|null,
+     *     unparseable_candidates: int|null
+     * }
+     */
+    private function failedPublicationInventory(): array
+    {
+        $definition = config('queue.failed');
+        if (! is_array($definition)) {
+            return $this->unmeasurableFailedPublicationInventory(
+                'unknown',
+                'failed_queue_configuration_invalid',
+            );
+        }
+
+        $driver = trim((string) ($definition['driver'] ?? ''));
+        if (! in_array($driver, ['database', 'database-uuids'], true)) {
+            return $this->unmeasurableFailedPublicationInventory(
+                $driver !== '' ? $driver : 'unknown',
+                'failed_queue_driver_not_database',
+            );
+        }
+
+        $databaseConnection = trim((string) ($definition['database'] ?? config('database.default')));
+        $table = trim((string) ($definition['table'] ?? 'failed_jobs'));
+        $connection = DB::connection($databaseConnection !== '' ? $databaseConnection : null);
+
+        if ($table === '' || ! $connection->getSchemaBuilder()->hasTable($table)) {
+            return $this->unmeasurableFailedPublicationInventory(
+                $driver,
+                'failed_queue_table_unavailable',
+            );
+        }
+
+        $inventory = [
+            'measurable' => true,
+            'driver' => $driver,
+            'reason' => null,
+            'total' => 0,
+            'unparseable_candidates' => 0,
+        ];
+        $candidates = $connection->table($table)
+            ->select(['id', 'payload'])
+            ->where('payload', 'like', '%'.class_basename(PublishSocialPostTargetJob::class).'%')
+            ->orderBy('id')
+            ->cursor();
+
+        foreach ($candidates as $candidate) {
+            $isPublication = $this->isSocialPublicationPayload($candidate->payload);
+            if ($isPublication === null) {
+                $inventory['unparseable_candidates']++;
+
+                continue;
+            }
+
+            if ($isPublication) {
+                $inventory['total']++;
+            }
+        }
+
+        return $inventory;
+    }
+
+    private function isSocialPublicationPayload(mixed $rawPayload): ?bool
+    {
+        try {
+            $payload = json_decode((string) $rawPayload, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return null;
+        }
+
+        return is_array($payload)
+            && ($payload['displayName'] ?? null) === PublishSocialPostTargetJob::class;
+    }
+
+    /**
+     * @return array{
+     *     measurable: false,
+     *     driver: string,
+     *     reason: string,
+     *     total: null,
+     *     unparseable_candidates: null
+     * }
+     */
+    private function unmeasurableFailedPublicationInventory(string $driver, string $reason): array
+    {
+        return [
+            'measurable' => false,
+            'driver' => $driver,
+            'reason' => $reason,
+            'total' => null,
+            'unparseable_candidates' => null,
+        ];
+    }
+
+    /**
+     * @return array{
      *     measurable: false,
      *     queue_connection: string,
      *     driver: string,
-     *     queue: string,
+     *     queue_label: string,
      *     reason: string,
      *     total: null,
      *     ready: null,
@@ -510,14 +785,14 @@ class LegacySocialInventoryService
     private function unmeasurableQueueInventory(
         string $queueConnection,
         string $driver,
-        string $queue,
+        string $queueLabel,
         string $reason,
     ): array {
         return [
             'measurable' => false,
             'queue_connection' => $queueConnection,
             'driver' => $driver,
-            'queue' => $queue,
+            'queue_label' => $queueLabel,
             'reason' => $reason,
             'total' => null,
             'ready' => null,

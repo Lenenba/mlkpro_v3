@@ -1,12 +1,12 @@
 # Malikia Pulse — avancement visuel
 
-**État au 28 août 2026 : `WP2A_LOCAL_VALIDATED` · `ACCOUNT_OWNER_PAYER_CONFIRMED` · `BUFFER_COMMERCIAL_BASELINE_DOCUMENTED` · `BUFFER_LOGICAL_REQUEST_EVIDENCE_INSTRUMENTED` · `PRE_WP2B_INVENTORY_LOCAL_VALIDATED` · `PRE_WP2B_QUEUE_SCOPE_TOOLING_VALIDATED` · `MYSQL_COMPATIBILITY_GATE_VALIDATED` · `PR140_CI_HARDENING_IMPLEMENTED` · `CI_DELIVERY_GATED` · `WP2B_SCHEMA_GATE_PENDING` · `P0_GATES_OPEN` · `NO_GO_BUFFER_RUNTIME` · `NO_GO_BUFFER_PILOT` · `NO_GO_BUFFER_PRODUCTION`**
+**État au 28 août 2026 : `WP2A_LOCAL_VALIDATED` · `ACCOUNT_OWNER_PAYER_CONFIRMED` · `BUFFER_COMMERCIAL_BASELINE_DOCUMENTED` · `BUFFER_LOGICAL_REQUEST_EVIDENCE_INSTRUMENTED` · `PRE_WP2B_INVENTORY_LOCAL_VALIDATED` · `PRE_WP2B_QUEUE_SCOPE_TOOLING_VALIDATED` · `PRE_WP2B_MULTI_SCOPE_MANIFEST_LOCAL_VALIDATED` · `PRE_WP2B_MULTI_SCOPE_MATRIX_VALIDATED` · `MYSQL_COMPATIBILITY_GATE_VALIDATED` · `PR140_CI_HARDENING_IMPLEMENTED` · `PR140_CI_VALIDATED` · `WP2B_SCHEMA_GATE_PENDING` · `P0_GATES_OPEN` · `NO_GO_BUFFER_RUNTIME` · `NO_GO_BUFFER_PILOT` · `NO_GO_BUFFER_PRODUCTION`**
 
 **Livraison : [PR #140](https://github.com/Lenenba/mlkpro_v3/pull/140) — `feature/pulse-buffer-refonte` → `develop`**
 
 **Lot de durcissement CI couvert par la PR #140 : environnement de test protégé, couverture MySQL étendue, build déterministe et bundle initial allégé**
 
-**Gate de livraison : aucune validation distante n'est présumée ; la fusion exige le succès de la suite globale, des gates PHP et de tous les contrôles GitHub applicables**
+**Validation distante acquise pour `b11a9f35` : workflow `quality` #408 vert — Laravel, MySQL et navigateur ; la PR reste ouverte et n'est pas déclarée fusionnée**
 
 ```mermaid
 flowchart LR
@@ -30,8 +30,11 @@ flowchart LR
         DC["BUF-P0-10 — Base commerciale<br/>Prix officiels et prérequis documentés,<br/>Essentials recommandé côté client"]
         DJ["BUF-P0-10 — Compteur logique local<br/>8 opérations cycle, 6 cleanup-only,<br/>redaction et erreur de verrou couvertes"]
         DV["Durcissement CI PR #140<br/>Tests DB isolés et gate MySQL étendue,<br/>build déterministe et bundle initial allégé"]
+        DG["PR #140 — validations distantes<br/>quality #408 : Laravel, MySQL<br/>et navigateur verts"]
+        DE["Pré-WP2-B — manifeste v2<br/>Scopes explicites, failed_jobs, horodatage,<br/>redaction et attestation séparée"]
+        DL["Manifeste v2 — matrices locales<br/>1 716 PHP, 217 MySQL, 372 Node<br/>et 26 scénarios navigateur verts"]
 
-        D0 --> D1A --> D1B --> D1C --> D1D --> D1E --> D1F --> D1G --> D1H --> D1I --> DQ --> D2 --> DI --> DM --> DS --> DC --> DJ --> DV
+        D0 --> D1A --> D1B --> D1C --> D1D --> D1E --> D1F --> D1G --> D1H --> D1I --> DQ --> D2 --> DI --> DM --> DS --> DC --> DJ --> DV --> DG --> DE --> DL
     end
 
     subgraph TODO["⏳ RESTE À FAIRE / GATES LOCAUX ET DISTANTS"]
@@ -41,31 +44,31 @@ flowchart LR
         GR["Gate runtime Buffer<br/>Webhook ou polling accepté,<br/>corrélation/idempotence et P0 applicables"]
         GP["Gate pilote / production<br/>Médias, juridique, capacité,<br/>modèle commercial et canary"]
         TC["Fin BUF-P0-10<br/>Quota OAuth multi-client, consommation runtime réelle,<br/>parcours client et plan acceptés"]
-        TI["Inventaire représentatif<br/>Clone MySQL + liste/preuves des queues réelles,<br/>anomalies qualifiées avant migration"]
+        TI["🚧 PROCHAINE ÉTAPE — inventaire représentatif<br/>Clone MySQL + queues externes/anciennes + failed_jobs,<br/>anomalies et politiques de retry qualifiées"]
+        GS["Gate local WP2-B schéma<br/>Inventaire représentatif revu<br/>GO_WP2B_SCHEMA_LOCAL_ONLY explicite"]
         T2B["WP2-B — Fondation de données<br/>Migrations et backfill après inventaire clone<br/>et gate schéma local"]
         T2C["WP2-C — Transport Buffer<br/>Client HTTP, mapper GraphQL<br/>et gateway concret"]
-        T3["WP3 — Connexion et canaux<br/>OAuth Buffer, refresh, organisations,<br/>synchronisation et capacités"]
+        T3A["WP3-A — Connexion Buffer<br/>OAuth, refresh, organisations,<br/>synchronisation et capacités"]
+        FD["Gate Facebook Data Deletion<br/>Séparer Login, transport direct et Buffer<br/>avant toute création de canal Facebook"]
+        T3B["WP3-B — Canaux Buffer<br/>Créer les canaux Facebook seulement<br/>après le gate de suppression ciblée"]
         T4["WP4 — Livraison fiable<br/>Outbox, quotas, médias,<br/>soumission et réconciliation"]
         T5["WP5 — Expérience Buffer<br/>Six surfaces, composeur scindé,<br/>agenda, récupération et E2E"]
         T6["WP6 — Pilote et migration<br/>Mapping, shadow, canary,<br/>drain et rollback"]
         T7["WP7 — Retrait du direct<br/>Supprimer routes, providers,<br/>configuration et secrets legacy"]
-        TG["Gate de livraison PR #140<br/>Suite globale, gates PHP et contrôles GitHub<br/>requis avant fusion vers develop"]
-
         T1 --> GR
         T1 --> GP
         TC --> GR
         TC --> GP
         GR --> T2C
-        TI --> T2B
-        T2B --> T3
-        T2C --> T3
-        T3 --> T4 --> T5 --> T6 --> T7
+        TI --> GS --> T2B
+        T2B --> T3A
+        T2C --> T3A
+        T3A --> FD --> T3B --> T4 --> T5 --> T6 --> T7
         GP --> T6
     end
 
-    DS -. prochaine validation .-> TI
+    DL -. exécution sur clone .-> TI
     DJ -. preuve fournisseur et pilote .-> TC
     DI -. fin WP0 .-> T0
     DI -. prochaines preuves .-> T1
-    DV -. validation de livraison .-> TG
 ```

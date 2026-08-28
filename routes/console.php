@@ -2177,8 +2177,9 @@ Artisan::command(
 Artisan::command(
     'pulse:buffer:inventory-legacy
         {--json : Output the aggregate inventory as JSON}
-        {--queue-connection= : Configured queue connection to inspect; defaults to queue.default}
-        {--queue= : Queue name to inspect; defaults to the social_publish workload queue}
+        {--source-context=unspecified : Operator-declared source: local, representative-clone, approved-environment, or unspecified}
+        {--queue-scope=* : Explicit connection:queue scopes to inspect; repeat for current and legacy queues}
+        {--confirm-queue-scope-list-complete : Assert that every current and legacy social publication queue is declared}
         {--confirm-read-only-scan : Confirm the authorized all-tenant aggregate scan}',
     function (LegacySocialInventoryService $inventoryService): int {
         if (! (bool) $this->option('confirm-read-only-scan')) {
@@ -2190,13 +2191,14 @@ Artisan::command(
             return 1;
         }
 
-        $queueConnection = $this->option('queue-connection');
-        $queue = $this->option('queue');
+        $queueScopes = $this->option('queue-scope');
+        $sourceContext = $this->option('source-context');
 
         try {
             $inventory = $inventoryService->inventory(
-                queueConnection: is_string($queueConnection) ? $queueConnection : null,
-                queue: is_string($queue) ? $queue : null,
+                declaredQueueScopes: is_array($queueScopes) ? $queueScopes : [],
+                completeQueueScopeListAttested: (bool) $this->option('confirm-queue-scope-list-complete'),
+                sourceContext: is_string($sourceContext) ? $sourceContext : 'unspecified',
             );
         } catch (InvalidArgumentException|LogicException $exception) {
             $this->error('Invalid queue scope: '.$exception->getMessage());
@@ -2211,6 +2213,23 @@ Artisan::command(
         }
 
         $this->info('Pulse Buffer legacy inventory (read-only, aggregate only)');
+        $queueRows = array_map(
+            static fn (array $queueInventory): array => [
+                'Queued publications ('
+                    .$queueInventory['queue_connection'].':'
+                    .$queueInventory['queue_label'].')',
+                $queueInventory['total'] ?? 'not measurable',
+                $queueInventory['measurable']
+                    ? $queueInventory['ready'].' ready; '
+                        .$queueInventory['delayed'].' delayed; '
+                        .$queueInventory['active_reserved'].' active reservation; '
+                        .$queueInventory['expired_reserved'].' expired reservation; '
+                        .$queueInventory['unparseable_candidates'].' unparseable candidate'
+                    : $queueInventory['reason'],
+            ],
+            $inventory['queue_scope_manifest']['scopes'],
+        );
+
         $this->table(['Scope', 'Total', 'Attention'], [
             [
                 'Connections',
@@ -2242,19 +2261,34 @@ Artisan::command(
                     .$inventory['references']['post_templates']['duplicate_references'].' duplicate',
             ],
             [
-                'Queued publications ('
-                    .$inventory['queued_publications']['queue_connection'].':'
-                    .$inventory['queued_publications']['queue'].')',
-                $inventory['queued_publications']['total'] ?? 'not measurable',
-                $inventory['queued_publications']['measurable']
-                    ? $inventory['queued_publications']['ready'].' ready; '
-                        .$inventory['queued_publications']['delayed'].' delayed; '
-                        .$inventory['queued_publications']['active_reserved'].' active reservation; '
-                        .$inventory['queued_publications']['expired_reserved'].' expired reservation; '
-                        .$inventory['queued_publications']['unparseable_candidates'].' unparseable candidate'
-                    : $inventory['queued_publications']['reason'],
+                'Failed publication jobs',
+                $inventory['failed_publications']['total'] ?? 'not measurable',
+                $inventory['failed_publications']['measurable']
+                    ? $inventory['failed_publications']['unparseable_candidates'].' unparseable candidate; '
+                        .($inventory['failed_publications']['total'] > 0
+                            ? 'retry qualification required'
+                            : 'no retryable legacy publication found')
+                    : $inventory['failed_publications']['reason'],
             ],
+            ...$queueRows,
         ]);
+        $this->line(sprintf(
+            'Queue scope manifest: %d inspected; %d measurable; %d unmeasurable; %s; %s; %s.',
+            $inventory['queue_scope_manifest']['scope_count'],
+            $inventory['queue_scope_manifest']['measurable_scope_count'],
+            $inventory['queue_scope_manifest']['unmeasurable_scope_count'],
+            $inventory['queue_scope_manifest']['operator_attested_complete_scope_list']
+                ? 'scope list attested complete by operator'
+                : 'scope list completeness not attested',
+            $inventory['queue_scope_manifest']['unmeasurable_scope_count'] > 0
+                ? 'external queue evidence required'
+                : 'all inspected scopes measurable',
+            ! $inventory['failed_publications']['measurable']
+                ? 'failed-job evidence required'
+                : ($inventory['failed_publications']['total'] > 0
+                    ? 'failed-job retry qualification required'
+                    : 'failed-job evidence measurable')
+        ));
 
         return 0;
     }

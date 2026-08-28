@@ -173,6 +173,35 @@ it('inventories legacy pulse routing without exposing credentials or remote iden
             'created_at' => $nowTimestamp,
         ],
     ]);
+    DB::table('failed_jobs')->insert([
+        [
+            'uuid' => '00000000-0000-0000-0000-000000000001',
+            'connection' => 'database',
+            'queue' => $socialPublishQueue,
+            'payload' => json_encode(['displayName' => PublishSocialPostTargetJob::class]),
+            'exception' => 'Expected test failure.',
+            'failed_at' => now(),
+        ],
+        [
+            'uuid' => '00000000-0000-0000-0000-000000000002',
+            'connection' => 'database',
+            'queue' => $socialPublishQueue,
+            'payload' => '{"displayName":"PublishSocialPostTargetJob"',
+            'exception' => 'Expected malformed test payload.',
+            'failed_at' => now(),
+        ],
+        [
+            'uuid' => '00000000-0000-0000-0000-000000000003',
+            'connection' => 'database',
+            'queue' => $socialPublishQueue,
+            'payload' => json_encode([
+                'displayName' => 'UnrelatedJob',
+                'data' => PublishSocialPostTargetJob::class,
+            ]),
+            'exception' => 'Expected unrelated test failure.',
+            'failed_at' => now(),
+        ],
+    ]);
 
     Artisan::call('pulse:buffer:inventory-legacy', [
         '--json' => true,
@@ -182,13 +211,15 @@ it('inventories legacy pulse routing without exposing credentials or remote iden
     $inventory = json_decode($output, true, 512, JSON_THROW_ON_ERROR);
 
     expect($inventory)
-        ->schema_version->toBe('pulse_legacy_inventory_v1')
+        ->schema_version->toBe('pulse_legacy_inventory_v2')
         ->scope->toBe('all_tenants_aggregate')
         ->read_only->toBeTrue()
         ->sensitive_fields->toBe('excluded')
-        ->capture->toBe([
+        ->capture->toMatchArray([
+            'operator_declared_source_context' => 'unspecified',
             'domain' => 'transactional',
-            'queued_publications' => 'independent_single_pass',
+            'queue_scopes' => 'sequential_independent_passes',
+            'failed_publications' => 'independent_single_pass',
             'cross_source_atomic' => false,
         ])
         ->connections->toMatchArray([
@@ -226,21 +257,41 @@ it('inventories legacy pulse routing without exposing credentials or remote iden
             'invalid_references' => 1,
             'duplicate_references' => 0,
         ])
-        ->queued_publications->toMatchArray([
+        ->failed_publications->toBe([
             'measurable' => true,
-            'queue_connection' => 'database',
-            'driver' => 'database',
-            'queue' => 'social-publish',
+            'driver' => 'database-uuids',
             'reason' => null,
-            'total' => 4,
-            'ready' => 2,
-            'delayed' => 1,
-            'active_reserved' => 1,
-            'expired_reserved' => 1,
+            'total' => 1,
             'unparseable_candidates' => 1,
+        ])
+        ->queue_scope_manifest->toMatchArray([
+            'operator_attested_complete_scope_list' => false,
+            'scope_count' => 1,
+            'measurable_scope_count' => 1,
+            'unmeasurable_scope_count' => 0,
         ]);
 
+    expect($inventory['queue_scope_manifest']['scopes'])->toBe([[
+        'measurable' => true,
+        'queue_connection' => 'database',
+        'driver' => 'database',
+        'queue_label' => 'social-publish',
+        'reason' => null,
+        'total' => 4,
+        'ready' => 2,
+        'delayed' => 1,
+        'active_reserved' => 1,
+        'expired_reserved' => 1,
+        'unparseable_candidates' => 1,
+    ]])
+        ->and($inventory['capture']['started_at'])->toBeString()->toEndWith('+00:00')
+        ->and($inventory['capture']['completed_at'])->toBeString()->toEndWith('+00:00')
+        ->and($inventory['capture']['completed_at'])->toBeGreaterThanOrEqual(
+            $inventory['capture']['started_at']
+        );
+
     expect($orphanedTarget->fresh()?->social_account_connection_id)->toBeNull()
+        ->and(DB::table('failed_jobs')->count())->toBe(3)
         ->and($output)
         ->not->toContain('secret-buffer-token')
         ->not->toContain('secret-facebook-page-id')
@@ -251,9 +302,212 @@ it('inventories legacy pulse routing without exposing credentials or remote iden
 
     expect($humanOutput)
         ->toContain('Queued publications (database:social-publish)')
+        ->toContain('Failed publication jobs')
+        ->toContain('retry qualification required')
+        ->toContain('Queue scope manifest: 1 inspected; 1 measurable; 0 unmeasurable; scope list completeness not attested; all inspected scopes measurable; failed-job retry qualification required.')
         ->toContain('1 malformed record; 2 invalid; 1 duplicate')
         ->toContain('1 malformed record; 1 invalid; 0 duplicate')
         ->toContain('2 ready; 1 delayed; 1 active reservation; 1 expired reservation; 1 unparseable candidate');
+});
+
+it('captures every declared queue scope in one evidence manifest', function () {
+    config()->set('queue.default', 'database');
+    $nowTimestamp = now()->timestamp;
+    DB::table('jobs')->insert([
+        'queue' => 'legacy-social-publish',
+        'payload' => json_encode(['displayName' => PublishSocialPostTargetJob::class]),
+        'attempts' => 0,
+        'reserved_at' => null,
+        'available_at' => $nowTimestamp + 300,
+        'created_at' => $nowTimestamp,
+    ]);
+
+    $exitCode = Artisan::call('pulse:buffer:inventory-legacy', [
+        '--json' => true,
+        '--source-context' => 'representative-clone',
+        '--queue-scope' => [
+            'database:social-publish',
+            'database:legacy-social-publish',
+        ],
+        '--confirm-queue-scope-list-complete' => true,
+        '--confirm-read-only-scan' => true,
+    ]);
+    $inventory = json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($exitCode)->toBe(0)
+        ->and($inventory['capture']['operator_declared_source_context'])->toBe('representative-clone')
+        ->and($inventory['queue_scope_manifest'])->toMatchArray([
+            'operator_attested_complete_scope_list' => true,
+            'scope_count' => 2,
+            'measurable_scope_count' => 2,
+            'unmeasurable_scope_count' => 0,
+        ])
+        ->and($inventory['queue_scope_manifest']['scopes'])->toHaveCount(2)
+        ->and($inventory['queue_scope_manifest']['scopes'][0])->toMatchArray([
+            'measurable' => true,
+            'queue_connection' => 'database',
+            'driver' => 'database',
+            'queue_label' => 'legacy-social-publish',
+            'total' => 1,
+            'ready' => 0,
+            'delayed' => 1,
+            'unparseable_candidates' => 0,
+        ])
+        ->and($inventory['queue_scope_manifest']['scopes'][1])->toMatchArray([
+            'measurable' => true,
+            'queue_connection' => 'database',
+            'driver' => 'database',
+            'queue_label' => 'social-publish',
+            'total' => 0,
+        ]);
+
+    Artisan::call('pulse:buffer:inventory-legacy', [
+        '--source-context' => 'representative-clone',
+        '--queue-scope' => [
+            'database:social-publish',
+            'database:legacy-social-publish',
+        ],
+        '--confirm-queue-scope-list-complete' => true,
+        '--confirm-read-only-scan' => true,
+    ]);
+    $humanOutput = Artisan::output();
+
+    expect($humanOutput)
+        ->toContain('Queued publications (database:legacy-social-publish)')
+        ->toContain('Queued publications (database:social-publish)')
+        ->toContain('Queue scope manifest: 2 inspected; 2 measurable; 0 unmeasurable; scope list attested complete by operator; all inspected scopes measurable; failed-job evidence measurable.');
+});
+
+it('rejects malformed or duplicate queue scopes', function (array $queueScopes, string $message) {
+    $exitCode = Artisan::call('pulse:buffer:inventory-legacy', [
+        '--json' => true,
+        '--queue-scope' => $queueScopes,
+        '--confirm-read-only-scan' => true,
+    ]);
+    $output = Artisan::output();
+
+    expect($exitCode)->toBe(1)
+        ->and($output)
+        ->toContain('Invalid queue scope')
+        ->toContain($message)
+        ->not->toContain('Pulse Buffer legacy inventory');
+})->with([
+    'missing separator' => [
+        ['database-social-publish'],
+        'Queue scopes must use the connection:queue format.',
+    ],
+    'duplicate after normalization' => [
+        ['database:social-publish', ' database : social-publish '],
+        'Each queue scope must be declared only once.',
+    ],
+]);
+
+it('rejects complete-list attestation without explicit queue scopes', function () {
+    $exitCode = Artisan::call('pulse:buffer:inventory-legacy', [
+        '--json' => true,
+        '--confirm-queue-scope-list-complete' => true,
+        '--confirm-read-only-scan' => true,
+    ]);
+    $output = Artisan::output();
+
+    expect($exitCode)->toBe(1)
+        ->and($output)
+        ->toContain('A complete queue scope attestation requires at least one explicit --queue-scope value.')
+        ->not->toContain('Pulse Buffer legacy inventory');
+});
+
+it('rejects database aliases that would double count the same physical queue', function () {
+    config()->set('queue.connections.legacy_database', [
+        'driver' => 'database',
+        'connection' => null,
+        'table' => 'jobs',
+        'queue' => 'legacy-default',
+        'retry_after' => 90,
+        'after_commit' => false,
+    ]);
+
+    $exitCode = Artisan::call('pulse:buffer:inventory-legacy', [
+        '--json' => true,
+        '--queue-scope' => [
+            'database:social-publish',
+            'legacy_database:social-publish',
+        ],
+        '--confirm-read-only-scan' => true,
+    ]);
+    $output = Artisan::output();
+
+    expect($exitCode)->toBe(1)
+        ->and($output)
+        ->toContain('Database queue scopes must not alias the same connection, table, and queue.')
+        ->not->toContain('Pulse Buffer legacy inventory');
+});
+
+it('rejects database queue aliases that differ only by case', function () {
+    $exitCode = Artisan::call('pulse:buffer:inventory-legacy', [
+        '--json' => true,
+        '--queue-scope' => [
+            'database:social-publish',
+            'database:Social-Publish',
+        ],
+        '--confirm-read-only-scan' => true,
+    ]);
+    $output = Artisan::output();
+
+    expect($exitCode)->toBe(1)
+        ->and($output)
+        ->toContain('Database queue scopes must not alias the same connection, table, and queue.')
+        ->not->toContain('Pulse Buffer legacy inventory');
+});
+
+it('keeps external queue credentials redacted and requires separate evidence', function () {
+    config()->set('queue.connections.legacy_sqs', [
+        'driver' => 'sqs',
+        'key' => 'secret-legacy-key',
+        'secret' => 'secret-legacy-token',
+        'queue' => 'legacy-default',
+    ]);
+    $parameters = [
+        '--queue-scope' => [
+            'legacy_sqs:legacy-social-publish',
+            'database:social-publish',
+        ],
+        '--confirm-queue-scope-list-complete' => true,
+        '--confirm-read-only-scan' => true,
+    ];
+
+    $exitCode = Artisan::call('pulse:buffer:inventory-legacy', [
+        '--json' => true,
+        ...$parameters,
+    ]);
+    $output = Artisan::output();
+    $inventory = json_decode($output, true, 512, JSON_THROW_ON_ERROR);
+
+    expect($exitCode)->toBe(0)
+        ->and($inventory['queue_scope_manifest'])->toMatchArray([
+            'operator_attested_complete_scope_list' => true,
+            'scope_count' => 2,
+            'measurable_scope_count' => 1,
+            'unmeasurable_scope_count' => 1,
+        ])
+        ->and($inventory['queue_scope_manifest']['scopes'][1])->toMatchArray([
+            'measurable' => false,
+            'queue_connection' => 'legacy_sqs',
+            'driver' => 'sqs',
+            'queue_label' => 'legacy-social-publish',
+            'reason' => 'queue_driver_not_database',
+        ])
+        ->and($output)->not->toContain('secret-legacy-key')
+        ->and($output)->not->toContain('secret-legacy-token');
+
+    Artisan::call('pulse:buffer:inventory-legacy', $parameters);
+    $humanOutput = Artisan::output();
+
+    expect($humanOutput)
+        ->toContain('1 unmeasurable')
+        ->toContain('scope list attested complete by operator')
+        ->toContain('external queue evidence required')
+        ->not->toContain('secret-legacy-key')
+        ->not->toContain('secret-legacy-token');
 });
 
 it('reports an unmeasurable queue without inspecting non-database payloads', function () {
@@ -266,11 +520,11 @@ it('reports an unmeasurable queue without inspecting non-database payloads', fun
     $output = Artisan::output();
     $inventory = json_decode($output, true, 512, JSON_THROW_ON_ERROR);
 
-    expect($inventory['queued_publications'])->toBe([
+    expect($inventory['queue_scope_manifest']['scopes'][0])->toBe([
         'measurable' => false,
         'queue_connection' => 'sync',
         'driver' => 'sync',
-        'queue' => 'social-publish',
+        'queue_label' => 'social-publish',
         'reason' => 'queue_driver_not_database',
         'total' => null,
         'ready' => null,
@@ -302,18 +556,17 @@ it('inventories an explicitly selected legacy database queue', function () {
 
     $exitCode = Artisan::call('pulse:buffer:inventory-legacy', [
         '--json' => true,
-        '--queue-connection' => 'legacy_database',
-        '--queue' => 'legacy-social-publish',
+        '--queue-scope' => ['legacy_database:legacy-social-publish'],
         '--confirm-read-only-scan' => true,
     ]);
     $inventory = json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
 
     expect($exitCode)->toBe(0)
-        ->and($inventory['queued_publications'])->toMatchArray([
+        ->and($inventory['queue_scope_manifest']['scopes'][0])->toMatchArray([
             'measurable' => true,
             'queue_connection' => 'legacy_database',
             'driver' => 'database',
-            'queue' => 'legacy-social-publish',
+            'queue_label' => 'legacy-social-publish',
             'reason' => null,
             'total' => 1,
             'ready' => 0,
@@ -334,19 +587,18 @@ it('reports an explicitly selected external queue without exposing or opening it
 
     $exitCode = Artisan::call('pulse:buffer:inventory-legacy', [
         '--json' => true,
-        '--queue-connection' => 'legacy_sqs',
-        '--queue' => 'legacy-social-publish',
+        '--queue-scope' => ['legacy_sqs:legacy-social-publish'],
         '--confirm-read-only-scan' => true,
     ]);
     $output = Artisan::output();
     $inventory = json_decode($output, true, 512, JSON_THROW_ON_ERROR);
 
     expect($exitCode)->toBe(0)
-        ->and($inventory['queued_publications'])->toBe([
+        ->and($inventory['queue_scope_manifest']['scopes'][0])->toBe([
             'measurable' => false,
             'queue_connection' => 'legacy_sqs',
             'driver' => 'sqs',
-            'queue' => 'legacy-social-publish',
+            'queue_label' => 'legacy-social-publish',
             'reason' => 'queue_driver_not_database',
             'total' => null,
             'ready' => null,
@@ -360,11 +612,48 @@ it('reports an explicitly selected external queue without exposing or opening it
         ->not->toContain('secret-legacy-token');
 });
 
+it('reports failed publication storage as unmeasurable without exposing its configuration', function () {
+    config()->set('queue.failed', [
+        'driver' => 'dynamodb',
+        'key' => 'secret-failed-jobs-key',
+        'secret' => 'secret-failed-jobs-token',
+        'table' => 'failed_jobs',
+    ]);
+
+    $exitCode = Artisan::call('pulse:buffer:inventory-legacy', [
+        '--json' => true,
+        '--confirm-read-only-scan' => true,
+    ]);
+    $output = Artisan::output();
+    $inventory = json_decode($output, true, 512, JSON_THROW_ON_ERROR);
+
+    expect($exitCode)->toBe(0)
+        ->and($inventory['failed_publications'])->toBe([
+            'measurable' => false,
+            'driver' => 'dynamodb',
+            'reason' => 'failed_queue_driver_not_database',
+            'total' => null,
+            'unparseable_candidates' => null,
+        ])
+        ->and($output)->not->toContain('secret-failed-jobs-key')
+        ->and($output)->not->toContain('secret-failed-jobs-token');
+
+    Artisan::call('pulse:buffer:inventory-legacy', [
+        '--confirm-read-only-scan' => true,
+    ]);
+    $humanOutput = Artisan::output();
+
+    expect($humanOutput)
+        ->toContain('external queue evidence required')
+        ->toContain('failed-job evidence required')
+        ->not->toContain('secret-failed-jobs-key')
+        ->not->toContain('secret-failed-jobs-token');
+});
+
 it('fails closed for an unknown explicit queue connection', function () {
     $exitCode = Artisan::call('pulse:buffer:inventory-legacy', [
         '--json' => true,
-        '--queue-connection' => 'missing_legacy_connection',
-        '--queue' => 'legacy-social-publish',
+        '--queue-scope' => ['missing_legacy_connection:legacy-social-publish'],
         '--confirm-read-only-scan' => true,
     ]);
     $output = Artisan::output();
@@ -379,8 +668,7 @@ it('fails closed for an unknown explicit queue connection', function () {
 it('fails closed for an invalid explicit queue connection name', function () {
     $exitCode = Artisan::call('pulse:buffer:inventory-legacy', [
         '--json' => true,
-        '--queue-connection' => 'legacy.connection',
-        '--queue' => 'legacy-social-publish',
+        '--queue-scope' => ['legacy.connection:legacy-social-publish'],
         '--confirm-read-only-scan' => true,
     ]);
     $output = Artisan::output();
@@ -396,8 +684,7 @@ it('fails closed when an explicit queue connection has no driver', function () {
 
     $exitCode = Artisan::call('pulse:buffer:inventory-legacy', [
         '--json' => true,
-        '--queue-connection' => 'legacy_driverless',
-        '--queue' => 'legacy-social-publish',
+        '--queue-scope' => ['legacy_driverless:legacy-social-publish'],
         '--confirm-read-only-scan' => true,
     ]);
     $output = Artisan::output();
@@ -411,15 +698,63 @@ it('fails closed when an explicit queue connection has no driver', function () {
 it('fails closed when an explicit queue name contains control characters', function () {
     $exitCode = Artisan::call('pulse:buffer:inventory-legacy', [
         '--json' => true,
-        '--queue-connection' => 'database',
-        '--queue' => "legacy\nsocial",
+        '--queue-scope' => ["database:legacy\nsocial"],
         '--confirm-read-only-scan' => true,
     ]);
     $output = Artisan::output();
 
     expect($exitCode)->toBe(1)
         ->and($output)
-        ->toContain('Queue name must be non-empty and cannot contain control characters.')
+        ->toContain('Queue name must be non-empty, at most 255 characters, and cannot contain control characters.')
+        ->not->toContain('Pulse Buffer legacy inventory');
+});
+
+it('redacts unsafe queue identifiers while preserving external queue evidence', function () {
+    $unsafeQueue = 'https://sqs.us-east-1.amazonaws.com/123456789012/private-social-queue';
+
+    $exitCode = Artisan::call('pulse:buffer:inventory-legacy', [
+        '--json' => true,
+        '--queue-scope' => ["sqs:{$unsafeQueue}"],
+        '--confirm-read-only-scan' => true,
+    ]);
+    $output = Artisan::output();
+    $inventory = json_decode($output, true, 512, JSON_THROW_ON_ERROR);
+
+    expect($exitCode)->toBe(0)
+        ->and($inventory['queue_scope_manifest']['scopes'][0]['queue_label'])
+        ->toMatch('/\Asha256:[a-f0-9]{64}\z/')
+        ->and($output)
+        ->not->toContain($unsafeQueue)
+        ->not->toContain('123456789012');
+});
+
+it('limits the number of declared queue scopes before resolving connections', function () {
+    $queueScopes = array_map(
+        static fn (int $index): string => "missing_{$index}:social-publish",
+        range(1, 33),
+    );
+
+    $exitCode = Artisan::call('pulse:buffer:inventory-legacy', [
+        '--json' => true,
+        '--queue-scope' => $queueScopes,
+        '--confirm-read-only-scan' => true,
+    ]);
+
+    expect($exitCode)->toBe(1)
+        ->and(Artisan::output())->toContain('No more than 32 queue scopes may be declared.');
+});
+
+it('rejects an unsupported source context before scanning data', function () {
+    $exitCode = Artisan::call('pulse:buffer:inventory-legacy', [
+        '--json' => true,
+        '--source-context' => 'production-copy',
+        '--confirm-read-only-scan' => true,
+    ]);
+    $output = Artisan::output();
+
+    expect($exitCode)->toBe(1)
+        ->and($output)
+        ->toContain('Inventory source context must be approved-environment, local, representative-clone, or unspecified.')
         ->not->toContain('Pulse Buffer legacy inventory');
 });
 
@@ -433,11 +768,11 @@ it('fails closed when the configured database queue table is unavailable', funct
     ]);
     $inventory = json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
 
-    expect($inventory['queued_publications'])->toBe([
+    expect($inventory['queue_scope_manifest']['scopes'][0])->toBe([
         'measurable' => false,
         'queue_connection' => 'database',
         'driver' => 'database',
-        'queue' => 'social-publish',
+        'queue_label' => 'social-publish',
         'reason' => 'queue_table_unavailable',
         'total' => null,
         'ready' => null,
@@ -489,5 +824,5 @@ it('allows an explicitly authorized inventory outside local environments', funct
     }
 
     expect($exitCode)->toBe(0)
-        ->and($inventory['schema_version'])->toBe('pulse_legacy_inventory_v1');
+        ->and($inventory['schema_version'])->toBe('pulse_legacy_inventory_v2');
 });
