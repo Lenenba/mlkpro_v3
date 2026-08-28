@@ -22,6 +22,7 @@ jobs:
       CACHE_STORE: array
       DB_CONNECTION: sqlite
       DB_DATABASE: ":memory:"
+      EXPECTED_TEST_DATABASE_DRIVER: sqlite
       MAIL_MAILER: array
       PULSE_ENABLED: "false"
       QUEUE_CONNECTION: sync
@@ -113,6 +114,7 @@ jobs:
       DB_DATABASE: mlkpro_v3_ci
       DB_USERNAME: root
       DB_PASSWORD: secret
+      EXPECTED_TEST_DATABASE_DRIVER: mysql
       MAIL_MAILER: array
       PULSE_ENABLED: "false"
       QUEUE_CONNECTION: sync
@@ -148,7 +150,7 @@ jobs:
 
       - name: Run MySQL compatibility suite
         run: |
-          php artisan test --stop-on-failure \
+          php -d memory_limit=512M vendor/bin/pest --stop-on-failure \
             tests/Unit/CompanyFeatureServiceTest.php \
             tests/Unit/MegaMenuServicesTest.php \
             tests/Feature/AccountingModulePhaseZeroTest.php \
@@ -158,6 +160,7 @@ jobs:
             tests/Feature/ReservationKioskPublicEndpointsTest.php \
             tests/Feature/PublicBookingLinksTest.php \
             tests/Feature/PlanEntitlementSyncCommandTest.php \
+            tests/Feature/PulseBufferLegacyInventoryCommandTest.php \
             tests/Feature/SuperAdminModuleAuthorizationTest.php \
             tests/Feature/BillingMutationsApiTest.php
 

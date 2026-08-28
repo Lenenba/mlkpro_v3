@@ -412,9 +412,7 @@ class SocialPostService
                         'social_account_connection_id' => $target->social_account_connection_id,
                         'status' => (string) $target->status,
                         'label' => $connection?->label ?? data_get($target->metadata, 'snapshot_label'),
-                        'provider_label' => $connection?->label
-                            ? data_get($target->metadata, 'provider_label')
-                            : data_get($target->metadata, 'provider_label'),
+                        'provider_label' => data_get($target->metadata, 'provider_label'),
                         'platform' => $connection?->platform ?? data_get($target->metadata, 'platform'),
                         'display_name' => $connection?->display_name ?? data_get($target->metadata, 'display_name'),
                         'account_handle' => $connection?->account_handle ?? data_get($target->metadata, 'account_handle'),

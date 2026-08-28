@@ -137,6 +137,7 @@ $envOverrides = @{
     'DB_DATABASE' = $testDbName
     'DB_USERNAME' = $dbUser
     'DB_PASSWORD' = $dbPassword
+    'EXPECTED_TEST_DATABASE_DRIVER' = 'mysql'
     'MAIL_MAILER' = 'array'
     'PULSE_ENABLED' = 'false'
     'QUEUE_CONNECTION' = 'sync'

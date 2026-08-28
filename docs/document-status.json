@@ -6,14 +6,14 @@
             "delivery_status": "in_progress",
             "created_at": "2026-08-27",
             "updated_at": "2026-08-27",
-            "note": "Vue visuelle synthétique : WP2-A et l'outil pré-WP2-B sont publiés sur la branche feature ; le compte détenu/payé par chaque client reste une hypothèse de travail. La confirmation produit, le clone représentatif et WP2-B schéma restent à faire ; tous les gates P0 restent ouverts."
+            "note": "Vue visuelle synthétique : WP2-A et l'outil pré-WP2-B sont publiés sur la branche feature ; chaque client possède et paie son compte Buffer. Le gate de compatibilité MySQL réel est validé ; le clone représentatif, les queues externes ou anciennes et WP2-B schéma restent à faire."
         },
         "docs/MALIKIA_PULSE_BUFFER_FIRST_REFONTE_GLOBALE_2026-08-26.md": {
             "document_status": "complete",
             "delivery_status": "in_progress",
             "created_at": "2026-08-26",
             "updated_at": "2026-08-27",
-            "note": "Référence active Buffer-first ; le checkpoint pré-WP2-B est publié sur la branche feature et inventorie des agrégats legacy sans appel Buffer ni écriture métier. La base locale courante est relevée, mais WP2-B schéma n'est pas démarré ; BUF-P0-10 et les autres gates restent ouverts."
+            "note": "Référence active Buffer-first ; le propriétaire/payeur et le gate de compatibilité MySQL réel sont validés. Le checkpoint pré-WP2-B est publié sur la branche feature ; le clone représentatif, les queues externes ou anciennes et WP2-B schéma restent en attente, ainsi que les preuves commerciales restantes de BUF-P0-10."
         },
         "docs/MALIKIA_PULSE_DOCUMENTATION_TECHNIQUE_2026-04-25.md": {
             "document_status": "reference",
