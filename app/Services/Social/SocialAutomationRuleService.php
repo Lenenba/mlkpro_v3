@@ -319,16 +319,25 @@ class SocialAutomationRuleService
             ]);
         }
 
-        $existingConnectionIds = SocialAccountConnection::query()
+        $connections = SocialAccountConnection::query()
             ->byUser($owner->id)
             ->whereKey($targetConnectionIds)
-            ->pluck('id')
-            ->map(fn ($id) => (int) $id)
-            ->all();
+            ->get();
 
-        if (count($existingConnectionIds) !== count($targetConnectionIds)) {
+        if ($connections->count() !== count($targetConnectionIds)) {
             throw ValidationException::withMessages([
                 'target_connection_ids' => 'Only accounts that belong to this tenant can be targeted by a Pulse automation rule.',
+            ]);
+        }
+
+        if ((bool) config('services.buffer.delivery.enabled', false)
+            && $connections->contains(fn (SocialAccountConnection $connection): bool => (
+                ! $connection->is_active
+                || (string) $connection->status !== SocialAccountConnection::STATUS_CONNECTED
+                || ! $connection->usesBufferPublishingTransport()
+            ))) {
+            throw ValidationException::withMessages([
+                'target_connection_ids' => 'Only active channels imported from Buffer can be targeted by a Pulse automation rule.',
             ]);
         }
 

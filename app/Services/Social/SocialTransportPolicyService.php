@@ -22,6 +22,11 @@ class SocialTransportPolicyService
         $cutover = $this->cutoverForTenant($tenantId);
 
         if ($cutover === null) {
+            if ((bool) config('services.buffer.delivery.enabled', false)
+                && $transportGeneration === SocialAccountConnection::TRANSPORT_GENERATION_DIRECT_V1) {
+                return false;
+            }
+
             return ($transportGeneration === SocialAccountConnection::TRANSPORT_GENERATION_DIRECT_V1
                     && ! $this->directConnectionIsSupersededByBuffer(
                         $tenantId,

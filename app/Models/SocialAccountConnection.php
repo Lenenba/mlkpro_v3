@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 use LogicException;
 
@@ -166,6 +167,24 @@ class SocialAccountConnection extends Model
         return $query
             ->where('is_active', true)
             ->where('status', self::STATUS_CONNECTED);
+    }
+
+    public function isImportedFromBuffer(): bool
+    {
+        return (string) $this->delivery_provider === self::DELIVERY_PROVIDER_BUFFER
+            || (string) $this->transport_generation === self::TRANSPORT_GENERATION_BUFFER_V1
+            || is_array(data_get($this->metadata, 'buffer'))
+            || Str::startsWith(
+                (string) data_get($this->metadata, 'connection_flow', ''),
+                'buffer_',
+            );
+    }
+
+    public function usesBufferPublishingTransport(): bool
+    {
+        return (string) $this->delivery_provider === self::DELIVERY_PROVIDER_BUFFER
+            && (string) $this->transport_generation === self::TRANSPORT_GENERATION_BUFFER_V1
+            && preg_match('/\Aldk:v1:[0-9a-f]{64}\z/', (string) $this->logical_destination_key) === 1;
     }
 
     private function assertCompleteTransportIdentity(): void

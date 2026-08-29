@@ -387,8 +387,14 @@ class SocialAutomationController extends Controller
      */
     private function automationRulePayload(SocialAutomationRule $rule, array $connections): array
     {
+        $selectableConnectionIds = collect($connections)
+            ->filter(fn (array $connection): bool => (bool) ($connection['is_connected'] ?? false))
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id);
         $selectedIds = collect((array) $rule->target_connection_ids)
             ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $id): bool => $selectableConnectionIds->containsStrict($id))
+            ->unique()
             ->values()
             ->all();
 

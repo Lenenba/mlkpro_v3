@@ -3,7 +3,6 @@
 namespace App\Services\Social;
 
 use App\Models\SocialAccountConnection;
-use App\Models\SocialBufferConnection;
 use App\Models\SocialDeliveryOutbox;
 use App\Models\SocialTransportCutoverMapping;
 use App\Models\User;
@@ -63,8 +62,20 @@ class SocialAccountConnectionService
     /**
      * @return array<int, array<string, mixed>>
      */
+    public function directManagementDefinitions(): array
+    {
+        return $this->bufferOnlyModeEnabled() ? [] : $this->definitions();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     public function listPayloads(User $owner): array
     {
+        if ($this->bufferOnlyModeEnabled()) {
+            return $this->listPublishingPayloads($owner);
+        }
+
         return $this->listForOwner($owner)
             ->map(fn (SocialAccountConnection $connection) => $this->payload($connection))
             ->values()
@@ -77,47 +88,13 @@ class SocialAccountConnectionService
     public function listPublishingPayloads(User $owner): array
     {
         $connections = $this->listForOwner($owner);
-        $bufferPublishingIsAuthorized = (bool) config('services.buffer.delivery.enabled', false)
-            && SocialBufferConnection::query()
-                ->whereBelongsTo($owner)
-                ->get()
-                ->contains(fn (SocialBufferConnection $connection): bool => (
-                    $connection->isConnected()
-                    && in_array('posts:write', (array) $connection->scopes, true)
-                ));
-        $bufferPlatforms = $bufferPublishingIsAuthorized
-            ? $connections
-                ->filter(fn (SocialAccountConnection $connection): bool => (
-                    $connection->is_active
-                    && $connection->status === SocialAccountConnection::STATUS_CONNECTED
-                    && $connection->delivery_provider
-                        === SocialAccountConnection::DELIVERY_PROVIDER_BUFFER
-                    && $connection->transport_generation
-                        === SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1
-                    && (bool) data_get(
-                        $connection->metadata,
-                        'buffer.standalone_destination',
-                        false,
-                    )
-                    && (bool) data_get(
-                        $connection->metadata,
-                        'buffer.publication_enabled',
-                        false,
-                    )
-                    && ! (bool) data_get($connection->metadata, 'buffer.catalog_only', true)
-                ))
-                ->pluck('platform')
-                ->unique()
-            : collect();
+
+        if ($this->bufferOnlyModeEnabled()) {
+            $connections = $connections
+                ->filter(fn (SocialAccountConnection $connection): bool => $connection->isImportedFromBuffer());
+        }
 
         return $connections
-            ->reject(fn (SocialAccountConnection $connection): bool => (
-                $bufferPlatforms->containsStrict((string) $connection->platform)
-                && $connection->delivery_provider
-                    === SocialAccountConnection::DELIVERY_PROVIDER_DIRECT
-                && $connection->transport_generation
-                    === SocialAccountConnection::TRANSPORT_GENERATION_DIRECT_V1
-            ))
             ->map(fn (SocialAccountConnection $connection) => $this->payload($connection))
             ->values()
             ->all();
@@ -130,6 +107,10 @@ class SocialAccountConnectionService
      */
     public function listDirectManagementPayloads(User $owner): array
     {
+        if ($this->bufferOnlyModeEnabled()) {
+            return [];
+        }
+
         return $this->listForOwner($owner)
             ->reject(fn (SocialAccountConnection $connection): bool => (
                 (string) $connection->delivery_provider === SocialAccountConnection::DELIVERY_PROVIDER_BUFFER
@@ -146,6 +127,12 @@ class SocialAccountConnectionService
     public function summaryForOwner(User $owner): array
     {
         $connections = $this->listForOwner($owner);
+
+        if ($this->bufferOnlyModeEnabled()) {
+            $connections = $connections
+                ->filter(fn (SocialAccountConnection $connection): bool => $connection->isImportedFromBuffer());
+        }
+
         $statusCounts = collect(SocialAccountConnection::allowedStatuses())
             ->mapWithKeys(fn (string $status) => [$status => 0])
             ->all();
@@ -162,8 +149,9 @@ class SocialAccountConnectionService
         return [
             'configured' => $connections->count(),
             'connected' => $connections
-                ->filter(fn (SocialAccountConnection $connection) => $connection->is_active
-                    && $connection->status === SocialAccountConnection::STATUS_CONNECTED)
+                ->filter(fn (SocialAccountConnection $connection): bool => (
+                    $this->isConnectedForPublishing($connection)
+                ))
                 ->count(),
             'inactive' => $connections
                 ->filter(fn (SocialAccountConnection $connection) => ! $connection->is_active)
@@ -177,8 +165,9 @@ class SocialAccountConnectionService
                 SocialAccountConnection::STATUS_EXPIRED,
             ])->sum(fn (string $status) => (int) ($statusCounts[$status] ?? 0)),
             'available_platforms' => $connections
-                ->filter(fn (SocialAccountConnection $connection) => $connection->is_active
-                    && $connection->status === SocialAccountConnection::STATUS_CONNECTED)
+                ->filter(fn (SocialAccountConnection $connection): bool => (
+                    $this->isConnectedForPublishing($connection)
+                ))
                 ->pluck('platform')
                 ->unique()
                 ->values()
@@ -192,6 +181,8 @@ class SocialAccountConnectionService
      */
     public function create(User $owner, array $payload): SocialAccountConnection
     {
+        $this->assertDirectManagementEnabled();
+
         return $this->withTenantMutationLock(
             (int) $owner->id,
             fn (): SocialAccountConnection => $this->createUnderTenantLock($owner, $payload),
@@ -236,6 +227,8 @@ class SocialAccountConnectionService
      */
     public function createTestConnection(User $owner, array $payload): SocialAccountConnection
     {
+        $this->assertDirectManagementEnabled();
+
         return $this->withTenantMutationLock(
             (int) $owner->id,
             function () use ($owner, $payload): SocialAccountConnection {
@@ -1093,7 +1086,7 @@ class SocialAccountConnectionService
             'permissions' => array_values((array) ($connection->permissions ?? [])),
             'status' => $status,
             'is_active' => (bool) $connection->is_active,
-            'is_connected' => $connection->is_active && $status === SocialAccountConnection::STATUS_CONNECTED,
+            'is_connected' => $this->isConnectedForPublishing($connection),
             'needs_attention' => $this->statusNeedsAttention($status),
             'has_credentials' => $credentials !== [],
             'has_refresh_token' => trim((string) ($credentials['refresh_token'] ?? '')) !== '',
@@ -1207,6 +1200,8 @@ class SocialAccountConnectionService
 
     private function assertDirectManagementConnection(SocialAccountConnection $connection): void
     {
+        $this->assertDirectManagementEnabled();
+
         if ((string) $connection->delivery_provider === SocialAccountConnection::DELIVERY_PROVIDER_BUFFER
             || (string) $connection->transport_generation === SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1
             || (bool) data_get($connection->metadata, 'buffer.catalog_only', false)) {
@@ -1214,6 +1209,30 @@ class SocialAccountConnectionService
                 'connection' => 'Manage this Buffer catalog channel from the local Buffer panel.',
             ]);
         }
+    }
+
+    private function assertDirectManagementEnabled(): void
+    {
+        if ($this->bufferOnlyModeEnabled()) {
+            throw ValidationException::withMessages([
+                'connection' => 'Direct social connections are disabled. Manage social channels through Buffer.',
+            ]);
+        }
+    }
+
+    private function bufferOnlyModeEnabled(): bool
+    {
+        return (bool) config('services.buffer.delivery.enabled', false);
+    }
+
+    private function isConnectedForPublishing(SocialAccountConnection $connection): bool
+    {
+        if (! $connection->is_active
+            || (string) $connection->status !== SocialAccountConnection::STATUS_CONNECTED) {
+            return false;
+        }
+
+        return ! $this->bufferOnlyModeEnabled() || $connection->usesBufferPublishingTransport();
     }
 
     private function statusNeedsAttention(string $status): bool

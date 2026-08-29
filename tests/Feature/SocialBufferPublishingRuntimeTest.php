@@ -1,20 +1,316 @@
 <?php
 
+use App\Http\Middleware\EnsureTwoFactorVerified;
 use App\Jobs\ProcessSocialDeliveryOutboxJob;
 use App\Models\SocialAccountConnection;
+use App\Models\SocialAutomationRule;
 use App\Models\SocialBufferConnection;
 use App\Models\SocialDeliveryOutbox;
 use App\Models\SocialPost;
 use App\Models\SocialPostTarget;
 use App\Models\User;
+use App\Services\Social\SocialAccountConnectionService;
+use App\Services\Social\SocialContentQualityChecker;
 use App\Services\Social\SocialDeliveryReconciler;
 use App\Services\Social\SocialLogicalDestinationKeyService;
 use App\Services\Social\SocialPostService;
 use App\Services\Social\SocialPublishingService;
 use App\Services\Social\SocialTransportPolicyService;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Inertia\Testing\AssertableInertia as Assert;
+
+it('exposes only Buffer imports for new publishing while preserving existing legacy effects', function () {
+    config()->set('services.buffer.delivery.enabled', true);
+
+    $owner = User::factory()->create([
+        'company_type' => 'services',
+        'company_timezone' => 'America/Toronto',
+        'onboarding_completed_at' => now(),
+        'company_features' => [
+            'social' => true,
+        ],
+    ]);
+
+    SocialBufferConnection::factory()->for($owner)->create([
+        'buffer_account_id' => 'buffer-selection-account',
+        'scopes' => ['account:read', 'posts:read', 'posts:write', 'offline_access'],
+    ]);
+
+    $bufferFacebook = SocialAccountConnection::query()->create([
+        'user_id' => $owner->id,
+        'platform' => SocialAccountConnection::PLATFORM_FACEBOOK,
+        'label' => 'Buffer Facebook Page',
+        'external_account_id' => 'buffer-selection-facebook',
+        'delivery_provider' => SocialAccountConnection::DELIVERY_PROVIDER_BUFFER,
+        'transport_generation' => SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1,
+        'logical_destination_key' => 'ldk:v1:'.hash('sha256', 'buffer-selection-facebook'),
+        'status' => SocialAccountConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'connected_at' => now(),
+        'metadata' => [
+            'connection_flow' => 'buffer_oauth',
+            'buffer' => [
+                'catalog_only' => false,
+                'publication_enabled' => true,
+                'standalone_destination' => true,
+            ],
+        ],
+    ]);
+    $bufferInstagram = SocialAccountConnection::query()->create([
+        'user_id' => $owner->id,
+        'platform' => SocialAccountConnection::PLATFORM_INSTAGRAM,
+        'label' => 'Disconnected Buffer Instagram',
+        'external_account_id' => 'buffer-selection-instagram',
+        'status' => SocialAccountConnection::STATUS_DISCONNECTED,
+        'is_active' => false,
+        'metadata' => [
+            'connection_flow' => 'buffer_oauth_discovery',
+            'buffer' => [
+                'catalog_only' => true,
+                'publication_enabled' => false,
+                'standalone_destination' => false,
+            ],
+        ],
+    ]);
+    $legacyLinkedIn = SocialAccountConnection::query()->create([
+        'user_id' => $owner->id,
+        'platform' => SocialAccountConnection::PLATFORM_LINKEDIN,
+        'label' => 'Legacy LinkedIn Page',
+        'external_account_id' => 'legacy-selection-linkedin',
+        ...pulseDirectTransportIdentity(
+            $owner,
+            SocialAccountConnection::PLATFORM_LINKEDIN,
+            'legacy-selection-linkedin',
+        ),
+        'status' => SocialAccountConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'connected_at' => now(),
+    ]);
+
+    $connectionService = app(SocialAccountConnectionService::class);
+    $publishingIds = collect($connectionService->listPublishingPayloads($owner))
+        ->pluck('id')
+        ->all();
+    $allVisibleIds = collect($connectionService->listPayloads($owner))
+        ->pluck('id')
+        ->all();
+    $connectedOptionIds = collect(app(SocialPostService::class)->connectedAccountOptions($owner))
+        ->pluck('id')
+        ->all();
+    $summary = $connectionService->summaryForOwner($owner);
+    $transportPolicy = app(SocialTransportPolicyService::class);
+
+    expect($publishingIds)->toBe([
+        (int) $bufferFacebook->id,
+        (int) $bufferInstagram->id,
+    ])->and($allVisibleIds)->toBe($publishingIds)
+        ->and($connectedOptionIds)->toBe([(int) $bufferFacebook->id]);
+
+    expect($summary['configured'])->toBe(2)
+        ->and($summary['connected'])->toBe(1)
+        ->and($summary['inactive'])->toBe(1)
+        ->and($summary['available_platforms'])->toBe([
+            SocialAccountConnection::PLATFORM_FACEBOOK,
+        ])
+        ->and($summary['status_counts'][SocialAccountConnection::STATUS_CONNECTED])->toBe(1)
+        ->and($summary['status_counts'][SocialAccountConnection::STATUS_DISCONNECTED])->toBe(1);
+
+    expect($transportPolicy->allowsNewSubmission(
+        (int) $owner->id,
+        SocialAccountConnection::TRANSPORT_GENERATION_DIRECT_V1,
+        (int) $legacyLinkedIn->id,
+        (string) $legacyLinkedIn->logical_destination_key,
+    ))->toBeFalse()
+        ->and($transportPolicy->allowsExistingRemoteEffect(
+            (int) $owner->id,
+            SocialAccountConnection::TRANSPORT_GENERATION_DIRECT_V1,
+            (int) $legacyLinkedIn->id,
+            (string) $legacyLinkedIn->logical_destination_key,
+        ))->toBeTrue();
+
+    $legacyDraft = SocialPost::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'content_payload' => ['text' => 'Historical legacy draft'],
+        'status' => SocialPost::STATUS_DRAFT,
+    ]);
+    SocialPostTarget::query()->create([
+        'social_post_id' => $legacyDraft->id,
+        'social_account_connection_id' => $legacyLinkedIn->id,
+        'delivery_provider' => $legacyLinkedIn->delivery_provider,
+        'transport_generation' => $legacyLinkedIn->transport_generation,
+        'logical_destination_key' => $legacyLinkedIn->logical_destination_key,
+        'status' => SocialPostTarget::STATUS_PENDING,
+    ]);
+    $postService = app(SocialPostService::class);
+    $legacyDraftPayload = $postService->payload($legacyDraft);
+    $legacyDraftCopy = $postService->duplicate($owner, $owner, $legacyDraft);
+
+    expect($legacyDraftPayload['selected_target_connection_ids'])->toBe([])
+        ->and($legacyDraftPayload['selected_accounts_count'])->toBe(1)
+        ->and($legacyDraftPayload['targets'][0]['social_account_connection_id'])->toBe($legacyLinkedIn->id)
+        ->and($legacyDraftCopy->targets()->count())->toBe(0)
+        ->and(data_get($legacyDraftCopy->metadata, 'missing_target_count'))->toBe(1);
+
+    $rule = SocialAutomationRule::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'name' => 'Historical mixed targets',
+        'is_active' => true,
+        'frequency_type' => SocialAutomationRule::FREQUENCY_DAILY,
+        'frequency_interval' => 1,
+        'scheduled_time' => '09:00',
+        'timezone' => 'America/Toronto',
+        'approval_mode' => SocialAutomationRule::APPROVAL_REQUIRED,
+        'language' => 'fr',
+        'content_sources' => [
+            ['type' => 'template', 'mode' => 'all'],
+        ],
+        'target_connection_ids' => [
+            $legacyLinkedIn->id,
+            $bufferInstagram->id,
+            $bufferFacebook->id,
+        ],
+        'max_posts_per_day' => 1,
+        'min_hours_between_similar_posts' => 24,
+        'next_generation_at' => now()->addDay(),
+    ]);
+    $targetValidation = app(SocialContentQualityChecker::class)
+        ->validateTargets($owner, $rule);
+
+    expect($targetValidation['passes'])->toBeFalse()
+        ->and($targetValidation['connections'])->toBeEmpty();
+
+    $this->withoutMiddleware([
+        ValidateCsrfToken::class,
+        EnsureTwoFactorVerified::class,
+    ]);
+
+    $this->actingAs($owner)
+        ->get(route('social.composer'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Social/Composer')
+            ->where('workspace_stats.connected_accounts', 1)
+            ->has('connected_accounts', 1)
+            ->where('connected_accounts.0.id', $bufferFacebook->id)
+        );
+
+    $this->actingAs($owner)
+        ->get(route('social.automations.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Social/Automations')
+            ->has('target_connections', 2)
+            ->where('target_connections.0.id', $bufferFacebook->id)
+            ->where('target_connections.1.id', $bufferInstagram->id)
+            ->where('rules.0.id', $rule->id)
+            ->where('rules.0.target_connection_ids', [$bufferFacebook->id])
+        );
+
+    $this->actingAs($owner)
+        ->get(route('social.accounts.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Social/Accounts')
+            ->has('provider_definitions', 0)
+            ->has('connections', 0)
+            ->where('summary.configured', 2)
+            ->where('summary.connected', 1)
+        );
+});
+
+it('returns 422 when forged direct targets are submitted to new Pulse endpoints', function () {
+    config()->set('services.buffer.delivery.enabled', true);
+
+    $this->withoutMiddleware([
+        ValidateCsrfToken::class,
+        EnsureTwoFactorVerified::class,
+    ]);
+
+    $owner = User::factory()->create([
+        'company_type' => 'services',
+        'company_timezone' => 'UTC',
+        'onboarding_completed_at' => now(),
+        'company_features' => [
+            'social' => true,
+        ],
+    ]);
+    $legacyConnection = SocialAccountConnection::query()->create([
+        'user_id' => $owner->id,
+        'platform' => SocialAccountConnection::PLATFORM_LINKEDIN,
+        'label' => 'Forged Legacy LinkedIn Page',
+        'external_account_id' => 'forged-legacy-linkedin',
+        ...pulseDirectTransportIdentity(
+            $owner,
+            SocialAccountConnection::PLATFORM_LINKEDIN,
+            'forged-legacy-linkedin',
+        ),
+        'status' => SocialAccountConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'connected_at' => now(),
+    ]);
+
+    $draftResponse = $this->actingAs($owner)
+        ->postJson(route('social.posts.store'), [
+            'text' => 'This legacy target must not create a new Pulse draft.',
+            'target_connection_ids' => [$legacyConnection->id],
+        ]);
+
+    $draftResponse->assertUnprocessable()
+        ->assertJsonValidationErrors('target_connection_ids');
+    $this->assertDatabaseCount('social_posts', 0);
+
+    $automationResponse = $this->actingAs($owner)
+        ->postJson(route('social.automations.store'), [
+            'name' => 'Forged legacy automation',
+            'is_active' => true,
+            'frequency_type' => SocialAutomationRule::FREQUENCY_DAILY,
+            'frequency_interval' => 1,
+            'scheduled_time' => '09:00',
+            'timezone' => 'UTC',
+            'approval_mode' => SocialAutomationRule::APPROVAL_REQUIRED,
+            'language' => 'fr',
+            'target_connection_ids' => [$legacyConnection->id],
+            'content_sources' => [
+                [
+                    'type' => 'template',
+                    'mode' => 'all',
+                    'ids' => [],
+                ],
+            ],
+            'max_posts_per_day' => 1,
+            'min_hours_between_similar_posts' => 24,
+        ]);
+
+    $automationResponse->assertUnprocessable()
+        ->assertJsonValidationErrors('target_connection_ids');
+    $this->assertDatabaseCount('social_automation_rules', 0);
+
+    $templateResponse = $this->actingAs($owner)
+        ->postJson(route('social.templates.store'), [
+            'name' => 'Forged legacy template',
+            'text' => 'This template must not retain a direct target.',
+            'target_connection_ids' => [$legacyConnection->id],
+        ]);
+
+    $templateResponse->assertUnprocessable()
+        ->assertJsonValidationErrors('target_connection_ids');
+    $this->assertDatabaseCount('social_post_templates', 0);
+
+    $this->actingAs($owner)
+        ->postJson(route('social.accounts.store'), [
+            'platform' => SocialAccountConnection::PLATFORM_X,
+            'label' => 'Forbidden direct connection',
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('connection');
+});
 
 it('submits a standalone Buffer Facebook target through the outbox without marking it published', function () {
     config()->set('services.buffer.delivery.enabled', true);

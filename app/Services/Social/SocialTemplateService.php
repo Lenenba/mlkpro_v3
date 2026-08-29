@@ -213,6 +213,15 @@ class SocialTemplateService
             ]);
         }
 
+        if ((bool) config('services.buffer.delivery.enabled', false)
+            && $connections->contains(
+                fn (SocialAccountConnection $connection): bool => ! $connection->usesBufferPublishingTransport(),
+            )) {
+            throw ValidationException::withMessages([
+                'target_connection_ids' => 'Only active channels imported from Buffer can be saved inside a Pulse template.',
+            ]);
+        }
+
         return $targetIds
             ->map(fn (int $id) => $connections->get($id))
             ->filter()

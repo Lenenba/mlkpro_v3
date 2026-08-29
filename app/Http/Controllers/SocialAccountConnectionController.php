@@ -29,7 +29,7 @@ class SocialAccountConnectionController extends Controller
         $postSummary = $this->postService->summaryForOwner($owner);
 
         return $this->inertiaOrJson('Social/Accounts', [
-            'provider_definitions' => $this->connectionService->definitions(),
+            'provider_definitions' => $this->connectionService->directManagementDefinitions(),
             'connections' => $this->connectionService->listDirectManagementPayloads($owner),
             'summary' => $this->connectionService->summaryForOwner($owner),
             'buffer_connector' => $canManageAccounts

@@ -404,6 +404,14 @@ class SocialPostService
         $text = trim((string) data_get($post->content_payload, 'text', ''));
         $approvalRequest = $post->latestApprovalRequest;
         $automationRule = $post->automationRule;
+        $selectedTargets = $post->targets;
+
+        if ((bool) config('services.buffer.delivery.enabled', false)) {
+            $selectedTargets = $selectedTargets
+                ->filter(fn (SocialPostTarget $target): bool => (
+                    $target->socialAccountConnection?->usesBufferPublishingTransport() === true
+                ));
+        }
 
         return [
             'id' => $post->id,
@@ -440,7 +448,7 @@ class SocialPostService
             'failure_reason' => $post->failure_reason,
             'is_queued_publication' => $this->isQueuedPublication($post),
             'is_editable' => $this->isEditable($post),
-            'selected_target_connection_ids' => $post->targets
+            'selected_target_connection_ids' => $selectedTargets
                 ->pluck('social_account_connection_id')
                 ->filter()
                 ->map(fn ($id) => (int) $id)
@@ -639,6 +647,13 @@ class SocialPostService
                 ->whereKey($originalTargetIds->all())
                 ->get()
             : collect();
+
+        if ((bool) config('services.buffer.delivery.enabled', false)) {
+            $recoveredConnections = $recoveredConnections
+                ->filter(fn (SocialAccountConnection $connection): bool => (
+                    $connection->usesBufferPublishingTransport()
+                ));
+        }
 
         $image = collect((array) ($source->media_payload ?? []))
             ->first(fn (array $item): bool => trim((string) ($item['url'] ?? '')) !== '');
@@ -888,10 +903,13 @@ class SocialPostService
                 === SocialAccountConnection::DELIVERY_PROVIDER_DIRECT
             && (string) $connection->transport_generation
                 === SocialAccountConnection::TRANSPORT_GENERATION_DIRECT_V1;
-        $usesBufferTransport = (string) $connection->delivery_provider
-                === SocialAccountConnection::DELIVERY_PROVIDER_BUFFER
-            && (string) $connection->transport_generation
-                === SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1;
+        $usesBufferTransport = $connection->usesBufferPublishingTransport();
+
+        if ((bool) config('services.buffer.delivery.enabled', false) && ! $usesBufferTransport) {
+            throw ValidationException::withMessages([
+                'target_connection_ids' => 'Only active channels imported from Buffer can be selected for a Pulse post.',
+            ]);
+        }
 
         if ((! $usesDirectTransport && ! $usesBufferTransport)
             || preg_match('/\Aldk:v1:[0-9a-f]{64}\z/', (string) $connection->logical_destination_key) !== 1) {
