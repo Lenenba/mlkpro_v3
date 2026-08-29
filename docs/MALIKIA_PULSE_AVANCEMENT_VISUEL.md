@@ -1,6 +1,6 @@
 # Malikia Pulse — avancement visuel
 
-**État au 29 août 2026 : `PULSE_LOCAL_ACCEPTANCE_READY` · `GO_BUFFER_LOCAL_DISCOVERY` · `BUFFER_LOCAL_CATALOG_LIVE_GREEN` · `BUFFER_CHANNEL_IMPORT_LOCAL_GREEN` · `BUFFER_DELIVERY_DISABLED` · `MACRO_STEP_1_COMPLETE` · `MACRO_STEP_2_LOCAL_IMPLEMENTATION_COMPLETE` · `PROVIDER_NEUTRAL_RECONCILIATION_LOCAL_GREEN` · `PULSE_STATUS_AXES_UX_GREEN` · `PULSE_SCHEDULING_TIMEZONE_GREEN` · `PULSE_DELIVERY_OBSERVABILITY_GREEN` · `MACRO_STEP_3_LOCAL_CONTROL_PLANE_GREEN` · `MACRO_STEP_3_OPERATIONAL_NO_GO` · `MACRO_STEP_2_IN_PROGRESS` · `BUF_P0_03_CLOSED` · `NO_GO_BUFFER_PILOT` · `NO_GO_BUFFER_PRODUCTION`**
+**État au 29 août 2026 : `PULSE_LOCAL_ACCEPTANCE_READY` · `GO_BUFFER_LOCAL_DISCOVERY` · `BUFFER_LOCAL_CATALOG_LIVE_GREEN` · `BUFFER_CHANNEL_IMPORT_LOCAL_GREEN` · `BUFFER_DELIVERY_DISABLED` · `MACRO_STEP_1_COMPLETE` · `MACRO_STEP_2_LOCAL_COMPLETE` · `PROVIDER_NEUTRAL_RECONCILIATION_LOCAL_GREEN` · `PULSE_STATUS_AXES_UX_GREEN` · `PULSE_SCHEDULING_TIMEZONE_GREEN` · `PULSE_DELIVERY_OBSERVABILITY_GREEN` · `MACRO_STEP_3_LOCAL_CONTROL_PLANE_GREEN` · `MACRO_STEP_3_OPERATIONAL_NO_GO` · `BUF_P0_03_CLOSED` · `NO_GO_BUFFER_PILOT` · `NO_GO_BUFFER_PRODUCTION`**
 
 Pulse n’est pas utilisé en production. Les données locales sont donc le périmètre validé de l’Étape 1 ; aucun clone ni inventaire d’une production inexistante n’est requis. Ce gate devra être rejoué si des données ou workers Pulse sont introduits en production avant le pilote.
 
@@ -11,7 +11,7 @@ La recette manuelle locale est maintenant ouverte sur le workspace de démonstra
 ```mermaid
 flowchart LR
     E1["✅ ÉTAPE 1/3 — TERMINÉE<br/>Fondation transport + éditoriale<br/>Backfills locaux validés"]
-    E2["🟡 ÉTAPE 2/3 — LOCAL TERMINÉ<br/>Réconciliation + UX + observabilité vertes<br/>Gates distants et H2 en attente"]
+    E2["✅ ÉTAPE 2/3 — TERMINÉE EN LOCAL<br/>Réconciliation + UX + observabilité vertes<br/>Recette locale acceptée par Jules"]
     E3["🟠 ÉTAPE 3/3 — FONDATION LOCALE DURCIE<br/>Control-plane + reprise exacte verts<br/>Exécution pilote/cutover NO-GO"]
     UAT["🟢 RECETTE LOCALE OUVERTE<br/>Buffer réel en lecture + Facebook simulé<br/>Catalogue → import + parcours éditorial"]
 
@@ -45,7 +45,7 @@ flowchart LR
 
 **Sortie acquise : `EDITORIAL_FOUNDATION_LOCAL_GREEN=true`.**
 
-## 🟡 Étape 2/3 — implémentation locale terminée
+## ✅ Étape 2/3 — terminée en local
 
 - [x] Découpler Facebook Data Deletion : une demande Meta visant le login ne supprime aucune connexion de diffusion directe ou Buffer ; seule la suppression complète explicitement configurée reste globale.
 - [x] Valider cette frontière avec 4 tests ciblés / 39 assertions, la matrice Facebook Login + OAuth Pulse (28 / 236) et toute la suite Auth (70 / 525).
@@ -75,13 +75,14 @@ flowchart LR
 - [ ] Fermer les capacités produit et média nécessaires au pilote (`BUF-P0-07/08`) sans diluer l’approbation Malikia.
 - [ ] Brancher le gateway Buffer concret et la réconciliation distante derrière la frontière locale déjà validée, uniquement après fermeture de leurs gates ; ne jamais exposer le schéma Buffer au domaine ou à Vue.
 - [x] Ajouter une découverte locale explicitement activée par clé personnelle : compte, organisations, canaux et import idempotent, sans secret frontend ni activation de livraison.
+- [x] Clôturer la recette locale sur le GO explicite de Jules du 29 août 2026.
 - [ ] Ajouter OAuth Buffer multi-utilisateur et la synchronisation persistante d’un grant partagé, désactivés par défaut, après le GO d’intégration distante.
 - [ ] Réaliser et figer les preuves exactes owner + shadow avant H2 ; aucune modification de mapping n’est permise après signature.
 - [x] Conserver l’approbation éditoriale dans Malikia : l’outbox ne reçoit que la révision immuable déjà approuvée.
 - [x] Garder la livraison Buffer structurellement inatteignable : aucun binding ni consumer de création ; seules les routes locales owner-only de catalogue/import utilisent le credential serveur. Le social login utilisateur reste hors périmètre.
 - [ ] **H2 — validation humaine unique :** Jules valide les tests, l’UX et les preuves de sécurité, puis accorde ou refuse le GO pilote.
 
-**Verdict : tout le travail local légitime de l’Étape 2 est terminé. La sortie canonique exige encore les preuves fournisseur, le gateway concret puis H2 ; les NO-GO empêchent donc de commencer le pilote de l’Étape 3.**
+**Verdict : l’Étape 2 locale est clôturée. Le runtime Buffer réel et le pilote restent hors de cette clôture locale.**
 
 ## 🟠 Étape 3/3 — fondation locale terminée, exécution NO-GO
 
