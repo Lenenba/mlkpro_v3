@@ -1,10 +1,10 @@
 # Malikia Pulse — avancement visuel
 
-**État au 29 août 2026 : `PULSE_LOCAL_ACCEPTANCE_READY` · `GO_BUFFER_LOCAL_DISCOVERY` · `BUFFER_LOCAL_CATALOG_LIVE_GREEN` · `BUFFER_CHANNEL_IMPORT_LOCAL_GREEN` · `BUFFER_DELIVERY_DISABLED` · `MACRO_STEP_1_COMPLETE` · `MACRO_STEP_2_LOCAL_COMPLETE` · `PROVIDER_NEUTRAL_RECONCILIATION_LOCAL_GREEN` · `PULSE_STATUS_AXES_UX_GREEN` · `PULSE_SCHEDULING_TIMEZONE_GREEN` · `PULSE_DELIVERY_OBSERVABILITY_GREEN` · `MACRO_STEP_3_LOCAL_CONTROL_PLANE_GREEN` · `MACRO_STEP_3_OPERATIONAL_NO_GO` · `BUF_P0_03_CLOSED` · `NO_GO_BUFFER_PILOT` · `NO_GO_BUFFER_PRODUCTION`**
+**État au 29 août 2026 : `PULSE_LOCAL_ACCEPTANCE_READY` · `GO_BUFFER_LOCAL_DISCOVERY` · `BUFFER_LOCAL_CATALOG_LIVE_GREEN` · `BUFFER_CHANNEL_IMPORT_LOCAL_GREEN` · `BUFFER_DELIVERY_DISABLED` · `MACRO_STEP_1_COMPLETE` · `MACRO_STEP_2_LOCAL_COMPLETE` · `PROVIDER_NEUTRAL_RECONCILIATION_LOCAL_GREEN` · `PULSE_STATUS_AXES_UX_GREEN` · `PULSE_SCHEDULING_TIMEZONE_GREEN` · `PULSE_DELIVERY_OBSERVABILITY_GREEN` · `MACRO_STEP_3_LOCAL_COMPLETE` · `MACRO_STEP_3_OPERATIONAL_NO_GO` · `BUF_P0_03_CLOSED` · `NO_GO_BUFFER_PILOT` · `NO_GO_BUFFER_PRODUCTION`**
 
 Pulse n’est pas utilisé en production. Les données locales sont donc le périmètre validé de l’Étape 1 ; aucun clone ni inventaire d’une production inexistante n’est requis. Ce gate devra être rejoué si des données ou workers Pulse sont introduits en production avant le pilote.
 
-La fondation locale de l’Étape 3 est prête et sa machine d’état est durcie : hold/reprise du transport exact, mesures canary obligatoires et état distinct d’attente H3. Son exécution ne peut toutefois pas commencer avant le gateway Buffer réel, les preuves owner/shadow et H2. Aucun pilote, cutover, drain ou retrait du direct n’est déclaré réalisé.
+La fondation locale de l’Étape 3 est clôturée et sa machine d’état est durcie : hold/reprise du transport exact, mesures canary obligatoires et état distinct d’attente H3. Son exécution ne peut toutefois pas commencer avant le gateway Buffer réel, les preuves owner/shadow et H2. Aucun pilote, cutover, drain ou retrait du direct n’est déclaré réalisé.
 
 La recette manuelle locale est maintenant ouverte sur le workspace de démonstration Studio Naya : entitlement `social` actif, connexion Facebook de test active sur le transport local `direct_v1`, rôles distincts publication/approbation préparés, worker et scheduler en cours d’exécution. La publication reste simulée, mais l’écran Comptes peut désormais interroger réellement Buffer en lecture seule, afficher le compte, ses organisations et ses canaux, puis importer un canal comme cible inactive de catalogue.
 
@@ -12,7 +12,7 @@ La recette manuelle locale est maintenant ouverte sur le workspace de démonstra
 flowchart LR
     E1["✅ ÉTAPE 1/3 — TERMINÉE<br/>Fondation transport + éditoriale<br/>Backfills locaux validés"]
     E2["✅ ÉTAPE 2/3 — TERMINÉE EN LOCAL<br/>Réconciliation + UX + observabilité vertes<br/>Recette locale acceptée par Jules"]
-    E3["🟠 ÉTAPE 3/3 — FONDATION LOCALE DURCIE<br/>Control-plane + reprise exacte verts<br/>Exécution pilote/cutover NO-GO"]
+    E3["✅ ÉTAPE 3/3 — TERMINÉE EN LOCAL<br/>Control-plane + reprise exacte verts<br/>Exécution pilote/cutover NO-GO"]
     UAT["🟢 RECETTE LOCALE OUVERTE<br/>Buffer réel en lecture + Facebook simulé<br/>Catalogue → import + parcours éditorial"]
 
     E1 --> E2 --> E3
@@ -84,7 +84,7 @@ flowchart LR
 
 **Verdict : l’Étape 2 locale est clôturée. Le runtime Buffer réel et le pilote restent hors de cette clôture locale.**
 
-## 🟠 Étape 3/3 — fondation locale terminée, exécution NO-GO
+## ✅ Étape 3/3 — terminée en local, exécution NO-GO
 
 - [x] Ajouter un registre de cutover, des mappings et des événements par migration additive, avec FK composites tenant-scopées et audit immuable.
 - [x] Exiger un mapping Facebook exact par connexion + `logical_destination_key`, une preuve shadow complète et la couverture de toutes les connexions directes actives ; lier H2 au SHA-256 déterministe du manifeste exact, jusque dans les mutations de la même seconde.
@@ -102,6 +102,7 @@ flowchart LR
 - [x] Isoler les tests de migration sur leur préhistoire chronologique, sans charger des migrations futures qui dépendent précisément du schéma retiré par le scénario.
 - [x] Fermer l’incident MySQL `1059` : contraintes et index explicitement nommés sous 64 caractères, état DDL partiel refusé avant écriture, récupération protégée sur les trois tables, migrations réelles `045009` et `061232` appliquées localement.
 - [x] Valider le cœur local : 33 tests / 408 assertions ; matrice Social/Pulse 405 / 4 114 ; migrations sur MySQL isolé 2 / 105 ; 13 tests frontend ciblés et build Vite vert ; PHPStan 942/942 ; aucun P0/P1 reproductible aux contre-audits finaux.
+- [x] Clôturer la préparation locale sur le GO explicite de Jules du 29 août 2026.
 - [ ] Fermer l’Étape 2 opérationnelle : gateway/OAuth/canal Buffer réels, preuves fournisseur et owner/shadow, puis **H2 par Jules**.
 - [x] Implémenter avant activation la reprise opérateur d’un hold vers le même transport candidat ; aucun fallback direct automatique.
 - [ ] Exécuter le pilote Facebook borné, observer le canary et prouver le RTO sur le runtime réellement déployé.
@@ -109,4 +110,4 @@ flowchart LR
 - [ ] **H3 — validation humaine unique :** Jules accorde ou refuse le GO général et le retrait du direct sur les preuves du pilote et du drain.
 - [ ] Retirer seulement après H3 le code, la configuration et les secrets directs devenus prouvablement morts, sans toucher au social login utilisateur.
 
-**Verdict : la préparation locale de l’Étape 3 est terminée. La sortie métier de l’Étape 3 reste non acquise et volontairement bloquée tant que le pilote réel, le drain et H3 ne sont pas prouvés.**
+**Verdict : l’Étape 3 locale est clôturée. Le pilote réel, le cutover, le drain, H3 et le retrait du direct restent hors de cette clôture locale.**
