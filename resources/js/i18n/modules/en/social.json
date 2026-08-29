@@ -983,6 +983,7 @@
     "buffer_connector": {
       "local_mode": "Real local test",
       "oauth_mode": "Buffer OAuth",
+      "delivery_enabled": "Publishing enabled",
       "delivery_disabled": "Publishing disabled",
       "loading": "Loading Buffer accounts.",
       "opens_new_tab": "Opens in a new tab",
@@ -1000,6 +1001,8 @@
       "actions": {
         "connect": "Connect Buffer",
         "connecting": "Connecting...",
+        "enable_publishing": "Enable publishing",
+        "enabling_publishing": "Authorizing...",
         "view_accounts": "View my accounts",
         "refresh": "Resync",
         "disconnect": "Disconnect",

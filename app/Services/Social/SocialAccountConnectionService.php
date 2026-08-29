@@ -3,6 +3,7 @@
 namespace App\Services\Social;
 
 use App\Models\SocialAccountConnection;
+use App\Models\SocialBufferConnection;
 use App\Models\SocialDeliveryOutbox;
 use App\Models\SocialTransportCutoverMapping;
 use App\Models\User;
@@ -65,6 +66,58 @@ class SocialAccountConnectionService
     public function listPayloads(User $owner): array
     {
         return $this->listForOwner($owner)
+            ->map(fn (SocialAccountConnection $connection) => $this->payload($connection))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function listPublishingPayloads(User $owner): array
+    {
+        $connections = $this->listForOwner($owner);
+        $bufferPublishingIsAuthorized = (bool) config('services.buffer.delivery.enabled', false)
+            && SocialBufferConnection::query()
+                ->whereBelongsTo($owner)
+                ->get()
+                ->contains(fn (SocialBufferConnection $connection): bool => (
+                    $connection->isConnected()
+                    && in_array('posts:write', (array) $connection->scopes, true)
+                ));
+        $bufferPlatforms = $bufferPublishingIsAuthorized
+            ? $connections
+                ->filter(fn (SocialAccountConnection $connection): bool => (
+                    $connection->is_active
+                    && $connection->status === SocialAccountConnection::STATUS_CONNECTED
+                    && $connection->delivery_provider
+                        === SocialAccountConnection::DELIVERY_PROVIDER_BUFFER
+                    && $connection->transport_generation
+                        === SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1
+                    && (bool) data_get(
+                        $connection->metadata,
+                        'buffer.standalone_destination',
+                        false,
+                    )
+                    && (bool) data_get(
+                        $connection->metadata,
+                        'buffer.publication_enabled',
+                        false,
+                    )
+                    && ! (bool) data_get($connection->metadata, 'buffer.catalog_only', true)
+                ))
+                ->pluck('platform')
+                ->unique()
+            : collect();
+
+        return $connections
+            ->reject(fn (SocialAccountConnection $connection): bool => (
+                $bufferPlatforms->containsStrict((string) $connection->platform)
+                && $connection->delivery_provider
+                    === SocialAccountConnection::DELIVERY_PROVIDER_DIRECT
+                && $connection->transport_generation
+                    === SocialAccountConnection::TRANSPORT_GENERATION_DIRECT_V1
+            ))
             ->map(fn (SocialAccountConnection $connection) => $this->payload($connection))
             ->values()
             ->all();

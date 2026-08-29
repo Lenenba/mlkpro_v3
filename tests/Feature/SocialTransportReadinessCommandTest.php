@@ -338,9 +338,11 @@ it('opens the H3 dossier only from a proven completed drain snapshot', function 
         ->and($report['legacy_drain']['blockers'])->toBe([])
         ->and($report['h3']['ready'])->toBeFalse()
         ->and($report['h3']['blockers'])->toContain(
+            'candidate_submission_handler_unavailable',
+        )
+        ->and($report['h3']['blockers'])->not->toContain(
             'candidate_distribution_gateway_unbound',
             'candidate_status_gateway_unbound',
-            'candidate_submission_handler_unavailable',
         )
         ->and($report['canary']['ready'])->toBeFalse()
         ->and($report['canary']['blockers'])->toContain('candidate_submission_handler_unavailable');

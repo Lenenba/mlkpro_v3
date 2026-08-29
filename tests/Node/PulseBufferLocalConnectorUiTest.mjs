@@ -41,20 +41,39 @@ test('the Buffer card connects, disconnects, lists and imports channels without 
     assert.match(bufferConnector, /v-if="props\.canManage && !isConnected"/u);
     assert.match(bufferConnector, /:disabled="!canConnect \|\| busy"/u);
     assert.match(bufferConnector, /v-if="props\.canManage && isConnected && canDisconnect"/u);
+    assert.match(
+        bufferConnector,
+        /const isDeliveryEnabled = computed\(\(\) => Boolean\(connector\.value\?\.delivery_enabled\)\)/u,
+    );
+    assert.match(
+        bufferConnector,
+        /const isDeliveryAuthorized = computed\(\(\) => Boolean\(connector\.value\?\.delivery_authorized\)\)/u,
+    );
+    assert.match(
+        bufferConnector,
+        /v-if="props\.canManage && connector\.mode === 'oauth' && isConnected && !isDeliveryAuthorized"/u,
+    );
+    assert.match(bufferConnector, /social\.buffer_connector\.actions\.enable_publishing/u);
+    assert.match(
+        bufferConnector,
+        /isDeliveryEnabled[\s\S]*?social\.buffer_connector\.delivery_enabled[\s\S]*?social\.buffer_connector\.delivery_disabled/u,
+    );
     assert.doesNotMatch(bufferConnector, /connector\.manage_url/u);
     assert.doesNotMatch(bufferConnector, /access[_-]?token/iu);
     assert.doesNotMatch(bufferConnector, /BUFFER_/u);
 });
 
-test('every locale explains OAuth connection and the disabled Buffer delivery boundary', () => {
+test('every locale explains OAuth connection and both Buffer delivery states', () => {
     for (const locale of ['fr', 'en', 'es']) {
         const translations = readJson(`resources/js/i18n/modules/${locale}/social.json`)
             .social.buffer_connector;
 
         assert.equal(typeof translations.title, 'string', `${locale}:title`);
+        assert.equal(typeof translations.delivery_enabled, 'string', `${locale}:delivery_enabled`);
         assert.equal(typeof translations.delivery_disabled, 'string', `${locale}:delivery_disabled`);
         assert.equal(typeof translations.oauth_mode, 'string', `${locale}:oauth_mode`);
         assert.equal(typeof translations.actions.connect, 'string', `${locale}:connect`);
+        assert.equal(typeof translations.actions.enable_publishing, 'string', `${locale}:enable_publishing`);
         assert.equal(typeof translations.actions.disconnect, 'string', `${locale}:disconnect`);
         assert.equal(typeof translations.actions.add_in_buffer, 'string', `${locale}:add_in_buffer`);
         assert.equal(typeof translations.actions.import, 'string', `${locale}:import`);

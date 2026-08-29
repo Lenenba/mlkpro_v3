@@ -2,8 +2,10 @@
 
 namespace App\Services\Social\Buffer;
 
+use App\Models\SocialAccountConnection;
 use App\Models\SocialBufferConnection;
 use App\Models\User;
+use App\Services\Social\SocialConnectionDeliveryMutex;
 use Closure;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Client\ConnectionException;
@@ -25,6 +27,7 @@ final class BufferOAuthService
 
     public function __construct(
         private readonly BufferGraphqlClient $client,
+        private readonly SocialConnectionDeliveryMutex $deliveryMutex,
     ) {}
 
     public function isConfigured(): bool
@@ -125,7 +128,7 @@ final class BufferOAuthService
 
     /**
      * @param  array<string, mixed>  $payload
-     * @return array{success: true, message: string}
+     * @return array{success: true, message: string, owner_id: int}
      */
     public function completeAuthorization(array $payload): array
     {
@@ -187,6 +190,7 @@ final class BufferOAuthService
                 return [
                     'success' => true,
                     'message' => 'Le compte Buffer est connecté.',
+                    'owner_id' => $claim['user_id'],
                 ];
             });
         } catch (ValidationException $exception) {
@@ -219,18 +223,112 @@ final class BufferOAuthService
         return $this->refreshAccessToken($owner);
     }
 
+    /**
+     * @param  list<string>  $requiredScopes
+     */
+    public function hasGrantedScopes(User $owner, array $requiredScopes): bool
+    {
+        $connection = SocialBufferConnection::query()
+            ->whereBelongsTo($owner)
+            ->first();
+
+        if (! $connection?->isConnected()) {
+            return false;
+        }
+
+        $grantedScopes = collect((array) $connection->scopes)
+            ->filter(fn (mixed $scope): bool => is_string($scope))
+            ->map(fn (string $scope): string => trim($scope))
+            ->filter()
+            ->unique();
+
+        return collect($requiredScopes)
+            ->filter(fn (mixed $scope): bool => is_string($scope))
+            ->map(fn (string $scope): string => trim($scope))
+            ->filter()
+            ->every(fn (string $scope): bool => $grantedScopes->containsStrict($scope));
+    }
+
     public function disconnect(User $owner): void
     {
-        $this->withOwnerLock((int) $owner->id, function () use ($owner): void {
-            DB::transaction(function () use ($owner): void {
-                User::query()->whereKey($owner->id)->lockForUpdate()->firstOrFail();
+        $tenantLock = $this->deliveryMutex->acquireTenant((int) $owner->id);
 
-                SocialBufferConnection::query()
-                    ->whereBelongsTo($owner)
-                    ->lockForUpdate()
-                    ->first()?->delete();
-            }, 3);
-        });
+        if ($tenantLock === null) {
+            throw ValidationException::withMessages([
+                'buffer' => 'Une publication Pulse est en cours. Réessayez la déconnexion dans un instant.',
+            ]);
+        }
+
+        $connectionLocks = [];
+
+        try {
+            $connectionIds = SocialAccountConnection::query()
+                ->byUser($owner->id)
+                ->where(function ($query): void {
+                    $query
+                        ->where('delivery_provider', SocialAccountConnection::DELIVERY_PROVIDER_BUFFER)
+                        ->orWhere('metadata->buffer->catalog_only', true);
+                })
+                ->orderBy('id')
+                ->pluck('id');
+
+            foreach ($connectionIds as $connectionId) {
+                $connectionLock = $this->deliveryMutex->acquire((int) $connectionId);
+
+                if ($connectionLock === null) {
+                    throw ValidationException::withMessages([
+                        'buffer' => 'Une publication Buffer est en cours. Réessayez la déconnexion dans un instant.',
+                    ]);
+                }
+
+                $connectionLocks[] = $connectionLock;
+            }
+
+            $this->withOwnerLock((int) $owner->id, function () use ($owner): void {
+                DB::transaction(function () use ($owner): void {
+                    User::query()->whereKey($owner->id)->lockForUpdate()->firstOrFail();
+
+                    $connections = SocialAccountConnection::query()
+                        ->byUser($owner->id)
+                        ->where(function ($query): void {
+                            $query
+                                ->where('delivery_provider', SocialAccountConnection::DELIVERY_PROVIDER_BUFFER)
+                                ->orWhere('metadata->buffer->catalog_only', true);
+                        })
+                        ->lockForUpdate()
+                        ->get();
+
+                    foreach ($connections as $connection) {
+                        $metadata = (array) ($connection->metadata ?? []);
+                        $bufferMetadata = (array) data_get($metadata, 'buffer', []);
+
+                        $connection->forceFill([
+                            'status' => SocialAccountConnection::STATUS_RECONNECT_REQUIRED,
+                            'is_active' => false,
+                            'last_error' => 'Reconnectez Buffer avant la prochaine publication.',
+                            'metadata' => [
+                                ...$metadata,
+                                'buffer' => [
+                                    ...$bufferMetadata,
+                                    'publication_enabled' => false,
+                                ],
+                            ],
+                        ])->save();
+                    }
+
+                    SocialBufferConnection::query()
+                        ->whereBelongsTo($owner)
+                        ->lockForUpdate()
+                        ->first()?->delete();
+                }, 3);
+            });
+        } finally {
+            foreach (array_reverse($connectionLocks) as $connectionLock) {
+                $connectionLock->release();
+            }
+
+            $tenantLock->release();
+        }
     }
 
     private function refreshAccessToken(User $owner): string
@@ -570,6 +668,8 @@ final class BufferOAuthService
     {
         $configured = config('services.buffer.oauth.scopes', [
             'account:read',
+            'posts:read',
+            'posts:write',
             'offline_access',
         ]);
 

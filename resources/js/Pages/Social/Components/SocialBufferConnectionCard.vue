@@ -32,6 +32,8 @@ const isAvailable = computed(() => Boolean(connector.value?.available));
 const isConnected = computed(() => Boolean(connector.value?.connected));
 const canConnect = computed(() => Boolean(connector.value?.can_connect));
 const canDisconnect = computed(() => Boolean(connector.value?.can_disconnect));
+const isDeliveryAuthorized = computed(() => Boolean(connector.value?.delivery_authorized));
+const isDeliveryEnabled = computed(() => Boolean(connector.value?.delivery_enabled));
 const hasCatalog = computed(() => catalog.value !== null);
 const busy = computed(() => (
     loading.value
@@ -181,8 +183,15 @@ const channelHealthToneClass = (channel) => {
                                 ? t('social.buffer_connector.states.connected')
                                 : t('social.buffer_connector.states.disconnected_account') }}
                         </span>
-                        <span class="rounded-sm border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
-                            {{ t('social.buffer_connector.delivery_disabled') }}
+                        <span
+                            class="rounded-sm border px-2.5 py-1 text-xs font-medium"
+                            :class="isDeliveryEnabled
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'
+                                : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300'"
+                        >
+                            {{ isDeliveryEnabled
+                                ? t('social.buffer_connector.delivery_enabled')
+                                : t('social.buffer_connector.delivery_disabled') }}
                         </span>
                     </div>
 
@@ -223,6 +232,19 @@ const channelHealthToneClass = (channel) => {
                         {{ connecting
                             ? t('social.buffer_connector.actions.connecting')
                             : t('social.buffer_connector.actions.connect') }}
+                    </PrimaryButton>
+
+                    <PrimaryButton
+                        v-if="props.canManage && connector.mode === 'oauth' && isConnected && !isDeliveryAuthorized"
+                        type="button"
+                        class="w-full justify-center sm:w-auto"
+                        :disabled="!canConnect || busy"
+                        @click="connectBuffer"
+                    >
+                        <LogIn class="mr-2 size-4" />
+                        {{ connecting
+                            ? t('social.buffer_connector.actions.enabling_publishing')
+                            : t('social.buffer_connector.actions.enable_publishing') }}
                     </PrimaryButton>
 
                     <PrimaryButton

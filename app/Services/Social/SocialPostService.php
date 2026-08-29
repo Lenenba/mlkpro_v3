@@ -156,7 +156,7 @@ class SocialPostService
      */
     public function connectedAccountOptions(User $owner): array
     {
-        return collect($this->connectionService->listPayloads($owner))
+        return collect($this->connectionService->listPublishingPayloads($owner))
             ->filter(fn (array $connection): bool => (bool) ($connection['is_connected'] ?? false))
             ->map(function (array $connection): array {
                 return [
@@ -884,8 +884,16 @@ class SocialPostService
 
     private function assertConnectionTransportReady(SocialAccountConnection $connection): void
     {
-        if ((string) $connection->delivery_provider !== SocialAccountConnection::DELIVERY_PROVIDER_DIRECT
-            || (string) $connection->transport_generation !== SocialAccountConnection::TRANSPORT_GENERATION_DIRECT_V1
+        $usesDirectTransport = (string) $connection->delivery_provider
+                === SocialAccountConnection::DELIVERY_PROVIDER_DIRECT
+            && (string) $connection->transport_generation
+                === SocialAccountConnection::TRANSPORT_GENERATION_DIRECT_V1;
+        $usesBufferTransport = (string) $connection->delivery_provider
+                === SocialAccountConnection::DELIVERY_PROVIDER_BUFFER
+            && (string) $connection->transport_generation
+                === SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1;
+
+        if ((! $usesDirectTransport && ! $usesBufferTransport)
             || preg_match('/\Aldk:v1:[0-9a-f]{64}\z/', (string) $connection->logical_destination_key) !== 1) {
             throw ValidationException::withMessages([
                 'target_connection_ids' => 'Reconnect this social account before selecting it for a Pulse post.',

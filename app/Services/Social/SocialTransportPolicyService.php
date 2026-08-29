@@ -3,6 +3,7 @@
 namespace App\Services\Social;
 
 use App\Models\SocialAccountConnection;
+use App\Models\SocialBufferConnection;
 use App\Models\SocialTransportCutover;
 use App\Models\SocialTransportCutoverMapping;
 use Carbon\CarbonInterface;
@@ -21,7 +22,17 @@ class SocialTransportPolicyService
         $cutover = $this->cutoverForTenant($tenantId);
 
         if ($cutover === null) {
-            return $transportGeneration === SocialAccountConnection::TRANSPORT_GENERATION_DIRECT_V1;
+            return ($transportGeneration === SocialAccountConnection::TRANSPORT_GENERATION_DIRECT_V1
+                    && ! $this->directConnectionIsSupersededByBuffer(
+                        $tenantId,
+                        $connectionId,
+                    ))
+                || ($transportGeneration === SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1
+                    && $this->standaloneBufferConnectionIsAuthorized(
+                        $tenantId,
+                        $connectionId,
+                        $logicalDestinationKey,
+                    ));
         }
 
         if (! $this->isAuthorizedRuntimeState($cutover)) {
@@ -64,7 +75,13 @@ class SocialTransportPolicyService
         $cutover = $this->cutoverForTenant($tenantId);
 
         if ($cutover === null) {
-            return $transportGeneration === SocialAccountConnection::TRANSPORT_GENERATION_DIRECT_V1;
+            return $transportGeneration === SocialAccountConnection::TRANSPORT_GENERATION_DIRECT_V1
+                || ($transportGeneration === SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1
+                    && $this->standaloneBufferConnectionIsAuthorized(
+                        $tenantId,
+                        $connectionId,
+                        $logicalDestinationKey,
+                    ));
         }
 
         if (! $this->isAuthorizedRuntimeState($cutover)) {
@@ -187,6 +204,91 @@ class SocialTransportPolicyService
             ->first();
 
         return $mapping !== null && $this->mappingIsAuthorized($cutover, $mapping);
+    }
+
+    private function standaloneBufferConnectionIsAuthorized(
+        int $tenantId,
+        ?int $connectionId,
+        ?string $logicalDestinationKey,
+    ): bool {
+        if (! (bool) config('services.buffer.delivery.enabled', false)
+            || $connectionId === null
+            || $connectionId <= 0
+            || preg_match('/\Aldk:v1:[0-9a-f]{64}\z/', (string) $logicalDestinationKey) !== 1) {
+            return false;
+        }
+
+        $connection = SocialAccountConnection::query()
+            ->whereKey($connectionId)
+            ->where('user_id', $tenantId)
+            ->where('platform', SocialAccountConnection::PLATFORM_FACEBOOK)
+            ->where('delivery_provider', SocialAccountConnection::DELIVERY_PROVIDER_BUFFER)
+            ->where(
+                'transport_generation',
+                SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1,
+            )
+            ->where('logical_destination_key', $logicalDestinationKey)
+            ->connected()
+            ->first();
+
+        if (! $connection instanceof SocialAccountConnection
+            || ! (bool) data_get($connection->metadata, 'buffer.standalone_destination', false)
+            || ! (bool) data_get($connection->metadata, 'buffer.publication_enabled', false)
+            || (bool) data_get($connection->metadata, 'buffer.catalog_only', true)) {
+            return false;
+        }
+
+        $grant = SocialBufferConnection::query()
+            ->where('user_id', $tenantId)
+            ->first();
+
+        return $grant?->isConnected() === true
+            && in_array('posts:write', (array) $grant->scopes, true)
+            && SocialAccountConnection::query()
+                ->where('user_id', $tenantId)
+                ->where('logical_destination_key', $logicalDestinationKey)
+                ->count() === 1;
+    }
+
+    private function directConnectionIsSupersededByBuffer(
+        int $tenantId,
+        ?int $connectionId,
+    ): bool {
+        if ($connectionId === null || $connectionId <= 0) {
+            return false;
+        }
+
+        $platform = SocialAccountConnection::query()
+            ->whereKey($connectionId)
+            ->where('user_id', $tenantId)
+            ->where('delivery_provider', SocialAccountConnection::DELIVERY_PROVIDER_DIRECT)
+            ->where(
+                'transport_generation',
+                SocialAccountConnection::TRANSPORT_GENERATION_DIRECT_V1,
+            )
+            ->value('platform');
+
+        if (! is_string($platform) || $platform === '') {
+            return false;
+        }
+
+        return SocialAccountConnection::query()
+            ->where('user_id', $tenantId)
+            ->where('platform', $platform)
+            ->where('delivery_provider', SocialAccountConnection::DELIVERY_PROVIDER_BUFFER)
+            ->where(
+                'transport_generation',
+                SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1,
+            )
+            ->connected()
+            ->get()
+            ->contains(fn (SocialAccountConnection $connection): bool => (
+                $this->standaloneBufferConnectionIsAuthorized(
+                    $tenantId,
+                    (int) $connection->id,
+                    (string) $connection->logical_destination_key,
+                )
+            ));
     }
 
     private function candidateMappingsAreAuthorized(SocialTransportCutover $cutover): bool

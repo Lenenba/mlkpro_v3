@@ -218,7 +218,10 @@ class SocialTransportReadinessService
             'status_gateway_bound' => $this->container->bound(
                 SocialDeliveryStatusGatewayInterface::class,
             ),
-            'submission_handler_available' => false,
+            'submission_handler_available' => (bool) config(
+                'services.buffer.delivery.enabled',
+                false,
+            ) && $this->container->bound(SocialDistributionGatewayInterface::class),
         ];
 
         $canaryBlockers = [];

@@ -3,16 +3,24 @@
 namespace App\Services\Social\Buffer;
 
 use App\Models\SocialAccountConnection;
+use App\Models\SocialBufferConnection;
 use App\Models\User;
+use App\Services\Social\SocialConnectionDeliveryMutex;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 final class BufferLocalConnectorService
 {
+    /** @var list<string> */
+    private const DELIVERY_PLATFORMS = [
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+    ];
+
     public function __construct(
         private readonly BufferGraphqlClient $client,
         private readonly BufferOAuthService $oauth,
+        private readonly SocialConnectionDeliveryMutex $deliveryMutex,
     ) {}
 
     /**
@@ -22,7 +30,7 @@ final class BufferLocalConnectorService
      *     available: bool,
      *     local_only: bool,
      *     mode: string,
-     *     delivery_enabled: false,
+     *     delivery_enabled: bool,
      *     oauth_configured: bool,
      *     connected: bool,
      *     authorizing: bool,
@@ -36,6 +44,7 @@ final class BufferLocalConnectorService
     {
         if ($owner !== null && $this->oauth->isConfigured()) {
             $oauthStatus = $this->oauth->status($owner);
+            $deliveryAuthorized = $this->deliveryIsAuthorized($owner);
 
             return [
                 'enabled' => true,
@@ -43,7 +52,9 @@ final class BufferLocalConnectorService
                 'available' => $oauthStatus['connected'],
                 'local_only' => false,
                 'mode' => 'oauth',
-                'delivery_enabled' => false,
+                'delivery_enabled' => $deliveryAuthorized
+                    && $this->hasActiveDeliveryConnection($owner),
+                'delivery_authorized' => $deliveryAuthorized,
                 ...$oauthStatus,
             ];
         }
@@ -88,9 +99,19 @@ final class BufferLocalConnectorService
         $account = $this->client->account($accessToken);
         $importedConnections = SocialAccountConnection::query()
             ->byUser($owner->id)
-            ->get(['id', 'external_account_id', 'metadata'])
+            ->get([
+                'id',
+                'external_account_id',
+                'delivery_provider',
+                'transport_generation',
+                'logical_destination_key',
+                'status',
+                'is_active',
+                'metadata',
+            ])
             ->filter(fn (SocialAccountConnection $connection): bool => (
-                (bool) data_get($connection->metadata, 'buffer.catalog_only', false)
+                $this->isBufferManagedConnection($connection)
+                || (bool) data_get($connection->metadata, 'buffer.catalog_only', false)
             ))
             ->keyBy('external_account_id');
         $organizations = [];
@@ -196,7 +217,9 @@ final class BufferLocalConnectorService
                 ->lockForUpdate()
                 ->first();
 
-            if ($connection !== null && ! $this->isMutableCatalogImport($connection)) {
+            if ($connection !== null
+                && ! $this->isMutableCatalogImport($connection)
+                && ! $this->isBufferManagedConnection($connection)) {
                 throw ValidationException::withMessages([
                     'channel_id' => 'Ce canal est déjà lié à une connexion Pulse qui ne peut pas être remplacée.',
                 ]);
@@ -209,16 +232,34 @@ final class BufferLocalConnectorService
             ]);
 
             $existingMetadata = (array) ($connection->metadata ?? []);
+            $existingBufferMetadata = (array) data_get($existingMetadata, 'buffer', []);
+            $canActivateDelivery = $this->deliveryIsAuthorized($owner)
+                && in_array($platform, self::DELIVERY_PLATFORMS, true);
+            $hasManagedIdentity = $this->isBufferManagedConnection($connection);
+            $logicalDestinationKey = $hasManagedIdentity
+                ? (string) $connection->logical_destination_key
+                : ($canActivateDelivery ? $this->newLogicalDestinationKey() : null);
 
             $connection->fill([
                 'label' => $this->limit((string) ($channel['display_name'] ?: $channel['name']), 120),
                 'display_name' => $this->limit((string) ($channel['display_name'] ?: $channel['name']), 191),
                 'account_handle' => $this->limit($channel['name'], 191),
-                'auth_method' => SocialAccountConnection::AUTH_METHOD_MANUAL,
+                'delivery_provider' => $hasManagedIdentity || $canActivateDelivery
+                    ? SocialAccountConnection::DELIVERY_PROVIDER_BUFFER
+                    : null,
+                'transport_generation' => $hasManagedIdentity || $canActivateDelivery
+                    ? SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1
+                    : null,
+                'logical_destination_key' => $logicalDestinationKey,
+                'auth_method' => $this->oauth->isConfigured()
+                    ? SocialAccountConnection::AUTH_METHOD_OAUTH
+                    : SocialAccountConnection::AUTH_METHOD_MANUAL,
                 'credentials' => null,
                 'permissions' => $channel['scopes'],
-                'status' => SocialAccountConnection::STATUS_CONNECTED,
-                'is_active' => false,
+                'status' => $hasManagedIdentity && ! $canActivateDelivery
+                    ? SocialAccountConnection::STATUS_RECONNECT_REQUIRED
+                    : SocialAccountConnection::STATUS_CONNECTED,
+                'is_active' => $canActivateDelivery,
                 'connected_at' => $connection->connected_at ?? now(),
                 'last_synced_at' => now(),
                 'last_error' => null,
@@ -229,6 +270,7 @@ final class BufferLocalConnectorService
                         : 'buffer_local_discovery',
                     'oauth_ready' => $this->oauth->isConfigured(),
                     'buffer' => [
+                        ...$existingBufferMetadata,
                         'account_id' => $account['id'],
                         'organization_id' => $organization['id'],
                         'organization_name' => $organization['name'],
@@ -240,7 +282,9 @@ final class BufferLocalConnectorService
                         'credential_source' => $this->oauth->isConfigured()
                             ? 'oauth_account'
                             : 'server_environment',
-                        'catalog_only' => true,
+                        'catalog_only' => ! ($hasManagedIdentity || $canActivateDelivery),
+                        'publication_enabled' => $canActivateDelivery,
+                        'standalone_destination' => $hasManagedIdentity || $canActivateDelivery,
                     ],
                 ],
             ]);
@@ -248,6 +292,78 @@ final class BufferLocalConnectorService
 
             return $connection->fresh();
         });
+    }
+
+    public function activateImportedChannels(User $owner): int
+    {
+        $tenantLock = $this->deliveryMutex->acquireTenant((int) $owner->id);
+
+        if ($tenantLock === null) {
+            throw ValidationException::withMessages([
+                'buffer' => 'Une publication Pulse est en cours. Réessayez l’activation dans un instant.',
+            ]);
+        }
+
+        try {
+            if (! $this->deliveryIsAuthorized($owner)) {
+                return 0;
+            }
+
+            return DB::transaction(function () use ($owner): int {
+                User::query()->whereKey($owner->id)->lockForUpdate()->firstOrFail();
+                $bufferAccountId = (string) SocialBufferConnection::query()
+                    ->whereBelongsTo($owner)
+                    ->value('buffer_account_id');
+
+                $connections = SocialAccountConnection::query()
+                    ->byUser($owner->id)
+                    ->whereIn('platform', self::DELIVERY_PLATFORMS)
+                    ->lockForUpdate()
+                    ->get()
+                    ->filter(fn (SocialAccountConnection $connection): bool => (
+                        ($this->isMutableCatalogImport($connection)
+                            || $this->isBufferManagedConnection($connection))
+                        && $bufferAccountId !== ''
+                        && hash_equals(
+                            $bufferAccountId,
+                            (string) data_get($connection->metadata, 'buffer.account_id'),
+                        )
+                    ));
+
+                foreach ($connections as $connection) {
+                    $metadata = (array) ($connection->metadata ?? []);
+                    $bufferMetadata = (array) data_get($metadata, 'buffer', []);
+                    $hasManagedIdentity = $this->isBufferManagedConnection($connection);
+
+                    $connection->forceFill([
+                        'delivery_provider' => SocialAccountConnection::DELIVERY_PROVIDER_BUFFER,
+                        'transport_generation' => SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1,
+                        'logical_destination_key' => $hasManagedIdentity
+                            ? $connection->logical_destination_key
+                            : $this->newLogicalDestinationKey(),
+                        'auth_method' => SocialAccountConnection::AUTH_METHOD_OAUTH,
+                        'status' => SocialAccountConnection::STATUS_CONNECTED,
+                        'is_active' => true,
+                        'last_synced_at' => now(),
+                        'last_error' => null,
+                        'metadata' => [
+                            ...$metadata,
+                            'oauth_ready' => true,
+                            'buffer' => [
+                                ...$bufferMetadata,
+                                'catalog_only' => false,
+                                'publication_enabled' => true,
+                                'standalone_destination' => true,
+                            ],
+                        ],
+                    ])->save();
+                }
+
+                return $connections->count();
+            }, 3);
+        } finally {
+            $tenantLock->release();
+        }
     }
 
     private function isMutableCatalogImport(SocialAccountConnection $connection): bool
@@ -293,7 +409,74 @@ final class BufferLocalConnectorService
             'can_import' => $blockReason === null,
             'import_block_reason' => $blockReason,
             'imported' => $connection !== null,
+            'publication_enabled' => $connection !== null
+                && $this->isBufferManagedConnection($connection)
+                && $connection->is_active
+                && $connection->status === SocialAccountConnection::STATUS_CONNECTED,
         ];
+    }
+
+    private function isBufferManagedConnection(SocialAccountConnection $connection): bool
+    {
+        return (string) $connection->delivery_provider
+                === SocialAccountConnection::DELIVERY_PROVIDER_BUFFER
+            && (string) $connection->transport_generation
+                === SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1
+            && preg_match(
+                '/\Aldk:v1:[0-9a-f]{64}\z/',
+                (string) $connection->logical_destination_key,
+            ) === 1
+            && data_get($connection->metadata, 'buffer.organization_id') !== null;
+    }
+
+    private function deliveryIsAuthorized(User $owner): bool
+    {
+        $requiredScopes = config('services.buffer.delivery.required_scopes', [
+            'posts:read',
+            'posts:write',
+        ]);
+
+        return (bool) config('services.buffer.delivery.enabled', false)
+            && $this->oauth->isConfigured()
+            && $this->oauth->hasGrantedScopes(
+                $owner,
+                is_array($requiredScopes) ? array_values($requiredScopes) : [],
+            );
+    }
+
+    private function hasActiveDeliveryConnection(User $owner): bool
+    {
+        $bufferAccountId = (string) SocialBufferConnection::query()
+            ->whereBelongsTo($owner)
+            ->value('buffer_account_id');
+
+        if ($bufferAccountId === '') {
+            return false;
+        }
+
+        return SocialAccountConnection::query()
+            ->byUser($owner->id)
+            ->where('delivery_provider', SocialAccountConnection::DELIVERY_PROVIDER_BUFFER)
+            ->where(
+                'transport_generation',
+                SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1,
+            )
+            ->connected()
+            ->get(['metadata'])
+            ->contains(fn (SocialAccountConnection $connection): bool => (
+                hash_equals(
+                    $bufferAccountId,
+                    (string) data_get($connection->metadata, 'buffer.account_id'),
+                )
+                && (bool) data_get($connection->metadata, 'buffer.publication_enabled', false)
+                && (bool) data_get($connection->metadata, 'buffer.standalone_destination', false)
+                && ! (bool) data_get($connection->metadata, 'buffer.catalog_only', true)
+            ));
+    }
+
+    private function newLogicalDestinationKey(): string
+    {
+        return 'ldk:v1:'.hash('sha256', random_bytes(32));
     }
 
     private function platformForService(string $service): ?string

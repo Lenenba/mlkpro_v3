@@ -189,7 +189,7 @@ return [
                 static fn (string $scope): string => trim($scope),
                 preg_split('/[\s,]+/', (string) env(
                     'BUFFER_OAUTH_SCOPES',
-                    'account:read offline_access'
+                    'account:read posts:read posts:write offline_access'
                 )) ?: []
             ))),
             'connect_timeout' => env('BUFFER_OAUTH_CONNECT_TIMEOUT', 5),
@@ -202,6 +202,10 @@ return [
             'api_url' => env('BUFFER_LOCAL_CONNECTOR_API_URL', 'https://api.buffer.com'),
             'connect_timeout' => env('BUFFER_LOCAL_CONNECTOR_CONNECT_TIMEOUT', 5),
             'timeout' => env('BUFFER_LOCAL_CONNECTOR_TIMEOUT', 10),
+        ],
+        'delivery' => [
+            'enabled' => env('BUFFER_DELIVERY_ENABLED', false),
+            'required_scopes' => ['posts:read', 'posts:write'],
         ],
     ],
 

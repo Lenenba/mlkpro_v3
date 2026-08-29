@@ -199,6 +199,14 @@ function pulseStep3ReplacementConnection(
         'status' => SocialAccountConnection::STATUS_CONNECTED,
         'is_active' => true,
         'connected_at' => now(),
+        'metadata' => [
+            'buffer' => [
+                'account_id' => 'step3-account-'.$owner->id,
+                'organization_id' => 'step3-organization-'.$owner->id,
+                'catalog_only' => false,
+                'publication_enabled' => true,
+            ],
+        ],
     ]);
 }
 

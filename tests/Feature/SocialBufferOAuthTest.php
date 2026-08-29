@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureTwoFactorVerified;
 use App\Models\Role;
+use App\Models\SocialAccountConnection;
 use App\Models\SocialBufferConnection;
 use App\Models\TeamMember;
 use App\Models\User;
@@ -66,15 +67,16 @@ function startBufferOauth(TestCase $test, User $owner): array
     return array_map(fn (mixed $value): string => (string) $value, $query);
 }
 
-function fakeBufferAccountAndChannels(): void
-{
+function fakeBufferAccountAndChannels(
+    string $scope = 'account:read offline_access',
+): void {
     Http::fake([
         'https://buffer.test/oauth/token' => Http::response([
             'access_token' => 'oauth-access-token',
             'refresh_token' => 'oauth-refresh-token',
             'token_type' => 'Bearer',
             'expires_in' => 3600,
-            'scope' => 'account:read offline_access',
+            'scope' => $scope,
         ]),
         'https://buffer.test/graphql' => function (Request $request) {
             $query = (string) ($request['query'] ?? '');
@@ -223,6 +225,64 @@ it('completes Buffer OAuth through the accounts callback and stores encrypted cr
     ]))->assertRedirect(route('social.accounts.index'));
 
     Http::assertSentCount(2);
+});
+
+it('activates an imported Facebook channel after Buffer grants publishing scopes', function () {
+    $owner = bufferOauthOwner();
+    config()->set('services.buffer.delivery.enabled', true);
+    config()->set('services.buffer.oauth.scopes', [
+        'account:read',
+        'posts:read',
+        'posts:write',
+        'offline_access',
+    ]);
+    $importedChannel = SocialAccountConnection::query()->create([
+        'user_id' => $owner->id,
+        'platform' => SocialAccountConnection::PLATFORM_FACEBOOK,
+        'label' => 'OAuth Page',
+        'external_account_id' => 'channel_oauth_facebook_1',
+        'auth_method' => SocialAccountConnection::AUTH_METHOD_OAUTH,
+        'status' => SocialAccountConnection::STATUS_CONNECTED,
+        'is_active' => false,
+        'connected_at' => now(),
+        'metadata' => [
+            'connection_flow' => 'buffer_oauth_discovery',
+            'oauth_ready' => true,
+            'buffer' => [
+                'account_id' => 'buffer_account_oauth_1',
+                'organization_id' => 'organization_oauth_1',
+                'channel_service' => 'facebook',
+                'channel_type' => 'page',
+                'catalog_only' => true,
+            ],
+        ],
+    ]);
+    $query = startBufferOauth($this, $owner);
+    fakeBufferAccountAndChannels(
+        'account:read posts:read posts:write offline_access',
+    );
+
+    $this->get(route('social.buffer.oauth.callback', [
+        'state' => $query['state'],
+        'code' => 'buffer-publishing-authorization-code',
+    ]))->assertRedirect(route('social.accounts.index'));
+
+    $fresh = $importedChannel->fresh();
+
+    expect($fresh->delivery_provider)
+        ->toBe(SocialAccountConnection::DELIVERY_PROVIDER_BUFFER)
+        ->and($fresh->transport_generation)
+        ->toBe(SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1)
+        ->and($fresh->logical_destination_key)->toMatch('/\Aldk:v1:[0-9a-f]{64}\z/')
+        ->and($fresh->status)->toBe(SocialAccountConnection::STATUS_CONNECTED)
+        ->and($fresh->is_active)->toBeTrue()
+        ->and(data_get($fresh->metadata, 'buffer.catalog_only'))->toBeFalse()
+        ->and(data_get($fresh->metadata, 'buffer.publication_enabled'))->toBeTrue();
+
+    $this->actingAs($owner)
+        ->getJson(route('social.accounts.index'))
+        ->assertOk()
+        ->assertJsonPath('buffer_connector.delivery_enabled', true);
 });
 
 it('clears expired and denied Buffer authorization states without contacting Buffer', function (string $mode) {

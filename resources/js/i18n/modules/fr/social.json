@@ -983,6 +983,7 @@
     "buffer_connector": {
       "local_mode": "Test local reel",
       "oauth_mode": "OAuth Buffer",
+      "delivery_enabled": "Publication active",
       "delivery_disabled": "Publication desactivee",
       "loading": "Chargement des comptes Buffer en cours.",
       "opens_new_tab": "S ouvre dans un nouvel onglet",
@@ -1000,6 +1001,8 @@
       "actions": {
         "connect": "Connecter Buffer",
         "connecting": "Connexion...",
+        "enable_publishing": "Activer la publication",
+        "enabling_publishing": "Autorisation...",
         "view_accounts": "Voir mes comptes",
         "refresh": "Resynchroniser",
         "disconnect": "Deconnecter",

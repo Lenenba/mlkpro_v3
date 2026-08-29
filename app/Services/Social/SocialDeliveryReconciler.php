@@ -167,6 +167,77 @@ final class SocialDeliveryReconciler
         ];
     }
 
+    /**
+     * @return array{selected:int,claimed:int,reconciled:int,not_applied:int}
+     */
+    public function reconcileDueBufferDeliveries(
+        string $claimedBy,
+        int $limit = 100,
+        int $leaseSeconds = 120,
+    ): array {
+        $this->assertClaimInput(1, 1, $claimedBy, $leaseSeconds);
+
+        if ($limit <= 0 || $limit > 500) {
+            throw new InvalidArgumentException(
+                'The social delivery reconciliation batch size must be between 1 and 500.',
+            );
+        }
+
+        $dueTargets = SocialPostTarget::query()
+            ->join('social_posts', 'social_posts.id', '=', 'social_post_targets.social_post_id')
+            ->where(
+                'social_post_targets.delivery_provider',
+                SocialAccountConnection::DELIVERY_PROVIDER_BUFFER,
+            )
+            ->where(
+                'social_post_targets.transport_generation',
+                SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1,
+            )
+            ->whereNotNull('social_post_targets.next_reconcile_at')
+            ->where('social_post_targets.next_reconcile_at', '<=', $this->now())
+            ->orderBy('social_post_targets.next_reconcile_at')
+            ->orderBy('social_post_targets.id')
+            ->limit($limit)
+            ->get([
+                'social_post_targets.id',
+                'social_posts.user_id as tenant_id',
+            ]);
+        $claimed = 0;
+        $reconciled = 0;
+        $notApplied = 0;
+
+        foreach ($dueTargets as $target) {
+            $claim = $this->claim(
+                (int) $target->getAttribute('tenant_id'),
+                (int) $target->getKey(),
+                $claimedBy,
+                false,
+                $leaseSeconds,
+            );
+
+            if (! $claim instanceof SocialDeliveryReconciliationClaimData) {
+                $notApplied++;
+
+                continue;
+            }
+
+            $claimed++;
+
+            if ($this->reconcile($claim)) {
+                $reconciled++;
+            } else {
+                $notApplied++;
+            }
+        }
+
+        return [
+            'selected' => $dueTargets->count(),
+            'claimed' => $claimed,
+            'reconciled' => $reconciled,
+            'not_applied' => $notApplied,
+        ];
+    }
+
     public function synchronizeManually(
         int $tenantId,
         int $targetId,

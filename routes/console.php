@@ -76,6 +76,7 @@ use App\Services\ServiceRequests\LegacyServiceRequestBackfillVerificationService
 use App\Services\SmsNotificationService;
 use App\Services\Social\LegacySocialInventoryService;
 use App\Services\Social\SocialAutomationRunnerService;
+use App\Services\Social\SocialDeliveryReconciler;
 use App\Services\Social\SocialEditorialFoundationBackfillService;
 use App\Services\Social\SocialLegacyTransportBackfillService;
 use App\Services\Social\SocialPublishingService;
@@ -2206,6 +2207,40 @@ Artisan::command(
         return 0;
     },
 )->purpose('Recover leases and dispatch due Malikia Pulse outbox operations');
+
+Artisan::command(
+    'social:reconcile-buffer {--limit=100 : Maximum number of due Buffer deliveries per pass}',
+    function (SocialDeliveryReconciler $reconciler): int {
+        if (! (bool) config('services.buffer.delivery.enabled', false)) {
+            $this->info('Buffer delivery is disabled; nothing to reconcile.');
+
+            return 0;
+        }
+
+        $limit = filter_var($this->option('limit'), FILTER_VALIDATE_INT);
+
+        if ($limit === false || $limit < 1 || $limit > 500) {
+            $this->error('The Buffer reconciliation limit must be an integer between 1 and 500.');
+
+            return 1;
+        }
+
+        $summary = $reconciler->reconcileDueBufferDeliveries(
+            'pulse-buffer-status-scheduler',
+            $limit,
+        );
+
+        $this->info(sprintf(
+            'Buffer reconciliation: selected %d, claimed %d, reconciled %d, not applied %d.',
+            $summary['selected'],
+            $summary['claimed'],
+            $summary['reconciled'],
+            $summary['not_applied'],
+        ));
+
+        return 0;
+    },
+)->purpose('Reconcile due Malikia Pulse Buffer delivery statuses');
 
 Artisan::command(
     'pulse:buffer:inventory-legacy
@@ -4812,6 +4847,11 @@ Schedule::command('social:dispatch-outbox --limit=100')
     ->everyMinute()
     ->withoutOverlapping()
     ->onOneServer();
+Schedule::command('social:reconcile-buffer --limit=100')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->when(fn (): bool => (bool) config('services.buffer.delivery.enabled', false));
 Schedule::command('campaigns:vip-auto-sync')->dailyAt('02:35')->withoutOverlapping();
 Schedule::command('campaigns:interest-scores')->dailyAt('02:15');
 Schedule::command('campaigns:reconcile-delivery')->everyTenMinutes()->withoutOverlapping();

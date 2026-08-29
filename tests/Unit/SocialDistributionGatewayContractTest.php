@@ -2,6 +2,7 @@
 
 use App\Data\Social\CreateSocialDeliveryData;
 use App\Data\Social\SocialDeliveryResultData;
+use App\Services\Social\Buffer\BufferDistributionGateway;
 use App\Services\Social\Contracts\SocialDistributionGatewayInterface;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Http;
@@ -211,6 +212,8 @@ test('fake social distribution gateway fails closed without a scripted result', 
         ->toThrow(InvalidArgumentException::class, 'At least one social delivery result must be scripted.');
 });
 
-test('social distribution gateway has no application container binding', function () {
-    expect(app()->bound(SocialDistributionGatewayInterface::class))->toBeFalse();
+test('social distribution gateway resolves to the Buffer implementation', function () {
+    expect(app()->bound(SocialDistributionGatewayInterface::class))->toBeTrue()
+        ->and(app(SocialDistributionGatewayInterface::class))
+        ->toBeInstanceOf(BufferDistributionGateway::class);
 });

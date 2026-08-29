@@ -77,11 +77,27 @@ final class SocialDeliveryOutboxService
         $canonicalPayload = $this->canonicalPayload($payload, $post, $target, $revision, $connection);
         $payloadHash = hash('sha256', $this->encodeCanonical($canonicalPayload));
         $availableAt = CarbonImmutable::instance($availableAt)->utc()->startOfSecond();
+        if ((string) $target->delivery_provider === SocialAccountConnection::DELIVERY_PROVIDER_BUFFER) {
+            $externalOrganizationId ??= data_get(
+                $connection->metadata,
+                'buffer.organization_id',
+            );
+            $externalChannelId ??= $connection->external_account_id;
+        }
+
         $externalOrganizationId = $this->normalizeProviderIdentifier(
             $externalOrganizationId,
             'organization',
         );
         $externalChannelId = $this->normalizeProviderIdentifier($externalChannelId, 'channel');
+
+        if ((string) $target->delivery_provider === SocialAccountConnection::DELIVERY_PROVIDER_BUFFER
+            && ($externalOrganizationId === null || $externalChannelId === null)) {
+            throw new LogicException(
+                'A Buffer delivery outbox requires immutable organization and channel snapshots.',
+            );
+        }
+
         $idempotencyKey = $this->idempotencyKey(
             $tenantId,
             $target,

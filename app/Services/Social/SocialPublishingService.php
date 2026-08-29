@@ -2,6 +2,8 @@
 
 namespace App\Services\Social;
 
+use App\Data\Social\CreateSocialDeliveryData;
+use App\Data\Social\SocialDeliveryResultData;
 use App\Exceptions\Social\AmbiguousSocialPublishingException;
 use App\Exceptions\Social\DefinitiveSocialPublishingRejectionException;
 use App\Exceptions\Social\RetryableSocialPublishingException;
@@ -13,7 +15,9 @@ use App\Models\SocialPost;
 use App\Models\SocialPostRevision;
 use App\Models\SocialPostTarget;
 use App\Models\User;
+use App\Services\Social\Contracts\SocialDistributionGatewayInterface;
 use App\Support\QueueWorkload;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -36,6 +40,7 @@ class SocialPublishingService
         private readonly SocialConnectionDeliveryMutex $connectionDeliveryMutex,
         private readonly SocialOperationalMessageSanitizer $messageSanitizer,
         private readonly SocialTransportPolicyService $transportPolicy,
+        private readonly SocialDistributionGatewayInterface $distributionGateway,
     ) {}
 
     public function publishNow(User $owner, User $actor, SocialPost $post): SocialPost
@@ -296,8 +301,8 @@ class SocialPublishingService
                     return;
                 }
 
-                if (! $this->targetUsesDirectTransport($target, $connection)) {
-                    $message = 'This Pulse target is not assigned to the direct delivery worker.';
+                if (! $this->targetUsesSupportedTransport($target, $connection)) {
+                    $message = 'This Pulse target is not assigned to a supported delivery worker.';
                     $this->deliveryOutboxes->markDead(
                         $outboxId,
                         $claimToken,
@@ -347,7 +352,31 @@ class SocialPublishingService
                     return;
                 }
 
-                $publisher = $this->registry->publisher((string) $connection->platform);
+                try {
+                    $usesBufferTransport = $this->targetUsesBufferTransport($target, $connection);
+                    $publisher = $usesBufferTransport
+                        ? null
+                        : $this->registry->publisher((string) $connection->platform);
+                    $bufferDelivery = $usesBufferTransport
+                        ? $this->bufferDeliveryData($outbox, $payload)
+                        : null;
+                } catch (Throwable $exception) {
+                    $message = $this->exceptionMessage(
+                        $exception,
+                        'The Pulse delivery could not be prepared for its provider.',
+                    );
+                    $this->deliveryOutboxes->markDead(
+                        $outboxId,
+                        $claimToken,
+                        $claimVersion,
+                        'validation',
+                        'provider_request_invalid',
+                        $message,
+                        fn (SocialDeliveryOutbox $entry): mixed => $this->markTargetFailedForOutbox($entry, $message),
+                    );
+
+                    return;
+                }
 
                 try {
                     $started = $this->deliveryOutboxes->startSubmitting(
@@ -376,7 +405,34 @@ class SocialPublishingService
                 $this->refreshPostStatus($post->fresh(['targets.socialAccountConnection']));
 
                 try {
-                    $result = $publisher->publish($connection, $payload);
+                    if ($bufferDelivery instanceof CreateSocialDeliveryData) {
+                        $bufferResult = $this->distributionGateway->createPost($bufferDelivery);
+
+                        if ($bufferResult->status !== SocialDeliveryResultData::STATUS_SUBMITTED
+                            || trim((string) $bufferResult->providerPostId) === '') {
+                            throw new AmbiguousSocialPublishingException(
+                                'Buffer may have accepted the Pulse request without a verifiable result.',
+                            );
+                        }
+
+                        $submittedAt = now();
+                        $this->deliveryOutboxes->markCompleted(
+                            $outboxId,
+                            $claimToken,
+                            $claimVersion,
+                            (string) $bufferResult->providerPostId,
+                            $submittedAt,
+                            fn (SocialDeliveryOutbox $entry): mixed => $this->markTargetBufferSubmittedForOutbox(
+                                $entry,
+                                $bufferResult,
+                                $submittedAt,
+                            ),
+                        );
+
+                        return;
+                    }
+
+                    $result = $publisher?->publish($connection, $payload) ?? [];
                     $providerPostId = trim((string) data_get($result, 'provider_post_id'));
 
                     if ($providerPostId === '') {
@@ -636,8 +692,8 @@ class SocialPublishingService
                     continue;
                 }
 
-                if (! $this->targetUsesDirectTransport($target, $connection)) {
-                    $this->markTargetFailed($target, 'This Pulse target is not assigned to the direct delivery worker.');
+                if (! $this->targetUsesSupportedTransport($target, $connection)) {
+                    $this->markTargetFailed($target, 'This Pulse target is not assigned to a supported delivery worker.');
 
                     continue;
                 }
@@ -681,9 +737,17 @@ class SocialPublishingService
                     $submissionRevision,
                     $connection,
                     $this->publishPayload($submissionRevision, $dispatchableTarget, $connection),
-                    $scheduledFor ?? $requestedAt,
+                    $this->targetUsesBufferTransport($dispatchableTarget, $connection)
+                        ? $requestedAt
+                        : ($scheduledFor ?? $requestedAt),
                     recoveryGeneration: $recoveryGeneration,
                     supersedes: $supersededOutbox,
+                    externalOrganizationId: $this->targetUsesBufferTransport($dispatchableTarget, $connection)
+                        ? (string) data_get($connection->metadata, 'buffer.organization_id')
+                        : null,
+                    externalChannelId: $this->targetUsesBufferTransport($dispatchableTarget, $connection)
+                        ? (string) $connection->external_account_id
+                        : null,
                 ));
             }
 
@@ -714,7 +778,10 @@ class SocialPublishingService
             foreach ($dispatchableOutboxes as $outbox) {
                 $dispatch = ProcessSocialDeliveryOutboxJob::dispatch((int) $outbox->id);
 
-                if ($mode === 'scheduled' && $scheduledFor instanceof Carbon) {
+                if ($mode === 'scheduled'
+                    && $scheduledFor instanceof Carbon
+                    && (string) $outbox->transport_generation
+                        === SocialAccountConnection::TRANSPORT_GENERATION_DIRECT_V1) {
                     $dispatch->delay($scheduledFor);
                 }
             }
@@ -821,10 +888,25 @@ class SocialPublishingService
             && $this->targetBelongsToPostTenant($post, $target, $connection)
             && (string) $outbox->delivery_provider === (string) $target->delivery_provider
             && (string) $outbox->transport_generation === (string) $target->transport_generation
+            && (string) $connection->delivery_provider === (string) $target->delivery_provider
+            && (string) $connection->transport_generation === (string) $target->transport_generation
             && hash_equals(
                 (string) $outbox->logical_destination_key,
                 (string) $target->logical_destination_key,
-            );
+            )
+            && hash_equals(
+                (string) $connection->logical_destination_key,
+                (string) $target->logical_destination_key,
+            )
+            && ($this->targetUsesDirectTransport($target, $connection)
+                || (hash_equals(
+                    (string) data_get($connection->metadata, 'buffer.organization_id'),
+                    (string) $outbox->external_organization_id_snapshot,
+                )
+                    && hash_equals(
+                        (string) $connection->external_account_id,
+                        (string) $outbox->external_channel_id_snapshot,
+                    )));
     }
 
     /**
@@ -956,6 +1038,63 @@ class SocialPublishingService
         ])->save();
     }
 
+    private function markTargetBufferSubmittedForOutbox(
+        SocialDeliveryOutbox $outbox,
+        SocialDeliveryResultData $result,
+        Carbon $submittedAt,
+    ): void {
+        $target = $this->lockTargetForOutbox($outbox);
+
+        if (! $target
+            || $target->status !== SocialPostTarget::STATUS_PUBLISHING
+            || $target->delivery_status !== self::TARGET_DELIVERY_SENDING) {
+            return;
+        }
+
+        $providerStatus = Str::lower(trim((string) $result->providerStatus));
+        $isSent = $providerStatus === 'sent';
+        $isError = $providerStatus === 'error';
+        $requiresRemoteApproval = in_array($providerStatus, ['draft', 'needs_approval'], true);
+        $isScheduled = $providerStatus === 'scheduled';
+        $isSending = $providerStatus === 'sending';
+
+        $target->forceFill([
+            'status' => match (true) {
+                $isSent => SocialPostTarget::STATUS_PUBLISHED,
+                $isError => SocialPostTarget::STATUS_FAILED,
+                $isScheduled => SocialPostTarget::STATUS_SCHEDULED,
+                default => SocialPostTarget::STATUS_PUBLISHING,
+            },
+            'delivery_status' => match (true) {
+                $isSent => SocialPost::DELIVERY_STATUS_PUBLISHED,
+                $isError => SocialPost::DELIVERY_STATUS_FAILED,
+                $requiresRemoteApproval => SocialPost::DELIVERY_STATUS_REMOTE_APPROVAL_REQUIRED,
+                $isScheduled => SocialPost::DELIVERY_STATUS_SCHEDULED,
+                $isSending => self::TARGET_DELIVERY_SENDING,
+                default => SocialPost::DELIVERY_STATUS_SUBMITTED,
+            },
+            'sync_status' => $isSent || $isError
+                ? SocialPost::SYNC_STATUS_SYNCED
+                : SocialPost::SYNC_STATUS_PENDING,
+            'provider_post_id' => (string) $outbox->provider_post_id,
+            'provider_status' => $providerStatus !== '' ? $providerStatus : null,
+            'remote_scheduled_for' => $result->remoteScheduledFor,
+            'submitted_at' => $outbox->submitted_at,
+            'last_synced_at' => $submittedAt,
+            'next_reconcile_at' => $isSent || $isError ? null : now()->addMinute(),
+            'published_at' => $isSent ? $submittedAt : null,
+            'failed_at' => $isError ? $submittedAt : null,
+            'failure_reason' => $isError ? 'Buffer reported a delivery error.' : null,
+            'provider_error_code' => $isError ? 'buffer_delivery_error' : null,
+            'provider_error_message' => $isError ? 'Buffer reported a delivery error.' : null,
+            'metadata' => array_merge((array) ($target->metadata ?? []), [
+                'published_via' => SocialAccountConnection::DELIVERY_PROVIDER_BUFFER,
+                'provider_post_id' => (string) $outbox->provider_post_id,
+                'provider_status' => $providerStatus !== '' ? $providerStatus : null,
+            ]),
+        ])->save();
+    }
+
     private function markTargetFailedForOutbox(SocialDeliveryOutbox $outbox, string $message): void
     {
         $target = $this->lockTargetForOutbox($outbox);
@@ -1062,6 +1201,69 @@ class SocialPublishingService
                 === SocialAccountConnection::TRANSPORT_GENERATION_DIRECT_V1
             && preg_match('/\Aldk:v1:[0-9a-f]{64}\z/', $targetKey) === 1
             && hash_equals($connectionKey, $targetKey);
+    }
+
+    private function targetUsesBufferTransport(
+        SocialPostTarget $target,
+        SocialAccountConnection $connection,
+    ): bool {
+        $targetKey = (string) $target->logical_destination_key;
+        $connectionKey = (string) $connection->logical_destination_key;
+
+        return (string) $target->delivery_provider
+                === SocialAccountConnection::DELIVERY_PROVIDER_BUFFER
+            && (string) $target->transport_generation
+                === SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1
+            && (string) $connection->delivery_provider
+                === SocialAccountConnection::DELIVERY_PROVIDER_BUFFER
+            && (string) $connection->transport_generation
+                === SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1
+            && preg_match('/\Aldk:v1:[0-9a-f]{64}\z/', $targetKey) === 1
+            && hash_equals($connectionKey, $targetKey);
+    }
+
+    private function targetUsesSupportedTransport(
+        SocialPostTarget $target,
+        SocialAccountConnection $connection,
+    ): bool {
+        return $this->targetUsesDirectTransport($target, $connection)
+            || $this->targetUsesBufferTransport($target, $connection);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function bufferDeliveryData(
+        SocialDeliveryOutbox $outbox,
+        array $payload,
+    ): CreateSocialDeliveryData {
+        if (filled(data_get($payload, 'image_url')) || filled(data_get($payload, 'link_url'))) {
+            throw new InvalidArgumentException(
+                'Buffer publication currently supports text-only Facebook posts.',
+            );
+        }
+
+        $scheduledFor = $this->resolveDate(data_get($payload, 'scheduled_for'));
+        $arguments = [
+            'tenantId' => (int) $outbox->user_id,
+            'connectionId' => (int) $outbox->social_provider_connection_id,
+            'externalOrganizationId' => (string) $outbox->external_organization_id_snapshot,
+            'externalChannelId' => (string) $outbox->external_channel_id_snapshot,
+            'text' => trim((string) data_get($payload, 'text')),
+            'idempotencyKey' => (string) $outbox->idempotency_key,
+            'correlationKey' => $outbox->correlation_key === null
+                ? null
+                : (string) $outbox->correlation_key,
+        ];
+
+        if ($scheduledFor instanceof Carbon) {
+            return CreateSocialDeliveryData::scheduled(
+                ...$arguments,
+                scheduledFor: CarbonImmutable::instance($scheduledFor),
+            );
+        }
+
+        return CreateSocialDeliveryData::immediate(...$arguments);
     }
 
     /**

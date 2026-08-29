@@ -2,9 +2,12 @@
 
 use App\Data\Social\ReadSocialDeliveryStatusData;
 use App\Data\Social\SocialDeliveryStatusResultData;
+use App\Services\Social\Buffer\BufferDeliveryStatusGateway;
 use App\Services\Social\Contracts\SocialDeliveryStatusGatewayInterface;
 use Carbon\CarbonImmutable;
 use Tests\Support\FakeSocialDeliveryStatusGateway;
+
+uses(Tests\TestCase::class);
 
 it('keeps the status gateway deterministic and structurally read only', function () {
     $observedAt = CarbonImmutable::parse('2026-08-28 12:00:00', 'UTC');
@@ -30,5 +33,7 @@ it('keeps the status gateway deterministic and structurally read only', function
         ->and($gateway->reads[0])->toBe($request)
         ->and(method_exists($gateway, 'createPost'))->toBeFalse()
         ->and(method_exists(SocialDeliveryStatusGatewayInterface::class, 'createPost'))->toBeFalse()
-        ->and(get_class_methods(SocialDeliveryStatusGatewayInterface::class))->toBe(['readStatus']);
+        ->and(get_class_methods(SocialDeliveryStatusGatewayInterface::class))->toBe(['readStatus'])
+        ->and(app(SocialDeliveryStatusGatewayInterface::class))
+        ->toBeInstanceOf(BufferDeliveryStatusGateway::class);
 });

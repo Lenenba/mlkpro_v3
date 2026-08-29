@@ -198,6 +198,11 @@ class SocialDeliveryOutbox extends Model
 
     private function assertValidIdentity(): void
     {
+        $usesBufferTransport = (string) $this->delivery_provider
+                === SocialAccountConnection::DELIVERY_PROVIDER_BUFFER
+            || (string) $this->transport_generation
+                === SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1;
+
         if ((int) $this->user_id <= 0
             || (int) $this->social_post_target_id <= 0
             || (int) $this->social_post_revision_id <= 0
@@ -222,7 +227,14 @@ class SocialDeliveryOutbox extends Model
             || (int) $this->attempts < 0
             || (int) $this->claim_version < 0
             || $this->isInvalidNullableSnapshot($this->external_organization_id_snapshot)
-            || $this->isInvalidNullableSnapshot($this->external_channel_id_snapshot)) {
+            || $this->isInvalidNullableSnapshot($this->external_channel_id_snapshot)
+            || ($usesBufferTransport
+                && ((string) $this->delivery_provider
+                        !== SocialAccountConnection::DELIVERY_PROVIDER_BUFFER
+                    || (string) $this->transport_generation
+                        !== SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1
+                    || $this->external_organization_id_snapshot === null
+                    || $this->external_channel_id_snapshot === null))) {
             throw new LogicException('A Pulse delivery outbox identity is incomplete or invalid.');
         }
     }

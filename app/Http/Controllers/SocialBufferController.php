@@ -35,6 +35,8 @@ class SocialBufferController extends Controller
     {
         try {
             $result = $this->bufferOAuth->completeAuthorization($request->query());
+            $owner = User::query()->findOrFail($result['owner_id']);
+            $this->bufferConnector->activateImportedChannels($owner);
         } catch (ValidationException $exception) {
             return redirect()
                 ->route('social.accounts.index')

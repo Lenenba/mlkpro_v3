@@ -19,6 +19,7 @@
     </source>
     <php>
         <env name="APP_ENV" value="testing" force="true"/>
+        <env name="BUFFER_DELIVERY_ENABLED" value="false" force="true"/>
         <server name="APP_ENV" value="testing"/>
         <env name="APP_CONFIG_CACHE" value="bootstrap/cache/phpunit-config.php"/>
         <env name="APP_EVENTS_CACHE" value="bootstrap/cache/phpunit-events.php"/>

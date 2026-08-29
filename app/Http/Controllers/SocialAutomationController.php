@@ -597,7 +597,7 @@ class SocialAutomationController extends Controller
      */
     private function connectionPayloads(User $owner): array
     {
-        return collect($this->connectionService->listPayloads($owner))
+        return collect($this->connectionService->listPublishingPayloads($owner))
             ->map(fn (array $connection): array => [
                 'id' => (int) ($connection['id'] ?? 0),
                 'platform' => (string) ($connection['platform'] ?? ''),

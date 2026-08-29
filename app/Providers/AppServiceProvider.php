@@ -31,6 +31,10 @@ use App\Services\Observability\TelemetrySanitizer;
 use App\Services\Observability\TelemetryScope;
 use App\Services\PlatformAdminNotifier;
 use App\Services\Rbac\AccessControl;
+use App\Services\Social\Buffer\BufferDeliveryStatusGateway;
+use App\Services\Social\Buffer\BufferDistributionGateway;
+use App\Services\Social\Contracts\SocialDeliveryStatusGatewayInterface;
+use App\Services\Social\Contracts\SocialDistributionGatewayInterface;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -73,6 +77,14 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(SlowQueryService::class);
         $this->app->singleton(CapacityRunContextService::class);
         $this->app->singleton(CapacityOutcomeClassifier::class);
+        $this->app->singleton(
+            SocialDistributionGatewayInterface::class,
+            BufferDistributionGateway::class,
+        );
+        $this->app->singleton(
+            SocialDeliveryStatusGatewayInterface::class,
+            BufferDeliveryStatusGateway::class,
+        );
         $this->app->singleton(
             DemoScenarioRegistry::class,
             fn ($app): DemoScenarioRegistry => new DemoScenarioRegistry(
