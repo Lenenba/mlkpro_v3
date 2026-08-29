@@ -98,7 +98,7 @@ it('keeps the encrypted Pulse delivery outbox additive constrained and reversibl
             'delivery_provider' => 'buffer',
             'transport_generation' => 'buffer_v1',
             'logical_destination_key' => $logicalDestinationKey,
-            'external_organization_id_snapshot' => null,
+            'external_organization_id_snapshot' => 'buffer-organization-snapshot',
             'external_channel_id_snapshot' => 'buffer-channel-snapshot',
             'editorial_revision' => 1,
             'idempotency_key' => str_repeat('c', 64),
@@ -117,6 +117,9 @@ it('keeps the encrypted Pulse delivery outbox additive constrained and reversibl
             ->not->toContain('Sensitive unpublished content')
             ->and($freshOutbox->payload)->toBe($payload)
             ->and($freshOutbox->editorial_revision)->toBe(1)
+            ->and($freshOutbox->external_organization_id_snapshot)
+            ->toBe('buffer-organization-snapshot')
+            ->and($freshOutbox->external_channel_id_snapshot)->toBe('buffer-channel-snapshot')
             ->and($freshOutbox->recovery_generation)->toBe(0)
             ->and($freshOutbox->attempts)->toBe(0)
             ->and($freshOutbox->claim_version)->toBe(0)

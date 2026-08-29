@@ -13,7 +13,6 @@ use App\Services\Social\SocialPostService;
 use App\Services\Social\SocialPublishingService;
 use App\Services\Social\SocialTransportPolicyService;
 use Illuminate\Http\Client\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 
@@ -205,11 +204,13 @@ it('submits a standalone Buffer Facebook target through the outbox without marki
     });
     Http::assertSentCount(1);
 
-    Carbon::setTestNow(now()->addMinutes(2));
+    $reconciliationSummary = $this->travel(2)->minutes(
+        fn (): array => app(SocialDeliveryReconciler::class)->reconcileDueBufferDeliveries(
+            'buffer-runtime-test',
+        ),
+    );
 
-    expect(app(SocialDeliveryReconciler::class)->reconcileDueBufferDeliveries(
-        'buffer-runtime-test',
-    ))->toBe([
+    expect($reconciliationSummary)->toBe([
         'selected' => 1,
         'claimed' => 1,
         'reconciled' => 1,
