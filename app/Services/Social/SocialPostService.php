@@ -427,6 +427,7 @@ class SocialPostService
                 : null,
             'text' => $text !== '' ? $text : null,
             'image_url' => $this->mediaAssetService->imageUrl((array) ($post->media_payload ?? [])),
+            'media_assets' => array_values((array) ($post->media_payload ?? [])),
             'link_url' => $post->link_url,
             'link_cta_label' => $this->linkCtaLabel($post->metadata),
             'source_type' => $post->source_type,
@@ -752,7 +753,7 @@ class SocialPostService
     private function postAttributes(User $owner, User $actor, array $payload, Collection $targetConnections): array
     {
         $text = $this->nullableString($payload, 'text');
-        $mediaPayload = $this->mediaAssetService->imageMediaPayload($payload);
+        $mediaPayload = $this->mediaAssetService->mediaPayload($payload);
         $linkUrl = $this->nullableString($payload, 'link_url');
         $linkCtaLabel = $linkUrl !== null ? $this->nullableString($payload, 'link_cta_label') : null;
         $scheduledFor = $this->scheduledTimeResolver->resolve(
@@ -764,7 +765,7 @@ class SocialPostService
 
         if ($text === null && $mediaPayload === null && $linkUrl === null) {
             throw ValidationException::withMessages([
-                'text' => 'Add some text, an image, or a destination link before saving this Pulse draft.',
+                'text' => 'Add some text, media, or a destination link before saving this Pulse draft.',
             ]);
         }
 
@@ -791,7 +792,8 @@ class SocialPostService
                 'draft_saved_from' => $source['source_type'] !== null
                     ? 'social_prefill_'.$source['source_type']
                     : 'social_composer',
-                'has_image' => $mediaPayload !== null,
+                'has_image' => $this->mediaAssetService->imageUrl($mediaPayload) !== null,
+                'has_media' => $mediaPayload !== null,
                 'has_link' => $linkUrl !== null,
                 'link_cta_label' => $linkCtaLabel,
                 'source' => $source['source_type'] !== null

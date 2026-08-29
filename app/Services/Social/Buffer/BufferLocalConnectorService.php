@@ -15,6 +15,9 @@ final class BufferLocalConnectorService
     /** @var list<string> */
     private const DELIVERY_PLATFORMS = [
         SocialAccountConnection::PLATFORM_FACEBOOK,
+        SocialAccountConnection::PLATFORM_INSTAGRAM,
+        SocialAccountConnection::PLATFORM_LINKEDIN,
+        SocialAccountConnection::PLATFORM_X,
     ];
 
     public function __construct(
@@ -323,6 +326,7 @@ final class BufferLocalConnectorService
                     ->filter(fn (SocialAccountConnection $connection): bool => (
                         ($this->isMutableCatalogImport($connection)
                             || $this->isBufferManagedConnection($connection))
+                        && $this->bufferServiceMatchesConnection($connection)
                         && $bufferAccountId !== ''
                         && hash_equals(
                             $bufferAccountId,
@@ -426,6 +430,7 @@ final class BufferLocalConnectorService
                 '/\Aldk:v1:[0-9a-f]{64}\z/',
                 (string) $connection->logical_destination_key,
             ) === 1
+            && $this->bufferServiceMatchesConnection($connection)
             && data_get($connection->metadata, 'buffer.organization_id') !== null;
     }
 
@@ -462,9 +467,10 @@ final class BufferLocalConnectorService
                 SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1,
             )
             ->connected()
-            ->get(['metadata'])
+            ->get(['platform', 'metadata'])
             ->contains(fn (SocialAccountConnection $connection): bool => (
-                hash_equals(
+                $this->bufferServiceMatchesConnection($connection)
+                && hash_equals(
                     $bufferAccountId,
                     (string) data_get($connection->metadata, 'buffer.account_id'),
                 )
@@ -488,6 +494,15 @@ final class BufferLocalConnectorService
             'twitter', 'x' => SocialAccountConnection::PLATFORM_X,
             default => null,
         };
+    }
+
+    private function bufferServiceMatchesConnection(
+        SocialAccountConnection $connection,
+    ): bool {
+        $service = data_get($connection->metadata, 'buffer.channel_service');
+
+        return is_string($service)
+            && $this->platformForService($service) === (string) $connection->platform;
     }
 
     private function assertAvailable(User $owner): void

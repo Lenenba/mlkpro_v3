@@ -193,6 +193,134 @@ it('lets owners create and update pulse drafts with multi-account selection and 
         ->and((int) $draft->targets->first()->social_account_connection_id)->toBe((int) $linkedin->id);
 });
 
+it('stores ordered Buffer image video and document assets from the composer', function () {
+    $owner = pulseComposerOwner();
+    $facebook = pulseComposerConnection(
+        $owner,
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        'fb-buffer-media',
+        'Buffer media page',
+    );
+
+    $mediaAssets = [
+        [
+            'type' => 'image',
+            'url' => 'https://cdn.example.com/pulse-cover.jpg',
+            'alt_text' => 'Malikia Pulse cover',
+        ],
+        [
+            'type' => 'image',
+            'url' => 'https://cdn.example.com/pulse-details.jpg',
+        ],
+        [
+            'type' => 'video',
+            'url' => 'https://cdn.example.com/pulse-demo.mp4',
+            'title' => 'Malikia Pulse demo',
+            'thumbnail_offset' => 1500,
+        ],
+        [
+            'type' => 'document',
+            'url' => 'https://cdn.example.com/pulse-guide.pdf',
+            'title' => 'Malikia Pulse guide',
+            'thumbnail_url' => 'https://cdn.example.com/pulse-guide-cover.jpg',
+        ],
+    ];
+
+    $response = $this->actingAs($owner)
+        ->postJson(route('social.posts.store'), [
+            'media_assets' => $mediaAssets,
+            'target_connection_ids' => [$facebook->id],
+        ]);
+
+    $response->assertCreated()
+        ->assertJsonCount(4, 'draft.media_assets')
+        ->assertJsonPath('draft.image_url', 'https://cdn.example.com/pulse-cover.jpg')
+        ->assertJsonPath('draft.media_assets.2.type', 'video')
+        ->assertJsonPath('draft.media_assets.2.thumbnail_offset', 1500)
+        ->assertJsonPath('draft.media_assets.3.type', 'document')
+        ->assertJsonPath('draft.media_assets.3.thumbnail_url', 'https://cdn.example.com/pulse-guide-cover.jpg');
+
+    $draft = SocialPost::query()->findOrFail((int) $response->json('draft.id'));
+
+    expect($draft->media_payload)->toHaveCount(4)
+        ->and(data_get($draft->media_payload, '0.alt_text'))->toBe('Malikia Pulse cover')
+        ->and(data_get($draft->media_payload, '1.url'))->toBe('https://cdn.example.com/pulse-details.jpg')
+        ->and(data_get($draft->media_payload, '2.title'))->toBe('Malikia Pulse demo')
+        ->and(data_get($draft->media_payload, '3.title'))->toBe('Malikia Pulse guide')
+        ->and((bool) data_get($draft->metadata, 'has_media'))->toBeTrue();
+
+    $this->actingAs($owner)
+        ->postJson(route('social.posts.store'), [
+            'media_assets' => [[
+                'type' => 'document',
+                'url' => 'https://cdn.example.com/incomplete.pdf',
+            ]],
+            'target_connection_ids' => [$facebook->id],
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('media_assets.0');
+
+    $this->actingAs($owner)
+        ->postJson(route('social.posts.store'), [
+            'media_assets' => [[
+                'type' => 'video',
+                'url' => 'http://cdn.example.com/insecure.mp4',
+            ]],
+            'target_connection_ids' => [$facebook->id],
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('media_assets.0.url');
+});
+
+it('preserves Buffer media order and rejects more than twenty combined assets', function () {
+    $owner = pulseComposerOwner();
+    $facebook = pulseComposerConnection(
+        $owner,
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        'fb-buffer-media-order',
+        'Buffer ordered media page',
+    );
+    $imageUrl = 'https://cdn.example.com/pulse-after-video.jpg';
+
+    $response = $this->actingAs($owner)
+        ->postJson(route('social.posts.store'), [
+            'image_url' => $imageUrl,
+            'media_assets' => [
+                [
+                    'type' => 'video',
+                    'url' => 'https://cdn.example.com/pulse-first.mp4',
+                ],
+                [
+                    'type' => 'image',
+                    'url' => $imageUrl,
+                ],
+            ],
+            'target_connection_ids' => [$facebook->id],
+        ]);
+
+    $response->assertCreated();
+
+    $draft = SocialPost::query()->findOrFail((int) $response->json('draft.id'));
+
+    expect(data_get($draft->media_payload, '0.type'))->toBe('video')
+        ->and(data_get($draft->media_payload, '1.type'))->toBe('image')
+        ->and(data_get($draft->media_payload, '1.url'))->toBe($imageUrl);
+
+    $this->actingAs($owner)
+        ->postJson(route('social.posts.store'), [
+            'image_url' => 'https://cdn.example.com/primary.jpg',
+            'media_assets' => collect(range(1, 20))
+                ->map(fn (int $index): array => [
+                    'type' => 'image',
+                    'url' => 'https://cdn.example.com/asset-'.$index.'.jpg',
+                ])
+                ->all(),
+            'target_connection_ids' => [$facebook->id],
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('media_assets');
+});
+
 it('stores browser wall-clock schedules as UTC in the workspace timezone', function () {
     $this->travelTo(Carbon::parse('2026-08-28 12:00:00', 'UTC'));
     $owner = pulseComposerOwner(['company_timezone' => 'America/Toronto']);
@@ -377,6 +505,10 @@ it('lets owners upload local images for pulse drafts', function () {
         ->post(route('social.posts.store'), [
             'text' => 'Local image draft',
             'image_file' => UploadedFile::fake()->image('pulse-local.png', 1200, 800),
+            'media_assets' => json_encode([[
+                'type' => 'video',
+                'url' => 'https://cdn.example.com/pulse-upload-demo.mp4',
+            ]], JSON_THROW_ON_ERROR),
             'target_connection_ids' => [$facebook->id],
         ]);
 
@@ -389,6 +521,9 @@ it('lets owners upload local images for pulse drafts', function () {
     $storedPath = data_get($draft->media_payload, '0.path');
 
     expect($storedPath)->toBeString()->not->toBe('');
+    expect($draft->media_payload)->toHaveCount(2)
+        ->and(data_get($draft->media_payload, '1.type'))->toBe('video')
+        ->and(data_get($draft->media_payload, '1.url'))->toBe('https://cdn.example.com/pulse-upload-demo.mp4');
     Storage::disk('public')->assertExists($storedPath);
     $create->assertJsonPath('draft.image_url', Storage::disk('public')->url($storedPath));
 

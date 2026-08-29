@@ -176,12 +176,14 @@ class SocialPostController extends Controller
         }
 
         $this->normalizeUrlInputs($request, ['image_url', 'link_url']);
+        $this->normalizeMediaAssetUrls($request);
 
         $validated = $request->validate([
             'text' => ['nullable', 'string', 'max:4000'],
             'image_url' => $this->imageUrlRules(),
             'image_file' => ['nullable', 'file', 'image', 'max:10240'],
-            'link_url' => ['nullable', 'url', 'max:2048'],
+            ...$this->mediaAssetRules($request),
+            'link_url' => $this->linkUrlRules(),
             'link_cta_label' => ['nullable', 'string', 'max:80'],
             'scheduled_for' => ['nullable', 'date'],
             'source_type' => ['nullable', 'string', Rule::in(SocialPrefillService::allowedSourceTypes())],
@@ -214,7 +216,7 @@ class SocialPostController extends Controller
         $validated = $request->validate([
             'text' => ['nullable', 'string', 'max:4000'],
             'image_url' => $this->imageUrlRules(),
-            'link_url' => ['nullable', 'url', 'max:2048'],
+            'link_url' => $this->linkUrlRules(),
             'source_type' => ['nullable', 'string', Rule::in(SocialPrefillService::allowedSourceTypes())],
             'source_id' => ['nullable', 'integer'],
         ]);
@@ -232,12 +234,14 @@ class SocialPostController extends Controller
         }
 
         $this->normalizeUrlInputs($request, ['image_url', 'link_url']);
+        $this->normalizeMediaAssetUrls($request);
 
         $validated = $request->validate([
             'text' => ['nullable', 'string', 'max:4000'],
             'image_url' => $this->imageUrlRules(),
             'image_file' => ['nullable', 'file', 'image', 'max:10240'],
-            'link_url' => ['nullable', 'url', 'max:2048'],
+            ...$this->mediaAssetRules($request),
+            'link_url' => $this->linkUrlRules(),
             'link_cta_label' => ['nullable', 'string', 'max:80'],
             'scheduled_for' => ['nullable', 'date'],
             'source_type' => ['nullable', 'string', Rule::in(SocialPrefillService::allowedSourceTypes())],
@@ -405,13 +409,15 @@ class SocialPostController extends Controller
         }
 
         $this->normalizeUrlInputs($request, ['image_url', 'link_url']);
+        $this->normalizeMediaAssetUrls($request);
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:160'],
             'text' => ['nullable', 'string', 'max:4000'],
             'image_url' => $this->imageUrlRules(),
             'image_file' => ['nullable', 'file', 'image', 'max:10240'],
-            'link_url' => ['nullable', 'url', 'max:2048'],
+            ...$this->mediaAssetRules($request),
+            'link_url' => $this->linkUrlRules(),
             'link_cta_label' => ['nullable', 'string', 'max:80'],
             'target_connection_ids' => ['nullable', 'array'],
             'target_connection_ids.*' => ['integer', 'distinct'],
@@ -436,13 +442,15 @@ class SocialPostController extends Controller
         }
 
         $this->normalizeUrlInputs($request, ['image_url', 'link_url']);
+        $this->normalizeMediaAssetUrls($request);
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:160'],
             'text' => ['nullable', 'string', 'max:4000'],
             'image_url' => $this->imageUrlRules(),
             'image_file' => ['nullable', 'file', 'image', 'max:10240'],
-            'link_url' => ['nullable', 'url', 'max:2048'],
+            ...$this->mediaAssetRules($request),
+            'link_url' => $this->linkUrlRules(),
             'link_cta_label' => ['nullable', 'string', 'max:80'],
             'target_connection_ids' => ['nullable', 'array'],
             'target_connection_ids.*' => ['integer', 'distinct'],
@@ -647,6 +655,127 @@ class SocialPostController extends Controller
         if ($normalized !== []) {
             $request->merge($normalized);
         }
+    }
+
+    private function normalizeMediaAssetUrls(Request $request): void
+    {
+        if (! $request->exists('media_assets')) {
+            return;
+        }
+
+        $input = $request->input('media_assets');
+        if (is_string($input)) {
+            $decoded = json_decode($input, true);
+            $input = is_array($decoded) ? $decoded : $input;
+        }
+
+        if (! is_array($input)) {
+            return;
+        }
+
+        $mediaAssets = collect($input)
+            ->map(function (mixed $asset): mixed {
+                if (! is_array($asset)) {
+                    return $asset;
+                }
+
+                foreach (['url', 'thumbnail_url'] as $key) {
+                    if (array_key_exists($key, $asset)) {
+                        $asset[$key] = $this->normalizeUrlInputValue($asset[$key]);
+                    }
+                }
+
+                return $asset;
+            })
+            ->all();
+
+        $request->merge(['media_assets' => $mediaAssets]);
+    }
+
+    /**
+     * @return array<string, array<int, mixed>>
+     */
+    private function mediaAssetRules(Request $request): array
+    {
+        $httpsUrl = function (string $attribute, mixed $value, \Closure $fail): void {
+            if ($value !== null && ! $this->isHttpsUrl($value)) {
+                $fail('The '.$attribute.' must be a public HTTPS URL.');
+            }
+        };
+
+        return [
+            'media_assets' => [
+                'nullable',
+                'array',
+                'max:20',
+                function (string $attribute, mixed $value, \Closure $fail) use ($request): void {
+                    if (! is_array($value) || count($value) < 20) {
+                        return;
+                    }
+
+                    $primaryImageUrl = trim((string) $request->input('image_url', ''));
+                    $containsPrimaryImage = $primaryImageUrl !== ''
+                        && collect($value)->contains(fn (mixed $asset): bool => (
+                            is_array($asset)
+                            && ($asset['type'] ?? null) === 'image'
+                            && trim((string) ($asset['url'] ?? '')) === $primaryImageUrl
+                        ));
+
+                    if ($request->hasFile('image_file') || ($primaryImageUrl !== '' && ! $containsPrimaryImage)) {
+                        $fail('The '.$attribute.' and primary image must contain at most 20 items in total.');
+                    }
+                },
+            ],
+            'media_assets.*' => [
+                'array',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (! is_array($value) || ($value['type'] ?? null) !== 'document') {
+                        return;
+                    }
+
+                    if (trim((string) ($value['title'] ?? '')) === '') {
+                        $fail('Each document media asset must have a title.');
+                    }
+
+                    if (trim((string) ($value['thumbnail_url'] ?? '')) === '') {
+                        $fail('Each document media asset must have a thumbnail URL.');
+                    }
+                },
+            ],
+            'media_assets.*.type' => ['required', 'string', Rule::in(['image', 'video', 'document'])],
+            'media_assets.*.url' => ['required', 'string', 'url', 'max:2048', $httpsUrl],
+            'media_assets.*.alt_text' => ['nullable', 'string', 'max:1000'],
+            'media_assets.*.title' => ['nullable', 'string', 'max:200'],
+            'media_assets.*.thumbnail_url' => ['nullable', 'string', 'url', 'max:2048', $httpsUrl],
+            'media_assets.*.thumbnail_offset' => ['nullable', 'integer', 'min:0'],
+        ];
+    }
+
+    private function isHttpsUrl(mixed $value): bool
+    {
+        $parts = parse_url(trim((string) ($value ?? '')));
+
+        return is_array($parts)
+            && strtolower((string) ($parts['scheme'] ?? '')) === 'https'
+            && trim((string) ($parts['host'] ?? '')) !== '';
+    }
+
+    /**
+     * @return array<int, mixed>
+     */
+    private function linkUrlRules(): array
+    {
+        return [
+            'nullable',
+            'string',
+            'url',
+            'max:2048',
+            function (string $attribute, mixed $value, \Closure $fail): void {
+                if ($value !== null && ! $this->isHttpsUrl($value)) {
+                    $fail('The '.$attribute.' must be a public HTTPS URL.');
+                }
+            },
+        ];
     }
 
     private function normalizeUrlInputValue(mixed $value): ?string

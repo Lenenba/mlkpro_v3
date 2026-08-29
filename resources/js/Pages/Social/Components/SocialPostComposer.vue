@@ -77,6 +77,57 @@ const normalizeAccounts = (payload) => Array.isArray(payload) ? payload : [];
 const normalizeDrafts = (payload) => Array.isArray(payload) ? payload : [];
 const normalizeTemplates = (payload) => Array.isArray(payload) ? payload : [];
 const normalizeMediaAssets = (payload) => Array.isArray(payload) ? payload : [];
+const bufferMediaTypes = ['image', 'video', 'document'];
+const emptyMediaAsset = (type = 'image') => ({
+    type: bufferMediaTypes.includes(type) ? type : 'image',
+    url: '',
+    alt_text: '',
+    title: '',
+    thumbnail_url: '',
+    thumbnail_offset: '',
+});
+const normalizeBufferMediaAsset = (asset) => {
+    const type = String(asset?.type || '').trim().toLowerCase();
+    const url = String(asset?.url || '').trim();
+
+    if (!bufferMediaTypes.includes(type) || url === '') {
+        return null;
+    }
+
+    return {
+        type,
+        url,
+        alt_text: String(asset?.alt_text || '').trim(),
+        title: String(asset?.title || '').trim(),
+        thumbnail_url: String(asset?.thumbnail_url || '').trim(),
+        thumbnail_offset: asset?.thumbnail_offset ?? '',
+    };
+};
+const normalizeBufferMediaState = (payload, primaryImageUrl = '') => {
+    const primaryUrl = String(primaryImageUrl || '').trim();
+    const assets = (Array.isArray(payload) ? payload : [])
+        .map((asset) => normalizeBufferMediaAsset(asset))
+        .filter(Boolean);
+    const firstAsset = assets[0] || null;
+    const usesPrimaryImageField = firstAsset?.type === 'image'
+        && firstAsset.url === primaryUrl
+        && firstAsset.alt_text === ''
+        && firstAsset.title === ''
+        && firstAsset.thumbnail_url === ''
+        && firstAsset.thumbnail_offset === '';
+
+    if (usesPrimaryImageField) {
+        return {
+            image_url: primaryUrl,
+            media_assets: assets.slice(1),
+        };
+    }
+
+    return {
+        image_url: assets.length > 0 ? '' : primaryUrl,
+        media_assets: assets,
+    };
+};
 const normalizeSummary = (payload) => payload && typeof payload === 'object' ? payload : {};
 const normalizeAccess = (payload) => ({
     can_view: Boolean(payload?.can_view),
@@ -149,12 +200,15 @@ const normalizePrefill = (payload) => {
         return null;
     }
 
+    const mediaState = normalizeBufferMediaState(payload?.media_assets, payload?.image_url);
+
     return {
         source_type: sourceType,
         source_id: sourceId,
         source_label: normalizeString(payload?.source_label),
         text: String(payload?.text || ''),
-        image_url: String(payload?.image_url || ''),
+        image_url: mediaState.image_url,
+        media_assets: mediaState.media_assets,
         link_url: String(payload?.link_url || ''),
         link_cta_label: String(payload?.link_cta_label || ''),
     };
@@ -255,6 +309,7 @@ const localImagePreviewUrl = ref('');
 const form = ref({
     text: '',
     image_url: String(props.initialMediaUrl || '').trim(),
+    media_assets: [],
     link_url: '',
     link_cta_label: '',
     scheduled_for: '',
@@ -333,6 +388,18 @@ const isEditDisabled = computed(() => (
     || isQueuedPublication.value
     || isServerLocked.value
 ));
+const bufferMediaLimitReached = computed(() => {
+    const primaryImageUrl = String(form.value.image_url || '').trim();
+    const primaryImageIsAlreadyListed = primaryImageUrl !== ''
+        && form.value.media_assets.some((asset) => (
+            String(asset?.type || '').toLowerCase() === 'image'
+            && String(asset?.url || '').trim() === primaryImageUrl
+        ));
+    const hasSeparatePrimaryImage = imageFile.value instanceof File
+        || (primaryImageUrl !== '' && !primaryImageIsAlreadyListed);
+
+    return form.value.media_assets.length + (hasSeparatePrimaryImage ? 1 : 0) >= 20;
+});
 const sourceDisplayName = computed(() => sourceDisplayLabelFor(sourceReference.value));
 const sourceHref = computed(() => sourceHrefFor(sourceReference.value));
 const hasSuggestions = computed(() => (
@@ -385,7 +452,11 @@ const imageInputModel = computed({
         form.value.image_url = '';
     },
 });
-const previewImageSrc = computed(() => localImagePreviewUrl.value || String(form.value.image_url || '').trim());
+const previewImageSrc = computed(() => (
+    localImagePreviewUrl.value
+    || String(form.value.image_url || '').trim()
+    || String(form.value.media_assets.find((asset) => asset?.type === 'image')?.url || '').trim()
+));
 const normalizeLinkCandidate = (value) => {
     const candidate = String(value || '').trim();
     if (candidate === '') {
@@ -518,7 +589,25 @@ const clearImageSelection = () => {
     imageFile.value = null;
 };
 
+const addMediaAsset = () => {
+    if (isEditDisabled.value || bufferMediaLimitReached.value) {
+        return;
+    }
+
+    form.value.media_assets = [...form.value.media_assets, emptyMediaAsset()];
+};
+
+const removeMediaAsset = (index) => {
+    if (isEditDisabled.value) {
+        return;
+    }
+
+    form.value.media_assets = form.value.media_assets.filter((_, assetIndex) => assetIndex !== index);
+};
+
 const syncFormFromDraft = (draft) => {
+    const mediaState = normalizeBufferMediaState(draft?.media_assets, draft?.image_url);
+
     draftSnapshot.value = draft ? { ...draft } : null;
     templateName.value = '';
     resetSuggestions();
@@ -526,7 +615,8 @@ const syncFormFromDraft = (draft) => {
     clearImageSelection();
     form.value = {
         text: String(draft?.text || ''),
-        image_url: String(draft?.image_url || ''),
+        image_url: mediaState.image_url,
+        media_assets: mediaState.media_assets,
         link_url: String(draft?.link_url || ''),
         link_cta_label: String(draft?.link_cta_label || ''),
         scheduled_for: socialScheduleInputValue(draft),
@@ -548,6 +638,7 @@ const resetForm = () => {
     form.value = {
         text: '',
         image_url: '',
+        media_assets: [],
         link_url: '',
         link_cta_label: '',
         scheduled_for: '',
@@ -658,7 +749,11 @@ watch([sortedDrafts, activeDraftId], () => {
         activeDraftId.value = null;
     }
 
-    if (!form.value.text && !form.value.image_url && !form.value.link_url && !form.value.target_connection_ids.length) {
+    if (!form.value.text
+        && !form.value.image_url
+        && !form.value.media_assets.length
+        && !form.value.link_url
+        && !form.value.target_connection_ids.length) {
         return;
     }
 }, { immediate: true });
@@ -668,6 +763,7 @@ onBeforeUnmount(() => {
 });
 
 const applyTemplate = (template, { announce = true } = {}) => {
+    const mediaState = normalizeBufferMediaState(template?.media_assets, template?.image_url);
     const availableTargetIds = availableTargetConnectionIds(template?.selected_target_connection_ids);
     const missingTargetCount = Math.max(0, Number(template?.selected_accounts_count || 0) - availableTargetIds.length);
 
@@ -681,7 +777,8 @@ const applyTemplate = (template, { announce = true } = {}) => {
     clearImageSelection();
     form.value = {
         text: String(template?.text || ''),
-        image_url: String(template?.image_url || ''),
+        image_url: mediaState.image_url,
+        media_assets: mediaState.media_assets,
         link_url: String(template?.link_url || ''),
         link_cta_label: String(template?.link_cta_label || ''),
         scheduled_for: '',
@@ -697,7 +794,7 @@ const applyTemplate = (template, { announce = true } = {}) => {
 };
 
 const applyPrefill = (prefill, { announce = true } = {}) => {
-    const normalizedPrefill = normalizePrefill(prefill);
+    const normalizedPrefill = prefill && typeof prefill === 'object' ? prefill : null;
     const key = sourceReferenceKey(normalizedPrefill);
     if (!normalizedPrefill || key === '') {
         return;
@@ -714,6 +811,7 @@ const applyPrefill = (prefill, { announce = true } = {}) => {
     form.value = {
         text: String(normalizedPrefill.text || ''),
         image_url: String(normalizedPrefill.image_url || ''),
+        media_assets: normalizedPrefill.media_assets,
         link_url: String(normalizedPrefill.link_url || ''),
         link_cta_label: String(normalizedPrefill.link_cta_label || ''),
         scheduled_for: '',
@@ -963,6 +1061,18 @@ const appendFormDataValue = (formData, key, value) => {
     formData.append(key, value ?? '');
 };
 
+const appendMediaAssets = (formData, assets) => {
+    const serializedAssets = (Array.isArray(assets) ? assets : [])
+        .map((asset) => normalizeBufferMediaAsset(asset))
+        .filter(Boolean);
+
+    formData.append('media_assets', JSON.stringify(serializedAssets));
+};
+
+const serializedMediaAssets = () => form.value.media_assets
+    .map((asset) => normalizeBufferMediaAsset(asset))
+    .filter(Boolean);
+
 const usesFormData = (payload) => payload instanceof FormData;
 
 const putWithPayload = (url, payload) => {
@@ -979,6 +1089,7 @@ const composerPayload = () => {
     const payload = {
         text: String(form.value.text || '').trim(),
         image_url: String(form.value.image_url || '').trim(),
+        media_assets: serializedMediaAssets(),
         link_url: String(form.value.link_url || '').trim(),
         link_cta_label: String(form.value.link_cta_label || '').trim(),
         scheduled_for: String(form.value.scheduled_for || '').trim(),
@@ -996,6 +1107,7 @@ const composerPayload = () => {
     appendFormDataValue(formData, 'text', payload.text);
     appendFormDataValue(formData, 'image_url', payload.image_url);
     appendFormDataValue(formData, 'image_file', imageFile.value);
+    appendMediaAssets(formData, form.value.media_assets);
     appendFormDataValue(formData, 'link_url', payload.link_url);
     appendFormDataValue(formData, 'link_cta_label', payload.link_cta_label);
     appendFormDataValue(formData, 'scheduled_for', payload.scheduled_for);
@@ -1018,6 +1130,7 @@ const templatePayload = (name) => {
         name,
         text: String(form.value.text || '').trim(),
         image_url: String(form.value.image_url || '').trim(),
+        media_assets: serializedMediaAssets(),
         link_url: String(form.value.link_url || '').trim(),
         link_cta_label: String(form.value.link_cta_label || '').trim(),
         target_connection_ids: availableTargetConnectionIds(form.value.target_connection_ids),
@@ -1033,6 +1146,7 @@ const templatePayload = (name) => {
     appendFormDataValue(formData, 'text', payload.text);
     appendFormDataValue(formData, 'image_url', payload.image_url);
     appendFormDataValue(formData, 'image_file', imageFile.value);
+    appendMediaAssets(formData, form.value.media_assets);
     appendFormDataValue(formData, 'link_url', payload.link_url);
     appendFormDataValue(formData, 'link_cta_label', payload.link_cta_label);
     appendFormDataValue(formData, 'target_connection_ids', payload.target_connection_ids);
@@ -1399,6 +1513,103 @@ const resolveApproval = async (decision) => {
                             autocomplete="url"
                             :disabled="isEditDisabled"
                         />
+
+                        <div class="rounded-2xl border border-neutral-200 bg-neutral-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/40">
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <div class="text-sm font-semibold text-neutral-900 dark:text-white">
+                                        {{ t('social.composer_manager.fields.buffer_media') }}
+                                    </div>
+                                    <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                                        {{ t('social.composer_manager.fields.media_help') }}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs font-semibold text-neutral-700 transition hover:border-green-500 hover:text-green-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-200"
+                                    :disabled="isEditDisabled || bufferMediaLimitReached"
+                                    @click="addMediaAsset"
+                                >
+                                    {{ t('social.composer_manager.actions.add_media') }}
+                                </button>
+                            </div>
+
+                            <div v-if="form.media_assets.length" class="mt-4 space-y-3">
+                                <div
+                                    v-for="(asset, index) in form.media_assets"
+                                    :key="`buffer-media-${index}`"
+                                    class="rounded-xl border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-950"
+                                >
+                                    <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                        <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-300">
+                                            <span class="mb-1 block">{{ t('social.composer_manager.fields.media_type') }}</span>
+                                            <select
+                                                v-model="asset.type"
+                                                class="w-full rounded-lg border-neutral-300 bg-white text-sm text-neutral-900 focus:border-green-500 focus:ring-green-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white"
+                                                :disabled="isEditDisabled"
+                                            >
+                                                <option v-for="type in bufferMediaTypes" :key="type" :value="type">
+                                                    {{ t(`social.composer_manager.media_types.${type}`) }}
+                                                </option>
+                                            </select>
+                                        </label>
+
+                                        <FloatingInput
+                                            v-model="asset.url"
+                                            type="url"
+                                            :label="t('social.composer_manager.fields.media_url')"
+                                            placeholder="https://cdn.example.com/media"
+                                            autocomplete="url"
+                                            :disabled="isEditDisabled"
+                                        />
+
+                                        <FloatingInput
+                                            v-if="asset.type === 'image'"
+                                            v-model="asset.alt_text"
+                                            :label="t('social.composer_manager.fields.media_alt_text')"
+                                            :disabled="isEditDisabled"
+                                        />
+
+                                        <FloatingInput
+                                            v-if="asset.type === 'video' || asset.type === 'document'"
+                                            v-model="asset.title"
+                                            :label="t('social.composer_manager.fields.media_title')"
+                                            :disabled="isEditDisabled"
+                                        />
+
+                                        <FloatingInput
+                                            v-if="asset.type === 'video'"
+                                            v-model="asset.thumbnail_offset"
+                                            type="number"
+                                            min="0"
+                                            :label="t('social.composer_manager.fields.media_thumbnail_offset')"
+                                            :disabled="isEditDisabled"
+                                        />
+
+                                        <FloatingInput
+                                            v-if="asset.type === 'document'"
+                                            v-model="asset.thumbnail_url"
+                                            type="url"
+                                            :label="t('social.composer_manager.fields.media_thumbnail_url')"
+                                            placeholder="https://cdn.example.com/thumbnail.jpg"
+                                            autocomplete="url"
+                                            :disabled="isEditDisabled"
+                                        />
+                                    </div>
+
+                                    <div class="mt-3 flex justify-end">
+                                        <button
+                                            type="button"
+                                            class="text-xs font-semibold text-rose-600 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-50 dark:text-rose-400"
+                                            :disabled="isEditDisabled"
+                                            @click="removeMediaAsset(index)"
+                                        >
+                                            {{ t('social.composer_manager.actions.remove_media') }}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
                         <FloatingInput
                             v-model="form.link_url"

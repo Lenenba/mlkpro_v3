@@ -77,6 +77,7 @@ class SocialMediaAssetService
             ->merge($this->postMediaAssets($owner))
             ->merge($this->templateMediaAssets($owner))
             ->filter(fn (array $asset): bool => trim((string) ($asset['url'] ?? '')) !== '')
+            ->filter(fn (array $asset): bool => strtolower((string) ($asset['type'] ?? 'image')) === 'image')
             ->unique(fn (array $asset): string => (string) ($asset['dedupe_key'] ?? $asset['id']))
             ->filter(fn (array $asset): bool => $source === 'all' || (string) ($asset['source'] ?? '') === $source)
             ->filter(fn (array $asset): bool => $origin === 'all' || (string) ($asset['origin'] ?? '') === $origin)
@@ -113,11 +114,13 @@ class SocialMediaAssetService
      * @param  array<string, mixed>  $payload
      * @return array<int, array<string, mixed>>|null
      */
-    public function imageMediaPayload(array $payload): ?array
+    public function mediaPayload(array $payload): ?array
     {
+        $media = [];
+        $primaryImage = null;
         $uploadedImage = $payload['image_upload'] ?? null;
         if (is_array($uploadedImage) && trim((string) ($uploadedImage['url'] ?? '')) !== '') {
-            return [[
+            $primaryImage = [
                 'type' => 'image',
                 'url' => (string) $uploadedImage['url'],
                 'disk' => $uploadedImage['disk'] ?? null,
@@ -126,19 +129,73 @@ class SocialMediaAssetService
                 'name' => $uploadedImage['name'] ?? null,
                 'mime_type' => $uploadedImage['mime_type'] ?? null,
                 'size' => $uploadedImage['size'] ?? null,
-            ]];
+            ];
+        } else {
+            $imageUrl = trim((string) ($payload['image_url'] ?? ''));
+            if ($imageUrl !== '') {
+                $primaryImage = [
+                    'type' => 'image',
+                    'url' => $imageUrl,
+                    'source' => 'url',
+                ];
+            }
         }
 
-        $imageUrl = trim((string) ($payload['image_url'] ?? ''));
-        if ($imageUrl === '') {
-            return null;
+        foreach ((array) ($payload['media_assets'] ?? []) as $asset) {
+            if (! is_array($asset)) {
+                continue;
+            }
+
+            $normalized = $this->normalizedMediaAsset($asset);
+            if ($normalized !== null) {
+                $media[] = $normalized;
+            }
         }
 
-        return [[
-            'type' => 'image',
-            'url' => $imageUrl,
-            'source' => 'url',
-        ]];
+        if ($primaryImage !== null) {
+            $primaryKey = 'image|'.(string) $primaryImage['url'];
+            $matchingIndex = collect($media)->search(
+                fn (array $asset): bool => strtolower((string) $asset['type']).'|'.(string) $asset['url'] === $primaryKey,
+            );
+
+            if ($matchingIndex === false) {
+                array_unshift($media, $primaryImage);
+            } else {
+                $media[$matchingIndex] = array_merge($media[$matchingIndex], $primaryImage);
+            }
+        }
+
+        $uniqueMedia = [];
+
+        foreach ($media as $asset) {
+            $key = strtolower((string) $asset['type']).'|'.(string) $asset['url'];
+
+            if (! array_key_exists($key, $uniqueMedia)) {
+                $uniqueMedia[$key] = $asset;
+
+                continue;
+            }
+
+            $existingSource = $uniqueMedia[$key]['source'] ?? null;
+            $uniqueMedia[$key] = array_merge($uniqueMedia[$key], $asset);
+
+            if ($existingSource === 'upload') {
+                $uniqueMedia[$key]['source'] = $existingSource;
+            }
+        }
+
+        $media = array_values($uniqueMedia);
+
+        return $media === [] ? null : $media;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<int, array<string, mixed>>|null
+     */
+    public function imageMediaPayload(array $payload): ?array
+    {
+        return $this->mediaPayload($payload);
     }
 
     /**
@@ -147,13 +204,42 @@ class SocialMediaAssetService
     public function imageUrl(?array $mediaPayload): ?string
     {
         foreach ((array) $mediaPayload as $item) {
+            $type = strtolower(trim((string) ($item['type'] ?? 'image')));
             $url = trim((string) ($item['url'] ?? ''));
-            if ($url !== '') {
+            if ($type === 'image' && $url !== '') {
                 return $url;
             }
         }
 
         return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $asset
+     * @return array<string, mixed>|null
+     */
+    private function normalizedMediaAsset(array $asset): ?array
+    {
+        $type = strtolower(trim((string) ($asset['type'] ?? '')));
+        $url = trim((string) ($asset['url'] ?? ''));
+
+        if (! in_array($type, ['image', 'video', 'document'], true) || $url === '') {
+            return null;
+        }
+
+        $normalized = array_filter([
+            'type' => $type,
+            'url' => $url,
+            'source' => trim((string) ($asset['source'] ?? 'url')) ?: 'url',
+            'alt_text' => trim((string) ($asset['alt_text'] ?? '')) ?: null,
+            'title' => trim((string) ($asset['title'] ?? '')) ?: null,
+            'thumbnail_url' => trim((string) ($asset['thumbnail_url'] ?? '')) ?: null,
+            'thumbnail_offset' => isset($asset['thumbnail_offset']) && $asset['thumbnail_offset'] !== ''
+                ? (int) $asset['thumbnail_offset']
+                : null,
+        ], fn (mixed $value): bool => $value !== null);
+
+        return $normalized;
     }
 
     /**
@@ -217,6 +303,7 @@ class SocialMediaAssetService
         return [
             'id' => 'asset-'.$asset->id,
             'asset_id' => $asset->id,
+            'type' => SocialMediaAsset::MEDIA_TYPE_IMAGE,
             'url' => $url,
             'source' => $this->normalizedSource($asset->source),
             'origin' => $asset->context ?: 'library',
@@ -254,6 +341,7 @@ class SocialMediaAssetService
                 return [
                     'id' => $originType.'-'.$origin->getKey().'-'.$index.'-'.substr(sha1($key), 0, 10),
                     'asset_id' => null,
+                    'type' => strtolower(trim((string) ($item['type'] ?? 'image'))) ?: 'image',
                     'url' => $url,
                     'source' => $this->normalizedSource($item['source'] ?? null),
                     'origin' => $originType,

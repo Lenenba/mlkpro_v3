@@ -430,7 +430,17 @@ it('submits a standalone Buffer Facebook target through the outbox without marki
         'content_payload' => [
             'text' => 'Publication Buffer runtime sans faux statut publié',
         ],
-        'media_payload' => [],
+        'media_payload' => [
+            [
+                'type' => 'image',
+                'url' => 'https://cdn.example.com/runtime-cover.jpg',
+                'alt_text' => 'Runtime cover',
+            ],
+            [
+                'type' => 'image',
+                'url' => 'https://cdn.example.com/runtime-details.jpg',
+            ],
+        ],
         'status' => SocialPost::STATUS_DRAFT,
     ]);
     $target = SocialPostTarget::query()->create([
@@ -496,7 +506,20 @@ it('submits a standalone Buffer Facebook target through the outbox without marki
             && data_get($input, 'channelId') === 'buffer-facebook-page'
             && data_get($input, 'mode') === 'shareNow'
             && data_get($input, 'saveToDraft') === false
-            && data_get($input, 'text') === 'Publication Buffer runtime sans faux statut publié';
+            && data_get($input, 'text') === 'Publication Buffer runtime sans faux statut publié'
+            && data_get($input, 'assets') === [
+                [
+                    'image' => [
+                        'url' => 'https://cdn.example.com/runtime-cover.jpg',
+                        'metadata' => ['altText' => 'Runtime cover'],
+                    ],
+                ],
+                [
+                    'image' => [
+                        'url' => 'https://cdn.example.com/runtime-details.jpg',
+                    ],
+                ],
+            ];
     });
     Http::assertSentCount(1);
 

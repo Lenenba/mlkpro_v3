@@ -19,8 +19,10 @@ uses(TestCase::class, RefreshDatabase::class);
 /**
  * @return array{gateway: BufferDistributionGateway, owner: User, connection: SocialAccountConnection}
  */
-function bufferDistributionGatewayFixture(): array
-{
+function bufferDistributionGatewayFixture(
+    string $platform = SocialAccountConnection::PLATFORM_FACEBOOK,
+    string $channelService = 'facebook',
+): array {
     $owner = User::factory()->create();
     $accountId = 'buffer-account-test';
     $organizationId = 'buffer-organization-test';
@@ -35,8 +37,8 @@ function bufferDistributionGatewayFixture(): array
 
     $connection = SocialAccountConnection::query()->create([
         'user_id' => $owner->id,
-        'platform' => SocialAccountConnection::PLATFORM_FACEBOOK,
-        'label' => 'Buffer Facebook Page',
+        'platform' => $platform,
+        'label' => 'Buffer Social Channel',
         'external_account_id' => $channelId,
         'delivery_provider' => SocialAccountConnection::DELIVERY_PROVIDER_BUFFER,
         'transport_generation' => SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1,
@@ -50,7 +52,7 @@ function bufferDistributionGatewayFixture(): array
             'buffer' => [
                 'account_id' => $accountId,
                 'organization_id' => $organizationId,
-                'channel_service' => 'facebook',
+                'channel_service' => $channelService,
                 'channel_type' => 'page',
                 'catalog_only' => false,
                 'publication_enabled' => true,
@@ -66,14 +68,26 @@ function bufferDistributionGatewayFixture(): array
     ];
 }
 
-function immediateBufferDelivery(User $owner, SocialAccountConnection $connection): CreateSocialDeliveryData
-{
+/**
+ * @param  array{
+ *     text?: string,
+ *     assets?: list<array<string, mixed>>,
+ *     linkUrl?: string|null
+ * }  $overrides
+ */
+function immediateBufferDelivery(
+    User $owner,
+    SocialAccountConnection $connection,
+    array $overrides = [],
+): CreateSocialDeliveryData {
     return CreateSocialDeliveryData::immediate(
         tenantId: (int) $owner->id,
         connectionId: (int) $connection->id,
         externalOrganizationId: 'buffer-organization-test',
         externalChannelId: 'buffer-facebook-channel-test',
-        text: 'Publication Facebook immédiate',
+        text: $overrides['text'] ?? 'Publication Facebook immédiate',
+        assets: $overrides['assets'] ?? [],
+        linkUrl: $overrides['linkUrl'] ?? null,
         idempotencyKey: 'buffer-delivery-immediate',
         correlationKey: 'buffer-correlation-immediate',
     );
@@ -82,6 +96,7 @@ function immediateBufferDelivery(User $owner, SocialAccountConnection $connectio
 function bufferPostSuccess(
     string $status,
     ?string $dueAt = null,
+    string $channelService = 'facebook',
 ): array {
     return [
         'data' => [
@@ -90,7 +105,7 @@ function bufferPostSuccess(
                 'post' => [
                     'id' => 'buffer-post-test',
                     'channelId' => 'buffer-facebook-channel-test',
-                    'channelService' => 'facebook',
+                    'channelService' => $channelService,
                     'dueAt' => $dueAt,
                     'schedulingType' => 'automatic',
                     'sentAt' => null,
@@ -137,18 +152,234 @@ it('submits an immediate Buffer post with the exact safe shareNow input', functi
             && $input === [
                 'assets' => [],
                 'channelId' => 'buffer-facebook-channel-test',
-                'metadata' => ['facebook' => ['type' => 'post']],
                 'mode' => 'shareNow',
                 'needsApproval' => false,
                 'saveToDraft' => false,
                 'schedulingType' => 'automatic',
                 'text' => 'Publication Facebook immédiate',
+                'metadata' => ['facebook' => ['type' => 'post']],
             ]
             && ! str_contains($request->body(), 'buffer-delivery-immediate')
             && ! str_contains($request->body(), 'buffer-correlation-immediate');
     });
     Http::assertSentCount(1);
 });
+
+it('maps ordered Buffer images with optional alt text', function () {
+    ['gateway' => $gateway, 'owner' => $owner, 'connection' => $connection] = bufferDistributionGatewayFixture();
+    Http::fake([
+        'https://buffer.test/graphql' => Http::response(bufferPostSuccess('sending')),
+    ]);
+
+    $result = $gateway->createPost(immediateBufferDelivery($owner, $connection, [
+        'assets' => [
+            [
+                'type' => 'image',
+                'url' => 'https://cdn.example.com/pulse-cover.jpg',
+                'alt_text' => 'Présentation Malikia Pulse',
+            ],
+            [
+                'type' => 'image',
+                'url' => 'https://cdn.example.com/pulse-details.jpg',
+            ],
+        ],
+    ]));
+
+    expect($result->status)->toBe(SocialDeliveryResultData::STATUS_SUBMITTED);
+    Http::assertSent(fn (Request $request): bool => data_get(
+        $request->data(),
+        'variables.input.assets',
+    ) === [
+        [
+            'image' => [
+                'url' => 'https://cdn.example.com/pulse-cover.jpg',
+                'metadata' => [
+                    'altText' => 'Présentation Malikia Pulse',
+                ],
+            ],
+        ],
+        [
+            'image' => [
+                'url' => 'https://cdn.example.com/pulse-details.jpg',
+            ],
+        ],
+    ]);
+    Http::assertSentCount(1);
+});
+
+it('submits a media-only Buffer video with its metadata', function () {
+    ['gateway' => $gateway, 'owner' => $owner, 'connection' => $connection] = bufferDistributionGatewayFixture();
+    Http::fake([
+        'https://buffer.test/graphql' => Http::response(bufferPostSuccess('sending')),
+    ]);
+
+    $result = $gateway->createPost(immediateBufferDelivery($owner, $connection, [
+        'text' => '',
+        'assets' => [[
+            'type' => 'video',
+            'url' => 'https://cdn.example.com/pulse-demo.mp4',
+            'title' => 'Démo Malikia Pulse',
+            'thumbnail_offset' => 2000,
+        ]],
+    ]));
+
+    expect($result->status)->toBe(SocialDeliveryResultData::STATUS_SUBMITTED);
+    Http::assertSent(function (Request $request): bool {
+        $input = data_get($request->data(), 'variables.input');
+
+        return data_get($input, 'text') === ''
+            && data_get($input, 'assets') === [[
+                'video' => [
+                    'url' => 'https://cdn.example.com/pulse-demo.mp4',
+                    'metadata' => [
+                        'thumbnailOffset' => 2000,
+                        'title' => 'Démo Malikia Pulse',
+                    ],
+                ],
+            ]];
+    });
+    Http::assertSentCount(1);
+});
+
+it('maps a Buffer document with its required title and thumbnail', function () {
+    ['gateway' => $gateway, 'owner' => $owner, 'connection' => $connection] = bufferDistributionGatewayFixture();
+    Http::fake([
+        'https://buffer.test/graphql' => Http::response(bufferPostSuccess('sending')),
+    ]);
+
+    $result = $gateway->createPost(immediateBufferDelivery($owner, $connection, [
+        'assets' => [[
+            'type' => 'document',
+            'url' => 'https://cdn.example.com/pulse-guide.pdf',
+            'title' => 'Guide Malikia Pulse',
+            'thumbnail_url' => 'https://cdn.example.com/pulse-guide-cover.jpg',
+        ]],
+    ]));
+
+    expect($result->status)->toBe(SocialDeliveryResultData::STATUS_SUBMITTED);
+    Http::assertSent(fn (Request $request): bool => data_get(
+        $request->data(),
+        'variables.input.assets',
+    ) === [[
+        'document' => [
+            'thumbnailUrl' => 'https://cdn.example.com/pulse-guide-cover.jpg',
+            'title' => 'Guide Malikia Pulse',
+            'url' => 'https://cdn.example.com/pulse-guide.pdf',
+        ],
+    ]]);
+    Http::assertSentCount(1);
+});
+
+it('maps a link-only Buffer post to Facebook link attachment metadata', function () {
+    ['gateway' => $gateway, 'owner' => $owner, 'connection' => $connection] = bufferDistributionGatewayFixture();
+    Http::fake([
+        'https://buffer.test/graphql' => Http::response(bufferPostSuccess('sending')),
+    ]);
+
+    $result = $gateway->createPost(immediateBufferDelivery($owner, $connection, [
+        'text' => '',
+        'linkUrl' => 'https://malikiapro.com/pulse',
+    ]));
+
+    expect($result->status)->toBe(SocialDeliveryResultData::STATUS_SUBMITTED);
+    Http::assertSent(function (Request $request): bool {
+        $input = data_get($request->data(), 'variables.input');
+
+        return data_get($input, 'assets') === []
+            && data_get($input, 'text') === ''
+            && data_get($input, 'metadata.facebook') === [
+                'type' => 'post',
+                'linkAttachment' => [
+                    'url' => 'https://malikiapro.com/pulse',
+                ],
+            ];
+    });
+    Http::assertSentCount(1);
+});
+
+it('appends a media link to Buffer text without link attachment metadata', function () {
+    ['gateway' => $gateway, 'owner' => $owner, 'connection' => $connection] = bufferDistributionGatewayFixture();
+    Http::fake([
+        'https://buffer.test/graphql' => Http::response(bufferPostSuccess('sending')),
+    ]);
+
+    $result = $gateway->createPost(immediateBufferDelivery($owner, $connection, [
+        'text' => 'Publication avec média',
+        'assets' => [[
+            'type' => 'image',
+            'url' => 'https://cdn.example.com/pulse-cover.jpg',
+        ]],
+        'linkUrl' => 'https://malikiapro.com/pulse',
+    ]));
+
+    expect($result->status)->toBe(SocialDeliveryResultData::STATUS_SUBMITTED);
+    Http::assertSent(function (Request $request): bool {
+        $input = data_get($request->data(), 'variables.input');
+
+        return data_get($input, 'assets') === [[
+            'image' => [
+                'url' => 'https://cdn.example.com/pulse-cover.jpg',
+            ],
+        ]]
+            && data_get($input, 'metadata.facebook') === ['type' => 'post']
+            && data_get($input, 'text') === "Publication avec média\n\nhttps://malikiapro.com/pulse";
+    });
+    Http::assertSentCount(1);
+});
+
+it('submits through every supported Buffer channel identity', function (
+    string $platform,
+    string $channelService,
+    array $expectedMetadata,
+    string $expectedText,
+) {
+    ['gateway' => $gateway, 'owner' => $owner, 'connection' => $connection]
+        = bufferDistributionGatewayFixture($platform, $channelService);
+    Http::fake([
+        'https://buffer.test/graphql' => Http::response(
+            bufferPostSuccess('sending', channelService: $channelService),
+        ),
+    ]);
+
+    $result = $gateway->createPost(immediateBufferDelivery($owner, $connection, [
+        'text' => 'Publication Buffer',
+        'linkUrl' => 'https://malikiapro.com/pulse',
+    ]));
+
+    expect($result->status)->toBe(SocialDeliveryResultData::STATUS_SUBMITTED);
+    Http::assertSent(function (Request $request) use ($expectedMetadata, $expectedText): bool {
+        $input = (array) data_get($request->data(), 'variables.input', []);
+
+        return ($input['metadata'] ?? []) === $expectedMetadata
+            && ($input['text'] ?? null) === $expectedText;
+    });
+    Http::assertSentCount(1);
+})->with([
+    'Instagram' => [
+        SocialAccountConnection::PLATFORM_INSTAGRAM,
+        'instagram',
+        [],
+        "Publication Buffer\n\nhttps://malikiapro.com/pulse",
+    ],
+    'LinkedIn' => [
+        SocialAccountConnection::PLATFORM_LINKEDIN,
+        'linkedin',
+        ['linkedin' => ['linkAttachment' => ['url' => 'https://malikiapro.com/pulse']]],
+        'Publication Buffer',
+    ],
+    'X through Twitter service' => [
+        SocialAccountConnection::PLATFORM_X,
+        'twitter',
+        [],
+        "Publication Buffer\n\nhttps://malikiapro.com/pulse",
+    ],
+    'X service alias' => [
+        SocialAccountConnection::PLATFORM_X,
+        'x',
+        [],
+        "Publication Buffer\n\nhttps://malikiapro.com/pulse",
+    ],
+]);
 
 it('submits a scheduled Buffer post with customScheduled and an exact UTC dueAt', function () {
     ['gateway' => $gateway, 'owner' => $owner, 'connection' => $connection] = bufferDistributionGatewayFixture();
@@ -165,6 +396,8 @@ it('submits a scheduled Buffer post with customScheduled and an exact UTC dueAt'
         externalOrganizationId: 'buffer-organization-test',
         externalChannelId: 'buffer-facebook-channel-test',
         text: 'Publication Facebook programmée',
+        assets: [],
+        linkUrl: null,
         scheduledFor: $scheduledFor,
         idempotencyKey: 'buffer-delivery-scheduled',
     ));
@@ -179,12 +412,12 @@ it('submits a scheduled Buffer post with customScheduled and an exact UTC dueAt'
     ) === [
         'assets' => [],
         'channelId' => 'buffer-facebook-channel-test',
-        'metadata' => ['facebook' => ['type' => 'post']],
         'mode' => 'customScheduled',
         'needsApproval' => false,
         'saveToDraft' => false,
         'schedulingType' => 'automatic',
         'text' => 'Publication Facebook programmée',
+        'metadata' => ['facebook' => ['type' => 'post']],
         'dueAt' => '2026-09-03T13:15:00Z',
     ]);
     Http::assertSentCount(1);

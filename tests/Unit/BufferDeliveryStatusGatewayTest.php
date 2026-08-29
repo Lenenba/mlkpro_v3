@@ -22,10 +22,12 @@ uses(TestCase::class, RefreshDatabase::class);
 function bufferDeliveryStatusGatewayFixture(
     array $connectionOverrides = [],
     array $oauthOverrides = [],
+    string $platform = SocialAccountConnection::PLATFORM_FACEBOOK,
+    string $channelService = 'facebook',
 ): array {
     $owner = User::factory()->create();
     $accountId = 'buffer-status-account-test';
-    $channelId = 'buffer-status-facebook-channel-test';
+    $channelId = 'buffer-status-'.$channelService.'-channel-test';
 
     SocialBufferConnection::factory()->for($owner)->create([
         'buffer_account_id' => $accountId,
@@ -37,8 +39,8 @@ function bufferDeliveryStatusGatewayFixture(
 
     $connection = SocialAccountConnection::query()->create([
         'user_id' => $owner->id,
-        'platform' => SocialAccountConnection::PLATFORM_FACEBOOK,
-        'label' => 'Buffer Facebook Page',
+        'platform' => $platform,
+        'label' => 'Buffer Social Channel',
         'external_account_id' => $channelId,
         'delivery_provider' => SocialAccountConnection::DELIVERY_PROVIDER_BUFFER,
         'transport_generation' => SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1,
@@ -52,7 +54,7 @@ function bufferDeliveryStatusGatewayFixture(
             'buffer' => [
                 'account_id' => $accountId,
                 'organization_id' => 'buffer-status-organization-test',
-                'channel_service' => 'facebook',
+                'channel_service' => $channelService,
                 'channel_type' => 'page',
                 'catalog_only' => false,
                 'publication_enabled' => true,
@@ -98,13 +100,15 @@ function bufferStatusRead(
 function bufferStatusResponse(
     string $status,
     ?string $dueAt = null,
+    string $channelId = 'buffer-status-facebook-channel-test',
+    string $channelService = 'facebook',
 ): array {
     return [
         'data' => [
             'post' => [
                 'id' => 'buffer-status-post-test',
-                'channelId' => 'buffer-status-facebook-channel-test',
-                'channelService' => 'facebook',
+                'channelId' => $channelId,
+                'channelService' => $channelService,
                 'dueAt' => $dueAt,
                 'status' => $status,
             ],
@@ -195,6 +199,37 @@ it('maps each Buffer provider status to the normalized delivery status', functio
     ],
 ]);
 
+it('reads the status for every supported Buffer channel identity', function (
+    string $platform,
+    string $channelService,
+) {
+    ['gateway' => $gateway, 'owner' => $owner, 'connection' => $connection]
+        = bufferDeliveryStatusGatewayFixture(
+            platform: $platform,
+            channelService: $channelService,
+        );
+    Http::preventStrayRequests();
+    Http::fake([
+        'https://buffer.test/graphql' => Http::response(bufferStatusResponse(
+            'sent',
+            channelId: (string) $connection->external_account_id,
+            channelService: $channelService,
+        )),
+    ]);
+
+    $result = $gateway->readStatus(bufferStatusRead($owner, $connection));
+
+    expect($result->status)->toBe(SocialDeliveryStatusResultData::STATUS_SENT)
+        ->and($connection->platform)->toBe($platform);
+    Http::assertSentCount(1);
+})->with([
+    'Facebook' => [SocialAccountConnection::PLATFORM_FACEBOOK, 'facebook'],
+    'Instagram' => [SocialAccountConnection::PLATFORM_INSTAGRAM, 'instagram'],
+    'LinkedIn' => [SocialAccountConnection::PLATFORM_LINKEDIN, 'linkedin'],
+    'X through Buffer Twitter service' => [SocialAccountConnection::PLATFORM_X, 'twitter'],
+    'X service alias' => [SocialAccountConnection::PLATFORM_X, 'x'],
+]);
+
 it('sends the exact Buffer post query with the OAuth token and remote post ID', function () {
     ['gateway' => $gateway, 'owner' => $owner, 'connection' => $connection]
         = bufferDeliveryStatusGatewayFixture();
@@ -262,7 +297,7 @@ it('rejects a cross tenant status read before sending an HTTP request', function
     Http::assertNothingSent();
 });
 
-it('rejects a non Buffer Facebook snapshot or mismatched logical destination key', function (
+it('rejects a non Buffer snapshot or mismatched destination identity', function (
     array $connectionOverrides,
     array $requestOverrides,
 ) {
@@ -283,13 +318,13 @@ it('rejects a non Buffer Facebook snapshot or mismatched logical destination key
     );
     Http::assertNothingSent();
 })->with([
-    'non Facebook connection' => [
+    'mismatched platform and Buffer service' => [
         [
             'platform' => SocialAccountConnection::PLATFORM_INSTAGRAM,
             'metadata' => [
                 'buffer' => [
                     'account_id' => 'buffer-status-account-test',
-                    'channel_service' => 'instagram',
+                    'channel_service' => 'facebook',
                 ],
             ],
         ],
@@ -329,7 +364,7 @@ it('rejects a Buffer OAuth grant without posts read before sending HTTP', functi
     Http::assertNothingSent();
 });
 
-it('rejects a response for a different remote post or Facebook channel', function (
+it('rejects a response for a different remote post or Buffer channel identity', function (
     string $path,
     string $value,
 ) {

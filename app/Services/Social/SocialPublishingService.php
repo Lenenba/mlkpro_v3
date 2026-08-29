@@ -1237,12 +1237,6 @@ class SocialPublishingService
         SocialDeliveryOutbox $outbox,
         array $payload,
     ): CreateSocialDeliveryData {
-        if (filled(data_get($payload, 'image_url')) || filled(data_get($payload, 'link_url'))) {
-            throw new InvalidArgumentException(
-                'Buffer publication currently supports text-only Facebook posts.',
-            );
-        }
-
         $scheduledFor = $this->resolveDate(data_get($payload, 'scheduled_for'));
         $arguments = [
             'tenantId' => (int) $outbox->user_id,
@@ -1254,6 +1248,10 @@ class SocialPublishingService
             'correlationKey' => $outbox->correlation_key === null
                 ? null
                 : (string) $outbox->correlation_key,
+            'assets' => $this->bufferAssetsFromPayload($payload),
+            'linkUrl' => filled(data_get($payload, 'link_url'))
+                ? trim((string) data_get($payload, 'link_url'))
+                : null,
         ];
 
         if ($scheduledFor instanceof Carbon) {
@@ -1276,8 +1274,12 @@ class SocialPublishingService
     ): array {
         $baseContent = (array) $revision->base_content;
         $sourceSnapshot = (array) $revision->source_snapshot;
-        $image = collect($this->revisionMediaItems($revision))
-            ->first(fn (array $item): bool => trim((string) ($item['url'] ?? '')) !== '');
+        $mediaAssets = $this->revisionMediaItems($revision);
+        $image = collect($mediaAssets)
+            ->first(fn (array $item): bool => (
+                in_array(strtolower(trim((string) ($item['type'] ?? 'image'))), ['', 'image'], true)
+                && trim((string) ($item['url'] ?? '')) !== ''
+            ));
 
         return [
             'post_id' => $revision->social_post_id,
@@ -1286,6 +1288,7 @@ class SocialPublishingService
             'platform' => $connection->platform,
             'text' => trim((string) data_get($baseContent, 'content_payload.text')),
             'image_url' => trim((string) ($image['url'] ?? '')) ?: null,
+            'media_assets' => array_values($mediaAssets),
             'link_url' => data_get($baseContent, 'link_url'),
             'scheduled_for' => optional($revision->scheduled_for)->toIso8601String(),
             'source_type' => data_get($sourceSnapshot, 'source_type'),
@@ -1298,6 +1301,67 @@ class SocialPublishingService
                 'link_cta_label' => data_get($baseContent, 'link_cta_label'),
             ],
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<int, array<string, mixed>>
+     */
+    private function bufferAssetsFromPayload(array $payload): array
+    {
+        $assets = collect((array) data_get($payload, 'media_assets', []))
+            ->filter(fn (mixed $asset): bool => is_array($asset))
+            ->map(fn (array $asset): ?array => $this->bufferAssetFromPayload($asset))
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($assets !== []) {
+            return $assets;
+        }
+
+        $legacyImageUrl = trim((string) data_get($payload, 'image_url'));
+
+        return $legacyImageUrl === '' ? [] : [[
+            'type' => 'image',
+            'url' => $this->publicMediaUrl($legacyImageUrl),
+        ]];
+    }
+
+    /**
+     * @param  array<string, mixed>  $asset
+     * @return array<string, mixed>|null
+     */
+    private function bufferAssetFromPayload(array $asset): ?array
+    {
+        $type = strtolower(trim((string) ($asset['type'] ?? 'image')));
+        $url = trim((string) ($asset['url'] ?? ''));
+
+        if (! in_array($type, ['image', 'video', 'document'], true) || $url === '') {
+            return null;
+        }
+
+        return array_filter([
+            'type' => $type,
+            'url' => $this->publicMediaUrl($url),
+            'alt_text' => trim((string) ($asset['alt_text'] ?? '')) ?: null,
+            'title' => trim((string) ($asset['title'] ?? '')) ?: null,
+            'thumbnail_url' => filled($asset['thumbnail_url'] ?? null)
+                ? $this->publicMediaUrl((string) $asset['thumbnail_url'])
+                : null,
+            'thumbnail_offset' => isset($asset['thumbnail_offset'])
+                ? (int) $asset['thumbnail_offset']
+                : null,
+        ], fn (mixed $value): bool => $value !== null);
+    }
+
+    private function publicMediaUrl(string $value): string
+    {
+        $url = trim($value);
+
+        return preg_match('/\Ahttps?:\/\//i', $url) === 1
+            ? $url
+            : url('/'.ltrim($url, '/'));
     }
 
     /**

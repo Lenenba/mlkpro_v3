@@ -103,6 +103,7 @@ class SocialTemplateService
             'name' => $template->name,
             'text' => $text !== '' ? $text : null,
             'image_url' => $this->mediaAssetService->imageUrl((array) ($template->media_payload ?? [])),
+            'media_assets' => array_values((array) ($template->media_payload ?? [])),
             'link_url' => $template->link_url,
             'link_cta_label' => $this->linkCtaLabel($template->metadata),
             'selected_target_connection_ids' => $selectedTargetIds,
@@ -129,7 +130,7 @@ class SocialTemplateService
     {
         $name = $this->nullableString($payload, 'name');
         $text = $this->nullableString($payload, 'text');
-        $mediaPayload = $this->mediaAssetService->imageMediaPayload($payload);
+        $mediaPayload = $this->mediaAssetService->mediaPayload($payload);
         $linkUrl = $this->nullableString($payload, 'link_url');
         $linkCtaLabel = $linkUrl !== null ? $this->nullableString($payload, 'link_cta_label') : null;
         $targetConnections = $this->resolveTargetConnections($owner, (array) ($payload['target_connection_ids'] ?? []));
@@ -142,7 +143,7 @@ class SocialTemplateService
 
         if ($text === null && $mediaPayload === null && $linkUrl === null) {
             throw ValidationException::withMessages([
-                'text' => 'Add some text, an image, or a destination link before saving this Pulse template.',
+                'text' => 'Add some text, media, or a destination link before saving this Pulse template.',
             ]);
         }
 
@@ -177,7 +178,8 @@ class SocialTemplateService
                     })
                     ->values()
                     ->all(),
-                'has_image' => $mediaPayload !== null,
+                'has_image' => $this->mediaAssetService->imageUrl($mediaPayload) !== null,
+                'has_media' => $mediaPayload !== null,
                 'has_link' => $linkUrl !== null,
                 'template_saved_from' => 'social_composer',
             ],

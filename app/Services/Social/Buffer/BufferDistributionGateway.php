@@ -69,7 +69,7 @@ final class BufferDistributionGateway implements SocialDistributionGatewayInterf
     public function createPost(CreateSocialDeliveryData $delivery): SocialDeliveryResultData
     {
         try {
-            $owner = $this->validatedOwner($delivery);
+            [$owner, $connection] = $this->validatedContext($delivery);
         } catch (InvalidArgumentException $exception) {
             throw new DefinitiveSocialPublishingRejectionException(
                 'The Buffer delivery configuration is invalid.',
@@ -94,7 +94,7 @@ final class BufferDistributionGateway implements SocialDistributionGatewayInterf
                 ->post((string) config('services.buffer.local_connector.api_url'), [
                     'query' => self::CREATE_POST_MUTATION,
                     'variables' => [
-                        'input' => $this->createInput($delivery),
+                        'input' => $this->createInput($delivery, $connection),
                     ],
                 ]);
         } catch (ConnectionException) {
@@ -118,7 +118,7 @@ final class BufferDistributionGateway implements SocialDistributionGatewayInterf
         }
 
         $submitted = $response->successful() && $this->hasNoGraphqlErrors($payload)
-            ? $this->submittedResult($payload, $delivery)
+            ? $this->submittedResult($payload, $delivery, $connection)
             : null;
 
         if ($submitted !== null) {
@@ -139,24 +139,36 @@ final class BufferDistributionGateway implements SocialDistributionGatewayInterf
     }
 
     /** @return array<string, mixed> */
-    private function createInput(CreateSocialDeliveryData $delivery): array
-    {
+    private function createInput(
+        CreateSocialDeliveryData $delivery,
+        SocialAccountConnection $connection,
+    ): array {
+        $assets = array_map(
+            fn (array $asset): array => $this->bufferAsset($asset),
+            $delivery->assets,
+        );
+        $text = trim($delivery->text);
+        $metadata = $this->postMetadata($connection, $delivery->linkUrl, $assets === []);
+
+        if ($delivery->linkUrl !== null && ($assets !== [] || $metadata === [])) {
+            $text = $this->textWithLink($text, $delivery->linkUrl);
+        }
+
         $input = [
-            'assets' => [],
+            'assets' => $assets,
             'channelId' => $delivery->externalChannelId,
-            'metadata' => [
-                'facebook' => [
-                    'type' => 'post',
-                ],
-            ],
             'mode' => $delivery->mode === CreateSocialDeliveryData::MODE_IMMEDIATE
                 ? 'shareNow'
                 : 'customScheduled',
             'needsApproval' => false,
             'saveToDraft' => false,
             'schedulingType' => 'automatic',
-            'text' => $delivery->text,
+            'text' => $text,
         ];
+
+        if ($metadata !== []) {
+            $input['metadata'] = $metadata;
+        }
 
         if ($delivery->scheduledFor !== null) {
             $input['dueAt'] = $delivery->scheduledFor->utc()->toIso8601ZuluString();
@@ -165,7 +177,10 @@ final class BufferDistributionGateway implements SocialDistributionGatewayInterf
         return $input;
     }
 
-    private function validatedOwner(CreateSocialDeliveryData $delivery): User
+    /**
+     * @return array{User, SocialAccountConnection}
+     */
+    private function validatedContext(CreateSocialDeliveryData $delivery): array
     {
         if (! (bool) config('services.buffer.delivery.enabled', false)) {
             throw new InvalidArgumentException('Buffer social delivery is disabled.');
@@ -175,7 +190,6 @@ final class BufferDistributionGateway implements SocialDistributionGatewayInterf
         $connection = SocialAccountConnection::query()
             ->whereKey($delivery->connectionId)
             ->where('user_id', $delivery->tenantId)
-            ->where('platform', SocialAccountConnection::PLATFORM_FACEBOOK)
             ->where('external_account_id', $delivery->externalChannelId)
             ->where('delivery_provider', SocialAccountConnection::DELIVERY_PROVIDER_BUFFER)
             ->where('transport_generation', SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1)
@@ -188,6 +202,10 @@ final class BufferDistributionGateway implements SocialDistributionGatewayInterf
             || (bool) data_get($connection->metadata, 'buffer.catalog_only', false)
             || ! (bool) data_get($connection->metadata, 'buffer.publication_enabled', false)
             || ! (bool) data_get($connection->metadata, 'buffer.standalone_destination', false)
+            || ! $this->channelServiceMatchesPlatform(
+                data_get($connection->metadata, 'buffer.channel_service'),
+                (string) $connection->platform,
+            )
             || ! $this->identifiersMatch(
                 data_get($connection->metadata, 'buffer.organization_id'),
                 $delivery->externalOrganizationId,
@@ -208,7 +226,7 @@ final class BufferDistributionGateway implements SocialDistributionGatewayInterf
             throw new InvalidArgumentException('The Buffer social delivery authorization is invalid.');
         }
 
-        return $owner;
+        return [$owner, $connection];
     }
 
     private function identifiersMatch(mixed $actual, mixed $expected): bool
@@ -226,6 +244,7 @@ final class BufferDistributionGateway implements SocialDistributionGatewayInterf
     private function submittedResult(
         array $payload,
         CreateSocialDeliveryData $delivery,
+        SocialAccountConnection $connection,
     ): ?SocialDeliveryResultData {
         if (data_get($payload, 'data.createPost.__typename') !== 'PostActionSuccess') {
             return null;
@@ -242,7 +261,10 @@ final class BufferDistributionGateway implements SocialDistributionGatewayInterf
         if (! is_string($providerPostId)
             || preg_match('/\A[A-Za-z0-9_-]{1,128}\z/', $providerPostId) !== 1
             || ! $this->identifiersMatch($post['channelId'] ?? null, $delivery->externalChannelId)
-            || ($post['channelService'] ?? null) !== SocialAccountConnection::PLATFORM_FACEBOOK) {
+            || ! $this->channelServiceMatchesPlatform(
+                $post['channelService'] ?? null,
+                (string) $connection->platform,
+            )) {
             return null;
         }
 
@@ -251,6 +273,109 @@ final class BufferDistributionGateway implements SocialDistributionGatewayInterf
             providerStatus: $this->providerStatus($post['status'] ?? null),
             remoteScheduledFor: $this->remoteScheduledFor($post['dueAt'] ?? null),
         );
+    }
+
+    /**
+     * @param  array<string, mixed>  $asset
+     * @return array<string, mixed>
+     */
+    private function bufferAsset(array $asset): array
+    {
+        $type = (string) $asset['type'];
+        $url = (string) $asset['url'];
+
+        if ($type === 'image') {
+            $image = ['url' => $url];
+            $altText = trim((string) ($asset['alt_text'] ?? ''));
+
+            if ($altText !== '') {
+                $image['metadata'] = ['altText' => $altText];
+            }
+
+            return ['image' => $image];
+        }
+
+        if ($type === 'video') {
+            $video = ['url' => $url];
+            $metadata = array_filter([
+                'thumbnailOffset' => $asset['thumbnail_offset'] ?? null,
+                'title' => trim((string) ($asset['title'] ?? '')) ?: null,
+            ], fn (mixed $value): bool => $value !== null);
+
+            if ($metadata !== []) {
+                $video['metadata'] = $metadata;
+            }
+
+            return ['video' => $video];
+        }
+
+        return [
+            'document' => [
+                'thumbnailUrl' => (string) $asset['thumbnail_url'],
+                'title' => (string) $asset['title'],
+                'url' => $url,
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function postMetadata(
+        SocialAccountConnection $connection,
+        ?string $linkUrl,
+        bool $withoutAssets,
+    ): array {
+        $platform = (string) $connection->platform;
+
+        if ($platform === SocialAccountConnection::PLATFORM_FACEBOOK) {
+            return [
+                'facebook' => array_filter([
+                    'type' => 'post',
+                    'linkAttachment' => $linkUrl !== null && $withoutAssets
+                        ? ['url' => $linkUrl]
+                        : null,
+                ], fn (mixed $value): bool => $value !== null),
+            ];
+        }
+
+        if ($platform === SocialAccountConnection::PLATFORM_LINKEDIN
+            && $linkUrl !== null
+            && $withoutAssets) {
+            return [
+                'linkedin' => [
+                    'linkAttachment' => ['url' => $linkUrl],
+                ],
+            ];
+        }
+
+        return [];
+    }
+
+    private function textWithLink(string $text, string $linkUrl): string
+    {
+        if (str_contains($text, $linkUrl)) {
+            return $text;
+        }
+
+        return $text === '' ? $linkUrl : $text."\n\n".$linkUrl;
+    }
+
+    private function channelServiceMatchesPlatform(mixed $service, string $platform): bool
+    {
+        if (! is_string($service)) {
+            return false;
+        }
+
+        $normalizedService = strtolower(trim($service));
+
+        return match ($platform) {
+            SocialAccountConnection::PLATFORM_FACEBOOK => $normalizedService === 'facebook',
+            SocialAccountConnection::PLATFORM_INSTAGRAM => $normalizedService === 'instagram',
+            SocialAccountConnection::PLATFORM_LINKEDIN => $normalizedService === 'linkedin',
+            SocialAccountConnection::PLATFORM_X => in_array($normalizedService, ['twitter', 'x'], true),
+            default => false,
+        };
     }
 
     private function providerStatus(mixed $status): ?string

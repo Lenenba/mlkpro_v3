@@ -106,6 +106,93 @@ test('the pulse composer keeps queued publication content and media locked', () 
     assert.match(composer, /:disabled="isEditDisabled" @click="saveAsTemplate"/u);
 });
 
+test('the pulse composer exposes Buffer media controls and serializes media assets', () => {
+    for (const field of [
+        'buffer_media',
+        'media_help',
+        'media_type',
+        'media_url',
+        'media_alt_text',
+        'media_title',
+        'media_thumbnail_url',
+        'media_thumbnail_offset',
+    ]) {
+        assert.match(
+            composer,
+            new RegExp(`social\\.composer_manager\\.fields\\.${field}`),
+            field,
+        );
+    }
+
+    for (const action of ['add_media', 'remove_media']) {
+        assert.match(
+            composer,
+            new RegExp(`social\\.composer_manager\\.actions\\.${action}`),
+            action,
+        );
+    }
+
+    for (const type of ['image', 'video', 'document']) {
+        assert.match(composer, new RegExp(`['"]${type}['"]`), type);
+    }
+
+    assert.match(
+        composer,
+        /const appendMediaAssets = \(formData, assets\) => \{[\s\S]*?formData\.append\('media_assets'/u,
+    );
+    assert.match(composer, /appendMediaAssets\(formData, form(?:\.value)?\.media_assets\)/u);
+    assert.match(
+        composer,
+        /const usesPrimaryImageField = firstAsset\?\.type === 'image'[\s\S]*?media_assets: assets\.slice\(1\)/u,
+    );
+    assert.match(composer, /image_url: assets\.length > 0 \? '' : primaryUrl/u);
+    assert.match(
+        composer,
+        /const bufferMediaLimitReached = computed[\s\S]*?form\.value\.media_assets\.length[\s\S]*?>= 20/u,
+    );
+    assert.match(composer, /:disabled="isEditDisabled \|\| bufferMediaLimitReached"/u);
+});
+
+test('Buffer media copy exists in every locale and states the public document requirements', () => {
+    const requiredFields = [
+        'buffer_media',
+        'media_help',
+        'media_type',
+        'media_url',
+        'media_alt_text',
+        'media_title',
+        'media_thumbnail_url',
+        'media_thumbnail_offset',
+    ];
+    const helpPatterns = {
+        fr: /^(?=.*https)(?=.*publique)(?=.*document)(?=.*titre)(?=.*miniature)/iu,
+        en: /^(?=.*https)(?=.*public)(?=.*document)(?=.*title)(?=.*thumbnail)/iu,
+        es: /^(?=.*https)(?=.*pública)(?=.*documento)(?=.*título)(?=.*miniatura)/iu,
+    };
+
+    for (const locale of ['fr', 'en', 'es']) {
+        const composerCopy = readJson(`resources/js/i18n/modules/${locale}/social.json`)
+            .social.composer_manager;
+
+        for (const field of requiredFields) {
+            assert.equal(typeof composerCopy.fields[field], 'string', `${locale}:fields:${field}`);
+            assert.notEqual(composerCopy.fields[field].trim(), '', `${locale}:fields:${field}`);
+        }
+
+        for (const action of ['add_media', 'remove_media']) {
+            assert.equal(typeof composerCopy.actions[action], 'string', `${locale}:actions:${action}`);
+            assert.notEqual(composerCopy.actions[action].trim(), '', `${locale}:actions:${action}`);
+        }
+
+        for (const type of ['image', 'video', 'document']) {
+            assert.equal(typeof composerCopy.media_types[type], 'string', `${locale}:media_types:${type}`);
+            assert.notEqual(composerCopy.media_types[type].trim(), '', `${locale}:media_types:${type}`);
+        }
+
+        assert.match(composerCopy.fields.media_help, helpPatterns[locale], locale);
+    }
+});
+
 test('the pulse account manager releases oauth recovery only after the callback claim expires', () => {
     const claimGuards = accountManager.match(
         /:disabled="busy \|\| isLoading \|\| selectedConnection\.oauth_callback_active"/gu,

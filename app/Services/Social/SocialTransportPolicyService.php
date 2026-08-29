@@ -8,11 +8,20 @@ use App\Models\SocialTransportCutover;
 use App\Models\SocialTransportCutoverMapping;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 class SocialTransportPolicyService
 {
+    /** @var list<string> */
+    private const BUFFER_DELIVERY_PLATFORMS = [
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        SocialAccountConnection::PLATFORM_INSTAGRAM,
+        SocialAccountConnection::PLATFORM_LINKEDIN,
+        SocialAccountConnection::PLATFORM_X,
+    ];
+
     public function allowsNewSubmission(
         int $tenantId,
         string $transportGeneration,
@@ -226,7 +235,7 @@ class SocialTransportPolicyService
         $connection = SocialAccountConnection::query()
             ->whereKey($connectionId)
             ->where('user_id', $tenantId)
-            ->where('platform', SocialAccountConnection::PLATFORM_FACEBOOK)
+            ->whereIn('platform', self::BUFFER_DELIVERY_PLATFORMS)
             ->where('delivery_provider', SocialAccountConnection::DELIVERY_PROVIDER_BUFFER)
             ->where(
                 'transport_generation',
@@ -237,6 +246,7 @@ class SocialTransportPolicyService
             ->first();
 
         if (! $connection instanceof SocialAccountConnection
+            || ! $this->bufferServiceMatchesConnection($connection)
             || ! (bool) data_get($connection->metadata, 'buffer.standalone_destination', false)
             || ! (bool) data_get($connection->metadata, 'buffer.publication_enabled', false)
             || (bool) data_get($connection->metadata, 'buffer.catalog_only', true)) {
@@ -248,11 +258,44 @@ class SocialTransportPolicyService
             ->first();
 
         return $grant?->isConnected() === true
+            && $this->identifiersMatch(
+                data_get($connection->metadata, 'buffer.account_id'),
+                $grant->buffer_account_id,
+            )
             && in_array('posts:write', (array) $grant->scopes, true)
             && SocialAccountConnection::query()
                 ->where('user_id', $tenantId)
                 ->where('logical_destination_key', $logicalDestinationKey)
                 ->count() === 1;
+    }
+
+    private function bufferServiceMatchesConnection(
+        SocialAccountConnection $connection,
+    ): bool {
+        $service = data_get($connection->metadata, 'buffer.channel_service');
+
+        if (! is_string($service)) {
+            return false;
+        }
+
+        $platform = match (Str::lower(trim($service))) {
+            'facebook' => SocialAccountConnection::PLATFORM_FACEBOOK,
+            'instagram' => SocialAccountConnection::PLATFORM_INSTAGRAM,
+            'linkedin' => SocialAccountConnection::PLATFORM_LINKEDIN,
+            'twitter', 'x' => SocialAccountConnection::PLATFORM_X,
+            default => null,
+        };
+
+        return $platform === (string) $connection->platform;
+    }
+
+    private function identifiersMatch(mixed $actual, mixed $expected): bool
+    {
+        return is_string($actual)
+            && is_string($expected)
+            && $actual !== ''
+            && $expected !== ''
+            && hash_equals($expected, $actual);
     }
 
     private function directConnectionIsSupersededByBuffer(

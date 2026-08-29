@@ -53,6 +53,8 @@ final class FakeSocialDistributionGateway implements SocialDistributionGatewayIn
  *     externalOrganizationId?: string,
  *     externalChannelId?: string,
  *     text?: string,
+ *     assets?: list<array<string, mixed>>,
+ *     linkUrl?: string|null,
  *     idempotencyKey?: string,
  *     correlationKey?: string|null
  * }  $overrides
@@ -65,6 +67,8 @@ function immediateSocialDelivery(array $overrides = []): CreateSocialDeliveryDat
         externalOrganizationId: $overrides['externalOrganizationId'] ?? 'organization-test',
         externalChannelId: $overrides['externalChannelId'] ?? 'facebook-channel-test',
         text: $overrides['text'] ?? 'Publication Facebook de test',
+        assets: $overrides['assets'] ?? [],
+        linkUrl: $overrides['linkUrl'] ?? null,
         idempotencyKey: $overrides['idempotencyKey'] ?? 'delivery-test-001',
         correlationKey: $overrides['correlationKey'] ?? null,
     );
@@ -82,6 +86,8 @@ test('immediate social delivery is explicit and has no schedule', function () {
         ->and($delivery->externalOrganizationId)->toBe('organization-test')
         ->and($delivery->externalChannelId)->toBe('facebook-channel-test')
         ->and($delivery->text)->toBe('Publication Facebook de test')
+        ->and($delivery->assets)->toBe([])
+        ->and($delivery->linkUrl)->toBeNull()
         ->and($delivery->mode)->toBe(CreateSocialDeliveryData::MODE_IMMEDIATE)
         ->and($delivery->scheduledFor)->toBeNull()
         ->and($delivery->idempotencyKey)->toBe('delivery-test-001')
@@ -97,6 +103,8 @@ test('scheduled social delivery stores an immutable UTC instant', function () {
         externalOrganizationId: 'organization-test',
         externalChannelId: 'facebook-channel-test',
         text: 'Publication Facebook programmée',
+        assets: [],
+        linkUrl: null,
         scheduledFor: $scheduledFor,
         idempotencyKey: 'delivery-test-002',
     );
@@ -108,6 +116,58 @@ test('scheduled social delivery stores an immutable UTC instant', function () {
         ->and($scheduledFor->getTimezone()->getName())->toBe('America/Toronto');
 });
 
+test('social delivery preserves ordered Buffer assets and a destination link', function () {
+    $assets = [
+        [
+            'type' => 'image',
+            'url' => 'https://cdn.example.com/pulse-cover.jpg',
+            'alt_text' => 'Présentation Malikia Pulse',
+        ],
+        [
+            'type' => 'video',
+            'url' => 'https://cdn.example.com/pulse-demo.mp4',
+            'title' => 'Démo Malikia Pulse',
+            'thumbnail_offset' => 2000,
+        ],
+        [
+            'type' => 'document',
+            'url' => 'https://cdn.example.com/pulse-guide.pdf',
+            'title' => 'Guide Malikia Pulse',
+            'thumbnail_url' => 'https://cdn.example.com/pulse-guide-cover.jpg',
+        ],
+    ];
+
+    $delivery = immediateSocialDelivery([
+        'assets' => $assets,
+        'linkUrl' => 'https://malikiapro.com/pulse',
+    ]);
+
+    expect($delivery->assets)->toBe($assets)
+        ->and($delivery->linkUrl)->toBe('https://malikiapro.com/pulse');
+});
+
+test('social delivery accepts media-only and link-only content', function () {
+    $mediaOnly = immediateSocialDelivery([
+        'text' => '',
+        'assets' => [[
+            'type' => 'image',
+            'url' => 'https://cdn.example.com/pulse-cover.jpg',
+        ]],
+    ]);
+    $linkOnly = immediateSocialDelivery([
+        'text' => '',
+        'linkUrl' => 'https://malikiapro.com/pulse',
+    ]);
+
+    expect($mediaOnly->text)->toBe('')
+        ->and($mediaOnly->assets)->toBe([[
+            'type' => 'image',
+            'url' => 'https://cdn.example.com/pulse-cover.jpg',
+        ]])
+        ->and($linkOnly->text)->toBe('')
+        ->and($linkOnly->linkUrl)->toBe('https://malikiapro.com/pulse');
+});
+
 test('social delivery rejects invalid tenant routing and idempotency identities', function () {
     expect(fn () => immediateSocialDelivery(['tenantId' => 0]))
         ->toThrow(InvalidArgumentException::class, 'The social delivery tenant ID must be positive.')
@@ -117,13 +177,65 @@ test('social delivery rejects invalid tenant routing and idempotency identities'
         ->toThrow(InvalidArgumentException::class, 'The social delivery external organization ID must not be blank.')
         ->and(fn () => immediateSocialDelivery(['externalChannelId' => '']))
         ->toThrow(InvalidArgumentException::class, 'The social delivery external channel ID must not be blank.')
-        ->and(fn () => immediateSocialDelivery(['text' => "\n\t"]))
-        ->toThrow(InvalidArgumentException::class, 'The social delivery text must not be blank.')
         ->and(fn () => immediateSocialDelivery(['idempotencyKey' => "\t"]))
         ->toThrow(InvalidArgumentException::class, 'The social delivery idempotency key must not be blank.')
         ->and(fn () => immediateSocialDelivery(['correlationKey' => '']))
         ->toThrow(InvalidArgumentException::class, 'The social delivery correlation key must not be blank.');
 });
+
+test('social delivery rejects empty or invalid Buffer content', function (array $overrides) {
+    expect(fn () => immediateSocialDelivery($overrides))
+        ->toThrow(InvalidArgumentException::class);
+})->with([
+    'empty content' => [[
+        'text' => "\n\t",
+        'assets' => [],
+        'linkUrl' => null,
+    ]],
+    'assets must be a list' => [[
+        'assets' => [
+            'type' => 'image',
+            'url' => 'https://cdn.example.com/pulse-cover.jpg',
+        ],
+    ]],
+    'unsupported asset type' => [[
+        'assets' => [[
+            'type' => 'audio',
+            'url' => 'https://cdn.example.com/pulse-theme.mp3',
+        ]],
+    ]],
+    'asset URL must use HTTPS' => [[
+        'assets' => [[
+            'type' => 'image',
+            'url' => 'http://cdn.example.com/pulse-cover.jpg',
+        ]],
+    ]],
+    'document title is required' => [[
+        'assets' => [[
+            'type' => 'document',
+            'url' => 'https://cdn.example.com/pulse-guide.pdf',
+            'thumbnail_url' => 'https://cdn.example.com/pulse-guide-cover.jpg',
+        ]],
+    ]],
+    'document thumbnail is required' => [[
+        'assets' => [[
+            'type' => 'document',
+            'url' => 'https://cdn.example.com/pulse-guide.pdf',
+            'title' => 'Guide Malikia Pulse',
+        ]],
+    ]],
+    'document thumbnail must use HTTPS' => [[
+        'assets' => [[
+            'type' => 'document',
+            'url' => 'https://cdn.example.com/pulse-guide.pdf',
+            'title' => 'Guide Malikia Pulse',
+            'thumbnail_url' => 'http://cdn.example.com/pulse-guide-cover.jpg',
+        ]],
+    ]],
+    'link URL must use HTTPS' => [[
+        'linkUrl' => 'http://malikiapro.com/pulse',
+    ]],
+]);
 
 test('social delivery results distinguish submitted and unknown outcomes', function () {
     $remoteScheduledFor = CarbonImmutable::parse('2026-09-03 09:15:00', 'America/Toronto');
@@ -170,11 +282,13 @@ test('social delivery data objects remain final readonly and credential free', f
         ->and($deliveryReflection->isReadOnly())->toBeTrue()
         ->and($deliveryReflection->getConstructor()?->isPrivate())->toBeTrue()
         ->and($deliveryPropertyNames)->toBe([
+            'assets',
             'connectionId',
             'correlationKey',
             'externalChannelId',
             'externalOrganizationId',
             'idempotencyKey',
+            'linkUrl',
             'mode',
             'scheduledFor',
             'tenantId',

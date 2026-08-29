@@ -239,6 +239,14 @@
         "status_scheduled": "Scheduled"
       },
       "fields": {
+        "buffer_media": "Buffer media",
+        "media_help": "Add a public, direct HTTPS URL. A document requires a title and thumbnail URL.",
+        "media_type": "Media type",
+        "media_url": "Public HTTPS URL",
+        "media_alt_text": "Alternative text",
+        "media_title": "Media title",
+        "media_thumbnail_url": "HTTPS thumbnail URL",
+        "media_thumbnail_offset": "Thumbnail position (ms)",
         "text": "Post text",
         "image_file": "Image from your computer",
         "image_url": "Image URL",
@@ -247,6 +255,11 @@
         "scheduled_for": "Schedule for",
         "template_name": "Template name",
         "custom_hashtag": "Add a hashtag"
+      },
+      "media_types": {
+        "image": "Image",
+        "video": "Video",
+        "document": "Document"
       },
       "actions": {
         "reload": "Reload",
@@ -272,6 +285,8 @@
         "append_hashtags": "Add hashtags",
         "append_cta": "Add this CTA",
         "add_hashtag": "Add hashtag",
+        "add_media": "Add media",
+        "remove_media": "Remove",
         "publish_with_pulse": "Publish with Malikia Pulse"
       },
       "statuses": {

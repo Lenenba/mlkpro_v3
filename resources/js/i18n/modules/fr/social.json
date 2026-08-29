@@ -239,6 +239,14 @@
         "status_scheduled": "Programme"
       },
       "fields": {
+        "buffer_media": "Médias Buffer",
+        "media_help": "Ajoutez une URL HTTPS publique et directe. Un document exige un titre et une URL de miniature.",
+        "media_type": "Type de média",
+        "media_url": "URL HTTPS publique",
+        "media_alt_text": "Texte alternatif",
+        "media_title": "Titre du média",
+        "media_thumbnail_url": "URL HTTPS de la miniature",
+        "media_thumbnail_offset": "Position de la miniature (ms)",
         "text": "Texte du post",
         "image_file": "Image depuis votre ordinateur",
         "image_url": "URL image",
@@ -247,6 +255,11 @@
         "scheduled_for": "Programmer pour",
         "template_name": "Nom du template",
         "custom_hashtag": "Ajouter un hashtag"
+      },
+      "media_types": {
+        "image": "Image",
+        "video": "Vidéo",
+        "document": "Document"
       },
       "actions": {
         "reload": "Recharger",
@@ -272,6 +285,8 @@
         "append_hashtags": "Ajouter les hashtags",
         "append_cta": "Ajouter ce CTA",
         "add_hashtag": "Ajouter le hashtag",
+        "add_media": "Ajouter un média",
+        "remove_media": "Retirer",
         "publish_with_pulse": "Publier avec Malikia Pulse"
       },
       "statuses": {

@@ -11,6 +11,7 @@ use App\Services\Social\Contracts\SocialDeliveryStatusGatewayInterface;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 use JsonException;
 use RuntimeException;
@@ -18,6 +19,14 @@ use Throwable;
 
 final class BufferDeliveryStatusGateway implements SocialDeliveryStatusGatewayInterface
 {
+    /** @var list<string> */
+    private const DELIVERY_PLATFORMS = [
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        SocialAccountConnection::PLATFORM_INSTAGRAM,
+        SocialAccountConnection::PLATFORM_LINKEDIN,
+        SocialAccountConnection::PLATFORM_X,
+    ];
+
     private const READ_POST_QUERY = <<<'GRAPHQL'
         query MalikiaPulseBufferReadPost($input: PostInput!) {
           post(input: $input) {
@@ -126,7 +135,7 @@ final class BufferDeliveryStatusGateway implements SocialDeliveryStatusGatewayIn
         $connection = SocialAccountConnection::query()
             ->whereKey($delivery->connectionId)
             ->where('user_id', $delivery->tenantId)
-            ->where('platform', SocialAccountConnection::PLATFORM_FACEBOOK)
+            ->whereIn('platform', self::DELIVERY_PLATFORMS)
             ->where('delivery_provider', SocialAccountConnection::DELIVERY_PROVIDER_BUFFER)
             ->where('transport_generation', SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1)
             ->where('status', SocialAccountConnection::STATUS_CONNECTED)
@@ -139,8 +148,10 @@ final class BufferDeliveryStatusGateway implements SocialDeliveryStatusGatewayIn
                 $connection->logical_destination_key,
                 $delivery->logicalDestinationKey,
             )
-            || data_get($connection->metadata, 'buffer.channel_service')
-                !== SocialAccountConnection::PLATFORM_FACEBOOK) {
+            || ! $this->channelServiceMatchesConnection(
+                data_get($connection->metadata, 'buffer.channel_service'),
+                $connection,
+            )) {
             throw new InvalidArgumentException('The Buffer social delivery status identity is invalid.');
         }
 
@@ -187,7 +198,29 @@ final class BufferDeliveryStatusGateway implements SocialDeliveryStatusGatewayIn
                 $post['channelId'] ?? null,
                 $connection->external_account_id,
             )
-            && ($post['channelService'] ?? null) === SocialAccountConnection::PLATFORM_FACEBOOK;
+            && $this->channelServiceMatchesConnection(
+                $post['channelService'] ?? null,
+                $connection,
+            );
+    }
+
+    private function channelServiceMatchesConnection(
+        mixed $service,
+        SocialAccountConnection $connection,
+    ): bool {
+        if (! is_string($service)) {
+            return false;
+        }
+
+        $platform = match (Str::lower(trim($service))) {
+            'facebook' => SocialAccountConnection::PLATFORM_FACEBOOK,
+            'instagram' => SocialAccountConnection::PLATFORM_INSTAGRAM,
+            'linkedin' => SocialAccountConnection::PLATFORM_LINKEDIN,
+            'twitter', 'x' => SocialAccountConnection::PLATFORM_X,
+            default => null,
+        };
+
+        return $platform === (string) $connection->platform;
     }
 
     /**

@@ -207,6 +207,37 @@ it('imports a healthy Buffer channel idempotently while keeping delivery disable
         ->assertJsonPath('buffer_connector.delivery_enabled', false);
 });
 
+it('maps every supported Buffer channel service to its Pulse platform', function (
+    string $service,
+    string $expectedPlatform,
+) {
+    $owner = bufferLocalOwner();
+    $channelId = 'channel_'.$service.'_1';
+    fakeHealthyBufferCatalog([
+        'id' => $channelId,
+        'service' => $service,
+    ]);
+
+    $this->actingAs($owner)
+        ->postJson(route('social.buffer.channels.store'), [
+            'organization_id' => 'organization_1',
+            'channel_id' => $channelId,
+        ])
+        ->assertCreated()
+        ->assertJsonPath('connection.platform', $expectedPlatform);
+
+    $connection = SocialAccountConnection::query()->sole();
+
+    expect($connection->platform)->toBe($expectedPlatform)
+        ->and(data_get($connection->metadata, 'buffer.channel_service'))->toBe($service);
+})->with([
+    'Facebook' => ['facebook', SocialAccountConnection::PLATFORM_FACEBOOK],
+    'Instagram' => ['instagram', SocialAccountConnection::PLATFORM_INSTAGRAM],
+    'LinkedIn' => ['linkedin', SocialAccountConnection::PLATFORM_LINKEDIN],
+    'Twitter service' => ['twitter', SocialAccountConnection::PLATFORM_X],
+    'X service alias' => ['x', SocialAccountConnection::PLATFORM_X],
+]);
+
 it('revalidates remote channel state and refuses locked channels', function () {
     $owner = bufferLocalOwner();
     fakeHealthyBufferCatalog([

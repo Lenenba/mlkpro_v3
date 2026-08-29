@@ -84,6 +84,12 @@ it('renders the pulse media library from posts and templates', function () {
                 'source' => 'upload',
                 'name' => 'post-upload.jpg',
             ],
+            [
+                'type' => 'video',
+                'url' => 'https://example.com/social/post-video.mp4',
+                'source' => 'url',
+                'name' => 'post-video.mp4',
+            ],
         ],
         'status' => SocialPost::STATUS_DRAFT,
     ]);
@@ -109,6 +115,8 @@ it('renders the pulse media library from posts and templates', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('Social/MediaLibrary')
             ->has('assets', 2)
+            ->where('assets.0.type', 'image')
+            ->where('assets.1.type', 'image')
             ->where('summary.total', 2)
             ->where('summary.uploads', 1)
             ->where('summary.ai', 1)
