@@ -133,6 +133,7 @@ it('uses the encrypted x pkce verifier once and clears it after the callback suc
         'user_id' => $owner->id,
         'platform' => SocialAccountConnection::PLATFORM_X,
         'label' => 'Launch profile',
+        'external_account_id' => 'x-launch-profile-001',
         'status' => SocialAccountConnection::STATUS_PENDING,
         'is_active' => false,
         'oauth_state' => 'x-state-123',
@@ -179,6 +180,7 @@ it('claims an x oauth callback before exchanging the authorization code', functi
         'user_id' => $owner->id,
         'platform' => SocialAccountConnection::PLATFORM_X,
         'label' => 'Single use X profile',
+        'external_account_id' => 'x-single-use-profile-001',
         'status' => SocialAccountConnection::STATUS_PENDING,
         'is_active' => false,
         'oauth_state' => 'x-single-use-state',
@@ -265,6 +267,49 @@ it('exposes whether an authorizing oauth callback claim is still active', functi
     expect($service->payload($connection->fresh())['oauth_callback_active'])->toBeFalse();
 });
 
+it('keeps an oauth callback without a native destination identifier inactive', function () {
+    $owner = pulseOauthOwner();
+    $connection = SocialAccountConnection::query()->create([
+        'user_id' => $owner->id,
+        'platform' => SocialAccountConnection::PLATFORM_X,
+        'label' => 'Unidentified X profile',
+        'status' => SocialAccountConnection::STATUS_PENDING,
+        'is_active' => false,
+        'oauth_state' => 'x-missing-destination-state',
+        'oauth_code_verifier' => 'x-missing-destination-verifier',
+        'oauth_state_expires_at' => now()->addMinutes(10),
+        'metadata' => ['connection_flow' => 'oauth'],
+    ]);
+
+    Http::preventStrayRequests();
+    Http::fake([
+        'https://x.test/oauth2/token' => Http::response([
+            'access_token' => 'unidentified-access-token',
+            'refresh_token' => 'unidentified-refresh-token',
+            'expires_in' => 7200,
+            'scope' => 'tweet.read tweet.write users.read offline.access',
+            'token_type' => 'Bearer',
+        ]),
+    ]);
+
+    $result = app(SocialAccountConnectionService::class)->completeAuthorization(
+        SocialAccountConnection::PLATFORM_X,
+        [
+            'state' => 'x-missing-destination-state',
+            'code' => 'x-missing-destination-code',
+        ],
+    );
+    $fresh = $connection->fresh();
+
+    expect($result['success'])->toBeFalse()
+        ->and($fresh->status)->toBe(SocialAccountConnection::STATUS_RECONNECT_REQUIRED)
+        ->and($fresh->is_active)->toBeFalse()
+        ->and($fresh->logical_destination_key)->toBeNull()
+        ->and((array) ($fresh->credentials ?? []))->toBe([])
+        ->and($fresh->oauth_state)->toBeNull()
+        ->and($fresh->last_error)->toContain('native social destination identifier');
+});
+
 it('does not let a superseded oauth callback overwrite a newer authorization flow', function () {
     $owner = pulseOauthOwner();
     $connection = SocialAccountConnection::query()->create([
@@ -325,6 +370,7 @@ it('accepts a legacy x pkce verifier during the migration compatibility window a
         'user_id' => $owner->id,
         'platform' => SocialAccountConnection::PLATFORM_X,
         'label' => 'Legacy rollout profile',
+        'external_account_id' => 'x-legacy-profile-001',
         'status' => SocialAccountConnection::STATUS_PENDING,
         'is_active' => false,
         'oauth_state' => 'x-legacy-state-123',
@@ -369,6 +415,7 @@ it('completes the oauth callback and persists encrypted social credentials', fun
         'user_id' => $owner->id,
         'platform' => SocialAccountConnection::PLATFORM_LINKEDIN,
         'label' => 'LinkedIn HQ',
+        'external_account_id' => 'linkedin-organization-001',
         'status' => SocialAccountConnection::STATUS_PENDING,
         'is_active' => false,
         'oauth_state' => 'social-state-123',
@@ -407,6 +454,9 @@ it('completes the oauth callback and persists encrypted social credentials', fun
         ->and($fresh->credentials['access_token'] ?? null)->toBe('linkedin-access-token')
         ->and($fresh->credentials['refresh_token'] ?? null)->toBe('linkedin-refresh-token')
         ->and($fresh->permissions)->toBe(['rw_organization_admin', 'w_organization_social'])
+        ->and($fresh->delivery_provider)->toBe(SocialAccountConnection::DELIVERY_PROVIDER_DIRECT)
+        ->and($fresh->transport_generation)->toBe(SocialAccountConnection::TRANSPORT_GENERATION_DIRECT_V1)
+        ->and($fresh->logical_destination_key)->toMatch('/\Aldk:v1:[0-9a-f]{64}\z/')
         ->and($fresh->connected_at)->toBeInstanceOf(Carbon::class)
         ->and($fresh->last_synced_at)->toBeInstanceOf(Carbon::class)
         ->and($fresh->token_expires_at)->toBeInstanceOf(Carbon::class)

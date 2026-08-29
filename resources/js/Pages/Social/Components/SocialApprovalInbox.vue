@@ -10,6 +10,7 @@ import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import SocialPostQualityPanel from '@/Pages/Social/Components/SocialPostQualityPanel.vue';
 import SocialVisualPostPreview from '@/Pages/Social/Components/SocialVisualPostPreview.vue';
 import { useI18n } from 'vue-i18n';
+import { socialScheduleInputValue } from '@/utils/socialScheduleInput';
 
 const props = defineProps({
     initialPosts: {
@@ -154,7 +155,7 @@ const refreshScheduleInputs = (records) => {
     const next = {};
 
     normalizePosts(records).forEach((post) => {
-        next[post.id] = String(post?.scheduled_for || nextScheduleInput());
+        next[post.id] = socialScheduleInputValue(post) || nextScheduleInput();
     });
 
     scheduleInputs.value = next;

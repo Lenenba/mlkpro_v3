@@ -195,6 +195,11 @@ it('persists source references on pulse drafts created from prefills', function 
         'platform' => SocialAccountConnection::PLATFORM_FACEBOOK,
         'label' => 'North page',
         'external_account_id' => 'fb-north-page',
+        ...pulseDirectTransportIdentity(
+            $owner,
+            SocialAccountConnection::PLATFORM_FACEBOOK,
+            'fb-north-page',
+        ),
         'status' => SocialAccountConnection::STATUS_CONNECTED,
         'is_active' => true,
         'connected_at' => now(),
@@ -237,6 +242,11 @@ it('rejects pulse drafts that reference sources from another workspace', functio
         'platform' => SocialAccountConnection::PLATFORM_INSTAGRAM,
         'label' => 'Studio IG',
         'external_account_id' => 'ig-studio',
+        ...pulseDirectTransportIdentity(
+            $owner,
+            SocialAccountConnection::PLATFORM_INSTAGRAM,
+            'ig-studio',
+        ),
         'status' => SocialAccountConnection::STATUS_CONNECTED,
         'is_active' => true,
         'connected_at' => now(),

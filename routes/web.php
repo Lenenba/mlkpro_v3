@@ -103,6 +103,7 @@ use App\Http\Controllers\Settings\SecuritySettingsController;
 use App\Http\Controllers\Settings\SubscriptionController;
 use App\Http\Controllers\SocialAccountConnectionController;
 use App\Http\Controllers\SocialAutomationController;
+use App\Http\Controllers\SocialBufferController;
 use App\Http\Controllers\SocialBrandVoiceController;
 use App\Http\Controllers\SocialCampaignController;
 use App\Http\Controllers\SocialMediaLibraryController;
@@ -824,6 +825,10 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('social.automations.destroy');
         Route::get('/social/accounts', [SocialAccountConnectionController::class, 'index'])
             ->name('social.accounts.index');
+        Route::get('/social/buffer/catalog', [SocialBufferController::class, 'catalog'])
+            ->name('social.buffer.catalog');
+        Route::post('/social/buffer/channels', [SocialBufferController::class, 'store'])
+            ->name('social.buffer.channels.store');
         Route::post('/social/accounts', [SocialAccountConnectionController::class, 'store'])
             ->name('social.accounts.store');
         Route::post('/social/accounts/test-connection', [SocialAccountConnectionController::class, 'storeTestConnection'])

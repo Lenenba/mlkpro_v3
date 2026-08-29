@@ -5,8 +5,8 @@ use App\Jobs\CloseExpiredWalkInsForAccountJob;
 use App\Jobs\DispatchCampaignRunJob;
 use App\Jobs\GenerateSocialPostCandidateJob;
 use App\Jobs\GenerateWorkTasks;
+use App\Jobs\ProcessSocialDeliveryOutboxJob;
 use App\Jobs\ProvisionDemoWorkspaceJob;
-use App\Jobs\PublishSocialPostTargetJob;
 use App\Jobs\ReconcileDeliveryReportsJob;
 use App\Jobs\ReconcilePastReservationsForAccountJob;
 use App\Jobs\RetryLeadQuoteEmailJob;
@@ -44,7 +44,7 @@ test('async workloads apply explicit queue names to jobs and notifications', fun
         ->and((new SendCampaignRecipientJob(77))->queue)->toBe('campaigns-send-test')
         ->and((new ReconcileDeliveryReportsJob)->queue)->toBe('campaigns-maintenance-test')
         ->and((new GenerateSocialPostCandidateJob(77))->queue)->toBe('social-automation-test')
-        ->and((new PublishSocialPostTargetJob(77))->queue)->toBe('social-publish-test')
+        ->and((new ProcessSocialDeliveryOutboxJob(77))->queue)->toBe('social-publish-test')
         ->and((new ReconcilePastReservationsForAccountJob(91))->queue)->toBe('reservation-reconciliation-test')
         ->and((new CloseExpiredWalkInsForAccountJob(92))->queue)->toBe('reservation-reconciliation-test');
 });
@@ -70,7 +70,7 @@ test('async workloads expose configured backoff policies', function () {
         ->and((new SendCampaignRecipientJob(77))->backoff())->toBe([10, 40, 160])
         ->and((new ReconcileDeliveryReportsJob)->backoff())->toBe([90, 360])
         ->and((new GenerateSocialPostCandidateJob(77))->backoff())->toBe([35, 140, 560])
-        ->and((new PublishSocialPostTargetJob(77))->backoff())->toBe([25, 100, 400])
+        ->and((new ProcessSocialDeliveryOutboxJob(77))->backoff())->toBe([25, 100, 400])
         ->and((new ReconcilePastReservationsForAccountJob(91))->backoff())->toBe([60, 300, 900])
         ->and((new CloseExpiredWalkInsForAccountJob(92))->backoff())->toBe([60, 300, 900]);
 });

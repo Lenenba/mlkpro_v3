@@ -63,6 +63,47 @@
         "generated_at": "Generated at"
       }
     },
+    "delivery_axes": {
+      "summary_label": "Editorial and delivery status",
+      "labels": {
+        "editorial": "Editorial",
+        "delivery": "Delivery",
+        "sync": "Synchronization"
+      },
+      "statuses": {
+        "editorial": {
+          "draft": "Draft",
+          "pending_approval": "Pending approval",
+          "approved": "Approved",
+          "rejected": "Rejected",
+          "archived": "Archived"
+        },
+        "delivery": {
+          "not_submitted": "Not submitted",
+          "queued": "Queued",
+          "submitted": "Submitted",
+          "scheduled": "Scheduled",
+          "remote_approval_required": "Remote approval required",
+          "publishing": "Publishing",
+          "sending": "Sending",
+          "published": "Published",
+          "partial_failed": "Partial failure",
+          "failed": "Failed",
+          "unknown": "Unknown state",
+          "canceled": "Canceled"
+        },
+        "sync": {
+          "pending": "Pending",
+          "synced": "Synchronized",
+          "error": "Synchronization error",
+          "reconnect_required": "Reconnection required"
+        }
+      },
+      "verification": {
+        "title": "Verification required",
+        "description": "Do not publish again until the remote state is confirmed."
+      }
+    },
     "index_page": {
       "head_title": "Malikia Pulse workspace",
       "page_title": "Malikia Pulse workspace",
@@ -938,6 +979,46 @@
         "confirm_delete": "Delete {name}?"
       },
       "empty_value": "Not available"
+    },
+    "buffer_connector": {
+      "local_mode": "Real local test",
+      "delivery_disabled": "Publishing disabled",
+      "loading": "Loading Buffer accounts.",
+      "opens_new_tab": "Opens in a new tab",
+      "title": "Buffer connection and channels",
+      "description": "Use the server-side Buffer key to view the real account, organizations and channels, then import channels into Pulse without exposing the secret to the browser.",
+      "configuration_title": "Local connector unavailable",
+      "configuration_enable": "Enable BUFFER_LOCAL_CONNECTOR_ENABLED in your local environment.",
+      "configuration_token": "Set BUFFER_LOCAL_CONNECTOR_ACCESS_TOKEN in your local environment.",
+      "owner_only": "Only the account owner can query Buffer and import its channels.",
+      "account_label": "Buffer account",
+      "account_fallback": "Connected Buffer account",
+      "organization_label": "Organization",
+      "catalog_summary": "Channels: {channels} · imported: {imported}",
+      "no_channels": "No Buffer channel is available in this organization.",
+      "actions": {
+        "connect": "View my Buffer accounts",
+        "refresh": "Resync",
+        "add_in_buffer": "Add in Buffer",
+        "import": "Import into Pulse",
+        "importing": "Importing...",
+        "imported": "Imported"
+      },
+      "states": {
+        "available": "Available to import",
+        "imported": "Already imported into Pulse",
+        "queue_paused": "Available · Buffer queue paused"
+      },
+      "block_reasons": {
+        "unsupported_service": "Network not supported by Pulse",
+        "disconnected": "Channel disconnected in Buffer",
+        "locked": "Channel locked in Buffer"
+      },
+      "messages": {
+        "load_error": "The Buffer accounts could not be loaded.",
+        "import_error": "The Buffer channel could not be imported.",
+        "import_success": "The Buffer channel is visible in Pulse."
+      }
     }
   }
 }

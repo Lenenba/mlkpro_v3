@@ -8,6 +8,11 @@ import FloatingSelect from '@/Components/FloatingSelect.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
+import {
+    needsSocialDeliveryVerification,
+    socialStatusAxes,
+    socialStatusToneClass,
+} from '@/utils/socialStatusAxes';
 
 const props = defineProps({
     initialPosts: {
@@ -242,6 +247,15 @@ const targetStatusLabel = (status) => {
     return translated === key ? normalizedStatus : translated;
 };
 
+const statusAxesFor = (record, includeEditorial = true) => socialStatusAxes(record, { includeEditorial });
+const statusAxisLabel = (axis) => t(`social.delivery_axes.labels.${axis.key}`);
+const statusAxisValueLabel = (axis) => {
+    const key = `social.delivery_axes.statuses.${axis.key}.${axis.value}`;
+    const translated = t(key);
+
+    return translated === key ? axis.value.replace(/_/gu, ' ') : translated;
+};
+
 const canEditPost = (post) => {
     if (typeof post?.is_editable === 'boolean') {
         return post.is_editable;
@@ -441,7 +455,7 @@ const resolveApproval = async (post, decision) => {
 </script>
 
 <template>
-    <div class="space-y-5">
+    <div class="space-y-5" :aria-busy="busy || isLoading">
         <div class="flex flex-wrap justify-end gap-2">
             <SecondaryButton :disabled="busy || isLoading" @click="load">
                 {{ t('social.history_manager.actions.reload') }}
@@ -461,6 +475,8 @@ const resolveApproval = async (post, decision) => {
 
         <div
             v-if="error"
+            role="alert"
+            aria-live="assertive"
             class="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300"
         >
             {{ error }}
@@ -468,6 +484,8 @@ const resolveApproval = async (post, decision) => {
 
         <div
             v-if="info"
+            role="status"
+            aria-live="polite"
             class="rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300"
         >
             {{ info }}
@@ -547,6 +565,42 @@ const resolveApproval = async (post, decision) => {
                         <h4 class="text-base font-semibold text-stone-900 dark:text-neutral-100">
                             {{ draftLabel(post) }}
                         </h4>
+
+                        <dl
+                            v-if="statusAxesFor(post).length"
+                            class="flex flex-wrap gap-2"
+                            :aria-label="t('social.delivery_axes.summary_label')"
+                        >
+                            <div
+                                v-for="axis in statusAxesFor(post)"
+                                :key="`${post.id}-${axis.key}`"
+                                class="inline-flex items-center gap-1.5"
+                            >
+                                <dt class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ statusAxisLabel(axis) }}
+                                </dt>
+                                <dd
+                                    class="inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold"
+                                    :class="socialStatusToneClass(axis.value)"
+                                >
+                                    {{ statusAxisValueLabel(axis) }}
+                                </dd>
+                            </div>
+                        </dl>
+
+                        <div
+                            v-if="needsSocialDeliveryVerification(post)"
+                            role="alert"
+                            aria-live="assertive"
+                            class="rounded-2xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
+                        >
+                            <div class="font-semibold">
+                                {{ t('social.delivery_axes.verification.title') }}
+                            </div>
+                            <div class="mt-1">
+                                {{ t('social.delivery_axes.verification.description') }}
+                            </div>
+                        </div>
 
                         <a
                             v-if="post.link_url"
@@ -697,6 +751,27 @@ const resolveApproval = async (post, decision) => {
                                 <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
                                     {{ target.provider_label || target.platform || t('social.history_manager.empty_value') }}
                                 </div>
+                                <dl
+                                    v-if="statusAxesFor(target, false).length"
+                                    class="mt-2 flex flex-wrap gap-2"
+                                    :aria-label="t('social.delivery_axes.summary_label')"
+                                >
+                                    <div
+                                        v-for="axis in statusAxesFor(target, false)"
+                                        :key="`${target.id}-${axis.key}`"
+                                        class="inline-flex items-center gap-1"
+                                    >
+                                        <dt class="text-[11px] text-stone-500 dark:text-neutral-400">
+                                            {{ statusAxisLabel(axis) }}
+                                        </dt>
+                                        <dd
+                                            class="inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold"
+                                            :class="socialStatusToneClass(axis.value)"
+                                        >
+                                            {{ statusAxisValueLabel(axis) }}
+                                        </dd>
+                                    </div>
+                                </dl>
                                 <p
                                     v-if="target.failure_reason"
                                     class="mt-2 rounded-xl border border-rose-200 bg-rose-50 px-2 py-1.5 text-xs text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300"

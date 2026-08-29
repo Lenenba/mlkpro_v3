@@ -3,6 +3,7 @@ import { Head } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import SocialAccountManager from '@/Pages/Social/Components/SocialAccountManager.vue';
+import SocialBufferConnectionCard from '@/Pages/Social/Components/SocialBufferConnectionCard.vue';
 import SocialWorkspaceHeader from '@/Pages/Social/Components/SocialWorkspaceHeader.vue';
 
 const props = defineProps({
@@ -26,6 +27,10 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    buffer_connector: {
+        type: Object,
+        default: null,
+    },
 });
 
 const { t } = useI18n();
@@ -44,6 +49,12 @@ const { t } = useI18n();
             />
 
             <section class="space-y-4">
+                <SocialBufferConnectionCard
+                    v-if="props.buffer_connector"
+                    :initial-connector="props.buffer_connector"
+                    :can-manage="Boolean(props.access?.can_manage_accounts)"
+                />
+
                 <SocialAccountManager
                     :initial-definitions="props.provider_definitions"
                     :initial-connections="props.connections"

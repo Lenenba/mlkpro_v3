@@ -20,6 +20,8 @@ use App\Models\Request as LeadRequest;
 use App\Models\ReservationSetting;
 use App\Models\Role;
 use App\Models\Sale;
+use App\Models\SocialAccountConnection;
+use App\Models\SocialTransportCutover;
 use App\Models\Tax;
 use App\Models\User;
 use App\Models\Work;
@@ -74,6 +76,11 @@ use App\Services\ServiceRequests\LegacyServiceRequestBackfillVerificationService
 use App\Services\SmsNotificationService;
 use App\Services\Social\LegacySocialInventoryService;
 use App\Services\Social\SocialAutomationRunnerService;
+use App\Services\Social\SocialEditorialFoundationBackfillService;
+use App\Services\Social\SocialLegacyTransportBackfillService;
+use App\Services\Social\SocialPublishingService;
+use App\Services\Social\SocialTransportCutoverService;
+use App\Services\Social\SocialTransportReadinessService;
 use App\Services\StripePlanEnvSyncService;
 use App\Services\StripePlanPriceProvisioner;
 use App\Services\SupportAssignmentService;
@@ -2175,6 +2182,32 @@ Artisan::command(
 )->purpose('Generate due Malikia Pulse automation candidates');
 
 Artisan::command(
+    'social:dispatch-outbox {--limit=100 : Maximum number of Pulse outbox rows per pass}',
+    function (SocialPublishingService $publishingService): int {
+        $limit = $this->option('limit');
+        $normalizedLimit = filter_var($limit, FILTER_VALIDATE_INT);
+
+        if ($normalizedLimit === false || $normalizedLimit < 1 || $normalizedLimit > 1000) {
+            $this->error('The Pulse outbox limit must be an integer between 1 and 1000.');
+
+            return 1;
+        }
+
+        $summary = $publishingService->maintainDeliveryOutbox($normalizedLimit);
+
+        $this->info(sprintf(
+            'Pulse outbox: recovered %d pre-request lease(s), quarantined %d ambiguous lease(s), repaired %d post aggregate(s), dispatched %d due operation(s).',
+            $summary['pending_recovered'],
+            $summary['unknown_quarantined'],
+            $summary['aggregates_repaired'],
+            $summary['dispatched'],
+        ));
+
+        return 0;
+    },
+)->purpose('Recover leases and dispatch due Malikia Pulse outbox operations');
+
+Artisan::command(
     'pulse:buffer:inventory-legacy
         {--json : Output the aggregate inventory as JSON}
         {--source-context=unspecified : Operator-declared source: local, representative-clone, approved-environment, or unspecified}
@@ -2337,6 +2370,477 @@ Artisan::command(
         return 0;
     }
 )->purpose('Inventory legacy Pulse routing references without reading credentials');
+
+Artisan::command(
+    'pulse:transport:readiness
+        {tenant : Workspace owner user ID}
+        {--gate=canary : Gate to evaluate: canary, drain, or h3}
+        {--json : Output the expurgated aggregate report as JSON}
+        {--source-context=unspecified : Operator-declared inventory source context}
+        {--queue-scope=* : Explicit connection:queue scopes to inspect}
+        {--confirm-queue-scope-list-complete : Assert that every Pulse queue is declared}
+        {--confirm-read-only-scan : Authorize the all-tenant aggregate queue scan}',
+    function (
+        SocialTransportReadinessService $readiness,
+        LegacySocialInventoryService $inventoryService,
+    ): int {
+        $tenantId = filter_var($this->argument('tenant'), FILTER_VALIDATE_INT);
+        $gate = trim((string) $this->option('gate'));
+
+        if ($tenantId === false || $tenantId < 1) {
+            $this->error('The Pulse readiness tenant must be a positive workspace owner ID.');
+
+            return 1;
+        }
+
+        if (! in_array($gate, ['canary', 'drain', 'h3'], true)) {
+            $this->error('The Pulse readiness gate must be canary, drain, or h3.');
+
+            return 1;
+        }
+
+        $tenant = User::query()->find($tenantId);
+        if (! $tenant || (int) $tenant->accountOwnerId() !== $tenantId) {
+            $this->error('The Pulse readiness workspace owner was not found.');
+
+            return 1;
+        }
+
+        $inventory = null;
+        if ((bool) $this->option('confirm-read-only-scan')) {
+            $queueScopes = $this->option('queue-scope');
+
+            try {
+                $inventory = $inventoryService->inventory(
+                    declaredQueueScopes: is_array($queueScopes) ? $queueScopes : [],
+                    completeQueueScopeListAttested: (bool) $this->option('confirm-queue-scope-list-complete'),
+                    sourceContext: (string) $this->option('source-context'),
+                );
+            } catch (InvalidArgumentException|LogicException $exception) {
+                $this->error('Pulse queue evidence is invalid: '.$exception->getMessage());
+
+                return 1;
+            }
+        }
+
+        try {
+            $report = $readiness->reportForDecision($tenantId, $inventory);
+        } catch (LogicException $exception) {
+            $this->error($exception->getMessage());
+
+            return 2;
+        }
+        $selectedGate = $gate === 'drain' ? 'legacy_drain' : $gate;
+        $gateReport = $report[$selectedGate];
+
+        if ((bool) $this->option('json')) {
+            $this->line(json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT));
+
+            return $gateReport['ready'] ? 0 : 2;
+        }
+
+        $this->info('Pulse transport readiness (single-tenant aggregate, sensitive fields excluded)');
+        $this->table(['Control', 'Value'], [
+            ['State', $report['state']],
+            ['Active transport generation', $report['active_transport_generation']],
+            ['Owner-validated mappings', $report['mapping']['owner_validated']],
+            ['Shadow-validated mappings', $report['mapping']['shadow_validated']],
+            ['Active direct connections', $report['connections']['direct_active']],
+            ['Active candidate connections', $report['connections']['candidate_active']],
+            ['Active or future direct targets', $report['targets']['direct_active_or_future']],
+            ['Unfinished direct outbox operations', $report['outbox']['direct_unfinished']],
+            ['Active direct references', $report['references']['active_direct']],
+            ['Queue evidence complete', $report['queues']['complete'] ? 'yes' : 'no'],
+            ['Deployed runtime proven', $report['queues']['deployed_runtime_proven'] ? 'yes' : 'no'],
+        ]);
+
+        if (! $gateReport['ready']) {
+            $this->warn(strtoupper($gate).' NO-GO: '.implode(', ', $gateReport['blockers']));
+
+            return 2;
+        }
+
+        $this->info(strtoupper($gate).' EVIDENCE READY — no transition was executed.');
+
+        return 0;
+    },
+)->purpose('Capture a mutex-protected Pulse readiness snapshot without executing a transition');
+
+Artisan::command(
+    'pulse:transport:retirement-readiness
+        {--json : Output the expurgated global aggregate report as JSON}
+        {--source-context=unspecified : Operator-declared inventory source context}
+        {--queue-scope=* : Explicit connection:queue scopes to inspect}
+        {--confirm-queue-scope-list-complete : Assert that every Pulse queue is declared}
+        {--confirm-read-only-scan : Authorize the all-tenant aggregate queue scan}',
+    function (
+        SocialTransportReadinessService $readiness,
+        LegacySocialInventoryService $inventoryService,
+    ): int {
+        $inventory = null;
+        if ((bool) $this->option('confirm-read-only-scan')) {
+            $queueScopes = $this->option('queue-scope');
+
+            try {
+                $inventory = $inventoryService->inventory(
+                    declaredQueueScopes: is_array($queueScopes) ? $queueScopes : [],
+                    completeQueueScopeListAttested: (bool) $this->option('confirm-queue-scope-list-complete'),
+                    sourceContext: (string) $this->option('source-context'),
+                );
+            } catch (InvalidArgumentException|LogicException $exception) {
+                $this->error('Pulse queue evidence is invalid: '.$exception->getMessage());
+
+                return 1;
+            }
+        }
+
+        $report = $readiness->globalDirectRetirementReport($inventory);
+
+        if ((bool) $this->option('json')) {
+            $this->line(json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT));
+
+            return $report['ready'] ? 0 : 2;
+        }
+
+        $this->info('Pulse direct retirement readiness (all tenants, sensitive fields excluded)');
+        $this->table(['Control', 'Value'], [
+            ['Incomplete tenant cutovers', $report['cutovers']['incomplete']],
+            ['Active direct connections', $report['direct_connections_active']],
+            ['Active or future direct targets', $report['direct_targets_active_or_future']],
+            ['Unfinished direct outbox operations', $report['direct_outbox_unfinished']],
+            ['Ambiguous outbox operations', $report['ambiguous_outbox']],
+            ['Queue evidence complete', $report['queues']['complete'] ? 'yes' : 'no'],
+            ['Deployed runtime proven', $report['queues']['deployed_runtime_proven'] ? 'yes' : 'no'],
+        ]);
+        $this->warn('DIRECT RETIREMENT NO-GO: '.implode(', ', $report['blockers']));
+
+        return 2;
+    },
+)->purpose('Prove that no tenant still needs direct transport before any global code removal');
+
+Artisan::command(
+    'pulse:transport:transition
+        {tenant : Workspace owner user ID}
+        {operator : Workspace owner or superadmin user ID}
+        {state : Allowed local action: legacy_only, rollback_hold, resume_legacy, or resume_held}
+        {--evidence-hash= : SHA-256 digest of the expurgated evidence}
+        {--confirm : Confirm the fail-closed control-plane transition}',
+    function (SocialTransportCutoverService $cutovers): int {
+        $tenantId = filter_var($this->argument('tenant'), FILTER_VALIDATE_INT);
+        $operatorId = filter_var($this->argument('operator'), FILTER_VALIDATE_INT);
+        $state = trim((string) $this->argument('state'));
+        $evidenceHash = trim((string) $this->option('evidence-hash'));
+
+        if ($tenantId === false || $tenantId < 1 || $operatorId === false || $operatorId < 1) {
+            $this->error('Pulse transport tenant and operator IDs must be positive integers.');
+
+            return 1;
+        }
+
+        if (! in_array($state, [
+            'legacy_only',
+            'rollback_hold',
+            'resume_legacy',
+            'resume_held',
+        ], true)) {
+            $this->error(
+                'Only initialization, fail-closed rollback hold, and explicit same-transport resume are available before H2 and the concrete candidate runtime.'
+            );
+
+            return 1;
+        }
+
+        if (! (bool) $this->option('confirm')) {
+            $this->error('The Pulse transport transition requires explicit --confirm.');
+
+            return 1;
+        }
+
+        $tenant = User::query()->find($tenantId);
+        $operator = User::query()->find($operatorId);
+        if (! $tenant || ! $operator) {
+            $this->error('The Pulse transport tenant or operator was not found.');
+
+            return 1;
+        }
+
+        try {
+            $cutover = match ($state) {
+                'rollback_hold' => $cutovers->placeOnRollbackHold(
+                    $tenant,
+                    $operator,
+                    $evidenceHash,
+                ),
+                'resume_legacy' => $cutovers->resumeLegacyAfterRollbackHold(
+                    $tenant,
+                    $operator,
+                    $evidenceHash,
+                ),
+                'resume_held' => $cutovers->resumeAfterRollbackHold(
+                    $tenant,
+                    $operator,
+                    $evidenceHash,
+                ),
+                default => $cutovers->initialize($tenant, $operator, $evidenceHash),
+            };
+        } catch (InvalidArgumentException|LogicException $exception) {
+            $this->error($exception->getMessage());
+
+            return 2;
+        }
+
+        $expectedState = $state === 'resume_legacy' ? 'legacy_only' : $state;
+        $transitionMatched = $state === 'resume_held'
+            ? $cutover->state !== SocialTransportCutover::STATE_ROLLBACK_HOLD
+            : (string) $cutover->state === $expectedState;
+        if (! $transitionMatched) {
+            $this->error('Pulse never falls back to direct automatically; the existing state was left unchanged.');
+
+            return 2;
+        }
+
+        $this->info('Pulse transport state: '.$cutover->state.'. No remote request was made.');
+
+        return 0;
+    },
+)->purpose('Initialize, hold, or explicitly resume the exact held Pulse transport');
+
+Artisan::command(
+    'pulse:transport:map
+        {tenant : Workspace owner user ID}
+        {operator : Owner or superadmin user ID recorded in the audit event}
+        {legacy-connection : Existing direct connection ID}
+        {replacement-connection : New replacement connection ID}
+        {--owner-evidence-hash= : SHA-256 digest of owner validation evidence}
+        {--confirm-owner-validation : Confirm the owner selected the exact destination}',
+    function (SocialTransportCutoverService $cutovers): int {
+        $tenantId = filter_var($this->argument('tenant'), FILTER_VALIDATE_INT);
+        $operatorId = filter_var($this->argument('operator'), FILTER_VALIDATE_INT);
+        $legacyId = filter_var($this->argument('legacy-connection'), FILTER_VALIDATE_INT);
+        $replacementId = filter_var($this->argument('replacement-connection'), FILTER_VALIDATE_INT);
+
+        if ($tenantId === false || $tenantId < 1
+            || $operatorId === false || $operatorId < 1
+            || $legacyId === false || $legacyId < 1
+            || $replacementId === false || $replacementId < 1) {
+            $this->error('Pulse mapping IDs must be positive integers.');
+
+            return 1;
+        }
+
+        if (! (bool) $this->option('confirm-owner-validation')) {
+            $this->error('Pulse mapping requires explicit owner validation confirmation.');
+
+            return 1;
+        }
+
+        $tenant = User::query()->find($tenantId);
+        $operator = User::query()->find($operatorId);
+        $legacy = SocialAccountConnection::query()
+            ->where('user_id', $tenantId)
+            ->find($legacyId);
+        $replacement = SocialAccountConnection::query()
+            ->where('user_id', $tenantId)
+            ->find($replacementId);
+
+        if (! $tenant || ! $operator || ! $legacy || ! $replacement) {
+            $this->error('The Pulse tenant, operator, or tenant-scoped mapping records were not found.');
+
+            return 1;
+        }
+
+        try {
+            $mapping = $cutovers->recordOwnerValidatedMapping(
+                $tenant,
+                $operator,
+                $legacy,
+                $replacement,
+                (string) $this->option('owner-evidence-hash'),
+            );
+        } catch (InvalidArgumentException|LogicException $exception) {
+            $this->error($exception->getMessage());
+
+            return 2;
+        }
+
+        $this->info(
+            'Pulse mapping recorded: owner validated; remote shadow validation remains pending. No remote request was made.',
+        );
+
+        return 0;
+    },
+)->purpose('Persist an owner-validated Pulse destination mapping without exposing remote identifiers');
+
+Artisan::command(
+    'pulse:buffer:backfill-legacy-transport
+        {--apply : Persist canonical direct/direct_v1 transport identities}
+        {--rollback : Roll back only the latest applied transport batch recorded in the ledger}
+        {--confirm-all-pulse-writers-stopped : Confirm that Pulse web and queue writers are stopped}
+        {--json : Output the aggregate report as JSON}',
+    function (SocialLegacyTransportBackfillService $backfillService): int {
+        $apply = (bool) $this->option('apply');
+        $rollback = (bool) $this->option('rollback');
+
+        if ($apply && $rollback) {
+            $this->error('Choose either --apply or --rollback, never both.');
+
+            return 1;
+        }
+
+        if (($apply || $rollback) && ! app()->environment('local', 'testing')) {
+            $this->error(
+                'Pulse legacy transport writes are restricted to local and testing environments.'
+            );
+
+            return 1;
+        }
+
+        if (($apply || $rollback) && ! (bool) $this->option('confirm-all-pulse-writers-stopped')) {
+            $this->error(
+                'Writes require confirmation that every Pulse web, automation, and publication writer is stopped.'
+            );
+
+            return 1;
+        }
+
+        try {
+            $report = match (true) {
+                $apply => $backfillService->execute(),
+                $rollback => $backfillService->rollback(),
+                default => $backfillService->preview(),
+            };
+        } catch (LogicException $exception) {
+            $this->error($exception->getMessage());
+
+            return 2;
+        }
+
+        if ((bool) $this->option('json')) {
+            $this->line(json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT));
+
+            return ($report['ready'] ?? false) === true ? 0 : 2;
+        }
+
+        $this->info('Pulse legacy transport identity '.(string) $report['mode']);
+        $this->table(['Scope', 'Total', 'Backfillable', 'Canonical', 'Changed'], [
+            [
+                'Connections',
+                $report['connections']['total'],
+                $report['connections']['backfillable'],
+                $report['connections']['already_canonical'],
+                $report['connections']['updated'] ?? $report['connections']['cleared'] ?? 0,
+            ],
+            [
+                'Targets',
+                $report['targets']['total'],
+                $report['targets']['backfillable'],
+                $report['targets']['already_canonical'],
+                $report['targets']['updated'] ?? $report['targets']['cleared'] ?? 0,
+            ],
+        ]);
+        $this->line('Terminal orphan targets ignored: '.(int) $report['targets']['terminal_orphans_ignored']);
+        $this->line('Batch provenance: '.(string) ($report['batch_id'] ?? 'none'));
+        $this->line('Aggregate anomalies: '.(int) $report['anomalies']['total']);
+
+        foreach ($report['anomalies']['by_reason'] as $reason => $count) {
+            $this->line('- '.$reason.': '.$count);
+        }
+
+        return ($report['ready'] ?? false) === true ? 0 : 2;
+    }
+)->purpose('Preflight, apply, or roll back legacy Pulse direct transport identities');
+
+Artisan::command(
+    'pulse:buffer:backfill-editorial-foundation
+        {--apply : Persist immutable revision snapshots and editorial pointers}
+        {--rollback : Roll back only the latest applied editorial batch recorded in the ledger}
+        {--confirm-all-pulse-writers-stopped : Confirm that Pulse web and queue writers are stopped}
+        {--json : Output the aggregate report as JSON}',
+    function (SocialEditorialFoundationBackfillService $backfillService): int {
+        $apply = (bool) $this->option('apply');
+        $rollback = (bool) $this->option('rollback');
+
+        if ($apply && $rollback) {
+            $this->error('Choose either --apply or --rollback, never both.');
+
+            return 1;
+        }
+
+        if (($apply || $rollback) && ! app()->environment('local', 'testing')) {
+            $this->error(
+                'Pulse editorial foundation writes are restricted to local and testing environments.'
+            );
+
+            return 1;
+        }
+
+        if (($apply || $rollback) && ! (bool) $this->option('confirm-all-pulse-writers-stopped')) {
+            $this->error(
+                'Writes require confirmation that every Pulse web, automation, and publication writer is stopped.'
+            );
+
+            return 1;
+        }
+
+        try {
+            $report = match (true) {
+                $apply => $backfillService->execute(),
+                $rollback => $backfillService->rollback(),
+                default => $backfillService->preview(),
+            };
+        } catch (LogicException $exception) {
+            $this->error($exception->getMessage());
+
+            return 2;
+        }
+
+        if ((bool) $this->option('json')) {
+            $this->line(json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT));
+
+            return ($report['ready'] ?? false) === true ? 0 : 2;
+        }
+
+        $this->info('Pulse editorial foundation '.(string) $report['mode']);
+        $this->table(['Scope', 'Total', 'Backfillable', 'Canonical', 'Changed'], [
+            [
+                'Posts',
+                $report['posts']['total'],
+                $report['posts']['backfillable'],
+                $report['posts']['already_canonical'],
+                $report['posts']['updated'] ?? $report['posts']['cleared'] ?? 0,
+            ],
+            [
+                'Revisions',
+                $report['revisions']['total'],
+                $report['revisions']['synthetic_candidates'],
+                $report['posts']['already_canonical'],
+                $report['revisions']['created'] ?? $report['revisions']['deleted'] ?? 0,
+            ],
+            [
+                'Approvals',
+                $report['approvals']['total'],
+                $report['approvals']['backfillable'],
+                0,
+                $report['approvals']['updated'] ?? $report['approvals']['cleared'] ?? 0,
+            ],
+            [
+                'Targets',
+                $report['targets']['total'],
+                $report['targets']['backfillable'],
+                0,
+                $report['targets']['updated'] ?? $report['targets']['cleared'] ?? 0,
+            ],
+        ]);
+        $this->line('Batch provenance: '.(string) ($report['batch_id'] ?? 'none'));
+        $this->line('Aggregate anomalies: '.(int) $report['anomalies']['total']);
+
+        foreach ($report['anomalies']['by_reason'] as $reason => $count) {
+            $this->line('- '.$reason.': '.$count);
+        }
+
+        return ($report['ready'] ?? false) === true ? 0 : 2;
+    }
+)->purpose('Preflight, apply, or safely roll back the legacy Pulse editorial foundation');
 
 Artisan::command('campaigns:vip-auto-sync {--account_id=} {--dry-run}', function (VipService $vipService): int {
     $accountId = $this->option('account_id');
@@ -4304,6 +4808,10 @@ Schedule::command('reservations:auto-close-expired-walk-ins --dispatch')
 Schedule::command('offer-packages:automation')->hourlyAt(5)->withoutOverlapping();
 Schedule::command('campaigns:automations')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('social:run-automations')->everyFifteenMinutes()->withoutOverlapping();
+Schedule::command('social:dispatch-outbox --limit=100')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->onOneServer();
 Schedule::command('campaigns:vip-auto-sync')->dailyAt('02:35')->withoutOverlapping();
 Schedule::command('campaigns:interest-scores')->dailyAt('02:15');
 Schedule::command('campaigns:reconcile-delivery')->everyTenMinutes()->withoutOverlapping();

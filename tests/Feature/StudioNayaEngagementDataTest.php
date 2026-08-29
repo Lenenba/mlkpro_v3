@@ -2,7 +2,7 @@
 
 use App\Enums\PromotionStatus;
 use App\Jobs\DispatchCampaignRunJob;
-use App\Jobs\PublishSocialPostTargetJob;
+use App\Jobs\ProcessSocialDeliveryOutboxJob;
 use App\Models\AssistantCreditTransaction;
 use App\Models\AssistantUsage;
 use App\Models\Campaign;
@@ -85,7 +85,7 @@ function provisionStudioNayaEngagementWorkspace(): DemoWorkspace
 it('creates coherent DB-only Studio Naya engagement histories', function () {
     Bus::fake([
         DispatchCampaignRunJob::class,
-        PublishSocialPostTargetJob::class,
+        ProcessSocialDeliveryOutboxJob::class,
         ProcessAiMessageJob::class,
         ExecuteAiActionJob::class,
     ]);
@@ -203,7 +203,7 @@ it('creates coherent DB-only Studio Naya engagement histories', function () {
         ))->toBeTrue();
 
     Bus::assertNotDispatched(DispatchCampaignRunJob::class);
-    Bus::assertNotDispatched(PublishSocialPostTargetJob::class);
+    Bus::assertNotDispatched(ProcessSocialDeliveryOutboxJob::class);
     Bus::assertNotDispatched(ProcessAiMessageJob::class);
     Bus::assertNotDispatched(ExecuteAiActionJob::class);
 });

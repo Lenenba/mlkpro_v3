@@ -63,6 +63,24 @@ function pulseComposerTeamMember(
     return $member;
 }
 
+function pulseComposerConnection(
+    User $owner,
+    string $platform,
+    string $externalAccountId,
+    string $label,
+): SocialAccountConnection {
+    return SocialAccountConnection::query()->create([
+        'user_id' => $owner->id,
+        'platform' => $platform,
+        'label' => $label,
+        'external_account_id' => $externalAccountId,
+        ...pulseDirectTransportIdentity($owner, $platform, $externalAccountId),
+        'status' => SocialAccountConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'connected_at' => now(),
+    ]);
+}
+
 beforeEach(function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
     $this->withoutMiddleware(EnsureTwoFactorVerified::class);
@@ -71,15 +89,12 @@ beforeEach(function () {
 it('renders the pulse workspace overview and composer for owners', function () {
     $owner = pulseComposerOwner();
 
-    SocialAccountConnection::query()->create([
-        'user_id' => $owner->id,
-        'platform' => SocialAccountConnection::PLATFORM_FACEBOOK,
-        'label' => 'Main page',
-        'external_account_id' => 'fb-main',
-        'status' => SocialAccountConnection::STATUS_CONNECTED,
-        'is_active' => true,
-        'connected_at' => now(),
-    ]);
+    pulseComposerConnection(
+        $owner,
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        'fb-main',
+        'Main page',
+    );
 
     SocialPost::query()->create([
         'user_id' => $owner->id,
@@ -118,25 +133,18 @@ it('renders the pulse workspace overview and composer for owners', function () {
 it('lets owners create and update pulse drafts with multi-account selection and scheduling', function () {
     $owner = pulseComposerOwner();
 
-    $facebook = SocialAccountConnection::query()->create([
-        'user_id' => $owner->id,
-        'platform' => SocialAccountConnection::PLATFORM_FACEBOOK,
-        'label' => 'North page',
-        'external_account_id' => 'fb-001',
-        'status' => SocialAccountConnection::STATUS_CONNECTED,
-        'is_active' => true,
-        'connected_at' => now(),
-    ]);
-
-    $linkedin = SocialAccountConnection::query()->create([
-        'user_id' => $owner->id,
-        'platform' => SocialAccountConnection::PLATFORM_LINKEDIN,
-        'label' => 'Corporate page',
-        'external_account_id' => 'li-001',
-        'status' => SocialAccountConnection::STATUS_CONNECTED,
-        'is_active' => true,
-        'connected_at' => now(),
-    ]);
+    $facebook = pulseComposerConnection(
+        $owner,
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        'fb-001',
+        'North page',
+    );
+    $linkedin = pulseComposerConnection(
+        $owner,
+        SocialAccountConnection::PLATFORM_LINKEDIN,
+        'li-001',
+        'Corporate page',
+    );
 
     $create = $this->actingAs($owner)
         ->postJson(route('social.posts.store'), [
@@ -183,6 +191,37 @@ it('lets owners create and update pulse drafts with multi-account selection and 
         ->and($draft->scheduled_for)->not->toBeNull()
         ->and($draft->targets)->toHaveCount(1)
         ->and((int) $draft->targets->first()->social_account_connection_id)->toBe((int) $linkedin->id);
+});
+
+it('stores browser wall-clock schedules as UTC in the workspace timezone', function () {
+    $this->travelTo(Carbon::parse('2026-08-28 12:00:00', 'UTC'));
+    $owner = pulseComposerOwner(['company_timezone' => 'America/Toronto']);
+    $facebook = pulseComposerConnection(
+        $owner,
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        'fb-timezone-contract',
+        'Timezone page',
+    );
+
+    $response = $this->actingAs($owner)
+        ->postJson(route('social.posts.store'), [
+            'text' => 'Tenant-local schedule contract.',
+            'scheduled_for' => '2026-08-29T10:00',
+            'target_connection_ids' => [$facebook->id],
+        ]);
+
+    $response->assertCreated()
+        ->assertJsonPath('draft.scheduled_for', '2026-08-29T14:00:00+00:00')
+        ->assertJsonPath('draft.scheduled_local_time', '2026-08-29T10:00')
+        ->assertJsonPath('draft.scheduled_timezone', 'America/Toronto');
+
+    $post = SocialPost::query()->findOrFail((int) $response->json('draft.id'));
+
+    expect($post->scheduled_for?->copy()->utc()->toDateTimeString())
+        ->toBe('2026-08-29 14:00:00')
+        ->and($post->scheduled_local_time?->format('Y-m-d H:i:s'))
+        ->toBe('2026-08-29 10:00:00')
+        ->and($post->scheduled_timezone)->toBe('America/Toronto');
 });
 
 it('renders the pulse editorial calendar from existing posts', function () {
@@ -243,15 +282,12 @@ it('renders the pulse editorial calendar from existing posts', function () {
 it('lets owners reschedule editable pulse drafts from the calendar', function () {
     $owner = pulseComposerOwner();
 
-    $connection = SocialAccountConnection::query()->create([
-        'user_id' => $owner->id,
-        'platform' => SocialAccountConnection::PLATFORM_LINKEDIN,
-        'label' => 'Calendar page',
-        'external_account_id' => 'li-calendar',
-        'status' => SocialAccountConnection::STATUS_CONNECTED,
-        'is_active' => true,
-        'connected_at' => now(),
-    ]);
+    $connection = pulseComposerConnection(
+        $owner,
+        SocialAccountConnection::PLATFORM_LINKEDIN,
+        'li-calendar',
+        'Calendar page',
+    );
 
     $draft = SocialPost::query()->create([
         'user_id' => $owner->id,
@@ -330,15 +366,12 @@ it('lets owners upload local images for pulse drafts', function () {
 
     $owner = pulseComposerOwner();
 
-    $facebook = SocialAccountConnection::query()->create([
-        'user_id' => $owner->id,
-        'platform' => SocialAccountConnection::PLATFORM_FACEBOOK,
-        'label' => 'North page',
-        'external_account_id' => 'fb-upload-001',
-        'status' => SocialAccountConnection::STATUS_CONNECTED,
-        'is_active' => true,
-        'connected_at' => now(),
-    ]);
+    $facebook = pulseComposerConnection(
+        $owner,
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        'fb-upload-001',
+        'North page',
+    );
 
     $create = $this->actingAs($owner)
         ->post(route('social.posts.store'), [
@@ -384,15 +417,12 @@ it('lets team members with social publish manage pulse drafts while social view 
     $publisher = pulseComposerTeamMember($owner, ['social.publish']);
     $viewer = pulseComposerTeamMember($owner, ['social.view']);
 
-    $connection = SocialAccountConnection::query()->create([
-        'user_id' => $owner->id,
-        'platform' => SocialAccountConnection::PLATFORM_INSTAGRAM,
-        'label' => 'Main IG',
-        'external_account_id' => 'ig-001',
-        'status' => SocialAccountConnection::STATUS_CONNECTED,
-        'is_active' => true,
-        'connected_at' => now(),
-    ]);
+    $connection = pulseComposerConnection(
+        $owner,
+        SocialAccountConnection::PLATFORM_INSTAGRAM,
+        'ig-001',
+        'Main IG',
+    );
 
     $this->actingAs($viewer)
         ->get(route('social.composer'))

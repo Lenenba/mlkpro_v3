@@ -7,6 +7,12 @@ import FloatingInput from '@/Components/FloatingInput.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import SocialPlatformLogo from '@/Pages/Social/Components/SocialPlatformLogo.vue';
+import {
+    needsSocialDeliveryVerification,
+    socialStatusAxes,
+    socialStatusToneClass,
+} from '@/utils/socialStatusAxes';
+import { socialScheduleInputValue } from '@/utils/socialScheduleInput';
 
 const props = defineProps({
     initialPosts: {
@@ -91,23 +97,13 @@ const startOfWeek = (date) => {
     return start;
 };
 const calendarDateFor = (post) => toDate(post?.calendar_at || post?.scheduled_for || post?.published_at || post?.updated_at);
-const localInputValue = (value) => {
-    const date = toDate(value);
-    if (!date) {
-        return '';
-    }
-
-    const offset = date.getTimezoneOffset() * 60000;
-
-    return new Date(date.getTime() - offset).toISOString().slice(0, 16);
-};
 const suggestedScheduleInput = () => {
     const next = new Date();
     next.setDate(next.getDate() + 1);
     next.setMinutes(0, 0, 0);
     next.setHours(Math.max(next.getHours(), 9));
 
-    return localInputValue(next.toISOString());
+    return socialScheduleInputValue({ scheduled_for: next.toISOString() });
 };
 
 const canManage = computed(() => Boolean(access.value.can_manage_posts));
@@ -181,6 +177,8 @@ const activePost = computed(() => {
 
     return selected || selectedDayPosts.value[0] || null;
 });
+const activeStatusAxes = computed(() => socialStatusAxes(activePost.value));
+const deliveryVerificationRequired = computed(() => needsSocialDeliveryVerification(activePost.value));
 const calendarSummary = computed(() => {
     const base = {
         draft: 0,
@@ -260,7 +258,7 @@ watch(posts, (value) => {
             return;
         }
 
-        next[post.id] = localInputValue(post.scheduled_for) || suggestedScheduleInput();
+        next[post.id] = socialScheduleInputValue(post) || suggestedScheduleInput();
     });
 
     rescheduleInputs.value = next;
@@ -380,6 +378,13 @@ const targetSummary = (post) => {
     return t('social.calendar_manager.target_count', { count });
 };
 const statusLabel = (post) => t(`social.composer_manager.statuses.${post?.status || 'draft'}`);
+const statusAxisLabel = (axis) => t(`social.delivery_axes.labels.${axis.key}`);
+const statusAxisValueLabel = (axis) => {
+    const key = `social.delivery_axes.statuses.${axis.key}.${axis.value}`;
+    const translated = t(key);
+
+    return translated === key ? axis.value.replace(/_/gu, ' ') : translated;
+};
 const bucketClass = (bucket) => {
     if (bucket === 'scheduled') {
         return 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-200';
@@ -418,7 +423,7 @@ const dayPostLimit = computed(() => viewMode.value === 'month' ? 3 : 5);
 </script>
 
 <template>
-    <div class="space-y-5">
+    <div class="space-y-5" :aria-busy="isLoading || busyPostId !== null">
         <section class="rounded-md border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -452,6 +457,7 @@ const dayPostLimit = computed(() => viewMode.value === 'month' ? 3 : 5);
                         :class="viewMode === 'week'
                             ? 'border-sky-500 bg-sky-50 text-sky-700 dark:border-sky-500/60 dark:bg-sky-500/10 dark:text-sky-200'
                             : 'border-stone-200 text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800'"
+                        :aria-pressed="viewMode === 'week'"
                         @click="setMode('week')"
                     >
                         {{ t('social.calendar_manager.actions.week') }}
@@ -462,6 +468,7 @@ const dayPostLimit = computed(() => viewMode.value === 'month' ? 3 : 5);
                         :class="viewMode === 'month'
                             ? 'border-sky-500 bg-sky-50 text-sky-700 dark:border-sky-500/60 dark:bg-sky-500/10 dark:text-sky-200'
                             : 'border-stone-200 text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800'"
+                        :aria-pressed="viewMode === 'month'"
                         @click="setMode('month')"
                     >
                         {{ t('social.calendar_manager.actions.month') }}
@@ -483,6 +490,8 @@ const dayPostLimit = computed(() => viewMode.value === 'month' ? 3 : 5);
 
         <div
             v-if="error"
+            role="alert"
+            aria-live="assertive"
             class="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300"
         >
             {{ error }}
@@ -490,6 +499,8 @@ const dayPostLimit = computed(() => viewMode.value === 'month' ? 3 : 5);
 
         <div
             v-if="info"
+            role="status"
+            aria-live="polite"
             class="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300"
         >
             {{ info }}
@@ -513,6 +524,7 @@ const dayPostLimit = computed(() => viewMode.value === 'month' ? 3 : 5);
                         <button
                             type="button"
                             class="flex w-full items-center justify-between gap-2 rounded-md px-1 py-1 text-left transition hover:bg-white/70 dark:hover:bg-neutral-800/70"
+                            :aria-pressed="day.key === selectedDayKey"
                             @click="selectDay(day)"
                         >
                             <span
@@ -536,6 +548,7 @@ const dayPostLimit = computed(() => viewMode.value === 'month' ? 3 : 5);
                                 type="button"
                                 class="block w-full rounded-md border px-2 py-2 text-left text-xs transition hover:border-sky-300"
                                 :class="bucketClass(post.calendar_bucket)"
+                                :aria-pressed="day.key === selectedDayKey && Number(activePost?.id) === Number(post.id)"
                                 @click="selectDay(day); selectPost(post)"
                             >
                                 <span class="block font-semibold">{{ formatTime(post) }}</span>
@@ -579,6 +592,7 @@ const dayPostLimit = computed(() => viewMode.value === 'month' ? 3 : 5);
                             :class="Number(activePost?.id) === Number(post.id)
                                 ? 'border-sky-400 bg-sky-50 dark:border-sky-500/60 dark:bg-sky-500/10'
                                 : 'border-stone-200 hover:border-sky-300 dark:border-neutral-700 dark:hover:border-sky-500/40'"
+                            :aria-pressed="Number(activePost?.id) === Number(post.id)"
                             @click="selectPost(post)"
                         >
                             <span class="block font-semibold text-stone-900 dark:text-neutral-100">
@@ -628,6 +642,42 @@ const dayPostLimit = computed(() => viewMode.value === 'month' ? 3 : 5);
                             <SocialPlatformLogo :platform="target.platform" class="h-3.5 w-3.5" />
                             {{ target.label || target.platform || t('social.calendar_manager.empty_value') }}
                         </span>
+                    </div>
+
+                    <dl
+                        v-if="activeStatusAxes.length"
+                        class="mt-4 flex flex-wrap gap-2"
+                        :aria-label="t('social.delivery_axes.summary_label')"
+                    >
+                        <div
+                            v-for="axis in activeStatusAxes"
+                            :key="axis.key"
+                            class="inline-flex items-center gap-1.5"
+                        >
+                            <dt class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ statusAxisLabel(axis) }}
+                            </dt>
+                            <dd
+                                class="inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold"
+                                :class="socialStatusToneClass(axis.value)"
+                            >
+                                {{ statusAxisValueLabel(axis) }}
+                            </dd>
+                        </div>
+                    </dl>
+
+                    <div
+                        v-if="deliveryVerificationRequired"
+                        role="alert"
+                        aria-live="assertive"
+                        class="mt-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
+                    >
+                        <div class="font-semibold">
+                            {{ t('social.delivery_axes.verification.title') }}
+                        </div>
+                        <div class="mt-1">
+                            {{ t('social.delivery_axes.verification.description') }}
+                        </div>
                     </div>
 
                     <div class="mt-4 flex flex-wrap gap-2">

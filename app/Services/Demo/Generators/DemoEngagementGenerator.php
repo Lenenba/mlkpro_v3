@@ -23,6 +23,7 @@ use App\Models\Reservation;
 use App\Models\Sale;
 use App\Models\SocialAccountConnection;
 use App\Models\SocialPost;
+use App\Models\SocialPostRevision;
 use App\Models\SocialPostTarget;
 use App\Models\SocialPostTemplate;
 use App\Modules\AiAssistant\Models\AiAction;
@@ -31,8 +32,11 @@ use App\Modules\AiAssistant\Models\AiConversation;
 use App\Modules\AiAssistant\Models\AiKnowledgeItem;
 use App\Modules\AiAssistant\Models\AiMessage;
 use App\Services\Demo\DemoScenarioContext;
+use App\Services\Social\SocialLogicalDestinationKeyService;
+use App\Services\Social\SocialPostRevisionService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -64,6 +68,11 @@ final class DemoEngagementGenerator
         'social_posts',
         'social_targets',
     ];
+
+    public function __construct(
+        private readonly SocialLogicalDestinationKeyService $logicalDestinationKeys,
+        private readonly SocialPostRevisionService $socialPostRevisions,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $blueprint
@@ -1012,13 +1021,22 @@ final class DemoEngagementGenerator
         }
 
         $accountCreatedAt = $reference->subDays(360)->utc();
+        $externalAccountId = 'demo-studio-naya-'.$context->owner->id;
+        $logicalDestinationKey = $this->logicalDestinationKeys->deriveForLegacyConnection(
+            (string) $context->owner->id,
+            SocialAccountConnection::PLATFORM_INSTAGRAM,
+            $externalAccountId,
+        );
         $account = $this->persist(SocialAccountConnection::class, [
             'user_id' => $context->owner->id,
             'platform' => SocialAccountConnection::PLATFORM_INSTAGRAM,
             'label' => 'Instagram Studio Naya — démonstration',
             'display_name' => 'Studio Naya Coiffure',
             'account_handle' => '@studionaya.demo',
-            'external_account_id' => 'demo-studio-naya-'.$context->owner->id,
+            'external_account_id' => $externalAccountId,
+            'delivery_provider' => SocialAccountConnection::DELIVERY_PROVIDER_DIRECT,
+            'transport_generation' => SocialAccountConnection::TRANSPORT_GENERATION_DIRECT_V1,
+            'logical_destination_key' => $logicalDestinationKey,
             'auth_method' => SocialAccountConnection::AUTH_METHOD_MANUAL,
             'credentials' => null,
             'permissions' => [],
@@ -1139,9 +1157,12 @@ final class DemoEngagementGenerator
                 SocialPost::STATUS_PUBLISHED => SocialPostTarget::STATUS_PUBLISHED,
                 default => SocialPostTarget::STATUS_PENDING,
             };
-            $this->persist(SocialPostTarget::class, [
+            $target = $this->persist(SocialPostTarget::class, [
                 'social_post_id' => $post->id,
                 'social_account_connection_id' => $account->id,
+                'delivery_provider' => $account->delivery_provider,
+                'transport_generation' => $account->transport_generation,
+                'logical_destination_key' => $account->logical_destination_key,
                 'status' => $targetStatus,
                 'published_at' => $publishedAt,
                 'failed_at' => null,
@@ -1154,6 +1175,25 @@ final class DemoEngagementGenerator
                 'created_at' => $createdAt,
                 'updated_at' => $publishedAt ?? $scheduledFor ?? $createdAt,
             ]);
+            $revision = $this->socialPostRevisions->capture($post, $context->owner);
+
+            if ($status === SocialPost::STATUS_PUBLISHED && $publishedAt !== null) {
+                $revision = $this->socialPostRevisions->approveDirectly(
+                    $post,
+                    $context->owner,
+                    Carbon::instance($publishedAt),
+                );
+                $target->forceFill([
+                    'last_submitted_revision_id' => $revision->id,
+                    'delivery_status' => SocialPost::DELIVERY_STATUS_PUBLISHED,
+                    'sync_status' => SocialPost::SYNC_STATUS_SYNCED,
+                ])->save();
+                $post->forceFill([
+                    'delivery_status' => SocialPost::DELIVERY_STATUS_PUBLISHED,
+                    'sync_status' => SocialPost::SYNC_STATUS_SYNCED,
+                    'delivery_aggregated_at' => $publishedAt,
+                ])->save();
+            }
         }
     }
 
@@ -1307,18 +1347,83 @@ final class DemoEngagementGenerator
         $socialStatuses = SocialPost::query()->byUser($ownerId)->pluck('status')->unique()->all();
         $socialPosts = SocialPost::query()
             ->byUser($ownerId)
-            ->with('targets.socialAccountConnection')
+            ->with([
+                'approvalRequests.socialPostRevision',
+                'approvedRevision',
+                'revisions',
+                'targets.currentRevision',
+                'targets.lastSubmittedRevision',
+                'targets.socialAccountConnection',
+            ])
             ->get();
         $socialGraphValid = $socialAccount !== null
             && ! $socialAccount->is_active
             && $socialAccount->status === SocialAccountConnection::STATUS_DISCONNECTED
             && $socialAccount->credentials === null
+            && $socialAccount->delivery_provider === SocialAccountConnection::DELIVERY_PROVIDER_DIRECT
+            && $socialAccount->transport_generation === SocialAccountConnection::TRANSPORT_GENERATION_DIRECT_V1
+            && hash_equals(
+                $this->logicalDestinationKeys->deriveForLegacyConnection(
+                    (string) $ownerId,
+                    (string) $socialAccount->platform,
+                    (string) $socialAccount->external_account_id,
+                ),
+                (string) $socialAccount->logical_destination_key,
+            )
             && data_get($socialAccount->metadata, 'publishable') === false
-            && $socialPosts->every(function (SocialPost $post) use ($ownerId): bool {
+            && $socialPosts->every(function (SocialPost $post) use ($ownerId, $socialAccount): bool {
+                $currentRevision = $post->revisions
+                    ->firstWhere('revision_number', $post->current_editorial_revision);
+                $isPublished = $post->status === SocialPost::STATUS_PUBLISHED;
+
+                if (! $currentRevision
+                    || ! hash_equals((string) $currentRevision->payload_hash, (string) $post->payload_hash)
+                    || (int) $currentRevision->user_id !== $ownerId
+                    || ($isPublished && (
+                        ! $post->approvedRevision?->is($currentRevision)
+                        || $currentRevision->approval_provenance !== SocialPostRevision::APPROVAL_TYPE_DIRECT_IMPLICIT
+                        || $post->editorial_status !== SocialPost::EDITORIAL_STATUS_APPROVED
+                        || $post->delivery_status !== SocialPost::DELIVERY_STATUS_PUBLISHED
+                        || $post->sync_status !== SocialPost::SYNC_STATUS_SYNCED
+                        || $post->approvalRequests->count() !== 1
+                        || ! $post->approvalRequests->sole()->socialPostRevision?->is($currentRevision)
+                    ))
+                    || (! $isPublished && (
+                        $post->approved_revision_id !== null
+                        || $post->editorial_status !== SocialPost::EDITORIAL_STATUS_DRAFT
+                        || $post->delivery_status !== SocialPost::DELIVERY_STATUS_NOT_SUBMITTED
+                        || $post->sync_status !== SocialPost::SYNC_STATUS_PENDING
+                        || $post->approvalRequests->isNotEmpty()
+                    ))) {
+                    return false;
+                }
+
                 return $post->targets->count() === 1
-                    && $post->targets->every(fn (SocialPostTarget $target): bool => (int) $target->socialAccountConnection?->user_id === $ownerId
-                        && data_get($target->metadata, 'external_delivery') === false
-                    );
+                    && $post->targets->every(function (SocialPostTarget $target) use (
+                        $currentRevision,
+                        $isPublished,
+                        $ownerId,
+                        $socialAccount,
+                    ): bool {
+                        return (int) $target->socialAccountConnection?->user_id === $ownerId
+                            && $target->delivery_provider === $socialAccount->delivery_provider
+                            && $target->transport_generation === $socialAccount->transport_generation
+                            && hash_equals(
+                                (string) $socialAccount->logical_destination_key,
+                                (string) $target->logical_destination_key,
+                            )
+                            && $target->currentRevision?->is($currentRevision)
+                            && (int) $target->current_editorial_revision === (int) $currentRevision->revision_number
+                            && hash_equals((string) $target->payload_hash, (string) $currentRevision->payload_hash)
+                            && ($isPublished
+                                ? $target->lastSubmittedRevision?->is($currentRevision)
+                                    && $target->delivery_status === SocialPost::DELIVERY_STATUS_PUBLISHED
+                                    && $target->sync_status === SocialPost::SYNC_STATUS_SYNCED
+                                : $target->last_submitted_revision_id === null
+                                    && $target->delivery_status === SocialPost::DELIVERY_STATUS_NOT_SUBMITTED
+                                    && $target->sync_status === SocialPost::SYNC_STATUS_PENDING)
+                            && data_get($target->metadata, 'external_delivery') === false;
+                    });
             });
         $targetCountsValid = collect(self::TARGET_KEYS)->every(
             fn (string $key): bool => (int) ($targets[$key] ?? -1) === (int) ($counts[$key] ?? -2),

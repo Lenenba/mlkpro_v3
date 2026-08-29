@@ -8,14 +8,20 @@ use App\Models\PlanScan;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\Sale;
+use App\Models\SocialAccountConnection;
 use App\Models\TaskMedia;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\WorkMedia;
+use App\Services\Social\SocialConnectionDeliveryMutex;
+use App\Services\Social\SocialDeliveryOutboxService;
+use App\Services\Social\SocialTransportCutoverService;
+use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use LogicException;
 
 class AccountDeletionService
 {
@@ -24,11 +30,17 @@ class AccountDeletionService
         'products/product.jpg',
     ];
 
+    public function __construct(
+        private readonly SocialDeliveryOutboxService $deliveryOutboxes,
+        private readonly SocialConnectionDeliveryMutex $deliveryMutex,
+        private readonly SocialTransportCutoverService $transportCutovers,
+    ) {}
+
     public function deleteAccount(User $accountOwner): void
     {
         $this->cancelPaddleSubscriptions($accountOwner);
 
-        $accountId = $accountOwner->id;
+        $accountId = (int) $accountOwner->id;
         $teamMemberUserIds = TeamMember::query()
             ->where('account_id', $accountId)
             ->pluck('user_id')
@@ -53,23 +65,78 @@ class AccountDeletionService
         $userEmails = User::query()
             ->whereIn('id', $userIds)
             ->pluck('email');
-
         $filePaths = $this->collectAccountFilePaths($accountId, $userIds);
+        $tenantLock = $this->acquireTenantDeliveryLock($accountId);
+        $deliveryLocks = [];
 
-        DB::transaction(function () use ($accountId, $userIds, $userEmails, $usersToDelete) {
-            $this->purgeUserArtifacts($userIds, $userEmails);
-            $this->deleteAccountData($accountId);
+        try {
+            $deliveryLocks = $this->acquireConnectionDeliveryLocks($accountId);
+            DB::transaction(function () use ($accountId, $userIds, $userEmails, $usersToDelete) {
+                $this->purgeUserArtifacts($userIds, $userEmails);
+                $this->transportCutovers->purgeForTenantDeletion($accountId);
+                $this->deliveryOutboxes->purgeForTenantDeletion($accountId);
+                $this->deleteAccountData($accountId);
 
-            if ($usersToDelete->isNotEmpty()) {
-                User::query()
-                    ->whereIn('id', $usersToDelete->pluck('id'))
-                    ->delete();
+                if ($usersToDelete->isNotEmpty()) {
+                    User::query()
+                        ->whereIn('id', $usersToDelete->pluck('id'))
+                        ->delete();
+                }
+
+                User::query()->whereKey($accountId)->delete();
+            });
+        } finally {
+            foreach (array_reverse($deliveryLocks) as $deliveryLock) {
+                $deliveryLock->release();
             }
 
-            User::query()->whereKey($accountId)->delete();
-        });
+            $tenantLock->release();
+        }
 
         $this->deleteFilePaths($filePaths);
+    }
+
+    private function acquireTenantDeliveryLock(int $accountId): Lock
+    {
+        $lock = $this->deliveryMutex->acquireTenant($accountId);
+
+        if ($lock === null) {
+            throw new LogicException(
+                'A Pulse connection change is using this account. Retry account deletion shortly.'
+            );
+        }
+
+        return $lock;
+    }
+
+    /**
+     * @return array<int, Lock>
+     */
+    private function acquireConnectionDeliveryLocks(int $accountId): array
+    {
+        $connectionIds = SocialAccountConnection::query()
+            ->byUser($accountId)
+            ->orderBy('id')
+            ->pluck('id');
+        $locks = [];
+
+        foreach ($connectionIds as $connectionId) {
+            $lock = $this->deliveryMutex->acquire((int) $connectionId);
+
+            if ($lock === null) {
+                foreach (array_reverse($locks) as $heldLock) {
+                    $heldLock->release();
+                }
+
+                throw new LogicException(
+                    'A Pulse delivery is using this account. Retry account deletion shortly.'
+                );
+            }
+
+            $locks[] = $lock;
+        }
+
+        return $locks;
     }
 
     public function deleteUser(User $user): void

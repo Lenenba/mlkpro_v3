@@ -30,18 +30,18 @@ expect()->extend('toBeOne', function () {
     return $this->toBe(1);
 });
 
-/*
-|--------------------------------------------------------------------------
-| Functions
-|--------------------------------------------------------------------------
-|
-| While Pest is very powerful out-of-the-box, you may have some testing code specific to your
-| project that you don't want to repeat in every file. Here you can also expose helpers as
-| global functions to help you to reduce the number of lines of code in your test files.
-|
-*/
-
-function something()
-{
-    // ..
+/**
+ * @return array{delivery_provider:string,transport_generation:string,logical_destination_key:string}
+ */
+function pulseDirectTransportIdentity(
+    \App\Models\User $owner,
+    string $platform,
+    string $externalAccountId,
+): array {
+    return [
+        'delivery_provider' => \App\Models\SocialAccountConnection::DELIVERY_PROVIDER_DIRECT,
+        'transport_generation' => \App\Models\SocialAccountConnection::TRANSPORT_GENERATION_DIRECT_V1,
+        'logical_destination_key' => app(\App\Services\Social\SocialLogicalDestinationKeyService::class)
+            ->deriveForLegacyConnection((string) $owner->id, $platform, $externalAccountId),
+    ];
 }

@@ -2,6 +2,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import test from 'node:test';
+import {
+    needsSocialDeliveryVerification,
+    socialStatusAxes,
+    socialStatusToneClass,
+} from '../../resources/js/utils/socialStatusAxes.js';
 
 const read = (path) => readFileSync(resolve(path), 'utf8');
 const readJson = (path) => JSON.parse(read(path));
@@ -9,7 +14,9 @@ const readJson = (path) => JSON.parse(read(path));
 const dropzone = read('resources/js/Components/DropzoneInput.vue');
 const composer = read('resources/js/Pages/Social/Components/SocialPostComposer.vue');
 const history = read('resources/js/Pages/Social/Components/SocialPostHistory.vue');
+const calendar = read('resources/js/Pages/Social/Components/SocialEditorialCalendar.vue');
 const accountManager = read('resources/js/Pages/Social/Components/SocialAccountManager.vue');
+const statusAxesSource = read('resources/js/utils/socialStatusAxes.js');
 
 test('the shared dropzone seals every media mutation while disabled', () => {
     assert.match(dropzone, /disabled:\s*Boolean,/u);
@@ -150,4 +157,102 @@ test('pulse target statuses and failure copy exist in every locale', () => {
 
         assert.match(social.social.history_manager.target_failure_reason, /\{reason\}/u, locale);
     }
+});
+
+test('provider-neutral delivery axes only expose fields supplied by the server', () => {
+    assert.deepEqual(socialStatusAxes({ status: 'published' }), []);
+    assert.deepEqual(
+        socialStatusAxes({
+            editorial_status: 'approved',
+            delivery_status: 'published',
+            sync_status: 'synced',
+        }),
+        [
+            { key: 'editorial', value: 'approved' },
+            { key: 'delivery', value: 'published' },
+            { key: 'sync', value: 'synced' },
+        ],
+    );
+    assert.deepEqual(
+        socialStatusAxes({ editorial_status: 'approved', delivery_status: 'queued' }, { includeEditorial: false }),
+        [{ key: 'delivery', value: 'queued' }],
+    );
+    assert.doesNotMatch(statusAxesSource, /buffer/iu);
+});
+
+test('unknown delivery requires verification without inferring a retry action', () => {
+    assert.equal(needsSocialDeliveryVerification({ delivery_status: 'unknown' }), true);
+    assert.equal(needsSocialDeliveryVerification({
+        delivery_status: 'published',
+        targets: [{ delivery_status: 'unknown' }],
+    }), true);
+    assert.equal(needsSocialDeliveryVerification({
+        delivery_status: 'published',
+        targets: [{ delivery_status: 'published' }],
+    }), false);
+    assert.match(socialStatusToneClass('unknown'), /amber/u);
+});
+
+test('history composer and calendar consume delivery axes conditionally and announce state changes', () => {
+    for (const [name, component] of Object.entries({ history, composer, calendar })) {
+        assert.match(component, /from '@\/utils\/socialStatusAxes'/u, name);
+        assert.match(component, /social\.delivery_axes\.verification\.description/u, name);
+        assert.match(component, /aria-live="assertive"/u, name);
+        assert.match(component, /aria-live="polite"/u, name);
+        assert.match(component, /:aria-busy=/u, name);
+    }
+
+    assert.match(history, /v-if="statusAxesFor\(post\)\.length"/u);
+    assert.match(history, /v-if="statusAxesFor\(target, false\)\.length"/u);
+    assert.match(composer, /v-if="activeStatusAxes\.length"/u);
+    assert.match(composer, /:aria-pressed="form\.target_connection_ids\.includes/u);
+    assert.match(calendar, /v-if="activeStatusAxes\.length"/u);
+    assert.match(calendar, /:aria-pressed="viewMode === 'week'"/u);
+    assert.match(calendar, /:aria-pressed="day\.key === selectedDayKey"/u);
+});
+
+test('delivery axis labels and the do-not-republish warning exist in every locale', () => {
+    const expectedStatuses = {
+        editorial: ['draft', 'pending_approval', 'approved', 'rejected', 'archived'],
+        delivery: [
+            'not_submitted',
+            'queued',
+            'submitted',
+            'scheduled',
+            'remote_approval_required',
+            'publishing',
+            'sending',
+            'published',
+            'partial_failed',
+            'failed',
+            'unknown',
+            'canceled',
+        ],
+        sync: ['pending', 'synced', 'error', 'reconnect_required'],
+    };
+
+    for (const locale of ['fr', 'en', 'es']) {
+        const axes = readJson(`resources/js/i18n/modules/${locale}/social.json`).social.delivery_axes;
+
+        for (const axis of Object.keys(expectedStatuses)) {
+            assert.equal(typeof axes.labels[axis], 'string', `${locale}:${axis}:label`);
+
+            for (const status of expectedStatuses[axis]) {
+                assert.equal(typeof axes.statuses[axis][status], 'string', `${locale}:${axis}:${status}`);
+                assert.notEqual(axes.statuses[axis][status].trim(), '', `${locale}:${axis}:${status}`);
+            }
+        }
+
+        assert.equal(typeof axes.verification.title, 'string', `${locale}:verification:title`);
+        assert.equal(typeof axes.verification.description, 'string', `${locale}:verification:description`);
+        assert.notEqual(axes.verification.description.trim(), '', `${locale}:verification:description`);
+    }
+
+    const frenchWarning = readJson('resources/js/i18n/modules/fr/social.json')
+        .social.delivery_axes.verification;
+    const englishWarning = readJson('resources/js/i18n/modules/en/social.json')
+        .social.delivery_axes.verification;
+
+    assert.match(`${frenchWarning.title} ${frenchWarning.description}`, /verification requise.*ne republiez pas/iu);
+    assert.match(`${englishWarning.title} ${englishWarning.description}`, /verification required.*do not publish again/iu);
 });

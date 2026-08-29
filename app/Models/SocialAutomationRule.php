@@ -84,6 +84,11 @@ class SocialAutomationRule extends Model
         'metadata',
     ];
 
+    protected $hidden = [
+        'execution_claim_token',
+        'execution_claimed_until',
+    ];
+
     protected $casts = [
         'description' => 'string',
         'is_active' => 'boolean',
@@ -99,6 +104,8 @@ class SocialAutomationRule extends Model
         'min_hours_between_similar_posts' => 'integer',
         'last_generated_at' => 'datetime',
         'next_generation_at' => 'datetime',
+        'execution_claim_token' => 'string',
+        'execution_claimed_until' => 'datetime',
         'last_error' => 'string',
         'metadata' => 'array',
     ];

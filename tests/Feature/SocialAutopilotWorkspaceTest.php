@@ -1,17 +1,19 @@
 <?php
 
 use App\Http\Middleware\EnsureTwoFactorVerified;
-use App\Jobs\PublishSocialPostTargetJob;
+use App\Jobs\ProcessSocialDeliveryOutboxJob;
 use App\Models\Role;
 use App\Models\SocialAccountConnection;
 use App\Models\SocialApprovalRequest;
 use App\Models\SocialAutomationRule;
 use App\Models\SocialAutomationRun;
 use App\Models\SocialPost;
+use App\Models\SocialPostRevision;
 use App\Models\SocialPostTarget;
 use App\Models\SocialPostTemplate;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Services\Social\SocialApprovalService;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -74,7 +76,7 @@ function pulseAutopilotTeamMember(
 
 function pulseAutopilotConnection(User $owner, string $platform, array $overrides = []): SocialAccountConnection
 {
-    return SocialAccountConnection::query()->create(array_merge([
+    $attributes = array_merge([
         'user_id' => $owner->id,
         'platform' => $platform,
         'label' => Str::headline($platform).' Pulse account',
@@ -90,7 +92,12 @@ function pulseAutopilotConnection(User $owner, string $platform, array $override
             'provider_label' => Str::headline($platform),
             'target_type' => 'page',
         ],
-    ], $overrides));
+    ], $overrides);
+
+    return SocialAccountConnection::query()->create([
+        ...$attributes,
+        ...pulseDirectTransportIdentity($owner, $platform, (string) $attributes['external_account_id']),
+    ]);
 }
 
 function pulseAutopilotTemplate(User $owner, array $overrides = []): SocialPostTemplate
@@ -156,6 +163,9 @@ function pulseAutopilotDraft(User $owner, User $actor, array $connections, array
         SocialPostTarget::query()->create([
             'social_post_id' => $post->id,
             'social_account_connection_id' => $connection->id,
+            'delivery_provider' => $connection->delivery_provider,
+            'transport_generation' => $connection->transport_generation,
+            'logical_destination_key' => $connection->logical_destination_key,
             'status' => $scheduledFor
                 ? SocialPostTarget::STATUS_SCHEDULED
                 : SocialPostTarget::STATUS_PENDING,
@@ -370,6 +380,7 @@ it('supports revision flow and scheduled approval from the pulse approval inbox'
     $this->actingAs($publisher)
         ->postJson(route('social.posts.submit-approval', $secondDraft))
         ->assertStatus(202);
+    $submittedRevisionId = (int) $secondDraft->approvalRequests()->sole()->social_post_revision_id;
 
     $scheduledFor = Carbon::now()->addDay()->setTime(11, 30, 0);
 
@@ -381,12 +392,18 @@ it('supports revision flow and scheduled approval from the pulse approval inbox'
         ->assertStatus(202)
         ->assertJsonPath('draft.status', SocialPost::STATUS_SCHEDULED);
 
-    Queue::assertPushed(PublishSocialPostTargetJob::class, 1);
+    Queue::assertPushed(ProcessSocialDeliveryOutboxJob::class, 1);
 
-    $scheduledPost = SocialPost::query()->with('latestApprovalRequest')->findOrFail($secondDraft->id);
+    $scheduledPost = SocialPost::query()
+        ->with(['approvedRevision', 'latestApprovalRequest.socialPostRevision', 'revisions'])
+        ->findOrFail($secondDraft->id);
     expect($scheduledPost->status)->toBe(SocialPost::STATUS_SCHEDULED)
         ->and($scheduledPost->scheduled_for?->equalTo($scheduledFor))->toBeTrue()
-        ->and((string) $scheduledPost->latestApprovalRequest?->status)->toBe(SocialApprovalRequest::STATUS_APPROVED);
+        ->and((string) $scheduledPost->latestApprovalRequest?->status)->toBe(SocialApprovalRequest::STATUS_APPROVED)
+        ->and($scheduledPost->revisions)->toHaveCount(2)
+        ->and($scheduledPost->latestApprovalRequest?->social_post_revision_id)->not->toBe($submittedRevisionId)
+        ->and($scheduledPost->latestApprovalRequest?->socialPostRevision?->is($scheduledPost->approvedRevision))->toBeTrue()
+        ->and($scheduledPost->approvedRevision?->approval_provenance)->toBe(SocialPostRevision::APPROVAL_TYPE_EXPLICIT);
 });
 
 it('regenerates an automated pending pulse post from autopilot', function () {
@@ -443,19 +460,7 @@ it('regenerates an automated pending pulse post from autopilot', function () {
         ],
     ]);
 
-    SocialApprovalRequest::query()->create([
-        'social_post_id' => $post->id,
-        'requested_by_user_id' => $owner->id,
-        'status' => SocialApprovalRequest::STATUS_PENDING,
-        'requested_at' => now(),
-        'metadata' => [
-            'requested_mode' => 'immediate',
-        ],
-    ]);
-
-    $post->forceFill([
-        'status' => SocialPost::STATUS_PENDING_APPROVAL,
-    ])->save();
+    app(SocialApprovalService::class)->submit($owner, $owner, $post);
 
     $response = $this->actingAs($owner)
         ->postJson(route('social.posts.regenerate', $post));

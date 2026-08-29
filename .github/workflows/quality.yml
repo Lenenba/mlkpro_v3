@@ -24,7 +24,6 @@ jobs:
       DB_DATABASE: ":memory:"
       EXPECTED_TEST_DATABASE_DRIVER: sqlite
       MAIL_MAILER: array
-      PULSE_ENABLED: "false"
       QUEUE_CONNECTION: sync
       SESSION_DRIVER: array
       TELESCOPE_ENABLED: "false"
@@ -116,7 +115,6 @@ jobs:
       DB_PASSWORD: secret
       EXPECTED_TEST_DATABASE_DRIVER: mysql
       MAIL_MAILER: array
-      PULSE_ENABLED: "false"
       QUEUE_CONNECTION: sync
       SESSION_DRIVER: array
       TELESCOPE_ENABLED: "false"
@@ -153,6 +151,16 @@ jobs:
           php -d memory_limit=512M vendor/bin/pest --stop-on-failure \
             tests/Unit/CompanyFeatureServiceTest.php \
             tests/Unit/MegaMenuServicesTest.php \
+            tests/Unit/SocialAutomationExecutionClaimMigrationTest.php \
+            tests/Unit/SocialBackfillBatchLedgerMigrationTest.php \
+            tests/Unit/SocialDeliveryOutboxMigrationTest.php \
+            tests/Unit/SocialDeliveryReconciliationMigrationTest.php \
+            tests/Unit/SocialEditorialFoundationMigrationTest.php \
+            tests/Unit/SocialLogicalDestinationKeyServiceTest.php \
+            tests/Unit/SocialPostRevisionSnapshotServiceTest.php \
+            tests/Unit/SocialTransportIdentityMigrationTest.php \
+            tests/Unit/SocialTransportCutoverMigrationTest.php \
+            tests/Unit/SocialTransportOperationalProofMigrationTest.php \
             tests/Feature/AccountingModulePhaseZeroTest.php \
             tests/Feature/DemoTypeDatabaseCompatibilityTest.php \
             tests/Feature/ExpenseModuleTest.php \
@@ -164,6 +172,21 @@ jobs:
             tests/Feature/PublicBookingLinksTest.php \
             tests/Feature/PlanEntitlementSyncCommandTest.php \
             tests/Feature/PulseBufferLegacyInventoryCommandTest.php \
+            tests/Feature/SocialApprovalWorkflowTest.php \
+            tests/Feature/SocialAutopilotCommandTest.php \
+            tests/Feature/SocialAutopilotWorkspaceTest.php \
+            tests/Feature/SocialAutomationRulesSchemaTest.php \
+            tests/Feature/SocialDeliveryHealthServiceTest.php \
+            tests/Feature/SocialDeliveryOutboxRuntimeTest.php \
+            tests/Feature/SocialDeliveryReconcilerTest.php \
+            tests/Feature/SocialEditorialFoundationBackfillTest.php \
+            tests/Feature/SocialEditorialRevisionInvariantTest.php \
+            tests/Feature/SocialLegacyTransportBackfillTest.php \
+            tests/Feature/SocialPostsSchemaTest.php \
+            tests/Feature/SocialPublishingFeatureTest.php \
+            tests/Feature/SocialTransportIdentityInvariantTest.php \
+            tests/Feature/SocialTransportCutoverControlPlaneTest.php \
+            tests/Feature/SocialTransportReadinessCommandTest.php \
             tests/Feature/SuperAdminModuleAuthorizationTest.php \
             tests/Feature/BillingMutationsApiTest.php
 

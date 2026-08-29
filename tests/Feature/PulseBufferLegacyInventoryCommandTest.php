@@ -1,7 +1,7 @@
 <?php
 
 use App\Jobs\GenerateSocialPostCandidateJob;
-use App\Jobs\PublishSocialPostTargetJob;
+use App\Jobs\ProcessSocialDeliveryOutboxJob;
 use App\Models\SocialAccountConnection;
 use App\Models\SocialAutomationRule;
 use App\Models\SocialPost;
@@ -62,10 +62,12 @@ it('inventories legacy pulse routing without exposing credentials or remote iden
         'social_account_connection_id' => $facebook->id,
         'status' => SocialPostTarget::STATUS_PENDING,
     ]);
-    SocialPostTarget::query()->create([
+    DB::table('social_post_targets')->insert([
         'social_post_id' => $immediatePost->id,
         'social_account_connection_id' => $otherConnection->id,
         'status' => SocialPostTarget::STATUS_PENDING,
+        'created_at' => now(),
+        'updated_at' => now(),
     ]);
     $orphanedTarget = SocialPostTarget::query()->create([
         'social_post_id' => $immediatePost->id,
@@ -117,7 +119,7 @@ it('inventories legacy pulse routing without exposing credentials or remote iden
     DB::table('jobs')->insert([
         [
             'queue' => $socialPublishQueue,
-            'payload' => json_encode(['displayName' => PublishSocialPostTargetJob::class]),
+            'payload' => json_encode(['displayName' => ProcessSocialDeliveryOutboxJob::class]),
             'attempts' => 0,
             'reserved_at' => null,
             'available_at' => $nowTimestamp,
@@ -125,7 +127,7 @@ it('inventories legacy pulse routing without exposing credentials or remote iden
         ],
         [
             'queue' => $socialPublishQueue,
-            'payload' => json_encode(['displayName' => PublishSocialPostTargetJob::class]),
+            'payload' => json_encode(['displayName' => ProcessSocialDeliveryOutboxJob::class]),
             'attempts' => 0,
             'reserved_at' => null,
             'available_at' => $nowTimestamp + 300,
@@ -133,7 +135,7 @@ it('inventories legacy pulse routing without exposing credentials or remote iden
         ],
         [
             'queue' => $socialPublishQueue,
-            'payload' => json_encode(['displayName' => PublishSocialPostTargetJob::class]),
+            'payload' => json_encode(['displayName' => ProcessSocialDeliveryOutboxJob::class]),
             'attempts' => 1,
             'reserved_at' => $nowTimestamp,
             'available_at' => $nowTimestamp,
@@ -141,7 +143,7 @@ it('inventories legacy pulse routing without exposing credentials or remote iden
         ],
         [
             'queue' => $socialPublishQueue,
-            'payload' => json_encode(['displayName' => PublishSocialPostTargetJob::class]),
+            'payload' => json_encode(['displayName' => ProcessSocialDeliveryOutboxJob::class]),
             'attempts' => 1,
             'reserved_at' => $nowTimestamp - 120,
             'available_at' => $nowTimestamp - 120,
@@ -151,7 +153,7 @@ it('inventories legacy pulse routing without exposing credentials or remote iden
             'queue' => $socialPublishQueue,
             'payload' => json_encode([
                 'displayName' => 'UnrelatedJob',
-                'data' => PublishSocialPostTargetJob::class,
+                'data' => ProcessSocialDeliveryOutboxJob::class,
             ]),
             'attempts' => 0,
             'reserved_at' => null,
@@ -168,7 +170,7 @@ it('inventories legacy pulse routing without exposing credentials or remote iden
         ],
         [
             'queue' => 'wrong-social-queue',
-            'payload' => json_encode(['displayName' => PublishSocialPostTargetJob::class]),
+            'payload' => json_encode(['displayName' => ProcessSocialDeliveryOutboxJob::class]),
             'attempts' => 0,
             'reserved_at' => null,
             'available_at' => $nowTimestamp,
@@ -207,7 +209,7 @@ it('inventories legacy pulse routing without exposing credentials or remote iden
             'uuid' => '00000000-0000-0000-0000-000000000001',
             'connection' => 'database',
             'queue' => $socialPublishQueue,
-            'payload' => json_encode(['displayName' => PublishSocialPostTargetJob::class]),
+            'payload' => json_encode(['displayName' => ProcessSocialDeliveryOutboxJob::class]),
             'exception' => 'Expected test failure.',
             'failed_at' => now(),
         ],
@@ -225,7 +227,7 @@ it('inventories legacy pulse routing without exposing credentials or remote iden
             'queue' => $socialPublishQueue,
             'payload' => json_encode([
                 'displayName' => 'UnrelatedJob',
-                'data' => PublishSocialPostTargetJob::class,
+                'data' => ProcessSocialDeliveryOutboxJob::class,
             ]),
             'exception' => 'Expected unrelated test failure.',
             'failed_at' => now(),
@@ -470,6 +472,44 @@ it('inventories legacy pulse routing without exposing credentials or remote iden
         ->toContain('2 ready; 1 delayed; 1 active reservation; 1 expired reservation; 1 unparseable candidate');
 });
 
+it('keeps historical publication jobs visible after the outbox worker replaces their class', function () {
+    config()->set('queue.default', 'database');
+    $nowTimestamp = now()->timestamp;
+    $historicalJobClass = 'App\\Jobs\\PublishSocialPostTargetJob';
+
+    foreach ([ProcessSocialDeliveryOutboxJob::class, $historicalJobClass] as $index => $jobClass) {
+        DB::table('jobs')->insert([
+            'queue' => QueueWorkload::queue('social_publish'),
+            'payload' => json_encode(['displayName' => $jobClass]),
+            'attempts' => 0,
+            'reserved_at' => null,
+            'available_at' => $nowTimestamp,
+            'created_at' => $nowTimestamp,
+        ]);
+        DB::table('failed_jobs')->insert([
+            'uuid' => sprintf('10000000-0000-0000-0000-%012d', $index + 1),
+            'connection' => 'database',
+            'queue' => QueueWorkload::queue('social_publish'),
+            'payload' => json_encode(['displayName' => $jobClass]),
+            'exception' => 'Expected inventory fixture.',
+            'failed_at' => now(),
+        ]);
+    }
+
+    $exitCode = Artisan::call('pulse:buffer:inventory-legacy', [
+        '--json' => true,
+        '--confirm-read-only-scan' => true,
+    ]);
+    $inventory = json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
+    $publishScope = collect($inventory['queue_scope_manifest']['scopes'])
+        ->firstWhere('queue_label', QueueWorkload::queue('social_publish'));
+
+    expect($exitCode)->toBe(0)
+        ->and($publishScope['jobs_by_workload']['social_publish']['total'])->toBe(2)
+        ->and($inventory['failed_pulse_jobs']['by_workload']['social_publish']['total'])->toBe(2)
+        ->and($inventory['failed_pulse_jobs']['requires_job_policy'])->toBeTrue();
+});
+
 it('reports logical destination readiness without exposing keys or native identifiers', function () {
     config()->set('queue.default', 'database');
 
@@ -638,7 +678,7 @@ it('captures every declared queue scope in one evidence manifest', function () {
     DB::table('jobs')->insert([
         [
             'queue' => 'legacy-social-publish',
-            'payload' => json_encode(['displayName' => PublishSocialPostTargetJob::class]),
+            'payload' => json_encode(['displayName' => ProcessSocialDeliveryOutboxJob::class]),
             'attempts' => 0,
             'reserved_at' => null,
             'available_at' => $nowTimestamp + 300,
@@ -822,7 +862,7 @@ it('deduplicates current workloads that share one physical queue', function () {
         ],
         [
             'queue' => 'shared-social',
-            'payload' => json_encode(['displayName' => PublishSocialPostTargetJob::class]),
+            'payload' => json_encode(['displayName' => ProcessSocialDeliveryOutboxJob::class]),
             'attempts' => 0,
             'reserved_at' => null,
             'available_at' => $nowTimestamp,
@@ -952,7 +992,7 @@ it('classifies pulse jobs independently from their physical queue and reservatio
         ],
         [
             'queue' => 'social-automation',
-            'payload' => json_encode(['displayName' => PublishSocialPostTargetJob::class]),
+            'payload' => json_encode(['displayName' => ProcessSocialDeliveryOutboxJob::class]),
             'attempts' => 0,
             'reserved_at' => null,
             'available_at' => $nowTimestamp,
@@ -1193,7 +1233,7 @@ it('inventories an explicitly selected legacy database queue', function () {
     $nowTimestamp = now()->timestamp;
     DB::table('jobs')->insert([
         'queue' => 'legacy-social-publish',
-        'payload' => json_encode(['displayName' => PublishSocialPostTargetJob::class]),
+        'payload' => json_encode(['displayName' => ProcessSocialDeliveryOutboxJob::class]),
         'attempts' => 0,
         'reserved_at' => null,
         'available_at' => $nowTimestamp + 300,

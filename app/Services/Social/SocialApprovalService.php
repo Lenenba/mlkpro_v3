@@ -4,6 +4,7 @@ namespace App\Services\Social;
 
 use App\Models\SocialApprovalRequest;
 use App\Models\SocialPost;
+use App\Models\SocialPostRevision;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Notifications\SocialApprovalRequestedNotification;
@@ -18,6 +19,8 @@ class SocialApprovalService
 {
     public function __construct(
         private readonly SocialPublishingService $publishingService,
+        private readonly SocialPostRevisionService $revisionService,
+        private readonly SocialScheduledTimeResolver $scheduledTimeResolver,
     ) {}
 
     /**
@@ -26,6 +29,7 @@ class SocialApprovalService
     public function submit(User $owner, User $actor, SocialPost $post, array $payload = []): SocialPost
     {
         $this->assertOwnership($owner, $post);
+        $this->assertActorBelongsToWorkspace($owner, $actor);
 
         $postId = DB::transaction(function () use ($owner, $actor, $post, $payload): int {
             $lockedPost = $this->lockedPost($owner, $post);
@@ -47,8 +51,10 @@ class SocialApprovalService
             $requestedAt = now();
             $requestedMode = $lockedPost->scheduled_for ? 'scheduled' : 'immediate';
             $note = $this->nullableString($payload, 'note');
+            $revision = $this->revisionService->ensureCurrent($lockedPost, $actor);
 
             $approvalRequest = $lockedPost->approvalRequests()->create([
+                'social_post_revision_id' => $revision->id,
                 'requested_by_user_id' => $actor->id,
                 'status' => SocialApprovalRequest::STATUS_PENDING,
                 'note' => $note,
@@ -62,6 +68,8 @@ class SocialApprovalService
             $lockedPost->forceFill([
                 'updated_by_user_id' => $actor->id,
                 'status' => SocialPost::STATUS_PENDING_APPROVAL,
+                'editorial_status' => SocialPost::EDITORIAL_STATUS_PENDING_APPROVAL,
+                'editorial_status_source' => SocialPost::STATUS_SOURCE_EXPLICIT,
                 'failed_at' => null,
                 'failure_reason' => null,
                 'metadata' => $this->mergeApprovalMetadata($lockedPost, [
@@ -103,11 +111,17 @@ class SocialApprovalService
     public function approve(User $owner, User $actor, SocialPost $post, array $payload = []): SocialPost
     {
         $this->assertOwnership($owner, $post);
+        $this->assertActorBelongsToWorkspace($owner, $actor);
 
         $postId = DB::transaction(function () use ($owner, $actor, $post, $payload): int {
             $lockedPost = $this->lockedPost($owner, $post);
             $lockedPost->load(['targets.socialAccountConnection']);
             $approvalRequest = $this->pendingApprovalRequestForUpdate($lockedPost);
+            $approvalRevision = $this->currentApprovalRevisionForUpdate(
+                $lockedPost,
+                $approvalRequest,
+                $actor,
+            );
             $approvedAt = now();
             $note = $this->nullableString($payload, 'note') ?? $approvalRequest->note;
             $requestedMode = (string) data_get(
@@ -116,12 +130,25 @@ class SocialApprovalService
                 $lockedPost->scheduled_for ? 'scheduled' : 'immediate'
             );
             $resolvedMode = $this->resolveApprovalMode($payload['mode'] ?? null, $requestedMode);
+            $resolvedScheduledFor = $resolvedMode === 'scheduled'
+                ? $this->resolveScheduledFor($owner, $lockedPost, $payload, $approvedAt)
+                : null;
 
-            $lockedPost->forceFill([
-                'scheduled_for' => $resolvedMode === 'scheduled'
-                    ? $this->resolveScheduledFor($lockedPost, $payload, $approvedAt)
-                    : null,
-            ])->save();
+            if (! $this->scheduledInstantsMatch($lockedPost->scheduled_for, $resolvedScheduledFor)) {
+                $lockedPost->forceFill([
+                    'scheduled_for' => $resolvedScheduledFor,
+                ])->save();
+                $approvalRevision = $this->revisionService->capture(
+                    $lockedPost,
+                    $actor,
+                    $approvalRevision->origin,
+                );
+                $approvalRequest->forceFill([
+                    'social_post_revision_id' => $approvalRevision->id,
+                ])->save();
+            }
+
+            $this->revisionService->approve($lockedPost, $approvalRequest, $actor, $approvedAt);
 
             $approvalRequest->forceFill([
                 'status' => SocialApprovalRequest::STATUS_APPROVED,
@@ -169,10 +196,12 @@ class SocialApprovalService
     public function reject(User $owner, User $actor, SocialPost $post, array $payload = []): SocialPost
     {
         $this->assertOwnership($owner, $post);
+        $this->assertActorBelongsToWorkspace($owner, $actor);
 
         $postId = DB::transaction(function () use ($owner, $actor, $post, $payload): int {
             $lockedPost = $this->lockedPost($owner, $post);
             $approvalRequest = $this->pendingApprovalRequestForUpdate($lockedPost);
+            $this->currentApprovalRevisionForUpdate($lockedPost, $approvalRequest, $actor);
             $rejectedAt = now();
             $note = $this->nullableString($payload, 'note');
             $requestedMode = (string) data_get(
@@ -191,6 +220,8 @@ class SocialApprovalService
                 'rejected_at' => $rejectedAt,
                 'note' => $note,
             ])->save();
+
+            $this->revisionService->reject($lockedPost);
 
             $lockedPost->forceFill([
                 'updated_by_user_id' => $actor->id,
@@ -220,6 +251,13 @@ class SocialApprovalService
     private function assertOwnership(User $owner, SocialPost $post): void
     {
         if ((int) $post->user_id !== (int) $owner->id) {
+            abort(404);
+        }
+    }
+
+    private function assertActorBelongsToWorkspace(User $owner, User $actor): void
+    {
+        if ($actor->accountOwnerId() !== (int) $owner->id) {
             abort(404);
         }
     }
@@ -291,6 +329,44 @@ class SocialApprovalService
         return $approvalRequest;
     }
 
+    private function currentApprovalRevisionForUpdate(
+        SocialPost $post,
+        SocialApprovalRequest $approvalRequest,
+        User $actor,
+    ): SocialPostRevision {
+        $requestedRevision = SocialPostRevision::query()
+            ->whereKey($approvalRequest->social_post_revision_id)
+            ->where('social_post_id', $post->id)
+            ->where('user_id', $post->user_id)
+            ->lockForUpdate()
+            ->first();
+
+        if (! $requestedRevision) {
+            throw $this->staleApprovalException();
+        }
+
+        $currentRevision = $this->revisionService->ensureCurrent(
+            $post,
+            $actor,
+            $requestedRevision->origin,
+        );
+
+        if ((int) $currentRevision->id !== (int) $requestedRevision->id
+            || (int) $requestedRevision->revision_number !== (int) $post->current_editorial_revision
+            || ! hash_equals((string) $requestedRevision->payload_hash, (string) $post->payload_hash)) {
+            throw $this->staleApprovalException();
+        }
+
+        return $requestedRevision;
+    }
+
+    private function staleApprovalException(): ValidationException
+    {
+        return ValidationException::withMessages([
+            'post' => 'This approval request no longer matches the current Pulse revision. Submit the current revision for approval again.',
+        ]);
+    }
+
     private function notifyApproversAfterCommit(int $ownerId, int $postId, int $approvalRequestId): void
     {
         DB::afterCommit(function () use ($ownerId, $postId, $approvalRequestId): void {
@@ -320,32 +396,31 @@ class SocialApprovalService
     /**
      * @param  array<string, mixed>  $payload
      */
-    private function resolveScheduledFor(SocialPost $post, array $payload, Carbon $reference): Carbon
-    {
+    private function resolveScheduledFor(
+        User $owner,
+        SocialPost $post,
+        array $payload,
+        Carbon $reference,
+    ): Carbon {
         $candidate = $payload['scheduled_for'] ?? $post->scheduled_for;
+        $scheduledFor = $this->scheduledTimeResolver->resolve($owner, $candidate);
 
-        if ($candidate instanceof Carbon) {
-            $scheduledFor = $candidate->copy();
-        } elseif ($post->scheduled_for instanceof Carbon && $candidate === $post->scheduled_for) {
-            $scheduledFor = $post->scheduled_for->copy();
-        } else {
-            $raw = trim((string) $candidate);
-            if ($raw === '') {
-                throw ValidationException::withMessages([
-                    'scheduled_for' => 'Choose a future date before scheduling this Pulse post.',
-                ]);
-            }
-
-            $scheduledFor = Carbon::parse($raw);
-        }
-
-        if ($scheduledFor->lessThanOrEqualTo($reference)) {
+        if (! $scheduledFor || $scheduledFor->lessThanOrEqualTo($reference)) {
             throw ValidationException::withMessages([
                 'scheduled_for' => 'Choose a future date before scheduling this Pulse post.',
             ]);
         }
 
         return $scheduledFor;
+    }
+
+    private function scheduledInstantsMatch(?Carbon $first, ?Carbon $second): bool
+    {
+        if ($first === null || $second === null) {
+            return $first === $second;
+        }
+
+        return $first->equalTo($second);
     }
 
     /**

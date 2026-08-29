@@ -73,5 +73,20 @@ return [
         'errors_1h' => (int) env('OBSERVABILITY_ALERT_ERRORS_1H', 5),
         'request_p95_ms' => (int) env('OBSERVABILITY_ALERT_REQUEST_P95_MS', 1500),
         'request_p99_ms' => (int) env('OBSERVABILITY_ALERT_REQUEST_P99_MS', 2500),
+        'pulse_delivery_unknown' => (int) env('OBSERVABILITY_ALERT_PULSE_DELIVERY_UNKNOWN', 0),
+        'pulse_delivery_dead' => (int) env('OBSERVABILITY_ALERT_PULSE_DELIVERY_DEAD', 0),
+        'pulse_delivery_expired_claims' => (int) env('OBSERVABILITY_ALERT_PULSE_DELIVERY_EXPIRED_CLAIMS', 0),
+        'pulse_delivery_oldest_actionable_minutes' => (int) env(
+            'OBSERVABILITY_ALERT_PULSE_DELIVERY_OLDEST_ACTIONABLE_MINUTES',
+            10,
+        ),
+        'pulse_reconciliation_expired_claims' => (int) env(
+            'OBSERVABILITY_ALERT_PULSE_RECONCILIATION_EXPIRED_CLAIMS',
+            0,
+        ),
+        'pulse_reconciliation_operator_review' => (int) env(
+            'OBSERVABILITY_ALERT_PULSE_RECONCILIATION_OPERATOR_REVIEW',
+            0,
+        ),
     ],
 ];

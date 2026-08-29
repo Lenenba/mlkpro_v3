@@ -33,7 +33,6 @@ const env = {
     DB_CONNECTION: 'sqlite',
     DB_DATABASE: sqlitePath,
     MAIL_MAILER: 'array',
-    PULSE_ENABLED: 'false',
     QUEUE_CONNECTION: 'sync',
     SESSION_DRIVER: 'file',
     TELESCOPE_ENABLED: 'false',

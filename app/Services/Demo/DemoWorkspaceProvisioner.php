@@ -57,6 +57,7 @@ use App\Services\OfferPackages\OfferPackageSalesLineBuilder;
 use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationQueueCheckoutService;
 use App\Services\ReservationQueueService;
+use App\Services\Social\SocialPostRevisionService;
 use App\Support\CampaignTemplateLanguage;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
@@ -87,6 +88,7 @@ class DemoWorkspaceProvisioner
         private MarketingSettingsService $marketingSettingsService,
         private AccountDeletionService $accountDeletionService,
         private DemoScenarioManager $scenarioManager,
+        private SocialPostRevisionService $socialPostRevisions,
     ) {}
 
     /**
@@ -3443,7 +3445,7 @@ class DemoWorkspaceProvisioner
             ->first()
             ?->publicUrl($owner);
 
-        SocialPost::query()->create([
+        $post = SocialPost::query()->create([
             'user_id' => $owner->id,
             'created_by_user_id' => $owner->id,
             'updated_by_user_id' => $owner->id,
@@ -3465,6 +3467,7 @@ class DemoWorkspaceProvisioner
                 'approval_ready' => true,
             ],
         ]);
+        $this->socialPostRevisions->capture($post, $owner);
 
         return 1;
     }

@@ -63,7 +63,7 @@ function pulseHistoryTeamMember(
 
 function pulseHistoryConnection(User $owner, string $platform, array $overrides = []): SocialAccountConnection
 {
-    return SocialAccountConnection::query()->create(array_merge([
+    $attributes = array_merge([
         'user_id' => $owner->id,
         'platform' => $platform,
         'label' => Str::headline($platform).' channel',
@@ -79,7 +79,16 @@ function pulseHistoryConnection(User $owner, string $platform, array $overrides 
             'provider_label' => Str::headline($platform),
             'target_type' => 'page',
         ],
-    ], $overrides));
+    ], $overrides);
+
+    return SocialAccountConnection::query()->create([
+        ...$attributes,
+        ...pulseDirectTransportIdentity(
+            $owner,
+            (string) $attributes['platform'],
+            (string) $attributes['external_account_id'],
+        ),
+    ]);
 }
 
 /**

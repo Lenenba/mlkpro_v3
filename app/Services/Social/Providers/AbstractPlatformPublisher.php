@@ -2,6 +2,8 @@
 
 namespace App\Services\Social\Providers;
 
+use App\Exceptions\Social\AmbiguousSocialPublishingException;
+use App\Exceptions\Social\DefinitiveSocialPublishingRejectionException;
 use App\Exceptions\Social\RetryableSocialPublishingException;
 use App\Models\SocialAccountConnection;
 use App\Services\Social\Contracts\PlatformPublisherInterface;
@@ -86,16 +88,16 @@ abstract class AbstractPlatformPublisher implements PlatformPublisherInterface
 
         $publishUrl = $this->publishUrl();
         if ($publishUrl === '') {
-            throw ValidationException::withMessages([
-                'platform' => sprintf('Configure the publishing endpoint for %s before sending this Pulse post.', $this->label()),
-            ]);
+            throw new DefinitiveSocialPublishingRejectionException(
+                sprintf('Configure the publishing endpoint for %s before sending this Pulse post.', $this->label()),
+            );
         }
 
         $accessToken = trim((string) data_get($connection->credentials, 'access_token'));
         if ($accessToken === '') {
-            throw ValidationException::withMessages([
-                'platform' => sprintf('%s must be reconnected before it can publish.', $this->label()),
-            ]);
+            throw new DefinitiveSocialPublishingRejectionException(
+                sprintf('%s must be reconnected before it can publish.', $this->label()),
+            );
         }
 
         $response = Http::acceptJson()
@@ -110,13 +112,20 @@ abstract class AbstractPlatformPublisher implements PlatformPublisherInterface
             ));
         }
 
+        if ($response->status() === 408 || $response->serverError()) {
+            throw new AmbiguousSocialPublishingException($this->publishResponseMessage(
+                $response->json() ?? [],
+                sprintf('%s returned an ambiguous response for this Pulse publication.', $this->label())
+            ));
+        }
+
         if (! $response->successful()) {
-            throw ValidationException::withMessages([
-                'platform' => $this->publishResponseMessage(
+            throw new DefinitiveSocialPublishingRejectionException(
+                $this->publishResponseMessage(
                     $response->json() ?? [],
                     sprintf('%s rejected this Pulse publication.', $this->label())
                 ),
-            ]);
+            );
         }
 
         return $this->normalizePublishResponse($connection, $payload, (array) ($response->json() ?? []));

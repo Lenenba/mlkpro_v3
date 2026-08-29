@@ -1,16 +1,18 @@
 <?php
 
 use App\Http\Middleware\EnsureTwoFactorVerified;
-use App\Jobs\PublishSocialPostTargetJob;
+use App\Jobs\ProcessSocialDeliveryOutboxJob;
 use App\Models\Role;
 use App\Models\SocialAccountConnection;
 use App\Models\SocialApprovalRequest;
 use App\Models\SocialPost;
+use App\Models\SocialPostRevision;
 use App\Models\SocialPostTarget;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Notifications\SocialApprovalRequestedNotification;
 use App\Services\Social\SocialApprovalService;
+use App\Services\Social\SocialPostRevisionService;
 use App\Services\Social\SocialPostService;
 use App\Services\Social\SocialPublishingService;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
@@ -21,6 +23,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 uses(RefreshDatabase::class);
 
@@ -72,7 +75,7 @@ function pulseApprovalTeamMember(
 
 function pulseApprovalConnection(User $owner, string $platform, array $overrides = []): SocialAccountConnection
 {
-    return SocialAccountConnection::query()->create(array_merge([
+    $attributes = array_merge([
         'user_id' => $owner->id,
         'platform' => $platform,
         'label' => Str::headline($platform).' Pulse account',
@@ -88,7 +91,12 @@ function pulseApprovalConnection(User $owner, string $platform, array $overrides
             'provider_label' => Str::headline($platform),
             'target_type' => 'page',
         ],
-    ], $overrides));
+    ], $overrides);
+
+    return SocialAccountConnection::query()->create([
+        ...$attributes,
+        ...pulseDirectTransportIdentity($owner, $platform, (string) $attributes['external_account_id']),
+    ]);
 }
 
 /**
@@ -128,6 +136,9 @@ function pulseApprovalDraft(
         SocialPostTarget::query()->create([
             'social_post_id' => $post->id,
             'social_account_connection_id' => $connection->id,
+            'delivery_provider' => $connection->delivery_provider,
+            'transport_generation' => $connection->transport_generation,
+            'logical_destination_key' => $connection->logical_destination_key,
             'status' => $scheduledFor
                 ? SocialPostTarget::STATUS_SCHEDULED
                 : SocialPostTarget::STATUS_PENDING,
@@ -177,11 +188,19 @@ it('lets a publisher submit a pulse post for approval while direct publication s
         ->assertJsonPath('draft.status', SocialPost::STATUS_PENDING_APPROVAL)
         ->assertJsonPath('draft.approval_request.status', SocialApprovalRequest::STATUS_PENDING);
 
-    $pendingRequest = SocialApprovalRequest::query()->where('social_post_id', $draft->id)->first();
+    $pendingRequest = SocialApprovalRequest::query()
+        ->with('socialPostRevision')
+        ->where('social_post_id', $draft->id)
+        ->first();
+    $submittedDraft = $draft->fresh(['revisions', 'targets.currentRevision']);
 
     expect($pendingRequest)->not->toBeNull()
         ->and((string) $pendingRequest?->status)->toBe(SocialApprovalRequest::STATUS_PENDING)
-        ->and((int) $pendingRequest?->requested_by_user_id)->toBe((int) $publisher->id);
+        ->and((int) $pendingRequest?->requested_by_user_id)->toBe((int) $publisher->id)
+        ->and($pendingRequest?->socialPostRevision?->social_post_id)->toBe($draft->id)
+        ->and($pendingRequest?->social_post_revision_id)->toBe($submittedDraft?->revisions->sole()->id)
+        ->and($submittedDraft?->current_editorial_revision)->toBe(1)
+        ->and($submittedDraft?->targets->sole()->current_revision_id)->toBe($pendingRequest?->social_post_revision_id);
 
     $this->actingAs($publisher)
         ->putJson(route('social.posts.update', $draft), [
@@ -200,7 +219,7 @@ it('lets a publisher submit a pulse post for approval while direct publication s
 });
 
 it('returns 422 without mutations when a queued pulse post is submitted for approval', function () {
-    Queue::fake([PublishSocialPostTargetJob::class]);
+    Queue::fake([ProcessSocialDeliveryOutboxJob::class]);
 
     $owner = pulseApprovalOwner();
     $publisher = pulseApprovalTeamMember($owner, ['social.publish']);
@@ -388,17 +407,22 @@ it('lets an approver approve a pending pulse request and queue publication', fun
         ->assertJsonPath('draft.approval_request.status', SocialApprovalRequest::STATUS_APPROVED)
         ->assertJsonPath('summary.publishing', 1);
 
-    Queue::assertPushed(PublishSocialPostTargetJob::class, 1);
+    Queue::assertPushed(ProcessSocialDeliveryOutboxJob::class, 1);
 
-    $freshPost = SocialPost::query()->with('latestApprovalRequest')->findOrFail($draft->id);
+    $freshPost = SocialPost::query()
+        ->with(['approvedRevision', 'latestApprovalRequest.socialPostRevision', 'targets.lastSubmittedRevision'])
+        ->findOrFail($draft->id);
 
     expect($freshPost->status)->toBe(SocialPost::STATUS_PUBLISHING)
         ->and((string) $freshPost->latestApprovalRequest?->status)->toBe(SocialApprovalRequest::STATUS_APPROVED)
-        ->and((int) $freshPost->latestApprovalRequest?->resolved_by_user_id)->toBe((int) $approver->id);
+        ->and((int) $freshPost->latestApprovalRequest?->resolved_by_user_id)->toBe((int) $approver->id)
+        ->and($freshPost->approvedRevision?->approval_provenance)->toBe(SocialPostRevision::APPROVAL_TYPE_EXPLICIT)
+        ->and($freshPost->latestApprovalRequest?->socialPostRevision?->is($freshPost->approvedRevision))->toBeTrue()
+        ->and($freshPost->targets->sole()->lastSubmittedRevision?->is($freshPost->approvedRevision))->toBeTrue();
 });
 
 it('rejects a second approval from a stale pending snapshot without queuing twice', function () {
-    Queue::fake([PublishSocialPostTargetJob::class]);
+    Queue::fake([ProcessSocialDeliveryOutboxJob::class]);
 
     $owner = pulseApprovalOwner();
     $publisher = pulseApprovalTeamMember($owner, ['social.publish']);
@@ -434,7 +458,7 @@ it('rejects a second approval from a stale pending snapshot without queuing twic
             'post' => ['This Pulse post has no pending approval request.'],
         ]);
 
-    Queue::assertPushed(PublishSocialPostTargetJob::class, 1);
+    Queue::assertPushed(ProcessSocialDeliveryOutboxJob::class, 1);
 
     $approvalRequest = SocialApprovalRequest::query()
         ->where('social_post_id', $draft->id)
@@ -442,6 +466,139 @@ it('rejects a second approval from a stale pending snapshot without queuing twic
 
     expect($approvalRequest->status)->toBe(SocialApprovalRequest::STATUS_APPROVED)
         ->and((int) $approvalRequest->resolved_by_user_id)->toBe((int) $firstApprover->id);
+});
+
+it('rejects an approval whose immutable revision was superseded', function () {
+    Queue::fake([ProcessSocialDeliveryOutboxJob::class]);
+
+    $owner = pulseApprovalOwner();
+    $publisher = pulseApprovalTeamMember($owner, ['social.publish']);
+    $approver = pulseApprovalTeamMember($owner, ['social.approve']);
+    $connection = pulseApprovalConnection($owner, SocialAccountConnection::PLATFORM_LINKEDIN);
+    $draft = pulseApprovalDraft($owner, $publisher, [$connection]);
+    $approvalService = app(SocialApprovalService::class);
+
+    $approvalService->submit($owner, $publisher, $draft);
+    $pendingRequest = $draft->approvalRequests()->sole();
+    $pendingRevisionId = (int) $pendingRequest->social_post_revision_id;
+    $pendingPost = $draft->fresh(['targets.socialAccountConnection']);
+    $pendingPost->forceFill([
+        'content_payload' => ['text' => 'A concurrent writer created a newer revision.'],
+        'updated_by_user_id' => $publisher->id,
+    ])->save();
+    $currentRevision = app(SocialPostRevisionService::class)->capture($pendingPost, $publisher);
+
+    expect(fn () => $approvalService->approve($owner, $approver, $pendingPost->fresh()))
+        ->toThrow(ValidationException::class);
+
+    Queue::assertNothingPushed();
+
+    $pendingRequest->refresh();
+    $pendingPost->refresh();
+
+    expect($currentRevision->id)->not->toBe($pendingRevisionId)
+        ->and($pendingPost->current_editorial_revision)->toBe($currentRevision->revision_number)
+        ->and($pendingPost->approved_revision_id)->toBeNull()
+        ->and($pendingRequest->social_post_revision_id)->toBe($pendingRevisionId)
+        ->and($pendingRequest->status)->toBe(SocialApprovalRequest::STATUS_PENDING)
+        ->and($pendingRequest->resolved_by_user_id)->toBeNull();
+});
+
+it('returns 404 when an actor from another workspace resolves an approval', function () {
+    $owner = pulseApprovalOwner();
+    $publisher = pulseApprovalTeamMember($owner, ['social.publish']);
+    $approverFromAnotherWorkspace = pulseApprovalOwner();
+    $connection = pulseApprovalConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
+    $draft = pulseApprovalDraft($owner, $publisher, [$connection]);
+    $approvalService = app(SocialApprovalService::class);
+
+    $approvalService->submit($owner, $publisher, $draft);
+
+    expect(fn () => $approvalService->reject($owner, $approverFromAnotherWorkspace, $draft->fresh()))
+        ->toThrow(NotFoundHttpException::class);
+
+    $approvalRequest = $draft->approvalRequests()->sole();
+
+    expect($approvalRequest->status)->toBe(SocialApprovalRequest::STATUS_PENDING)
+        ->and($approvalRequest->resolved_by_user_id)->toBeNull();
+});
+
+it('types direct implicit approval and binds the submitted target to that revision', function () {
+    Queue::fake([ProcessSocialDeliveryOutboxJob::class]);
+
+    $owner = pulseApprovalOwner();
+    $connection = pulseApprovalConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
+    $draft = pulseApprovalDraft($owner, $owner, [$connection]);
+
+    app(SocialPublishingService::class)->publishNow($owner, $owner, $draft);
+
+    $publishedDraft = $draft->fresh([
+        'approvedRevision',
+        'latestApprovalRequest.socialPostRevision',
+        'targets.lastSubmittedRevision',
+    ]);
+
+    Queue::assertPushed(ProcessSocialDeliveryOutboxJob::class, 1);
+
+    expect($publishedDraft->approvedRevision?->approval_provenance)
+        ->toBe(SocialPostRevision::APPROVAL_TYPE_DIRECT_IMPLICIT)
+        ->and($publishedDraft->latestApprovalRequest?->status)->toBe(SocialApprovalRequest::STATUS_APPROVED)
+        ->and($publishedDraft->latestApprovalRequest?->socialPostRevision?->is($publishedDraft->approvedRevision))->toBeTrue()
+        ->and($publishedDraft->targets->sole()->lastSubmittedRevision?->is($publishedDraft->approvedRevision))->toBeTrue();
+});
+
+it('preserves retained target ids and refuses to remove a submitted destination', function () {
+    $owner = pulseApprovalOwner();
+    $facebook = pulseApprovalConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
+    $linkedin = pulseApprovalConnection($owner, SocialAccountConnection::PLATFORM_LINKEDIN);
+    $x = pulseApprovalConnection($owner, SocialAccountConnection::PLATFORM_X);
+    $postService = app(SocialPostService::class);
+    $draft = $postService->createDraft($owner, $owner, [
+        'text' => 'Initial differential target selection.',
+        'target_connection_ids' => [$facebook->id, $linkedin->id],
+    ]);
+    $initialTargets = $draft->targets->keyBy('social_account_connection_id');
+
+    $updatedDraft = $postService->updateDraft($owner, $owner, $draft, [
+        'text' => 'Updated differential target selection.',
+        'target_connection_ids' => [$linkedin->id, $x->id],
+    ]);
+    $updatedTargets = $updatedDraft->targets->keyBy('social_account_connection_id');
+
+    expect($updatedDraft->revisions()->count())->toBe(2)
+        ->and($updatedTargets->get($linkedin->id)?->id)->toBe($initialTargets->get($linkedin->id)?->id)
+        ->and($updatedTargets->get($x->id)?->id)->not->toBeNull()
+        ->and(SocialPostTarget::query()->whereKey($initialTargets->get($facebook->id)?->id)->exists())->toBeFalse()
+        ->and($updatedTargets->every(
+            fn (SocialPostTarget $target): bool => $target->current_editorial_revision === 2
+                && $target->current_revision_id !== null,
+        ))->toBeTrue();
+
+    app(SocialPostRevisionService::class)->approveDirectly($updatedDraft, $owner, now());
+    $submittedTarget = $updatedTargets->get($linkedin->id)?->fresh();
+    $submittedTarget?->forceFill([
+        'last_submitted_revision_id' => $submittedTarget->current_revision_id,
+    ])->save();
+    $postAttributesBeforeRejectedEdit = $updatedDraft->fresh()->getAttributes();
+    $targetIdsBeforeRejectedEdit = $updatedDraft->targets()->pluck('id')->all();
+
+    try {
+        $postService->updateDraft($owner, $owner, $updatedDraft, [
+            'text' => 'This edit must roll back with its target removal.',
+            'target_connection_ids' => [$x->id],
+        ]);
+        $this->fail('A submitted Pulse target was removed.');
+    } catch (ValidationException $exception) {
+        expect($exception->errors())->toBe([
+            'target_connection_ids' => [
+                'A submitted Pulse destination cannot be removed from its historical post.',
+            ],
+        ]);
+    }
+
+    expect($updatedDraft->fresh()->getAttributes())->toBe($postAttributesBeforeRejectedEdit)
+        ->and($updatedDraft->revisions()->count())->toBe(2)
+        ->and($updatedDraft->targets()->pluck('id')->all())->toBe($targetIdsBeforeRejectedEdit);
 });
 
 it('rolls back an approval resolution when publication queue preparation fails', function () {
@@ -463,7 +620,11 @@ it('rolls back an approval resolution when publication queue preparation fails',
         ->once()
         ->andThrow(new RuntimeException('Pulse queue preparation failed.'));
     $publishingService->shouldReceive('schedule')->never();
-    $approvalService = new SocialApprovalService($publishingService);
+    $approvalService = new SocialApprovalService(
+        $publishingService,
+        app(SocialPostRevisionService::class),
+        app(\App\Services\Social\SocialScheduledTimeResolver::class),
+    );
     $pendingPost = $draft->fresh([
         'targets.socialAccountConnection',
         'latestApprovalRequest.requestedBy',
@@ -485,7 +646,7 @@ it('rolls back an approval resolution when publication queue preparation fails',
 });
 
 it('fully rolls back a scheduled approval when scheduled queue preparation fails', function () {
-    Queue::fake([PublishSocialPostTargetJob::class]);
+    Queue::fake([ProcessSocialDeliveryOutboxJob::class]);
 
     $owner = pulseApprovalOwner();
     $publisher = pulseApprovalTeamMember($owner, ['social.publish']);
@@ -519,7 +680,11 @@ it('fully rolls back a scheduled approval when scheduled queue preparation fails
         })
         ->andThrow(new RuntimeException('Pulse scheduled queue preparation failed.'));
     $publishingService->shouldReceive('publishNow')->never();
-    $approvalService = new SocialApprovalService($publishingService);
+    $approvalService = new SocialApprovalService(
+        $publishingService,
+        app(SocialPostRevisionService::class),
+        app(\App\Services\Social\SocialScheduledTimeResolver::class),
+    );
     $pendingPost = $draft->fresh([
         'targets.socialAccountConnection',
         'latestApprovalRequest.requestedBy',

@@ -3,7 +3,7 @@
 namespace App\Services\Social;
 
 use App\Jobs\GenerateSocialPostCandidateJob;
-use App\Jobs\PublishSocialPostTargetJob;
+use App\Jobs\ProcessSocialDeliveryOutboxJob;
 use App\Models\SocialAccountConnection;
 use App\Models\SocialPostTarget;
 use App\Support\QueueWorkload;
@@ -21,7 +21,13 @@ class LegacySocialInventoryService
 
     private const PULSE_JOB_CLASSES = [
         'social_automation' => GenerateSocialPostCandidateJob::class,
-        'social_publish' => PublishSocialPostTargetJob::class,
+        'social_publish' => ProcessSocialDeliveryOutboxJob::class,
+    ];
+
+    private const HISTORICAL_PULSE_JOB_CLASSES = [
+        'social_publish' => [
+            'App\\Jobs\\PublishSocialPostTargetJob',
+        ],
     ];
 
     private const MAX_QUEUE_SCOPES = 32;
@@ -848,7 +854,7 @@ class LegacySocialInventoryService
             ->select(['id', 'payload', 'available_at', 'reserved_at'])
             ->where('queue', $queue)
             ->where(function (Builder $query): void {
-                foreach (array_values(self::PULSE_JOB_CLASSES) as $index => $jobClass) {
+                foreach ($this->recognizedJobClasses() as $index => $jobClass) {
                     $method = $index === 0 ? 'where' : 'orWhere';
                     $query->{$method}('payload', 'like', '%'.class_basename($jobClass).'%');
                 }
@@ -955,7 +961,7 @@ class LegacySocialInventoryService
         $candidates = $connection->table($table)
             ->select(['id', 'payload'])
             ->where(function (Builder $query): void {
-                foreach (array_values(self::PULSE_JOB_CLASSES) as $index => $jobClass) {
+                foreach ($this->recognizedJobClasses() as $index => $jobClass) {
                     $method = $index === 0 ? 'where' : 'orWhere';
                     $query->{$method}('payload', 'like', '%'.class_basename($jobClass).'%');
                 }
@@ -1005,11 +1011,13 @@ class LegacySocialInventoryService
         }
 
         $displayName = $payload['displayName'] ?? null;
-        $workload = array_search($displayName, self::PULSE_JOB_CLASSES, true);
+        $workload = is_string($displayName)
+            ? $this->workloadForJobClass($displayName)
+            : null;
 
         return [
             'parseable' => true,
-            'workload' => is_string($workload) ? $workload : null,
+            'workload' => $workload,
         ];
     }
 
@@ -1021,13 +1029,55 @@ class LegacySocialInventoryService
         $payload = (string) $rawPayload;
         $workloads = [];
 
-        foreach (self::PULSE_JOB_CLASSES as $workload => $jobClass) {
-            if (Str::contains($payload, class_basename($jobClass), true)) {
-                $workloads[] = $workload;
+        foreach ($this->recognizedJobClassesByWorkload() as $workload => $jobClasses) {
+            foreach ($jobClasses as $jobClass) {
+                if (Str::contains($payload, class_basename($jobClass), true)) {
+                    $workloads[] = $workload;
+
+                    break;
+                }
             }
         }
 
         return $workloads;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function recognizedJobClasses(): array
+    {
+        return array_values(array_unique(array_merge(
+            ...array_values($this->recognizedJobClassesByWorkload()),
+        )));
+    }
+
+    /**
+     * @return array<string, list<string>>
+     */
+    private function recognizedJobClassesByWorkload(): array
+    {
+        $classes = [];
+
+        foreach (self::PULSE_JOB_CLASSES as $workload => $jobClass) {
+            $classes[$workload] = [
+                $jobClass,
+                ...(self::HISTORICAL_PULSE_JOB_CLASSES[$workload] ?? []),
+            ];
+        }
+
+        return $classes;
+    }
+
+    private function workloadForJobClass(string $jobClass): ?string
+    {
+        foreach ($this->recognizedJobClassesByWorkload() as $workload => $jobClasses) {
+            if (in_array($jobClass, $jobClasses, true)) {
+                return $workload;
+            }
+        }
+
+        return null;
     }
 
     /**

@@ -12,6 +12,12 @@ import SecondaryButton from '@/Components/SecondaryButton.vue';
 import SocialMediaAssetPicker from '@/Pages/Social/Components/SocialMediaAssetPicker.vue';
 import SocialPostQualityPanel from '@/Pages/Social/Components/SocialPostQualityPanel.vue';
 import SocialVisualPostPreview from '@/Pages/Social/Components/SocialVisualPostPreview.vue';
+import {
+    needsSocialDeliveryVerification,
+    socialStatusAxes,
+    socialStatusToneClass,
+} from '@/utils/socialStatusAxes';
+import { socialScheduleInputValue } from '@/utils/socialScheduleInput';
 
 const props = defineProps({
     initialConnectedAccounts: {
@@ -300,6 +306,15 @@ const statusClass = (status) => {
 };
 
 const previewStatus = computed(() => t(`social.composer_manager.statuses.${currentStatus.value}`));
+const activeStatusAxes = computed(() => socialStatusAxes(draftSnapshot.value));
+const deliveryVerificationRequired = computed(() => needsSocialDeliveryVerification(draftSnapshot.value));
+const statusAxisLabel = (axis) => t(`social.delivery_axes.labels.${axis.key}`);
+const statusAxisValueLabel = (axis) => {
+    const key = `social.delivery_axes.statuses.${axis.key}.${axis.value}`;
+    const translated = t(key);
+
+    return translated === key ? axis.value.replace(/_/gu, ' ') : translated;
+};
 
 const isQueuedPublication = computed(() => (
     typeof draftSnapshot.value?.is_queued_publication === 'boolean'
@@ -514,7 +529,7 @@ const syncFormFromDraft = (draft) => {
         image_url: String(draft?.image_url || ''),
         link_url: String(draft?.link_url || ''),
         link_cta_label: String(draft?.link_cta_label || ''),
-        scheduled_for: String(draft?.scheduled_for || ''),
+        scheduled_for: socialScheduleInputValue(draft),
         target_connection_ids: Array.isArray(draft?.selected_target_connection_ids)
             ? draft.selected_target_connection_ids.map((id) => Number(id)).filter((id) => id > 0)
             : [],
@@ -1236,7 +1251,7 @@ const resolveApproval = async (decision) => {
 </script>
 
 <template>
-    <div class="space-y-5">
+    <div class="space-y-5" :aria-busy="busy || isLoading || suggestionsLoading">
         <div class="flex flex-wrap justify-end gap-2">
             <SecondaryButton :disabled="busy || isLoading" @click="load">
                 {{ t('social.composer_manager.actions.reload') }}
@@ -1278,6 +1293,8 @@ const resolveApproval = async (decision) => {
 
         <div
             v-if="error"
+            role="alert"
+            aria-live="assertive"
             class="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300"
         >
             {{ error }}
@@ -1285,9 +1302,25 @@ const resolveApproval = async (decision) => {
 
         <div
             v-if="info"
+            role="status"
+            aria-live="polite"
             class="rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300"
         >
             {{ info }}
+        </div>
+
+        <div
+            v-if="deliveryVerificationRequired"
+            role="alert"
+            aria-live="assertive"
+            class="rounded-3xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
+        >
+            <div class="font-semibold">
+                {{ t('social.delivery_axes.verification.title') }}
+            </div>
+            <div class="mt-1">
+                {{ t('social.delivery_axes.verification.description') }}
+            </div>
         </div>
 
         <div class="grid grid-cols-1 gap-5 xl:grid-cols-[1.1fr,0.9fr]">
@@ -1686,6 +1719,7 @@ const resolveApproval = async (decision) => {
                             :class="form.target_connection_ids.includes(Number(account.id))
                                 ? 'border-sky-600 bg-sky-50 dark:border-sky-500 dark:bg-sky-500/10'
                                 : 'border-stone-200 bg-stone-50 hover:border-sky-300 dark:border-neutral-700 dark:bg-neutral-800/70 dark:hover:border-sky-500/40'"
+                            :aria-pressed="form.target_connection_ids.includes(Number(account.id))"
                             :disabled="isEditDisabled"
                             @click="toggleTarget(account.id)"
                         >
@@ -1747,6 +1781,7 @@ const resolveApproval = async (decision) => {
                             :key="draft.id"
                             type="button"
                             class="w-full rounded-3xl border border-stone-200 bg-stone-50 p-4 text-left transition hover:border-sky-300 dark:border-neutral-700 dark:bg-neutral-800/60 dark:hover:border-sky-500/40"
+                            :aria-pressed="Number(activeDraftId) === Number(draft.id)"
                             @click="openDraft(draft)"
                         >
                             <div class="flex flex-wrap items-start justify-between gap-3">
@@ -1794,6 +1829,28 @@ const resolveApproval = async (decision) => {
                         {{ previewStatus }}
                     </span>
                 </div>
+
+                <dl
+                    v-if="activeStatusAxes.length"
+                    class="flex flex-wrap gap-2 rounded-3xl border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                    :aria-label="t('social.delivery_axes.summary_label')"
+                >
+                    <div
+                        v-for="axis in activeStatusAxes"
+                        :key="axis.key"
+                        class="inline-flex items-center gap-1.5"
+                    >
+                        <dt class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ statusAxisLabel(axis) }}
+                        </dt>
+                        <dd
+                            class="inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold"
+                            :class="socialStatusToneClass(axis.value)"
+                        >
+                            {{ statusAxisValueLabel(axis) }}
+                        </dd>
+                    </div>
+                </dl>
 
                 <SocialPostQualityPanel
                     :text="form.text"

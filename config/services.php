@@ -178,6 +178,17 @@ return [
         ],
     ],
 
+    'buffer' => [
+        'local_connector' => [
+            'enabled' => env('BUFFER_LOCAL_CONNECTOR_ENABLED', false),
+            'owner_id' => env('BUFFER_LOCAL_CONNECTOR_OWNER_ID'),
+            'access_token' => env('BUFFER_LOCAL_CONNECTOR_ACCESS_TOKEN', env('BUFFER_WP1_PROBE_ACCESS_TOKEN')),
+            'api_url' => env('BUFFER_LOCAL_CONNECTOR_API_URL', 'https://api.buffer.com'),
+            'connect_timeout' => env('BUFFER_LOCAL_CONNECTOR_CONNECT_TIMEOUT', 5),
+            'timeout' => env('BUFFER_LOCAL_CONNECTOR_TIMEOUT', 10),
+        ],
+    ],
+
     'rate_limits' => [
         'api_per_user' => env('API_RATE_LIMIT_PER_MINUTE', 120),
         'public_signed_per_minute' => env('PUBLIC_SIGNED_RATE_LIMIT_PER_MINUTE', 30),

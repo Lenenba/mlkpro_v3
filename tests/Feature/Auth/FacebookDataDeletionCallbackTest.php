@@ -3,8 +3,12 @@
 use App\Models\Role;
 use App\Models\SocialAccountConnection;
 use App\Models\SocialDataDeletionRequest;
+use App\Models\SocialTransportCutover;
+use App\Models\SocialTransportCutoverEvent;
+use App\Models\SocialTransportCutoverMapping;
 use App\Models\User;
 use App\Models\UserSocialAccount;
+use App\Services\Social\SocialTransportCutoverService;
 
 beforeEach(function () {
     config()->set('social_auth.providers.facebook.client_secret', 'facebook-client-secret');
@@ -24,7 +28,7 @@ test('facebook data deletion landing page explains that the callback expects a p
         ->assertJsonPath('expected_parameter', 'signed_request');
 });
 
-test('facebook data deletion callback deletes facebook-linked app data and returns a confirmation url', function () {
+test('facebook data deletion callback deletes only the login identity and preserves delivery connections', function () {
     $ownerRoleId = Role::query()->firstOrCreate(
         ['name' => 'owner'],
         ['description' => 'Account owner role']
@@ -43,15 +47,41 @@ test('facebook data deletion callback deletes facebook-linked app data and retur
         'provider_name' => 'Facebook Delete User',
     ]);
 
-    SocialAccountConnection::query()->create([
+    $directFacebookConnection = SocialAccountConnection::query()->create([
         'user_id' => $user->id,
         'platform' => SocialAccountConnection::PLATFORM_FACEBOOK,
         'label' => 'Main Facebook Page',
         'display_name' => 'Main Facebook Page',
         'external_account_id' => 'fb-page-001',
+        ...pulseDirectTransportIdentity(
+            $user,
+            SocialAccountConnection::PLATFORM_FACEBOOK,
+            'fb-page-001',
+        ),
         'status' => SocialAccountConnection::STATUS_CONNECTED,
         'is_active' => true,
     ]);
+
+    $bufferFacebookConnection = SocialAccountConnection::query()->create([
+        'user_id' => $user->id,
+        'platform' => SocialAccountConnection::PLATFORM_FACEBOOK,
+        'label' => 'Buffer Facebook Page',
+        'display_name' => 'Buffer Facebook Page',
+        'external_account_id' => 'buffer-fb-page-001',
+        'delivery_provider' => 'buffer',
+        'transport_generation' => 'buffer_v1',
+        'logical_destination_key' => $directFacebookConnection->logical_destination_key,
+        'status' => SocialAccountConnection::STATUS_CONNECTED,
+        'is_active' => true,
+    ]);
+    $cutoverMapping = app(SocialTransportCutoverService::class)->recordOwnerValidatedMapping(
+        $user,
+        $user,
+        $directFacebookConnection,
+        $bufferFacebookConnection,
+        hash('sha256', 'targeted facebook deletion mapping'),
+    );
+    $cutoverId = (int) $cutoverMapping->social_transport_cutover_id;
 
     SocialAccountConnection::query()->create([
         'user_id' => $user->id,
@@ -79,10 +109,14 @@ test('facebook data deletion callback deletes facebook-linked app data and retur
         ->where('user_id', $user->id)
         ->where('provider', UserSocialAccount::PROVIDER_FACEBOOK)
         ->exists())->toBeFalse()
-        ->and(SocialAccountConnection::query()
-            ->where('user_id', $user->id)
-            ->where('platform', SocialAccountConnection::PLATFORM_FACEBOOK)
-            ->exists())->toBeFalse()
+        ->and($directFacebookConnection->fresh())->not->toBeNull()
+        ->and($bufferFacebookConnection->fresh())->not->toBeNull()
+        ->and(SocialTransportCutover::query()->whereKey($cutoverId)->exists())->toBeTrue()
+        ->and(SocialTransportCutoverMapping::query()->whereKey($cutoverMapping->id)->exists())
+        ->toBeTrue()
+        ->and(SocialTransportCutoverEvent::query()
+            ->where('social_transport_cutover_id', $cutoverId)
+            ->count())->toBe(2)
         ->and(SocialAccountConnection::query()
             ->where('user_id', $user->id)
             ->where('platform', SocialAccountConnection::PLATFORM_LINKEDIN)
@@ -100,7 +134,7 @@ test('facebook data deletion callback deletes facebook-linked app data and retur
         ->and($deletionRequest?->status)->toBe(SocialDataDeletionRequest::STATUS_COMPLETED)
         ->and($deletionRequest?->delete_local_account)->toBeFalse()
         ->and($deletionRequest?->summary['deleted_facebook_social_accounts'] ?? null)->toBe(1)
-        ->and($deletionRequest?->summary['deleted_facebook_social_connections'] ?? null)->toBe(1);
+        ->and($deletionRequest?->summary['deleted_facebook_social_connections'] ?? null)->toBe(0);
 
     $this->get($statusPath)
         ->assertOk()
@@ -113,7 +147,7 @@ test('facebook data deletion callback deletes facebook-linked app data and retur
         ->assertOk()
         ->assertJsonPath('status', SocialDataDeletionRequest::STATUS_COMPLETED)
         ->assertJsonPath('summary.deleted_facebook_social_accounts', 1)
-        ->assertJsonPath('summary.deleted_facebook_social_connections', 1);
+        ->assertJsonPath('summary.deleted_facebook_social_connections', 0);
 });
 
 test('facebook data deletion callback can delete the local account when explicitly enabled', function () {
@@ -137,15 +171,41 @@ test('facebook data deletion callback can delete the local account when explicit
         'provider_name' => 'Delete Full Account',
     ]);
 
-    SocialAccountConnection::query()->create([
+    $directFacebookConnection = SocialAccountConnection::query()->create([
         'user_id' => $user->id,
         'platform' => SocialAccountConnection::PLATFORM_FACEBOOK,
         'label' => 'Main Facebook Page',
         'display_name' => 'Main Facebook Page',
         'external_account_id' => 'fb-page-002',
+        ...pulseDirectTransportIdentity(
+            $user,
+            SocialAccountConnection::PLATFORM_FACEBOOK,
+            'fb-page-002',
+        ),
         'status' => SocialAccountConnection::STATUS_CONNECTED,
         'is_active' => true,
     ]);
+
+    $bufferFacebookConnection = SocialAccountConnection::query()->create([
+        'user_id' => $user->id,
+        'platform' => SocialAccountConnection::PLATFORM_FACEBOOK,
+        'label' => 'Buffer Facebook Page',
+        'display_name' => 'Buffer Facebook Page',
+        'external_account_id' => 'buffer-fb-page-002',
+        'delivery_provider' => 'buffer',
+        'transport_generation' => 'buffer_v1',
+        'logical_destination_key' => $directFacebookConnection->logical_destination_key,
+        'status' => SocialAccountConnection::STATUS_CONNECTED,
+        'is_active' => true,
+    ]);
+    $cutoverMapping = app(SocialTransportCutoverService::class)->recordOwnerValidatedMapping(
+        $user,
+        $user,
+        $directFacebookConnection,
+        $bufferFacebookConnection,
+        hash('sha256', 'full facebook deletion mapping'),
+    );
+    $cutoverId = (int) $cutoverMapping->social_transport_cutover_id;
 
     $response = $this->post(route('integrations.facebook.data-deletion.callback'), [
         'signed_request' => facebookSignedRequest([
@@ -161,11 +221,20 @@ test('facebook data deletion callback can delete the local account when explicit
         ->firstOrFail();
 
     expect(User::query()->whereKey($user->id)->exists())->toBeFalse()
+        ->and($directFacebookConnection->fresh())->toBeNull()
+        ->and($bufferFacebookConnection->fresh())->toBeNull()
+        ->and(SocialTransportCutover::query()->whereKey($cutoverId)->exists())->toBeFalse()
+        ->and(SocialTransportCutoverMapping::query()->whereKey($cutoverMapping->id)->exists())
+        ->toBeFalse()
+        ->and(SocialTransportCutoverEvent::query()
+            ->where('social_transport_cutover_id', $cutoverId)
+            ->exists())->toBeFalse()
         ->and($deletionRequest->status)->toBe(SocialDataDeletionRequest::STATUS_COMPLETED)
         ->and($deletionRequest->delete_local_account)->toBeTrue()
         ->and($deletionRequest->user_id)->toBeNull()
         ->and($deletionRequest->summary['deleted_local_account'] ?? null)->toBeTrue()
-        ->and($deletionRequest->summary['deleted_local_account_mode'] ?? null)->toBe('account');
+        ->and($deletionRequest->summary['deleted_local_account_mode'] ?? null)->toBe('account')
+        ->and($deletionRequest->summary['deleted_facebook_social_connections'] ?? null)->toBe(2);
 });
 
 test('facebook data deletion callback rejects an invalid signed request', function () {

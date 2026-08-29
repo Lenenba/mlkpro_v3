@@ -63,6 +63,47 @@
         "generated_at": "Genere le"
       }
     },
+    "delivery_axes": {
+      "summary_label": "Etat editorial et de distribution",
+      "labels": {
+        "editorial": "Editorial",
+        "delivery": "Distribution",
+        "sync": "Synchronisation"
+      },
+      "statuses": {
+        "editorial": {
+          "draft": "Brouillon",
+          "pending_approval": "En attente de validation",
+          "approved": "Approuve",
+          "rejected": "Rejete",
+          "archived": "Archive"
+        },
+        "delivery": {
+          "not_submitted": "Non soumis",
+          "queued": "En file d'attente",
+          "submitted": "Soumis",
+          "scheduled": "Planifie",
+          "remote_approval_required": "Validation distante requise",
+          "publishing": "Publication en cours",
+          "sending": "Envoi en cours",
+          "published": "Publie",
+          "partial_failed": "Echec partiel",
+          "failed": "Echec",
+          "unknown": "Etat inconnu",
+          "canceled": "Annule"
+        },
+        "sync": {
+          "pending": "En attente",
+          "synced": "Synchronise",
+          "error": "Erreur de synchronisation",
+          "reconnect_required": "Reconnexion requise"
+        }
+      },
+      "verification": {
+        "title": "Verification requise",
+        "description": "Ne republiez pas tant que l'etat distant n'est pas confirme."
+      }
+    },
     "index_page": {
       "head_title": "Espace Malikia Pulse",
       "page_title": "Espace Malikia Pulse",
@@ -938,6 +979,46 @@
         "confirm_delete": "Supprimer {name} ?"
       },
       "empty_value": "Non disponible"
+    },
+    "buffer_connector": {
+      "local_mode": "Test local reel",
+      "delivery_disabled": "Publication desactivee",
+      "loading": "Chargement des comptes Buffer en cours.",
+      "opens_new_tab": "S ouvre dans un nouvel onglet",
+      "title": "Connexion et canaux Buffer",
+      "description": "Utilisez la cle Buffer configuree sur le serveur pour voir le compte, ses organisations et ses canaux reels, puis importer les canaux dans Pulse sans exposer le secret au navigateur.",
+      "configuration_title": "Connecteur local indisponible",
+      "configuration_enable": "Activez BUFFER_LOCAL_CONNECTOR_ENABLED dans votre environnement local.",
+      "configuration_token": "Configurez BUFFER_LOCAL_CONNECTOR_ACCESS_TOKEN dans votre environnement local.",
+      "owner_only": "Seul le proprietaire du compte peut interroger Buffer et importer ses canaux.",
+      "account_label": "Compte Buffer",
+      "account_fallback": "Compte Buffer connecte",
+      "organization_label": "Organisation",
+      "catalog_summary": "Canaux : {channels} · importes : {imported}",
+      "no_channels": "Aucun canal Buffer disponible dans cette organisation.",
+      "actions": {
+        "connect": "Voir mes comptes Buffer",
+        "refresh": "Resynchroniser",
+        "add_in_buffer": "Ajouter dans Buffer",
+        "import": "Importer dans Pulse",
+        "importing": "Import en cours...",
+        "imported": "Importe"
+      },
+      "states": {
+        "available": "Disponible pour l import",
+        "imported": "Deja importe dans Pulse",
+        "queue_paused": "Disponible · file Buffer en pause"
+      },
+      "block_reasons": {
+        "unsupported_service": "Reseau non pris en charge par Pulse",
+        "disconnected": "Canal deconnecte dans Buffer",
+        "locked": "Canal verrouille dans Buffer"
+      },
+      "messages": {
+        "load_error": "Les comptes Buffer n ont pas pu etre charges.",
+        "import_error": "Le canal Buffer n a pas pu etre importe.",
+        "import_success": "Le canal Buffer est visible dans Pulse."
+      }
     }
   }
 }

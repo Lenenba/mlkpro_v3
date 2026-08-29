@@ -1,26 +1,32 @@
 <?php
 
+use App\Exceptions\Social\DefinitiveSocialPublishingRejectionException;
 use App\Exceptions\Social\RetryableSocialPublishingException;
 use App\Http\Middleware\EnsureTwoFactorVerified;
-use App\Jobs\PublishSocialPostTargetJob;
+use App\Jobs\ProcessSocialDeliveryOutboxJob;
 use App\Models\Role;
 use App\Models\SocialAccountConnection;
 use App\Models\SocialApprovalRequest;
+use App\Models\SocialDeliveryOutbox;
 use App\Models\SocialPost;
 use App\Models\SocialPostTarget;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Services\Social\Contracts\PlatformPublisherInterface;
 use App\Services\Social\Providers\LinkedInPagePlatformPublisher;
+use App\Services\Social\SocialDeliveryOutboxService;
+use App\Services\Social\SocialPostRevisionService;
 use App\Services\Social\SocialProviderRegistry;
 use App\Services\Social\SocialPublishingService;
 use App\Support\QueueWorkload;
 use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
@@ -32,14 +38,21 @@ class PulsePublishingFakePublisher implements PlatformPublisherInterface
 {
     public int $publishCalls = 0;
 
+    /** @var array<int, array<string, mixed>> */
+    public array $publishPayloads = [];
+
     /**
      * @param  array<int, string>  $failingPlatforms
      * @param  array<int, string>  $retryablePlatforms
+     * @param  array<int, string>  $ambiguousPlatforms
+     * @param  array<string, mixed>  $resultOverrides
      */
     public function __construct(
         private readonly string $platform,
         private readonly array $failingPlatforms = [],
         private readonly array $retryablePlatforms = [],
+        private readonly array $ambiguousPlatforms = [],
+        private readonly array $resultOverrides = [],
     ) {}
 
     public function key(): string
@@ -80,21 +93,30 @@ class PulsePublishingFakePublisher implements PlatformPublisherInterface
     public function publish(SocialAccountConnection $connection, array $payload): array
     {
         $this->publishCalls++;
+        $this->publishPayloads[] = $payload;
 
         if (in_array($this->platform, $this->retryablePlatforms, true)) {
-            throw new RetryableSocialPublishingException(sprintf(
+            throw RetryableSocialPublishingException::provenSafeForCreateRetry(sprintf(
                 '%s temporary transport failure.',
                 Str::headline($this->platform)
             ));
         }
 
-        if (in_array($this->platform, $this->failingPlatforms, true)) {
-            throw ValidationException::withMessages([
-                'platform' => sprintf('%s temporary publish failure.', Str::headline($this->platform)),
-            ]);
+        if (in_array($this->platform, $this->ambiguousPlatforms, true)) {
+            throw new ConnectionException(sprintf(
+                '%s timed out after the request started.',
+                Str::headline($this->platform)
+            ));
         }
 
-        return [
+        if (in_array($this->platform, $this->failingPlatforms, true)) {
+            throw new DefinitiveSocialPublishingRejectionException(sprintf(
+                '%s rejected this Pulse publication without creating it.',
+                Str::headline($this->platform),
+            ));
+        }
+
+        return array_replace([
             'provider_post_id' => sprintf('%s-post-%d', $this->platform, $connection->id),
             'published_at' => now()->toIso8601String(),
             'metadata' => [
@@ -103,7 +125,7 @@ class PulsePublishingFakePublisher implements PlatformPublisherInterface
                 'text_preview' => Str::limit((string) ($payload['text'] ?? ''), 80),
             ],
             'message' => sprintf('%s published.', Str::headline($this->platform)),
-        ];
+        ], $this->resultOverrides);
     }
 }
 
@@ -184,7 +206,7 @@ function pulsePublishingTeamMember(
 
 function pulsePublishingConnection(User $owner, string $platform, array $overrides = []): SocialAccountConnection
 {
-    return SocialAccountConnection::query()->create(array_merge([
+    $attributes = array_merge([
         'user_id' => $owner->id,
         'platform' => $platform,
         'label' => Str::headline($platform).' account',
@@ -200,7 +222,12 @@ function pulsePublishingConnection(User $owner, string $platform, array $overrid
             'provider_label' => Str::headline($platform),
             'target_type' => 'page',
         ],
-    ], $overrides));
+    ], $overrides);
+
+    return SocialAccountConnection::query()->create([
+        ...$attributes,
+        ...pulseDirectTransportIdentity($owner, $platform, (string) $attributes['external_account_id']),
+    ]);
 }
 
 /**
@@ -239,6 +266,9 @@ function pulsePublishingDraft(
         SocialPostTarget::query()->create([
             'social_post_id' => $post->id,
             'social_account_connection_id' => $connection->id,
+            'delivery_provider' => $connection->delivery_provider,
+            'transport_generation' => $connection->transport_generation,
+            'logical_destination_key' => $connection->logical_destination_key,
             'status' => $scheduledFor
                 ? SocialPostTarget::STATUS_SCHEDULED
                 : SocialPostTarget::STATUS_PENDING,
@@ -259,23 +289,46 @@ function pulsePublishingDraft(
 /**
  * @param  array<int, string>  $failingPlatforms
  * @param  array<int, string>  $retryablePlatforms
+ * @param  array<int, string>  $ambiguousPlatforms
+ * @param  array<string, array<string, mixed>>  $resultOverridesByPlatform
  * @return array<string, PulsePublishingFakePublisher>
  */
-function pulsePublishingBindRegistry(array $failingPlatforms = [], array $retryablePlatforms = []): array
-{
+function pulsePublishingBindRegistry(
+    array $failingPlatforms = [],
+    array $retryablePlatforms = [],
+    array $ambiguousPlatforms = [],
+    array $resultOverridesByPlatform = [],
+): array {
     $publishers = [];
 
     foreach (SocialAccountConnection::allowedPlatforms() as $platform) {
         $publishers[$platform] = new PulsePublishingFakePublisher(
             $platform,
             $failingPlatforms,
-            $retryablePlatforms
+            $retryablePlatforms,
+            $ambiguousPlatforms,
+            $resultOverridesByPlatform[$platform] ?? [],
         );
     }
 
     app()->instance(SocialProviderRegistry::class, new PulsePublishingFakeRegistry($publishers));
 
     return $publishers;
+}
+
+function pulsePublishingProcessTargetOutbox(SocialPostTarget $target): SocialDeliveryOutbox
+{
+    $target->refresh();
+    $outbox = SocialDeliveryOutbox::query()
+        ->where('social_post_target_id', $target->id)
+        ->where('social_post_revision_id', $target->last_submitted_revision_id)
+        ->where('operation', SocialDeliveryOutbox::OPERATION_CREATE)
+        ->orderByDesc('recovery_generation')
+        ->sole();
+
+    app(SocialPublishingService::class)->handleOutboxPublication($outbox->id);
+
+    return $outbox->fresh();
 }
 
 beforeEach(function () {
@@ -298,16 +351,33 @@ it('queues immediate pulse publication and marks all targets as published after 
         ->assertJsonPath('draft.status', SocialPost::STATUS_PUBLISHING)
         ->assertJsonPath('summary.publishing', 1);
 
-    Queue::assertPushed(PublishSocialPostTargetJob::class, 2);
+    Queue::assertPushed(ProcessSocialDeliveryOutboxJob::class, 2);
 
-    $service = app(SocialPublishingService::class);
     $targets = SocialPostTarget::query()
         ->where('social_post_id', $draft->id)
         ->orderBy('id')
         ->get();
+    $outboxes = SocialDeliveryOutbox::query()
+        ->where('user_id', $owner->id)
+        ->whereIn('social_post_target_id', $targets->modelKeys())
+        ->orderBy('id')
+        ->get();
+
+    expect($outboxes)->toHaveCount(2)
+        ->and($outboxes->pluck('social_post_target_id')->all())->toBe($targets->modelKeys())
+        ->and($outboxes->every(
+            fn (SocialDeliveryOutbox $outbox): bool => $outbox->social_post_revision_id > 0
+                && $outbox->operation === SocialDeliveryOutbox::OPERATION_CREATE
+                && $outbox->status === SocialDeliveryOutbox::STATUS_PENDING
+        ))->toBeTrue();
+
+    Queue::assertPushed(
+        ProcessSocialDeliveryOutboxJob::class,
+        fn (ProcessSocialDeliveryOutboxJob $job): bool => $outboxes->contains('id', $job->outboxId),
+    );
 
     foreach ($targets as $target) {
-        $service->handleTargetPublication($target->id);
+        pulsePublishingProcessTargetOutbox($target);
     }
 
     $freshPost = SocialPost::query()->with('targets.socialAccountConnection')->findOrFail($draft->id);
@@ -315,7 +385,13 @@ it('queues immediate pulse publication and marks all targets as published after 
     expect($freshPost->status)->toBe(SocialPost::STATUS_PUBLISHED)
         ->and($freshPost->published_at)->not->toBeNull()
         ->and($freshPost->targets)->toHaveCount(2)
-        ->and($freshPost->targets->every(fn (SocialPostTarget $target) => $target->status === SocialPostTarget::STATUS_PUBLISHED))->toBeTrue();
+        ->and($freshPost->targets->every(
+            fn (SocialPostTarget $target): bool => $target->status === SocialPostTarget::STATUS_PUBLISHED
+                && filled($target->provider_post_id)
+                && $target->submitted_at !== null
+                && $target->last_synced_at !== null
+                && $target->next_reconcile_at === null,
+        ))->toBeTrue();
 });
 
 it('queues scheduled pulse publication with a delayed job per target', function () {
@@ -335,13 +411,19 @@ it('queues scheduled pulse publication with a delayed job per target', function 
         ->assertJsonPath('draft.status', SocialPost::STATUS_SCHEDULED)
         ->assertJsonPath('summary.scheduled', 1);
 
-    Queue::assertPushed(PublishSocialPostTargetJob::class, function (PublishSocialPostTargetJob $job) use ($draft, $scheduledFor) {
+    Queue::assertPushed(ProcessSocialDeliveryOutboxJob::class, function (ProcessSocialDeliveryOutboxJob $job) use ($draft, $scheduledFor) {
         $target = SocialPostTarget::query()
             ->where('social_post_id', $draft->id)
             ->first();
+        $outbox = SocialDeliveryOutbox::query()->find($job->outboxId);
 
         return $target
-            && $job->targetId === $target->id
+            && $outbox
+            && $outbox->social_post_target_id === $target->id
+            && $outbox->social_post_revision_id === (int) $target->last_submitted_revision_id
+            && $outbox->user_id === (int) $draft->user_id
+            && $outbox->status === SocialDeliveryOutbox::STATUS_PENDING
+            && $outbox->available_at?->equalTo($scheduledFor)
             && $job->delay instanceof Carbon
             && $job->delay->equalTo($scheduledFor);
     });
@@ -352,6 +434,144 @@ it('queues scheduled pulse publication with a delayed job per target', function 
         ->and($freshPost->scheduled_for?->equalTo($scheduledFor))->toBeTrue()
         ->and($freshPost->targets->every(fn (SocialPostTarget $target) => $target->status === SocialPostTarget::STATUS_SCHEDULED))->toBeTrue();
 });
+
+it('publishes the submitted immutable revision after a delayed post is edited and remains idempotent', function () {
+    Queue::fake();
+    $publishers = pulsePublishingBindRegistry();
+
+    $owner = pulsePublishingOwner();
+    $connection = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
+    $scheduledFor = Carbon::now()->addDays(2)->setTime(14, 30);
+    $draft = pulsePublishingDraft($owner, $owner, [$connection], [
+        'text' => 'Contenu approuvé original',
+        'image_url' => 'https://example.com/assets/original.jpg',
+        'link_url' => 'https://example.com/offers/original',
+        'scheduled_for' => $scheduledFor,
+        'metadata' => [
+            'link_cta_label' => 'Réserver maintenant',
+            'selected_target_count' => 1,
+        ],
+    ]);
+
+    $this->actingAs($owner)
+        ->postJson(route('social.posts.schedule', $draft))
+        ->assertStatus(202);
+
+    $capturedJob = null;
+    Queue::assertPushed(
+        ProcessSocialDeliveryOutboxJob::class,
+        function (ProcessSocialDeliveryOutboxJob $job) use (&$capturedJob): bool {
+            $capturedJob = $job;
+
+            return true;
+        }
+    );
+    expect($capturedJob)->toBeInstanceOf(ProcessSocialDeliveryOutboxJob::class);
+
+    $target = $draft->targets()->sole();
+    $submittedRevisionId = (int) $target->last_submitted_revision_id;
+    $submittedOutbox = SocialDeliveryOutbox::query()->findOrFail($capturedJob->outboxId);
+    $editedPost = $draft->fresh();
+    $editedPost->forceFill([
+        'content_payload' => ['text' => 'Contenu modifié après programmation'],
+        'media_payload' => [[
+            'type' => 'image',
+            'url' => 'https://example.com/assets/edited.jpg',
+        ]],
+        'link_url' => 'https://example.com/offers/edited',
+        'scheduled_for' => $scheduledFor->copy()->addDay(),
+        'metadata' => array_merge((array) $editedPost->metadata, [
+            'link_cta_label' => 'Acheter maintenant',
+        ]),
+    ])->save();
+    $currentRevision = app(SocialPostRevisionService::class)->ensureCurrent($editedPost->fresh(), $owner);
+
+    $this->travelTo($scheduledFor->copy()->addMinute());
+    $capturedJob->handle(app(SocialPublishingService::class));
+
+    $publisher = $publishers[SocialAccountConnection::PLATFORM_FACEBOOK];
+    $payload = $publisher->publishPayloads[0] ?? [];
+    $publishedTarget = $target->fresh();
+
+    expect($submittedOutbox->social_post_target_id)->toBe($target->id)
+        ->and($submittedOutbox->social_post_revision_id)->toBe($submittedRevisionId)
+        ->and($submittedOutbox->editorial_revision)->toBeGreaterThan(0)
+        ->and($currentRevision->id)->not->toBe($submittedRevisionId)
+        ->and($publishedTarget->current_revision_id)->toBe($currentRevision->id)
+        ->and($publishedTarget->last_submitted_revision_id)->toBe($submittedRevisionId)
+        ->and($publishedTarget->delivery_status)->toBe(SocialPost::DELIVERY_STATUS_PUBLISHED)
+        ->and($payload['text'] ?? null)->toBe('Contenu approuvé original')
+        ->and($payload['image_url'] ?? null)->toBe('https://example.com/assets/original.jpg')
+        ->and($payload['link_url'] ?? null)->toBe('https://example.com/offers/original')
+        ->and(data_get($payload, 'metadata.link_cta_label'))->toBe('Réserver maintenant')
+        ->and($payload['scheduled_for'] ?? null)->toBe($scheduledFor->copy()->utc()->toIso8601String())
+        ->and($publisher->publishCalls)->toBe(1);
+
+    DB::table('social_post_targets')
+        ->where('id', $target->id)
+        ->update(['last_submitted_revision_id' => null]);
+
+    $capturedJob->handle(app(SocialPublishingService::class));
+
+    expect($publisher->publishCalls)->toBe(1)
+        ->and($target->fresh()->delivery_status)->toBe(SocialPost::DELIVERY_STATUS_PUBLISHED);
+});
+
+it('quarantines invalid submitted revisions without calling any publisher', function (string $corruption) {
+    Queue::fake();
+    $publishers = pulsePublishingBindRegistry();
+
+    $owner = pulsePublishingOwner();
+    $connection = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
+    $queuedPost = app(SocialPublishingService::class)->publishNow(
+        $owner,
+        $owner,
+        pulsePublishingDraft($owner, $owner, [$connection]),
+    );
+    $target = $queuedPost->targets->sole();
+    $revisionId = (int) $target->last_submitted_revision_id;
+
+    match ($corruption) {
+        'unapproved revision' => DB::table('social_post_revisions')
+            ->where('id', $revisionId)
+            ->update([
+                'approved_by_user_id' => null,
+                'approved_at' => null,
+                'approval_provenance' => null,
+            ]),
+        'cross tenant revision' => DB::table('social_post_revisions')
+            ->where('id', $revisionId)
+            ->update(['user_id' => pulsePublishingOwner()->id]),
+        'forged revision payload hash' => DB::transaction(function () use (
+            $queuedPost,
+            $revisionId,
+            $target,
+        ): void {
+            $forgedHash = str_repeat('f', 64);
+            DB::table('social_post_revisions')->where('id', $revisionId)->update([
+                'payload_hash' => $forgedHash,
+            ]);
+            DB::table('social_post_targets')->where('id', $target->id)->update([
+                'payload_hash' => $forgedHash,
+            ]);
+            DB::table('social_posts')->where('id', $queuedPost->id)->update([
+                'payload_hash' => $forgedHash,
+            ]);
+        }),
+    };
+
+    pulsePublishingProcessTargetOutbox($target);
+
+    expect($publishers[SocialAccountConnection::PLATFORM_FACEBOOK]->publishCalls)->toBe(0)
+        ->and($target->fresh()->delivery_status)->toBe(SocialPost::DELIVERY_STATUS_UNKNOWN)
+        ->and($target->fresh()->sync_status)->toBe(SocialPost::SYNC_STATUS_ERROR)
+        ->and($queuedPost->fresh()->delivery_status)->toBe(SocialPost::DELIVERY_STATUS_UNKNOWN)
+        ->and(data_get($target->fresh()->metadata, 'delivery_integrity_error'))->not->toBeNull();
+})->with([
+    'unapproved revision',
+    'cross tenant revision',
+    'forged revision payload hash',
+]);
 
 it('does not redispatch a pulse post that is already scheduled for publication', function () {
     Queue::fake();
@@ -381,7 +601,7 @@ it('does not redispatch a pulse post that is already scheduled for publication',
             'This Pulse post is already scheduled for publication.'
         );
 
-    Queue::assertPushed(PublishSocialPostTargetJob::class, 1);
+    Queue::assertPushed(ProcessSocialDeliveryOutboxJob::class, 1);
 
     expect($draft->fresh()->getAttributes())->toBe($queuedPostAttributes)
         ->and($queuedTarget->fresh()->getAttributes())->toBe($queuedTargetAttributes);
@@ -391,7 +611,7 @@ it('returns 422 without mutations when a pending approval is published or schedu
     string $actorType,
     string $routeName
 ) {
-    Queue::fake([PublishSocialPostTargetJob::class]);
+    Queue::fake([ProcessSocialDeliveryOutboxJob::class]);
 
     $owner = pulsePublishingOwner();
     $actor = $actorType === 'owner'
@@ -449,12 +669,15 @@ it('returns 422 without mutations when a pending approval is published or schedu
 ]);
 
 it('does not run a queued target while its pulse post is waiting for approval', function () {
+    Queue::fake();
     $publishers = pulsePublishingBindRegistry();
 
     $owner = pulsePublishingOwner();
     $connection = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_LINKEDIN);
     $draft = pulsePublishingDraft($owner, $owner, [$connection]);
-    $approvalRequest = $draft->approvalRequests()->create([
+    $queuedPost = app(SocialPublishingService::class)->publishNow($owner, $owner, $draft);
+    $target = $queuedPost->targets->sole();
+    $approvalRequest = $queuedPost->approvalRequests()->create([
         'requested_by_user_id' => $owner->id,
         'status' => SocialApprovalRequest::STATUS_PENDING,
         'requested_at' => now(),
@@ -462,20 +685,21 @@ it('does not run a queued target while its pulse post is waiting for approval', 
             'requested_mode' => 'immediate',
         ],
     ]);
-    $draft->forceFill([
+    $queuedPost->forceFill([
         'status' => SocialPost::STATUS_PENDING_APPROVAL,
     ])->save();
-    $postBeforePublication = $draft->fresh()->getAttributes();
-    $target = $draft->targets()->sole();
+    $postBeforePublication = $queuedPost->fresh()->getAttributes();
     $targetBeforePublication = $target->getAttributes();
     $approvalRequestBeforePublication = $approvalRequest->fresh()->getAttributes();
 
-    app(SocialPublishingService::class)->handleTargetPublication($target->id);
+    $outbox = pulsePublishingProcessTargetOutbox($target);
 
     expect($publishers[SocialAccountConnection::PLATFORM_LINKEDIN]->publishCalls)->toBe(0)
-        ->and($draft->fresh()->getAttributes())->toBe($postBeforePublication)
+        ->and($queuedPost->fresh()->getAttributes())->toBe($postBeforePublication)
         ->and($target->fresh()->getAttributes())->toBe($targetBeforePublication)
-        ->and($approvalRequest->fresh()->getAttributes())->toBe($approvalRequestBeforePublication);
+        ->and($approvalRequest->fresh()->getAttributes())->toBe($approvalRequestBeforePublication)
+        ->and($outbox->status)->toBe(SocialDeliveryOutbox::STATUS_DEAD)
+        ->and($outbox->last_error_code)->toBe('local_decision_is_terminal');
 });
 
 it('reports a partial failure when only some pulse targets publish successfully', function () {
@@ -491,14 +715,13 @@ it('reports a partial failure when only some pulse targets publish successfully'
         ->postJson(route('social.posts.publish', $draft))
         ->assertStatus(202);
 
-    $service = app(SocialPublishingService::class);
     $targets = SocialPostTarget::query()
         ->where('social_post_id', $draft->id)
         ->orderBy('id')
         ->get();
 
     foreach ($targets as $target) {
-        $service->handleTargetPublication($target->id);
+        pulsePublishingProcessTargetOutbox($target);
     }
 
     $freshPost = SocialPost::query()->with('targets.socialAccountConnection')->findOrFail($draft->id);
@@ -506,61 +729,395 @@ it('reports a partial failure when only some pulse targets publish successfully'
     $facebookTarget = $freshPost->targets->firstWhere('socialAccountConnection.platform', SocialAccountConnection::PLATFORM_FACEBOOK);
 
     expect($freshPost->status)->toBe(SocialPost::STATUS_PARTIAL_FAILED)
-        ->and($freshPost->failure_reason)->toContain('temporary publish failure')
+        ->and($freshPost->failure_reason)->toContain('rejected this Pulse publication')
         ->and($facebookTarget?->status)->toBe(SocialPostTarget::STATUS_PUBLISHED)
         ->and($linkedinTarget?->status)->toBe(SocialPostTarget::STATUS_FAILED)
-        ->and((string) $linkedinTarget?->failure_reason)->toContain('temporary publish failure');
+        ->and((string) $linkedinTarget?->failure_reason)->toContain('rejected this Pulse publication');
+});
+
+it('fails closed to unknown when any provider-neutral target delivery is ambiguous', function () {
+    Queue::fake();
+    $publishers = pulsePublishingBindRegistry();
+
+    $owner = pulsePublishingOwner();
+    $facebook = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
+    $linkedin = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_LINKEDIN);
+    $queuedPost = app(SocialPublishingService::class)->publishNow(
+        $owner,
+        $owner,
+        pulsePublishingDraft($owner, $owner, [$facebook, $linkedin]),
+    );
+    [$ambiguousTarget, $publishedTarget] = $queuedPost->targets->values()->all();
+
+    $ambiguousTarget->forceFill([
+        'status' => SocialPostTarget::STATUS_FAILED,
+        'delivery_status' => SocialPost::DELIVERY_STATUS_UNKNOWN,
+        'sync_status' => SocialPost::SYNC_STATUS_PENDING,
+    ])->save();
+    $publishedTarget->forceFill([
+        'status' => SocialPostTarget::STATUS_PUBLISHED,
+        'delivery_status' => SocialPost::DELIVERY_STATUS_PUBLISHED,
+        'sync_status' => SocialPost::SYNC_STATUS_SYNCED,
+        'published_at' => now(),
+    ])->save();
+
+    pulsePublishingProcessTargetOutbox($ambiguousTarget);
+
+    $aggregatedPost = $queuedPost->fresh();
+
+    expect($aggregatedPost->delivery_status)->toBe(SocialPost::DELIVERY_STATUS_UNKNOWN)
+        ->and($aggregatedPost->sync_status)->toBe(SocialPost::SYNC_STATUS_PENDING)
+        ->and($aggregatedPost->delivery_status_source)->toBe(SocialPost::STATUS_SOURCE_DERIVED)
+        ->and($aggregatedPost->sync_status_source)->toBe(SocialPost::STATUS_SOURCE_DERIVED)
+        ->and($aggregatedPost->status)->toBe(SocialPost::STATUS_FAILED)
+        ->and($publishers[SocialAccountConnection::PLATFORM_FACEBOOK]->publishCalls)->toBe(0)
+        ->and($publishers[SocialAccountConnection::PLATFORM_LINKEDIN]->publishCalls)->toBe(0);
+});
+
+it('derives partial failed delivery and error sync independently of providers', function () {
+    Queue::fake();
+    pulsePublishingBindRegistry();
+
+    $owner = pulsePublishingOwner();
+    $facebook = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
+    $linkedin = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_LINKEDIN);
+    $queuedPost = app(SocialPublishingService::class)->publishNow(
+        $owner,
+        $owner,
+        pulsePublishingDraft($owner, $owner, [$facebook, $linkedin]),
+    );
+    [$failedTarget, $publishedTarget] = $queuedPost->targets->values()->all();
+
+    $failedTarget->forceFill([
+        'status' => SocialPostTarget::STATUS_FAILED,
+        'delivery_status' => SocialPost::DELIVERY_STATUS_FAILED,
+        'sync_status' => SocialPost::SYNC_STATUS_ERROR,
+        'failed_at' => now(),
+        'failure_reason' => 'Provider-neutral failure.',
+    ])->save();
+    $publishedTarget->forceFill([
+        'status' => SocialPostTarget::STATUS_PUBLISHED,
+        'delivery_status' => SocialPost::DELIVERY_STATUS_PUBLISHED,
+        'sync_status' => SocialPost::SYNC_STATUS_SYNCED,
+        'published_at' => now(),
+    ])->save();
+
+    pulsePublishingProcessTargetOutbox($failedTarget);
+
+    $aggregatedPost = $queuedPost->fresh();
+
+    expect($aggregatedPost->delivery_status)->toBe(SocialPost::DELIVERY_STATUS_PARTIAL_FAILED)
+        ->and($aggregatedPost->sync_status)->toBe(SocialPost::SYNC_STATUS_ERROR)
+        ->and($aggregatedPost->status)->toBe(SocialPost::STATUS_PARTIAL_FAILED)
+        ->and($aggregatedPost->failure_reason)->toBe('Provider-neutral failure.')
+        ->and($aggregatedPost->failed_at)->not->toBeNull()
+        ->and($aggregatedPost->published_at)->not->toBeNull();
+});
+
+it('excludes canceled targets from delivery success and keeps cancellation distinct from failure', function () {
+    Queue::fake();
+    pulsePublishingBindRegistry();
+
+    $owner = pulsePublishingOwner();
+    $facebook = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
+    $linkedin = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_LINKEDIN);
+    $queuedPost = app(SocialPublishingService::class)->publishNow(
+        $owner,
+        $owner,
+        pulsePublishingDraft($owner, $owner, [$facebook, $linkedin]),
+    );
+    [$publishedTarget, $canceledTarget] = $queuedPost->targets->values()->all();
+
+    $publishedTarget->forceFill([
+        'status' => SocialPostTarget::STATUS_PUBLISHED,
+        'delivery_status' => SocialPost::DELIVERY_STATUS_PUBLISHED,
+        'sync_status' => SocialPost::SYNC_STATUS_SYNCED,
+        'published_at' => now(),
+    ])->save();
+    $canceledTarget->forceFill([
+        'status' => SocialPostTarget::STATUS_CANCELED,
+        'delivery_status' => SocialPost::DELIVERY_STATUS_CANCELED,
+        'sync_status' => SocialPost::SYNC_STATUS_SYNCED,
+        'failed_at' => null,
+        'failure_reason' => null,
+    ])->save();
+
+    pulsePublishingProcessTargetOutbox($publishedTarget);
+
+    $aggregatedPost = $queuedPost->fresh();
+
+    expect($aggregatedPost->delivery_status)->toBe(SocialPost::DELIVERY_STATUS_PUBLISHED)
+        ->and($aggregatedPost->sync_status)->toBe(SocialPost::SYNC_STATUS_SYNCED)
+        ->and($aggregatedPost->status)->toBe(SocialPost::STATUS_PUBLISHED)
+        ->and($aggregatedPost->failed_at)->toBeNull()
+        ->and($aggregatedPost->failure_reason)->toBeNull()
+        ->and(data_get($aggregatedPost->metadata, 'status_summary.canceled'))->toBe(1);
+});
+
+it('aggregates all canceled targets as canceled without manufacturing a failure', function () {
+    Queue::fake();
+    pulsePublishingBindRegistry();
+
+    $owner = pulsePublishingOwner();
+    $facebook = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
+    $linkedin = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_LINKEDIN);
+    $queuedPost = app(SocialPublishingService::class)->publishNow(
+        $owner,
+        $owner,
+        pulsePublishingDraft($owner, $owner, [$facebook, $linkedin]),
+    );
+
+    foreach ($queuedPost->targets as $target) {
+        $target->forceFill([
+            'status' => SocialPostTarget::STATUS_CANCELED,
+            'delivery_status' => SocialPost::DELIVERY_STATUS_CANCELED,
+            'sync_status' => SocialPost::SYNC_STATUS_SYNCED,
+            'failed_at' => null,
+            'failure_reason' => null,
+        ])->save();
+    }
+
+    pulsePublishingProcessTargetOutbox($queuedPost->targets->first());
+
+    $aggregatedPost = $queuedPost->fresh();
+
+    expect($aggregatedPost->delivery_status)->toBe(SocialPost::DELIVERY_STATUS_CANCELED)
+        ->and($aggregatedPost->sync_status)->toBe(SocialPost::SYNC_STATUS_SYNCED)
+        ->and($aggregatedPost->failed_at)->toBeNull()
+        ->and($aggregatedPost->failure_reason)->toBeNull()
+        ->and(data_get($aggregatedPost->metadata, 'status_summary.failed'))->toBe(0)
+        ->and(data_get($aggregatedPost->metadata, 'status_summary.canceled'))->toBe(2);
+});
+
+it('treats incomplete legacy target axes as unknown and sync error', function () {
+    Queue::fake();
+    pulsePublishingBindRegistry();
+
+    $owner = pulsePublishingOwner();
+    $facebook = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
+    $linkedin = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_LINKEDIN);
+    $queuedPost = app(SocialPublishingService::class)->publishNow(
+        $owner,
+        $owner,
+        pulsePublishingDraft($owner, $owner, [$facebook, $linkedin]),
+    );
+    [$legacyTarget, $publishedTarget] = $queuedPost->targets->values()->all();
+
+    DB::table('social_post_targets')
+        ->where('id', $legacyTarget->id)
+        ->update([
+            'status' => SocialPostTarget::STATUS_PUBLISHED,
+            'delivery_status' => null,
+            'sync_status' => null,
+        ]);
+    $publishedTarget->forceFill([
+        'status' => SocialPostTarget::STATUS_PUBLISHED,
+        'delivery_status' => SocialPost::DELIVERY_STATUS_PUBLISHED,
+        'sync_status' => SocialPost::SYNC_STATUS_SYNCED,
+        'published_at' => now(),
+    ])->save();
+
+    expect($publishedTarget->fresh()->current_revision_id)->not->toBeNull()
+        ->and($publishedTarget->fresh()->delivery_status)->toBe(SocialPost::DELIVERY_STATUS_PUBLISHED);
+
+    pulsePublishingProcessTargetOutbox($publishedTarget);
+
+    $aggregatedPost = $queuedPost->fresh();
+
+    expect($aggregatedPost->delivery_status)->toBe(SocialPost::DELIVERY_STATUS_UNKNOWN)
+        ->and($aggregatedPost->sync_status)->toBe(SocialPost::SYNC_STATUS_ERROR)
+        ->and($aggregatedPost->status)->toBe(SocialPost::STATUS_FAILED);
 });
 
 it('keeps retryable publication failures non-terminal so the queue can retry', function () {
-    pulsePublishingBindRegistry([], [SocialAccountConnection::PLATFORM_FACEBOOK]);
+    Queue::fake();
+    $retryablePublishers = pulsePublishingBindRegistry(
+        retryablePlatforms: [SocialAccountConnection::PLATFORM_FACEBOOK],
+    );
 
     $owner = pulsePublishingOwner();
     $connection = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
     $draft = pulsePublishingDraft($owner, $owner, [$connection]);
-    $target = $draft->targets->sole();
-    $service = app(SocialPublishingService::class);
+    $this->actingAs($owner)
+        ->postJson(route('social.posts.publish', $draft))
+        ->assertStatus(202);
 
-    expect(fn () => $service->handleTargetPublication($target->id))
-        ->toThrow(RetryableSocialPublishingException::class, 'Facebook temporary transport failure.');
+    $target = $draft->targets()->sole();
+    $retryableOutbox = pulsePublishingProcessTargetOutbox($target);
 
     $retryableTarget = $target->fresh();
     $retryablePost = $draft->fresh();
 
-    expect($retryableTarget->status)->toBe(SocialPostTarget::STATUS_PUBLISHING)
+    expect($retryablePublishers[SocialAccountConnection::PLATFORM_FACEBOOK]->publishCalls)->toBe(1)
+        ->and($retryableOutbox->status)->toBe(SocialDeliveryOutbox::STATUS_RETRYABLE)
+        ->and($retryableOutbox->attempts)->toBe(1)
+        ->and($retryableOutbox->request_started_at)->toBeNull()
+        ->and($retryableOutbox->available_at)->not->toBeNull()
+        ->and($retryableTarget->status)->toBe(SocialPostTarget::STATUS_PUBLISHING)
         ->and($retryableTarget->failed_at)->toBeNull()
         ->and($retryableTarget->failure_reason)->toBeNull()
         ->and($retryablePost->status)->toBe(SocialPost::STATUS_PUBLISHING)
         ->and($retryablePost->failed_at)->toBeNull()
         ->and($retryablePost->failure_reason)->toBeNull();
+
+    $this->travelTo($retryableOutbox->available_at->copy()->addSecond());
+    $successfulPublishers = pulsePublishingBindRegistry();
+    $completedOutbox = pulsePublishingProcessTargetOutbox($target);
+
+    expect($successfulPublishers[SocialAccountConnection::PLATFORM_FACEBOOK]->publishCalls)->toBe(1)
+        ->and($completedOutbox->status)->toBe(SocialDeliveryOutbox::STATUS_COMPLETED)
+        ->and($completedOutbox->attempts)->toBe(2)
+        ->and($target->fresh()->status)->toBe(SocialPostTarget::STATUS_PUBLISHED)
+        ->and($draft->fresh()->status)->toBe(SocialPost::STATUS_PUBLISHED);
 });
 
-it('marks a publishing target failed when the queue invokes the job failure callback', function () {
+it('quarantines ambiguous network outcomes and blocks duplicate retries', function () {
+    Queue::fake();
+    $publishers = pulsePublishingBindRegistry(
+        ambiguousPlatforms: [SocialAccountConnection::PLATFORM_FACEBOOK],
+    );
+
     $owner = pulsePublishingOwner();
     $connection = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
     $draft = pulsePublishingDraft($owner, $owner, [$connection]);
-    $target = $draft->targets->sole();
-    $draft->forceFill([
-        'status' => SocialPost::STATUS_PUBLISHING,
-    ])->save();
+    $queuedPost = app(SocialPublishingService::class)->publishNow($owner, $owner, $draft);
+    $target = $queuedPost->targets->sole();
+
+    pulsePublishingProcessTargetOutbox($target);
+
+    $ambiguousTarget = $target->fresh();
+    $ambiguousPost = $draft->fresh();
+
+    expect($publishers[SocialAccountConnection::PLATFORM_FACEBOOK]->publishCalls)->toBe(1)
+        ->and($ambiguousTarget->delivery_status)->toBe(SocialPost::DELIVERY_STATUS_UNKNOWN)
+        ->and($ambiguousTarget->sync_status)->toBe(SocialPost::SYNC_STATUS_ERROR)
+        ->and($ambiguousTarget->failed_at)->toBeNull()
+        ->and($ambiguousTarget->failure_reason)->toBeNull()
+        ->and($ambiguousPost->delivery_status)->toBe(SocialPost::DELIVERY_STATUS_UNKNOWN)
+        ->and($ambiguousPost->failed_at)->toBeNull();
+
+    expect(fn () => app(SocialPublishingService::class)->publishNow(
+        $owner,
+        $owner,
+        $ambiguousPost,
+    ))->toThrow(ValidationException::class, 'must be reconciled before any retry');
+
+    expect($publishers[SocialAccountConnection::PLATFORM_FACEBOOK]->publishCalls)->toBe(1);
+});
+
+it('recovers an exhausted pre-request worker only through its fenced lease', function () {
+    Queue::fake();
+    pulsePublishingBindRegistry();
+
+    $owner = pulsePublishingOwner();
+    $connection = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
+    $draft = pulsePublishingDraft($owner, $owner, [$connection]);
+    $queuedPost = app(SocialPublishingService::class)->publishNow($owner, $owner, $draft);
+    $target = $queuedPost->targets->sole();
+    $outbox = SocialDeliveryOutbox::query()
+        ->where('social_post_target_id', $target->id)
+        ->where('social_post_revision_id', $target->last_submitted_revision_id)
+        ->sole();
+    $outboxes = app(SocialDeliveryOutboxService::class);
+    $claim = $outboxes->claim($outbox->id, 'failed-pre-request-worker', 60);
+    $targetBefore = $target->fresh()->getAttributes();
+    $postBefore = $draft->fresh()->getAttributes();
+
+    expect($claim)->not->toBeNull();
+
+    $this->travel(61)->seconds();
+    $summary = app(SocialPublishingService::class)->maintainDeliveryOutbox();
+
+    expect($summary)->toBe([
+        'pending_recovered' => 1,
+        'unknown_quarantined' => 0,
+        'aggregates_repaired' => 0,
+        'dispatched' => 1,
+    ])->and($outbox->fresh()->status)->toBe(SocialDeliveryOutbox::STATUS_PENDING)
+        ->and($outbox->fresh()->claim_version)->toBe(2)
+        ->and($target->fresh()->getAttributes())->toBe($targetBefore)
+        ->and($draft->fresh()->getAttributes())->toBe($postBefore)
+        ->and($connection->fresh()->last_error)->toBeNull();
+});
+
+it('quarantines an exhausted post-request worker through the durable lease sweeper', function () {
+    Queue::fake();
+    pulsePublishingBindRegistry();
+
+    $owner = pulsePublishingOwner();
+    $connection = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
+    $draft = pulsePublishingDraft($owner, $owner, [$connection]);
+    $queuedPost = app(SocialPublishingService::class)->publishNow($owner, $owner, $draft);
+    $target = $queuedPost->targets->sole();
+    $outbox = SocialDeliveryOutbox::query()
+        ->where('social_post_target_id', $target->id)
+        ->where('social_post_revision_id', $target->last_submitted_revision_id)
+        ->sole();
+    $outboxService = app(SocialDeliveryOutboxService::class);
+    $claim = $outboxService->claim($outbox->id, 'timed-out-submitting-worker', 60);
+
+    expect($claim)->not->toBeNull()
+        ->and($outboxService->startSubmitting(
+            $outbox->id,
+            $claim['claim_token'],
+            $claim['claim_version'],
+        ))->toBeTrue();
+
     $target->forceFill([
         'status' => SocialPostTarget::STATUS_PUBLISHING,
+        'delivery_status' => 'sending',
     ])->save();
 
-    $exception = new RetryableSocialPublishingException('Facebook queue failure callback.');
-    (new PublishSocialPostTargetJob($target->id))->failed($exception);
+    $this->travel(61)->seconds();
+    $summary = app(SocialPublishingService::class)->maintainDeliveryOutbox();
 
-    $failedTarget = $target->fresh();
-    $failedPost = $draft->fresh();
-
-    expect($failedTarget->status)->toBe(SocialPostTarget::STATUS_FAILED)
-        ->and($failedTarget->failed_at)->not->toBeNull()
-        ->and($failedTarget->failure_reason)->toBe('Facebook queue failure callback.')
-        ->and($failedPost->status)->toBe(SocialPost::STATUS_FAILED)
-        ->and($failedPost->failed_at)->not->toBeNull()
-        ->and((string) $failedPost->failure_reason)->toContain('Facebook queue failure callback.')
-        ->and($connection->fresh()->last_error)->toBe('Facebook queue failure callback.');
+    expect($summary['unknown_quarantined'])->toBe(1)
+        ->and($summary['aggregates_repaired'])->toBe(1)
+        ->and($target->fresh()->delivery_status)->toBe(SocialPost::DELIVERY_STATUS_UNKNOWN)
+        ->and($target->fresh()->failed_at)->toBeNull()
+        ->and($target->fresh()->failure_reason)->toBeNull()
+        ->and($draft->fresh()->delivery_status)->toBe(SocialPost::DELIVERY_STATUS_UNKNOWN)
+        ->and($connection->fresh()->last_error)->toBeNull()
+        ->and($outbox->fresh()->status)->toBe(SocialDeliveryOutbox::STATUS_UNKNOWN)
+        ->and($outbox->fresh()->last_error_code)->toBe('lease_expired_after_request_start')
+        ->and($outbox->fresh()->aggregate_repaired_at)->not->toBeNull();
 });
+
+it('never retries a create after the provider returns an invalid success result', function (array $overrides) {
+    Queue::fake();
+    $publishers = pulsePublishingBindRegistry(
+        resultOverridesByPlatform: [
+            SocialAccountConnection::PLATFORM_FACEBOOK => $overrides,
+        ],
+    );
+
+    $owner = pulsePublishingOwner();
+    $connection = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
+    $draft = pulsePublishingDraft($owner, $owner, [$connection]);
+    $queuedPost = app(SocialPublishingService::class)->publishNow($owner, $owner, $draft);
+    $target = $queuedPost->targets->sole();
+    $outbox = pulsePublishingProcessTargetOutbox($target);
+
+    expect($publishers[SocialAccountConnection::PLATFORM_FACEBOOK]->publishCalls)->toBe(1)
+        ->and($outbox->status)->toBe(SocialDeliveryOutbox::STATUS_UNKNOWN)
+        ->and($outbox->last_error_code)->toBe('invalid_result_after_request_start')
+        ->and($outbox->aggregate_repaired_at)->not->toBeNull()
+        ->and($target->fresh()->delivery_status)->toBe(SocialPost::DELIVERY_STATUS_UNKNOWN)
+        ->and($draft->fresh()->delivery_status)->toBe(SocialPost::DELIVERY_STATUS_UNKNOWN);
+
+    expect(fn () => app(SocialPublishingService::class)->publishNow(
+        $owner,
+        $owner,
+        $draft->fresh(),
+    ))->toThrow(ValidationException::class, 'must be reconciled before any retry');
+
+    app(SocialPublishingService::class)->handleOutboxPublication($outbox->id);
+
+    expect($publishers[SocialAccountConnection::PLATFORM_FACEBOOK]->publishCalls)->toBe(1);
+})->with([
+    'malformed published timestamp' => [['published_at' => 'not-a-provider-timestamp']],
+    'oversized remote identifier' => [['provider_post_id' => str_repeat('p', 192)]],
+]);
 
 it('classifies HTTP 429 publication responses as retryable failures', function () {
     config()->set('services.social.linkedin.publish.fake', false);
@@ -577,10 +1134,19 @@ it('classifies HTTP 429 publication responses as retryable failures', function (
     $owner = pulsePublishingOwner();
     $connection = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_LINKEDIN);
     $publisher = app(LinkedInPagePlatformPublisher::class);
+    $exception = null;
 
-    expect(fn () => $publisher->publish($connection, [
-        'text' => 'Pulse production transport contract',
-    ]))->toThrow(RetryableSocialPublishingException::class, 'LinkedIn rate limit reached.');
+    try {
+        $publisher->publish($connection, [
+            'text' => 'Pulse production transport contract',
+        ]);
+    } catch (RetryableSocialPublishingException $caught) {
+        $exception = $caught;
+    }
+
+    expect($exception)->toBeInstanceOf(RetryableSocialPublishingException::class)
+        ->and($exception?->getMessage())->toBe('LinkedIn rate limit reached.')
+        ->and($exception?->remoteEffectIsImpossible())->toBeFalse();
 
     Http::assertSent(fn (Request $request): bool => $request->method() === 'POST'
         && $request->url() === 'https://linkedin.test/v2/posts'
@@ -588,7 +1154,68 @@ it('classifies HTTP 429 publication responses as retryable failures', function (
         && data_get($request->data(), 'target_id') === $connection->external_account_id);
 });
 
+it('quarantines a create rejected with 429 when retry safety is not explicitly proven', function () {
+    Queue::fake();
+    config()->set('services.social.linkedin.publish.fake', false);
+    config()->set('services.social.linkedin.publish.url', 'https://linkedin.test/v2/posts');
+    Http::preventStrayRequests();
+    Http::fake([
+        'https://linkedin.test/v2/posts' => Http::response([
+            'error' => ['message' => 'LinkedIn rate limit reached.'],
+        ], 429),
+    ]);
+
+    $owner = pulsePublishingOwner();
+    $connection = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_LINKEDIN);
+    $draft = pulsePublishingDraft($owner, $owner, [$connection]);
+    $queuedPost = app(SocialPublishingService::class)->publishNow($owner, $owner, $draft);
+    $target = $queuedPost->targets->sole();
+    $outbox = pulsePublishingProcessTargetOutbox($target);
+
+    expect($outbox->status)->toBe(SocialDeliveryOutbox::STATUS_UNKNOWN)
+        ->and($outbox->last_error_code)->toBe('create_retry_safety_not_proven')
+        ->and($target->fresh()->delivery_status)->toBe(SocialPost::DELIVERY_STATUS_UNKNOWN)
+        ->and($draft->fresh()->delivery_status)->toBe(SocialPost::DELIVERY_STATUS_UNKNOWN);
+
+    pulsePublishingProcessTargetOutbox($target);
+
+    Http::assertSentCount(1);
+});
+
+it('classifies provider server errors after create as ambiguous and blocks redispatch', function () {
+    Queue::fake();
+    config()->set('services.social.facebook.publish.fake', false);
+    config()->set('services.social.facebook.publish.url', 'https://facebook.test/v1/posts');
+    Http::preventStrayRequests();
+    Http::fake([
+        'facebook.test/*' => Http::response([
+            'message' => 'Upstream create outcome unavailable',
+        ], 502),
+    ]);
+
+    $owner = pulsePublishingOwner();
+    $connection = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
+    $draft = pulsePublishingDraft($owner, $owner, [$connection]);
+    $queuedPost = app(SocialPublishingService::class)->publishNow($owner, $owner, $draft);
+    $target = $queuedPost->targets->sole();
+
+    pulsePublishingProcessTargetOutbox($target);
+
+    expect($target->fresh()->delivery_status)->toBe(SocialPost::DELIVERY_STATUS_UNKNOWN)
+        ->and($target->fresh()->failed_at)->toBeNull()
+        ->and($draft->fresh()->delivery_status)->toBe(SocialPost::DELIVERY_STATUS_UNKNOWN);
+
+    expect(fn () => app(SocialPublishingService::class)->publishNow(
+        $owner,
+        $owner,
+        $draft->fresh(),
+    ))->toThrow(ValidationException::class, 'must be reconciled before any retry');
+
+    Http::assertSentCount(1);
+});
+
 it('refuses to publish a target through a connection owned by another pulse tenant', function () {
+    Queue::fake();
     $publishers = pulsePublishingBindRegistry();
 
     $owner = pulsePublishingOwner();
@@ -597,10 +1224,17 @@ it('refuses to publish a target through a connection owned by another pulse tena
         $foreignOwner,
         SocialAccountConnection::PLATFORM_LINKEDIN
     );
-    $draft = pulsePublishingDraft($owner, $owner, [$foreignConnection]);
-    $target = $draft->targets->sole();
+    $localConnection = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_LINKEDIN);
+    $draft = pulsePublishingDraft($owner, $owner, [$localConnection]);
+    $queuedPost = app(SocialPublishingService::class)->publishNow($owner, $owner, $draft);
+    $target = $queuedPost->targets->sole();
+    SocialPostTarget::withoutEvents(function () use ($foreignConnection, $target): void {
+        $target->forceFill([
+            'social_account_connection_id' => $foreignConnection->id,
+        ])->save();
+    });
 
-    app(SocialPublishingService::class)->handleTargetPublication($target->id);
+    pulsePublishingProcessTargetOutbox($target);
 
     $failedTarget = $target->fresh();
     $failedPost = $draft->fresh();
@@ -620,8 +1254,14 @@ it('rejects a cross-tenant target before dispatch and leaves the foreign connect
         $foreignOwner,
         SocialAccountConnection::PLATFORM_LINKEDIN
     );
-    $draft = pulsePublishingDraft($owner, $owner, [$foreignConnection]);
+    $localConnection = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_LINKEDIN);
+    $draft = pulsePublishingDraft($owner, $owner, [$localConnection]);
     $target = $draft->targets->sole();
+    SocialPostTarget::withoutEvents(function () use ($foreignConnection, $target): void {
+        $target->forceFill([
+            'social_account_connection_id' => $foreignConnection->id,
+        ])->save();
+    });
     $foreignConnectionBeforeQueue = $foreignConnection->fresh()->getAttributes();
     Queue::fake();
 
@@ -646,12 +1286,15 @@ it('rejects a cross-tenant target before dispatch and leaves the foreign connect
         ->and($foreignConnection->fresh()->getAttributes())->toBe($foreignConnectionBeforeQueue);
 });
 
-it('configures pulse publication jobs for after commit dispatch bounded execution and per target overlap protection', function () {
-    $job = new PublishSocialPostTargetJob(101);
-    $sameTargetJob = new PublishSocialPostTargetJob(101);
-    $otherTargetJob = new PublishSocialPostTargetJob(202);
+it('configures pulse publication jobs for after commit dispatch bounded execution and per outbox overlap protection', function () {
+    $job = new ProcessSocialDeliveryOutboxJob(101);
+    $sameOutboxJob = new ProcessSocialDeliveryOutboxJob(101);
+    $otherOutboxJob = new ProcessSocialDeliveryOutboxJob(202);
 
     expect($job)->toBeInstanceOf(ShouldQueueAfterCommit::class)
+        ->and($job->outboxId)->toBe(101)
+        ->and($job->uniqueId())->toBe('101')
+        ->and($job->uniqueFor)->toBe(300)
         ->and($job->tries)->toBe(3)
         ->and($job->backoff())->toBe([30, 120, 300])
         ->and($job->timeout)->toBe(60)
@@ -662,20 +1305,68 @@ it('configures pulse publication jobs for after commit dispatch bounded executio
 
     $middleware = collect($job->middleware())
         ->first(fn (object $item): bool => $item instanceof WithoutOverlapping);
-    $sameTargetMiddleware = collect($sameTargetJob->middleware())
+    $sameOutboxMiddleware = collect($sameOutboxJob->middleware())
         ->first(fn (object $item): bool => $item instanceof WithoutOverlapping);
-    $otherTargetMiddleware = collect($otherTargetJob->middleware())
+    $otherOutboxMiddleware = collect($otherOutboxJob->middleware())
         ->first(fn (object $item): bool => $item instanceof WithoutOverlapping);
 
     expect($middleware)->toBeInstanceOf(WithoutOverlapping::class)
-        ->and($sameTargetMiddleware)->toBeInstanceOf(WithoutOverlapping::class)
-        ->and($otherTargetMiddleware)->toBeInstanceOf(WithoutOverlapping::class)
-        ->and($middleware->key)->toBe('social-post-target:101')
-        ->and($middleware->key)->toBe($sameTargetMiddleware->key)
-        ->and($middleware->key)->not->toBe($otherTargetMiddleware->key)
+        ->and($sameOutboxMiddleware)->toBeInstanceOf(WithoutOverlapping::class)
+        ->and($otherOutboxMiddleware)->toBeInstanceOf(WithoutOverlapping::class)
+        ->and($middleware->key)->toBe('social-delivery-outbox:101')
+        ->and($middleware->key)->toBe($sameOutboxMiddleware->key)
+        ->and($middleware->key)->not->toBe($otherOutboxMiddleware->key)
         ->and($middleware->releaseAfter)->toBeNull()
         ->and($middleware->expiresAfter)->toBe(120)
         ->and($middleware->shareKey)->toBeTrue();
+});
+
+it('never remaps an existing pulse outbox to a newer submitted revision', function () {
+    Queue::fake();
+    $publishers = pulsePublishingBindRegistry();
+
+    $owner = pulsePublishingOwner();
+    $connection = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
+    $queuedPost = app(SocialPublishingService::class)->publishNow(
+        $owner,
+        $owner,
+        pulsePublishingDraft($owner, $owner, [$connection]),
+    );
+    $target = $queuedPost->targets->sole();
+    $originalOutbox = SocialDeliveryOutbox::query()
+        ->where('social_post_target_id', $target->id)
+        ->where('social_post_revision_id', $target->last_submitted_revision_id)
+        ->sole();
+    $originalRevisionId = (int) $originalOutbox->social_post_revision_id;
+    $originalPayloadHash = (string) $originalOutbox->payload_hash;
+    $originalIdempotencyKey = (string) $originalOutbox->idempotency_key;
+    $queuedPost->forceFill([
+        'content_payload' => ['text' => 'A newer revision replaced the original job snapshot.'],
+    ])->save();
+    $newRevision = app(SocialPostRevisionService::class)->capture($queuedPost, $owner);
+    app(SocialPostRevisionService::class)->approveDirectly($queuedPost, $owner, now());
+    $target->refresh()->forceFill([
+        'last_submitted_revision_id' => $newRevision->id,
+        'delivery_status' => SocialPost::DELIVERY_STATUS_QUEUED,
+    ])->save();
+    $postBeforeOriginalOutbox = $queuedPost->fresh()->getAttributes();
+    $targetBeforeOriginalOutbox = $target->fresh()->getAttributes();
+    $job = new ProcessSocialDeliveryOutboxJob($originalOutbox->id);
+
+    $job->handle(app(SocialPublishingService::class));
+
+    $rejectedOutbox = $originalOutbox->fresh();
+
+    expect($job->outboxId)->toBe($originalOutbox->id)
+        ->and($publishers[SocialAccountConnection::PLATFORM_FACEBOOK]->publishCalls)->toBe(0)
+        ->and($rejectedOutbox->status)->toBe(SocialDeliveryOutbox::STATUS_DEAD)
+        ->and($rejectedOutbox->last_error_code)->toBe('submitted_revision_replaced')
+        ->and($rejectedOutbox->social_post_revision_id)->toBe($originalRevisionId)
+        ->and($rejectedOutbox->social_post_revision_id)->not->toBe($newRevision->id)
+        ->and($rejectedOutbox->payload_hash)->toBe($originalPayloadHash)
+        ->and($rejectedOutbox->idempotency_key)->toBe($originalIdempotencyKey)
+        ->and($queuedPost->fresh()->getAttributes())->toBe($postBeforeOriginalOutbox)
+        ->and($target->fresh()->getAttributes())->toBe($targetBeforeOriginalOutbox);
 });
 
 it('requires social approve in addition to social publish for direct pulse publication and scheduling', function () {
@@ -712,7 +1403,7 @@ it('requires social approve in addition to social publish for direct pulse publi
         ->assertStatus(202)
         ->assertJsonPath('draft.status', SocialPost::STATUS_PUBLISHING);
 
-    Queue::assertPushed(PublishSocialPostTargetJob::class);
+    Queue::assertPushed(ProcessSocialDeliveryOutboxJob::class);
 });
 
 it('blocks pulse publish and schedule routes when the social feature is disabled', function () {
