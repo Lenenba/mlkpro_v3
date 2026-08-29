@@ -982,14 +982,15 @@
     },
     "buffer_connector": {
       "local_mode": "Real local test",
+      "oauth_mode": "Buffer OAuth",
       "delivery_disabled": "Publishing disabled",
       "loading": "Loading Buffer accounts.",
       "opens_new_tab": "Opens in a new tab",
       "title": "Buffer connection and channels",
-      "description": "Use the server-side Buffer key to view the real account, organizations and channels, then import channels into Pulse without exposing the secret to the browser.",
-      "configuration_title": "Local connector unavailable",
-      "configuration_enable": "Enable BUFFER_LOCAL_CONNECTOR_ENABLED in your local environment.",
-      "configuration_token": "Set BUFFER_LOCAL_CONNECTOR_ACCESS_TOKEN in your local environment.",
+      "description": "Connect your Buffer account to view its organizations and channels, then import channels into Pulse.",
+      "configuration_title": "Buffer OAuth unavailable",
+      "configuration_oauth": "Configure the Buffer OAuth client on the server.",
+      "connect_prompt": "Connect your Buffer account to display its channels.",
       "owner_only": "Only the account owner can query Buffer and import its channels.",
       "account_label": "Buffer account",
       "account_fallback": "Connected Buffer account",
@@ -997,14 +998,20 @@
       "catalog_summary": "Channels: {channels} · imported: {imported}",
       "no_channels": "No Buffer channel is available in this organization.",
       "actions": {
-        "connect": "View my Buffer accounts",
+        "connect": "Connect Buffer",
+        "connecting": "Connecting...",
+        "view_accounts": "View my accounts",
         "refresh": "Resync",
+        "disconnect": "Disconnect",
+        "disconnecting": "Disconnecting...",
         "add_in_buffer": "Add in Buffer",
         "import": "Import into Pulse",
         "importing": "Importing...",
         "imported": "Imported"
       },
       "states": {
+        "connected": "Connected",
+        "disconnected_account": "Disconnected",
         "available": "Available to import",
         "imported": "Already imported into Pulse",
         "queue_paused": "Available · Buffer queue paused"
@@ -1015,6 +1022,10 @@
         "locked": "Channel locked in Buffer"
       },
       "messages": {
+        "connect_error": "The Buffer account could not be connected.",
+        "disconnect_error": "The Buffer account could not be disconnected.",
+        "disconnect_success": "The Buffer account was disconnected.",
+        "confirm_disconnect": "Disconnect {name}?",
         "load_error": "The Buffer accounts could not be loaded.",
         "import_error": "The Buffer channel could not be imported.",
         "import_success": "The Buffer channel is visible in Pulse."

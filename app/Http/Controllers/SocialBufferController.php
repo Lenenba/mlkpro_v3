@@ -5,16 +5,62 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ImportBufferChannelRequest;
 use App\Models\User;
 use App\Services\Social\Buffer\BufferLocalConnectorService;
+use App\Services\Social\Buffer\BufferOAuthService;
 use App\Services\Social\SocialAccountConnectionService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class SocialBufferController extends Controller
 {
     public function __construct(
         private readonly BufferLocalConnectorService $bufferConnector,
+        private readonly BufferOAuthService $bufferOAuth,
         private readonly SocialAccountConnectionService $connectionService,
     ) {}
+
+    public function connect(Request $request): JsonResponse
+    {
+        [$owner, , $canManageAccounts] = $this->resolveAccess($request->user());
+
+        if (! $canManageAccounts) {
+            abort(403);
+        }
+
+        return response()->json($this->bufferOAuth->beginAuthorization($owner));
+    }
+
+    public function callback(Request $request): RedirectResponse
+    {
+        try {
+            $result = $this->bufferOAuth->completeAuthorization($request->query());
+        } catch (ValidationException $exception) {
+            return redirect()
+                ->route('social.accounts.index')
+                ->with('error', $this->validationMessage($exception));
+        }
+
+        return redirect()
+            ->route('social.accounts.index')
+            ->with('success', $result['message']);
+    }
+
+    public function disconnect(Request $request): JsonResponse
+    {
+        [$owner, , $canManageAccounts] = $this->resolveAccess($request->user());
+
+        if (! $canManageAccounts) {
+            abort(403);
+        }
+
+        $this->bufferOAuth->disconnect($owner);
+
+        return response()->json([
+            'message_key' => 'social.buffer_connector.messages.disconnect_success',
+            'connector' => $this->bufferConnector->status($owner),
+        ]);
+    }
 
     public function catalog(Request $request): JsonResponse
     {
@@ -81,5 +127,13 @@ class SocialBufferController extends Controller
         );
 
         return [$owner, $canView, false];
+    }
+
+    private function validationMessage(ValidationException $exception): string
+    {
+        return collect($exception->errors())
+            ->flatten()
+            ->first(fn (mixed $message): bool => is_string($message) && trim($message) !== '')
+            ?: 'La connexion Buffer a échoué.';
     }
 }

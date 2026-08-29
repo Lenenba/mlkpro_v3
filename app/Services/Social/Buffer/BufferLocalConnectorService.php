@@ -12,6 +12,7 @@ final class BufferLocalConnectorService
 {
     public function __construct(
         private readonly BufferGraphqlClient $client,
+        private readonly BufferOAuthService $oauth,
     ) {}
 
     /**
@@ -19,25 +20,54 @@ final class BufferLocalConnectorService
      *     enabled: bool,
      *     configured: bool,
      *     available: bool,
-     *     local_only: true,
+     *     local_only: bool,
      *     mode: string,
-     *     delivery_enabled: false
+     *     delivery_enabled: false,
+     *     oauth_configured: bool,
+     *     connected: bool,
+     *     authorizing: bool,
+     *     can_connect: bool,
+     *     can_disconnect: bool,
+     *     account_name: ?string,
+     *     token_expires_at: ?string
      * }
      */
     public function status(?User $owner = null): array
     {
+        if ($owner !== null && $this->oauth->isConfigured()) {
+            $oauthStatus = $this->oauth->status($owner);
+
+            return [
+                'enabled' => true,
+                'configured' => true,
+                'available' => $oauthStatus['connected'],
+                'local_only' => false,
+                'mode' => 'oauth',
+                'delivery_enabled' => false,
+                ...$oauthStatus,
+            ];
+        }
+
         $enabled = (bool) config('services.buffer.local_connector.enabled', false);
         $configuredOwnerId = (int) config('services.buffer.local_connector.owner_id');
         $configured = $this->client->isConfigured() && $configuredOwnerId > 0;
         $ownerMatches = $owner !== null && (int) $owner->id === $configuredOwnerId;
+        $available = $this->isLocalEnvironment() && $enabled && $configured && $ownerMatches;
 
         return [
             'enabled' => $enabled,
             'configured' => $configured,
-            'available' => $this->isLocalEnvironment() && $enabled && $configured && $ownerMatches,
+            'available' => $available,
             'local_only' => true,
             'mode' => 'personal_access_token',
             'delivery_enabled' => false,
+            'oauth_configured' => false,
+            'connected' => $available,
+            'authorizing' => false,
+            'can_connect' => false,
+            'can_disconnect' => false,
+            'account_name' => null,
+            'token_expires_at' => null,
         ];
     }
 
@@ -54,7 +84,8 @@ final class BufferLocalConnectorService
     {
         $this->assertAvailable($owner);
 
-        $account = $this->client->account();
+        $accessToken = $this->accessToken($owner);
+        $account = $this->client->account($accessToken);
         $importedConnections = SocialAccountConnection::query()
             ->byUser($owner->id)
             ->get(['id', 'external_account_id', 'metadata'])
@@ -69,7 +100,7 @@ final class BufferLocalConnectorService
         foreach ($account['organizations'] as $organization) {
             $channels = [];
 
-            foreach ($this->client->channels($organization['id']) as $channel) {
+            foreach ($this->client->channels($organization['id'], $accessToken) as $channel) {
                 if (! hash_equals($organization['id'], $channel['organization_id'])) {
                     throw ValidationException::withMessages([
                         'buffer' => 'Buffer a associé un canal à une organisation inattendue.',
@@ -108,7 +139,8 @@ final class BufferLocalConnectorService
     ): SocialAccountConnection {
         $this->assertAvailable($owner);
 
-        $account = $this->client->account();
+        $accessToken = $this->accessToken($owner);
+        $account = $this->client->account($accessToken);
         $organization = collect($account['organizations'])
             ->first(fn (array $candidate): bool => hash_equals($candidate['id'], $organizationId));
 
@@ -118,7 +150,7 @@ final class BufferLocalConnectorService
             ]);
         }
 
-        $channel = collect($this->client->channels($organizationId))
+        $channel = collect($this->client->channels($organizationId, $accessToken))
             ->first(fn (array $candidate): bool => hash_equals($candidate['id'], $channelId));
 
         if (! is_array($channel)
@@ -192,8 +224,10 @@ final class BufferLocalConnectorService
                 'last_error' => null,
                 'metadata' => [
                     ...$existingMetadata,
-                    'connection_flow' => 'buffer_local_discovery',
-                    'oauth_ready' => false,
+                    'connection_flow' => $this->oauth->isConfigured()
+                        ? 'buffer_oauth_discovery'
+                        : 'buffer_local_discovery',
+                    'oauth_ready' => $this->oauth->isConfigured(),
                     'buffer' => [
                         'account_id' => $account['id'],
                         'organization_id' => $organization['id'],
@@ -203,7 +237,9 @@ final class BufferLocalConnectorService
                         'timezone' => $channel['timezone'],
                         'allowed_actions' => $channel['allowed_actions'],
                         'is_queue_paused' => $channel['is_queue_paused'],
-                        'credential_source' => 'server_environment',
+                        'credential_source' => $this->oauth->isConfigured()
+                            ? 'oauth_account'
+                            : 'server_environment',
                         'catalog_only' => true,
                     ],
                 ],
@@ -280,6 +316,15 @@ final class BufferLocalConnectorService
                 'buffer' => 'Le connecteur Buffer local est désactivé ou incomplet.',
             ]);
         }
+    }
+
+    private function accessToken(User $owner): string
+    {
+        if ($this->oauth->isConfigured()) {
+            return $this->oauth->accessToken($owner);
+        }
+
+        return trim((string) config('services.buffer.local_connector.access_token'));
     }
 
     private function isLocalEnvironment(): bool

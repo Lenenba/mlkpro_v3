@@ -982,14 +982,15 @@
     },
     "buffer_connector": {
       "local_mode": "Test local reel",
+      "oauth_mode": "OAuth Buffer",
       "delivery_disabled": "Publication desactivee",
       "loading": "Chargement des comptes Buffer en cours.",
       "opens_new_tab": "S ouvre dans un nouvel onglet",
       "title": "Connexion et canaux Buffer",
-      "description": "Utilisez la cle Buffer configuree sur le serveur pour voir le compte, ses organisations et ses canaux reels, puis importer les canaux dans Pulse sans exposer le secret au navigateur.",
-      "configuration_title": "Connecteur local indisponible",
-      "configuration_enable": "Activez BUFFER_LOCAL_CONNECTOR_ENABLED dans votre environnement local.",
-      "configuration_token": "Configurez BUFFER_LOCAL_CONNECTOR_ACCESS_TOKEN dans votre environnement local.",
+      "description": "Connectez votre compte Buffer pour voir ses organisations et canaux, puis importer les canaux dans Pulse.",
+      "configuration_title": "OAuth Buffer indisponible",
+      "configuration_oauth": "Configurez le client OAuth Buffer sur le serveur.",
+      "connect_prompt": "Connectez votre compte Buffer pour afficher ses canaux.",
       "owner_only": "Seul le proprietaire du compte peut interroger Buffer et importer ses canaux.",
       "account_label": "Compte Buffer",
       "account_fallback": "Compte Buffer connecte",
@@ -997,14 +998,20 @@
       "catalog_summary": "Canaux : {channels} · importes : {imported}",
       "no_channels": "Aucun canal Buffer disponible dans cette organisation.",
       "actions": {
-        "connect": "Voir mes comptes Buffer",
+        "connect": "Connecter Buffer",
+        "connecting": "Connexion...",
+        "view_accounts": "Voir mes comptes",
         "refresh": "Resynchroniser",
+        "disconnect": "Deconnecter",
+        "disconnecting": "Deconnexion...",
         "add_in_buffer": "Ajouter dans Buffer",
         "import": "Importer dans Pulse",
         "importing": "Import en cours...",
         "imported": "Importe"
       },
       "states": {
+        "connected": "Connecte",
+        "disconnected_account": "Deconnecte",
         "available": "Disponible pour l import",
         "imported": "Deja importe dans Pulse",
         "queue_paused": "Disponible · file Buffer en pause"
@@ -1015,6 +1022,10 @@
         "locked": "Canal verrouille dans Buffer"
       },
       "messages": {
+        "connect_error": "Le compte Buffer n a pas pu etre connecte.",
+        "disconnect_error": "Le compte Buffer n a pas pu etre deconnecte.",
+        "disconnect_success": "Le compte Buffer a ete deconnecte.",
+        "confirm_disconnect": "Deconnecter {name} ?",
         "load_error": "Les comptes Buffer n ont pas pu etre charges.",
         "import_error": "Le canal Buffer n a pas pu etre importe.",
         "import_success": "Le canal Buffer est visible dans Pulse."

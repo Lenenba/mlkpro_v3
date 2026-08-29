@@ -179,6 +179,22 @@ return [
     ],
 
     'buffer' => [
+        'oauth' => [
+            'client_id' => env('BUFFER_OAUTH_CLIENT_ID'),
+            'client_secret' => env('BUFFER_OAUTH_CLIENT_SECRET'),
+            'redirect_uri' => env('BUFFER_OAUTH_REDIRECT_URI'),
+            'authorize_url' => env('BUFFER_OAUTH_AUTHORIZE_URL', 'https://auth.buffer.com/auth'),
+            'token_url' => env('BUFFER_OAUTH_TOKEN_URL', 'https://auth.buffer.com/token'),
+            'scopes' => array_values(array_filter(array_map(
+                static fn (string $scope): string => trim($scope),
+                preg_split('/[\s,]+/', (string) env(
+                    'BUFFER_OAUTH_SCOPES',
+                    'account:read offline_access'
+                )) ?: []
+            ))),
+            'connect_timeout' => env('BUFFER_OAUTH_CONNECT_TIMEOUT', 5),
+            'timeout' => env('BUFFER_OAUTH_TIMEOUT', 15),
+        ],
         'local_connector' => [
             'enabled' => env('BUFFER_LOCAL_CONNECTOR_ENABLED', false),
             'owner_id' => env('BUFFER_LOCAL_CONNECTOR_OWNER_ID'),

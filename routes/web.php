@@ -201,6 +201,12 @@ Route::get('/sitemap.xml', function () {
 Route::get('/integrations/prospect-providers/{provider}/callback', [MarketingProspectProviderConnectionController::class, 'oauthCallback'])
     ->whereIn('provider', ['apollo'])
     ->name('marketing.prospect-providers.oauth.callback');
+Route::get('/integrations/social/buffer/callback', [SocialBufferController::class, 'callback'])
+    ->middleware('throttle:20,1')
+    ->name('social.buffer.oauth.callback');
+Route::get('/social/accounts/callback', [SocialBufferController::class, 'callback'])
+    ->middleware('throttle:20,1')
+    ->name('social.buffer.oauth.callback.accounts');
 Route::get('/integrations/social/{platform}/callback', [SocialAccountConnectionController::class, 'oauthCallback'])
     ->whereIn('platform', ['facebook', 'instagram', 'linkedin', 'x'])
     ->name('social.accounts.oauth.callback');
@@ -827,6 +833,12 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('social.accounts.index');
         Route::get('/social/buffer/catalog', [SocialBufferController::class, 'catalog'])
             ->name('social.buffer.catalog');
+        Route::post('/social/buffer/connect', [SocialBufferController::class, 'connect'])
+            ->middleware('throttle:10,1')
+            ->name('social.buffer.connect');
+        Route::post('/social/buffer/disconnect', [SocialBufferController::class, 'disconnect'])
+            ->middleware('throttle:10,1')
+            ->name('social.buffer.disconnect');
         Route::post('/social/buffer/channels', [SocialBufferController::class, 'store'])
             ->name('social.buffer.channels.store');
         Route::post('/social/accounts', [SocialAccountConnectionController::class, 'store'])

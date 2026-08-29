@@ -122,6 +122,7 @@ beforeEach(function () {
         'connect_timeout' => 2,
         'timeout' => 5,
     ]);
+    config()->set('services.buffer.oauth.client_id', null);
 
     Http::preventStrayRequests();
 });

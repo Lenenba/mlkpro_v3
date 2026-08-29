@@ -50,9 +50,9 @@ final class BufferGraphqlClient
     /**
      * @return array{id: string, name: ?string, organizations: list<array{id: string, name: string}>}
      */
-    public function account(): array
+    public function account(?string $accessToken = null): array
     {
-        $data = $this->execute(self::ACCOUNT_QUERY);
+        $data = $this->execute(self::ACCOUNT_QUERY, accessToken: $accessToken);
         $account = $data['account'] ?? null;
 
         if (! is_array($account) || ! is_array($account['organizations'] ?? null)) {
@@ -95,14 +95,18 @@ final class BufferGraphqlClient
      *     allowed_actions: list<string>
      * }>
      */
-    public function channels(string $organizationId): array
+    public function channels(string $organizationId, ?string $accessToken = null): array
     {
         $organizationId = $this->requiredIdentifier($organizationId);
-        $data = $this->execute(self::CHANNELS_QUERY, [
-            'input' => [
-                'organizationId' => $organizationId,
+        $data = $this->execute(
+            self::CHANNELS_QUERY,
+            [
+                'input' => [
+                    'organizationId' => $organizationId,
+                ],
             ],
-        ]);
+            $accessToken,
+        );
         $payload = $data['channels'] ?? null;
 
         if (! is_array($payload) || ! array_is_list($payload)) {
@@ -139,9 +143,12 @@ final class BufferGraphqlClient
      * @param  array<string, mixed>  $variables
      * @return array<string, mixed>
      */
-    private function execute(string $query, array $variables = []): array
-    {
-        $accessToken = trim((string) config('services.buffer.local_connector.access_token'));
+    private function execute(
+        string $query,
+        array $variables = [],
+        ?string $accessToken = null,
+    ): array {
+        $accessToken = trim((string) ($accessToken ?? config('services.buffer.local_connector.access_token')));
 
         if ($accessToken === '') {
             throw ValidationException::withMessages([
@@ -174,7 +181,7 @@ final class BufferGraphqlClient
 
         if (in_array($response->status(), [401, 403], true)) {
             throw ValidationException::withMessages([
-                'buffer' => 'Buffer a refusé la clé API locale. Créez ou remplacez la clé dans Buffer.',
+                'buffer' => 'Buffer a refusé l’accès. Reconnectez le compte Buffer.',
             ]);
         }
 

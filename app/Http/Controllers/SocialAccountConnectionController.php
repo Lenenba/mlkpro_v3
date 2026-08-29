@@ -32,7 +32,7 @@ class SocialAccountConnectionController extends Controller
             'provider_definitions' => $this->connectionService->definitions(),
             'connections' => $this->connectionService->listDirectManagementPayloads($owner),
             'summary' => $this->connectionService->summaryForOwner($owner),
-            'buffer_connector' => $canManageAccounts && app()->environment(['local', 'testing'])
+            'buffer_connector' => $canManageAccounts
                 ? $this->bufferConnector->status($owner)
                 : null,
             'workspace_stats' => [

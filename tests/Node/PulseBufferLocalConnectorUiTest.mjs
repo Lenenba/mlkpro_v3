@@ -9,15 +9,20 @@ const readJson = (path) => JSON.parse(read(path));
 const accountsPage = read('resources/js/Pages/Social/Accounts.vue');
 const bufferConnector = read('resources/js/Pages/Social/Components/SocialBufferConnectionCard.vue');
 
-test('the Pulse accounts page mounts the local Buffer discovery card', () => {
+test('the Pulse accounts page only mounts the Buffer connection card', () => {
     assert.match(accountsPage, /import SocialBufferConnectionCard/u);
     assert.match(accountsPage, /buffer_connector:\s*\{/u);
     assert.match(accountsPage, /v-if="props\.buffer_connector"/u);
     assert.match(accountsPage, /:initial-connector="props\.buffer_connector"/u);
     assert.match(accountsPage, /:can-manage="Boolean\(props\.access\?\.can_manage_accounts\)"/u);
+    assert.doesNotMatch(accountsPage, /SocialAccountManager/u);
+    assert.doesNotMatch(accountsPage, /provider_definitions/u);
+    assert.doesNotMatch(accountsPage, /initial-connections/u);
 });
 
-test('the Buffer card lists and imports server-discovered channels without accepting a token', () => {
+test('the Buffer card connects, disconnects, lists and imports channels without accepting a token', () => {
+    assert.match(bufferConnector, /route\('social\.buffer\.connect'\)/u);
+    assert.match(bufferConnector, /route\('social\.buffer\.disconnect'\)/u);
     assert.match(bufferConnector, /route\('social\.buffer\.catalog'\)/u);
     assert.match(bufferConnector, /route\('social\.buffer\.channels\.store'\)/u);
     assert.match(bufferConnector, /organization_id:\s*organization\.id/u);
@@ -32,21 +37,28 @@ test('the Buffer card lists and imports server-discovered channels without accep
     assert.match(bufferConnector, /aria-live="assertive"/u);
     assert.match(bufferConnector, /:aria-busy=/u);
     assert.match(bufferConnector, /href="https:\/\/publish\.buffer\.com\/channels"/u);
+    assert.match(bufferConnector, /window\.location\.assign\(redirectUrl\)/u);
+    assert.match(bufferConnector, /v-if="props\.canManage && !isConnected"/u);
+    assert.match(bufferConnector, /:disabled="!canConnect \|\| busy"/u);
+    assert.match(bufferConnector, /v-if="props\.canManage && isConnected && canDisconnect"/u);
     assert.doesNotMatch(bufferConnector, /connector\.manage_url/u);
     assert.doesNotMatch(bufferConnector, /access[_-]?token/iu);
     assert.doesNotMatch(bufferConnector, /BUFFER_/u);
 });
 
-test('every locale explains local discovery and the disabled Buffer delivery boundary', () => {
+test('every locale explains OAuth connection and the disabled Buffer delivery boundary', () => {
     for (const locale of ['fr', 'en', 'es']) {
         const translations = readJson(`resources/js/i18n/modules/${locale}/social.json`)
             .social.buffer_connector;
 
         assert.equal(typeof translations.title, 'string', `${locale}:title`);
         assert.equal(typeof translations.delivery_disabled, 'string', `${locale}:delivery_disabled`);
+        assert.equal(typeof translations.oauth_mode, 'string', `${locale}:oauth_mode`);
         assert.equal(typeof translations.actions.connect, 'string', `${locale}:connect`);
+        assert.equal(typeof translations.actions.disconnect, 'string', `${locale}:disconnect`);
         assert.equal(typeof translations.actions.add_in_buffer, 'string', `${locale}:add_in_buffer`);
         assert.equal(typeof translations.actions.import, 'string', `${locale}:import`);
         assert.equal(typeof translations.block_reasons.disconnected, 'string', `${locale}:disconnected`);
+        assert.equal(typeof translations.messages.disconnect_success, 'string', `${locale}:disconnect_success`);
     }
 });

@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import axios from 'axios';
-import { ExternalLink, RefreshCw } from 'lucide-vue-next';
+import { ExternalLink, LogIn, LogOut, RefreshCw } from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
@@ -22,12 +22,23 @@ const { t } = useI18n();
 const connector = ref({ ...props.initialConnector });
 const catalog = ref(null);
 const loading = ref(false);
+const connecting = ref(false);
+const disconnecting = ref(false);
 const importingChannelId = ref(null);
 const error = ref('');
 const info = ref('');
 
 const isAvailable = computed(() => Boolean(connector.value?.available));
+const isConnected = computed(() => Boolean(connector.value?.connected));
+const canConnect = computed(() => Boolean(connector.value?.can_connect));
+const canDisconnect = computed(() => Boolean(connector.value?.can_disconnect));
 const hasCatalog = computed(() => catalog.value !== null);
+const busy = computed(() => (
+    loading.value
+    || connecting.value
+    || disconnecting.value
+    || importingChannelId.value !== null
+));
 
 const requestErrorMessage = (_requestError, fallback) => fallback;
 
@@ -48,6 +59,49 @@ const loadCatalog = async () => {
         error.value = requestErrorMessage(requestError, t('social.buffer_connector.messages.load_error'));
     } finally {
         loading.value = false;
+    }
+};
+
+const connectBuffer = async () => {
+    connecting.value = true;
+    error.value = '';
+    info.value = '';
+
+    try {
+        const response = await axios.post(route('social.buffer.connect'));
+        const redirectUrl = String(response.data?.redirect_url || '');
+
+        if (!redirectUrl) {
+            throw new Error('Missing Buffer redirect URL');
+        }
+
+        window.location.assign(redirectUrl);
+    } catch (requestError) {
+        error.value = requestErrorMessage(requestError, t('social.buffer_connector.messages.connect_error'));
+        connecting.value = false;
+    }
+};
+
+const disconnectBuffer = async () => {
+    const accountName = connector.value?.account_name || t('social.buffer_connector.account_fallback');
+
+    if (!window.confirm(t('social.buffer_connector.messages.confirm_disconnect', { name: accountName }))) {
+        return;
+    }
+
+    disconnecting.value = true;
+    error.value = '';
+    info.value = '';
+
+    try {
+        const response = await axios.post(route('social.buffer.disconnect'));
+        connector.value = response.data?.connector || connector.value;
+        catalog.value = null;
+        info.value = t(response.data?.message_key || 'social.buffer_connector.messages.disconnect_success');
+    } catch (requestError) {
+        error.value = requestErrorMessage(requestError, t('social.buffer_connector.messages.disconnect_error'));
+    } finally {
+        disconnecting.value = false;
     }
 };
 
@@ -103,7 +157,7 @@ const channelHealthToneClass = (channel) => {
 <template>
     <section
         class="overflow-hidden rounded-sm border border-violet-200 bg-white shadow-sm dark:border-violet-500/30 dark:bg-neutral-900"
-        :aria-busy="loading || importingChannelId !== null"
+        :aria-busy="busy"
     >
         <div class="border-b border-violet-100 bg-violet-50/70 px-5 py-5 dark:border-violet-500/20 dark:bg-violet-500/10 sm:px-6">
             <div class="flex flex-wrap items-start justify-between gap-4">
@@ -113,7 +167,19 @@ const channelHealthToneClass = (channel) => {
                             Buffer
                         </span>
                         <span class="rounded-sm border border-violet-200 bg-white px-2.5 py-1 text-xs font-medium text-violet-700 dark:border-violet-500/30 dark:bg-neutral-900 dark:text-violet-300">
-                            {{ t('social.buffer_connector.local_mode') }}
+                            {{ connector.mode === 'oauth'
+                                ? t('social.buffer_connector.oauth_mode')
+                                : t('social.buffer_connector.local_mode') }}
+                        </span>
+                        <span
+                            class="rounded-sm border px-2.5 py-1 text-xs font-medium"
+                            :class="isConnected
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'
+                                : 'border-stone-200 bg-stone-50 text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300'"
+                        >
+                            {{ isConnected
+                                ? t('social.buffer_connector.states.connected')
+                                : t('social.buffer_connector.states.disconnected_account') }}
                         </span>
                         <span class="rounded-sm border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
                             {{ t('social.buffer_connector.delivery_disabled') }}
@@ -125,6 +191,12 @@ const channelHealthToneClass = (channel) => {
                     </h3>
                     <p class="mt-2 text-sm leading-6 text-stone-600 dark:text-neutral-300">
                         {{ t('social.buffer_connector.description') }}
+                    </p>
+                    <p
+                        v-if="isConnected && connector.account_name"
+                        class="mt-2 text-sm font-semibold text-violet-700 dark:text-violet-300"
+                    >
+                        {{ t('social.buffer_connector.account_label') }} : {{ connector.account_name }}
                     </p>
                 </div>
 
@@ -141,33 +213,65 @@ const channelHealthToneClass = (channel) => {
                     </a>
 
                     <PrimaryButton
-                        v-if="props.canManage && isAvailable"
+                        v-if="props.canManage && !isConnected"
                         type="button"
                         class="w-full justify-center sm:w-auto"
-                        :disabled="loading || importingChannelId !== null"
+                        :disabled="!canConnect || busy"
+                        @click="connectBuffer"
+                    >
+                        <LogIn class="mr-2 size-4" />
+                        {{ connecting
+                            ? t('social.buffer_connector.actions.connecting')
+                            : t('social.buffer_connector.actions.connect') }}
+                    </PrimaryButton>
+
+                    <PrimaryButton
+                        v-if="props.canManage && isConnected && isAvailable"
+                        type="button"
+                        class="w-full justify-center sm:w-auto"
+                        :disabled="busy"
                         @click="loadCatalog"
                     >
                         <RefreshCw class="mr-2 size-4" :class="{ 'animate-spin': loading }" />
                         {{ hasCatalog
                             ? t('social.buffer_connector.actions.refresh')
-                            : t('social.buffer_connector.actions.connect') }}
+                            : t('social.buffer_connector.actions.view_accounts') }}
                     </PrimaryButton>
+
+                    <SecondaryButton
+                        v-if="props.canManage && isConnected && canDisconnect"
+                        type="button"
+                        class="w-full justify-center sm:w-auto"
+                        :disabled="busy"
+                        @click="disconnectBuffer"
+                    >
+                        <LogOut class="mr-2 size-4" />
+                        {{ disconnecting
+                            ? t('social.buffer_connector.actions.disconnecting')
+                            : t('social.buffer_connector.actions.disconnect') }}
+                    </SecondaryButton>
                 </div>
             </div>
         </div>
 
         <div class="space-y-5 p-5 sm:p-6">
             <div
-                v-if="!isAvailable"
+                v-if="!connector.configured"
                 class="rounded-sm border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
                 role="status"
             >
                 <div class="font-semibold">{{ t('social.buffer_connector.configuration_title') }}</div>
                 <div class="mt-1">
-                    {{ connector.configured
-                        ? t('social.buffer_connector.configuration_enable')
-                        : t('social.buffer_connector.configuration_token') }}
+                    {{ t('social.buffer_connector.configuration_oauth') }}
                 </div>
+            </div>
+
+            <div
+                v-else-if="!isConnected"
+                class="rounded-sm border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300"
+                role="status"
+            >
+                {{ t('social.buffer_connector.connect_prompt') }}
             </div>
 
             <div
@@ -271,7 +375,7 @@ const channelHealthToneClass = (channel) => {
                                 v-if="props.canManage"
                                 type="button"
                                 class="w-full justify-center sm:w-auto"
-                                :disabled="channel.imported || !channel.can_import || importingChannelId !== null || loading"
+                                :disabled="channel.imported || !channel.can_import || busy"
                                 @click="importChannel(organization, channel)"
                             >
                                 {{ importingChannelId === channel.id
