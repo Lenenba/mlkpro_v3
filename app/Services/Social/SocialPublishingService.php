@@ -7,6 +7,7 @@ use App\Data\Social\SocialDeliveryResultData;
 use App\Exceptions\Social\AmbiguousSocialPublishingException;
 use App\Exceptions\Social\DefinitiveSocialPublishingRejectionException;
 use App\Exceptions\Social\RetryableSocialPublishingException;
+use App\Exceptions\Social\UnpublishableSocialMediaUrlException;
 use App\Jobs\ProcessSocialDeliveryOutboxJob;
 use App\Models\SocialAccountConnection;
 use App\Models\SocialAutomationRule;
@@ -18,6 +19,7 @@ use App\Models\User;
 use App\Services\Social\Contracts\SocialDistributionGatewayInterface;
 use App\Support\QueueWorkload;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -41,11 +43,24 @@ class SocialPublishingService
         private readonly SocialOperationalMessageSanitizer $messageSanitizer,
         private readonly SocialTransportPolicyService $transportPolicy,
         private readonly SocialDistributionGatewayInterface $distributionGateway,
+        private readonly SocialPostRetryPolicy $retryPolicy,
+        private readonly SocialMediaAssetService $mediaAssetService,
     ) {}
 
     public function publishNow(User $owner, User $actor, SocialPost $post): SocialPost
     {
         return $this->queuePublication($owner, $actor, $post, 'immediate');
+    }
+
+    public function retryFailed(User $owner, User $actor, SocialPost $post): SocialPost
+    {
+        return $this->queuePublication(
+            $owner,
+            $actor,
+            $post,
+            'immediate',
+            retryFailedOnly: true,
+        );
     }
 
     public function publishNowFromAutopilot(
@@ -360,6 +375,23 @@ class SocialPublishingService
                     $bufferDelivery = $usesBufferTransport
                         ? $this->bufferDeliveryData($outbox, $payload)
                         : null;
+                } catch (UnpublishableSocialMediaUrlException $exception) {
+                    $message = $this->exceptionMessage(
+                        $exception,
+                        'Buffer cannot access this Pulse media URL.',
+                    );
+                    $this->deliveryOutboxes->markDead(
+                        $outboxId,
+                        $claimToken,
+                        $claimVersion,
+                        'validation',
+                        'media_url_not_public',
+                        $message,
+                        fn (SocialDeliveryOutbox $entry): mixed => $this->markTargetFailedForOutbox($entry, $message),
+                    );
+                    $this->recordConnectionError($connection, $message);
+
+                    return;
                 } catch (Throwable $exception) {
                     $message = $this->exceptionMessage(
                         $exception,
@@ -558,6 +590,7 @@ class SocialPublishingService
         ?SocialAutomationRule $autopilotRule = null,
         ?array $expectedAutopilotPolicy = null,
         ?string $autopilotClaimToken = null,
+        bool $retryFailedOnly = false,
     ): SocialPost {
         $tenantLock = $this->connectionDeliveryMutex->acquireTenant((int) $owner->getKey());
 
@@ -576,6 +609,7 @@ class SocialPublishingService
                 $autopilotRule,
                 $expectedAutopilotPolicy,
                 $autopilotClaimToken,
+                $retryFailedOnly,
             );
         } finally {
             $tenantLock->release();
@@ -590,6 +624,7 @@ class SocialPublishingService
         ?SocialAutomationRule $autopilotRule = null,
         ?array $expectedAutopilotPolicy = null,
         ?string $autopilotClaimToken = null,
+        bool $retryFailedOnly = false,
     ): SocialPost {
         $this->assertOwnership($owner, $post);
 
@@ -601,6 +636,7 @@ class SocialPublishingService
             $autopilotRule,
             $expectedAutopilotPolicy,
             $autopilotClaimToken,
+            $retryFailedOnly,
         ): int {
             $lockedPost = SocialPost::query()
                 ->byUser((int) $owner->id)
@@ -608,7 +644,25 @@ class SocialPublishingService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $this->assertCanQueue($lockedPost);
+            if ($retryFailedOnly && $this->retryIsAlreadyQueued($lockedPost)) {
+                return (int) $lockedPost->id;
+            }
+
+            $retryTargetIds = null;
+
+            if ($retryFailedOnly) {
+                $retryTargetIds = $this->assertCanRetry($lockedPost);
+            } else {
+                $this->assertCanQueue($lockedPost);
+
+                if (in_array((string) $lockedPost->status, [
+                    SocialPost::STATUS_FAILED,
+                    SocialPost::STATUS_PARTIAL_FAILED,
+                ], true)) {
+                    $retryTargetIds = $this->assertCanRetry($lockedPost);
+                }
+            }
+
             $lockedPost->load(['targets.socialAccountConnection']);
 
             if ($lockedPost->targets->isEmpty()) {
@@ -617,7 +671,14 @@ class SocialPublishingService
                 ]);
             }
 
+            $dispatchFailedTargetsOnly = is_array($retryTargetIds);
+
             foreach ($lockedPost->targets as $target) {
+                if ($dispatchFailedTargetsOnly
+                    && ! in_array((int) $target->id, $retryTargetIds, true)) {
+                    continue;
+                }
+
                 $connection = $target->socialAccountConnection;
 
                 if ($connection) {
@@ -651,10 +712,6 @@ class SocialPublishingService
                 $lockedPost->forceFill(['scheduled_for' => null])->save();
             }
 
-            $retryFailedOnly = in_array((string) $lockedPost->status, [
-                SocialPost::STATUS_FAILED,
-                SocialPost::STATUS_PARTIAL_FAILED,
-            ], true);
             $submissionRevision = $autopilotRule
                 ? $this->revisionService->approveByAutopilotPolicy(
                     $lockedPost,
@@ -675,7 +732,8 @@ class SocialPublishingService
             $dispatchableOutboxes = collect();
 
             foreach ($lockedPost->targets as $target) {
-                if ($retryFailedOnly && $target->status === SocialPostTarget::STATUS_PUBLISHED) {
+                if ($dispatchFailedTargetsOnly
+                    && ! in_array((int) $target->id, $retryTargetIds, true)) {
                     continue;
                 }
 
@@ -714,7 +772,7 @@ class SocialPublishingService
                     'sync_status' => SocialPost::SYNC_STATUS_PENDING,
                     'last_submitted_revision_id' => $submissionRevision->id,
                     'payload_hash' => $submissionRevision->payload_hash,
-                    'published_at' => $retryFailedOnly ? $target->published_at : null,
+                    'published_at' => $dispatchFailedTargetsOnly ? $target->published_at : null,
                     'failed_at' => null,
                     'failure_reason' => null,
                     'metadata' => array_merge((array) ($target->metadata ?? []), [
@@ -764,7 +822,7 @@ class SocialPublishingService
                 'delivery_status_source' => SocialPost::STATUS_SOURCE_DERIVED,
                 'delivery_aggregated_at' => $requestedAt,
                 'scheduled_for' => $mode === 'scheduled' ? $scheduledFor : null,
-                'published_at' => $retryFailedOnly ? $lockedPost->published_at : null,
+                'published_at' => $dispatchFailedTargetsOnly ? $lockedPost->published_at : null,
                 'failed_at' => null,
                 'failure_reason' => null,
                 'metadata' => array_merge((array) ($lockedPost->metadata ?? []), [
@@ -772,6 +830,10 @@ class SocialPublishingService
                     'publish_requested_at' => $requestedAt->toIso8601String(),
                     'publish_requested_by_user_id' => $actor->id,
                     'queued_targets_count' => $dispatchableTargets->count(),
+                    ...($retryFailedOnly ? [
+                        'retry_requested_at' => $requestedAt->toIso8601String(),
+                        'retry_requested_by_user_id' => $actor->id,
+                    ] : []),
                 ]),
             ])->save();
 
@@ -836,6 +898,65 @@ class SocialPublishingService
                 'post' => 'This Pulse post is already published. Duplicate it before posting it again.',
             ]);
         }
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function assertCanRetry(SocialPost $post): array
+    {
+        $targets = $post->targets()->lockForUpdate()->get();
+
+        if ($this->retryPolicy->hasAmbiguousOutcome($post, $targets)) {
+            throw ValidationException::withMessages([
+                'post' => 'This Pulse post has an ambiguous delivery outcome and must be reconciled before any retry.',
+            ]);
+        }
+
+        if (! in_array((string) $post->status, [
+            SocialPost::STATUS_FAILED,
+            SocialPost::STATUS_PARTIAL_FAILED,
+        ], true)) {
+            throw ValidationException::withMessages([
+                'post' => 'Only a failed or partially failed Pulse publication can be retried.',
+            ]);
+        }
+
+        $retryableTargetIds = $this->retryPolicy->retryableTargetIds(
+            $post,
+            $targets,
+            lockOutboxes: true,
+        );
+
+        if ($retryableTargetIds === []) {
+            throw ValidationException::withMessages([
+                'post' => 'This Pulse publication has no failed target that can be retried safely.',
+            ]);
+        }
+
+        return $retryableTargetIds;
+    }
+
+    private function retryIsAlreadyQueued(SocialPost $post): bool
+    {
+        return filled(data_get($post->metadata, 'retry_requested_at'))
+            && $post->targets()
+                ->where(function (Builder $query): void {
+                    $query
+                        ->whereIn('status', [
+                            SocialPostTarget::STATUS_PENDING,
+                            SocialPostTarget::STATUS_SCHEDULED,
+                            SocialPostTarget::STATUS_PUBLISHING,
+                        ])
+                        ->orWhereIn('delivery_status', [
+                            SocialPost::DELIVERY_STATUS_QUEUED,
+                            SocialPost::DELIVERY_STATUS_SUBMITTED,
+                            SocialPost::DELIVERY_STATUS_SCHEDULED,
+                            SocialPost::DELIVERY_STATUS_REMOTE_APPROVAL_REQUIRED,
+                            self::TARGET_DELIVERY_SENDING,
+                        ]);
+                })
+                ->exists();
     }
 
     private function connectionCanPublish(SocialAccountConnection $connection): bool
@@ -1343,11 +1464,13 @@ class SocialPublishingService
 
         return array_filter([
             'type' => $type,
-            'url' => $this->publicMediaUrl($url),
+            'url' => $this->publicMediaUrl($url, $asset),
             'alt_text' => trim((string) ($asset['alt_text'] ?? '')) ?: null,
             'title' => trim((string) ($asset['title'] ?? '')) ?: null,
             'thumbnail_url' => filled($asset['thumbnail_url'] ?? null)
-                ? $this->publicMediaUrl((string) $asset['thumbnail_url'])
+                ? ($type === 'document'
+                    ? $this->documentThumbnailUrlForPayload((string) $asset['thumbnail_url'])
+                    : $this->publicMediaUrl((string) $asset['thumbnail_url']))
                 : null,
             'thumbnail_offset' => isset($asset['thumbnail_offset'])
                 ? (int) $asset['thumbnail_offset']
@@ -1355,13 +1478,77 @@ class SocialPublishingService
         ], fn (mixed $value): bool => $value !== null);
     }
 
-    private function publicMediaUrl(string $value): string
+    /**
+     * @param  array<string, mixed>|null  $asset
+     */
+    private function publicMediaUrl(string $value, ?array $asset = null): string
     {
         $url = trim($value);
-
-        return preg_match('/\Ahttps?:\/\//i', $url) === 1
+        $url = preg_match('/\Ahttps?:\/\//i', $url) === 1
             ? $url
             : url('/'.ltrim($url, '/'));
+
+        $publicBaseUrl = rtrim(
+            trim((string) config('services.social.media.public_base_url')),
+            '/',
+        );
+
+        if ($publicBaseUrl === '') {
+            return $url;
+        }
+
+        $ownedUploadPath = $asset !== null
+            && (string) ($asset['source'] ?? '') === 'upload'
+            && (string) ($asset['disk'] ?? '') === 'public'
+            ? ltrim(trim((string) ($asset['path'] ?? '')), '/')
+            : '';
+
+        if ($ownedUploadPath !== '') {
+            return $publicBaseUrl.'/'.$ownedUploadPath;
+        }
+
+        $publicDiskUrl = rtrim(trim((string) config('filesystems.disks.public.url')), '/');
+
+        if ($publicDiskUrl !== '' && Str::startsWith($url, $publicDiskUrl.'/')) {
+            return $publicBaseUrl.'/'.Str::after($url, $publicDiskUrl.'/');
+        }
+
+        return $url;
+    }
+
+    private function documentThumbnailUrlForPayload(string $value): string
+    {
+        $url = trim($value);
+        $url = preg_match('/\Ahttps?:\/\//i', $url) === 1
+            ? $url
+            : url('/'.ltrim($url, '/'));
+
+        if ($this->isLegacyFirstPartyDocumentThumbnail($url)) {
+            $url = $this->mediaAssetService->documentThumbnailUrl();
+        }
+
+        return $this->publicMediaUrl($url);
+    }
+
+    private function isLegacyFirstPartyDocumentThumbnail(string $url): bool
+    {
+        $parts = parse_url($url);
+
+        if (! is_array($parts)
+            || (string) ($parts['path'] ?? '') !== '/brand/social-card.png') {
+            return false;
+        }
+
+        $host = strtolower(trim((string) ($parts['host'] ?? '')));
+        $firstPartyHosts = collect([
+            parse_url((string) config('app.url'), PHP_URL_HOST),
+            parse_url((string) config('filesystems.disks.public.url'), PHP_URL_HOST),
+        ])
+            ->filter(fn (mixed $value): bool => is_string($value) && trim($value) !== '')
+            ->map(fn (mixed $value): string => strtolower(trim((string) $value)))
+            ->unique();
+
+        return $host !== '' && $firstPartyHosts->contains($host);
     }
 
     /**

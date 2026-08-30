@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use LogicException;
 
 class SocialPostTarget extends Model
@@ -209,6 +211,18 @@ class SocialPostTarget extends Model
     public function lastSubmittedRevision(): BelongsTo
     {
         return $this->belongsTo(SocialPostRevision::class, 'last_submitted_revision_id');
+    }
+
+    public function latestCreateOutbox(): HasOne
+    {
+        return $this->hasOne(SocialDeliveryOutbox::class, 'social_post_target_id')
+            ->ofMany(
+                ['id' => 'max'],
+                fn (Builder $query): Builder => $query->where(
+                    'operation',
+                    SocialDeliveryOutbox::OPERATION_CREATE,
+                ),
+            );
     }
 
     private function assertCompleteTransportIdentity(): void

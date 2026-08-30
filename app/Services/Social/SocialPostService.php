@@ -22,40 +22,68 @@ class SocialPostService
         private readonly SocialPostQualityService $qualityService,
         private readonly SocialAiTraceService $aiTraceService,
         private readonly SocialPostRevisionService $revisionService,
+        private readonly SocialPostRetryPolicy $retryPolicy,
         private readonly SocialScheduledTimeResolver $scheduledTimeResolver,
     ) {}
 
     /**
      * @return Collection<int, SocialPost>
      */
-    public function listDraftsForOwner(User $owner, int $limit = 8): Collection
-    {
-        return SocialPost::query()
+    public function listDraftsForOwner(
+        User $owner,
+        int $limit = 8,
+        ?int $includedFailedPostId = null,
+    ): Collection {
+        $relationships = [
+            'automationRule',
+            'targets.socialAccountConnection',
+            'targets.latestCreateOutbox',
+            'latestApprovalRequest.requestedBy',
+            'latestApprovalRequest.resolvedBy',
+        ];
+        $drafts = SocialPost::query()
             ->byUser($owner->id)
             ->whereIn('status', [
                 SocialPost::STATUS_DRAFT,
                 SocialPost::STATUS_SCHEDULED,
                 SocialPost::STATUS_PENDING_APPROVAL,
             ])
-            ->with([
-                'automationRule',
-                'targets.socialAccountConnection',
-                'latestApprovalRequest.requestedBy',
-                'latestApprovalRequest.resolvedBy',
-            ])
+            ->with($relationships)
             ->orderByRaw("case status when 'draft' then 0 when 'pending_approval' then 1 when 'scheduled' then 2 else 3 end")
             ->orderByDesc('updated_at')
             ->limit($limit)
             ->get();
+
+        if ($includedFailedPostId === null || $drafts->contains('id', $includedFailedPostId)) {
+            return $drafts;
+        }
+
+        $includedPost = SocialPost::query()
+            ->byUser($owner->id)
+            ->whereKey($includedFailedPostId)
+            ->whereIn('status', [
+                SocialPost::STATUS_FAILED,
+                SocialPost::STATUS_PARTIAL_FAILED,
+            ])
+            ->with($relationships)
+            ->first();
+
+        return $includedPost instanceof SocialPost
+            ? $drafts->prepend($includedPost)
+            : $drafts;
     }
 
     /**
      * @return array<int, array<string, mixed>>
      */
-    public function draftPayloads(User $owner, int $limit = 8): array
-    {
-        return $this->listDraftsForOwner($owner, $limit)
-            ->map(fn (SocialPost $post) => $this->payload($post))
+    public function draftPayloads(
+        User $owner,
+        int $limit = 8,
+        bool $canPublish = false,
+        ?int $includedFailedPostId = null,
+    ): array {
+        return $this->listDraftsForOwner($owner, $limit, $includedFailedPostId)
+            ->map(fn (SocialPost $post) => $this->payload($post, $canPublish))
             ->values()
             ->all();
     }
@@ -71,6 +99,7 @@ class SocialPostService
             ->with([
                 'automationRule',
                 'targets.socialAccountConnection',
+                'targets.latestCreateOutbox',
                 'latestApprovalRequest.requestedBy',
                 'latestApprovalRequest.resolvedBy',
             ])
@@ -112,10 +141,14 @@ class SocialPostService
      * @param  array<string, mixed>  $filters
      * @return array<int, array<string, mixed>>
      */
-    public function historyPayloads(User $owner, array $filters = [], int $limit = 24): array
-    {
+    public function historyPayloads(
+        User $owner,
+        array $filters = [],
+        int $limit = 24,
+        bool $canPublish = false,
+    ): array {
         return $this->listHistoryForOwner($owner, $filters, $limit)
-            ->map(fn (SocialPost $post) => $this->payload($post))
+            ->map(fn (SocialPost $post) => $this->payload($post, $canPublish))
             ->values()
             ->all();
     }
@@ -123,13 +156,14 @@ class SocialPostService
     /**
      * @return array<int, array<string, mixed>>
      */
-    public function calendarPayloads(User $owner, int $limit = 140): array
+    public function calendarPayloads(User $owner, int $limit = 140, bool $canPublish = false): array
     {
         return SocialPost::query()
             ->byUser($owner->id)
             ->with([
                 'automationRule',
                 'targets.socialAccountConnection',
+                'targets.latestCreateOutbox',
                 'latestApprovalRequest.requestedBy',
                 'latestApprovalRequest.resolvedBy',
             ])
@@ -145,7 +179,7 @@ class SocialPostService
             ->latest('updated_at')
             ->limit(max(1, min(240, $limit)))
             ->get()
-            ->map(fn (SocialPost $post) => $this->calendarPayload($post))
+            ->map(fn (SocialPost $post) => $this->calendarPayload($post, $canPublish))
             ->sortBy(fn (array $payload): string => (string) ($payload['calendar_at'] ?? ''))
             ->values()
             ->all();
@@ -425,12 +459,13 @@ class SocialPostService
     /**
      * @return array<string, mixed>
      */
-    public function payload(SocialPost $post): array
+    public function payload(SocialPost $post, bool $canPublish = false): array
     {
         $post->loadMissing([
             'user',
             'automationRule',
             'targets.socialAccountConnection',
+            'targets.latestCreateOutbox',
             'latestApprovalRequest.requestedBy',
             'latestApprovalRequest.resolvedBy',
         ]);
@@ -481,6 +516,7 @@ class SocialPostService
             'published_at' => optional($post->published_at)->toIso8601String(),
             'failed_at' => optional($post->failed_at)->toIso8601String(),
             'failure_reason' => $post->failure_reason,
+            'can_retry' => $this->canRetry($post, $canPublish),
             'is_queued_publication' => $this->isQueuedPublication($post),
             'is_editable' => $this->isEditable($post),
             'selected_target_connection_ids' => $selectedTargets
@@ -569,9 +605,9 @@ class SocialPostService
     /**
      * @return array<string, mixed>
      */
-    private function calendarPayload(SocialPost $post): array
+    private function calendarPayload(SocialPost $post, bool $canPublish): array
     {
-        $payload = $this->payload($post);
+        $payload = $this->payload($post, $canPublish);
         $calendarAt = $this->calendarDateFor($post);
 
         return array_merge($payload, [
@@ -653,6 +689,26 @@ class SocialPostService
     private function isQueuedPublication(SocialPost $post): bool
     {
         return (bool) data_get($post->metadata, 'publish_requested_at');
+    }
+
+    public function canRetry(SocialPost $post, bool $canPublish): bool
+    {
+        if (! $canPublish
+            || ! in_array((string) $post->status, [
+                SocialPost::STATUS_FAILED,
+                SocialPost::STATUS_PARTIAL_FAILED,
+            ], true)
+            || (string) $post->delivery_status === SocialPost::DELIVERY_STATUS_UNKNOWN) {
+            return false;
+        }
+
+        $post->loadMissing('targets');
+
+        if ($this->retryPolicy->hasAmbiguousOutcome($post, $post->targets)) {
+            return false;
+        }
+
+        return $this->retryPolicy->retryableTargetIds($post, $post->targets) !== [];
     }
 
     private function isEditable(SocialPost $post): bool

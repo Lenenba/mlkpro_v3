@@ -2180,7 +2180,7 @@ Artisan::command(
 
         return 0;
     }
-)->purpose('Generate due Malikia Pulse automation candidates');
+)->purpose('Generate due Pulse automation candidates');
 
 Artisan::command(
     'social:dispatch-outbox {--limit=100 : Maximum number of Pulse outbox rows per pass}',
@@ -2206,7 +2206,7 @@ Artisan::command(
 
         return 0;
     },
-)->purpose('Recover leases and dispatch due Malikia Pulse outbox operations');
+)->purpose('Recover leases and dispatch due Pulse outbox operations');
 
 Artisan::command(
     'social:reconcile-buffer {--limit=100 : Maximum number of due Buffer deliveries per pass}',
@@ -2240,7 +2240,7 @@ Artisan::command(
 
         return 0;
     },
-)->purpose('Reconcile due Malikia Pulse Buffer delivery statuses');
+)->purpose('Reconcile due Pulse Buffer delivery statuses');
 
 Artisan::command(
     'pulse:buffer:inventory-legacy

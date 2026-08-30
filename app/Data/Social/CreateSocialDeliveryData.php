@@ -2,6 +2,7 @@
 
 namespace App\Data\Social;
 
+use App\Exceptions\Social\UnpublishableSocialMediaUrlException;
 use Carbon\CarbonImmutable;
 use InvalidArgumentException;
 
@@ -170,13 +171,44 @@ final readonly class CreateSocialDeliveryData
     private static function ensureHttpsUrl(string $value, string $field): void
     {
         $parts = parse_url($value);
+        $host = is_array($parts)
+            ? rtrim(strtolower(trim((string) ($parts['host'] ?? ''), '[]')), '.')
+            : '';
 
         if (! is_array($parts)
             || strtolower((string) ($parts['scheme'] ?? '')) !== 'https'
-            || trim((string) ($parts['host'] ?? '')) === '') {
+            || $host === '') {
             throw new InvalidArgumentException(
                 sprintf('The social delivery %s must be a public HTTPS URL.', $field),
             );
         }
+
+        if (self::hostIsNotPubliclyRoutable($host)) {
+            throw new UnpublishableSocialMediaUrlException(sprintf(
+                'Buffer cannot access the social delivery %s. Use a stable public HTTPS URL or configure SOCIAL_MEDIA_PUBLIC_BASE_URL for Pulse uploads.',
+                $field,
+            ));
+        }
+    }
+
+    private static function hostIsNotPubliclyRoutable(string $host): bool
+    {
+        $isIpAddress = filter_var($host, FILTER_VALIDATE_IP) !== false;
+
+        if ($host === 'localhost'
+            || (! $isIpAddress && ! str_contains($host, '.'))
+            || preg_match('/(?:\A|\.)(?:local|localhost|test|internal|intranet|invalid)\z/i', $host) === 1) {
+            return true;
+        }
+
+        if (! $isIpAddress) {
+            return false;
+        }
+
+        return filter_var(
+            $host,
+            FILTER_VALIDATE_IP,
+            FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE,
+        ) === false;
     }
 }

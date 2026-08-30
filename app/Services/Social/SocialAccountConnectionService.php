@@ -846,7 +846,7 @@ class SocialAccountConnectionService
             : $connection->user()->first();
 
         if (! $owner || ! $owner->hasCompanyFeature('social')) {
-            $message = 'Malikia Pulse is disabled for this workspace. Re-enable the social module before reconnecting this account.';
+            $message = 'Pulse is disabled for this workspace. Re-enable the social module before reconnecting this account.';
 
             $connection = $this->finalizeOauthCallback($connection, $claimMarker, [
                 'status' => SocialAccountConnection::STATUS_RECONNECT_REQUIRED,

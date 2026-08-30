@@ -49,7 +49,7 @@ class TeamMemberController extends Controller
         ['id' => 'campaigns.view', 'name' => 'View campaigns'],
         ['id' => 'campaigns.manage', 'name' => 'Create and edit campaigns'],
         ['id' => 'campaigns.send', 'name' => 'Send campaigns'],
-        ['id' => 'social.view', 'name' => 'View Malikia Pulse'],
+        ['id' => 'social.view', 'name' => 'View Pulse'],
         ['id' => 'social.manage', 'name' => 'Create and edit social posts'],
         ['id' => 'social.publish', 'name' => 'Publish and schedule social posts'],
         ['id' => 'social.approve', 'name' => 'Approve social posts'],

@@ -144,7 +144,7 @@ class SocialAutomationRunnerService
             if (! $owner->hasCompanyFeature('social')) {
                 return $this->skipRuleCycle(
                     $rule,
-                    'Malikia Pulse is disabled for this workspace.',
+                    'Pulse is disabled for this workspace.',
                     $dryRun,
                     $owner,
                     $startedAt,

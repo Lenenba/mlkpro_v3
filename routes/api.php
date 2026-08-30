@@ -508,6 +508,7 @@ Route::group([], function () {
                 Route::post('social/media', [SocialMediaLibraryController::class, 'store']);
                 Route::post('social/campaigns', [SocialCampaignController::class, 'store']);
                 Route::post('social/posts/{post}/publish', [SocialPostController::class, 'publish']);
+                Route::post('social/posts/{post}/retry', [SocialPostController::class, 'retry']);
                 Route::post('social/posts/{post}/schedule', [SocialPostController::class, 'schedule']);
                 Route::post('social/posts/{post}/submit-approval', [SocialPostController::class, 'submitApproval']);
                 Route::post('social/posts/{post}/approve', [SocialPostController::class, 'approve']);

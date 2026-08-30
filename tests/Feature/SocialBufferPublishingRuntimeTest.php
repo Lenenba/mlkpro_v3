@@ -22,6 +22,80 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia as Assert;
 
+/**
+ * @param  array<int, array<string, mixed>>  $mediaPayload
+ * @return array{owner:User,post:SocialPost,target:SocialPostTarget}
+ */
+function pulseBufferMediaPreflightFixture(array $mediaPayload): array
+{
+    config()->set('services.buffer.delivery.enabled', true);
+    config()->set('services.buffer.local_connector', [
+        'api_url' => 'https://buffer.test/graphql',
+        'connect_timeout' => 2,
+        'timeout' => 5,
+    ]);
+    config()->set('filesystems.disks.public.url', 'https://malikia.test/storage');
+
+    $owner = User::factory()->create([
+        'company_type' => 'services',
+        'company_timezone' => 'UTC',
+    ]);
+    $accountId = 'buffer-media-account-'.$owner->id;
+    $organizationId = 'buffer-media-organization-'.$owner->id;
+    $channelId = 'buffer-media-channel-'.$owner->id;
+
+    SocialBufferConnection::factory()->for($owner)->create([
+        'buffer_account_id' => $accountId,
+        'access_token' => 'buffer-media-access-token',
+        'scopes' => ['account:read', 'posts:read', 'posts:write', 'offline_access'],
+        'token_expires_at' => now()->addHour(),
+    ]);
+
+    $connection = SocialAccountConnection::query()->create([
+        'user_id' => $owner->id,
+        'platform' => SocialAccountConnection::PLATFORM_FACEBOOK,
+        'label' => 'Buffer media channel',
+        'external_account_id' => $channelId,
+        'delivery_provider' => SocialAccountConnection::DELIVERY_PROVIDER_BUFFER,
+        'transport_generation' => SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1,
+        'logical_destination_key' => 'ldk:v1:'.hash('sha256', $channelId),
+        'auth_method' => SocialAccountConnection::AUTH_METHOD_OAUTH,
+        'status' => SocialAccountConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'connected_at' => now(),
+        'metadata' => [
+            'connection_flow' => 'buffer_oauth',
+            'buffer' => [
+                'account_id' => $accountId,
+                'organization_id' => $organizationId,
+                'channel_service' => 'facebook',
+                'channel_type' => 'page',
+                'catalog_only' => false,
+                'publication_enabled' => true,
+                'standalone_destination' => true,
+            ],
+        ],
+    ]);
+    $post = SocialPost::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'content_payload' => ['text' => 'Publication Buffer avec média'],
+        'media_payload' => $mediaPayload,
+        'status' => SocialPost::STATUS_DRAFT,
+    ]);
+    $target = SocialPostTarget::query()->create([
+        'social_post_id' => $post->id,
+        'social_account_connection_id' => $connection->id,
+        'delivery_provider' => $connection->delivery_provider,
+        'transport_generation' => $connection->transport_generation,
+        'logical_destination_key' => $connection->logical_destination_key,
+        'status' => SocialPostTarget::STATUS_PENDING,
+    ]);
+
+    return compact('owner', 'post', 'target');
+}
+
 it('exposes only Buffer imports for new publishing while preserving existing legacy effects', function () {
     config()->set('services.buffer.delivery.enabled', true);
 
@@ -310,6 +384,174 @@ it('returns 422 when forged direct targets are submitted to new Pulse endpoints'
         ])
         ->assertUnprocessable()
         ->assertJsonValidationErrors('connection');
+});
+
+it('fails a local Pulse media URL before Buffer submission without creating an ambiguous outcome', function () {
+    Queue::fake([ProcessSocialDeliveryOutboxJob::class]);
+    Http::preventStrayRequests();
+    config()->set('services.social.media.public_base_url', null);
+
+    $fixture = pulseBufferMediaPreflightFixture([[
+        'type' => 'image',
+        'url' => 'https://malikia.test/storage/social/posts/76/local-image.png',
+        'source' => 'upload',
+        'disk' => 'public',
+        'path' => 'social/posts/76/local-image.png',
+        'mime_type' => 'image/png',
+    ]]);
+    $queuedPost = app(SocialPublishingService::class)->publishNow(
+        $fixture['owner'],
+        $fixture['owner'],
+        $fixture['post'],
+    );
+    $outbox = SocialDeliveryOutbox::query()
+        ->where('social_post_target_id', $fixture['target']->id)
+        ->sole();
+
+    app(SocialPublishingService::class)->handleOutboxPublication($outbox->id);
+
+    expect($outbox->fresh()->status)->toBe(SocialDeliveryOutbox::STATUS_DEAD)
+        ->and($outbox->fresh()->last_error_code)->toBe('media_url_not_public')
+        ->and($outbox->fresh()->last_error_message)->toContain('SOCIAL_MEDIA_PUBLIC_BASE_URL')
+        ->and($outbox->fresh()->request_started_at)->toBeNull()
+        ->and($fixture['target']->fresh()->delivery_status)->toBe(SocialPost::DELIVERY_STATUS_FAILED)
+        ->and($queuedPost->fresh()->delivery_status)->toBe(SocialPost::DELIVERY_STATUS_FAILED)
+        ->and($queuedPost->fresh()->delivery_status)->not->toBe(SocialPost::DELIVERY_STATUS_UNKNOWN);
+
+    Http::assertNothingSent();
+});
+
+it('does not treat the legacy document thumbnail path as a first-party image upload', function () {
+    Queue::fake([ProcessSocialDeliveryOutboxJob::class]);
+    Http::preventStrayRequests();
+    config()->set('services.social.media.public_base_url', 'https://cdn.example.com/storage');
+
+    $fixture = pulseBufferMediaPreflightFixture([[
+        'type' => 'image',
+        'url' => 'https://malikia.test/brand/social-card.png',
+        'source' => 'url',
+    ]]);
+    app(SocialPublishingService::class)->publishNow(
+        $fixture['owner'],
+        $fixture['owner'],
+        $fixture['post'],
+    );
+    $outbox = SocialDeliveryOutbox::query()
+        ->where('social_post_target_id', $fixture['target']->id)
+        ->sole();
+
+    app(SocialPublishingService::class)->handleOutboxPublication($outbox->id);
+
+    expect($outbox->fresh()->status)->toBe(SocialDeliveryOutbox::STATUS_DEAD)
+        ->and($outbox->fresh()->last_error_code)->toBe('media_url_not_public');
+    Http::assertNothingSent();
+});
+
+it('rewrites local Pulse storage media to the configured public origin and keeps external URL assets unchanged', function () {
+    Queue::fake([ProcessSocialDeliveryOutboxJob::class]);
+    Http::preventStrayRequests();
+    config()->set('services.social.media.public_base_url', 'https://cdn.example.com/storage');
+
+    $fixture = pulseBufferMediaPreflightFixture([
+        [
+            'type' => 'image',
+            'url' => 'https://malikia.test/storage/social/posts/1/local-image.png',
+            'source' => 'upload',
+            'disk' => 'public',
+            'path' => 'social/posts/1/local-image.png',
+            'mime_type' => 'image/png',
+        ],
+        [
+            'type' => 'image',
+            'url' => 'https://images.example.com/public-image.png',
+            'source' => 'url',
+        ],
+        [
+            'type' => 'video',
+            'url' => 'https://malikia.test/storage/social/posts/76/local-video.mp4',
+            'source' => 'url',
+        ],
+        [
+            'type' => 'document',
+            'url' => 'https://malikia.test/storage/social/posts/76/guide.pdf',
+            'source' => 'upload',
+            'disk' => 'public',
+            'path' => 'social/posts/76/guide.pdf',
+            'title' => 'Guide Pulse',
+            'thumbnail_url' => 'https://malikia.test/storage/social/system/document-thumbnail.png',
+        ],
+        [
+            'type' => 'document',
+            'url' => 'https://documents.example.com/legacy-guide.pdf',
+            'source' => 'url',
+            'title' => 'Ancien guide Pulse',
+            'thumbnail_url' => 'https://malikia.test/brand/social-card.png',
+        ],
+        [
+            'type' => 'document',
+            'url' => 'https://documents.example.com/external-guide.pdf',
+            'source' => 'url',
+            'title' => 'Guide externe',
+            'thumbnail_url' => 'https://external.example.com/brand/social-card.png',
+        ],
+    ]);
+    $channelId = 'buffer-media-channel-'.$fixture['owner']->id;
+    Http::fake([
+        'https://buffer.test/graphql' => Http::response([
+            'data' => [
+                'createPost' => [
+                    '__typename' => 'PostActionSuccess',
+                    'post' => [
+                        'id' => 'buffer-public-media-post',
+                        'channelId' => $channelId,
+                        'channelService' => 'facebook',
+                        'dueAt' => null,
+                        'status' => 'sending',
+                    ],
+                ],
+            ],
+        ]),
+    ]);
+    $queuedPost = app(SocialPublishingService::class)->publishNow(
+        $fixture['owner'],
+        $fixture['owner'],
+        $fixture['post'],
+    );
+    $outbox = SocialDeliveryOutbox::query()
+        ->where('social_post_target_id', $fixture['target']->id)
+        ->sole();
+
+    app(SocialPublishingService::class)->handleOutboxPublication($outbox->id);
+
+    expect($outbox->fresh()->status)->toBe(SocialDeliveryOutbox::STATUS_COMPLETED)
+        ->and($queuedPost->fresh()->delivery_status)->not->toBe(SocialPost::DELIVERY_STATUS_UNKNOWN);
+
+    Http::assertSent(function (Request $request) use ($channelId): bool {
+        $input = (array) data_get($request->data(), 'variables.input', []);
+
+        return data_get($input, 'channelId') === $channelId
+            && data_get($input, 'assets') === [
+                ['image' => ['url' => 'https://cdn.example.com/storage/social/posts/1/local-image.png']],
+                ['image' => ['url' => 'https://images.example.com/public-image.png']],
+                ['video' => ['url' => 'https://cdn.example.com/storage/social/posts/76/local-video.mp4']],
+                ['document' => [
+                    'thumbnailUrl' => 'https://cdn.example.com/storage/social/system/document-thumbnail.png',
+                    'title' => 'Guide Pulse',
+                    'url' => 'https://cdn.example.com/storage/social/posts/76/guide.pdf',
+                ]],
+                ['document' => [
+                    'thumbnailUrl' => 'https://cdn.example.com/storage/social/system/document-thumbnail.png',
+                    'title' => 'Ancien guide Pulse',
+                    'url' => 'https://documents.example.com/legacy-guide.pdf',
+                ]],
+                ['document' => [
+                    'thumbnailUrl' => 'https://external.example.com/brand/social-card.png',
+                    'title' => 'Guide externe',
+                    'url' => 'https://documents.example.com/external-guide.pdf',
+                ]],
+            ];
+    });
+    Http::assertSentCount(1);
 });
 
 it('submits a standalone Buffer Facebook target through the outbox without marking it published', function () {

@@ -13,6 +13,7 @@ use App\Services\Social\Contracts\SocialDistributionGatewayInterface;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 use JsonException;
@@ -131,7 +132,7 @@ final class BufferDistributionGateway implements SocialDistributionGatewayInterf
             && $this->hasNoGraphqlErrors($payload)
             && $rejectionType !== null) {
             throw new DefinitiveSocialPublishingRejectionException(
-                sprintf('Buffer rejected the social delivery (%s).', $rejectionType),
+                $this->definitiveRejectionMessage($payload, $rejectionType),
             );
         }
 
@@ -409,6 +410,33 @@ final class BufferDistributionGateway implements SocialDistributionGatewayInterf
             && in_array($responseType, self::DEFINITIVE_REJECTION_TYPES, true)
                 ? $responseType
                 : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function definitiveRejectionMessage(array $payload, string $rejectionType): string
+    {
+        $providerMessage = Str::lower(trim((string) data_get(
+            $payload,
+            'data.createPost.message',
+        )));
+
+        if (Str::contains($providerMessage, [
+            'asset',
+            'fetch image',
+            'fetch video',
+            'image dimension',
+            'media url',
+            'thumbnail',
+        ])) {
+            return sprintf(
+                'Buffer could not access the media URL (%s). Use a stable public HTTPS URL or configure SOCIAL_MEDIA_PUBLIC_BASE_URL for Pulse uploads.',
+                $rejectionType,
+            );
+        }
+
+        return sprintf('Buffer rejected the social delivery (%s).', $rejectionType);
     }
 
     /**

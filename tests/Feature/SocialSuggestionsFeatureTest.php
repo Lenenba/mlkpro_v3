@@ -133,7 +133,9 @@ it('builds pulse suggestions from draft text without a linked source', function 
         ->assertJsonCount(3, 'suggestions.ctas');
 
     expect((string) $response->json('suggestions.captions.0.text'))->toContain('North Retail')
-        ->and($response->json('suggestions.hashtags'))->toContain('#Retail');
+        ->and($response->json('suggestions.hashtags'))->toContain('#Retail')
+        ->and($response->json('suggestions.hashtags'))->toContain('#Pulse')
+        ->and($response->json('suggestions.hashtags'))->not->toContain('#MalikiaPulse');
 });
 
 it('allows read only team members to load suggestions but blocks unauthorized members', function () {

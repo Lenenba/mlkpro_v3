@@ -50,6 +50,7 @@ const selectedDayKey = ref('');
 const activePostId = ref(null);
 const rescheduleInputs = ref({});
 const busyPostId = ref(null);
+const retryingPostId = ref(null);
 const isLoading = ref(false);
 const error = ref('');
 const info = ref('');
@@ -345,6 +346,29 @@ const reschedulePost = async (post, clearSchedule = false) => {
         error.value = requestErrorMessage(requestError, t('social.calendar_manager.messages.reschedule_error'));
     } finally {
         busyPostId.value = null;
+    }
+};
+
+const retryPost = async (post) => {
+    if (!post?.can_retry) {
+        return;
+    }
+
+    busyPostId.value = post.id;
+    retryingPostId.value = post.id;
+    error.value = '';
+    info.value = '';
+
+    try {
+        const response = await axios.post(route('social.posts.retry', post.id));
+
+        refreshFromPayload(response.data);
+        info.value = String(response.data?.message || t('social.calendar_manager.messages.retry_success'));
+    } catch (requestError) {
+        error.value = requestErrorMessage(requestError, t('social.calendar_manager.messages.retry_error'));
+    } finally {
+        busyPostId.value = null;
+        retryingPostId.value = null;
     }
 };
 
@@ -667,6 +691,20 @@ const dayPostLimit = computed(() => viewMode.value === 'month' ? 3 : 5);
                     </dl>
 
                     <div
+                        v-if="activePost.failure_reason"
+                        role="status"
+                        aria-live="polite"
+                        class="mt-4 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200"
+                    >
+                        <div class="font-semibold">
+                            {{ t('social.delivery_axes.failure_reason_label') }}
+                        </div>
+                        <div class="mt-1 break-words">
+                            {{ activePost.failure_reason }}
+                        </div>
+                    </div>
+
+                    <div
                         v-if="deliveryVerificationRequired"
                         role="alert"
                         aria-live="assertive"
@@ -681,6 +719,16 @@ const dayPostLimit = computed(() => viewMode.value === 'month' ? 3 : 5);
                     </div>
 
                     <div class="mt-4 flex flex-wrap gap-2">
+                        <PrimaryButton
+                            v-if="activePost.can_retry"
+                            type="button"
+                            :disabled="busyPostId === activePost.id || isLoading"
+                            @click="retryPost(activePost)"
+                        >
+                            {{ retryingPostId === activePost.id
+                                ? t('social.calendar_manager.actions.retrying_post')
+                                : t('social.calendar_manager.actions.retry_post') }}
+                        </PrimaryButton>
                         <SecondaryButton type="button" @click="openComposer(activePost)">
                             {{ t('social.calendar_manager.actions.open_composer') }}
                         </SecondaryButton>

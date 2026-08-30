@@ -14,10 +14,13 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
+use RuntimeException;
 use Throwable;
 
 class SocialMediaAssetService
 {
+    private const DOCUMENT_THUMBNAIL_PATH = 'social/system/document-thumbnail.png';
+
     /**
      * @return array<string, mixed>
      */
@@ -64,7 +67,7 @@ class SocialMediaAssetService
                     ? $this->documentTitleForName($name)
                     : null,
                 'thumbnail_url' => $mediaType === 'document'
-                    ? url('/brand/social-card.png')
+                    ? $this->documentThumbnailUrl()
                     : null,
             ], fn (mixed $value): bool => $value !== null && $value !== '');
         } catch (Throwable $exception) {
@@ -713,8 +716,24 @@ class SocialMediaAssetService
             'title' => $type === 'document'
                 ? ((string) ($presentation['title'] ?? '') ?: $this->documentTitleForName($name))
                 : ($presentation['title'] ?? null),
-            'thumbnail_url' => $type === 'document' ? url('/brand/social-card.png') : null,
+            'thumbnail_url' => $type === 'document' ? $this->documentThumbnailUrl() : null,
         ], fn (mixed $value): bool => $value !== null && $value !== '');
+    }
+
+    public function documentThumbnailUrl(): string
+    {
+        $disk = Storage::disk('public');
+
+        if (! $disk->exists(self::DOCUMENT_THUMBNAIL_PATH)) {
+            $contents = file_get_contents(public_path('brand/social-card.png'));
+
+            if (! is_string($contents)
+                || ! $disk->put(self::DOCUMENT_THUMBNAIL_PATH, $contents)) {
+                throw new RuntimeException('The Pulse document thumbnail could not be stored.');
+            }
+        }
+
+        return $disk->url(self::DOCUMENT_THUMBNAIL_PATH);
     }
 
     /**

@@ -1,7 +1,7 @@
 {
   "social": {
     "workspace": {
-      "eyebrow": "Malikia Pulse",
+      "eyebrow": "Pulse",
       "actions": {
         "back_to_growth": "Back to growth hub"
       },
@@ -26,7 +26,7 @@
     },
     "visual_preview": {
       "generic_platform": "Pulse",
-      "generic_account": "Malikia Pulse",
+      "generic_account": "Pulse",
       "generic_meta": "Social preview",
       "empty_text": "The post text will appear here.",
       "image_alt": "Pulse post preview image",
@@ -65,6 +65,7 @@
     },
     "delivery_axes": {
       "summary_label": "Editorial and delivery status",
+      "failure_reason_label": "Failure reason",
       "labels": {
         "editorial": "Editorial",
         "delivery": "Delivery",
@@ -105,8 +106,8 @@
       }
     },
     "index_page": {
-      "head_title": "Malikia Pulse workspace",
-      "page_title": "Malikia Pulse workspace",
+      "head_title": "Pulse workspace",
+      "page_title": "Pulse workspace",
       "page_description": "Move from connected accounts to the first publish-ready drafts without leaving the module.",
       "read_only_title": "Read-only Pulse access",
       "read_only_description": "You can review accounts and existing drafts, but only authorized users can change content right now.",
@@ -144,45 +145,45 @@
       "empty_value": "Not available"
     },
     "accounts_page": {
-      "head_title": "Malikia Pulse accounts",
-      "page_title": "Malikia Pulse accounts",
-      "page_description": "Prepare, connect, and monitor the social accounts that Malikia Pulse will use for multi-network publishing.",
+      "head_title": "Pulse accounts",
+      "page_title": "Pulse accounts",
+      "page_description": "Prepare, connect, and monitor the social accounts that Pulse will use for multi-network publishing.",
       "actions": {
         "back_to_growth": "Back to growth hub"
       }
     },
     "composer_page": {
-      "head_title": "Malikia Pulse composer",
-      "page_title": "Malikia Pulse composer",
+      "head_title": "Pulse composer",
+      "page_title": "Pulse composer",
       "page_description": "Create, publish, or schedule a simple Pulse post with text, image, link, schedule, and target account selection."
     },
     "templates_page": {
-      "head_title": "Malikia Pulse templates",
-      "page_title": "Malikia Pulse templates",
+      "head_title": "Pulse templates",
+      "page_title": "Pulse templates",
       "page_description": "Keep reusable post structures, remember the right target accounts, and reload them directly inside the composer."
     },
     "history_page": {
-      "head_title": "Malikia Pulse history",
-      "page_title": "Malikia Pulse history",
+      "head_title": "Pulse history",
+      "page_title": "Pulse history",
       "page_description": "Review recent Pulse posts, filter the history, duplicate working content, and reopen published posts as editable reposts."
     },
     "calendar_page": {
-      "head_title": "Malikia Pulse calendar",
+      "head_title": "Pulse calendar",
       "page_title": "Pulse editorial calendar",
       "page_description": "Plan the week, spot approvals, and keep publications visible without making the workspace heavy."
     },
     "brand_voice_page": {
-      "head_title": "Malikia Pulse voice",
+      "head_title": "Pulse voice",
       "page_title": "Pulse brand voice",
       "page_description": "Keep Autopilot posts aligned with your tone, CTAs, and hashtags without adding clutter."
     },
     "media_page": {
-      "head_title": "Malikia Pulse media",
+      "head_title": "Pulse media",
       "page_title": "Pulse media library",
       "page_description": "Find imported, generated, or already used images, then reuse them in a draft."
     },
     "campaigns_page": {
-      "head_title": "Malikia Pulse campaigns",
+      "head_title": "Pulse campaigns",
       "page_title": "Pulse campaign mode",
       "page_description": "Turn one intention into several planned drafts, then adjust every post before approval."
     },
@@ -257,6 +258,8 @@
         "update_draft": "Save changes",
         "save_as_template": "Save as template",
         "submit_for_approval": "Submit for approval",
+        "retry_post": "Try again",
+        "retrying_post": "Trying again...",
         "publish_now": "Publish now",
         "schedule_post": "Schedule post",
         "approve_post": "Approve and publish",
@@ -274,7 +277,7 @@
         "append_hashtags": "Add hashtags",
         "append_cta": "Add this CTA",
         "add_hashtag": "Add hashtag",
-        "publish_with_pulse": "Publish with Malikia Pulse"
+        "publish_with_pulse": "Publish with Pulse"
       },
       "statuses": {
         "draft": "Draft",
@@ -316,6 +319,8 @@
         "approve_success": "The Pulse request was approved.",
         "reject_error": "The Pulse request could not be rejected.",
         "reject_success": "The Pulse request was rejected.",
+        "retry_error": "The Pulse publication could not be retried.",
+        "retry_success": "The Pulse publication has been queued again.",
         "publish_error": "The Pulse post could not be queued for publishing.",
         "publish_success": "The Pulse post has been queued for publishing.",
         "schedule_error": "The Pulse post could not be scheduled.",
@@ -404,6 +409,8 @@
         "reload": "Reload",
         "apply_filters": "Apply filters",
         "reset_filters": "Reset filters",
+        "retry_post": "Try again",
+        "retrying_post": "Trying again...",
         "edit_draft": "Edit draft",
         "approve_post": "Approve",
         "reject_post": "Reject",
@@ -420,6 +427,8 @@
         "approve_success": "The Pulse request was approved from history.",
         "reject_error": "The Pulse request could not be rejected from history.",
         "reject_success": "The Pulse request was rejected from history.",
+        "retry_error": "The Pulse publication could not be retried.",
+        "retry_success": "The Pulse publication has been queued again.",
         "duplicate_error": "This Pulse post could not be duplicated.",
         "duplicate_success": "The Pulse post has been duplicated.",
         "repost_error": "This Pulse post could not be reopened as a repost.",
@@ -518,12 +527,16 @@
         "week": "Week",
         "month": "Month",
         "reload": "Reload",
+        "retry_post": "Try again",
+        "retrying_post": "Trying again...",
         "open_composer": "Open composer",
         "reschedule": "Reschedule",
         "clear_schedule": "Remove date"
       },
       "messages": {
         "load_error": "The Pulse calendar could not be refreshed.",
+        "retry_error": "The Pulse publication could not be retried.",
+        "retry_success": "The Pulse publication has been queued again.",
         "reschedule_error": "The Pulse post could not be rescheduled.",
         "reschedule_success": "The Pulse post was rescheduled."
       },
@@ -868,7 +881,7 @@
       "empty_value": "Not available"
     },
     "accounts_manager": {
-      "hero_eyebrow": "Malikia Pulse",
+      "hero_eyebrow": "Pulse",
       "title": "Connect your networks",
       "description": "Choose a network, start authentication, then quickly confirm the connection is ready to publish.",
       "directory_hint": "One click on a platform is enough to start the connection flow.",

@@ -16,10 +16,12 @@ use App\Services\Social\Contracts\PlatformPublisherInterface;
 use App\Services\Social\Providers\LinkedInPagePlatformPublisher;
 use App\Services\Social\SocialDeliveryOutboxService;
 use App\Services\Social\SocialPostRevisionService;
+use App\Services\Social\SocialPostService;
 use App\Services\Social\SocialProviderRegistry;
 use App\Services\Social\SocialPublishingService;
 use App\Support\QueueWorkload;
 use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
@@ -353,6 +355,17 @@ it('queues immediate pulse publication and marks all targets as published after 
 
     Queue::assertPushed(ProcessSocialDeliveryOutboxJob::class, 2);
 
+    $this->actingAs($owner)
+        ->postJson(route('social.posts.retry', $draft))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('post')
+        ->assertJsonPath(
+            'errors.post.0',
+            'Only a failed or partially failed Pulse publication can be retried.',
+        );
+
+    Queue::assertPushed(ProcessSocialDeliveryOutboxJob::class, 2);
+
     $targets = SocialPostTarget::query()
         ->where('social_post_id', $draft->id)
         ->orderBy('id')
@@ -392,6 +405,13 @@ it('queues immediate pulse publication and marks all targets as published after 
                 && $target->last_synced_at !== null
                 && $target->next_reconcile_at === null,
         ))->toBeTrue();
+
+    $this->actingAs($owner)
+        ->postJson(route('social.posts.retry', $draft))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('post');
+
+    Queue::assertPushed(ProcessSocialDeliveryOutboxJob::class, 2);
 });
 
 it('queues scheduled pulse publication with a delayed job per target', function () {
@@ -733,6 +753,277 @@ it('reports a partial failure when only some pulse targets publish successfully'
         ->and($facebookTarget?->status)->toBe(SocialPostTarget::STATUS_PUBLISHED)
         ->and($linkedinTarget?->status)->toBe(SocialPostTarget::STATUS_FAILED)
         ->and((string) $linkedinTarget?->failure_reason)->toContain('rejected this Pulse publication');
+
+    $this->actingAs($owner)
+        ->getJson(route('social.calendar'))
+        ->assertOk()
+        ->assertJsonPath('calendar_posts.0.can_retry', true);
+
+    $viewer = pulsePublishingTeamMember($owner, ['social.view']);
+    $this->actingAs($viewer)
+        ->getJson(route('social.calendar'))
+        ->assertOk()
+        ->assertJsonPath('calendar_posts.0.can_retry', false);
+
+    $publishedTargetAttributes = $facebookTarget?->fresh()->getAttributes();
+    $failedOutbox = SocialDeliveryOutbox::query()
+        ->where('social_post_target_id', $linkedinTarget?->id)
+        ->where('status', SocialDeliveryOutbox::STATUS_DEAD)
+        ->sole();
+
+    pulsePublishingBindRegistry();
+
+    $this->actingAs($owner)
+        ->postJson(route('social.posts.retry', $draft))
+        ->assertStatus(202)
+        ->assertJsonPath('draft.status', SocialPost::STATUS_PUBLISHING)
+        ->assertJsonPath('draft.can_retry', false)
+        ->assertJsonPath('calendar_posts.0.can_retry', false)
+        ->assertJsonPath('posts.0.can_retry', false);
+
+    Queue::assertPushed(ProcessSocialDeliveryOutboxJob::class, 3);
+
+    $retryOutbox = SocialDeliveryOutbox::query()
+        ->where('social_post_target_id', $linkedinTarget?->id)
+        ->orderByDesc('recovery_generation')
+        ->firstOrFail();
+
+    expect($retryOutbox->recovery_generation)->toBe(1)
+        ->and($retryOutbox->supersedes_outbox_id)->toBe($failedOutbox->id)
+        ->and($facebookTarget?->fresh()->getAttributes())->toBe($publishedTargetAttributes)
+        ->and(SocialDeliveryOutbox::query()
+            ->where('social_post_target_id', $facebookTarget?->id)
+            ->count())->toBe(1);
+
+    $this->actingAs($owner)
+        ->postJson(route('social.posts.retry', $draft))
+        ->assertStatus(202)
+        ->assertJsonPath('draft.status', SocialPost::STATUS_PUBLISHING);
+
+    Queue::assertPushed(ProcessSocialDeliveryOutboxJob::class, 3);
+    expect(SocialDeliveryOutbox::query()
+        ->where('social_post_target_id', $linkedinTarget?->id)
+        ->count())->toBe(2);
+
+    app(SocialPublishingService::class)->handleOutboxPublication($retryOutbox->id);
+
+    expect($draft->fresh()->status)->toBe(SocialPost::STATUS_PUBLISHED)
+        ->and(app(SocialPostService::class)->payload($draft->fresh(), true)['can_retry'])->toBeFalse();
+});
+
+it('hides retry when the failed target outbox is not safely recoverable', function (string $outboxStatus) {
+    Queue::fake();
+    pulsePublishingBindRegistry();
+
+    $owner = pulsePublishingOwner();
+    $connection = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
+    $draft = pulsePublishingDraft($owner, $owner, [$connection]);
+
+    $this->actingAs($owner)
+        ->postJson(route('social.posts.publish', $draft))
+        ->assertStatus(202);
+
+    $target = $draft->fresh('targets')->targets->sole();
+    $outbox = SocialDeliveryOutbox::query()
+        ->where('social_post_target_id', $target->id)
+        ->sole();
+    $observedAt = now();
+
+    $outbox->forceFill([
+        'status' => $outboxStatus,
+        'attempts' => 1,
+        'request_started_at' => $observedAt->copy()->subMinute(),
+        'submitted_at' => $observedAt->copy()->subMinute(),
+        'processed_at' => $observedAt,
+        'provider_post_id' => 'buffer-definitive-error-'.$outbox->id,
+        'reconciliation_resolved_at' => $observedAt,
+        'reconciliation_observed_at' => $observedAt,
+        'reconciliation_resolution' => SocialDeliveryOutbox::RECONCILIATION_RESOLUTION_ERROR,
+        'reconciliation_resolution_source' => SocialDeliveryOutbox::RECONCILIATION_SOURCE_STATUS_READ,
+    ])->save();
+    $newerNonCreateOutbox = SocialDeliveryOutbox::query()->create([
+        'user_id' => $outbox->user_id,
+        'social_post_target_id' => $outbox->social_post_target_id,
+        'social_post_revision_id' => $outbox->social_post_revision_id,
+        'social_provider_connection_id' => $outbox->social_provider_connection_id,
+        'operation' => SocialDeliveryOutbox::OPERATION_UPDATE,
+        'delivery_provider' => $outbox->delivery_provider,
+        'transport_generation' => $outbox->transport_generation,
+        'logical_destination_key' => $outbox->logical_destination_key,
+        'external_organization_id_snapshot' => $outbox->external_organization_id_snapshot,
+        'external_channel_id_snapshot' => $outbox->external_channel_id_snapshot,
+        'editorial_revision' => $outbox->editorial_revision,
+        'recovery_generation' => 0,
+        'idempotency_key' => hash('sha256', 'newer-update-'.$outbox->id),
+        'correlation_key' => hash('sha256', 'newer-update-correlation-'.$outbox->id),
+        'payload_hash' => $outbox->payload_hash,
+        'payload' => $outbox->payload,
+        'status' => SocialDeliveryOutbox::STATUS_DEAD,
+        'attempts' => 0,
+        'available_at' => $observedAt,
+        'processed_at' => $observedAt,
+        'last_error_category' => 'validation',
+        'last_error_code' => 'update_failed_without_effect',
+        'last_error_message' => 'A later non-create operation failed.',
+    ]);
+    $target->fresh()->forceFill([
+        'status' => SocialPostTarget::STATUS_FAILED,
+        'delivery_status' => SocialPost::DELIVERY_STATUS_FAILED,
+        'sync_status' => SocialPost::SYNC_STATUS_ERROR,
+        'provider_post_id' => 'buffer-definitive-error-'.$outbox->id,
+        'failed_at' => $observedAt,
+        'failure_reason' => 'The remote delivery failed definitively.',
+    ])->save();
+    $draft->fresh()->forceFill([
+        'status' => SocialPost::STATUS_FAILED,
+        'delivery_status' => SocialPost::DELIVERY_STATUS_FAILED,
+        'sync_status' => SocialPost::SYNC_STATUS_ERROR,
+        'failed_at' => $observedAt,
+        'failure_reason' => 'The remote delivery failed definitively.',
+    ])->save();
+
+    expect($newerNonCreateOutbox->id)->toBeGreaterThan($outbox->id)
+        ->and(app(SocialPostService::class)->payload($draft->fresh(), true)['can_retry'])->toBeFalse();
+
+    $this->actingAs($owner)
+        ->postJson(route('social.posts.retry', $draft))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('post')
+        ->assertJsonPath(
+            'errors.post.0',
+            'This Pulse publication has no failed target that can be retried safely.',
+        );
+
+    Queue::assertPushed(ProcessSocialDeliveryOutboxJob::class, 1);
+    expect(SocialDeliveryOutbox::query()->count())->toBe(2)
+        ->and(SocialDeliveryOutbox::query()
+            ->where('operation', SocialDeliveryOutbox::OPERATION_CREATE)
+            ->count())->toBe(1);
+})->with([
+    'completed then reconciled as remote error' => SocialDeliveryOutbox::STATUS_COMPLETED,
+    'unknown then resolved as remote error' => SocialDeliveryOutbox::STATUS_UNKNOWN,
+]);
+
+it('retries only recoverable failed targets when another failed target is unsafe', function () {
+    Queue::fake();
+    pulsePublishingBindRegistry();
+
+    $owner = pulsePublishingOwner();
+    $facebook = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
+    $linkedin = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_LINKEDIN);
+    $draft = pulsePublishingDraft($owner, $owner, [$facebook, $linkedin]);
+
+    $this->actingAs($owner)
+        ->postJson(route('social.posts.publish', $draft))
+        ->assertStatus(202);
+
+    $targets = $draft->fresh('targets')->targets->sortBy('id')->values();
+    $recoverableTarget = $targets->firstOrFail();
+    $unsafeTarget = $targets->last();
+    $recoverableOutbox = SocialDeliveryOutbox::query()
+        ->where('social_post_target_id', $recoverableTarget->id)
+        ->sole();
+    $unsafeOutbox = SocialDeliveryOutbox::query()
+        ->where('social_post_target_id', $unsafeTarget->id)
+        ->sole();
+    $observedAt = now();
+
+    $recoverableOutbox->forceFill([
+        'status' => SocialDeliveryOutbox::STATUS_DEAD,
+        'attempts' => 1,
+        'processed_at' => $observedAt,
+        'last_error_category' => 'validation',
+        'last_error_code' => 'provider_rejected_without_effect',
+        'last_error_message' => 'The provider rejected this delivery.',
+    ])->save();
+    $unsafeOutbox->forceFill([
+        'status' => SocialDeliveryOutbox::STATUS_COMPLETED,
+        'attempts' => 1,
+        'request_started_at' => $observedAt->copy()->subMinute(),
+        'submitted_at' => $observedAt->copy()->subMinute(),
+        'processed_at' => $observedAt,
+        'provider_post_id' => 'buffer-unsafe-'.$unsafeOutbox->id,
+        'reconciliation_resolved_at' => $observedAt,
+        'reconciliation_observed_at' => $observedAt,
+        'reconciliation_resolution' => SocialDeliveryOutbox::RECONCILIATION_RESOLUTION_ERROR,
+        'reconciliation_resolution_source' => SocialDeliveryOutbox::RECONCILIATION_SOURCE_STATUS_READ,
+    ])->save();
+
+    foreach ($targets as $target) {
+        $target->forceFill([
+            'status' => SocialPostTarget::STATUS_FAILED,
+            'delivery_status' => SocialPost::DELIVERY_STATUS_FAILED,
+            'sync_status' => SocialPost::SYNC_STATUS_ERROR,
+            'failed_at' => $observedAt,
+            'failure_reason' => 'The target failed.',
+            ...((int) $target->id === (int) $unsafeTarget->id ? [
+                'provider_post_id' => 'buffer-unsafe-'.$unsafeOutbox->id,
+            ] : []),
+        ])->save();
+    }
+    $draft->fresh()->forceFill([
+        'status' => SocialPost::STATUS_FAILED,
+        'delivery_status' => SocialPost::DELIVERY_STATUS_FAILED,
+        'sync_status' => SocialPost::SYNC_STATUS_ERROR,
+        'failed_at' => $observedAt,
+        'failure_reason' => 'Both targets failed.',
+    ])->save();
+
+    expect(app(SocialPostService::class)->payload($draft->fresh(), true)['can_retry'])->toBeTrue();
+
+    $this->actingAs($owner)
+        ->postJson(route('social.posts.retry', $draft))
+        ->assertStatus(202)
+        ->assertJsonPath('draft.can_retry', false);
+
+    $retryOutbox = SocialDeliveryOutbox::query()
+        ->where('social_post_target_id', $recoverableTarget->id)
+        ->orderByDesc('recovery_generation')
+        ->firstOrFail();
+
+    expect($retryOutbox->recovery_generation)->toBe(1)
+        ->and($retryOutbox->supersedes_outbox_id)->toBe($recoverableOutbox->id)
+        ->and(SocialDeliveryOutbox::query()
+            ->where('social_post_target_id', $unsafeTarget->id)
+            ->count())->toBe(1);
+
+    $this->actingAs($owner)
+        ->postJson(route('social.posts.retry', $draft))
+        ->assertStatus(202);
+
+    Queue::assertPushed(ProcessSocialDeliveryOutboxJob::class, 3);
+    expect(SocialDeliveryOutbox::query()->count())->toBe(3);
+});
+
+it('loads retry eligibility for the Pulse calendar without an outbox query per post', function () {
+    $owner = pulsePublishingOwner();
+    $connection = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
+
+    foreach (range(1, 5) as $index) {
+        $post = pulsePublishingDraft($owner, $owner, [$connection], [
+            'text' => 'Failed publication '.$index,
+        ]);
+        $post->forceFill([
+            'status' => SocialPost::STATUS_FAILED,
+        ])->save();
+        $post->targets()->update([
+            'status' => SocialPostTarget::STATUS_FAILED,
+        ]);
+    }
+
+    $queries = [];
+    DB::listen(function (QueryExecuted $query) use (&$queries): void {
+        $queries[] = $query->sql;
+    });
+
+    $response = $this->actingAs($owner)->getJson(route('social.calendar'));
+    $outboxQueries = collect($queries)
+        ->filter(fn (string $sql): bool => str_contains($sql, 'social_delivery_outbox'));
+
+    $response->assertOk()
+        ->assertJsonCount(5, 'calendar_posts')
+        ->assertJsonPath('calendar_posts.0.can_retry', true);
+    expect($outboxQueries)->toHaveCount(1);
 });
 
 it('fails closed to unknown when any provider-neutral target delivery is ambiguous', function () {
@@ -772,6 +1063,17 @@ it('fails closed to unknown when any provider-neutral target delivery is ambiguo
         ->and($aggregatedPost->status)->toBe(SocialPost::STATUS_FAILED)
         ->and($publishers[SocialAccountConnection::PLATFORM_FACEBOOK]->publishCalls)->toBe(0)
         ->and($publishers[SocialAccountConnection::PLATFORM_LINKEDIN]->publishCalls)->toBe(0);
+
+    $this->actingAs($owner)
+        ->postJson(route('social.posts.retry', $queuedPost))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('post')
+        ->assertJsonPath(
+            'errors.post.0',
+            'This Pulse post has an ambiguous delivery outcome and must be reconciled before any retry.',
+        );
+
+    expect(app(SocialPostService::class)->payload($aggregatedPost, true)['can_retry'])->toBeFalse();
 });
 
 it('derives partial failed delivery and error sync independently of providers', function () {
@@ -1406,7 +1708,29 @@ it('requires social approve in addition to social publish for direct pulse publi
     Queue::assertPushed(ProcessSocialDeliveryOutboxJob::class);
 });
 
-it('blocks pulse publish and schedule routes when the social feature is disabled', function () {
+it('forbids retry without publish permission and hides posts from another Pulse workspace', function () {
+    Queue::fake([ProcessSocialDeliveryOutboxJob::class]);
+
+    $owner = pulsePublishingOwner();
+    $foreignOwner = pulsePublishingOwner();
+    $manager = pulsePublishingTeamMember($owner, ['social.manage']);
+    $connection = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
+    $draft = pulsePublishingDraft($owner, $owner, [$connection]);
+
+    $this->actingAs($manager)
+        ->postJson(route('social.posts.retry', $draft))
+        ->assertForbidden();
+
+    $this->actingAs($foreignOwner)
+        ->postJson(route('social.posts.retry', $draft))
+        ->assertNotFound();
+
+    Queue::assertNothingPushed();
+    expect(SocialDeliveryOutbox::query()->count())->toBe(0);
+});
+
+it('blocks pulse publish schedule and retry routes when the social feature is disabled', function () {
+    Queue::fake([ProcessSocialDeliveryOutboxJob::class]);
     pulsePublishingBindRegistry();
 
     $owner = pulsePublishingOwner([
@@ -1426,4 +1750,11 @@ it('blocks pulse publish and schedule routes when the social feature is disabled
     $this->actingAs($owner)
         ->postJson(route('social.posts.schedule', $draft))
         ->assertForbidden();
+
+    $this->actingAs($owner)
+        ->postJson(route('social.posts.retry', $draft))
+        ->assertForbidden();
+
+    Queue::assertNothingPushed();
+    expect(SocialDeliveryOutbox::query()->count())->toBe(0);
 });

@@ -16,6 +16,7 @@ use App\Services\Social\SocialPublishingService;
 use App\Services\Social\SocialSuggestionService;
 use App\Services\Social\SocialTemplateService;
 use Closure;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\Rule;
@@ -67,7 +68,11 @@ class SocialPostController extends Controller
                     ->count(),
             ],
             'workspace_stats' => $this->workspaceStats($connectionSummary, $postSummary),
-            'recent_drafts' => $this->postService->draftPayloads($access['owner'], 3),
+            'recent_drafts' => $this->postService->draftPayloads(
+                $access['owner'],
+                3,
+                $access['can_publish'],
+            ),
             'access' => $this->accessPayload($access),
         ]);
     }
@@ -83,10 +88,19 @@ class SocialPostController extends Controller
         $postSummary = $this->postService->summaryForOwner($access['owner']);
         $initialMediaUrl = $this->normalizeUrlInputValue($request->query('image_url'));
         $initialMediaUrl = $this->isValidImageReference($initialMediaUrl) ? $initialMediaUrl : null;
+        $requestedDraftId = $request->integer('draft') ?: null;
+        $drafts = $this->postService->draftPayloads(
+            $access['owner'],
+            canPublish: $access['can_publish'],
+            includedFailedPostId: $requestedDraftId,
+        );
+        $selectedDraftId = collect($drafts)->contains(
+            fn (array $draft): bool => (int) ($draft['id'] ?? 0) === $requestedDraftId,
+        ) ? $requestedDraftId : null;
 
         return $this->inertiaOrJson('Social/Composer', [
             'connected_accounts' => $this->postService->connectedAccountOptions($access['owner']),
-            'drafts' => $this->postService->draftPayloads($access['owner']),
+            'drafts' => $drafts,
             'templates' => $this->templateService->templatePayloads($access['owner']),
             'media_assets' => $this->mediaAssetPayloads($access['owner']),
             'prefill' => $this->prefillService->resolveComposerPrefill($access['owner'], $request->only([
@@ -95,7 +109,7 @@ class SocialPostController extends Controller
             ])),
             'summary' => $postSummary,
             'workspace_stats' => $this->workspaceStats($connectionSummary, $postSummary),
-            'selected_draft_id' => $request->integer('draft') ?: null,
+            'selected_draft_id' => $selectedDraftId,
             'selected_template_id' => $request->integer('template') ?: null,
             'initial_media_url' => $initialMediaUrl,
             'brand_voice' => $this->brandVoiceService->resolve($access['owner']),
@@ -135,7 +149,10 @@ class SocialPostController extends Controller
         $postSummary = $this->postService->summaryForOwner($access['owner']);
 
         return $this->inertiaOrJson('Social/Calendar', [
-            'calendar_posts' => $this->postService->calendarPayloads($access['owner']),
+            'calendar_posts' => $this->postService->calendarPayloads(
+                $access['owner'],
+                canPublish: $access['can_publish'],
+            ),
             'summary' => $postSummary,
             'workspace_stats' => $this->workspaceStats($connectionSummary, $postSummary),
             'access' => $this->accessPayload($access),
@@ -159,7 +176,11 @@ class SocialPostController extends Controller
         $postSummary = $this->postService->summaryForOwner($access['owner']);
 
         return $this->inertiaOrJson('Social/History', [
-            'posts' => $this->postService->historyPayloads($access['owner'], $filters),
+            'posts' => $this->postService->historyPayloads(
+                $access['owner'],
+                $filters,
+                canPublish: $access['can_publish'],
+            ),
             'filters' => $filters,
             'summary' => $postSummary,
             'platform_filters' => collect($this->connectionService->definitions())
@@ -219,8 +240,11 @@ class SocialPostController extends Controller
 
         return response()->json([
             'message' => 'Pulse draft saved.',
-            'draft' => $this->postService->payload($draft),
-            'drafts' => $this->postService->draftPayloads($access['owner']),
+            'draft' => $this->postService->payload($draft, $access['can_publish']),
+            'drafts' => $this->postService->draftPayloads(
+                $access['owner'],
+                canPublish: $access['can_publish'],
+            ),
             'media_assets' => $this->mediaAssetPayloads($access['owner']),
             'summary' => $this->postService->summaryForOwner($access['owner']),
         ], 201);
@@ -295,8 +319,11 @@ class SocialPostController extends Controller
 
         return response()->json([
             'message' => 'Pulse draft updated.',
-            'draft' => $this->postService->payload($draft),
-            'drafts' => $this->postService->draftPayloads($access['owner']),
+            'draft' => $this->postService->payload($draft, $access['can_publish']),
+            'drafts' => $this->postService->draftPayloads(
+                $access['owner'],
+                canPublish: $access['can_publish'],
+            ),
             'media_assets' => $this->mediaAssetPayloads($access['owner']),
             'summary' => $this->postService->summaryForOwner($access['owner']),
         ]);
@@ -317,8 +344,11 @@ class SocialPostController extends Controller
 
         return response()->json([
             'message' => 'Pulse post rescheduled.',
-            'draft' => $this->postService->payload($draft),
-            'calendar_posts' => $this->postService->calendarPayloads($access['owner']),
+            'draft' => $this->postService->payload($draft, $access['can_publish']),
+            'calendar_posts' => $this->postService->calendarPayloads(
+                $access['owner'],
+                canPublish: $access['can_publish'],
+            ),
             'summary' => $this->postService->summaryForOwner($access['owner']),
         ]);
     }
@@ -334,8 +364,42 @@ class SocialPostController extends Controller
 
         return response()->json([
             'message' => 'Pulse publication queued.',
-            'draft' => $this->postService->payload($draft),
-            'drafts' => $this->postService->draftPayloads($access['owner']),
+            'draft' => $this->postService->payload($draft, $access['can_publish']),
+            'drafts' => $this->postService->draftPayloads(
+                $access['owner'],
+                canPublish: $access['can_publish'],
+            ),
+            'summary' => $this->postService->summaryForOwner($access['owner']),
+        ], 202);
+    }
+
+    public function retry(
+        Request $request,
+        SocialPost $post,
+        SocialPublishingService $publishingService,
+    ): JsonResponse {
+        $access = $this->resolveAccess($request->user());
+        if (! $access['can_publish']) {
+            abort(403);
+        }
+
+        $draft = $publishingService->retryFailed($access['owner'], $request->user(), $post);
+
+        return response()->json([
+            'message' => 'Pulse publication retry queued.',
+            'draft' => $this->postService->payload($draft, true),
+            'drafts' => $this->postService->draftPayloads(
+                $access['owner'],
+                canPublish: true,
+            ),
+            'calendar_posts' => $this->postService->calendarPayloads(
+                $access['owner'],
+                canPublish: true,
+            ),
+            'posts' => $this->postService->historyPayloads(
+                $access['owner'],
+                canPublish: true,
+            ),
             'summary' => $this->postService->summaryForOwner($access['owner']),
         ], 202);
     }
@@ -351,8 +415,11 @@ class SocialPostController extends Controller
 
         return response()->json([
             'message' => 'Pulse publication scheduled.',
-            'draft' => $this->postService->payload($draft),
-            'drafts' => $this->postService->draftPayloads($access['owner']),
+            'draft' => $this->postService->payload($draft, $access['can_publish']),
+            'drafts' => $this->postService->draftPayloads(
+                $access['owner'],
+                canPublish: $access['can_publish'],
+            ),
             'summary' => $this->postService->summaryForOwner($access['owner']),
         ], 202);
     }
@@ -372,8 +439,11 @@ class SocialPostController extends Controller
 
         return response()->json([
             'message' => 'Pulse post submitted for approval.',
-            'draft' => $this->postService->payload($draft),
-            'drafts' => $this->postService->draftPayloads($access['owner']),
+            'draft' => $this->postService->payload($draft, $access['can_publish']),
+            'drafts' => $this->postService->draftPayloads(
+                $access['owner'],
+                canPublish: $access['can_publish'],
+            ),
             'summary' => $this->postService->summaryForOwner($access['owner']),
         ], 202);
     }
@@ -395,8 +465,11 @@ class SocialPostController extends Controller
 
         return response()->json([
             'message' => 'Pulse approval completed.',
-            'draft' => $this->postService->payload($draft),
-            'drafts' => $this->postService->draftPayloads($access['owner']),
+            'draft' => $this->postService->payload($draft, $access['can_publish']),
+            'drafts' => $this->postService->draftPayloads(
+                $access['owner'],
+                canPublish: $access['can_publish'],
+            ),
             'summary' => $this->postService->summaryForOwner($access['owner']),
         ], 202);
     }
@@ -416,8 +489,11 @@ class SocialPostController extends Controller
 
         return response()->json([
             'message' => 'Pulse approval rejected.',
-            'draft' => $this->postService->payload($draft),
-            'drafts' => $this->postService->draftPayloads($access['owner']),
+            'draft' => $this->postService->payload($draft, $access['can_publish']),
+            'drafts' => $this->postService->draftPayloads(
+                $access['owner'],
+                canPublish: $access['can_publish'],
+            ),
             'summary' => $this->postService->summaryForOwner($access['owner']),
         ]);
     }
@@ -436,7 +512,7 @@ class SocialPostController extends Controller
             'message' => $missingTargetCount > 0
                 ? 'Pulse post duplicated. Reconnect or reselect the missing targets before publishing.'
                 : 'Pulse post duplicated.',
-            'draft' => $this->postService->payload($draft),
+            'draft' => $this->postService->payload($draft, $access['can_publish']),
             'summary' => $this->postService->summaryForOwner($access['owner']),
         ], 201);
     }
@@ -566,7 +642,7 @@ class SocialPostController extends Controller
             'message' => $missingTargetCount > 0
                 ? 'Pulse repost draft created. Reconnect or reselect the missing targets before publishing.'
                 : 'Pulse repost draft created.',
-            'draft' => $this->postService->payload($draft),
+            'draft' => $this->postService->payload($draft, $access['can_publish']),
             'summary' => $this->postService->summaryForOwner($access['owner']),
         ], 201);
     }

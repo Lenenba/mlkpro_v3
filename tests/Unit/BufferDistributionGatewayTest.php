@@ -3,6 +3,7 @@
 use App\Data\Social\CreateSocialDeliveryData;
 use App\Data\Social\SocialDeliveryResultData;
 use App\Exceptions\Social\DefinitiveSocialPublishingRejectionException;
+use App\Exceptions\Social\UnpublishableSocialMediaUrlException;
 use App\Models\SocialAccountConnection;
 use App\Models\SocialBufferConnection;
 use App\Models\User;
@@ -205,6 +206,50 @@ it('maps ordered Buffer images with optional alt text', function () {
         ],
     ]);
     Http::assertSentCount(1);
+});
+
+it('rejects private media hosts before any Buffer request', function (string $url, string $type = 'image') {
+    ['owner' => $owner, 'connection' => $connection] = bufferDistributionGatewayFixture();
+
+    expect(fn () => immediateBufferDelivery($owner, $connection, [
+        'assets' => [[
+            'type' => $type,
+            'url' => $url,
+        ]],
+    ]))->toThrow(
+        UnpublishableSocialMediaUrlException::class,
+        'configure SOCIAL_MEDIA_PUBLIC_BASE_URL',
+    );
+
+    Http::assertNothingSent();
+})->with([
+    'Herd test domain' => 'https://malikia.test/storage/social/posts/76/photo.png',
+    'Herd test domain with trailing dot' => 'https://malikia.test./storage/social/posts/76/photo.png',
+    'Herd test domain video' => [
+        'https://malikia.test/storage/social/posts/76/video.mp4',
+        'video',
+    ],
+    'localhost' => 'https://localhost/storage/photo.png',
+    'localhost with trailing dot' => 'https://localhost./storage/photo.png',
+    'private IPv4' => 'https://10.20.30.40/storage/photo.png',
+    'private IPv4 with trailing dot' => 'https://127.0.0.1./storage/photo.png',
+]);
+
+it('accepts a public IPv6 media host during delivery preflight', function () {
+    ['owner' => $owner, 'connection' => $connection] = bufferDistributionGatewayFixture();
+
+    $delivery = immediateBufferDelivery($owner, $connection, [
+        'assets' => [[
+            'type' => 'image',
+            'url' => 'https://[2606:4700:4700::1111]/storage/photo.png',
+        ]],
+    ]);
+
+    expect($delivery->assets)->toBe([[
+        'type' => 'image',
+        'url' => 'https://[2606:4700:4700::1111]/storage/photo.png',
+    ]]);
+    Http::assertNothingSent();
 });
 
 it('submits a media-only Buffer video with its metadata', function () {
@@ -449,6 +494,32 @@ it('throws a definitive rejection for typed Buffer create errors without retryin
     'not found' => 'NotFoundError',
     'unauthorized' => 'UnauthorizedError',
 ]);
+
+it('turns a typed Buffer media rejection into a safe actionable message', function () {
+    ['gateway' => $gateway, 'owner' => $owner, 'connection' => $connection] = bufferDistributionGatewayFixture();
+    Http::fake([
+        'https://buffer.test/graphql' => Http::response([
+            'data' => [
+                'createPost' => [
+                    '__typename' => 'InvalidInputError',
+                    'message' => 'Failed to create post: Failed to fetch image dimensions: Not Found token=secret-value',
+                ],
+            ],
+        ]),
+    ]);
+
+    expect(fn () => $gateway->createPost(immediateBufferDelivery($owner, $connection, [
+        'assets' => [[
+            'type' => 'image',
+            'url' => 'https://cdn.example.com/missing-image.png',
+        ]],
+    ])))->toThrow(
+        DefinitiveSocialPublishingRejectionException::class,
+        'Buffer could not access the media URL (InvalidInputError). Use a stable public HTTPS URL or configure SOCIAL_MEDIA_PUBLIC_BASE_URL for Pulse uploads.',
+    );
+
+    Http::assertSentCount(1);
+});
 
 it('returns an unknown result after a Buffer timeout without retrying', function () {
     ['gateway' => $gateway, 'owner' => $owner, 'connection' => $connection] = bufferDistributionGatewayFixture();

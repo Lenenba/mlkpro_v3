@@ -144,7 +144,7 @@ test('team member page exposes finance permissions when expenses and invoices ar
         );
 });
 
-test('team member page exposes Malikia Pulse permissions when the social module is enabled', function () {
+test('team member page exposes Pulse permissions when the social module is enabled', function () {
     $owner = teamPermissionOwner([
         'company_features' => [
             'team_members' => true,

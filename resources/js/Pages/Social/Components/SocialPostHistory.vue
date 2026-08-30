@@ -64,6 +64,7 @@ const filters = ref(normalizeFilters(props.initialFilters));
 const access = ref(normalizeAccess(props.initialAccess));
 const isLoading = ref(false);
 const busy = ref(false);
+const retryingPostId = ref(null);
 const error = ref('');
 const info = ref('');
 
@@ -420,6 +421,32 @@ const createEditableCopy = async (post, mode = 'duplicate') => {
     }
 };
 
+const retryPost = async (post) => {
+    if (!post?.can_retry) {
+        return;
+    }
+
+    busy.value = true;
+    retryingPostId.value = post.id;
+    error.value = '';
+    info.value = '';
+
+    try {
+        const response = await axios.post(route('social.posts.retry', post.id));
+
+        await load();
+
+        if (error.value === '') {
+            info.value = String(response.data?.message || t('social.history_manager.messages.retry_success'));
+        }
+    } catch (requestError) {
+        error.value = requestErrorMessage(requestError, t('social.history_manager.messages.retry_error'));
+    } finally {
+        retryingPostId.value = null;
+        busy.value = false;
+    }
+};
+
 const resolveApproval = async (post, decision) => {
     if (!canApprove.value || String(post?.status || '') !== 'pending_approval') {
         return;
@@ -622,9 +649,12 @@ const resolveApproval = async (post, decision) => {
 
                         <p
                             v-if="post.failure_reason"
+                            role="status"
+                            aria-live="polite"
                             class="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300"
                         >
-                            {{ post.failure_reason }}
+                            <span class="font-semibold">{{ t('social.delivery_axes.failure_reason_label') }}</span>
+                            <span class="mt-1 block break-words">{{ post.failure_reason }}</span>
                         </p>
 
                         <p
@@ -672,7 +702,17 @@ const resolveApproval = async (post, decision) => {
                         </details>
                     </div>
 
-                    <div v-if="canManage || canApprove" class="flex flex-wrap gap-2">
+                    <div v-if="canManage || canApprove || post.can_retry" class="flex flex-wrap gap-2">
+                        <PrimaryButton
+                            v-if="post.can_retry"
+                            type="button"
+                            :disabled="busy"
+                            @click="retryPost(post)"
+                        >
+                            {{ retryingPostId === post.id
+                                ? t('social.history_manager.actions.retrying_post')
+                                : t('social.history_manager.actions.retry_post') }}
+                        </PrimaryButton>
                         <SecondaryButton
                             v-if="canManage && canEditPost(post)"
                             type="button"

@@ -200,7 +200,7 @@ it('allows superadmins to update the sales module through api plan settings', fu
     expect((bool) ($saved[$planKey]['sales'] ?? true))->toBeFalse();
 });
 
-it('allows superadmins to update the Malikia Pulse module through api plan settings', function () {
+it('allows superadmins to update the Pulse module through api plan settings', function () {
     $planKey = superAdminModuleFirstPlanKey();
     $superadmin = superAdminModuleSuperadmin();
 

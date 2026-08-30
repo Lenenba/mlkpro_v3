@@ -504,7 +504,7 @@ it('blocks completing the oauth callback when the social module is disabled for 
         ->and($fresh->oauth_state)->toBeNull()
         ->and($fresh->oauth_code_verifier)->toBeNull()
         ->and($fresh->oauth_state_expires_at)->toBeNull()
-        ->and($fresh->last_error)->toBe('Malikia Pulse is disabled for this workspace. Re-enable the social module before reconnecting this account.')
+        ->and($fresh->last_error)->toBe('Pulse is disabled for this workspace. Re-enable the social module before reconnecting this account.')
         ->and((array) ($fresh->credentials ?? []))->toBe([])
         ->and($fresh->metadata['oauth_ready'] ?? null)->toBeFalse()
         ->and($fresh->metadata['connection_flow'] ?? null)->toBe('oauth_blocked_feature_off');

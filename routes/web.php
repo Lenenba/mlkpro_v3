@@ -800,6 +800,8 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('social.campaigns.store');
         Route::post('/social/posts/{post}/publish', [SocialPostController::class, 'publish'])
             ->name('social.posts.publish');
+        Route::post('/social/posts/{post}/retry', [SocialPostController::class, 'retry'])
+            ->name('social.posts.retry');
         Route::post('/social/posts/{post}/schedule', [SocialPostController::class, 'schedule'])
             ->name('social.posts.schedule');
         Route::post('/social/posts/{post}/submit-approval', [SocialPostController::class, 'submitApproval'])

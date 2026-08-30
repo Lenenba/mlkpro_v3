@@ -117,6 +117,9 @@ return [
 
     'social' => [
         'allow_test_connections' => env('SOCIAL_ALLOW_TEST_CONNECTIONS'),
+        'media' => [
+            'public_base_url' => env('SOCIAL_MEDIA_PUBLIC_BASE_URL'),
+        ],
         'oauth' => [
             'connect_timeout' => env('SOCIAL_OAUTH_CONNECT_TIMEOUT', 5),
             'timeout' => env('SOCIAL_OAUTH_TIMEOUT', 20),

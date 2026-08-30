@@ -133,6 +133,60 @@ it('renders the pulse workspace overview and composer for owners', function () {
         );
 });
 
+it('keeps only the selected failed Pulse post available when the composer reloads', function () {
+    $owner = pulseComposerOwner();
+    $foreignOwner = pulseComposerOwner();
+    $connection = pulseComposerConnection(
+        $owner,
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        'fb-selected-failed',
+        'Selected failed page',
+    );
+    $selectedPost = SocialPost::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'content_payload' => ['text' => 'Selected failed publication'],
+        'status' => SocialPost::STATUS_FAILED,
+    ]);
+    SocialPostTarget::query()->create([
+        'social_post_id' => $selectedPost->id,
+        'social_account_connection_id' => $connection->id,
+        'delivery_provider' => $connection->delivery_provider,
+        'transport_generation' => $connection->transport_generation,
+        'logical_destination_key' => $connection->logical_destination_key,
+        'status' => SocialPostTarget::STATUS_FAILED,
+    ]);
+    $otherFailedPost = SocialPost::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'content_payload' => ['text' => 'Unselected failed publication'],
+        'status' => SocialPost::STATUS_FAILED,
+    ]);
+    $foreignFailedPost = SocialPost::query()->create([
+        'user_id' => $foreignOwner->id,
+        'created_by_user_id' => $foreignOwner->id,
+        'updated_by_user_id' => $foreignOwner->id,
+        'content_payload' => ['text' => 'Foreign failed publication'],
+        'status' => SocialPost::STATUS_FAILED,
+    ]);
+
+    $this->actingAs($owner)
+        ->getJson(route('social.composer', ['draft' => $selectedPost->id]))
+        ->assertOk()
+        ->assertJsonPath('selected_draft_id', $selectedPost->id)
+        ->assertJsonPath('drafts.0.id', $selectedPost->id)
+        ->assertJsonPath('drafts.0.can_retry', true)
+        ->assertJsonMissing(['id' => $otherFailedPost->id]);
+
+    $this->actingAs($owner)
+        ->getJson(route('social.composer', ['draft' => $foreignFailedPost->id]))
+        ->assertOk()
+        ->assertJsonPath('selected_draft_id', null)
+        ->assertJsonCount(0, 'drafts');
+});
+
 it('lets owners create and update pulse drafts with multi-account selection and scheduling', function () {
     $owner = pulseComposerOwner();
 
@@ -688,7 +742,10 @@ it('stores uploaded image video and document files in order for pulse drafts', f
         ->and(data_get($media, '1.mime_type'))->toBe('video/mp4')
         ->and(data_get($media, '2.mime_type'))->toBe('application/pdf')
         ->and(data_get($media, '2.title'))->toBe('brief')
-        ->and((string) data_get($media, '2.thumbnail_url'))->toEndWith('/brand/social-card.png');
+        ->and((string) data_get($media, '2.thumbnail_url'))
+        ->toEndWith('/storage/social/system/document-thumbnail.png');
+
+    Storage::disk('public')->assertExists('social/system/document-thumbnail.png');
 
     foreach ($media as $asset) {
         expect(data_get($asset, 'path'))->toBeString()->not->toBe('');

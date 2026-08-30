@@ -254,6 +254,7 @@ const lastAppliedTemplateId = ref(null);
 const lastAppliedPrefillKey = ref('');
 const draftSnapshot = ref(null);
 const busy = ref(false);
+const retrying = ref(false);
 const isLoading = ref(false);
 const suggestionsLoading = ref(false);
 const error = ref('');
@@ -319,6 +320,8 @@ const statusClass = (status) => {
 };
 
 const previewStatus = computed(() => t(`social.composer_manager.statuses.${currentStatus.value}`));
+const isFailedPublication = computed(() => ['failed', 'partial_failed'].includes(currentStatus.value));
+const canRetryPublication = computed(() => Boolean(draftSnapshot.value?.can_retry));
 const activeStatusAxes = computed(() => socialStatusAxes(draftSnapshot.value));
 const deliveryVerificationRequired = computed(() => needsSocialDeliveryVerification(draftSnapshot.value));
 const statusAxisLabel = (axis) => t(`social.delivery_axes.labels.${axis.key}`);
@@ -1270,6 +1273,40 @@ const publishDraft = async (mode) => {
     }
 };
 
+const retryPublication = async () => {
+    if (!canRetryPublication.value) {
+        return;
+    }
+
+    const draftId = Number(activeDraftId.value || draftSnapshot.value?.id || 0);
+    if (draftId <= 0) {
+        return;
+    }
+
+    busy.value = true;
+    retrying.value = true;
+    error.value = '';
+    info.value = '';
+
+    try {
+        const response = await axios.post(route('social.posts.retry', draftId));
+
+        refreshFromPayload(response.data);
+
+        if (response.data?.draft) {
+            activeDraftId.value = Number(response.data.draft.id);
+            syncFormFromDraft(response.data.draft);
+        }
+
+        info.value = String(response.data?.message || t('social.composer_manager.messages.retry_success'));
+    } catch (requestError) {
+        error.value = requestErrorMessage(requestError, t('social.composer_manager.messages.retry_error'));
+    } finally {
+        retrying.value = false;
+        busy.value = false;
+    }
+};
+
 const resolveApproval = async (decision) => {
     if (!canApprove.value || currentStatus.value !== 'pending_approval') {
         return;
@@ -1372,6 +1409,20 @@ const resolveApproval = async (decision) => {
             class="rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300"
         >
             {{ info }}
+        </div>
+
+        <div
+            v-if="draftSnapshot?.failure_reason"
+            role="status"
+            aria-live="polite"
+            class="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200"
+        >
+            <div class="font-semibold">
+                {{ t('social.delivery_axes.failure_reason_label') }}
+            </div>
+            <div class="mt-1 break-words">
+                {{ draftSnapshot.failure_reason }}
+            </div>
         </div>
 
         <div
@@ -1511,7 +1562,17 @@ const resolveApproval = async (decision) => {
                             {{ t('social.composer_manager.actions.submit_for_approval') }}
                         </PrimaryButton>
                         <PrimaryButton
-                            v-if="canPublish && currentStatus !== 'pending_approval'"
+                            v-if="canRetryPublication"
+                            type="button"
+                            :disabled="busy || isLoading"
+                            @click="retryPublication"
+                        >
+                            {{ retrying
+                                ? t('social.composer_manager.actions.retrying_post')
+                                : t('social.composer_manager.actions.retry_post') }}
+                        </PrimaryButton>
+                        <PrimaryButton
+                            v-else-if="canPublish && currentStatus !== 'pending_approval' && !isFailedPublication"
                             type="button"
                             :disabled="busy || isLoading || currentStatus === 'publishing' || currentStatus === 'published' || (isQueuedPublication && currentStatus === 'scheduled')"
                             @click="publishDraft('publish')"
@@ -1519,7 +1580,7 @@ const resolveApproval = async (decision) => {
                             {{ t('social.composer_manager.actions.publish_now') }}
                         </PrimaryButton>
                         <SecondaryButton
-                            v-if="canPublish && currentStatus !== 'pending_approval'"
+                            v-if="canPublish && currentStatus !== 'pending_approval' && !isFailedPublication"
                             type="button"
                             :disabled="busy || isLoading || currentStatus === 'publishing' || currentStatus === 'published' || (!form.scheduled_for && currentStatus !== 'scheduled') || (isQueuedPublication && currentStatus === 'scheduled')"
                             @click="publishDraft('schedule')"
