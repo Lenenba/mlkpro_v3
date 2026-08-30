@@ -469,6 +469,129 @@ it('activates every supported imported channel after Buffer grants publishing sc
     'X through Buffer Twitter service' => [SocialAccountConnection::PLATFORM_X, 'twitter', 'profile'],
 ]);
 
+it('shows every synchronized Buffer account on each page load without remote discovery', function () {
+    $owner = bufferOauthOwner();
+    $otherOwner = bufferOauthOwner();
+    config()->set('services.buffer.delivery.enabled', true);
+
+    $activeConnection = bufferOauthManagedChannel(
+        $owner,
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        'channel_persisted_facebook',
+        'facebook',
+    );
+    $reconnectRequiredConnection = bufferOauthManagedChannel(
+        $owner,
+        SocialAccountConnection::PLATFORM_INSTAGRAM,
+        'channel_persisted_instagram',
+        'instagram',
+    );
+    $reconnectRequiredConnection->forceFill([
+        'status' => SocialAccountConnection::STATUS_RECONNECT_REQUIRED,
+        'is_active' => false,
+        'last_error' => 'Reconnectez Buffer avant la prochaine publication.',
+    ])->save();
+    $inactiveCatalogConnection = SocialAccountConnection::query()->create([
+        'user_id' => $owner->id,
+        'platform' => SocialAccountConnection::PLATFORM_LINKEDIN,
+        'label' => 'Imported LinkedIn catalog channel',
+        'display_name' => 'Imported LinkedIn catalog channel',
+        'account_handle' => 'imported-linkedin',
+        'external_account_id' => 'channel_persisted_linkedin',
+        'auth_method' => SocialAccountConnection::AUTH_METHOD_OAUTH,
+        'status' => SocialAccountConnection::STATUS_CONNECTED,
+        'is_active' => false,
+        'connected_at' => now(),
+        'last_synced_at' => now()->subDays(2),
+        'metadata' => [
+            'connection_flow' => 'buffer_oauth_discovery',
+            'oauth_ready' => true,
+            'buffer' => [
+                'account_id' => 'buffer_account_oauth_1',
+                'organization_id' => 'organization_oauth_2',
+                'channel_service' => 'linkedin',
+                'channel_type' => 'page',
+                'catalog_only' => true,
+                'publication_enabled' => false,
+            ],
+        ],
+    ]);
+    $directConnection = SocialAccountConnection::query()->create([
+        'user_id' => $owner->id,
+        'platform' => SocialAccountConnection::PLATFORM_X,
+        'label' => 'Direct X account',
+        'display_name' => 'Direct X account',
+        'external_account_id' => 'direct_x_account',
+        'auth_method' => SocialAccountConnection::AUTH_METHOD_OAUTH,
+        'status' => SocialAccountConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'connected_at' => now(),
+        'metadata' => [
+            'connection_flow' => 'oauth_connected',
+            'oauth_ready' => true,
+        ],
+    ]);
+    $otherTenantConnection = bufferOauthManagedChannel(
+        $otherOwner,
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        'channel_other_tenant',
+        'facebook',
+    );
+
+    $firstLoad = $this->actingAs($owner)
+        ->getJson(route('social.accounts.index'));
+    $secondLoad = $this->actingAs($owner)
+        ->getJson(route('social.accounts.index'));
+
+    $firstLoad->assertOk()
+        ->assertJsonCount(3, 'buffer_connections');
+    $secondLoad->assertOk()
+        ->assertJsonCount(3, 'buffer_connections');
+
+    $firstConnections = collect($firstLoad->json('buffer_connections'))->keyBy('id');
+    $secondConnections = collect($secondLoad->json('buffer_connections'))->keyBy('id');
+
+    expect($firstConnections->keys()->map(fn (mixed $id): int => (int) $id)->sort()->values()->all())
+        ->toBe(collect([
+            $activeConnection->id,
+            $reconnectRequiredConnection->id,
+            $inactiveCatalogConnection->id,
+        ])->sort()->values()->all())
+        ->and($firstConnections->has($directConnection->id))->toBeFalse()
+        ->and($firstConnections->has($otherTenantConnection->id))->toBeFalse()
+        ->and($firstConnections->get($activeConnection->id)['is_active'])->toBeTrue()
+        ->and($firstConnections->get($inactiveCatalogConnection->id)['is_active'])->toBeFalse()
+        ->and($firstConnections->get($reconnectRequiredConnection->id)['needs_attention'])->toBeTrue()
+        ->and($firstConnections->get($reconnectRequiredConnection->id)['status'])
+        ->toBe(SocialAccountConnection::STATUS_RECONNECT_REQUIRED)
+        ->and($secondConnections->all())->toBe($firstConnections->all());
+
+    Http::assertNothingSent();
+});
+
+it('does not expose synchronized Buffer account management payloads to team members', function () {
+    $owner = bufferOauthOwner();
+    $member = bufferOauthMember($owner);
+    config()->set('services.buffer.delivery.enabled', true);
+
+    bufferOauthManagedChannel(
+        $owner,
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        'channel_private_to_owner',
+        'facebook',
+    );
+
+    $this->actingAs($member)
+        ->getJson(route('social.accounts.index'))
+        ->assertOk()
+        ->assertJsonPath('access.can_view', true)
+        ->assertJsonPath('access.can_manage_accounts', false)
+        ->assertJsonCount(0, 'buffer_connections')
+        ->assertJsonPath('buffer_connector', null);
+
+    Http::assertNothingSent();
+});
+
 it('syncs all healthy Buffer channels idempotently and exposes them in the composer', function () {
     $owner = bufferOauthOwner();
     config()->set('services.buffer.delivery.enabled', true);
@@ -1177,9 +1300,38 @@ it('does not retry a refused Buffer refresh or contact GraphQL', function () {
     ));
 });
 
-it('disconnects Buffer locally and removes every OAuth secret', function () {
+it('disconnects Buffer locally while keeping synchronized accounts visible for reconnection', function () {
     $owner = bufferOauthOwner();
     $connection = SocialBufferConnection::factory()->for($owner)->create();
+    $managedChannel = bufferOauthManagedChannel(
+        $owner,
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        'channel_disconnect_facebook',
+        'facebook',
+    );
+    $catalogChannel = SocialAccountConnection::query()->create([
+        'user_id' => $owner->id,
+        'platform' => SocialAccountConnection::PLATFORM_INSTAGRAM,
+        'label' => 'Imported Instagram catalog channel',
+        'display_name' => 'Imported Instagram catalog channel',
+        'external_account_id' => 'channel_disconnect_instagram',
+        'auth_method' => SocialAccountConnection::AUTH_METHOD_OAUTH,
+        'status' => SocialAccountConnection::STATUS_CONNECTED,
+        'is_active' => false,
+        'connected_at' => now(),
+        'metadata' => [
+            'connection_flow' => 'buffer_oauth_discovery',
+            'oauth_ready' => true,
+            'buffer' => [
+                'account_id' => 'buffer_account_oauth_1',
+                'organization_id' => 'organization_oauth_1',
+                'channel_service' => 'instagram',
+                'channel_type' => 'business',
+                'catalog_only' => true,
+                'publication_enabled' => false,
+            ],
+        ],
+    ]);
     config()->set('services.buffer.local_connector.enabled', true);
     config()->set('services.buffer.local_connector.owner_id', $owner->id);
     config()->set('services.buffer.local_connector.access_token', 'legacy-token-must-not-return');
@@ -1188,9 +1340,28 @@ it('disconnects Buffer locally and removes every OAuth secret', function () {
         ->postJson(route('social.buffer.disconnect'))
         ->assertOk()
         ->assertJsonPath('connector.connected', false)
-        ->assertJsonPath('connector.can_disconnect', false);
+        ->assertJsonPath('connector.can_disconnect', false)
+        ->assertJsonCount(2, 'connections')
+        ->assertJsonPath('connections.0.id', $managedChannel->id)
+        ->assertJsonPath('connections.0.status', SocialAccountConnection::STATUS_RECONNECT_REQUIRED)
+        ->assertJsonPath('connections.0.is_active', false)
+        ->assertJsonPath('connections.0.needs_attention', true)
+        ->assertJsonPath('connections.1.id', $catalogChannel->id)
+        ->assertJsonPath('connections.1.status', SocialAccountConnection::STATUS_RECONNECT_REQUIRED)
+        ->assertJsonPath('connections.1.is_active', false)
+        ->assertJsonPath('connections.1.needs_attention', true);
 
     $this->assertModelMissing($connection);
+
+    $managedChannel->refresh();
+    $catalogChannel->refresh();
+
+    expect($managedChannel->status)->toBe(SocialAccountConnection::STATUS_RECONNECT_REQUIRED)
+        ->and($managedChannel->is_active)->toBeFalse()
+        ->and($managedChannel->last_error)->toContain('Reconnectez Buffer')
+        ->and($catalogChannel->status)->toBe(SocialAccountConnection::STATUS_RECONNECT_REQUIRED)
+        ->and($catalogChannel->is_active)->toBeFalse()
+        ->and($catalogChannel->last_error)->toContain('Reconnectez Buffer');
 
     $this->actingAs($owner)
         ->getJson(route('social.buffer.catalog'))

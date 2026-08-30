@@ -101,6 +101,18 @@ class SocialAccountConnectionService
     }
 
     /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function listBufferManagementPayloads(User $owner): array
+    {
+        return $this->listForOwner($owner)
+            ->filter(fn (SocialAccountConnection $connection): bool => $connection->isImportedFromBuffer())
+            ->map(fn (SocialAccountConnection $connection): array => $this->payload($connection))
+            ->values()
+            ->all();
+    }
+
+    /**
      * Buffer catalog imports have their own read-only manager until delivery is enabled.
      *
      * @return array<int, array<string, mixed>>

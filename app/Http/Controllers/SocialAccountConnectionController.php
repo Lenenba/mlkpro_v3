@@ -31,6 +31,9 @@ class SocialAccountConnectionController extends Controller
         return $this->inertiaOrJson('Social/Accounts', [
             'provider_definitions' => $this->connectionService->directManagementDefinitions(),
             'connections' => $this->connectionService->listDirectManagementPayloads($owner),
+            'buffer_connections' => $canManageAccounts
+                ? $this->connectionService->listBufferManagementPayloads($owner)
+                : [],
             'summary' => $this->connectionService->summaryForOwner($owner),
             'buffer_connector' => $canManageAccounts
                 ? $this->bufferConnector->status($owner)

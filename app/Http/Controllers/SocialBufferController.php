@@ -62,6 +62,7 @@ class SocialBufferController extends Controller
         return response()->json([
             'message_key' => 'social.buffer_connector.messages.disconnect_success',
             'connector' => $this->bufferConnector->status($owner),
+            'connections' => $this->connectionService->listBufferManagementPayloads($owner),
         ]);
     }
 

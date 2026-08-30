@@ -18,6 +18,10 @@ const props = defineProps({
         type: Object,
         default: null,
     },
+    buffer_connections: {
+        type: Array,
+        default: () => ([]),
+    },
 });
 
 const { t } = useI18n();
@@ -39,6 +43,7 @@ const { t } = useI18n();
                 <SocialBufferConnectionCard
                     v-if="props.buffer_connector"
                     :initial-connector="props.buffer_connector"
+                    :initial-connections="props.buffer_connections"
                     :can-manage="Boolean(props.access?.can_manage_accounts)"
                 />
             </section>
