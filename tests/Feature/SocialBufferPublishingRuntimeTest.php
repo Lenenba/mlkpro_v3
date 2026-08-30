@@ -96,6 +96,117 @@ function pulseBufferMediaPreflightFixture(array $mediaPayload): array
     return compact('owner', 'post', 'target');
 }
 
+it('exposes every active Buffer channel for the tenant in the Pulse composer', function () {
+    config()->set('services.buffer.delivery.enabled', true);
+
+    $owner = User::factory()->create([
+        'company_type' => 'services',
+        'company_timezone' => 'America/Toronto',
+        'onboarding_completed_at' => now(),
+        'company_features' => [
+            'social' => true,
+        ],
+    ]);
+    $otherOwner = User::factory()->create();
+    $channels = collect([
+        [
+            'platform' => SocialAccountConnection::PLATFORM_FACEBOOK,
+            'service' => 'facebook',
+            'type' => 'page',
+            'external_account_id' => 'buffer-composer-facebook',
+            'label' => 'Malikia Facebook',
+        ],
+        [
+            'platform' => SocialAccountConnection::PLATFORM_INSTAGRAM,
+            'service' => 'instagram',
+            'type' => 'business',
+            'external_account_id' => 'buffer-composer-instagram',
+            'label' => 'malikiapro',
+        ],
+        [
+            'platform' => SocialAccountConnection::PLATFORM_LINKEDIN,
+            'service' => 'linkedin',
+            'type' => 'page',
+            'external_account_id' => 'buffer-composer-linkedin',
+            'label' => 'Malikia pro',
+        ],
+    ])->map(function (array $channel) use ($owner): SocialAccountConnection {
+        return SocialAccountConnection::query()->create([
+            'user_id' => $owner->id,
+            'platform' => $channel['platform'],
+            'label' => $channel['label'],
+            'display_name' => $channel['label'],
+            'account_handle' => $channel['external_account_id'],
+            'external_account_id' => $channel['external_account_id'],
+            'delivery_provider' => SocialAccountConnection::DELIVERY_PROVIDER_BUFFER,
+            'transport_generation' => SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1,
+            'logical_destination_key' => 'ldk:v1:'.hash('sha256', $channel['external_account_id']),
+            'auth_method' => SocialAccountConnection::AUTH_METHOD_OAUTH,
+            'status' => SocialAccountConnection::STATUS_CONNECTED,
+            'is_active' => true,
+            'connected_at' => now(),
+            'metadata' => [
+                'connection_flow' => 'buffer_oauth',
+                'buffer' => [
+                    'account_id' => 'buffer-composer-account',
+                    'organization_id' => 'buffer-composer-organization',
+                    'channel_service' => $channel['service'],
+                    'channel_type' => $channel['type'],
+                    'catalog_only' => false,
+                    'publication_enabled' => true,
+                    'standalone_destination' => true,
+                ],
+            ],
+        ]);
+    })->values();
+
+    SocialAccountConnection::query()->create([
+        'user_id' => $owner->id,
+        'platform' => SocialAccountConnection::PLATFORM_X,
+        'label' => 'Inactive Buffer channel',
+        'external_account_id' => 'buffer-composer-inactive',
+        'delivery_provider' => SocialAccountConnection::DELIVERY_PROVIDER_BUFFER,
+        'transport_generation' => SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1,
+        'logical_destination_key' => 'ldk:v1:'.hash('sha256', 'buffer-composer-inactive'),
+        'status' => SocialAccountConnection::STATUS_CONNECTED,
+        'is_active' => false,
+    ]);
+    SocialAccountConnection::query()->create([
+        'user_id' => $otherOwner->id,
+        'platform' => SocialAccountConnection::PLATFORM_FACEBOOK,
+        'label' => 'Other tenant Buffer channel',
+        'external_account_id' => 'buffer-composer-other-tenant',
+        'delivery_provider' => SocialAccountConnection::DELIVERY_PROVIDER_BUFFER,
+        'transport_generation' => SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1,
+        'logical_destination_key' => 'ldk:v1:'.hash('sha256', 'buffer-composer-other-tenant'),
+        'status' => SocialAccountConnection::STATUS_CONNECTED,
+        'is_active' => true,
+    ]);
+
+    $this->withoutMiddleware([
+        ValidateCsrfToken::class,
+        EnsureTwoFactorVerified::class,
+    ]);
+
+    $this->actingAs($owner)
+        ->get(route('social.composer'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Social/Composer')
+            ->where('workspace_stats.connected_accounts', 3)
+            ->has('connected_accounts', 3)
+            ->where('connected_accounts.0.id', $channels[0]->id)
+            ->where('connected_accounts.0.platform', SocialAccountConnection::PLATFORM_FACEBOOK)
+            ->where('connected_accounts.0.provider_label', 'Facebook Pages')
+            ->where('connected_accounts.1.id', $channels[1]->id)
+            ->where('connected_accounts.1.platform', SocialAccountConnection::PLATFORM_INSTAGRAM)
+            ->where('connected_accounts.1.provider_label', 'Instagram Business')
+            ->where('connected_accounts.2.id', $channels[2]->id)
+            ->where('connected_accounts.2.platform', SocialAccountConnection::PLATFORM_LINKEDIN)
+            ->where('connected_accounts.2.provider_label', 'LinkedIn Pages')
+        );
+});
+
 it('exposes only Buffer imports for new publishing while preserving existing legacy effects', function () {
     config()->set('services.buffer.delivery.enabled', true);
 

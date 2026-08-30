@@ -175,6 +175,7 @@ it('imports a healthy Buffer channel idempotently while keeping delivery disable
         ->postJson(route('social.buffer.channels.store'), $payload);
 
     $first->assertCreated()
+        ->assertJsonPath('connector.delivery_enabled', false)
         ->assertJsonPath('connection.platform', SocialAccountConnection::PLATFORM_FACEBOOK)
         ->assertJsonPath('connection.status', SocialAccountConnection::STATUS_CONNECTED)
         ->assertJsonPath('connection.is_active', false)

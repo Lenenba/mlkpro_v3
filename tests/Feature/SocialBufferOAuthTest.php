@@ -6,12 +6,15 @@ use App\Models\SocialAccountConnection;
 use App\Models\SocialBufferConnection;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Services\Social\Buffer\BufferLocalConnectorService;
+use App\Services\Social\SocialConnectionDeliveryMutex;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 uses(RefreshDatabase::class);
@@ -73,6 +76,7 @@ function startBufferOauth(TestCase $test, User $owner): array
 function fakeBufferAccountAndChannels(
     string $scope = 'account:read offline_access',
     array $channelOverrides = [],
+    string $accountId = 'buffer_account_oauth_1',
 ): void {
     Http::fake([
         'https://buffer.test/oauth/token' => Http::response([
@@ -82,14 +86,17 @@ function fakeBufferAccountAndChannels(
             'expires_in' => 3600,
             'scope' => $scope,
         ]),
-        'https://buffer.test/graphql' => function (Request $request) use ($channelOverrides) {
+        'https://buffer.test/graphql' => function (Request $request) use (
+            $accountId,
+            $channelOverrides,
+        ) {
             $query = (string) ($request['query'] ?? '');
 
             if (str_contains($query, 'MalikiaPulseBufferAccount')) {
                 return Http::response([
                     'data' => [
                         'account' => [
-                            'id' => 'buffer_account_oauth_1',
+                            'id' => $accountId,
                             'name' => 'Buffer OAuth Account',
                             'organizations' => [[
                                 'id' => 'organization_oauth_1',
@@ -123,6 +130,158 @@ function fakeBufferAccountAndChannels(
 
             return Http::response([], 500);
         },
+    ]);
+}
+
+function fakeBufferOauthMultiChannelCatalog(): void
+{
+    $channel = fn (array $overrides): array => array_replace([
+        'id' => 'channel_sync_facebook',
+        'organizationId' => 'organization_oauth_1',
+        'name' => 'malikia-pro',
+        'displayName' => 'Malikia Pro',
+        'service' => 'facebook',
+        'type' => 'page',
+        'isDisconnected' => false,
+        'isLocked' => false,
+        'isQueuePaused' => false,
+        'timezone' => 'America/Toronto',
+        'scopes' => ['channel:read'],
+        'allowedActions' => ['createPost', 'schedulePost'],
+    ], $overrides);
+    $channelsByOrganization = [
+        'organization_oauth_1' => [
+            $channel([]),
+            $channel([
+                'id' => 'channel_sync_unsupported',
+                'name' => 'unsupported-channel',
+                'displayName' => 'Unsupported Channel',
+                'service' => 'tiktok',
+                'type' => 'profile',
+            ]),
+        ],
+        'organization_oauth_2' => [
+            $channel([
+                'id' => 'channel_sync_instagram',
+                'organizationId' => 'organization_oauth_2',
+                'name' => 'malikiapro',
+                'displayName' => 'malikiapro',
+                'service' => 'instagram',
+                'type' => 'business',
+            ]),
+            $channel([
+                'id' => 'channel_sync_linkedin',
+                'organizationId' => 'organization_oauth_2',
+                'name' => 'malikia-pro',
+                'displayName' => 'Malikia Pro',
+                'service' => 'linkedin',
+                'type' => 'page',
+            ]),
+            $channel([
+                'id' => 'channel_sync_disconnected',
+                'organizationId' => 'organization_oauth_2',
+                'name' => 'disconnected-x',
+                'displayName' => 'Disconnected X',
+                'service' => 'twitter',
+                'type' => 'profile',
+                'isDisconnected' => true,
+            ]),
+            $channel([
+                'id' => 'channel_sync_locked',
+                'organizationId' => 'organization_oauth_2',
+                'name' => 'locked-facebook',
+                'displayName' => 'Locked Facebook',
+                'isLocked' => true,
+            ]),
+        ],
+    ];
+
+    Http::fake([
+        'https://buffer.test/graphql' => function (Request $request) use ($channelsByOrganization) {
+            $query = (string) ($request['query'] ?? '');
+
+            if (str_contains($query, 'MalikiaPulseBufferAccount')) {
+                return Http::response([
+                    'data' => [
+                        'account' => [
+                            'id' => 'buffer_account_oauth_1',
+                            'name' => 'Buffer OAuth Account',
+                            'organizations' => [
+                                [
+                                    'id' => 'organization_oauth_1',
+                                    'name' => 'Primary Organization',
+                                ],
+                                [
+                                    'id' => 'organization_oauth_2',
+                                    'name' => 'Secondary Organization',
+                                ],
+                            ],
+                        ],
+                    ],
+                ]);
+            }
+
+            if (str_contains($query, 'MalikiaPulseBufferChannels')) {
+                $organizationId = (string) data_get(
+                    $request->data(),
+                    'variables.input.organizationId',
+                );
+
+                if (! array_key_exists($organizationId, $channelsByOrganization)) {
+                    return Http::response([], 500);
+                }
+
+                return Http::response([
+                    'data' => [
+                        'channels' => $channelsByOrganization[$organizationId],
+                    ],
+                ]);
+            }
+
+            return Http::response([], 500);
+        },
+    ]);
+}
+
+function bufferOauthManagedChannel(
+    User $owner,
+    string $platform,
+    string $externalAccountId,
+    string $service,
+    string $bufferAccountId = 'buffer_account_oauth_1',
+): SocialAccountConnection {
+    return SocialAccountConnection::query()->create([
+        'user_id' => $owner->id,
+        'platform' => $platform,
+        'label' => 'Managed '.$service.' channel',
+        'display_name' => 'Managed '.$service.' channel',
+        'account_handle' => 'managed-'.$service,
+        'external_account_id' => $externalAccountId,
+        'delivery_provider' => SocialAccountConnection::DELIVERY_PROVIDER_BUFFER,
+        'transport_generation' => SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1,
+        'logical_destination_key' => 'ldk:v1:'.hash(
+            'sha256',
+            $owner->id.':'.$platform.':'.$externalAccountId,
+        ),
+        'auth_method' => SocialAccountConnection::AUTH_METHOD_OAUTH,
+        'status' => SocialAccountConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'connected_at' => now(),
+        'last_synced_at' => now()->subDay(),
+        'metadata' => [
+            'connection_flow' => 'buffer_oauth_discovery',
+            'oauth_ready' => true,
+            'buffer' => [
+                'account_id' => $bufferAccountId,
+                'organization_id' => 'organization_oauth_2',
+                'organization_name' => 'Secondary Organization',
+                'channel_service' => $service,
+                'channel_type' => 'page',
+                'catalog_only' => false,
+                'publication_enabled' => true,
+                'standalone_destination' => true,
+            ],
+        ],
     ]);
 }
 
@@ -199,6 +358,7 @@ it('completes Buffer OAuth through the accounts callback and stores encrypted cr
     ]))->assertRedirect(route('social.accounts.index'));
 
     $connection = SocialBufferConnection::query()->whereBelongsTo($owner)->sole();
+    $importedChannel = SocialAccountConnection::query()->byUser($owner->id)->sole();
     $rawConnection = DB::table('social_buffer_connections')->where('id', $connection->id)->first();
 
     expect($connection->buffer_account_id)->toBe('buffer_account_oauth_1')
@@ -208,6 +368,10 @@ it('completes Buffer OAuth through the accounts callback and stores encrypted cr
         ->and($connection->scopes)->toBe(['account:read', 'offline_access'])
         ->and($connection->oauth_state)->toBeNull()
         ->and($connection->oauth_code_verifier)->toBeNull()
+        ->and($importedChannel->platform)->toBe(SocialAccountConnection::PLATFORM_FACEBOOK)
+        ->and($importedChannel->is_active)->toBeFalse()
+        ->and(data_get($importedChannel->metadata, 'buffer.catalog_only'))->toBeTrue()
+        ->and(data_get($importedChannel->metadata, 'buffer.publication_enabled'))->toBeFalse()
         ->and($rawConnection?->access_token)->not->toContain('oauth-access-token')
         ->and($rawConnection?->refresh_token)->not->toContain('oauth-refresh-token');
 
@@ -228,7 +392,7 @@ it('completes Buffer OAuth through the accounts callback and stores encrypted cr
         'code' => 'replayed-code',
     ]))->assertRedirect(route('social.accounts.index'));
 
-    Http::assertSentCount(2);
+    Http::assertSentCount(4);
 });
 
 it('activates every supported imported channel after Buffer grants publishing scopes', function (
@@ -304,6 +468,571 @@ it('activates every supported imported channel after Buffer grants publishing sc
     'LinkedIn' => [SocialAccountConnection::PLATFORM_LINKEDIN, 'linkedin', 'page'],
     'X through Buffer Twitter service' => [SocialAccountConnection::PLATFORM_X, 'twitter', 'profile'],
 ]);
+
+it('syncs all healthy Buffer channels idempotently and exposes them in the composer', function () {
+    $owner = bufferOauthOwner();
+    config()->set('services.buffer.delivery.enabled', true);
+    SocialBufferConnection::factory()->for($owner)->create([
+        'buffer_account_id' => 'buffer_account_oauth_1',
+        'buffer_account_name' => 'Buffer OAuth Account',
+        'access_token' => 'oauth-access-token',
+        'scopes' => ['account:read', 'posts:read', 'posts:write', 'offline_access'],
+    ]);
+    $catalogOnlyInstagram = SocialAccountConnection::query()->create([
+        'user_id' => $owner->id,
+        'platform' => SocialAccountConnection::PLATFORM_INSTAGRAM,
+        'label' => 'Imported Instagram catalog channel',
+        'display_name' => 'malikiapro',
+        'account_handle' => 'malikiapro',
+        'external_account_id' => 'channel_sync_instagram',
+        'auth_method' => SocialAccountConnection::AUTH_METHOD_OAUTH,
+        'status' => SocialAccountConnection::STATUS_RECONNECT_REQUIRED,
+        'is_active' => false,
+        'connected_at' => now(),
+        'metadata' => [
+            'connection_flow' => 'buffer_oauth_discovery',
+            'oauth_ready' => true,
+            'buffer' => [
+                'account_id' => 'buffer_account_oauth_1',
+                'organization_id' => 'organization_oauth_2',
+                'organization_name' => 'Secondary Organization',
+                'channel_service' => 'instagram',
+                'channel_type' => 'business',
+                'catalog_only' => true,
+                'publication_enabled' => false,
+                'standalone_destination' => false,
+            ],
+        ],
+    ]);
+    fakeBufferOauthMultiChannelCatalog();
+
+    $firstSync = $this->actingAs($owner)
+        ->postJson(route('social.buffer.channels.sync'));
+
+    $firstSync->assertOk()
+        ->assertJsonPath('message_key', 'social.buffer_connector.messages.sync_success')
+        ->assertJsonPath('connector.delivery_enabled', true)
+        ->assertJsonPath('synced_count', 3)
+        ->assertJsonPath('active_count', 3)
+        ->assertJsonPath('skipped_count', 3)
+        ->assertJsonCount(3, 'connections')
+        ->assertJsonPath('connections.0.platform', SocialAccountConnection::PLATFORM_FACEBOOK)
+        ->assertJsonPath('connections.1.platform', SocialAccountConnection::PLATFORM_INSTAGRAM)
+        ->assertJsonPath('connections.1.id', $catalogOnlyInstagram->id)
+        ->assertJsonPath('connections.2.platform', SocialAccountConnection::PLATFORM_LINKEDIN);
+    $firstConnectionIds = collect($firstSync->json('connections'))
+        ->pluck('id')
+        ->map(fn (mixed $id): int => (int) $id)
+        ->all();
+
+    $secondSync = $this->actingAs($owner)
+        ->postJson(route('social.buffer.channels.sync'));
+
+    $secondSync->assertOk()
+        ->assertJsonPath('synced_count', 3)
+        ->assertJsonPath('active_count', 3)
+        ->assertJsonPath('skipped_count', 3)
+        ->assertJsonCount(3, 'connections');
+    $secondConnectionIds = collect($secondSync->json('connections'))
+        ->pluck('id')
+        ->map(fn (mixed $id): int => (int) $id)
+        ->all();
+    expect($secondConnectionIds)->toBe($firstConnectionIds);
+
+    $connections = SocialAccountConnection::query()
+        ->byUser($owner->id)
+        ->orderBy('platform')
+        ->get();
+
+    expect($connections)->toHaveCount(3);
+    expect($connections->pluck('platform')->all())->toBe([
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        SocialAccountConnection::PLATFORM_INSTAGRAM,
+        SocialAccountConnection::PLATFORM_LINKEDIN,
+    ]);
+    expect($connections->every(fn (SocialAccountConnection $connection): bool => (
+        $connection->is_active
+        && $connection->status === SocialAccountConnection::STATUS_CONNECTED
+        && $connection->usesBufferPublishingTransport()
+        && data_get($connection->metadata, 'buffer.catalog_only') === false
+        && data_get($connection->metadata, 'buffer.publication_enabled') === true
+    )))->toBeTrue();
+    $promotedInstagram = SocialAccountConnection::query()->findOrFail($catalogOnlyInstagram->id);
+    expect((int) $promotedInstagram->id)->toBe((int) $catalogOnlyInstagram->id);
+    expect($promotedInstagram->is_active)->toBeTrue()
+        ->and($promotedInstagram->status)->toBe(SocialAccountConnection::STATUS_CONNECTED)
+        ->and($promotedInstagram->delivery_provider)
+        ->toBe(SocialAccountConnection::DELIVERY_PROVIDER_BUFFER)
+        ->and($promotedInstagram->transport_generation)
+        ->toBe(SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1)
+        ->and($promotedInstagram->logical_destination_key)
+        ->toMatch('/\Aldk:v1:[0-9a-f]{64}\z/')
+        ->and(data_get($promotedInstagram->metadata, 'buffer.catalog_only'))->toBeFalse()
+        ->and(data_get($promotedInstagram->metadata, 'buffer.publication_enabled'))->toBeTrue();
+
+    $this->actingAs($owner)
+        ->getJson(route('social.composer'))
+        ->assertOk()
+        ->assertJsonCount(3, 'connected_accounts')
+        ->assertJsonPath('connected_accounts.0.platform', SocialAccountConnection::PLATFORM_FACEBOOK)
+        ->assertJsonPath('connected_accounts.1.platform', SocialAccountConnection::PLATFORM_INSTAGRAM)
+        ->assertJsonPath('connected_accounts.2.platform', SocialAccountConnection::PLATFORM_LINKEDIN);
+
+    Http::assertSentCount(6);
+});
+
+it('deactivates Buffer channels that are disconnected locked or absent from the catalog', function () {
+    $owner = bufferOauthOwner();
+    config()->set('services.buffer.delivery.enabled', true);
+    SocialBufferConnection::factory()->for($owner)->create([
+        'buffer_account_id' => 'buffer_account_oauth_1',
+        'buffer_account_name' => 'Buffer OAuth Account',
+        'access_token' => 'oauth-access-token',
+        'scopes' => ['account:read', 'posts:read', 'posts:write', 'offline_access'],
+    ]);
+    $disconnected = bufferOauthManagedChannel(
+        $owner,
+        SocialAccountConnection::PLATFORM_X,
+        'channel_sync_disconnected',
+        'twitter',
+    );
+    $locked = bufferOauthManagedChannel(
+        $owner,
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        'channel_sync_locked',
+        'facebook',
+    );
+    $removed = bufferOauthManagedChannel(
+        $owner,
+        SocialAccountConnection::PLATFORM_LINKEDIN,
+        'channel_sync_removed',
+        'linkedin',
+    );
+    $previousAccountChannel = bufferOauthManagedChannel(
+        $owner,
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        'channel_previous_buffer_account',
+        'facebook',
+        'buffer_account_oauth_previous',
+    );
+    $unassociatedChannel = bufferOauthManagedChannel(
+        $owner,
+        SocialAccountConnection::PLATFORM_INSTAGRAM,
+        'channel_without_buffer_account',
+        'instagram',
+        '',
+    );
+    fakeBufferOauthMultiChannelCatalog();
+
+    $response = $this->actingAs($owner)
+        ->postJson(route('social.buffer.channels.sync'));
+
+    $response->assertOk()
+        ->assertJsonPath('synced_count', 3)
+        ->assertJsonPath('active_count', 3)
+        ->assertJsonPath('skipped_count', 3)
+        ->assertJsonCount(8, 'connections');
+    $connectionsByExternalId = collect($response->json('connections'))
+        ->keyBy('external_account_id');
+
+    foreach ([$disconnected, $locked, $removed] as $unavailable) {
+        $fresh = $unavailable->fresh();
+
+        expect($fresh->status)->toBe(SocialAccountConnection::STATUS_RECONNECT_REQUIRED)
+            ->and($fresh->is_active)->toBeFalse()
+            ->and($fresh->last_error)->toContain('catalogue Buffer')
+            ->and(data_get($fresh->metadata, 'buffer.publication_enabled'))->toBeFalse()
+            ->and($connectionsByExternalId->get($fresh->external_account_id)['is_connected'] ?? null)
+            ->toBeFalse();
+    }
+
+    expect($previousAccountChannel->fresh()->is_active)->toBeFalse()
+        ->and($previousAccountChannel->fresh()->last_error)->toContain('ancien compte Buffer')
+        ->and(data_get(
+            $previousAccountChannel->fresh()->metadata,
+            'buffer.publication_enabled',
+        ))->toBeFalse();
+    expect($unassociatedChannel->fresh()->is_active)->toBeFalse()
+        ->and($unassociatedChannel->fresh()->last_error)->toContain('associé au compte Buffer')
+        ->and(data_get(
+            $unassociatedChannel->fresh()->metadata,
+            'buffer.publication_enabled',
+        ))->toBeFalse();
+
+    $this->actingAs($owner)
+        ->getJson(route('social.composer'))
+        ->assertOk()
+        ->assertJsonCount(3, 'connected_accounts');
+
+    Http::assertSentCount(3);
+});
+
+it('reconciles a Buffer channel identity when its platform changes for the same external id', function () {
+    $owner = bufferOauthOwner();
+    config()->set('services.buffer.delivery.enabled', true);
+    SocialBufferConnection::factory()->for($owner)->create([
+        'buffer_account_id' => 'buffer_account_oauth_1',
+        'buffer_account_name' => 'Buffer OAuth Account',
+        'access_token' => 'oauth-access-token',
+        'scopes' => ['account:read', 'posts:read', 'posts:write', 'offline_access'],
+    ]);
+    $oldFacebookConnection = bufferOauthManagedChannel(
+        $owner,
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        'channel_platform_changed',
+        'facebook',
+    );
+    fakeBufferAccountAndChannels(
+        channelOverrides: [
+            'id' => 'channel_platform_changed',
+            'service' => 'instagram',
+            'type' => 'business',
+        ],
+    );
+
+    $response = $this->actingAs($owner)
+        ->postJson(route('social.buffer.channels.sync'));
+
+    $response->assertOk()
+        ->assertJsonPath('synced_count', 1)
+        ->assertJsonPath('active_count', 1)
+        ->assertJsonCount(2, 'connections');
+    expect($oldFacebookConnection->fresh()->is_active)->toBeFalse()
+        ->and($oldFacebookConnection->fresh()->status)
+        ->toBe(SocialAccountConnection::STATUS_RECONNECT_REQUIRED);
+    $instagramConnection = SocialAccountConnection::query()
+        ->byUser($owner->id)
+        ->where('platform', SocialAccountConnection::PLATFORM_INSTAGRAM)
+        ->where('external_account_id', 'channel_platform_changed')
+        ->sole();
+    expect($instagramConnection->is_active)->toBeTrue()
+        ->and($instagramConnection->status)->toBe(SocialAccountConnection::STATUS_CONNECTED);
+
+    $this->actingAs($owner)
+        ->getJson(route('social.buffer.catalog'))
+        ->assertOk()
+        ->assertJsonPath(
+            'organizations.0.channels.0.platform',
+            SocialAccountConnection::PLATFORM_INSTAGRAM,
+        )
+        ->assertJsonPath('organizations.0.channels.0.imported', true)
+        ->assertJsonPath('organizations.0.channels.0.publication_enabled', true);
+
+    Http::assertSentCount(4);
+});
+
+it('refuses to synchronize while a Buffer connection delivery lock is held', function () {
+    $owner = bufferOauthOwner();
+    config()->set('services.buffer.delivery.enabled', true);
+    SocialBufferConnection::factory()->for($owner)->create([
+        'buffer_account_id' => 'buffer_account_oauth_1',
+        'buffer_account_name' => 'Buffer OAuth Account',
+        'access_token' => 'oauth-access-token',
+        'scopes' => ['account:read', 'posts:read', 'posts:write', 'offline_access'],
+    ]);
+    $connection = bufferOauthManagedChannel(
+        $owner,
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        'channel_sync_facebook',
+        'facebook',
+    );
+    $lastSyncedAt = $connection->last_synced_at?->toISOString();
+    fakeBufferOauthMultiChannelCatalog();
+    $mutex = app(SocialConnectionDeliveryMutex::class);
+    $deliveryLock = $mutex->acquire((int) $connection->id);
+    expect($deliveryLock)->not->toBeNull();
+
+    try {
+        $response = $this->actingAs($owner)
+            ->postJson(route('social.buffer.channels.sync'));
+    } finally {
+        $deliveryLock?->release();
+    }
+
+    $response->assertUnprocessable()
+        ->assertJsonValidationErrors('buffer');
+    expect($connection->fresh()->last_synced_at?->toISOString())->toBe($lastSyncedAt);
+    $this->assertDatabaseMissing('social_account_connections', [
+        'user_id' => $owner->id,
+        'external_account_id' => 'channel_sync_instagram',
+    ]);
+    $tenantLock = $mutex->acquireTenant((int) $owner->id);
+    expect($tenantLock)->not->toBeNull();
+    $tenantLock?->release();
+
+    Http::assertSentCount(3);
+});
+
+it('refuses to activate imported channels while a Buffer connection delivery lock is held', function () {
+    $owner = bufferOauthOwner();
+    config()->set('services.buffer.delivery.enabled', true);
+    SocialBufferConnection::factory()->for($owner)->create([
+        'buffer_account_id' => 'buffer_account_oauth_1',
+        'buffer_account_name' => 'Buffer OAuth Account',
+        'access_token' => 'oauth-access-token',
+        'scopes' => ['account:read', 'posts:read', 'posts:write', 'offline_access'],
+    ]);
+    $connection = bufferOauthManagedChannel(
+        $owner,
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        'channel_sync_facebook',
+        'facebook',
+    );
+    $connection->forceFill([
+        'status' => SocialAccountConnection::STATUS_RECONNECT_REQUIRED,
+        'is_active' => false,
+        'metadata' => [
+            ...$connection->metadata,
+            'buffer' => [
+                ...data_get($connection->metadata, 'buffer', []),
+                'publication_enabled' => false,
+            ],
+        ],
+    ])->save();
+    fakeBufferOauthMultiChannelCatalog();
+    $mutex = app(SocialConnectionDeliveryMutex::class);
+    $deliveryLock = $mutex->acquire((int) $connection->id);
+    expect($deliveryLock)->not->toBeNull();
+
+    try {
+        expect(fn (): int => app(BufferLocalConnectorService::class)
+            ->activateImportedChannels($owner))
+            ->toThrow(ValidationException::class);
+    } finally {
+        $deliveryLock?->release();
+    }
+
+    expect($connection->fresh()->is_active)->toBeFalse()
+        ->and(data_get($connection->fresh()->metadata, 'buffer.publication_enabled'))->toBeFalse();
+    $tenantLock = $mutex->acquireTenant((int) $owner->id);
+    expect($tenantLock)->not->toBeNull();
+    $tenantLock?->release();
+
+    Http::assertSentCount(3);
+});
+
+it('deactivates destinations from the previous Buffer account during OAuth activation', function () {
+    $owner = bufferOauthOwner();
+    config()->set('services.buffer.delivery.enabled', true);
+    SocialBufferConnection::factory()->for($owner)->create([
+        'buffer_account_id' => 'buffer_account_oauth_2',
+        'buffer_account_name' => 'Replacement Buffer Account',
+        'access_token' => 'oauth-access-token',
+        'scopes' => ['account:read', 'posts:read', 'posts:write', 'offline_access'],
+    ]);
+    $previousAccountChannel = bufferOauthManagedChannel(
+        $owner,
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        'channel_previous_buffer_account',
+        'facebook',
+        'buffer_account_oauth_1',
+    );
+    $currentAccountCatalogChannel = SocialAccountConnection::query()->create([
+        'user_id' => $owner->id,
+        'platform' => SocialAccountConnection::PLATFORM_INSTAGRAM,
+        'label' => 'Replacement account Instagram',
+        'display_name' => 'Replacement account Instagram',
+        'account_handle' => 'replacement-instagram',
+        'external_account_id' => 'channel_replacement_instagram',
+        'auth_method' => SocialAccountConnection::AUTH_METHOD_OAUTH,
+        'status' => SocialAccountConnection::STATUS_RECONNECT_REQUIRED,
+        'is_active' => false,
+        'connected_at' => now(),
+        'metadata' => [
+            'connection_flow' => 'buffer_oauth_discovery',
+            'oauth_ready' => true,
+            'buffer' => [
+                'account_id' => 'buffer_account_oauth_2',
+                'organization_id' => 'organization_oauth_2',
+                'channel_service' => 'instagram',
+                'channel_type' => 'business',
+                'catalog_only' => true,
+                'publication_enabled' => false,
+                'standalone_destination' => false,
+            ],
+        ],
+    ]);
+    $currentAccountUnavailableChannel = bufferOauthManagedChannel(
+        $owner,
+        SocialAccountConnection::PLATFORM_LINKEDIN,
+        'channel_replacement_unavailable',
+        'linkedin',
+        'buffer_account_oauth_2',
+    );
+    $currentAccountUnavailableChannel->forceFill([
+        'status' => SocialAccountConnection::STATUS_RECONNECT_REQUIRED,
+        'is_active' => false,
+        'metadata' => [
+            ...$currentAccountUnavailableChannel->metadata,
+            'buffer' => [
+                ...data_get($currentAccountUnavailableChannel->metadata, 'buffer', []),
+                'publication_enabled' => false,
+            ],
+        ],
+    ])->save();
+    $directConnection = SocialAccountConnection::query()->create([
+        'user_id' => $owner->id,
+        'platform' => SocialAccountConnection::PLATFORM_X,
+        'label' => 'Direct X connection',
+        'external_account_id' => 'direct-x-account',
+        ...pulseDirectTransportIdentity(
+            $owner,
+            SocialAccountConnection::PLATFORM_X,
+            'direct-x-account',
+        ),
+        'status' => SocialAccountConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'connected_at' => now(),
+    ]);
+    fakeBufferAccountAndChannels(
+        channelOverrides: [
+            'id' => 'channel_replacement_instagram',
+            'name' => 'replacement-instagram',
+            'displayName' => 'Replacement account Instagram',
+            'service' => 'instagram',
+            'type' => 'business',
+        ],
+        accountId: 'buffer_account_oauth_2',
+    );
+
+    $activatedCount = app(BufferLocalConnectorService::class)
+        ->activateImportedChannels($owner);
+
+    expect($activatedCount)->toBe(1)
+        ->and($previousAccountChannel->fresh()->is_active)->toBeFalse()
+        ->and($previousAccountChannel->fresh()->last_error)->toContain('ancien compte Buffer')
+        ->and(data_get(
+            $previousAccountChannel->fresh()->metadata,
+            'buffer.publication_enabled',
+        ))->toBeFalse()
+        ->and($currentAccountCatalogChannel->fresh()->is_active)->toBeTrue()
+        ->and(data_get(
+            $currentAccountCatalogChannel->fresh()->metadata,
+            'buffer.publication_enabled',
+        ))->toBeTrue()
+        ->and($currentAccountUnavailableChannel->fresh()->is_active)->toBeFalse()
+        ->and($currentAccountUnavailableChannel->fresh()->status)
+        ->toBe(SocialAccountConnection::STATUS_RECONNECT_REQUIRED)
+        ->and($currentAccountUnavailableChannel->fresh()->last_error)
+        ->toContain('catalogue Buffer')
+        ->and(data_get(
+            $currentAccountUnavailableChannel->fresh()->metadata,
+            'buffer.publication_enabled',
+        ))->toBeFalse()
+        ->and($directConnection->fresh()->is_active)->toBeTrue()
+        ->and($directConnection->fresh()->status)->toBe(SocialAccountConnection::STATUS_CONNECTED);
+
+    Http::assertSentCount(2);
+});
+
+it('rejects a channel discovered from a Buffer account that changed before import locking', function () {
+    $owner = bufferOauthOwner();
+    config()->set('services.buffer.delivery.enabled', true);
+    $bufferConnection = SocialBufferConnection::factory()->for($owner)->create([
+        'buffer_account_id' => 'buffer_account_oauth_1',
+        'buffer_account_name' => 'Buffer OAuth Account',
+        'access_token' => 'oauth-access-token',
+        'scopes' => ['account:read', 'posts:read', 'posts:write', 'offline_access'],
+    ]);
+    Http::fake([
+        'https://buffer.test/graphql' => function (Request $request) use ($bufferConnection) {
+            $query = (string) ($request['query'] ?? '');
+
+            if (str_contains($query, 'MalikiaPulseBufferAccount')) {
+                return Http::response([
+                    'data' => [
+                        'account' => [
+                            'id' => 'buffer_account_oauth_1',
+                            'name' => 'Original Buffer Account',
+                            'organizations' => [[
+                                'id' => 'organization_oauth_1',
+                                'name' => 'Original Organization',
+                            ]],
+                        ],
+                    ],
+                ]);
+            }
+
+            $bufferConnection->forceFill([
+                'buffer_account_id' => 'buffer_account_oauth_2',
+                'buffer_account_name' => 'Replacement Buffer Account',
+            ])->save();
+
+            return Http::response([
+                'data' => [
+                    'channels' => [[
+                        'id' => 'channel_oauth_facebook_1',
+                        'organizationId' => 'organization_oauth_1',
+                        'name' => 'oauth-page',
+                        'displayName' => 'OAuth Page',
+                        'service' => 'facebook',
+                        'type' => 'page',
+                        'isDisconnected' => false,
+                        'isLocked' => false,
+                        'isQueuePaused' => false,
+                        'timezone' => 'America/Toronto',
+                        'scopes' => ['channel:read'],
+                        'allowedActions' => ['createPost'],
+                    ]],
+                ],
+            ]);
+        },
+    ]);
+
+    $this->actingAs($owner)
+        ->postJson(route('social.buffer.channels.store'), [
+            'organization_id' => 'organization_oauth_1',
+            'channel_id' => 'channel_oauth_facebook_1',
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('buffer');
+
+    expect(SocialAccountConnection::query()->byUser($owner->id)->exists())->toBeFalse();
+    Http::assertSentCount(2);
+});
+
+it('rolls back every synchronized channel when one conflicts with an existing connection', function () {
+    $owner = bufferOauthOwner();
+    config()->set('services.buffer.delivery.enabled', true);
+    SocialBufferConnection::factory()->for($owner)->create([
+        'buffer_account_id' => 'buffer_account_oauth_1',
+        'buffer_account_name' => 'Buffer OAuth Account',
+        'access_token' => 'oauth-access-token',
+        'scopes' => ['account:read', 'posts:read', 'posts:write', 'offline_access'],
+    ]);
+    $existingConnection = SocialAccountConnection::query()->create([
+        'user_id' => $owner->id,
+        'platform' => SocialAccountConnection::PLATFORM_LINKEDIN,
+        'label' => 'Existing direct LinkedIn page',
+        'external_account_id' => 'channel_sync_linkedin',
+        ...pulseDirectTransportIdentity(
+            $owner,
+            SocialAccountConnection::PLATFORM_LINKEDIN,
+            'channel_sync_linkedin',
+        ),
+        'status' => SocialAccountConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'connected_at' => now(),
+    ]);
+    fakeBufferOauthMultiChannelCatalog();
+
+    $this->actingAs($owner)
+        ->postJson(route('social.buffer.channels.sync'))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('channel_id');
+
+    $this->assertModelExists($existingConnection);
+    expect(SocialAccountConnection::query()->byUser($owner->id)->count())->toBe(1);
+    $this->assertDatabaseMissing('social_account_connections', [
+        'user_id' => $owner->id,
+        'external_account_id' => 'channel_sync_facebook',
+    ]);
+    $this->assertDatabaseMissing('social_account_connections', [
+        'user_id' => $owner->id,
+        'external_account_id' => 'channel_sync_instagram',
+    ]);
+    Http::assertSentCount(3);
+});
 
 it('does not activate a catalog import whose Buffer service mismatches its platform', function () {
     $owner = bufferOauthOwner();
@@ -483,6 +1212,10 @@ it('keeps Buffer OAuth mutations owner only', function () {
         ->assertForbidden();
 
     SocialBufferConnection::factory()->for($owner)->create();
+
+    $this->actingAs($member)
+        ->postJson(route('social.buffer.channels.sync'))
+        ->assertForbidden();
 
     $this->actingAs($member)
         ->postJson(route('social.buffer.disconnect'))

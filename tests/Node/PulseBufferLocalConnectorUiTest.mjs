@@ -20,17 +20,57 @@ test('the Pulse accounts page only mounts the Buffer connection card', () => {
     assert.doesNotMatch(accountsPage, /initial-connections/u);
 });
 
-test('the Buffer card connects, disconnects, lists and imports channels without accepting a token', () => {
+test('the Buffer card connects, syncs, reactivates and lists channels without accepting a token', () => {
     assert.match(bufferConnector, /route\('social\.buffer\.connect'\)/u);
     assert.match(bufferConnector, /route\('social\.buffer\.disconnect'\)/u);
     assert.match(bufferConnector, /route\('social\.buffer\.catalog'\)/u);
     assert.match(bufferConnector, /route\('social\.buffer\.channels\.store'\)/u);
+    assert.match(bufferConnector, /route\('social\.buffer\.channels\.sync'\)/u);
     assert.match(bufferConnector, /organization_id:\s*organization\.id/u);
     assert.match(bufferConnector, /channel_id:\s*channel\.id/u);
     assert.match(bufferConnector, /v-for="organization in catalog\.organizations"/u);
     assert.match(bufferConnector, /v-for="channel in organization\.channels"/u);
     assert.match(bufferConnector, /v-if="props\.canManage"/u);
-    assert.match(bufferConnector, /channel\.imported \|\| !channel\.can_import/u);
+    assert.match(bufferConnector, /const syncing = ref\(false\)/u);
+    assert.match(bufferConnector, /\|\| syncing\.value/u);
+    assert.match(
+        bufferConnector,
+        /const hasChannelsAwaitingPublication = computed[\s\S]*?channel\?\.can_import[\s\S]*?!Boolean\(channel\?\.publication_enabled\)/u,
+    );
+    assert.match(
+        bufferConnector,
+        /const canSyncChannels = computed\(\(\) => \(\s*isDeliveryAuthorized\.value\s*\)\)/u,
+    );
+    assert.match(bufferConnector, /const shouldAuthorizePublishing = computed[\s\S]*?!isDeliveryAuthorized\.value/u);
+    assert.match(
+        bufferConnector,
+        /Number\(requestError\?\.response\?\.status\) !== 422[\s\S]*?response\?\.data\?\.errors/u,
+    );
+    assert.doesNotMatch(bufferConnector, /requestError\?\.response\?\.data\?\.message/u);
+    assert.doesNotMatch(bufferConnector, /requestError\?\.message/u);
+    assert.match(
+        bufferConnector,
+        /const connectionIdentityKey = \(platform, externalAccountId\)[\s\S]*?JSON\.stringify\(\[normalizedPlatform, normalizedExternalAccountId\]\)/u,
+    );
+    assert.match(
+        bufferConnector,
+        /connectionsByIdentity[\s\S]*?connectionIdentityKey\(connection\?\.platform, connection\?\.external_account_id\)[\s\S]*?connectionIdentityKey\(channel\?\.platform, channel\?\.id\)[\s\S]*?channel\.imported = true[\s\S]*?channel\.publication_enabled = Boolean\(connection\.is_connected\)/u,
+    );
+    assert.match(bufferConnector, /catalog\.value\.imported_count = catalogChannels\.value\.filter/u);
+    assert.match(bufferConnector, /const applyConnectorPayload = \(responseConnector\)/u);
+    assert.match(bufferConnector, /connector\.value = responseConnector/u);
+    assert.match(
+        bufferConnector,
+        /route\('social\.buffer\.channels\.store'\)[\s\S]*?applyConnectorPayload\(response\.data\?\.connector\)/u,
+    );
+    assert.match(bufferConnector, /v-else-if="props\.canManage && canSyncChannels"/u);
+    assert.match(bufferConnector, /@click="syncAllChannels"/u);
+    assert.match(bufferConnector, /social\.buffer_connector\.actions\.sync_all/u);
+    assert.match(bufferConnector, /v-if="props\.canManage && shouldAuthorizePublishing"/u);
+    assert.match(bufferConnector, /social\.buffer_connector\.messages\.publishing_required/u);
+    assert.match(bufferConnector, /@click="handleChannelAction\(organization, channel\)"/u);
+    assert.match(bufferConnector, /channel\?\.imported && !isDeliveryAuthorized\.value/u);
+    assert.match(bufferConnector, /social\.buffer_connector\.actions\.reactivate/u);
     assert.match(bufferConnector, /channelHealthToneClass\(channel\)/u);
     assert.match(bufferConnector, /v-if="channel\.imported"/u);
     assert.match(bufferConnector, /role="alert"/u);
@@ -63,7 +103,7 @@ test('the Buffer card connects, disconnects, lists and imports channels without 
     assert.doesNotMatch(bufferConnector, /BUFFER_/u);
 });
 
-test('every locale explains OAuth connection and both Buffer delivery states', () => {
+test('every locale explains OAuth connection, channel sync and both Buffer delivery states', () => {
     for (const locale of ['fr', 'en', 'es']) {
         const translations = readJson(`resources/js/i18n/modules/${locale}/social.json`)
             .social.buffer_connector;
@@ -76,8 +116,14 @@ test('every locale explains OAuth connection and both Buffer delivery states', (
         assert.equal(typeof translations.actions.enable_publishing, 'string', `${locale}:enable_publishing`);
         assert.equal(typeof translations.actions.disconnect, 'string', `${locale}:disconnect`);
         assert.equal(typeof translations.actions.add_in_buffer, 'string', `${locale}:add_in_buffer`);
+        assert.equal(typeof translations.actions.sync_all, 'string', `${locale}:sync_all`);
+        assert.equal(typeof translations.actions.syncing_all, 'string', `${locale}:syncing_all`);
         assert.equal(typeof translations.actions.import, 'string', `${locale}:import`);
+        assert.equal(typeof translations.actions.reactivate, 'string', `${locale}:reactivate`);
         assert.equal(typeof translations.block_reasons.disconnected, 'string', `${locale}:disconnected`);
         assert.equal(typeof translations.messages.disconnect_success, 'string', `${locale}:disconnect_success`);
+        assert.equal(typeof translations.messages.publishing_required, 'string', `${locale}:publishing_required`);
+        assert.equal(typeof translations.messages.sync_error, 'string', `${locale}:sync_error`);
+        assert.equal(typeof translations.messages.sync_success, 'string', `${locale}:sync_success`);
     }
 });

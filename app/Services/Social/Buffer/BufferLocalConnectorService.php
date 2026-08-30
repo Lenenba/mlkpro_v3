@@ -6,9 +6,11 @@ use App\Models\SocialAccountConnection;
 use App\Models\SocialBufferConnection;
 use App\Models\User;
 use App\Services\Social\SocialConnectionDeliveryMutex;
+use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 final class BufferLocalConnectorService
 {
@@ -104,6 +106,7 @@ final class BufferLocalConnectorService
             ->byUser($owner->id)
             ->get([
                 'id',
+                'platform',
                 'external_account_id',
                 'delivery_provider',
                 'transport_generation',
@@ -116,7 +119,12 @@ final class BufferLocalConnectorService
                 $this->isBufferManagedConnection($connection)
                 || (bool) data_get($connection->metadata, 'buffer.catalog_only', false)
             ))
-            ->keyBy('external_account_id');
+            ->keyBy(fn (SocialAccountConnection $connection): string => (
+                $this->channelIdentityKey(
+                    (string) $connection->platform,
+                    (string) $connection->external_account_id,
+                )
+            ));
         $organizations = [];
         $channelCount = 0;
         $importedCount = 0;
@@ -131,7 +139,12 @@ final class BufferLocalConnectorService
                     ]);
                 }
 
-                $connection = $importedConnections->get($channel['id']);
+                $platform = $this->platformForService($channel['service']);
+                $connection = $platform === null
+                    ? null
+                    : $importedConnections->get(
+                        $this->channelIdentityKey($platform, $channel['id']),
+                    );
                 $normalized = $this->catalogChannel($channel, $connection);
                 $channels[] = $normalized;
                 $channelCount++;
@@ -204,170 +217,445 @@ final class BufferLocalConnectorService
             ]);
         }
 
-        return DB::transaction(function () use (
-            $owner,
-            $account,
-            $organization,
-            $channel,
-            $platform,
-        ): SocialAccountConnection {
-            User::query()->whereKey($owner->id)->lockForUpdate()->firstOrFail();
-
-            $connection = SocialAccountConnection::query()
-                ->byUser($owner->id)
-                ->where('platform', $platform)
-                ->where('external_account_id', $channel['id'])
-                ->lockForUpdate()
-                ->first();
-
-            if ($connection !== null
-                && ! $this->isMutableCatalogImport($connection)
-                && ! $this->isBufferManagedConnection($connection)) {
-                throw ValidationException::withMessages([
-                    'channel_id' => 'Ce canal est déjà lié à une connexion Pulse qui ne peut pas être remplacée.',
-                ]);
-            }
-
-            $connection ??= new SocialAccountConnection([
-                'user_id' => $owner->id,
-                'platform' => $platform,
-                'external_account_id' => $channel['id'],
-            ]);
-
-            $existingMetadata = (array) ($connection->metadata ?? []);
-            $existingBufferMetadata = (array) data_get($existingMetadata, 'buffer', []);
-            $canActivateDelivery = $this->deliveryIsAuthorized($owner)
-                && in_array($platform, self::DELIVERY_PLATFORMS, true);
-            $hasManagedIdentity = $this->isBufferManagedConnection($connection);
-            $logicalDestinationKey = $hasManagedIdentity
-                ? (string) $connection->logical_destination_key
-                : ($canActivateDelivery ? $this->newLogicalDestinationKey() : null);
-
-            $connection->fill([
-                'label' => $this->limit((string) ($channel['display_name'] ?: $channel['name']), 120),
-                'display_name' => $this->limit((string) ($channel['display_name'] ?: $channel['name']), 191),
-                'account_handle' => $this->limit($channel['name'], 191),
-                'delivery_provider' => $hasManagedIdentity || $canActivateDelivery
-                    ? SocialAccountConnection::DELIVERY_PROVIDER_BUFFER
-                    : null,
-                'transport_generation' => $hasManagedIdentity || $canActivateDelivery
-                    ? SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1
-                    : null,
-                'logical_destination_key' => $logicalDestinationKey,
-                'auth_method' => $this->oauth->isConfigured()
-                    ? SocialAccountConnection::AUTH_METHOD_OAUTH
-                    : SocialAccountConnection::AUTH_METHOD_MANUAL,
-                'credentials' => null,
-                'permissions' => $channel['scopes'],
-                'status' => $hasManagedIdentity && ! $canActivateDelivery
-                    ? SocialAccountConnection::STATUS_RECONNECT_REQUIRED
-                    : SocialAccountConnection::STATUS_CONNECTED,
-                'is_active' => $canActivateDelivery,
-                'connected_at' => $connection->connected_at ?? now(),
-                'last_synced_at' => now(),
-                'last_error' => null,
-                'metadata' => [
-                    ...$existingMetadata,
-                    'connection_flow' => $this->oauth->isConfigured()
-                        ? 'buffer_oauth_discovery'
-                        : 'buffer_local_discovery',
-                    'oauth_ready' => $this->oauth->isConfigured(),
-                    'buffer' => [
-                        ...$existingBufferMetadata,
-                        'account_id' => $account['id'],
-                        'organization_id' => $organization['id'],
-                        'organization_name' => $organization['name'],
-                        'channel_service' => $channel['service'],
-                        'channel_type' => $channel['type'],
-                        'timezone' => $channel['timezone'],
-                        'allowed_actions' => $channel['allowed_actions'],
-                        'is_queue_paused' => $channel['is_queue_paused'],
-                        'credential_source' => $this->oauth->isConfigured()
-                            ? 'oauth_account'
-                            : 'server_environment',
-                        'catalog_only' => ! ($hasManagedIdentity || $canActivateDelivery),
-                        'publication_enabled' => $canActivateDelivery,
-                        'standalone_destination' => $hasManagedIdentity || $canActivateDelivery,
-                    ],
-                ],
-            ]);
-            $connection->save();
-
-            return $connection->fresh();
-        });
-    }
-
-    public function activateImportedChannels(User $owner): int
-    {
         $tenantLock = $this->deliveryMutex->acquireTenant((int) $owner->id);
 
         if ($tenantLock === null) {
             throw ValidationException::withMessages([
-                'buffer' => 'Une publication Pulse est en cours. Réessayez l’activation dans un instant.',
+                'buffer' => 'Une publication Pulse est en cours. Réessayez l’import dans un instant.',
             ]);
         }
 
+        $connectionLocks = [];
+
         try {
-            if (! $this->deliveryIsAuthorized($owner)) {
-                return 0;
-            }
+            $this->assertAvailable($owner);
+            $connectionLocks = $this->acquireBufferConnectionLocks(
+                $owner,
+                'Une publication Buffer est en cours. Réessayez l’import dans un instant.',
+            );
 
-            return DB::transaction(function () use ($owner): int {
+            return DB::transaction(function () use (
+                $owner,
+                $account,
+                $organization,
+                $channel,
+                $platform,
+            ): SocialAccountConnection {
                 User::query()->whereKey($owner->id)->lockForUpdate()->firstOrFail();
-                $bufferAccountId = (string) SocialBufferConnection::query()
-                    ->whereBelongsTo($owner)
-                    ->value('buffer_account_id');
+                $this->assertCurrentBufferAccount($owner, $account['id']);
 
-                $connections = SocialAccountConnection::query()
-                    ->byUser($owner->id)
-                    ->whereIn('platform', self::DELIVERY_PLATFORMS)
-                    ->lockForUpdate()
-                    ->get()
-                    ->filter(fn (SocialAccountConnection $connection): bool => (
-                        ($this->isMutableCatalogImport($connection)
-                            || $this->isBufferManagedConnection($connection))
-                        && $this->bufferServiceMatchesConnection($connection)
-                        && $bufferAccountId !== ''
-                        && hash_equals(
-                            $bufferAccountId,
-                            (string) data_get($connection->metadata, 'buffer.account_id'),
-                        )
-                    ));
-
-                foreach ($connections as $connection) {
-                    $metadata = (array) ($connection->metadata ?? []);
-                    $bufferMetadata = (array) data_get($metadata, 'buffer', []);
-                    $hasManagedIdentity = $this->isBufferManagedConnection($connection);
-
-                    $connection->forceFill([
-                        'delivery_provider' => SocialAccountConnection::DELIVERY_PROVIDER_BUFFER,
-                        'transport_generation' => SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1,
-                        'logical_destination_key' => $hasManagedIdentity
-                            ? $connection->logical_destination_key
-                            : $this->newLogicalDestinationKey(),
-                        'auth_method' => SocialAccountConnection::AUTH_METHOD_OAUTH,
-                        'status' => SocialAccountConnection::STATUS_CONNECTED,
-                        'is_active' => true,
-                        'last_synced_at' => now(),
-                        'last_error' => null,
-                        'metadata' => [
-                            ...$metadata,
-                            'oauth_ready' => true,
-                            'buffer' => [
-                                ...$bufferMetadata,
-                                'catalog_only' => false,
-                                'publication_enabled' => true,
-                                'standalone_destination' => true,
-                            ],
-                        ],
-                    ])->save();
-                }
-
-                return $connections->count();
+                return $this->upsertChannel(
+                    $owner,
+                    $account,
+                    $organization,
+                    $channel,
+                    $platform,
+                    $this->deliveryIsAuthorized($owner),
+                );
             }, 3);
         } finally {
+            $this->releaseConnectionLocks($connectionLocks);
             $tenantLock->release();
         }
+    }
+
+    /**
+     * @return array{
+     *     synced_count: int,
+     *     active_count: int,
+     *     skipped_count: int,
+     *     connections: list<SocialAccountConnection>
+     * }
+     */
+    public function syncAvailableChannels(User $owner): array
+    {
+        $this->assertAvailable($owner);
+
+        $accessToken = $this->accessToken($owner);
+        $account = $this->client->account($accessToken);
+        $candidates = [];
+        $skippedCount = 0;
+
+        foreach ($account['organizations'] as $organization) {
+            foreach ($this->client->channels($organization['id'], $accessToken) as $channel) {
+                if (! hash_equals($organization['id'], $channel['organization_id'])) {
+                    throw ValidationException::withMessages([
+                        'buffer' => 'Buffer a associé un canal à une organisation inattendue.',
+                    ]);
+                }
+
+                $platform = $this->platformForService($channel['service']);
+
+                if ($platform === null || $channel['is_disconnected'] || $channel['is_locked']) {
+                    $skippedCount++;
+
+                    continue;
+                }
+
+                $candidates[] = [
+                    'organization' => $organization,
+                    'channel' => $channel,
+                    'platform' => $platform,
+                ];
+            }
+        }
+
+        $tenantLock = $this->deliveryMutex->acquireTenant((int) $owner->id);
+
+        if ($tenantLock === null) {
+            throw ValidationException::withMessages([
+                'buffer' => 'Une publication Pulse est en cours. Réessayez la synchronisation dans un instant.',
+            ]);
+        }
+
+        $connectionLocks = [];
+
+        try {
+            $this->assertAvailable($owner);
+            $connectionLocks = $this->acquireBufferConnectionLocks(
+                $owner,
+                'Une publication Buffer est en cours. Réessayez la synchronisation dans un instant.',
+            );
+            $result = DB::transaction(function () use (
+                $owner,
+                $account,
+                $candidates,
+            ): array {
+                User::query()->whereKey($owner->id)->lockForUpdate()->firstOrFail();
+                $this->assertCurrentBufferAccount($owner, $account['id']);
+                $deliveryAuthorized = $this->deliveryIsAuthorized($owner);
+                $synchronizedConnections = [];
+
+                foreach ($candidates as $candidate) {
+                    $synchronizedConnections[] = $this->upsertChannel(
+                        $owner,
+                        $account,
+                        $candidate['organization'],
+                        $candidate['channel'],
+                        $candidate['platform'],
+                        $deliveryAuthorized,
+                    );
+                }
+
+                $healthyChannelKeys = collect($candidates)
+                    ->map(fn (array $candidate): string => $this->channelIdentityKey(
+                        $candidate['platform'],
+                        $candidate['channel']['id'],
+                    ))
+                    ->values()
+                    ->all();
+
+                return [
+                    'synchronized' => $synchronizedConnections,
+                    'reconciled' => $this->reconcileUnavailableChannels(
+                        $owner,
+                        $account['id'],
+                        $healthyChannelKeys,
+                    ),
+                ];
+            }, 3);
+        } finally {
+            $this->releaseConnectionLocks($connectionLocks);
+            $tenantLock->release();
+        }
+
+        $connections = [
+            ...$result['synchronized'],
+            ...$result['reconciled'],
+        ];
+
+        $activeCount = collect($connections)
+            ->filter(fn (SocialAccountConnection $connection): bool => (
+                $connection->is_active
+                && $connection->status === SocialAccountConnection::STATUS_CONNECTED
+                && $connection->usesBufferPublishingTransport()
+            ))
+            ->count();
+
+        return [
+            'synced_count' => count($result['synchronized']),
+            'active_count' => $activeCount,
+            'skipped_count' => $skippedCount,
+            'connections' => $connections,
+        ];
+    }
+
+    public function activateImportedChannels(User $owner): int
+    {
+        return $this->syncAvailableChannels($owner)['active_count'];
+    }
+
+    /**
+     * @return list<Lock>
+     */
+    private function acquireBufferConnectionLocks(User $owner, string $busyMessage): array
+    {
+        $locks = [];
+
+        try {
+            $connectionIds = SocialAccountConnection::query()
+                ->byUser($owner->id)
+                ->where(function ($query): void {
+                    $query
+                        ->where('delivery_provider', SocialAccountConnection::DELIVERY_PROVIDER_BUFFER)
+                        ->orWhere('metadata->buffer->catalog_only', true);
+                })
+                ->orderBy('id')
+                ->pluck('id');
+
+            foreach ($connectionIds as $connectionId) {
+                $lock = $this->deliveryMutex->acquire((int) $connectionId);
+
+                if ($lock === null) {
+                    throw ValidationException::withMessages([
+                        'buffer' => $busyMessage,
+                    ]);
+                }
+
+                $locks[] = $lock;
+            }
+        } catch (Throwable $exception) {
+            $this->releaseConnectionLocks($locks);
+
+            throw $exception;
+        }
+
+        return $locks;
+    }
+
+    /**
+     * @param  list<Lock>  $locks
+     */
+    private function releaseConnectionLocks(array $locks): void
+    {
+        foreach (array_reverse($locks) as $lock) {
+            $lock->release();
+        }
+    }
+
+    private function assertCurrentBufferAccount(User $owner, string $bufferAccountId): void
+    {
+        if (! $this->oauth->isConfigured()) {
+            return;
+        }
+
+        $currentBufferAccountId = (string) SocialBufferConnection::query()
+            ->whereBelongsTo($owner)
+            ->lockForUpdate()
+            ->value('buffer_account_id');
+
+        if ($currentBufferAccountId === '' || ! hash_equals($currentBufferAccountId, $bufferAccountId)) {
+            throw ValidationException::withMessages([
+                'buffer' => 'Le compte Buffer connecté a changé. Rechargez les canaux avant de continuer.',
+            ]);
+        }
+    }
+
+    /**
+     * @param  list<string>  $healthyChannelKeys
+     * @return list<SocialAccountConnection>
+     */
+    private function reconcileUnavailableChannels(
+        User $owner,
+        string $bufferAccountId,
+        array $healthyChannelKeys,
+    ): array {
+        $healthyChannels = array_fill_keys($healthyChannelKeys, true);
+        $reconciled = [];
+        $connections = SocialAccountConnection::query()
+            ->byUser($owner->id)
+            ->where(function ($query): void {
+                $query
+                    ->where('delivery_provider', SocialAccountConnection::DELIVERY_PROVIDER_BUFFER)
+                    ->orWhere('metadata->buffer->catalog_only', true);
+            })
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($connections as $connection) {
+            $connectionBufferAccountId = (string) data_get(
+                $connection->metadata,
+                'buffer.account_id',
+            );
+            $externalAccountId = (string) $connection->external_account_id;
+            $channelIdentityKey = $this->channelIdentityKey(
+                (string) $connection->platform,
+                $externalAccountId,
+            );
+            $belongsToCurrentBufferAccount = $connectionBufferAccountId !== ''
+                && hash_equals($bufferAccountId, $connectionBufferAccountId);
+
+            if (($belongsToCurrentBufferAccount
+                    && $externalAccountId !== ''
+                    && isset($healthyChannels[$channelIdentityKey]))
+                || ! $this->isReconciliableBufferConnection($connection)) {
+                continue;
+            }
+
+            $reconciled[] = $this->deactivateBufferConnection(
+                $connection,
+                match (true) {
+                    $connectionBufferAccountId === '' => 'Ce canal ne peut plus être associé au compte Buffer connecté.',
+                    $belongsToCurrentBufferAccount => 'Ce canal n’est plus disponible dans le catalogue Buffer connecté.',
+                    default => 'Ce canal appartient à un ancien compte Buffer et doit être reconnecté.',
+                },
+            );
+        }
+
+        return $reconciled;
+    }
+
+    private function isReconciliableBufferConnection(
+        SocialAccountConnection $connection,
+    ): bool {
+        $isCatalogConnection = (bool) data_get(
+            $connection->metadata,
+            'buffer.catalog_only',
+            false,
+        )
+            && $connection->delivery_provider === null
+            && $connection->transport_generation === null
+            && $connection->logical_destination_key === null;
+
+        return $connection->usesBufferPublishingTransport() || $isCatalogConnection;
+    }
+
+    private function deactivateBufferConnection(
+        SocialAccountConnection $connection,
+        string $message,
+    ): SocialAccountConnection {
+        $metadata = (array) ($connection->metadata ?? []);
+        $bufferMetadata = (array) data_get($metadata, 'buffer', []);
+
+        $connection->forceFill([
+            'status' => SocialAccountConnection::STATUS_RECONNECT_REQUIRED,
+            'is_active' => false,
+            'last_synced_at' => now(),
+            'last_error' => $message,
+            'metadata' => [
+                ...$metadata,
+                'buffer' => [
+                    ...$bufferMetadata,
+                    'publication_enabled' => false,
+                ],
+            ],
+        ])->save();
+
+        return $connection->fresh();
+    }
+
+    private function channelIdentityKey(string $platform, string $externalAccountId): string
+    {
+        return $platform."\0".$externalAccountId;
+    }
+
+    /**
+     * @param  array{id: string, name: ?string, organizations: list<array{id: string, name: string}>}  $account
+     * @param  array{id: string, name: string}  $organization
+     * @param  array{
+     *     id: string,
+     *     organization_id: string,
+     *     name: string,
+     *     display_name: ?string,
+     *     service: string,
+     *     type: string,
+     *     is_disconnected: bool,
+     *     is_locked: bool,
+     *     is_queue_paused: bool,
+     *     timezone: string,
+     *     scopes: list<string>,
+     *     allowed_actions: list<string>
+     * }  $channel
+     */
+    private function upsertChannel(
+        User $owner,
+        array $account,
+        array $organization,
+        array $channel,
+        string $platform,
+        bool $deliveryAuthorized,
+    ): SocialAccountConnection {
+        $connection = SocialAccountConnection::query()
+            ->byUser($owner->id)
+            ->where('platform', $platform)
+            ->where('external_account_id', $channel['id'])
+            ->lockForUpdate()
+            ->first();
+
+        if ($connection !== null
+            && ! $this->isMutableCatalogImport($connection)
+            && ! $this->isBufferManagedConnection($connection)) {
+            throw ValidationException::withMessages([
+                'channel_id' => 'Ce canal est déjà lié à une connexion Pulse qui ne peut pas être remplacée.',
+            ]);
+        }
+
+        $connection ??= new SocialAccountConnection([
+            'user_id' => $owner->id,
+            'platform' => $platform,
+            'external_account_id' => $channel['id'],
+        ]);
+
+        $existingMetadata = (array) ($connection->metadata ?? []);
+        $existingBufferMetadata = (array) data_get($existingMetadata, 'buffer', []);
+        $canActivateDelivery = $deliveryAuthorized
+            && in_array($platform, self::DELIVERY_PLATFORMS, true);
+        $hasManagedIdentity = $this->isBufferManagedConnection($connection);
+        $logicalDestinationKey = $hasManagedIdentity
+            ? (string) $connection->logical_destination_key
+            : ($canActivateDelivery ? $this->newLogicalDestinationKey() : null);
+
+        $connection->fill([
+            'label' => $this->limit((string) ($channel['display_name'] ?: $channel['name']), 120),
+            'display_name' => $this->limit((string) ($channel['display_name'] ?: $channel['name']), 191),
+            'account_handle' => $this->limit($channel['name'], 191),
+            'delivery_provider' => $hasManagedIdentity || $canActivateDelivery
+                ? SocialAccountConnection::DELIVERY_PROVIDER_BUFFER
+                : null,
+            'transport_generation' => $hasManagedIdentity || $canActivateDelivery
+                ? SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1
+                : null,
+            'logical_destination_key' => $logicalDestinationKey,
+            'auth_method' => $this->oauth->isConfigured()
+                ? SocialAccountConnection::AUTH_METHOD_OAUTH
+                : SocialAccountConnection::AUTH_METHOD_MANUAL,
+            'credentials' => null,
+            'permissions' => $channel['scopes'],
+            'status' => $hasManagedIdentity && ! $canActivateDelivery
+                ? SocialAccountConnection::STATUS_RECONNECT_REQUIRED
+                : SocialAccountConnection::STATUS_CONNECTED,
+            'is_active' => $canActivateDelivery,
+            'connected_at' => $connection->connected_at ?? now(),
+            'last_synced_at' => now(),
+            'last_error' => null,
+            'metadata' => [
+                ...$existingMetadata,
+                'connection_flow' => $this->oauth->isConfigured()
+                    ? 'buffer_oauth_discovery'
+                    : 'buffer_local_discovery',
+                'oauth_ready' => $this->oauth->isConfigured(),
+                'buffer' => [
+                    ...$existingBufferMetadata,
+                    'account_id' => $account['id'],
+                    'organization_id' => $organization['id'],
+                    'organization_name' => $organization['name'],
+                    'channel_service' => $channel['service'],
+                    'channel_type' => $channel['type'],
+                    'timezone' => $channel['timezone'],
+                    'allowed_actions' => $channel['allowed_actions'],
+                    'is_queue_paused' => $channel['is_queue_paused'],
+                    'credential_source' => $this->oauth->isConfigured()
+                        ? 'oauth_account'
+                        : 'server_environment',
+                    'catalog_only' => ! ($hasManagedIdentity || $canActivateDelivery),
+                    'publication_enabled' => $canActivateDelivery,
+                    'standalone_destination' => $hasManagedIdentity || $canActivateDelivery,
+                ],
+            ],
+        ]);
+        $connection->save();
+
+        return $connection->fresh();
     }
 
     private function isMutableCatalogImport(SocialAccountConnection $connection): bool

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ImportBufferChannelRequest;
+use App\Models\SocialAccountConnection;
 use App\Models\User;
 use App\Services\Social\Buffer\BufferLocalConnectorService;
 use App\Services\Social\Buffer\BufferOAuthService;
@@ -91,8 +92,34 @@ class SocialBufferController extends Controller
 
         return response()->json([
             'message_key' => 'social.buffer_connector.messages.import_success',
+            'connector' => $this->bufferConnector->status($owner),
             'connection' => $this->connectionService->payload($connection),
         ], 201);
+    }
+
+    public function sync(Request $request): JsonResponse
+    {
+        [$owner, , $canManageAccounts] = $this->resolveAccess($request->user());
+
+        if (! $canManageAccounts) {
+            abort(403);
+        }
+
+        $result = $this->bufferConnector->syncAvailableChannels($owner);
+
+        return response()->json([
+            'message_key' => 'social.buffer_connector.messages.sync_success',
+            'connector' => $this->bufferConnector->status($owner),
+            'synced_count' => $result['synced_count'],
+            'active_count' => $result['active_count'],
+            'skipped_count' => $result['skipped_count'],
+            'connections' => collect($result['connections'])
+                ->map(fn (SocialAccountConnection $connection): array => (
+                    $this->connectionService->payload($connection)
+                ))
+                ->values()
+                ->all(),
+        ]);
     }
 
     /**

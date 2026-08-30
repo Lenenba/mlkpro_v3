@@ -1025,9 +1025,12 @@
         "disconnect": "Deconnecter",
         "disconnecting": "Deconnexion...",
         "add_in_buffer": "Ajouter dans Buffer",
+        "sync_all": "Synchroniser tous les canaux",
+        "syncing_all": "Synchronisation...",
         "import": "Importer dans Pulse",
         "importing": "Import en cours...",
-        "imported": "Importe"
+        "imported": "Importe",
+        "reactivate": "Réactiver dans Pulse"
       },
       "states": {
         "connected": "Connecte",
@@ -1047,8 +1050,11 @@
         "disconnect_success": "Le compte Buffer a ete deconnecte.",
         "confirm_disconnect": "Deconnecter {name} ?",
         "load_error": "Les comptes Buffer n ont pas pu etre charges.",
+        "publishing_required": "Activez la publication Buffer avant de synchroniser ou de réactiver ces canaux dans Pulse.",
+        "sync_error": "Les canaux Buffer n’ont pas pu être synchronisés.",
+        "sync_success": "Synchronisation terminée : {active} canaux sur {synced} sont prêts à publier. {skipped} ignorés.",
         "import_error": "Le canal Buffer n a pas pu etre importe.",
-        "import_success": "Le canal Buffer est visible dans Pulse."
+        "import_success": "Le canal Buffer a été synchronisé avec Pulse."
       }
     }
   }

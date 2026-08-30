@@ -24,6 +24,7 @@ const catalog = ref(null);
 const loading = ref(false);
 const connecting = ref(false);
 const disconnecting = ref(false);
+const syncing = ref(false);
 const importingChannelId = ref(null);
 const error = ref('');
 const info = ref('');
@@ -35,14 +36,48 @@ const canDisconnect = computed(() => Boolean(connector.value?.can_disconnect));
 const isDeliveryAuthorized = computed(() => Boolean(connector.value?.delivery_authorized));
 const isDeliveryEnabled = computed(() => Boolean(connector.value?.delivery_enabled));
 const hasCatalog = computed(() => catalog.value !== null);
+const catalogChannels = computed(() => (
+    (Array.isArray(catalog.value?.organizations) ? catalog.value.organizations : [])
+        .flatMap((organization) => (
+            Array.isArray(organization?.channels) ? organization.channels : []
+        ))
+));
+const hasChannelsAwaitingPublication = computed(() => catalogChannels.value.some((channel) => (
+    Boolean(channel?.can_import) && !Boolean(channel?.publication_enabled)
+)));
+const canSyncChannels = computed(() => (
+    isDeliveryAuthorized.value
+));
+const shouldAuthorizePublishing = computed(() => (
+    connector.value?.mode === 'oauth'
+    && isConnected.value
+    && !isDeliveryAuthorized.value
+    && hasChannelsAwaitingPublication.value
+));
 const busy = computed(() => (
     loading.value
     || connecting.value
     || disconnecting.value
+    || syncing.value
     || importingChannelId.value !== null
 ));
 
-const requestErrorMessage = (_requestError, fallback) => fallback;
+const requestErrorMessage = (requestError, fallback) => {
+    if (Number(requestError?.response?.status) !== 422) {
+        return fallback;
+    }
+
+    const validationErrors = requestError?.response?.data?.errors;
+    if (!validationErrors || typeof validationErrors !== 'object' || Array.isArray(validationErrors)) {
+        return fallback;
+    }
+
+    const validationMessage = Object.values(validationErrors)
+        .flatMap((messages) => (Array.isArray(messages) ? messages : [messages]))
+        .find((message) => typeof message === 'string' && message.trim() !== '');
+
+    return validationMessage?.trim() || fallback;
+};
 
 watch(() => props.initialConnector, (value) => {
     connector.value = { ...(value || {}) };
@@ -107,6 +142,97 @@ const disconnectBuffer = async () => {
     }
 };
 
+const applyConnectorPayload = (responseConnector) => {
+    if (!responseConnector) {
+        return;
+    }
+
+    connector.value = responseConnector;
+    if (catalog.value) {
+        catalog.value.connector = responseConnector;
+    }
+};
+
+const connectionIdentityKey = (platform, externalAccountId) => {
+    const normalizedPlatform = String(platform || '').trim().toLowerCase();
+    const normalizedExternalAccountId = String(externalAccountId || '').trim();
+
+    return normalizedPlatform !== '' && normalizedExternalAccountId !== ''
+        ? JSON.stringify([normalizedPlatform, normalizedExternalAccountId])
+        : '';
+};
+
+const applyConnectionPayloads = (connections) => {
+    const connectionsByIdentity = new Map(
+        (Array.isArray(connections) ? connections : [])
+            .map((connection) => [
+                connectionIdentityKey(connection?.platform, connection?.external_account_id),
+                connection,
+            ])
+            .filter(([identity]) => identity !== '')
+    );
+
+    for (const channel of catalogChannels.value) {
+        const connection = connectionsByIdentity.get(
+            connectionIdentityKey(channel?.platform, channel?.id),
+        );
+        if (!connection) {
+            continue;
+        }
+
+        channel.imported = true;
+        channel.publication_enabled = Boolean(connection.is_connected);
+    }
+
+    if (catalog.value) {
+        catalog.value.imported_count = catalogChannels.value.filter((channel) => channel.imported).length;
+    }
+};
+
+const syncAllChannels = async () => {
+    if (!isDeliveryAuthorized.value) {
+        await connectBuffer();
+
+        return;
+    }
+
+    syncing.value = true;
+    error.value = '';
+    info.value = '';
+
+    try {
+        const response = await axios.post(route('social.buffer.channels.sync'));
+
+        applyConnectorPayload(response.data?.connector);
+        applyConnectionPayloads(response.data?.connections);
+        catalog.value.synced_count = Number(response.data?.synced_count || 0);
+        catalog.value.active_count = Number(response.data?.active_count || 0);
+        catalog.value.skipped_count = Number(response.data?.skipped_count || 0);
+        info.value = t(
+            response.data?.message_key || 'social.buffer_connector.messages.sync_success',
+            {
+                synced: catalog.value.synced_count,
+                active: catalog.value.active_count,
+                skipped: catalog.value.skipped_count,
+            },
+        );
+    } catch (requestError) {
+        error.value = requestErrorMessage(requestError, t('social.buffer_connector.messages.sync_error'));
+    } finally {
+        syncing.value = false;
+    }
+};
+
+const handleChannelAction = async (organization, channel) => {
+    if (channel?.imported && !isDeliveryAuthorized.value) {
+        await connectBuffer();
+
+        return;
+    }
+
+    await importChannel(organization, channel);
+};
+
 const importChannel = async (organization, channel) => {
     importingChannelId.value = channel.id;
     error.value = '';
@@ -118,11 +244,8 @@ const importChannel = async (organization, channel) => {
             channel_id: channel.id,
         });
 
-        if (!channel.imported) {
-            catalog.value.imported_count = Number(catalog.value.imported_count || 0) + 1;
-        }
-
-        channel.imported = true;
+        applyConnectorPayload(response.data?.connector);
+        applyConnectionPayloads([response.data?.connection]);
         info.value = t(response.data?.message_key || 'social.buffer_connector.messages.import_success');
     } catch (requestError) {
         error.value = requestErrorMessage(requestError, t('social.buffer_connector.messages.import_error'));
@@ -336,11 +459,47 @@ const channelHealthToneClass = (channel) => {
                             {{ catalog.account?.name || t('social.buffer_connector.account_fallback') }}
                         </div>
                     </div>
-                    <div class="text-sm text-stone-600 dark:text-neutral-300">
-                        {{ t('social.buffer_connector.catalog_summary', {
-                            channels: catalog.channel_count,
-                            imported: catalog.imported_count,
-                        }) }}
+                    <div class="flex max-w-xl flex-wrap items-center justify-end gap-3">
+                        <div class="text-sm text-stone-600 dark:text-neutral-300">
+                            {{ t('social.buffer_connector.catalog_summary', {
+                                channels: catalog.channel_count,
+                                imported: catalog.imported_count,
+                            }) }}
+                        </div>
+
+                        <div
+                            v-if="shouldAuthorizePublishing"
+                            class="w-full text-sm text-amber-700 dark:text-amber-300"
+                            role="status"
+                        >
+                            {{ t('social.buffer_connector.messages.publishing_required') }}
+                        </div>
+
+                        <PrimaryButton
+                            v-if="props.canManage && shouldAuthorizePublishing"
+                            type="button"
+                            class="w-full justify-center sm:w-auto"
+                            :disabled="!canConnect || busy"
+                            @click="connectBuffer"
+                        >
+                            <LogIn class="mr-2 size-4" />
+                            {{ connecting
+                                ? t('social.buffer_connector.actions.enabling_publishing')
+                                : t('social.buffer_connector.actions.enable_publishing') }}
+                        </PrimaryButton>
+
+                        <PrimaryButton
+                            v-else-if="props.canManage && canSyncChannels"
+                            type="button"
+                            class="w-full justify-center sm:w-auto"
+                            :disabled="busy"
+                            @click="syncAllChannels"
+                        >
+                            <RefreshCw class="mr-2 size-4" :class="{ 'animate-spin': syncing }" />
+                            {{ syncing
+                                ? t('social.buffer_connector.actions.syncing_all')
+                                : t('social.buffer_connector.actions.sync_all') }}
+                        </PrimaryButton>
                     </div>
                 </div>
 
@@ -397,14 +556,21 @@ const channelHealthToneClass = (channel) => {
                                 v-if="props.canManage"
                                 type="button"
                                 class="w-full justify-center sm:w-auto"
-                                :disabled="channel.imported || !channel.can_import || busy"
-                                @click="importChannel(organization, channel)"
+                                :disabled="channel.publication_enabled
+                                    || !channel.can_import
+                                    || busy
+                                    || (channel.imported && !isDeliveryAuthorized && !canConnect)"
+                                @click="handleChannelAction(organization, channel)"
                             >
                                 {{ importingChannelId === channel.id
                                     ? t('social.buffer_connector.actions.importing')
-                                    : channel.imported
+                                    : channel.publication_enabled
                                         ? t('social.buffer_connector.actions.imported')
-                                        : t('social.buffer_connector.actions.import') }}
+                                        : channel.imported && !isDeliveryAuthorized
+                                            ? t('social.buffer_connector.actions.enable_publishing')
+                                            : channel.imported
+                                                ? t('social.buffer_connector.actions.reactivate')
+                                                : t('social.buffer_connector.actions.import') }}
                             </SecondaryButton>
                         </div>
                     </div>

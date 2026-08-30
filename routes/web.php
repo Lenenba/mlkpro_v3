@@ -846,6 +846,9 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('social.buffer.disconnect');
         Route::post('/social/buffer/channels', [SocialBufferController::class, 'store'])
             ->name('social.buffer.channels.store');
+        Route::post('/social/buffer/channels/sync', [SocialBufferController::class, 'sync'])
+            ->middleware('throttle:10,1')
+            ->name('social.buffer.channels.sync');
         Route::post('/social/accounts', [SocialAccountConnectionController::class, 'store'])
             ->name('social.accounts.store');
         Route::post('/social/accounts/test-connection', [SocialAccountConnectionController::class, 'storeTestConnection'])

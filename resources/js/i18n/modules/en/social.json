@@ -1025,9 +1025,12 @@
         "disconnect": "Disconnect",
         "disconnecting": "Disconnecting...",
         "add_in_buffer": "Add in Buffer",
+        "sync_all": "Sync all channels",
+        "syncing_all": "Syncing...",
         "import": "Import into Pulse",
         "importing": "Importing...",
-        "imported": "Imported"
+        "imported": "Imported",
+        "reactivate": "Reactivate in Pulse"
       },
       "states": {
         "connected": "Connected",
@@ -1047,8 +1050,11 @@
         "disconnect_success": "The Buffer account was disconnected.",
         "confirm_disconnect": "Disconnect {name}?",
         "load_error": "The Buffer accounts could not be loaded.",
+        "publishing_required": "Enable Buffer publishing before syncing or reactivating these channels in Pulse.",
+        "sync_error": "The Buffer channels could not be synced.",
+        "sync_success": "Sync complete: {active} of {synced} channels are ready to publish. {skipped} skipped.",
         "import_error": "The Buffer channel could not be imported.",
-        "import_success": "The Buffer channel is visible in Pulse."
+        "import_success": "The Buffer channel was synced with Pulse."
       }
     }
   }
