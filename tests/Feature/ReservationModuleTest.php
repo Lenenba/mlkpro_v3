@@ -396,6 +396,107 @@ it('prevents double booking on the same team member slot', function () {
     expect(Reservation::query()->count())->toBe(1);
 });
 
+it('lets authorized reservation staff create a customer and book a reservation for them', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $teamMember = createTeamMemberForAccount($owner, [
+        'role' => 'member',
+        'permissions' => ['reservations.manage', 'customers.create'],
+    ]);
+    $startsAt = Carbon::now('UTC')->addDays(3)->setTime(13, 0, 0);
+    addWeeklyAvailability($owner, $teamMember, $startsAt);
+    $staffUser = $teamMember->user()->firstOrFail();
+
+    $this->actingAs($staffUser)
+        ->withSession(['two_factor_passed' => true])
+        ->get(route('reservation.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Reservation/Index')
+            ->where('access.can_create_customer', true)
+        );
+
+    $customerResponse = $this->actingAs($staffUser)
+        ->withSession(['two_factor_passed' => true])
+        ->postJson(route('customer.quick.store'), [
+            'client_type' => 'individual',
+            'first_name' => 'Nadia',
+            'last_name' => 'Roy',
+            'email' => 'nadia.reservation@example.com',
+            'phone' => '+15145550123',
+            'portal_access' => false,
+        ])
+        ->assertCreated()
+        ->assertJsonPath('customer.email', 'nadia.reservation@example.com');
+
+    $customerId = (int) $customerResponse->json('customer.id');
+
+    $this->actingAs($staffUser)
+        ->withSession(['two_factor_passed' => true])
+        ->postJson(route('reservation.store'), [
+            'team_member_id' => $teamMember->id,
+            'client_id' => $customerId,
+            'starts_at' => $startsAt->toIso8601String(),
+            'ends_at' => $startsAt->copy()->addHour()->toIso8601String(),
+            'duration_minutes' => 60,
+            'status' => Reservation::STATUS_CONFIRMED,
+            'timezone' => 'UTC',
+        ])
+        ->assertCreated()
+        ->assertJsonPath('reservation.client_id', $customerId);
+
+    $this->assertDatabaseHas('customers', [
+        'id' => $customerId,
+        'user_id' => $owner->id,
+        'email' => 'nadia.reservation@example.com',
+    ]);
+    $this->assertDatabaseHas('reservations', [
+        'account_id' => $owner->id,
+        'team_member_id' => $teamMember->id,
+        'client_id' => $customerId,
+        'source' => Reservation::SOURCE_STAFF,
+    ]);
+});
+
+it('lets reservation staff with sales directory access quick-create customers', function () {
+    $owner = createOwnerWithReservationsEnabled([
+        'company_features' => [
+            'reservations' => true,
+            'sales' => true,
+        ],
+    ]);
+    $teamMember = createTeamMemberForAccount($owner, [
+        'role' => 'member',
+        'permissions' => ['reservations.manage', 'sales.pos'],
+    ]);
+    $staffUser = $teamMember->user()->firstOrFail();
+
+    $this->actingAs($staffUser)
+        ->withSession(['two_factor_passed' => true])
+        ->get(route('reservation.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Reservation/Index')
+            ->where('access.can_create_customer', true)
+        );
+
+    $customerResponse = $this->actingAs($staffUser)
+        ->withSession(['two_factor_passed' => true])
+        ->postJson(route('customer.quick.store'), [
+            'client_type' => 'individual',
+            'first_name' => 'Marco',
+            'last_name' => 'Diaz',
+            'email' => 'marco.sales.reservation@example.com',
+            'portal_access' => false,
+        ])
+        ->assertCreated();
+
+    $this->assertDatabaseHas('customers', [
+        'id' => (int) $customerResponse->json('customer.id'),
+        'user_id' => $owner->id,
+        'email' => 'marco.sales.reservation@example.com',
+    ]);
+});
+
 it('blocks a client from cancelling another clients reservation', function () {
     $owner = createOwnerWithReservationsEnabled();
     $teamMember = createTeamMemberForAccount($owner);
@@ -1013,7 +1114,7 @@ it('serializes tenant-safe reservation list rows and limits notes to managers', 
     $managerPage = $managerPayload['reservations'];
     $viewerPage = $viewerPayload['reservations'];
     $this->assertSame(
-        ['id', 'first_name', 'last_name', 'company_name'],
+        ['id', 'first_name', 'last_name', 'company_name', 'email', 'phone'],
         array_keys($managerPayload['clients'][0])
     );
     $this->assertSame([], $viewerPayload['clients']);
@@ -1934,8 +2035,25 @@ it('allows reservation-managers to access reservations settings and all reservat
         ->assertInertia(fn (Assert $page) => $page
             ->component('Reservation/Index')
             ->where('filters.scope', 'all')
+            ->where('access.can_create_customer', false)
             ->has('reservations.data', 1)
         );
+
+    $this->actingAs($managerUser)
+        ->withSession(['two_factor_passed' => true])
+        ->postJson(route('customer.quick.store'), [
+            'client_type' => 'individual',
+            'first_name' => 'Blocked',
+            'last_name' => 'Creator',
+            'email' => 'blocked.reservation.creator@example.com',
+            'portal_access' => false,
+        ])
+        ->assertForbidden();
+
+    $this->assertDatabaseMissing('customers', [
+        'user_id' => $owner->id,
+        'email' => 'blocked.reservation.creator@example.com',
+    ]);
 });
 
 it('does not grant reservation management from jobs/tasks permissions alone', function () {
@@ -4136,7 +4254,7 @@ it('sends queue status change sms when status-change notifications are enabled',
 it('returns queue screen payload and supports anonymize toggle', function () {
     $owner = createOwnerWithReservationsEnabled();
     $teamMember = createTeamMemberForAccount($owner);
-    [$clientUser, $customer] = createClientForAccount($owner, 'Queue Screen', 'queue.screen@example.com');
+    [$clientUser, $customer] = createClientForAccount($owner, 'Élodie Ångström', 'queue.screen@example.com');
 
     ReservationSetting::query()->updateOrCreate(
         [
@@ -4174,11 +4292,21 @@ it('returns queue screen payload and supports anonymize toggle', function () {
         'estimated_duration_minutes' => 20,
         'checked_in_at' => now('UTC'),
     ]);
+    $inertiaVersion = app(\App\Http\Middleware\HandleInertiaRequests::class)->version(
+        \Illuminate\Http\Request::create(route('reservation.screen'))
+    );
 
     $this->actingAs($owner)
         ->withSession(['two_factor_passed' => true])
+        ->withHeaders([
+            'X-Inertia' => 'true',
+            'X-Inertia-Version' => $inertiaVersion,
+        ])
         ->get(route('reservation.screen'))
-        ->assertOk();
+        ->assertOk()
+        ->assertHeader('X-Inertia', 'true')
+        ->assertJsonPath('component', 'Reservation/Screen')
+        ->assertJsonPath('props.queue.waiting.0.display_client_name', 'É Å.');
 
     $anonymized = $this->actingAs($owner)
         ->withSession(['two_factor_passed' => true])
@@ -4198,7 +4326,7 @@ it('returns queue screen payload and supports anonymize toggle', function () {
 
     expect((int) ($plain->json('queue.waiting.0.id') ?? 0))->toBe((int) $ticket->id);
     expect($plainName)->not->toBe('');
-    expect($anonymizedName)->not->toBe('');
+    expect($anonymizedName)->toBe('É Å.');
     expect($plainName)->toBe($realName);
     expect($anonymizedName)->not->toBe($plainName);
 });
@@ -4248,4 +4376,371 @@ it('hides salon queue operations for non-salon presets', function () {
         ->postJson(route('client.reservations.tickets.store'), [])
         ->assertStatus(422)
         ->assertJsonValidationErrors('queue');
+});
+
+it('returns three recent visits and three frequent services for fast rebooking', function () {
+    Carbon::setTestNow(Carbon::parse('2026-08-30 12:00:00', 'UTC'));
+
+    try {
+        $owner = createOwnerWithReservationsEnabled();
+        $activeMember = createTeamMemberForAccount($owner, [
+            'user_name' => 'Active Rebooking Stylist',
+            'user_email' => 'active.rebooking.stylist@example.com',
+        ]);
+        $inactiveMember = createTeamMemberForAccount($owner, [
+            'user_name' => 'Inactive Rebooking Stylist',
+            'user_email' => 'inactive.rebooking.stylist@example.com',
+            'is_active' => false,
+        ]);
+        [, $customer] = createClientForAccount(
+            $owner,
+            'Rebooking Client',
+            'rebooking.client@example.com'
+        );
+        $category = ProductCategory::query()->create([
+            'name' => 'Rebooking services',
+            'user_id' => $owner->id,
+            'created_by_user_id' => $owner->id,
+        ]);
+        $createService = fn (string $name, bool $isActive = true): Product => Product::query()->create([
+            'name' => $name,
+            'category_id' => $category->id,
+            'user_id' => $owner->id,
+            'stock' => 0,
+            'minimum_stock' => 0,
+            'price' => 80,
+            'currency_code' => 'CAD',
+            'unit' => 'service',
+            'item_type' => Product::ITEM_TYPE_SERVICE,
+            'is_active' => $isActive,
+        ]);
+        $popularService = $createService('Popular service');
+        $inactiveService = $createService('Inactive service', false);
+        $thirdService = $createService('Third service');
+        $fourthService = $createService('Fourth service');
+        $recordVisit = function (
+            Product $service,
+            TeamMember $member,
+            string $startsAt,
+            int $durationMinutes,
+            string $status = Reservation::STATUS_COMPLETED
+        ) use ($owner, $customer): Reservation {
+            $start = Carbon::parse($startsAt, 'UTC');
+
+            return Reservation::query()->create([
+                'account_id' => $owner->id,
+                'team_member_id' => $member->id,
+                'client_id' => $customer->id,
+                'service_id' => $service->id,
+                'status' => $status,
+                'source' => Reservation::SOURCE_STAFF,
+                'timezone' => 'UTC',
+                'starts_at' => $start,
+                'ends_at' => $start->copy()->addMinutes($durationMinutes),
+                'duration_minutes' => $durationMinutes,
+                'buffer_minutes' => 0,
+                'internal_notes' => 'REBOOKING INTERNAL SECRET',
+                'client_notes' => 'REBOOKING CLIENT SECRET',
+            ]);
+        };
+
+        $recordVisit($popularService, $activeMember, '2026-08-01 09:00:00', 40);
+        $recordVisit($popularService, $activeMember, '2026-08-10 09:00:00', 40);
+        $thirdLatest = $recordVisit($popularService, $activeMember, '2026-08-18 14:00:00', 50);
+        $latest = $recordVisit($popularService, $activeMember, '2026-08-20 14:00:00', 45);
+        $recordVisit($inactiveService, $inactiveMember, '2026-08-02 09:00:00', 30);
+        $recordVisit($inactiveService, $inactiveMember, '2026-08-11 09:00:00', 30);
+        $secondLatest = $recordVisit($inactiveService, $inactiveMember, '2026-08-19 14:00:00', 30);
+        $recordVisit($thirdService, $activeMember, '2026-08-03 09:00:00', 75);
+        $recordVisit($thirdService, $activeMember, '2026-08-12 09:00:00', 75);
+        $recordVisit($fourthService, $activeMember, '2026-08-04 09:00:00', 60);
+        $recordVisit(
+            $popularService,
+            $activeMember,
+            '2026-08-21 09:00:00',
+            45,
+            Reservation::STATUS_NO_SHOW
+        );
+        $recordVisit(
+            $popularService,
+            $activeMember,
+            '2026-08-22 09:00:00',
+            45,
+            Reservation::STATUS_CANCELLED
+        );
+        $recordVisit($popularService, $activeMember, '2026-08-30 11:30:00', 120);
+
+        $response = $this->actingAs($owner)
+            ->withSession(['two_factor_passed' => true])
+            ->getJson(route('reservation.customer-rebooking', $customer))
+            ->assertOk();
+
+        $payload = $response->json();
+        expect(array_keys($payload))->toBe(['recent_reservations', 'frequent_services']);
+        expect(collect($payload['recent_reservations'])->pluck('id')->all())
+            ->toBe([$latest->id, $secondLatest->id, $thirdLatest->id]);
+        expect(array_keys($payload['recent_reservations'][0]))
+            ->toBe(['id', 'starts_at', 'duration_minutes', 'service', 'team_member']);
+        expect($payload['recent_reservations'][0])
+            ->duration_minutes->toBe(45)
+            ->starts_at->toBe('2026-08-20T14:00:00+00:00');
+        expect($payload['recent_reservations'][0]['service'])->toBe([
+            'id' => $popularService->id,
+            'name' => 'Popular service',
+            'is_available' => true,
+        ]);
+        expect($payload['recent_reservations'][1]['service'])->toBe([
+            'id' => $inactiveService->id,
+            'name' => 'Inactive service',
+            'is_available' => false,
+        ]);
+        expect($payload['recent_reservations'][1]['team_member'])->toBe([
+            'id' => $inactiveMember->id,
+            'name' => 'Inactive Rebooking Stylist',
+            'is_available' => false,
+        ]);
+
+        expect(collect($payload['frequent_services'])->pluck('service.id')->all())
+            ->toBe([$popularService->id, $inactiveService->id, $thirdService->id]);
+        expect(collect($payload['frequent_services'])->pluck('reservation_count')->all())
+            ->toBe([4, 3, 2]);
+        expect(array_keys($payload['frequent_services'][0]))
+            ->toBe([
+                'service',
+                'reservation_count',
+                'last_booked_at',
+                'duration_minutes',
+                'team_member',
+            ]);
+        expect($payload['frequent_services'][0])
+            ->duration_minutes->toBe(45)
+            ->last_booked_at->toBe('2026-08-20T14:00:00+00:00');
+        expect($payload['frequent_services'][1]['service']['is_available'])->toBeFalse();
+        expect($payload['frequent_services'][1]['team_member']['is_available'])->toBeFalse();
+
+        $encodedPayload = json_encode($payload, JSON_THROW_ON_ERROR);
+        expect($encodedPayload)
+            ->not->toContain('REBOOKING INTERNAL SECRET')
+            ->not->toContain('REBOOKING CLIENT SECRET')
+            ->not->toContain('status');
+    } finally {
+        Carbon::setTestNow();
+    }
+});
+
+it('returns 404 for a rebooking customer owned by another account', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $foreignOwner = createOwnerWithReservationsEnabled([
+        'name' => 'Foreign Rebooking Owner',
+        'email' => 'foreign.rebooking.owner@example.com',
+    ]);
+    [, $foreignCustomer] = createClientForAccount(
+        $foreignOwner,
+        'Foreign Rebooking Client',
+        'foreign.rebooking.client@example.com'
+    );
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.customer-rebooking', $foreignCustomer))
+        ->assertNotFound();
+});
+
+it('returns 403 when a read-only team member requests rebooking suggestions', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $viewerMember = createTeamMemberForAccount($owner, [
+        'user_name' => 'Read-only Rebooking Member',
+        'user_email' => 'readonly.rebooking.member@example.com',
+        'role' => 'member',
+        'permissions' => ['view_all_reservations'],
+    ]);
+    [, $customer] = createClientForAccount(
+        $owner,
+        'Protected Rebooking Client',
+        'protected.rebooking.client@example.com'
+    );
+
+    $this->actingAs($viewerMember->user()->firstOrFail())
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.customer-rebooking', $customer))
+        ->assertForbidden();
+});
+
+it('returns 403 when a client requests staff rebooking suggestions', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    [$clientUser, $customer] = createClientForAccount(
+        $owner,
+        'Portal Rebooking Client',
+        'portal.rebooking.client@example.com'
+    );
+
+    $this->actingAs($clientUser)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.customer-rebooking', $customer))
+        ->assertForbidden();
+});
+
+it('does not expose foreign service or team member data in rebooking suggestions', function () {
+    Carbon::setTestNow(Carbon::parse('2026-08-30 12:00:00', 'UTC'));
+
+    try {
+        $owner = createOwnerWithReservationsEnabled();
+        $member = createTeamMemberForAccount($owner);
+        [, $customer] = createClientForAccount(
+            $owner,
+            'Tenant Safe Rebooking Client',
+            'tenant.safe.rebooking.client@example.com'
+        );
+        $category = ProductCategory::query()->create([
+            'name' => 'Tenant safe rebooking services',
+            'user_id' => $owner->id,
+            'created_by_user_id' => $owner->id,
+        ]);
+        $service = Product::query()->create([
+            'name' => 'Tenant Safe Service',
+            'category_id' => $category->id,
+            'user_id' => $owner->id,
+            'stock' => 0,
+            'minimum_stock' => 0,
+            'price' => 80,
+            'currency_code' => 'CAD',
+            'unit' => 'service',
+            'item_type' => Product::ITEM_TYPE_SERVICE,
+            'is_active' => true,
+        ]);
+        $reclassifiedService = Product::query()->create([
+            'name' => 'Reclassified Service',
+            'category_id' => $category->id,
+            'user_id' => $owner->id,
+            'stock' => 0,
+            'minimum_stock' => 0,
+            'price' => 80,
+            'currency_code' => 'CAD',
+            'unit' => 'unit',
+            'item_type' => Product::ITEM_TYPE_PRODUCT,
+            'is_active' => true,
+        ]);
+        $deletedService = Product::query()->create([
+            'name' => 'Deleted Service',
+            'category_id' => $category->id,
+            'user_id' => $owner->id,
+            'stock' => 0,
+            'minimum_stock' => 0,
+            'price' => 80,
+            'currency_code' => 'CAD',
+            'unit' => 'service',
+            'item_type' => Product::ITEM_TYPE_SERVICE,
+            'is_active' => true,
+        ]);
+
+        $foreignOwner = createOwnerWithReservationsEnabled([
+            'name' => 'Hostile Rebooking Owner',
+            'email' => 'hostile.rebooking.owner@example.com',
+        ]);
+        $foreignMember = createTeamMemberForAccount($foreignOwner, [
+            'user_name' => 'FOREIGN REBOOKING TEAM SECRET',
+            'user_email' => 'foreign.rebooking.team@example.com',
+        ]);
+        $foreignCategory = ProductCategory::query()->create([
+            'name' => 'Foreign rebooking services',
+            'user_id' => $foreignOwner->id,
+            'created_by_user_id' => $foreignOwner->id,
+        ]);
+        $foreignService = Product::query()->create([
+            'name' => 'FOREIGN REBOOKING SERVICE SECRET',
+            'category_id' => $foreignCategory->id,
+            'user_id' => $foreignOwner->id,
+            'stock' => 0,
+            'minimum_stock' => 0,
+            'price' => 80,
+            'currency_code' => 'CAD',
+            'unit' => 'service',
+            'item_type' => Product::ITEM_TYPE_SERVICE,
+            'is_active' => true,
+        ]);
+        $validStart = Carbon::parse('2026-08-20 09:00:00', 'UTC');
+        $validReservation = Reservation::query()->create([
+            'account_id' => $owner->id,
+            'team_member_id' => $foreignMember->id,
+            'client_id' => $customer->id,
+            'service_id' => $service->id,
+            'status' => Reservation::STATUS_COMPLETED,
+            'source' => Reservation::SOURCE_STAFF,
+            'timezone' => 'UTC',
+            'starts_at' => $validStart,
+            'ends_at' => $validStart->copy()->addHour(),
+            'duration_minutes' => 60,
+            'buffer_minutes' => 0,
+        ]);
+        $hostileStart = Carbon::parse('2026-08-21 09:00:00', 'UTC');
+        Reservation::query()->create([
+            'account_id' => $owner->id,
+            'team_member_id' => $member->id,
+            'client_id' => $customer->id,
+            'service_id' => $foreignService->id,
+            'status' => Reservation::STATUS_COMPLETED,
+            'source' => Reservation::SOURCE_STAFF,
+            'timezone' => 'UTC',
+            'starts_at' => $hostileStart,
+            'ends_at' => $hostileStart->copy()->addHour(),
+            'duration_minutes' => 60,
+            'buffer_minutes' => 0,
+        ]);
+        $reclassifiedStart = Carbon::parse('2026-08-22 09:00:00', 'UTC');
+        $reclassifiedReservation = Reservation::query()->create([
+            'account_id' => $owner->id,
+            'team_member_id' => $member->id,
+            'client_id' => $customer->id,
+            'service_id' => $reclassifiedService->id,
+            'status' => Reservation::STATUS_COMPLETED,
+            'source' => Reservation::SOURCE_STAFF,
+            'timezone' => 'UTC',
+            'starts_at' => $reclassifiedStart,
+            'ends_at' => $reclassifiedStart->copy()->addHour(),
+            'duration_minutes' => 60,
+            'buffer_minutes' => 0,
+        ]);
+        $deletedStart = Carbon::parse('2026-08-23 09:00:00', 'UTC');
+        $deletedServiceReservation = Reservation::query()->create([
+            'account_id' => $owner->id,
+            'team_member_id' => $member->id,
+            'client_id' => $customer->id,
+            'service_id' => $deletedService->id,
+            'status' => Reservation::STATUS_COMPLETED,
+            'source' => Reservation::SOURCE_STAFF,
+            'timezone' => 'UTC',
+            'starts_at' => $deletedStart,
+            'ends_at' => $deletedStart->copy()->addHour(),
+            'duration_minutes' => 60,
+            'buffer_minutes' => 0,
+        ]);
+        $deletedService->delete();
+
+        $response = $this->actingAs($owner)
+            ->withSession(['two_factor_passed' => true])
+            ->getJson(route('reservation.customer-rebooking', $customer))
+            ->assertOk();
+
+        expect(collect($response->json('recent_reservations'))->pluck('id')->all())
+            ->toBe([
+                $deletedServiceReservation->id,
+                $reclassifiedReservation->id,
+                $validReservation->id,
+            ]);
+        expect($response->json('recent_reservations.0.service'))->toBeNull();
+        expect($response->json('recent_reservations.1.service'))->toBe([
+            'id' => $reclassifiedService->id,
+            'name' => 'Reclassified Service',
+            'is_available' => false,
+        ]);
+        expect($response->json('recent_reservations.2.team_member'))->toBeNull();
+        $safeServiceFrequency = collect($response->json('frequent_services'))
+            ->firstWhere('service.id', $service->id);
+        expect($safeServiceFrequency['team_member'])->toBeNull();
+        expect(json_encode($response->json(), JSON_THROW_ON_ERROR))
+            ->not->toContain('FOREIGN REBOOKING TEAM SECRET')
+            ->not->toContain('FOREIGN REBOOKING SERVICE SECRET');
+    } finally {
+        Carbon::setTestNow();
+    }
 });

@@ -1,14 +1,21 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { resizeImageFile, MEDIA_LIMITS } from '@/utils/media';
+import {
+  formatBytes,
+  prepareMediaFile,
+  resizeImageFile,
+  resolveMediaType,
+  takeFilesWithinTotalBytes,
+  MEDIA_LIMITS,
+} from '@/utils/media';
 
 const { t } = useI18n();
 
 // Props
 const props = defineProps({
   modelValue: {
-    type: [File, String],
+    type: [File, String, Array],
     default: null, // Par défaut, aucune image n'est sélectionnée
   },
   label: {
@@ -19,16 +26,54 @@ const props = defineProps({
     type: Array,
     default: () => ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'],
   },
+  mode: {
+    type: String,
+    default: 'image',
+    validator: (value) => ['image', 'media'].includes(value),
+  },
+  multiple: Boolean,
+  maxFiles: {
+    type: Number,
+    default: 20,
+  },
+  existingItems: {
+    type: Array,
+    default: () => ([]),
+  },
   disabled: Boolean,
 });
 
 // Événements
-const emit = defineEmits(['update:modelValue']); // Événement pour mettre à jour v-model
+const emit = defineEmits(['update:modelValue', 'remove-existing']); // Événement pour mettre à jour v-model
 
 const file = computed({
   get: () => props.modelValue, // Obtenir le fichier depuis v-model
   set: (value) => !props.disabled && emit('update:modelValue', value),
 });
+const isMediaMode = computed(() => props.mode === 'media');
+const selectedFiles = computed(() => (
+  props.multiple && Array.isArray(props.modelValue)
+    ? props.modelValue.filter((value) => value instanceof File)
+    : []
+));
+const existingMediaItems = computed(() => (
+  props.multiple && Array.isArray(props.existingItems) ? props.existingItems : []
+));
+const selectedFileCount = computed(() => selectedFiles.value.length + existingMediaItems.value.length);
+const selectedFileBytes = computed(() => selectedFiles.value.reduce(
+  (total, selectedFile) => total + Math.max(0, Number(selectedFile?.size) || 0),
+  0,
+));
+const hasReachedFileLimit = computed(() => selectedFileCount.value >= Math.max(1, props.maxFiles));
+const hasReachedTotalMediaLimit = computed(() => (
+  isMediaMode.value && selectedFileBytes.value >= MEDIA_LIMITS.maxTotalMediaBytes
+));
+const canAddFiles = computed(() => !hasReachedFileLimit.value && !hasReachedTotalMediaLimit.value);
+const limitReachedMessage = computed(() => (
+  hasReachedTotalMediaLimit.value
+    ? t('dropzone.errors.total_too_large', { size: formatBytes(MEDIA_LIMITS.maxTotalMediaBytes) })
+    : t('dropzone.limit_reached', { count: props.maxFiles })
+));
 
 const input = ref(null); // Référence pour l'élément input de fichier
 const preview = ref(null); // Référence pour l'aperçu de l'image
@@ -42,7 +87,12 @@ const normalizedAllowedExtensions = computed(() => (
 const acceptedFileTypes = computed(() => (
   normalizedAllowedExtensions.value.map((extension) => `.${extension}`).join(',')
 ));
-const resolvedLabel = computed(() => props.label || t('dropzone.upload_image'));
+const resolvedLabel = computed(() => props.label || t(
+  isMediaMode.value ? 'dropzone.upload_media' : 'dropzone.upload_image',
+));
+const resolvedHint = computed(() => t(
+  isMediaMode.value ? 'dropzone.media_hint' : 'dropzone.optimization_hint',
+));
 
 const previewName = computed(() => {
   if (file.value instanceof File) {
@@ -64,14 +114,31 @@ const previewMeta = computed(() => {
   return '';
 });
 
+const mediaTypeLabel = (value) => t(`dropzone.media_types.${value || 'file'}`);
+const selectedFileType = (value) => resolveMediaType(value) || 'file';
+const existingItemType = (value) => {
+  const type = String(value?.type || '').toLowerCase();
+
+  return ['image', 'video', 'document'].includes(type) ? type : 'file';
+};
+const existingItemName = (value) => String(
+  value?.name || value?.title || value?.url || resolvedLabel.value,
+).trim();
+
 const localizedResizeError = (message) => {
   if (message === 'Image processing failed.') {
     return t('dropzone.errors.processing_failed');
   }
 
-  const tooLargeMatch = String(message || '').match(/^Image too large\. Max (.+)\.$/);
+  const tooLargeMatch = String(message || '').match(/^(Image|Video|Document) too large\. Max (.+)\.$/);
   if (tooLargeMatch) {
-    return t('dropzone.errors.too_large', { size: tooLargeMatch[1] });
+    const translationKey = {
+      Image: 'too_large',
+      Video: 'video_too_large',
+      Document: 'document_too_large',
+    }[tooLargeMatch[1]];
+
+    return t(`dropzone.errors.${translationKey}`, { size: tooLargeMatch[2] });
   }
 
   return message;
@@ -95,51 +162,139 @@ const updatePreview = (value) => {
   progress.value = 0;
 };
 
-const processSelectedFile = async (selectedFile, resetInput = null) => {
-  if (props.disabled || !selectedFile) {
+const processSelectedFiles = async (incomingFiles, resetInput = null) => {
+  const candidates = Array.from(incomingFiles || []).filter((value) => value instanceof File);
+  if (props.disabled || candidates.length === 0) {
     return;
   }
 
   errorMessage.value = '';
   progress.value = 0;
+  const availableSlots = props.multiple
+    ? Math.max(0, Math.max(1, props.maxFiles) - selectedFileCount.value)
+    : 1;
+  const filesToProcess = candidates.slice(0, availableSlots);
 
-  const mime = selectedFile.type?.toLowerCase() || '';
-  const extension = selectedFile.name?.split('.').pop()?.toLowerCase() || '';
-  if (extension === 'svg' || mime === 'image/svg' || mime === 'image/svg+xml') {
-    errorMessage.value = t('dropzone.errors.svg_not_allowed');
-    if (resetInput) {
-      resetInput.value = '';
-    }
+  if (filesToProcess.length === 0) {
+    errorMessage.value = t('dropzone.errors.too_many_files', { count: props.maxFiles });
     return;
   }
 
-  if (!normalizedAllowedExtensions.value.includes(extension)) {
-    errorMessage.value = t('dropzone.errors.unsupported_format', {
-      formats: normalizedAllowedExtensions.value.join(', '),
+  const processedFiles = [];
+
+  for (const selectedFile of filesToProcess) {
+    const mime = selectedFile.type?.toLowerCase() || '';
+    const extension = selectedFile.name?.split('.').pop()?.toLowerCase() || '';
+    if (extension === 'svg' || mime === 'image/svg' || mime === 'image/svg+xml') {
+      errorMessage.value = t('dropzone.errors.svg_not_allowed');
+      continue;
+    }
+
+    if (!normalizedAllowedExtensions.value.includes(extension)) {
+      errorMessage.value = t(
+        isMediaMode.value
+          ? 'dropzone.errors.unsupported_media_format'
+          : 'dropzone.errors.unsupported_format',
+        { formats: normalizedAllowedExtensions.value.join(', ') },
+      );
+      continue;
+    }
+
+    if (isMediaMode.value && !resolveMediaType(selectedFile)) {
+      errorMessage.value = t('dropzone.errors.unsupported_media_format', {
+        formats: normalizedAllowedExtensions.value.join(', '),
+      });
+      continue;
+    }
+
+    const result = isMediaMode.value
+      ? await prepareMediaFile(selectedFile, {
+        maxDimension: MEDIA_LIMITS.maxImageDimension,
+        maxBytes: MEDIA_LIMITS.maxImageBytes,
+        maxVideoBytes: MEDIA_LIMITS.maxVideoBytes,
+        maxDocumentBytes: MEDIA_LIMITS.maxDocumentBytes,
+      })
+      : await resizeImageFile(selectedFile, {
+        maxDimension: MEDIA_LIMITS.maxImageDimension,
+        maxBytes: MEDIA_LIMITS.maxImageBytes,
+      });
+    if (props.disabled) {
+      return;
+    }
+
+    if (result.error) {
+      errorMessage.value = localizedResizeError(result.error);
+      continue;
+    }
+
+    if (result.file) {
+      processedFiles.push(result.file);
+    }
+  }
+
+  if (resetInput) {
+    resetInput.value = '';
+  }
+
+  if (processedFiles.length === 0) {
+    return;
+  }
+
+  if (props.multiple) {
+    const latestSelectedFiles = selectedFiles.value;
+    const knownFiles = new Set(latestSelectedFiles.map((value) => (
+      `${value.name}:${value.size}:${value.lastModified}`
+    )));
+    const uniqueFiles = processedFiles.filter((value) => {
+      const key = `${value.name}:${value.size}:${value.lastModified}`;
+      if (knownFiles.has(key)) {
+        return false;
+      }
+
+      knownFiles.add(key);
+
+      return true;
     });
-    if (resetInput) {
-      resetInput.value = '';
+    const remainingSlots = Math.max(
+      0,
+      Math.max(1, props.maxFiles) - existingMediaItems.value.length - latestSelectedFiles.length,
+    );
+    const filesWithinSlotLimit = uniqueFiles.slice(0, remainingSlots);
+    const latestSelectedBytes = latestSelectedFiles.reduce(
+      (total, selectedFile) => total + Math.max(0, Number(selectedFile?.size) || 0),
+      0,
+    );
+    const {
+      acceptedFiles,
+      rejectedFiles: filesOverTotalLimit,
+    } = isMediaMode.value
+      ? takeFilesWithinTotalBytes(
+        filesWithinSlotLimit,
+        MEDIA_LIMITS.maxTotalMediaBytes,
+        latestSelectedBytes,
+      )
+      : { acceptedFiles: filesWithinSlotLimit, rejectedFiles: [] };
+
+    if (filesWithinSlotLimit.length < uniqueFiles.length) {
+      errorMessage.value = t('dropzone.errors.too_many_files', { count: props.maxFiles });
     }
-    return;
-  }
-
-  const result = await resizeImageFile(selectedFile, {
-    maxDimension: MEDIA_LIMITS.maxImageDimension,
-    maxBytes: MEDIA_LIMITS.maxImageBytes,
-  });
-  if (props.disabled) {
-    return;
-  }
-
-  if (result.error) {
-    errorMessage.value = localizedResizeError(result.error);
-    if (resetInput) {
-      resetInput.value = '';
+    if (filesOverTotalLimit.length > 0) {
+      errorMessage.value = t('dropzone.errors.total_too_large', {
+        size: formatBytes(MEDIA_LIMITS.maxTotalMediaBytes),
+      });
     }
+
+    if (acceptedFiles.length === 0) {
+      return;
+    }
+
+    file.value = [...latestSelectedFiles, ...acceptedFiles];
+    progress.value = 100;
+
     return;
   }
 
-  const processedFile = result.file;
+  const [processedFile] = processedFiles;
   file.value = processedFile;
   updatePreview(processedFile);
 
@@ -154,7 +309,7 @@ const processSelectedFile = async (selectedFile, resetInput = null) => {
 
 // Fonction pour gérer le changement de fichier
 const handleFileChange = (event) => {
-  processSelectedFile(event.target.files[0], event.target);
+  processSelectedFiles(event.target.files, event.target);
 };
 
 // Fonction pour déclencher l'ouverture du champ <input>
@@ -184,6 +339,23 @@ const removeFile = () => {
   }
 };
 
+const removeSelectedFile = (index) => {
+  if (props.disabled) {
+    return;
+  }
+
+  file.value = selectedFiles.value.filter((_, fileIndex) => fileIndex !== index);
+  errorMessage.value = '';
+};
+
+const removeExistingItem = (item) => {
+  if (props.disabled) {
+    return;
+  }
+
+  emit('remove-existing', item);
+};
+
 const handleDragOver = (event) => {
   event.preventDefault();
 
@@ -202,8 +374,7 @@ const handleDrop = (event) => {
   event.preventDefault();
   isDragging.value = false;
 
-  const droppedFile = event.dataTransfer?.files?.[0];
-  processSelectedFile(droppedFile);
+  processSelectedFiles(event.dataTransfer?.files);
 };
 
 
@@ -212,6 +383,117 @@ watch(() => props.modelValue, updatePreview, { immediate: true });
 
 <template>
   <div>
+    <template v-if="multiple">
+      <div v-if="selectedFileCount" class="mb-3 space-y-2">
+        <div
+          v-for="item in existingMediaItems"
+          :key="item.id || item.url"
+          class="flex items-center justify-between gap-3 rounded-sm border border-stone-300 bg-white p-3 dark:border-neutral-600 dark:bg-neutral-800"
+        >
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="rounded-sm bg-stone-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-stone-600 dark:bg-neutral-700 dark:text-neutral-300">
+                {{ mediaTypeLabel(existingItemType(item)) }}
+              </span>
+              <p class="truncate text-sm font-medium text-stone-800 dark:text-white">
+                {{ existingItemName(item) }}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            :disabled="disabled"
+            class="rounded-sm border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-300"
+            @click="removeExistingItem(item)"
+          >
+            {{ t('dropzone.remove') }}
+          </button>
+        </div>
+
+        <div
+          v-for="(selectedFile, index) in selectedFiles"
+          :key="`${selectedFile.name}-${selectedFile.size}-${selectedFile.lastModified}`"
+          class="flex items-center justify-between gap-3 rounded-sm border border-stone-300 bg-white p-3 dark:border-neutral-600 dark:bg-neutral-800"
+        >
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="rounded-sm bg-stone-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-stone-600 dark:bg-neutral-700 dark:text-neutral-300">
+                {{ mediaTypeLabel(selectedFileType(selectedFile)) }}
+              </span>
+              <p class="truncate text-sm font-medium text-stone-800 dark:text-white">
+                {{ selectedFile.name }}
+              </p>
+            </div>
+            <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+              {{ formatBytes(selectedFile.size) }}
+            </p>
+          </div>
+          <button
+            type="button"
+            :disabled="disabled"
+            class="rounded-sm border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-300"
+            @click="removeSelectedFile(index)"
+          >
+            {{ t('dropzone.remove') }}
+          </button>
+        </div>
+      </div>
+
+      <div
+        v-if="canAddFiles"
+        class="flex cursor-pointer justify-center rounded-sm border border-dashed p-8 transition"
+        :class="[
+          isDragging
+            ? 'border-stone-500 bg-stone-100 dark:border-neutral-400 dark:bg-neutral-700'
+            : 'border-stone-300 bg-white dark:border-neutral-600 dark:bg-neutral-800',
+          disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
+        ]"
+        :aria-disabled="disabled"
+        @click="triggerFileInput"
+        @dragover="handleDragOver"
+        @dragleave="handleDragLeave"
+        @drop="handleDrop"
+      >
+        <div class="text-center">
+          <span class="inline-flex size-12 items-center justify-center rounded-full bg-stone-100 text-stone-800 dark:bg-neutral-700 dark:text-neutral-200">
+            <svg
+              class="size-5"
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" x2="12" y1="3" y2="15"></line>
+            </svg>
+          </span>
+          <p class="mt-3 text-sm font-medium text-stone-800 dark:text-neutral-200">
+            {{ resolvedLabel }}
+          </p>
+          <div class="mt-1 flex flex-wrap justify-center text-sm leading-6 text-stone-600 dark:text-neutral-300">
+            <span class="pe-1">{{ t('dropzone.drop_here') }}</span>
+            <span class="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-500">
+              {{ t('dropzone.browse') }}
+            </span>
+          </div>
+          <p class="mt-1 text-xs text-stone-400 dark:text-neutral-400">
+            {{ resolvedHint }}
+          </p>
+        </div>
+      </div>
+
+      <p v-else class="text-xs text-stone-500 dark:text-neutral-400">
+        {{ limitReachedMessage }}
+      </p>
+    </template>
+
+    <template v-else>
     <!-- Prévisualisation de l'image -->
     <template v-if="preview">
       <div
@@ -321,17 +603,19 @@ watch(() => props.modelValue, updatePreview, { immediate: true });
           </span>
         </div>
         <p class="mt-1 text-xs text-stone-400 dark:text-neutral-400">
-          {{ t('dropzone.optimization_hint') }}
+          {{ resolvedHint }}
         </p>
       </div>
     </div>
+    </template>
 
     <!-- Champ caché pour sélectionner le fichier -->
     <input
       type="file"
       :accept="acceptedFileTypes"
-      :disabled="disabled"
-      :aria-disabled="disabled"
+      :multiple="multiple"
+      :disabled="disabled || (multiple && !canAddFiles)"
+      :aria-disabled="disabled || (multiple && !canAddFiles)"
       class="sr-only"
       @change="handleFileChange"
       ref="input"

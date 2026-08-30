@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, ref } from 'vue';
+import { computed, nextTick, reactive, ref, useId } from 'vue';
 import axios from 'axios';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
@@ -29,9 +29,17 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    compact: {
+        type: Boolean,
+        default: false,
+    },
+    defaultPortalAccess: {
+        type: Boolean,
+        default: true,
+    },
 });
 
-const emit = defineEmits(['created']);
+const emit = defineEmits(['created', 'cancel', 'processing']);
 
 const { t } = useI18n();
 const { hasFeature } = useAccountFeatures();
@@ -81,7 +89,7 @@ const form = reactive({
     logo: null,
     logo_icon: defaultCustomerIconForType(CUSTOMER_CLIENT_TYPE_INDIVIDUAL),
     discount_rate: '',
-    portal_access: true,
+    portal_access: props.defaultPortalAccess,
     description: '',
     refer_by: '',
     billing_same_as_physical: false,
@@ -108,6 +116,8 @@ const form = reactive({
 const errors = ref({});
 const formError = ref('');
 const isSubmitting = ref(false);
+const errorSummary = ref(null);
+const portalAccessId = `quick-customer-portal-access-${useId().replaceAll(':', '')}`;
 const {
     query: addressQuery,
     suggestions: addressSuggestions,
@@ -174,6 +184,11 @@ const errorMessages = computed(() => {
     return messages;
 });
 
+const focusErrorSummary = async () => {
+    await nextTick();
+    errorSummary.value?.focus();
+};
+
 const resetForm = () => {
     form.client_type = CUSTOMER_CLIENT_TYPE_INDIVIDUAL;
     form.salutation = 'Mr';
@@ -190,7 +205,7 @@ const resetForm = () => {
     form.discount_rate = '';
     form.description = '';
     form.refer_by = '';
-    form.portal_access = true;
+    form.portal_access = props.defaultPortalAccess;
     form.billing_same_as_physical = false;
     form.billing_mode = 'end_of_job';
     form.billing_cycle = '';
@@ -214,10 +229,19 @@ const resetForm = () => {
     addressSuggestions.value = [];
 };
 
-const closeOverlay = () => {
+const hideOverlay = () => {
     if (props.overlayId && window.HSOverlay) {
         window.HSOverlay.close(props.overlayId);
     }
+};
+
+const closeOverlay = () => {
+    if (isSubmitting.value) {
+        return;
+    }
+
+    emit('cancel');
+    hideOverlay();
 };
 
 const submit = async () => {
@@ -227,12 +251,12 @@ const submit = async () => {
 
     if (!isValid.value) {
         formError.value = t('customers.form.errors.required_fields');
+        await focusErrorSummary();
         return;
     }
 
     errors.value = {};
     formError.value = '';
-    isSubmitting.value = true;
 
     const payload = {
         client_type: form.client_type,
@@ -251,9 +275,9 @@ const submit = async () => {
         refer_by: form.refer_by,
     };
 
-    if (typeof File !== 'undefined' && form.logo instanceof File) {
+    if (!props.compact && typeof File !== 'undefined' && form.logo instanceof File) {
         payload.logo = form.logo;
-    } else if (form.logo_icon) {
+    } else if (!props.compact && form.logo_icon) {
         payload.logo_icon = form.logo_icon;
     }
 
@@ -290,30 +314,36 @@ const submit = async () => {
         };
     }
 
+    isSubmitting.value = true;
+    emit('processing', true);
+
     try {
         const response = await axios.post(route('customer.quick.store'), toFormData(payload), {
             headers: { Accept: 'application/json' },
         });
         emit('created', response.data);
         if (props.closeOnSuccess) {
-            closeOverlay();
+            hideOverlay();
         }
         resetForm();
     } catch (error) {
         if (error.response?.status === 422) {
             errors.value = error.response.data?.errors || {};
+            await focusErrorSummary();
         } else {
             formError.value = t('customers.form.errors.save_failed');
         }
     } finally {
         isSubmitting.value = false;
+        emit('processing', false);
     }
 };
 
 </script>
 
 <template>
-    <form @submit.prevent="submit" class="space-y-4">
+    <form @submit.prevent="submit" :aria-busy="isSubmitting">
+        <fieldset class="m-0 min-w-0 space-y-4 border-0 p-0" :disabled="isSubmitting">
         <FloatingSelect
             v-model="form.client_type"
             :label="$t('customers.form.fields.client_type')"
@@ -330,18 +360,21 @@ const submit = async () => {
                 v-model="form.company_name"
                 :label="$t('customers.form.fields.company_name')"
                 :required="true"
+                :class="compact ? 'md:col-span-2' : ''"
             />
             <FloatingInput
+                v-if="!compact"
                 v-model="form.registration_number"
                 :label="$t('customers.form.fields.registration_number')"
             />
-            <div class="md:col-span-2">
+            <div v-if="!compact" class="md:col-span-2">
                 <FloatingInput v-model="form.industry" :label="$t('customers.form.fields.industry')" />
             </div>
             </div>
         </div>
 
         <CustomerMediaFields
+            v-if="!compact"
             v-model:logo="form.logo"
             v-model:logoIcon="form.logo_icon"
             :client-type="form.client_type"
@@ -354,31 +387,51 @@ const submit = async () => {
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <FloatingInput v-model="form.first_name" :label="$t('customers.form.fields.first_name')" :required="true" />
                 <FloatingInput v-model="form.last_name" :label="$t('customers.form.fields.last_name')" :required="true" />
-                <FloatingInput v-model="form.email" :label="$t('customers.form.fields.email')" :required="true" />
-                <FloatingInput v-model="form.phone" :label="$t('customers.form.fields.phone')" />
                 <FloatingInput
-                    v-if="!isCompanyClient"
+                    v-model="form.email"
+                    type="email"
+                    autocomplete="email"
+                    :label="$t('customers.form.fields.email')"
+                    :required="true"
+                />
+                <FloatingInput
+                    v-model="form.phone"
+                    type="tel"
+                    autocomplete="tel"
+                    :label="$t('customers.form.fields.phone')"
+                />
+                <FloatingInput
+                    v-if="!compact && !isCompanyClient"
                     v-model="form.birth_date"
                     type="date"
                     :max="maxBirthDate"
                     :label="$t('customers.form.fields.birth_date')"
                 />
-                <FloatingInput v-model="form.discount_rate" type="number" :label="$t('customers.form.fields.discount_rate')" />
+                <FloatingInput
+                    v-if="!compact"
+                    v-model="form.discount_rate"
+                    type="number"
+                    :label="$t('customers.form.fields.discount_rate')"
+                />
             </div>
         </div>
         <div class="flex items-start gap-2">
-            <input id="quick-customer-portal-access" type="checkbox" v-model="form.portal_access"
+            <input :id="portalAccessId" type="checkbox" v-model="form.portal_access"
                 class="mt-1 size-4 rounded border-stone-300 text-green-600 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500" />
             <div>
-                <label for="quick-customer-portal-access" class="text-sm text-stone-700 dark:text-neutral-200">
+                <label :for="portalAccessId" class="text-sm text-stone-700 dark:text-neutral-200">
                     {{ $t('customers.form.fields.portal_access') }}
                 </label>
             </div>
         </div>
 
-        <FloatingTextarea v-model="form.description" :label="$t('customers.form.fields.notes')" />
+        <FloatingTextarea
+            v-if="!compact"
+            v-model="form.description"
+            :label="$t('customers.form.fields.notes')"
+        />
 
-        <div class="rounded-sm border border-stone-200 p-4 dark:border-neutral-700">
+        <div v-if="!compact" class="rounded-sm border border-stone-200 p-4 dark:border-neutral-700">
             <div class="text-sm font-medium text-stone-700 dark:text-neutral-200">{{ $t('customers.form.sections.location') }}</div>
             <div class="mt-3">
                 <div class="relative">
@@ -458,7 +511,7 @@ const submit = async () => {
         </div>
 
         <div
-            v-if="invoicesFeatureEnabled && (jobsFeatureEnabled || tasksFeatureEnabled)"
+            v-if="!compact && invoicesFeatureEnabled && (jobsFeatureEnabled || tasksFeatureEnabled)"
             class="rounded-sm border border-stone-200 p-4 dark:border-neutral-700"
         >
             <div class="text-sm font-medium text-stone-700 dark:text-neutral-200">
@@ -500,15 +553,22 @@ const submit = async () => {
             />
         </div>
 
-        <div v-if="errorMessages.length" class="rounded-sm border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div
+            v-if="errorMessages.length"
+            ref="errorSummary"
+            role="alert"
+            aria-live="assertive"
+            tabindex="-1"
+            class="rounded-sm border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+        >
             <div v-for="(message, index) in errorMessages" :key="index">
                 {{ message }}
             </div>
         </div>
 
         <div class="flex justify-end gap-2">
-            <button type="button" @click="closeOverlay"
-                class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+            <button type="button" :disabled="isSubmitting" @click="closeOverlay"
+                class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
                 {{ $t('customers.actions.cancel') }}
             </button>
             <button type="submit" :disabled="isSubmitting"
@@ -516,5 +576,6 @@ const submit = async () => {
                 {{ resolvedSubmitLabel }}
             </button>
         </div>
+        </fieldset>
     </form>
 </template>

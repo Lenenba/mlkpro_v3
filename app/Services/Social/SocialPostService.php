@@ -233,11 +233,27 @@ class SocialPostService
      */
     public function updateDraft(User $owner, User $actor, SocialPost $post, array $payload): SocialPost
     {
+        return $this->updateDraftWithPreviousMedia($owner, $actor, $post, $payload)['post'];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array{post: SocialPost, previous_media_payload: array<int, array<string, mixed>>|null}
+     */
+    public function updateDraftWithPreviousMedia(
+        User $owner,
+        User $actor,
+        SocialPost $post,
+        array $payload,
+    ): array {
         $this->assertOwnership($owner, $post);
 
-        $postId = DB::transaction(function () use ($owner, $actor, $post, $payload): int {
+        $update = DB::transaction(function () use ($owner, $actor, $post, $payload): array {
             $lockedPost = $this->lockedPost($owner, $post);
             $this->assertEditable($lockedPost);
+            $previousMediaPayload = is_array($lockedPost->media_payload)
+                ? $lockedPost->media_payload
+                : null;
 
             $targetConnections = $this->resolveTargetConnections(
                 $owner,
@@ -253,12 +269,30 @@ class SocialPostService
             $this->syncTargetsFromConnections($lockedPost, $targetConnections, $attributes['status']);
             $this->revisionService->capture($lockedPost, $actor);
 
-            return (int) $lockedPost->id;
+            return [
+                'post_id' => (int) $lockedPost->id,
+                'previous_media_payload' => $previousMediaPayload,
+            ];
         });
 
-        return SocialPost::query()
-            ->with(['targets.socialAccountConnection'])
-            ->findOrFail($postId);
+        return [
+            'post' => SocialPost::query()
+                ->with(['targets.socialAccountConnection'])
+                ->findOrFail($update['post_id']),
+            'previous_media_payload' => $update['previous_media_payload'],
+        ];
+    }
+
+    public function ensureDraftCanBeUpdated(User $owner, SocialPost $post): void
+    {
+        $this->assertOwnership($owner, $post);
+
+        $currentPost = SocialPost::query()
+            ->byUser((int) $owner->id)
+            ->whereKey($post->getKey())
+            ->firstOrFail();
+
+        $this->assertEditable($currentPost);
     }
 
     /**

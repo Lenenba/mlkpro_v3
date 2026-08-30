@@ -1,6 +1,8 @@
 const DEFAULT_MAX_IMAGE_DIMENSION = 1600;
 const DEFAULT_MAX_IMAGE_BYTES = 1800000;
 const DEFAULT_MAX_VIDEO_BYTES = 24000000;
+const DEFAULT_MAX_DOCUMENT_BYTES = 24000000;
+const DEFAULT_MAX_TOTAL_MEDIA_BYTES = 104857600;
 const DEFAULT_QUALITY = 0.82;
 const MIN_QUALITY = 0.6;
 const QUALITY_STEP = 0.08;
@@ -25,8 +27,53 @@ export const formatBytes = (value) => {
   return `${size.toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
 };
 
-export const isImageFile = (file) => Boolean(file?.type && file.type.startsWith('image/'));
-export const isVideoFile = (file) => Boolean(file?.type && file.type.startsWith('video/'));
+const fileExtension = (file) => String(file?.name || '')
+  .split('.')
+  .pop()
+  ?.toLowerCase() || '';
+
+export const resolveMediaType = (file) => {
+  const mimeType = String(file?.type || '').toLowerCase();
+  const extension = fileExtension(file);
+
+  if (mimeType.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)) {
+    return 'image';
+  }
+
+  if (mimeType.startsWith('video/') || ['mp4', 'mov', 'webm'].includes(extension)) {
+    return 'video';
+  }
+
+  if (mimeType === 'application/pdf' || extension === 'pdf') {
+    return 'document';
+  }
+
+  return null;
+};
+
+export const isImageFile = (file) => resolveMediaType(file) === 'image';
+export const isVideoFile = (file) => resolveMediaType(file) === 'video';
+export const isDocumentFile = (file) => resolveMediaType(file) === 'document';
+
+export const takeFilesWithinTotalBytes = (files, maxBytes, currentBytes = 0) => {
+  const byteLimit = Math.max(0, Number(maxBytes) || 0);
+  let totalBytes = Math.max(0, Number(currentBytes) || 0);
+  const acceptedFiles = [];
+  const rejectedFiles = [];
+
+  for (const file of Array.from(files || [])) {
+    const fileSize = Math.max(0, Number(file?.size) || 0);
+    if (totalBytes + fileSize > byteLimit) {
+      rejectedFiles.push(file);
+      continue;
+    }
+
+    acceptedFiles.push(file);
+    totalBytes += fileSize;
+  }
+
+  return { acceptedFiles, rejectedFiles, totalBytes };
+};
 
 const loadImage = async (file) => {
   if (typeof window !== 'undefined' && 'createImageBitmap' in window) {
@@ -188,6 +235,19 @@ export const prepareMediaFile = async (file, options = {}) => {
     return { file, resized: false, error: null };
   }
 
+  if (isDocumentFile(file)) {
+    const maxDocumentBytes = options.maxDocumentBytes ?? DEFAULT_MAX_DOCUMENT_BYTES;
+    if (maxDocumentBytes && file.size > maxDocumentBytes) {
+      return {
+        file: null,
+        resized: false,
+        error: `Document too large. Max ${formatBytes(maxDocumentBytes)}.`,
+      };
+    }
+
+    return { file, resized: false, error: null };
+  }
+
   return { file: null, resized: false, error: 'Unsupported file type.' };
 };
 
@@ -195,4 +255,6 @@ export const MEDIA_LIMITS = {
   maxImageDimension: DEFAULT_MAX_IMAGE_DIMENSION,
   maxImageBytes: DEFAULT_MAX_IMAGE_BYTES,
   maxVideoBytes: DEFAULT_MAX_VIDEO_BYTES,
+  maxDocumentBytes: DEFAULT_MAX_DOCUMENT_BYTES,
+  maxTotalMediaBytes: DEFAULT_MAX_TOTAL_MEDIA_BYTES,
 };

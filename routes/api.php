@@ -278,6 +278,8 @@ Route::group([], function () {
                 Route::get('reservations', [StaffReservationController::class, 'index']);
                 Route::get('reservations/events', [StaffReservationController::class, 'events']);
                 Route::get('reservations/slots', [StaffReservationController::class, 'slots']);
+                Route::get('reservations/customers/{customer}/rebooking', [StaffReservationController::class, 'customerRebooking'])
+                    ->whereNumber('customer');
                 Route::get('reservations/{reservation}', [StaffReservationController::class, 'show']);
                 Route::post('reservations', [StaffReservationController::class, 'store']);
                 Route::put('reservations/{reservation}', [StaffReservationController::class, 'update']);

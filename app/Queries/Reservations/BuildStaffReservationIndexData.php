@@ -159,12 +159,14 @@ class BuildStaffReservationIndexData
                 ->byUser($account->id)
                 ->orderBy('company_name')
                 ->orderBy('last_name')
-                ->get(['id', 'first_name', 'last_name', 'company_name'])
+                ->get(['id', 'first_name', 'last_name', 'company_name', 'email', 'phone'])
                 ->map(fn (Customer $client) => [
                     'id' => (int) $client->id,
                     'first_name' => $client->first_name,
                     'last_name' => $client->last_name,
                     'company_name' => $client->company_name,
+                    'email' => $client->email,
+                    'phone' => $client->phone,
                 ])
                 ->values()
             : collect();
@@ -224,6 +226,7 @@ class BuildStaffReservationIndexData
             'access' => [
                 'can_view_all' => $access['can_view_all'],
                 'can_manage' => $access['can_manage'],
+                'can_create_customer' => (bool) ($access['can_create_customer'] ?? false),
                 'can_update_status' => $access['can_update_status'],
                 'own_team_member_id' => $access['own_team_member_id'],
             ],

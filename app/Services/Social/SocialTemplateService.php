@@ -6,6 +6,7 @@ use App\Models\SocialAccountConnection;
 use App\Models\SocialPostTemplate;
 use App\Models\User;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class SocialTemplateService
@@ -54,21 +55,84 @@ class SocialTemplateService
      */
     public function update(User $owner, User $actor, SocialPostTemplate $template, array $payload): SocialPostTemplate
     {
+        return $this->updateWithPreviousMedia($owner, $actor, $template, $payload)['template'];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array{template: SocialPostTemplate, previous_media_payload: array<int, array<string, mixed>>|null}
+     */
+    public function updateWithPreviousMedia(
+        User $owner,
+        User $actor,
+        SocialPostTemplate $template,
+        array $payload,
+    ): array {
         $this->assertOwnership($owner, $template);
 
-        $template->forceFill([
-            ...$this->templateAttributes($owner, $actor, $payload),
-            'created_by_user_id' => $template->created_by_user_id ?: $actor->id,
-        ])->save();
+        $update = DB::transaction(function () use ($owner, $actor, $template, $payload): array {
+            $lockedTemplate = SocialPostTemplate::query()
+                ->byUser((int) $owner->id)
+                ->whereKey($template->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+            $previousMediaPayload = is_array($lockedTemplate->media_payload)
+                ? $lockedTemplate->media_payload
+                : null;
 
-        return $template->fresh();
+            $lockedTemplate->forceFill([
+                ...$this->templateAttributes($owner, $actor, $payload),
+                'created_by_user_id' => $lockedTemplate->created_by_user_id ?: $actor->id,
+            ])->save();
+
+            return [
+                'template_id' => (int) $lockedTemplate->id,
+                'previous_media_payload' => $previousMediaPayload,
+            ];
+        });
+
+        return [
+            'template' => SocialPostTemplate::query()->findOrFail($update['template_id']),
+            'previous_media_payload' => $update['previous_media_payload'],
+        ];
     }
 
     public function delete(User $owner, SocialPostTemplate $template): void
     {
+        $this->deleteWithPreviousMedia($owner, $template);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>|null
+     */
+    public function deleteWithPreviousMedia(User $owner, SocialPostTemplate $template): ?array
+    {
         $this->assertOwnership($owner, $template);
 
-        $template->delete();
+        return DB::transaction(function () use ($owner, $template): ?array {
+            $lockedTemplate = SocialPostTemplate::query()
+                ->byUser((int) $owner->id)
+                ->whereKey($template->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+            $previousMediaPayload = is_array($lockedTemplate->media_payload)
+                ? $lockedTemplate->media_payload
+                : null;
+
+            $lockedTemplate->delete();
+
+            return $previousMediaPayload;
+        });
+    }
+
+    public function ensureCanManage(User $owner, SocialPostTemplate $template): void
+    {
+        $this->assertOwnership($owner, $template);
+
+        SocialPostTemplate::query()
+            ->byUser((int) $owner->id)
+            ->whereKey($template->getKey())
+            ->firstOrFail();
     }
 
     /**

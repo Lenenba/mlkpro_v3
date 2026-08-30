@@ -16,6 +16,7 @@ import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
 import ReservationCalendarBoard from '@/Components/Reservation/ReservationCalendarBoard.vue';
 import ReservationDetailsPanel from '@/Components/Reservation/ReservationDetailsPanel.vue';
+import ReservationCustomerChooser from '@/Components/Reservation/ReservationCustomerChooser.vue';
 import ReservationListTable from '@/Components/Reservation/ReservationListTable.vue';
 import ReservationStats from '@/Components/Reservation/ReservationStats.vue';
 import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
@@ -213,6 +214,7 @@ const queueTipPercent = ref(0);
 const queueTipFixedAmount = ref(0);
 const canViewAll = computed(() => Boolean(props.access?.can_view_all));
 const canManage = computed(() => Boolean(props.access?.can_manage));
+const canCreateCustomer = computed(() => Boolean(props.access?.can_create_customer));
 const ownerOnlyMode = computed(() => Boolean(props.settings?.owner_only_mode));
 const canManageReservationActions = computed(() => canManage.value && !ownerOnlyMode.value);
 const waitlistEnabled = computed(() => Boolean(props.settings?.waitlist_enabled));
@@ -250,6 +252,10 @@ const calendarRange = ref({
 const showEditor = ref(false);
 const showDetails = ref(false);
 const activeReservation = ref(null);
+const localClients = ref([...(props.clients || [])]);
+const reservationCustomerMode = ref('existing');
+const customerCreationProcessing = ref(false);
+const reservationStartsAtField = ref(null);
 const detailsLoading = ref(false);
 const detailsLoadError = ref('');
 const showAdvanced = ref(false);
@@ -362,7 +368,7 @@ const serviceOptions = computed(() => [
 
 const clientOptions = computed(() => [
     { value: '', label: t('reservations.form.none') },
-    ...(props.clients || []).map((client) => ({
+    ...localClients.value.map((client) => ({
         value: String(client.id),
         label: client.company_name
             || `${client.first_name || ''} ${client.last_name || ''}`.trim()
@@ -914,6 +920,8 @@ const openCreate = () => {
     reservationForm.status = props.defaults?.status || 'confirmed';
     reservationForm.duration_minutes = props.defaults?.duration_minutes || 60;
     reservationForm.timezone = props.timezone || 'UTC';
+    reservationCustomerMode.value = 'existing';
+    customerCreationProcessing.value = false;
     showEditor.value = true;
 };
 
@@ -933,7 +941,64 @@ const openEdit = (reservation) => {
     reservationForm.internal_notes = reservation?.internal_notes || '';
     reservationForm.client_notes = reservation?.client_notes || '';
     reservationForm.timezone = reservation?.timezone || props.timezone || 'UTC';
+    reservationCustomerMode.value = 'existing';
+    customerCreationProcessing.value = false;
     showEditor.value = true;
+};
+
+const closeEditor = () => {
+    if (reservationForm.processing || customerCreationProcessing.value) {
+        return;
+    }
+
+    showEditor.value = false;
+    reservationCustomerMode.value = 'existing';
+};
+
+const handleCustomerCreated = (payload) => {
+    const customer = payload?.customer;
+    if (!customer?.id) {
+        return;
+    }
+
+    const existingIndex = localClients.value.findIndex((item) => Number(item.id) === Number(customer.id));
+    if (existingIndex >= 0) {
+        localClients.value.splice(existingIndex, 1, customer);
+    } else {
+        localClients.value.unshift(customer);
+    }
+
+    reservationForm.client_id = String(customer.id);
+    reservationForm.clearErrors('client_id');
+    reservationCustomerMode.value = 'existing';
+};
+
+const handleRebook = async (template) => {
+    const serviceId = Number(template?.service?.id || 0);
+    const teamMemberId = Number(template?.team_member?.id || 0);
+    const durationMinutes = Number(template?.duration_minutes || 0);
+    const serviceIsAvailable = template?.service?.is_available === true
+        && (props.services || []).some((service) => Number(service.id) === serviceId);
+    const teamMemberIsAvailable = template?.team_member?.is_available === true
+        && (props.teamMembers || []).some((member) => Number(member.id) === teamMemberId);
+
+    reservationForm.service_id = serviceIsAvailable ? String(serviceId) : '';
+    reservationForm.team_member_id = teamMemberIsAvailable ? String(teamMemberId) : '';
+    reservationForm.duration_minutes = durationMinutes > 0
+        ? durationMinutes
+        : (props.defaults?.duration_minutes || 60);
+    reservationForm.starts_at = '';
+    reservationForm.ends_at = '';
+    reservationForm.clearErrors(
+        'service_id',
+        'team_member_id',
+        'duration_minutes',
+        'starts_at',
+        'ends_at'
+    );
+
+    await nextTick();
+    reservationStartsAtField.value?.focus();
 };
 
 const submitReservation = () => {
@@ -2577,71 +2642,187 @@ const removeReservation = (reservation) => {
             </section>
         </Modal>
 
-        <Modal :show="showEditor" maxWidth="3xl" @close="showEditor = false">
-            <div class="p-5">
-                <h2 class="text-sm font-semibold">{{ activeReservation ? $t('reservations.form.edit_title') : $t('reservations.form.create_title') }}</h2>
-                <form class="mt-3 space-y-3" @submit.prevent="submitReservation">
-                    <div class="grid gap-3 md:grid-cols-3">
-                        <div>
-                            <FloatingSelect v-model="reservationForm.team_member_id" :options="teamOptions.slice(1)" :label="$t('planning.form.member')" />
-                            <InputError class="mt-1" :message="reservationForm.errors.team_member_id" />
-                        </div>
-                        <div>
-                            <FloatingSelect v-model="reservationForm.client_id" :options="clientOptions" :label="$t('reservations.form.customer')" />
-                            <InputError class="mt-1" :message="reservationForm.errors.client_id" />
-                        </div>
-                        <div>
-                            <FloatingSelect v-model="reservationForm.service_id" :options="serviceOptions.slice(1)" :label="$t('reservations.form.item')" />
-                            <InputError class="mt-1" :message="reservationForm.errors.service_id" />
-                        </div>
-                    </div>
-                    <div class="grid gap-3 md:grid-cols-4">
-                        <div>
-                            <FloatingInput v-model="reservationForm.starts_at" type="datetime-local" :label="$t('reservations.form.starts_at')" />
-                            <InputError class="mt-1" :message="reservationForm.errors.starts_at" />
-                        </div>
-                        <div>
-                            <FloatingInput v-model="reservationForm.ends_at" type="datetime-local" :label="$t('reservations.form.ends_at')" />
-                            <InputError class="mt-1" :message="reservationForm.errors.ends_at" />
-                        </div>
-                        <div>
-                            <FloatingInput v-model="reservationForm.duration_minutes" type="number" min="5" :label="$t('reservations.client.book.fields.duration')" />
-                            <InputError class="mt-1" :message="reservationForm.errors.duration_minutes" />
-                        </div>
-                        <div>
-                            <FloatingSelect v-model="reservationForm.status" :options="statusOptions.slice(1)" :label="$t('reservations.form.status')" />
-                            <InputError class="mt-1" :message="reservationForm.errors.status" />
+        <Modal
+            :show="showEditor"
+            maxWidth="5xl"
+            position="center"
+            :full-screen-mobile="true"
+            :closeable="!reservationForm.processing && !customerCreationProcessing"
+            aria-labelledby="reservation-editor-title"
+            aria-describedby="reservation-editor-subtitle"
+            @close="closeEditor"
+        >
+            <div class="flex h-dvh min-h-0 flex-col sm:h-auto sm:max-h-[calc(100vh-3rem)]">
+                <header class="flex shrink-0 items-start justify-between gap-4 border-b border-stone-200 px-5 py-4 dark:border-neutral-700 sm:px-6">
+                    <div class="flex min-w-0 items-start gap-3">
+                        <span class="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-sm bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                            <svg aria-hidden="true" class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="5" width="18" height="16" rx="2" />
+                                <path d="M16 3v4M8 3v4M3 11h18M12 14v4M10 16h4" />
+                            </svg>
+                        </span>
+                        <div class="min-w-0">
+                            <h2 id="reservation-editor-title" class="text-base font-semibold text-stone-900 dark:text-neutral-100 sm:text-lg">
+                                {{ activeReservation ? $t('reservations.form.edit_title') : $t('reservations.form.create_title') }}
+                            </h2>
+                            <p id="reservation-editor-subtitle" class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
+                                {{ activeReservation
+                                    ? $t('reservations.form.edit_subtitle')
+                                    : $t('reservations.form.create_subtitle') }}
+                            </p>
                         </div>
                     </div>
-                    <div class="grid gap-3 md:grid-cols-2">
-                        <div>
-                            <FloatingTextarea v-model="reservationForm.client_notes" :label="$t('reservations.client.book.fields.client_notes')" />
-                            <InputError class="mt-1" :message="reservationForm.errors.client_notes" />
+                    <button
+                        type="button"
+                        class="inline-flex size-9 shrink-0 items-center justify-center rounded-sm border border-stone-200 text-stone-500 transition hover:bg-stone-50 hover:text-stone-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+                        :aria-label="$t('quotes.form.cancel')"
+                        :disabled="reservationForm.processing || customerCreationProcessing"
+                        @click="closeEditor"
+                    >
+                        <svg aria-hidden="true" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 6 6 18M6 6l12 12" />
+                        </svg>
+                    </button>
+                </header>
+
+                <div class="min-h-0 flex-1 overflow-y-auto">
+                    <section v-if="!activeReservation" class="px-5 py-5 sm:px-6 sm:py-6" aria-labelledby="reservation-customer-section-title">
+                        <div class="mb-4 flex items-start gap-3">
+                            <span class="flex size-7 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs font-semibold text-white">1</span>
+                            <div>
+                                <h3 id="reservation-customer-section-title" class="text-sm font-semibold text-stone-900 dark:text-neutral-100">
+                                    {{ $t('reservations.form.customer_section_title') }}
+                                </h3>
+                                <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
+                                    {{ $t('reservations.form.customer_section_hint') }}
+                                </p>
+                            </div>
                         </div>
-                        <div>
-                            <FloatingTextarea v-model="reservationForm.internal_notes" :label="$t('reservations.form.internal_notes')" />
-                            <InputError class="mt-1" :message="reservationForm.errors.internal_notes" />
-                        </div>
-                    </div>
-                    <div class="flex justify-end gap-2">
-                        <button
-                            type="button"
-                            class="rounded-sm border border-stone-200 px-3 py-2 text-xs dark:border-neutral-700"
-                            @click="showEditor = false"
+
+                        <ReservationCustomerChooser
+                            v-model="reservationForm.client_id"
+                            v-model:mode="reservationCustomerMode"
+                            :clients="localClients"
+                            :can-create="canCreateCustomer"
+                            :error="reservationForm.errors.client_id"
+                            :timezone="timezone"
+                            @created="handleCustomerCreated"
+                            @processing="customerCreationProcessing = $event"
+                            @rebook="handleRebook"
+                        />
+                    </section>
+
+                    <form
+                        v-if="activeReservation || reservationCustomerMode === 'existing'"
+                        id="reservation-editor-form"
+                        @submit.prevent="submitReservation"
+                    >
+                        <section
+                            class="border-t border-stone-200 px-5 py-5 dark:border-neutral-700 sm:px-6 sm:py-6"
+                            aria-labelledby="reservation-details-section-title"
                         >
-                            {{ $t('quotes.form.cancel') }}
-                        </button>
-                        <button
-                            type="submit"
-                            class="rounded-sm bg-emerald-600 px-3 py-2 text-xs text-white disabled:opacity-50"
-                            :disabled="reservationForm.processing"
-                        >
-                            {{ reservationForm.processing
-                                ? $t('reservations.actions.update')
-                                : (activeReservation ? $t('reservations.actions.update') : $t('reservations.actions.create')) }}
-                        </button>
-                    </div>
-                </form>
+                            <div class="mb-4 flex items-start gap-3">
+                                <span class="flex size-7 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs font-semibold text-white">
+                                    <template v-if="!activeReservation">2</template>
+                                    <svg v-else aria-hidden="true" class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                                    </svg>
+                                </span>
+                                <div>
+                                    <h3 id="reservation-details-section-title" class="text-sm font-semibold text-stone-900 dark:text-neutral-100">
+                                        {{ $t('reservations.form.reservation_section_title') }}
+                                    </h3>
+                                    <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
+                                        {{ $t('reservations.form.reservation_section_hint') }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="space-y-4 rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800 sm:p-5">
+                                <div class="grid gap-3" :class="activeReservation ? 'md:grid-cols-3' : 'md:grid-cols-2'">
+                                    <div>
+                                        <FloatingSelect v-model="reservationForm.team_member_id" :options="teamOptions.slice(1)" :label="$t('planning.form.member')" />
+                                        <InputError class="mt-1" :message="reservationForm.errors.team_member_id" />
+                                    </div>
+                                    <div v-if="activeReservation">
+                                        <FloatingSelect
+                                            v-model="reservationForm.client_id"
+                                            :options="clientOptions"
+                                            :label="$t('reservations.form.customer')"
+                                            filterable
+                                            :filter-placeholder="$t('reservations.form.search_customer')"
+                                        />
+                                        <InputError class="mt-1" :message="reservationForm.errors.client_id" />
+                                    </div>
+                                    <div>
+                                        <FloatingSelect v-model="reservationForm.service_id" :options="serviceOptions.slice(1)" :label="$t('reservations.form.item')" />
+                                        <InputError class="mt-1" :message="reservationForm.errors.service_id" />
+                                    </div>
+                                </div>
+
+                                <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+                                    <div class="xl:col-span-2">
+                                        <FloatingInput
+                                            id="reservation-starts-at"
+                                            ref="reservationStartsAtField"
+                                            v-model="reservationForm.starts_at"
+                                            type="datetime-local"
+                                            :label="$t('reservations.form.starts_at')"
+                                        />
+                                        <InputError class="mt-1" :message="reservationForm.errors.starts_at" />
+                                    </div>
+                                    <div class="xl:col-span-2">
+                                        <FloatingInput v-model="reservationForm.ends_at" type="datetime-local" :label="$t('reservations.form.ends_at')" />
+                                        <InputError class="mt-1" :message="reservationForm.errors.ends_at" />
+                                    </div>
+                                    <div>
+                                        <FloatingInput v-model="reservationForm.duration_minutes" type="number" min="5" :label="$t('reservations.client.book.fields.duration')" />
+                                        <InputError class="mt-1" :message="reservationForm.errors.duration_minutes" />
+                                    </div>
+                                    <div>
+                                        <FloatingSelect v-model="reservationForm.status" :options="statusOptions.slice(1)" :label="$t('reservations.form.status')" />
+                                        <InputError class="mt-1" :message="reservationForm.errors.status" />
+                                    </div>
+                                </div>
+
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <div>
+                                        <FloatingTextarea v-model="reservationForm.client_notes" :label="$t('reservations.client.book.fields.client_notes')" />
+                                        <InputError class="mt-1" :message="reservationForm.errors.client_notes" />
+                                    </div>
+                                    <div>
+                                        <FloatingTextarea v-model="reservationForm.internal_notes" :label="$t('reservations.form.internal_notes')" />
+                                        <InputError class="mt-1" :message="reservationForm.errors.internal_notes" />
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </form>
+                </div>
+
+                <footer
+                    v-if="activeReservation || reservationCustomerMode === 'existing'"
+                    class="flex shrink-0 flex-col-reverse gap-2 border-t border-stone-200 bg-white px-5 py-4 dark:border-neutral-700 dark:bg-neutral-900 sm:flex-row sm:items-center sm:justify-end sm:px-6"
+                >
+                    <button
+                        type="button"
+                        class="inline-flex min-h-10 items-center justify-center rounded-sm border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-50 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                        :disabled="reservationForm.processing"
+                        @click="closeEditor"
+                    >
+                        {{ $t('quotes.form.cancel') }}
+                    </button>
+                    <button
+                        type="submit"
+                        form="reservation-editor-form"
+                        class="inline-flex min-h-10 items-center justify-center rounded-sm bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        :disabled="reservationForm.processing"
+                    >
+                        {{ reservationForm.processing
+                            ? $t('reservations.actions.update')
+                            : (activeReservation ? $t('reservations.actions.update') : $t('reservations.actions.create')) }}
+                    </button>
+                </footer>
             </div>
         </Modal>
 

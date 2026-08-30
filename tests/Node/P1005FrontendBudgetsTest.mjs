@@ -97,7 +97,7 @@ test('keeps the image dropzone outside the initial quick-create bundle', () => {
     });
 
     [customerQuickForm, productQuickForm, serviceQuickForm].forEach((source) => {
-        assert.match(source, /<button type="button" @click="closeOverlay"/u);
+        assert.match(source, /<button type="button"[^>]*@click="closeOverlay"/u);
     });
 });
 

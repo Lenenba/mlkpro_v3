@@ -1,6 +1,7 @@
 {
   "dropzone": {
     "upload_image": "Subir una imagen",
+    "upload_media": "Suelta tus medios",
     "image_preview": "Vista previa de la imagen",
     "current_image": "Imagen actual",
     "preview_alt": "Vista previa",
@@ -10,11 +11,24 @@
     "drop_here": "Suelta tu archivo aquí o",
     "browse": "examinar",
     "optimization_hint": "Las imágenes grandes se optimizan automáticamente.",
+    "media_hint": "Las imágenes, los vídeos y los PDF se detectan automáticamente.",
+    "limit_reached": "Se alcanzó el límite de {count} medios.",
+    "media_types": {
+      "image": "Imagen",
+      "video": "Vídeo",
+      "document": "Documento",
+      "file": "Archivo"
+    },
     "errors": {
       "svg_not_allowed": "Las imágenes SVG no están permitidas.",
       "unsupported_format": "Formato de imagen no compatible. Formatos permitidos: {formats}.",
+      "unsupported_media_format": "Formato de medio no compatible. Formatos permitidos: {formats}.",
+      "too_many_files": "Puedes adjuntar hasta {count} medios.",
       "processing_failed": "No se pudo procesar la imagen.",
-      "too_large": "La imagen es demasiado grande. Tamaño máximo: {size}."
+      "too_large": "La imagen es demasiado grande. Tamaño máximo: {size}.",
+      "video_too_large": "El vídeo es demasiado grande. Tamaño máximo: {size}.",
+      "document_too_large": "El PDF es demasiado grande. Tamaño máximo: {size}.",
+      "total_too_large": "El tamaño total de los archivos nuevos no puede superar {size}."
     }
   },
   "kpi_visibility": {

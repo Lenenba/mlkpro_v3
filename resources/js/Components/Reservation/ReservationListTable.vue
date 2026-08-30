@@ -498,7 +498,6 @@ const setMobilePerPage = (event) => {
                     :show-pagination="normalizedRows.length > 0"
                     show-per-page
                     :per-page="perPage"
-                    :striped="false"
                     container-class="reservation-list-desktop-table"
                 >
                     <template #head>
@@ -638,7 +637,7 @@ const setMobilePerPage = (event) => {
                     </template>
 
                     <template #row="{ row: reservation }">
-                        <tr class="group reservation-list-row">
+                        <tr>
                             <td class="px-4 py-3 align-middle">
                                 <button
                                     type="button"
@@ -1087,25 +1086,6 @@ const setMobilePerPage = (event) => {
 
 .reservation-list-sort-inactive {
     opacity: 0.35;
-}
-
-.reservation-list-row {
-    background: white;
-    transition: background-color 150ms ease;
-}
-
-.reservation-list-row:hover,
-.reservation-list-row:focus-within {
-    background: rgb(236 253 245 / 0.6);
-}
-
-:global(.dark) .reservation-list-row {
-    background: rgb(23 23 23);
-}
-
-:global(.dark) .reservation-list-row:hover,
-:global(.dark) .reservation-list-row:focus-within {
-    background: rgb(2 44 34 / 0.4);
 }
 
 .reservation-list-date {

@@ -4,9 +4,11 @@ use App\Http\Middleware\EnsureTwoFactorVerified;
 use App\Models\Role;
 use App\Models\SocialAccountConnection;
 use App\Models\SocialPost;
+use App\Models\SocialPostRevision;
 use App\Models\SocialPostTarget;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Services\Social\SocialMediaAssetService;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -82,6 +84,7 @@ function pulseComposerConnection(
 }
 
 beforeEach(function () {
+    config()->set('services.buffer.delivery.enabled', false);
     $this->withoutMiddleware(ValidateCsrfToken::class);
     $this->withoutMiddleware(EnsureTwoFactorVerified::class);
 });
@@ -543,8 +546,396 @@ it('lets owners upload local images for pulse drafts', function () {
     $updatedPath = data_get($updatedDraft->media_payload, '0.path');
 
     expect($updatedPath)->toBeString()->not->toBe('');
+    $originalRevision = SocialPostRevision::query()
+        ->where('social_post_id', $draftId)
+        ->oldest('revision_number')
+        ->firstOrFail();
+
+    expect(data_get($originalRevision->media_snapshot, 'items.0.path'))->toBe($storedPath);
+    Storage::disk('public')->assertExists($storedPath);
     Storage::disk('public')->assertExists($updatedPath);
     $update->assertJsonPath('draft.image_url', Storage::disk('public')->url($updatedPath));
+});
+
+it('deletes replaced pulse uploads that have no persisted reference', function () {
+    Storage::fake('public');
+
+    $owner = pulseComposerOwner();
+    $facebook = pulseComposerConnection(
+        $owner,
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        'fb-unreferenced-replacement',
+        'Unreferenced replacement page',
+    );
+    $oldAsset = app(SocialMediaAssetService::class)->storeUploadedMedia(
+        $owner,
+        UploadedFile::fake()->create('unreferenced-old.mp4', 64, 'video/mp4'),
+        'posts',
+    );
+    $oldPath = (string) $oldAsset['path'];
+    $post = SocialPost::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'content_payload' => ['text' => 'Draft without an editorial revision'],
+        'media_payload' => [$oldAsset],
+        'status' => SocialPost::STATUS_DRAFT,
+    ]);
+
+    $response = $this->actingAs($owner)
+        ->post(route('social.posts.update', $post), [
+            '_method' => 'PUT',
+            'text' => 'Draft with a replacement upload',
+            'media_files' => [
+                UploadedFile::fake()->create('replacement.mp4', 64, 'video/mp4'),
+            ],
+            'target_connection_ids' => [$facebook->id],
+        ]);
+
+    $response->assertOk();
+    $replacementPath = (string) $response->json('draft.media_assets.0.path');
+
+    Storage::disk('public')->assertMissing($oldPath);
+    Storage::disk('public')->assertExists($replacementPath);
+});
+
+it('retains replaced uploads referenced by legacy pulse revision media lists', function () {
+    Storage::fake('public');
+
+    $owner = pulseComposerOwner();
+    $facebook = pulseComposerConnection(
+        $owner,
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        'fb-legacy-revision-media',
+        'Legacy revision media page',
+    );
+    $oldAsset = app(SocialMediaAssetService::class)->storeUploadedMedia(
+        $owner,
+        UploadedFile::fake()->create('legacy-revision.mp4', 64, 'video/mp4'),
+        'posts',
+    );
+    $oldPath = (string) $oldAsset['path'];
+    $post = SocialPost::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'content_payload' => ['text' => 'Draft with a legacy revision'],
+        'media_payload' => [$oldAsset],
+        'status' => SocialPost::STATUS_DRAFT,
+    ]);
+    SocialPostRevision::query()->create([
+        'user_id' => $owner->id,
+        'social_post_id' => $post->id,
+        'revision_number' => 1,
+        'base_content' => ['content_payload' => ['text' => 'Legacy snapshot']],
+        'source_snapshot' => [],
+        'media_snapshot' => [$oldAsset],
+        'scheduled_timezone' => 'UTC',
+        'payload_hash' => hash('sha256', 'legacy-media-'.$post->id),
+        'created_by_user_id' => $owner->id,
+        'origin' => SocialPostRevision::ORIGIN_LEGACY_BACKFILL_V1,
+    ]);
+
+    $this->actingAs($owner)
+        ->post(route('social.posts.update', $post), [
+            '_method' => 'PUT',
+            'text' => 'Draft replacing legacy revision media',
+            'media_files' => [
+                UploadedFile::fake()->create('replacement.mp4', 64, 'video/mp4'),
+            ],
+            'target_connection_ids' => [$facebook->id],
+        ])
+        ->assertOk();
+
+    Storage::disk('public')->assertExists($oldPath);
+});
+
+it('stores uploaded image video and document files in order for pulse drafts', function () {
+    Storage::fake('public');
+
+    $owner = pulseComposerOwner();
+    $facebook = pulseComposerConnection(
+        $owner,
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        'fb-media-files',
+        'Media upload page',
+    );
+
+    $response = $this->actingAs($owner)
+        ->post(route('social.posts.store'), [
+            'text' => 'Draft with local media',
+            'media_files' => [
+                UploadedFile::fake()->image('cover.jpg', 1200, 800),
+                UploadedFile::fake()->create('launch.mp4', 128, 'video/mp4'),
+                UploadedFile::fake()->create('brief.pdf', 64, 'application/pdf'),
+            ],
+            'target_connection_ids' => [$facebook->id],
+        ]);
+
+    $response->assertCreated()
+        ->assertJsonPath('draft.media_assets.0.type', 'image')
+        ->assertJsonPath('draft.media_assets.1.type', 'video')
+        ->assertJsonPath('draft.media_assets.2.type', 'document');
+
+    $draft = SocialPost::query()->findOrFail((int) $response->json('draft.id'));
+    $media = (array) $draft->media_payload;
+
+    expect($media)->toHaveCount(3)
+        ->and(array_column($media, 'type'))->toBe(['image', 'video', 'document'])
+        ->and(array_column($media, 'name'))->toBe(['cover.jpg', 'launch.mp4', 'brief.pdf'])
+        ->and(array_column($media, 'disk'))->toBe(['public', 'public', 'public'])
+        ->and(data_get($media, '0.mime_type'))->toBe('image/jpeg')
+        ->and(data_get($media, '1.mime_type'))->toBe('video/mp4')
+        ->and(data_get($media, '2.mime_type'))->toBe('application/pdf')
+        ->and(data_get($media, '2.title'))->toBe('brief')
+        ->and((string) data_get($media, '2.thumbnail_url'))->toEndWith('/brand/social-card.png');
+
+    foreach ($media as $asset) {
+        expect(data_get($asset, 'path'))->toBeString()->not->toBe('');
+        Storage::disk('public')->assertExists((string) data_get($asset, 'path'));
+    }
+
+    $response->assertJsonPath('draft.image_url', data_get($media, '0.url'));
+});
+
+it('rejects unsupported or oversized pulse media uploads', function (
+    string $fileName,
+    int $sizeInKilobytes,
+    string $mimeType,
+) {
+    Storage::fake('public');
+
+    $owner = pulseComposerOwner();
+    $facebook = pulseComposerConnection(
+        $owner,
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        'fb-invalid-media-files',
+        'Invalid media upload page',
+    );
+
+    $response = $this->actingAs($owner)
+        ->withHeader('Accept', 'application/json')
+        ->post(route('social.posts.store'), [
+            'text' => 'Invalid local media',
+            'media_files' => [
+                UploadedFile::fake()->create($fileName, $sizeInKilobytes, $mimeType),
+            ],
+            'target_connection_ids' => [$facebook->id],
+        ]);
+
+    $response->assertUnprocessable()
+        ->assertJsonValidationErrors(['media_files.0']);
+
+    expect(SocialPost::query()->count())->toBe(0)
+        ->and(Storage::disk('public')->allFiles())->toBe([]);
+})->with([
+    'unsupported executable' => ['payload.exe', 1, 'application/x-msdownload'],
+    'image over 10 MiB' => ['large.png', 10241, 'image/png'],
+    'video over 24 MiB' => ['large.mp4', 24577, 'video/mp4'],
+]);
+
+it('enforces the twenty item total across remote and uploaded pulse media', function () {
+    Storage::fake('public');
+
+    $owner = pulseComposerOwner();
+    $facebook = pulseComposerConnection(
+        $owner,
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        'fb-media-total-limit',
+        'Media limit page',
+    );
+    $remoteAssets = collect(range(1, 20))
+        ->map(fn (int $index): array => [
+            'type' => 'image',
+            'url' => 'https://cdn.example.com/media-'.$index.'.jpg',
+        ])
+        ->all();
+
+    $response = $this->actingAs($owner)
+        ->withHeader('Accept', 'application/json')
+        ->post(route('social.posts.store'), [
+            'text' => 'Too many mixed media items',
+            'media_assets' => json_encode($remoteAssets, JSON_THROW_ON_ERROR),
+            'media_files' => [
+                UploadedFile::fake()->image('extra.jpg', 600, 400),
+            ],
+            'target_connection_ids' => [$facebook->id],
+        ]);
+
+    $response->assertUnprocessable()
+        ->assertJsonValidationErrors(['media_assets', 'media_files']);
+
+    expect(SocialPost::query()->count())->toBe(0)
+        ->and(Storage::disk('public')->allFiles())->toBe([]);
+});
+
+it('rejects pulse upload batches over the one hundred MiB budget', function () {
+    Storage::fake('public');
+
+    $owner = pulseComposerOwner();
+    $facebook = pulseComposerConnection(
+        $owner,
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        'fb-upload-byte-limit',
+        'Upload byte limit page',
+    );
+    $mediaFiles = collect(range(1, 5))
+        ->map(fn (int $index): UploadedFile => UploadedFile::fake()->create(
+            'large-'.$index.'.mp4',
+            21 * 1024,
+            'video/mp4',
+        ))
+        ->all();
+
+    $response = $this->actingAs($owner)
+        ->withHeader('Accept', 'application/json')
+        ->post(route('social.posts.store'), [
+            'text' => 'Upload batch over its total byte budget',
+            'media_files' => $mediaFiles,
+            'target_connection_ids' => [$facebook->id],
+        ]);
+
+    $response->assertUnprocessable()
+        ->assertJsonValidationErrors(['media_files']);
+
+    expect(SocialPost::query()->count())->toBe(0)
+        ->and(Storage::disk('public')->allFiles())->toBe([]);
+});
+
+it('accepts pulse upload batches below the one hundred MiB budget', function () {
+    Storage::fake('public');
+
+    $owner = pulseComposerOwner();
+    $facebook = pulseComposerConnection(
+        $owner,
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        'fb-upload-byte-budget',
+        'Upload byte budget page',
+    );
+    $mediaFiles = collect(range(1, 4))
+        ->map(fn (int $index): UploadedFile => UploadedFile::fake()->create(
+            'allowed-'.$index.'.mp4',
+            24 * 1024,
+            'video/mp4',
+        ))
+        ->all();
+
+    $response = $this->actingAs($owner)
+        ->post(route('social.posts.store'), [
+            'text' => 'Upload batch within its total byte budget',
+            'media_files' => $mediaFiles,
+            'target_connection_ids' => [$facebook->id],
+        ]);
+
+    $response->assertCreated()
+        ->assertJsonCount(4, 'draft.media_assets');
+
+    foreach ((array) $response->json('draft.media_assets') as $asset) {
+        Storage::disk('public')->assertExists((string) ($asset['path'] ?? ''));
+    }
+});
+
+it('rolls back newly uploaded media when pulse draft targets are invalid', function () {
+    Storage::fake('public');
+
+    $owner = pulseComposerOwner();
+
+    $response = $this->actingAs($owner)
+        ->withHeader('Accept', 'application/json')
+        ->post(route('social.posts.store'), [
+            'text' => 'Draft whose target is invalid',
+            'media_files' => [
+                UploadedFile::fake()->image('rollback.jpg', 800, 600),
+            ],
+            'target_connection_ids' => [999999],
+        ]);
+
+    $response->assertUnprocessable()
+        ->assertJsonValidationErrors(['target_connection_ids']);
+
+    expect(SocialPost::query()->count())->toBe(0)
+        ->and(Storage::disk('public')->allFiles())->toBe([]);
+});
+
+it('does not store media before checking that a pulse draft remains editable', function () {
+    Storage::fake('public');
+
+    $owner = pulseComposerOwner();
+    $facebook = pulseComposerConnection(
+        $owner,
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        'fb-locked-media',
+        'Locked media page',
+    );
+    $post = SocialPost::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'content_payload' => ['text' => 'Published content'],
+        'status' => SocialPost::STATUS_PUBLISHED,
+        'published_at' => now(),
+    ]);
+
+    $response = $this->actingAs($owner)
+        ->withHeader('Accept', 'application/json')
+        ->post(route('social.posts.update', $post), [
+            '_method' => 'PUT',
+            'text' => 'Attempted locked edit',
+            'media_files' => [
+                UploadedFile::fake()->image('locked.jpg', 800, 600),
+            ],
+            'target_connection_ids' => [$facebook->id],
+        ]);
+
+    $response->assertUnprocessable()
+        ->assertJsonValidationErrors(['post']);
+
+    expect(Storage::disk('public')->allFiles())->toBe([]);
+});
+
+it('rolls back earlier files when a pulse media upload batch fails', function () {
+    Storage::fake('public');
+
+    $owner = pulseComposerOwner();
+    $facebook = pulseComposerConnection(
+        $owner,
+        SocialAccountConnection::PLATFORM_FACEBOOK,
+        'fb-partial-media-failure',
+        'Partial media failure page',
+    );
+    $temporaryFile = UploadedFile::fake()->create('broken.pdf', 1, 'application/pdf');
+    $failingUpload = new class($temporaryFile->getPathname(), 'broken.pdf', 'application/pdf', null, true) extends UploadedFile
+    {
+        public function getMimeType(): string
+        {
+            return 'application/pdf';
+        }
+
+        public function getSize(): int|false
+        {
+            return 1024;
+        }
+
+        public function store($path = '', $options = [])
+        {
+            throw new RuntimeException('Simulated second upload failure.');
+        }
+    };
+
+    $this->actingAs($owner);
+    $this->withoutExceptionHandling();
+
+    expect(fn () => $this->post(route('social.posts.store'), [
+        'text' => 'Batch with a storage failure',
+        'media_files' => [
+            UploadedFile::fake()->image('stored-first.jpg', 800, 600),
+            $failingUpload,
+        ],
+        'target_connection_ids' => [$facebook->id],
+    ]))->toThrow(RuntimeException::class, 'Simulated second upload failure.');
+
+    expect(SocialPost::query()->count())->toBe(0)
+        ->and(Storage::disk('public')->allFiles())->toBe([]);
 });
 
 it('lets team members with social publish manage pulse drafts while social view stays read only', function () {

@@ -17,6 +17,13 @@ import {
     socialStatusAxes,
     socialStatusToneClass,
 } from '@/utils/socialStatusAxes';
+import { resolveMediaType } from '@/utils/media';
+import {
+    normalizeSocialMediaState,
+    serializeSocialMediaAssets,
+    SOCIAL_MEDIA_EXTENSIONS,
+    SOCIAL_MEDIA_MAX_ITEMS,
+} from '@/utils/socialMediaAssets';
 import { socialScheduleInputValue } from '@/utils/socialScheduleInput';
 
 const props = defineProps({
@@ -77,57 +84,8 @@ const normalizeAccounts = (payload) => Array.isArray(payload) ? payload : [];
 const normalizeDrafts = (payload) => Array.isArray(payload) ? payload : [];
 const normalizeTemplates = (payload) => Array.isArray(payload) ? payload : [];
 const normalizeMediaAssets = (payload) => Array.isArray(payload) ? payload : [];
-const bufferMediaTypes = ['image', 'video', 'document'];
-const emptyMediaAsset = (type = 'image') => ({
-    type: bufferMediaTypes.includes(type) ? type : 'image',
-    url: '',
-    alt_text: '',
-    title: '',
-    thumbnail_url: '',
-    thumbnail_offset: '',
-});
-const normalizeBufferMediaAsset = (asset) => {
-    const type = String(asset?.type || '').trim().toLowerCase();
-    const url = String(asset?.url || '').trim();
-
-    if (!bufferMediaTypes.includes(type) || url === '') {
-        return null;
-    }
-
-    return {
-        type,
-        url,
-        alt_text: String(asset?.alt_text || '').trim(),
-        title: String(asset?.title || '').trim(),
-        thumbnail_url: String(asset?.thumbnail_url || '').trim(),
-        thumbnail_offset: asset?.thumbnail_offset ?? '',
-    };
-};
-const normalizeBufferMediaState = (payload, primaryImageUrl = '') => {
-    const primaryUrl = String(primaryImageUrl || '').trim();
-    const assets = (Array.isArray(payload) ? payload : [])
-        .map((asset) => normalizeBufferMediaAsset(asset))
-        .filter(Boolean);
-    const firstAsset = assets[0] || null;
-    const usesPrimaryImageField = firstAsset?.type === 'image'
-        && firstAsset.url === primaryUrl
-        && firstAsset.alt_text === ''
-        && firstAsset.title === ''
-        && firstAsset.thumbnail_url === ''
-        && firstAsset.thumbnail_offset === '';
-
-    if (usesPrimaryImageField) {
-        return {
-            image_url: primaryUrl,
-            media_assets: assets.slice(1),
-        };
-    }
-
-    return {
-        image_url: assets.length > 0 ? '' : primaryUrl,
-        media_assets: assets,
-    };
-};
+const mediaExtensions = SOCIAL_MEDIA_EXTENSIONS;
+const normalizeMediaState = normalizeSocialMediaState;
 const normalizeSummary = (payload) => payload && typeof payload === 'object' ? payload : {};
 const normalizeAccess = (payload) => ({
     can_view: Boolean(payload?.can_view),
@@ -200,7 +158,7 @@ const normalizePrefill = (payload) => {
         return null;
     }
 
-    const mediaState = normalizeBufferMediaState(payload?.media_assets, payload?.image_url);
+    const mediaState = normalizeMediaState(payload?.media_assets, payload?.image_url);
 
     return {
         source_type: sourceType,
@@ -304,7 +262,7 @@ const templateName = ref('');
 const hashtagDraft = ref('');
 const suggestions = ref(normalizeSuggestions(null));
 const sourceReference = ref(normalizeSourceReference(props.initialPrefill));
-const imageFile = ref(null);
+const mediaFiles = ref([]);
 const localImagePreviewUrl = ref('');
 const form = ref({
     text: '',
@@ -388,18 +346,27 @@ const isEditDisabled = computed(() => (
     || isQueuedPublication.value
     || isServerLocked.value
 ));
-const bufferMediaLimitReached = computed(() => {
-    const primaryImageUrl = String(form.value.image_url || '').trim();
-    const primaryImageIsAlreadyListed = primaryImageUrl !== ''
-        && form.value.media_assets.some((asset) => (
-            String(asset?.type || '').toLowerCase() === 'image'
-            && String(asset?.url || '').trim() === primaryImageUrl
-        ));
-    const hasSeparatePrimaryImage = imageFile.value instanceof File
-        || (primaryImageUrl !== '' && !primaryImageIsAlreadyListed);
+const existingMediaItems = computed(() => {
+    const items = form.value.media_assets.map((asset, index) => ({
+        ...asset,
+        composer_source: 'media_assets',
+        composer_index: index,
+    }));
+    const imageUrl = String(form.value.image_url || '').trim();
 
-    return form.value.media_assets.length + (hasSeparatePrimaryImage ? 1 : 0) >= 20;
+    if (imageUrl !== '') {
+        items.unshift({
+            type: 'image',
+            url: imageUrl,
+            composer_source: 'image_url',
+        });
+    }
+
+    return items;
 });
+const mediaLimitReached = computed(() => (
+    existingMediaItems.value.length + mediaFiles.value.length >= SOCIAL_MEDIA_MAX_ITEMS
+));
 const sourceDisplayName = computed(() => sourceDisplayLabelFor(sourceReference.value));
 const sourceHref = computed(() => sourceHrefFor(sourceReference.value));
 const hasSuggestions = computed(() => (
@@ -428,30 +395,24 @@ const approvalRequestDate = computed(() => (
     || null
 ));
 const imageInputModel = computed({
-    get: () => imageFile.value || String(form.value.image_url || '').trim() || null,
+    get: () => String(form.value.image_url || '').trim() || null,
     set: (value) => {
         if (isEditDisabled.value) {
             return;
         }
 
-        if (value instanceof File) {
-            imageFile.value = value;
-            form.value.image_url = '';
-
-            return;
-        }
-
         if (typeof value === 'string' && value.trim() !== '') {
-            imageFile.value = null;
             form.value.image_url = value.trim();
 
             return;
         }
 
-        imageFile.value = null;
         form.value.image_url = '';
     },
 });
+const previewImageFile = computed(() => mediaFiles.value.find((file) => (
+    resolveMediaType(file) === 'image'
+)) || null);
 const previewImageSrc = computed(() => (
     localImagePreviewUrl.value
     || String(form.value.image_url || '').trim()
@@ -585,34 +546,33 @@ const revokeLocalImagePreview = () => {
     localImagePreviewUrl.value = '';
 };
 
-const clearImageSelection = () => {
-    imageFile.value = null;
+const clearMediaFiles = () => {
+    mediaFiles.value = [];
 };
 
-const addMediaAsset = () => {
-    if (isEditDisabled.value || bufferMediaLimitReached.value) {
-        return;
-    }
-
-    form.value.media_assets = [...form.value.media_assets, emptyMediaAsset()];
-};
-
-const removeMediaAsset = (index) => {
+const removeExistingMedia = (item) => {
     if (isEditDisabled.value) {
         return;
     }
 
+    if (item?.composer_source === 'image_url') {
+        form.value.image_url = '';
+
+        return;
+    }
+
+    const index = Number(item?.composer_index);
     form.value.media_assets = form.value.media_assets.filter((_, assetIndex) => assetIndex !== index);
 };
 
 const syncFormFromDraft = (draft) => {
-    const mediaState = normalizeBufferMediaState(draft?.media_assets, draft?.image_url);
+    const mediaState = normalizeMediaState(draft?.media_assets, draft?.image_url);
 
     draftSnapshot.value = draft ? { ...draft } : null;
     templateName.value = '';
     resetSuggestions();
     sourceReference.value = normalizeSourceReference(draft);
-    clearImageSelection();
+    clearMediaFiles();
     form.value = {
         text: String(draft?.text || ''),
         image_url: mediaState.image_url,
@@ -634,7 +594,7 @@ const resetForm = () => {
     templateName.value = '';
     resetSuggestions();
     sourceReference.value = null;
-    clearImageSelection();
+    clearMediaFiles();
     form.value = {
         text: '',
         image_url: '',
@@ -718,20 +678,11 @@ watch(() => props.selectedTemplateId, (value) => {
     requestedTemplateId.value = value;
 }, { immediate: true });
 
-watch(imageFile, (value) => {
+watch(previewImageFile, (value) => {
     revokeLocalImagePreview();
 
     if (value instanceof File) {
         localImagePreviewUrl.value = URL.createObjectURL(value);
-    }
-});
-
-watch(() => form.value.image_url, (value, previous) => {
-    const next = String(value || '').trim();
-    const prev = String(previous || '').trim();
-
-    if (next !== '' && next !== prev && imageFile.value instanceof File) {
-        clearImageSelection();
     }
 });
 
@@ -763,7 +714,7 @@ onBeforeUnmount(() => {
 });
 
 const applyTemplate = (template, { announce = true } = {}) => {
-    const mediaState = normalizeBufferMediaState(template?.media_assets, template?.image_url);
+    const mediaState = normalizeMediaState(template?.media_assets, template?.image_url);
     const availableTargetIds = availableTargetConnectionIds(template?.selected_target_connection_ids);
     const missingTargetCount = Math.max(0, Number(template?.selected_accounts_count || 0) - availableTargetIds.length);
 
@@ -774,7 +725,7 @@ const applyTemplate = (template, { announce = true } = {}) => {
     templateName.value = String(template?.name || '');
     resetSuggestions();
     sourceReference.value = null;
-    clearImageSelection();
+    clearMediaFiles();
     form.value = {
         text: String(template?.text || ''),
         image_url: mediaState.image_url,
@@ -807,7 +758,7 @@ const applyPrefill = (prefill, { announce = true } = {}) => {
     templateName.value = '';
     resetSuggestions();
     sourceReference.value = normalizeSourceReference(normalizedPrefill);
-    clearImageSelection();
+    clearMediaFiles();
     form.value = {
         text: String(normalizedPrefill.text || ''),
         image_url: String(normalizedPrefill.image_url || ''),
@@ -1062,16 +1013,12 @@ const appendFormDataValue = (formData, key, value) => {
 };
 
 const appendMediaAssets = (formData, assets) => {
-    const serializedAssets = (Array.isArray(assets) ? assets : [])
-        .map((asset) => normalizeBufferMediaAsset(asset))
-        .filter(Boolean);
+    const serializedAssets = serializeSocialMediaAssets(assets);
 
     formData.append('media_assets', JSON.stringify(serializedAssets));
 };
 
-const serializedMediaAssets = () => form.value.media_assets
-    .map((asset) => normalizeBufferMediaAsset(asset))
-    .filter(Boolean);
+const serializedMediaAssets = () => serializeSocialMediaAssets(form.value.media_assets);
 
 const usesFormData = (payload) => payload instanceof FormData;
 
@@ -1098,7 +1045,7 @@ const composerPayload = () => {
         target_connection_ids: form.value.target_connection_ids.map((id) => Number(id)).filter((id) => id > 0),
     };
 
-    if (!(imageFile.value instanceof File)) {
+    if (mediaFiles.value.length === 0) {
         return payload;
     }
 
@@ -1106,7 +1053,9 @@ const composerPayload = () => {
 
     appendFormDataValue(formData, 'text', payload.text);
     appendFormDataValue(formData, 'image_url', payload.image_url);
-    appendFormDataValue(formData, 'image_file', imageFile.value);
+    mediaFiles.value.forEach((mediaFile) => {
+        formData.append('media_files[]', mediaFile);
+    });
     appendMediaAssets(formData, form.value.media_assets);
     appendFormDataValue(formData, 'link_url', payload.link_url);
     appendFormDataValue(formData, 'link_cta_label', payload.link_cta_label);
@@ -1136,7 +1085,7 @@ const templatePayload = (name) => {
         target_connection_ids: availableTargetConnectionIds(form.value.target_connection_ids),
     };
 
-    if (!(imageFile.value instanceof File)) {
+    if (mediaFiles.value.length === 0) {
         return payload;
     }
 
@@ -1145,7 +1094,9 @@ const templatePayload = (name) => {
     appendFormDataValue(formData, 'name', payload.name);
     appendFormDataValue(formData, 'text', payload.text);
     appendFormDataValue(formData, 'image_url', payload.image_url);
-    appendFormDataValue(formData, 'image_file', imageFile.value);
+    mediaFiles.value.forEach((mediaFile) => {
+        formData.append('media_files[]', mediaFile);
+    });
     appendMediaAssets(formData, form.value.media_assets);
     appendFormDataValue(formData, 'link_url', payload.link_url);
     appendFormDataValue(formData, 'link_cta_label', payload.link_cta_label);
@@ -1493,121 +1444,34 @@ const resolveApproval = async (decision) => {
                             :disabled="isEditDisabled"
                         />
 
-                        <DropzoneInput
-                            v-model="imageInputModel"
-                            :label="t('social.composer_manager.fields.image_file')"
-                            :disabled="isEditDisabled"
-                        />
-
-                        <SocialMediaAssetPicker
-                            v-model="imageInputModel"
-                            :assets="mediaAssets"
-                            :disabled="isEditDisabled"
-                        />
-
-                        <FloatingInput
-                            v-model="form.image_url"
-                            type="url"
-                            :label="t('social.composer_manager.fields.image_url')"
-                            placeholder="https://example.com/image.jpg"
-                            autocomplete="url"
-                            :disabled="isEditDisabled"
-                        />
-
                         <div class="rounded-2xl border border-neutral-200 bg-neutral-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/40">
-                            <div class="flex flex-wrap items-start justify-between gap-3">
-                                <div>
-                                    <div class="text-sm font-semibold text-neutral-900 dark:text-white">
-                                        {{ t('social.composer_manager.fields.buffer_media') }}
-                                    </div>
-                                    <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-                                        {{ t('social.composer_manager.fields.media_help') }}
-                                    </p>
+                            <div>
+                                <div class="text-sm font-semibold text-neutral-900 dark:text-white">
+                                    {{ t('social.composer_manager.fields.media') }}
                                 </div>
-                                <button
-                                    type="button"
-                                    class="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs font-semibold text-neutral-700 transition hover:border-green-500 hover:text-green-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-200"
-                                    :disabled="isEditDisabled || bufferMediaLimitReached"
-                                    @click="addMediaAsset"
-                                >
-                                    {{ t('social.composer_manager.actions.add_media') }}
-                                </button>
+                                <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                                    {{ t('social.composer_manager.fields.media_help') }}
+                                </p>
                             </div>
 
-                            <div v-if="form.media_assets.length" class="mt-4 space-y-3">
-                                <div
-                                    v-for="(asset, index) in form.media_assets"
-                                    :key="`buffer-media-${index}`"
-                                    class="rounded-xl border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-950"
-                                >
-                                    <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                        <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-300">
-                                            <span class="mb-1 block">{{ t('social.composer_manager.fields.media_type') }}</span>
-                                            <select
-                                                v-model="asset.type"
-                                                class="w-full rounded-lg border-neutral-300 bg-white text-sm text-neutral-900 focus:border-green-500 focus:ring-green-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white"
-                                                :disabled="isEditDisabled"
-                                            >
-                                                <option v-for="type in bufferMediaTypes" :key="type" :value="type">
-                                                    {{ t(`social.composer_manager.media_types.${type}`) }}
-                                                </option>
-                                            </select>
-                                        </label>
+                            <div class="mt-4 grid grid-cols-1 gap-4">
+                                <DropzoneInput
+                                    v-model="mediaFiles"
+                                    mode="media"
+                                    multiple
+                                    :max-files="SOCIAL_MEDIA_MAX_ITEMS"
+                                    :existing-items="existingMediaItems"
+                                    :allowed-extensions="mediaExtensions"
+                                    :label="t('social.composer_manager.fields.media')"
+                                    :disabled="isEditDisabled"
+                                    @remove-existing="removeExistingMedia"
+                                />
 
-                                        <FloatingInput
-                                            v-model="asset.url"
-                                            type="url"
-                                            :label="t('social.composer_manager.fields.media_url')"
-                                            placeholder="https://cdn.example.com/media"
-                                            autocomplete="url"
-                                            :disabled="isEditDisabled"
-                                        />
-
-                                        <FloatingInput
-                                            v-if="asset.type === 'image'"
-                                            v-model="asset.alt_text"
-                                            :label="t('social.composer_manager.fields.media_alt_text')"
-                                            :disabled="isEditDisabled"
-                                        />
-
-                                        <FloatingInput
-                                            v-if="asset.type === 'video' || asset.type === 'document'"
-                                            v-model="asset.title"
-                                            :label="t('social.composer_manager.fields.media_title')"
-                                            :disabled="isEditDisabled"
-                                        />
-
-                                        <FloatingInput
-                                            v-if="asset.type === 'video'"
-                                            v-model="asset.thumbnail_offset"
-                                            type="number"
-                                            min="0"
-                                            :label="t('social.composer_manager.fields.media_thumbnail_offset')"
-                                            :disabled="isEditDisabled"
-                                        />
-
-                                        <FloatingInput
-                                            v-if="asset.type === 'document'"
-                                            v-model="asset.thumbnail_url"
-                                            type="url"
-                                            :label="t('social.composer_manager.fields.media_thumbnail_url')"
-                                            placeholder="https://cdn.example.com/thumbnail.jpg"
-                                            autocomplete="url"
-                                            :disabled="isEditDisabled"
-                                        />
-                                    </div>
-
-                                    <div class="mt-3 flex justify-end">
-                                        <button
-                                            type="button"
-                                            class="text-xs font-semibold text-rose-600 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-50 dark:text-rose-400"
-                                            :disabled="isEditDisabled"
-                                            @click="removeMediaAsset(index)"
-                                        >
-                                            {{ t('social.composer_manager.actions.remove_media') }}
-                                        </button>
-                                    </div>
-                                </div>
+                                <SocialMediaAssetPicker
+                                    v-model="imageInputModel"
+                                    :assets="mediaAssets"
+                                    :disabled="isEditDisabled || mediaLimitReached"
+                                />
                             </div>
                         </div>
 

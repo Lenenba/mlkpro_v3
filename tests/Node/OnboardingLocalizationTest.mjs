@@ -71,11 +71,25 @@ test('the shared dropzone uses translated copy on every page shell', () => {
         'dropzone.errors.unsupported_format',
         'dropzone.errors.processing_failed',
         'dropzone.errors.too_large',
+        'dropzone.errors.video_too_large',
+        'dropzone.errors.document_too_large',
     ];
+    const dynamicallyResolvedErrorKeys = new Set([
+        'dropzone.errors.too_large',
+        'dropzone.errors.video_too_large',
+        'dropzone.errors.document_too_large',
+    ]);
 
     for (const key of requiredKeys) {
-        assert.match(source, new RegExp(`t\\('${key.replaceAll('.', '\\.')}'`));
+        const sourceKey = dynamicallyResolvedErrorKeys.has(key)
+            ? key.replace('dropzone.errors.', '')
+            : key;
+
+        assert.equal(source.includes(`'${sourceKey}'`), true, key);
     }
+
+    assert.match(source, /const resolvedLabel = computed\(\(\) => props\.label \|\| t\(/u);
+    assert.match(source, /const resolvedHint = computed\(\(\) => t\(/u);
 
     assert.doesNotMatch(source, />\s*Drop your file here or\s*</);
     assert.doesNotMatch(source, />\s*Large images are optimized automatically\.\s*</);

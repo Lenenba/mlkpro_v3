@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Reservation\SlotRequest;
 use App\Http\Requests\Reservation\StoreReservationRequest;
 use App\Http\Requests\Reservation\UpdateReservationRequest;
+use App\Models\Customer;
 use App\Models\Payment;
 use App\Models\Request as LeadRequest;
 use App\Models\Reservation;
@@ -19,6 +20,7 @@ use App\Models\TeamMember;
 use App\Models\TeamMemberAttendance;
 use App\Models\User;
 use App\Models\WeeklyAvailability;
+use App\Queries\Reservations\BuildCustomerRebookingData;
 use App\Queries\Reservations\BuildStaffReservationDetailData;
 use App\Queries\Reservations\BuildStaffReservationIndexData;
 use App\Services\BillingPlanService;
@@ -33,10 +35,12 @@ use App\Support\ReservationPresetResolver;
 use App\Support\TenantPaymentMethodsResolver;
 use App\Support\TipSettingsResolver;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -70,6 +74,33 @@ class StaffReservationController extends Controller
         $props['tips'] = TipSettingsResolver::forAccountId($account->id);
 
         return $this->inertiaOrJson('Reservation/Index', $props);
+    }
+
+    public function customerRebooking(
+        Request $request,
+        int $customer,
+        BuildCustomerRebookingData $rebookingData
+    ): JsonResponse {
+        $user = $request->user();
+        if (! $user) {
+            abort(401);
+        }
+        if ($user->isClient()) {
+            abort(403);
+        }
+
+        $this->authorize('create', Reservation::class);
+        $account = $this->resolveAccount($user);
+        $this->ensureManualReservationActionsAvailable($account);
+        $customer = Customer::query()
+            ->byUser((int) $account->id)
+            ->whereKey($customer)
+            ->firstOrFail();
+
+        return response()->json($rebookingData->build(
+            (int) $account->id,
+            (int) $customer->id
+        ));
     }
 
     public function screen(Request $request)
@@ -924,6 +955,7 @@ class StaffReservationController extends Controller
             'is_account_owner' => (int) $user->id === $accountId,
             'can_view_all' => $canViewAll,
             'can_manage' => $canManage,
+            'can_create_customer' => $this->canCreateCustomers($user, $ownTeamMember, $accountId),
             'can_update_status' => $canManage || (bool) $ownTeamMember,
         ];
     }
@@ -960,6 +992,27 @@ class StaffReservationController extends Controller
         }
 
         return $teamMember->hasPermission('reservations.manage');
+    }
+
+    private function canCreateCustomers(User $user, ?TeamMember $teamMember, int $accountId): bool
+    {
+        if ((int) $user->id === $accountId) {
+            return true;
+        }
+
+        if (! $teamMember) {
+            return false;
+        }
+
+        if ($teamMember->role === 'admin' || $teamMember->hasPermission('customers.create')) {
+            return true;
+        }
+
+        if (! $teamMember->hasPermission('sales.manage') && ! $teamMember->hasPermission('sales.pos')) {
+            return false;
+        }
+
+        return (bool) User::query()->find($accountId)?->hasCompanyFeature('sales');
     }
 
     private function normalizeFilters(Request $request, array $access): array
@@ -1814,15 +1867,15 @@ class StaffReservationController extends Controller
                 return '***';
             }
 
-            return strtoupper(substr($local, 0, 1)).'***';
+            return Str::upper(Str::substr($local, 0, 1)).'***';
         }
 
         $parts = array_values(array_filter(preg_split('/\s+/', $value) ?: []));
         if (count($parts) >= 2) {
-            return strtoupper(substr($parts[0], 0, 1)).' '.strtoupper(substr($parts[1], 0, 1)).'.';
+            return Str::upper(Str::substr($parts[0], 0, 1)).' '.Str::upper(Str::substr($parts[1], 0, 1)).'.';
         }
 
-        return strtoupper(substr($value, 0, 1)).'***';
+        return Str::upper(Str::substr($value, 0, 1)).'***';
     }
 
     private function kioskPublicUrl(int $accountId, array $settings): ?string

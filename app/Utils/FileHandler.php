@@ -4,6 +4,8 @@ namespace App\Utils;
 
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
+use Throwable;
 
 class FileHandler
 {
@@ -63,10 +65,20 @@ class FileHandler
     public static function storeFile(string $folderName, UploadedFile $file): string
     {
         $path = $file->store($folderName, 'public');
-        $mime = $file->getClientMimeType() ?? $file->getMimeType();
+        if (! is_string($path) || $path === '') {
+            throw new RuntimeException('The uploaded file could not be stored.');
+        }
 
-        if ($mime && str_starts_with($mime, 'image/')) {
-            self::resizeImageIfNeeded(Storage::disk('public')->path($path));
+        try {
+            $mime = $file->getMimeType() ?: $file->getClientMimeType();
+
+            if ($mime && str_starts_with($mime, 'image/')) {
+                self::resizeImageIfNeeded(Storage::disk('public')->path($path));
+            }
+        } catch (Throwable $exception) {
+            Storage::disk('public')->delete($path);
+
+            throw $exception;
         }
 
         return $path;
