@@ -17,10 +17,16 @@
       "active": "Activo",
       "inactive": "Inactivo"
     },
+    "view": {
+      "label": "Vista de miembros del equipo",
+      "table": "Tabla",
+      "cards": "Tarjetas"
+    },
     "actions": {
       "clear": "Limpiar",
       "add_member": "Agregar miembro",
-      "member_actions": "Acciones del miembro",
+      "member_actions": "Acciones para {name}",
+      "view_member": "Ver la ficha de {name}",
       "details": "Detalles",
       "edit": "Editar",
       "deactivate": "Desactivar",

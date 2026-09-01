@@ -128,7 +128,6 @@
       "no_customer_selected_hint": "La reserva se creará sin vincularla a una ficha de cliente.",
       "rebooking": {
         "title": "Reservar de nuevo",
-        "hint": "Reutilice una visita reciente o un servicio habitual y elija una nueva fecha.",
         "loading": "Cargando los hábitos de reserva del cliente…",
         "load_error": "No se pudo cargar el historial de este cliente.",
         "retry": "Reintentar",
@@ -201,6 +200,19 @@
       "title": "Cola híbrida",
       "subtitle": "Opere visitas sin cita previa y citas en una sola cola.",
       "empty": "No hay elementos en cola en este momento.",
+      "view": {
+        "label": "Modo de visualización de la cola",
+        "table": "Tabla",
+        "cards": "Tarjetas"
+      },
+      "details": {
+        "schedule": "Horario",
+        "check_in": "Llegada",
+        "duration": "Duración estimada",
+        "call_deadline": "Fin de la llamada",
+        "view_reservation": "Ver reserva",
+        "view_reservation_for": "Ver la reserva de {client}"
+      },
       "cards": {
         "waiting": "esperando",
         "called": "llamado",

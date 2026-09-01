@@ -75,6 +75,7 @@ test('existing customers can reuse recent reservations and usual services safely
     assert.match(chooser, /recent_reservations\.slice\(0, 3\)/u);
     assert.match(chooser, /frequent_services\.slice\(0, 3\)/u);
     assert.match(chooser, /data-testid="reservation-rebooking"/u);
+    assert.doesNotMatch(chooser, /reservations\.form\.rebooking\.hint/u);
     assert.match(chooser, /v-if="rebookingLoading"/u);
     assert.match(chooser, /v-else-if="rebookingError"/u);
     assert.match(chooser, /loadRebookingInsights\(true\)/u);
@@ -138,7 +139,6 @@ test('rebooking guidance is translated in every supported locale', () => {
 
         for (const key of [
             'title',
-            'hint',
             'loading',
             'load_error',
             'retry',

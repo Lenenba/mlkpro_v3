@@ -37,9 +37,10 @@ test('the compact application footer keeps one semantic and accessible brand sur
     assert.match(footer, /<a[\s\S]*?v-for="link in legalLinks"/);
 });
 
-test('authenticated and guest shells own one footer while nested and global shells avoid duplicates', () => {
+test('application shells own one footer while nested and global shells avoid duplicates', () => {
     const authenticated = read('resources/js/Layouts/AuthenticatedLayout.vue');
     const guest = read('resources/js/Layouts/GuestLayout.vue');
+    const publicKiosk = read('resources/js/Layouts/PublicKioskLayout.vue');
     const settings = read('resources/js/Layouts/SettingsLayout.vue');
     const app = read('resources/js/app.js');
 
@@ -55,8 +56,13 @@ test('authenticated and guest shells own one footer while nested and global shel
 
     assert.match(authenticated, /:variant="isClient \? 'powered-by' : 'platform'"/);
     assert.match(guest, /:variant="showTenantAttribution \? 'powered-by' : 'platform'"/);
+    assert.match(publicKiosk, /import AppFooter from '@\/Components\/UI\/AppFooter\.vue'/);
+    assert.equal(occurrences(publicKiosk, '<AppFooter'), 1);
+    assert.match(publicKiosk, /variant="powered-by"/);
+    assert.match(publicKiosk, /<CookieBanner \/>/);
     assert.doesNotMatch(authenticated, /account\.branding\.powered_by/);
     assert.doesNotMatch(guest, /account\.branding\.powered_by/);
+    assert.doesNotMatch(publicKiosk, /account\.branding\.powered_by/);
 
     assert.equal(occurrences(settings, '<AppFooter'), 0);
     assert.match(settings, /<AuthenticatedLayout>/);

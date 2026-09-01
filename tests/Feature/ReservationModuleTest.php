@@ -4331,6 +4331,132 @@ it('returns queue screen payload and supports anonymize toggle', function () {
     expect($anonymizedName)->not->toBe($plainName);
 });
 
+it('hides past not-arrived appointments from the live queue without deleting history', function () {
+    Carbon::setTestNow(Carbon::parse('2026-09-01 15:00:00', 'UTC'));
+
+    try {
+        $owner = createOwnerWithReservationsEnabled();
+        $teamMember = createTeamMemberForAccount($owner);
+
+        ReservationSetting::query()->updateOrCreate(
+            [
+                'account_id' => $owner->id,
+                'team_member_id' => null,
+            ],
+            [
+                'business_preset' => 'salon',
+                'queue_mode_enabled' => true,
+                'queue_assignment_mode' => 'global_pull',
+                'queue_dispatch_mode' => 'fifo_with_appointment_priority',
+                'queue_grace_minutes' => 5,
+                'queue_no_show_on_grace_expiry' => false,
+            ]
+        );
+
+        $createAppointment = function (
+            string $reference,
+            Carbon $startsAt,
+            Carbon $endsAt,
+            string $queueStatus
+        ) use ($owner, $teamMember): array {
+            $reservation = Reservation::query()->create([
+                'account_id' => $owner->id,
+                'team_member_id' => $teamMember->id,
+                'status' => Reservation::STATUS_CONFIRMED,
+                'source' => Reservation::SOURCE_STAFF,
+                'timezone' => 'UTC',
+                'starts_at' => $startsAt,
+                'ends_at' => $endsAt,
+                'duration_minutes' => $startsAt->diffInMinutes($endsAt),
+                'internal_notes' => $reference,
+            ]);
+
+            $queueItem = ReservationQueueItem::query()->create([
+                'account_id' => $owner->id,
+                'reservation_id' => $reservation->id,
+                'team_member_id' => $teamMember->id,
+                'item_type' => ReservationQueueItem::TYPE_APPOINTMENT,
+                'source' => Reservation::SOURCE_STAFF,
+                'queue_number' => $reference,
+                'status' => $queueStatus,
+                'estimated_duration_minutes' => $startsAt->diffInMinutes($endsAt),
+                'checked_in_at' => $queueStatus === ReservationQueueItem::STATUS_NOT_ARRIVED
+                    ? null
+                    : now('UTC')->subHour(),
+                'started_at' => $queueStatus === ReservationQueueItem::STATUS_IN_SERVICE
+                    ? now('UTC')->subMinutes(45)
+                    : null,
+            ]);
+
+            return [$reservation, $queueItem];
+        };
+
+        [$pastReservation, $pastNotArrived] = $createAppointment(
+            'PAST-NOT-ARRIVED',
+            now('UTC')->subHours(2),
+            now('UTC')->subHour(),
+            ReservationQueueItem::STATUS_NOT_ARRIVED
+        );
+        [, $upcomingNotArrived] = $createAppointment(
+            'UPCOMING-NOT-ARRIVED',
+            now('UTC')->addMinutes(30),
+            now('UTC')->addMinutes(90),
+            ReservationQueueItem::STATUS_NOT_ARRIVED
+        );
+        [, $pastInService] = $createAppointment(
+            'PAST-IN-SERVICE',
+            now('UTC')->subHours(2),
+            now('UTC')->subHour(),
+            ReservationQueueItem::STATUS_IN_SERVICE
+        );
+        $walkIn = ReservationQueueItem::query()->create([
+            'account_id' => $owner->id,
+            'team_member_id' => $teamMember->id,
+            'item_type' => ReservationQueueItem::TYPE_TICKET,
+            'source' => Reservation::SOURCE_STAFF,
+            'queue_number' => 'WALK-IN-ACTIVE',
+            'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+            'estimated_duration_minutes' => 20,
+            'checked_in_at' => now('UTC')->subMinutes(10),
+        ]);
+
+        $queueService = app(ReservationQueueService::class);
+        $settings = app(ReservationAvailabilityService::class)->resolveSettings($owner->id, null);
+        $board = $queueService->boardForStaff($owner->id, [
+            'can_view_all' => true,
+            'can_manage' => true,
+            'own_team_member_id' => null,
+        ], $settings);
+        $visibleIds = collect($board['items'])->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        expect($visibleIds)
+            ->not->toContain((int) $pastNotArrived->id)
+            ->toContain((int) $upcomingNotArrived->id)
+            ->toContain((int) $pastInService->id)
+            ->toContain((int) $walkIn->id);
+        expect(collect($board['items'])->firstWhere('id', $upcomingNotArrived->id))
+            ->toHaveKey('reservation_ends_at');
+
+        $metrics = $queueService->refreshMetrics($owner->id, $settings);
+        expect($metrics)
+            ->not->toHaveKey($pastNotArrived->id)
+            ->toHaveKey($upcomingNotArrived->id)
+            ->toHaveKey($pastInService->id)
+            ->toHaveKey($walkIn->id);
+
+        $this->assertDatabaseHas('reservation_queue_items', [
+            'id' => $pastNotArrived->id,
+            'status' => ReservationQueueItem::STATUS_NOT_ARRIVED,
+        ]);
+        $this->assertDatabaseHas('reservations', [
+            'id' => $pastReservation->id,
+            'status' => Reservation::STATUS_CONFIRMED,
+        ]);
+    } finally {
+        Carbon::setTestNow();
+    }
+});
+
 it('hides salon queue operations for non-salon presets', function () {
     $owner = createOwnerWithReservationsEnabled();
     [$clientUser] = createClientForAccount($owner, 'Restaurant Client', 'restaurant.client@example.com');

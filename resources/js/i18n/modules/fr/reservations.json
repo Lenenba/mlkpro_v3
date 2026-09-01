@@ -128,7 +128,6 @@
       "no_customer_selected_hint": "La réservation sera créée sans être rattachée à une fiche client.",
       "rebooking": {
         "title": "Réserver à nouveau",
-        "hint": "Reprenez une visite récente ou un service habituel, puis choisissez simplement une nouvelle date.",
         "loading": "Chargement des habitudes du client…",
         "load_error": "Impossible de charger l’historique de ce client.",
         "retry": "Réessayer",
@@ -201,6 +200,19 @@
       "title": "File hybride",
       "subtitle": "Pilotez les walk-ins et rendez-vous dans une file unique.",
       "empty": "Aucun élément dans la file pour le moment.",
+      "view": {
+        "label": "Mode d’affichage de la file",
+        "table": "Tableau",
+        "cards": "Cartes"
+      },
+      "details": {
+        "schedule": "Horaire",
+        "check_in": "Arrivée",
+        "duration": "Durée estimée",
+        "call_deadline": "Fin de l’appel",
+        "view_reservation": "Voir la réservation",
+        "view_reservation_for": "Voir la réservation de {client}"
+      },
       "cards": {
         "waiting": "En attente",
         "called": "Appelés",

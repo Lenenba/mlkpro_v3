@@ -20,6 +20,7 @@ use App\Services\Reservation\ReservationQueueGraceNoShowMarker;
 use App\Services\Reservation\ReservationStatusTransitionService;
 use App\Support\ReservationPresetResolver;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -843,7 +844,13 @@ class ReservationQueueService
         }
 
         $assignmentMode = $this->normalizeAssignmentMode((string) ($settings['queue_assignment_mode'] ?? self::ASSIGNMENT_MODE_PER_STAFF));
-        $this->syncAppointmentsForWindow($accountId, now('UTC')->startOfDay(), now('UTC')->addDay()->endOfDay(), $settings);
+        $boardNow = now('UTC');
+        $this->syncAppointmentsForWindow(
+            $accountId,
+            $boardNow->copy()->startOfDay(),
+            $boardNow->copy()->addDay()->endOfDay(),
+            $settings
+        );
         $metrics = $this->refreshMetrics($accountId, $settings);
 
         $query = ReservationQueueItem::query()
@@ -853,13 +860,15 @@ class ReservationQueueService
                 'service:id,name,price,currency_code,tax_rate',
                 'checkoutPayment:id,reservation_queue_item_id,amount,currency_code,tip_amount,charged_total,status,paid_at',
                 'client:id,first_name,last_name,company_name,email',
-                'reservation:id,starts_at,status',
+                'reservation:id,account_id,starts_at,ends_at,status',
             ])
             ->whereIn('status', array_merge(ReservationQueueItem::ACTIVE_STATUSES, [ReservationQueueItem::STATUS_DONE]))
-            ->where(function ($builder) {
+            ->where(function ($builder) use ($boardNow) {
                 $builder->whereIn('status', ReservationQueueItem::ACTIVE_STATUSES)
-                    ->orWhere('finished_at', '>=', now('UTC')->subHours(2));
+                    ->orWhere('finished_at', '>=', $boardNow->copy()->subHours(2));
             });
+
+        $this->constrainToOperationalItems($query, $accountId, $boardNow);
 
         if (! ($access['can_view_all'] ?? false) && ! empty($access['own_team_member_id'])) {
             $ownTeamMemberId = (int) $access['own_team_member_id'];
@@ -923,6 +932,7 @@ class ReservationQueueService
                     'team_member_id' => $item->team_member_id,
                     'team_member_name' => $item->teamMember?->user?->name,
                     'reservation_starts_at' => $item->reservation?->starts_at?->toIso8601String(),
+                    'reservation_ends_at' => $item->reservation?->ends_at?->toIso8601String(),
                     'estimated_duration_minutes' => (int) ($item->estimated_duration_minutes ?? 0),
                     'position' => $item->position,
                     'eta_minutes' => $item->eta_minutes,
@@ -1291,6 +1301,24 @@ class ReservationQueueService
             ->all();
     }
 
+    private function constrainToOperationalItems(
+        Builder $query,
+        int $accountId,
+        CarbonInterface $nowUtc
+    ): Builder {
+        return $query->where(function (Builder $queueQuery) use ($accountId, $nowUtc): void {
+            $queueQuery
+                ->where('item_type', '!=', ReservationQueueItem::TYPE_APPOINTMENT)
+                ->orWhere('status', '!=', ReservationQueueItem::STATUS_NOT_ARRIVED)
+                ->orWhereHas('reservation', function (Builder $reservationQuery) use ($accountId, $nowUtc): void {
+                    $reservationQuery
+                        ->forAccount($accountId)
+                        ->whereIn('status', Reservation::ACTIVE_STATUSES)
+                        ->where('ends_at', '>', $nowUtc);
+                });
+        });
+    }
+
     public function refreshMetrics(int $accountId, ?array $settings = null): array
     {
         $settings = $settings ?: $this->availabilityService->resolveSettings($accountId, null);
@@ -1300,7 +1328,14 @@ class ReservationQueueService
 
         $this->expireGraceItems($accountId, $settings);
 
-        $items = ReservationQueueItem::query()->forAccount($accountId)->active()->with(['reservation:id,starts_at', 'teamMember:id'])->orderBy('created_at')->get();
+        $now = now('UTC');
+        $itemsQuery = ReservationQueueItem::query()
+            ->forAccount($accountId)
+            ->active()
+            ->with(['reservation:id,account_id,starts_at,ends_at,status', 'teamMember:id'])
+            ->orderBy('created_at');
+        $this->constrainToOperationalItems($itemsQuery, $accountId, $now);
+        $items = $itemsQuery->get();
         if ($items->isEmpty()) {
             return [];
         }
@@ -1308,7 +1343,6 @@ class ReservationQueueService
         $dispatchMode = $this->normalizeDispatchMode((string) ($settings['queue_dispatch_mode'] ?? self::DISPATCH_MODE_FIFO_WITH_APPOINTMENT_PRIORITY));
         $assignmentMode = $this->normalizeAssignmentMode((string) ($settings['queue_assignment_mode'] ?? self::ASSIGNMENT_MODE_PER_STAFF));
         $buffer = max(0, (int) ($settings['buffer_minutes'] ?? 0));
-        $now = now('UTC');
         $teamIds = TeamMember::query()->forAccount($accountId)->active()->pluck('id')->map(fn ($id) => (int) $id)->all();
         $presenceDrivesStaffAvailability = ReservationPresetResolver::isSalonPreset((string) ($settings['business_preset'] ?? null));
         $isTeamMemberAvailable = function (int $memberId, ?ReservationQueueItem $queueItem = null, bool $allowBusyForCurrentItem = false) use ($accountId, $presenceDrivesStaffAvailability): bool {

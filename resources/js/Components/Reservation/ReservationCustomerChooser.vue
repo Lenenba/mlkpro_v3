@@ -437,14 +437,9 @@ onBeforeUnmount(() => {
                         aria-labelledby="reservation-rebooking-title"
                         data-testid="reservation-rebooking"
                     >
-                        <div>
-                            <h4 id="reservation-rebooking-title" class="text-sm font-semibold text-stone-900 dark:text-neutral-100">
-                                {{ $t('reservations.form.rebooking.title') }}
-                            </h4>
-                            <p class="mt-1 text-xs leading-5 text-stone-500 dark:text-neutral-400">
-                                {{ $t('reservations.form.rebooking.hint') }}
-                            </p>
-                        </div>
+                        <h4 id="reservation-rebooking-title" class="text-sm font-semibold text-stone-900 dark:text-neutral-100">
+                            {{ $t('reservations.form.rebooking.title') }}
+                        </h4>
 
                         <div v-if="rebookingLoading" class="mt-3 space-y-2" role="status" :aria-label="$t('reservations.form.rebooking.loading')">
                             <span class="sr-only">{{ $t('reservations.form.rebooking.loading') }}</span>
