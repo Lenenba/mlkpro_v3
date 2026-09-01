@@ -12,6 +12,14 @@ const props = defineProps({
     count: Number,
     stats: Object,
     topQuotes: Array,
+    quoteValueMeta: {
+        type: Object,
+        default: () => ({}),
+    },
+    tenantCurrencyCode: {
+        type: String,
+        default: 'CAD',
+    },
     customers: Array,
     savedSegments: {
         type: Array,
@@ -28,7 +36,11 @@ const props = defineProps({
     <Head :title="$t('quotes.title')" />
     <AuthenticatedLayout>
         <ModuleKpiSection module-key="quotes">
-            <QuoteStats :stats="stats" />
+            <QuoteStats
+                :stats="stats"
+                :currency-meta="quoteValueMeta"
+                :currency-code="tenantCurrencyCode"
+            />
         </ModuleKpiSection>
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-2 md:gap-3 lg:gap-5">
             <div class="col-span-1 lg:col-span-3">
@@ -42,7 +54,13 @@ const props = defineProps({
                     :can-manage-saved-segments="canManageSavedSegments"
                 />
             </div>
-            <QuoteValueStat :items="topQuotes" />
+            <QuoteValueStat
+                :items="topQuotes"
+                :filtered-count="count"
+                :filtered-total="Number(stats?.total_value || 0)"
+                :filtered-currency-codes="quoteValueMeta?.currency_codes || []"
+                :currency-code="tenantCurrencyCode"
+            />
         </div>
     </AuthenticatedLayout>
 </template>

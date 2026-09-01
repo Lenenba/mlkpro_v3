@@ -44,6 +44,9 @@ class QuoteController extends Controller
         $this->authorize('viewAny', Quote::class);
 
         $indexData = $quoteRecoveryIndexData->execute($accountId, $request);
+        $accountOwner = $user && (int) $user->id === (int) $accountId
+            ? $user
+            : User::query()->find($accountId);
 
         $customers = Customer::byUser($accountId)
             ->orderBy('company_name')
@@ -77,6 +80,8 @@ class QuoteController extends Controller
             'count' => $indexData['count'],
             'stats' => $indexData['stats'],
             'topQuotes' => $indexData['topQuotes'],
+            'quoteValueMeta' => $indexData['quoteValueMeta'],
+            'tenantCurrencyCode' => $accountOwner?->businessCurrencyCode() ?? 'CAD',
             'customers' => $customers,
             'savedSegments' => $savedSegments,
             'canManageSavedSegments' => $canManageSavedSegments,

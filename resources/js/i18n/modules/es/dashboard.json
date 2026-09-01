@@ -80,13 +80,20 @@
       }
     },
     "revenue": {
-      "title": "Tendencia de ingresos",
-      "subtitle": "Cobros y gastos de los últimos meses.",
+      "title": "Cobros de facturas y gastos pagados",
+      "revenue_only_title": "Cobros de facturas",
+      "subtitle": "Importes en {currency}, acumulados hasta el mismo día de cada mes.",
+      "period": "Del {start} al {end} · {timezone}",
+      "legend_label": "Series del gráfico financiero",
       "view_invoices": "Ver facturas",
       "legend": {
-        "revenue": "Ingresos",
-        "expenses": "Gastos"
+        "revenue": "Cobros de facturas",
+        "expenses": "Gastos pagados"
       },
+      "month_label": "Mes",
+      "amount_label": "Importe",
+      "table_caption": "Valores exactos de cobros de facturas y gastos pagados.",
+      "revenue_only_table_caption": "Valores exactos de cobros de facturas.",
       "paid_to_date": "Pagado hasta la fecha",
       "outstanding": "Pendiente",
       "overdue": "Vencido"
@@ -134,6 +141,8 @@
     },
     "kpi": {
       "revenue_paid": "Ingresos pagados",
+      "revenue_paid_month": "Cobros de este mes",
+      "revenue_paid_total": "{amount} cobrados en total",
       "revenue_billed": "Facturado {amount}",
       "pos_revenue": "Ventas POS cobradas",
       "pos_revenue_month": "{amount} cobrados este mes",
@@ -266,9 +275,12 @@
       "eyebrow": "Escenario de demostración",
       "title": "Situación operativa real",
       "subtitle": "Métricas calculadas al {date} durante los últimos {months} meses.",
-      "history_title": "Ingresos y gastos de 12 meses",
-      "revenue": "Ingresos",
-      "expenses": "Gastos",
+      "history_title": "Actividad operativa de 12 meses",
+      "history_subtitle": "Número de citas registradas cada mes.",
+      "activity_series": "Citas",
+      "month_label": "Mes",
+      "activity_count_label": "Cantidad",
+      "activity_table_caption": "Valores exactos de la actividad operativa mensual.",
       "top_services": "Servicios más solicitados",
       "top_employees": "Empleados más ocupados",
       "top_products": "Productos más vendidos",
@@ -300,6 +312,8 @@
         "average_job_value": "Valor medio por intervención",
         "completed_jobs": "Intervenciones completadas este mes",
         "quality_incidents": "Incidentes de calidad",
+        "history_subtitle": "Número de intervenciones registradas cada mes.",
+        "activity_series": "Intervenciones",
         "top_employees": "Equipo de campo más activo",
         "top_products": "Consumibles más utilizados"
       }

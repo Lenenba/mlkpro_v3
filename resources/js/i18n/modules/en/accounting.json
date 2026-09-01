@@ -129,6 +129,14 @@
       "locked": "Locked",
       "closed_at": "Closed",
       "reopened_at": "Reopened",
+      "activity_chart": {
+        "title": "Accounting activity by period",
+        "subtitle": "Compare generated entries and batches across the available months.",
+        "period_range": "{start} - {end}",
+        "period_label": "Period",
+        "count_label": "Count",
+        "table_caption": "Accounting entry and batch counts by period."
+      },
       "statuses": {
         "open": "Open",
         "in_review": "In review",

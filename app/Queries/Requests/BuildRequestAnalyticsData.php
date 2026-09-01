@@ -6,6 +6,7 @@ use App\Models\ActivityLog;
 use App\Models\Request as LeadRequest;
 use App\Models\TrackingEvent;
 use App\Services\Requests\LeadTriageClassifier;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -120,17 +121,26 @@ class BuildRequestAnalyticsData
         ];
 
         $now = now();
-
-        $classifiedOpenLeads = LeadRequest::query()
+        $openLeadsQuery = LeadRequest::query()
             ->where('user_id', $accountId)
-            ->whereIn('status', $openStatuses)
+            ->whereIn('status', $openStatuses);
+        $activityTimestamps = $this->activityTimestampsFor(clone $openLeadsQuery);
+
+        $classifiedOpenLeads = $openLeadsQuery
             ->with([
                 'assignee.user:id,name',
                 'customer:id,company_name,first_name,last_name',
             ])
             ->get()
-            ->map(function (LeadRequest $lead) use ($now): array {
-                $classified = $this->classifier->classify($lead, $now);
+            ->map(function (LeadRequest $lead) use ($activityTimestamps, $now): array {
+                $classified = $this->classifier->classify(
+                    $lead,
+                    $now,
+                    $activityTimestamps->get($lead->id, [
+                        'first_response_at' => null,
+                        'last_activity_at' => null,
+                    ]),
+                );
 
                 $customerName = $lead->customer
                     ? ($lead->customer->company_name
@@ -186,6 +196,33 @@ class BuildRequestAnalyticsData
             'breached_count' => $breachedCount,
             'risk_leads' => $riskLeads,
         ];
+    }
+
+    /**
+     * @return Collection<int, array{first_response_at: mixed, last_activity_at: mixed}>
+     */
+    private function activityTimestampsFor(Builder $openLeadsQuery): Collection
+    {
+        $subjectType = (new LeadRequest)->getMorphClass();
+
+        return ActivityLog::query()
+            ->select('subject_id')
+            ->selectRaw(
+                'MIN(CASE WHEN action != ? THEN created_at END) as first_response_at',
+                ['created'],
+            )
+            ->selectRaw('MAX(created_at) as last_activity_at')
+            ->where('subject_type', $subjectType)
+            ->whereIn('subject_id', $openLeadsQuery->select('requests.id'))
+            ->groupBy('subject_id')
+            ->toBase()
+            ->get()
+            ->mapWithKeys(fn (object $activity): array => [
+                (int) $activity->subject_id => [
+                    'first_response_at' => $activity->first_response_at,
+                    'last_activity_at' => $activity->last_activity_at,
+                ],
+            ]);
     }
 
     private function leadFormAnalytics(int $accountId, int $windowDays): array

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, ref } from 'vue';
+import { computed, defineAsyncComponent, reactive, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
@@ -7,7 +7,12 @@ import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import AppBreadcrumbs from '@/Components/UI/AppBreadcrumbs.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import { buildAccountingActivityChartData } from '@/utils/accountingChart';
 import { buildSparklinePoints } from '@/utils/kpi';
+
+const AccountingActivityChart = defineAsyncComponent(
+    () => import('@/Components/Accounting/AccountingActivityChart.vue'),
+);
 
 const props = defineProps({
     status: {
@@ -181,6 +186,9 @@ const accountingPeriods = computed(() => (
     Array.isArray(props.periods)
         ? props.periods.slice(0, 6).reverse()
         : []
+));
+const accountingActivityChartData = computed(() => (
+    buildAccountingActivityChartData(props.periods)
 ));
 
 const accountingPeriodPoints = (key) => {
@@ -757,6 +765,28 @@ function roleLimitLabel(value) {
                             grid-class="grid-cols-2 sm:grid-cols-4"
                             :aria-label="$t('accounting.periods.title')"
                         />
+                    </div>
+
+                    <div
+                        v-if="accountingActivityChartData.available"
+                        class="mt-5 border-t border-stone-200 pt-5 dark:border-neutral-700"
+                    >
+                        <Suspense>
+                            <AccountingActivityChart :chart-data="accountingActivityChartData" />
+                            <template #fallback>
+                                <div
+                                    class="flex min-h-72 items-center justify-center rounded-sm bg-stone-50 dark:bg-neutral-950"
+                                    role="status"
+                                    aria-live="polite"
+                                >
+                                    <span class="sr-only">{{ $t('charts.loading') }}</span>
+                                    <span
+                                        class="h-64 w-full rounded-sm bg-stone-100 motion-safe:animate-pulse dark:bg-neutral-800"
+                                        aria-hidden="true"
+                                    ></span>
+                                </div>
+                            </template>
+                        </Suspense>
                     </div>
 
                     <div class="mt-4 max-h-[42rem] space-y-3 overflow-y-auto pr-1">

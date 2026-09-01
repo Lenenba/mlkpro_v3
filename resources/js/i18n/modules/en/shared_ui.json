@@ -35,5 +35,22 @@
     "title": "Indicators",
     "show": "Show indicators",
     "hide": "Hide indicators"
+  },
+  "charts": {
+    "default_title": "Chart",
+    "loading": "Loading chart…",
+    "empty": "No data to display.",
+    "error": "Unable to display the chart.",
+    "retry": "Retry",
+    "mini_summary": "{label}: {count} values, from {first} to {last}.",
+    "show_data": "Show data",
+    "hide_data": "Hide data",
+    "show_named_data": "Show data — {title}",
+    "hide_named_data": "Hide data — {title}",
+    "data_table_caption": "Accessible chart data",
+    "named_data_table_caption": "Data for chart “{title}”",
+    "category": "Category",
+    "value": "Value",
+    "series": "Series {number}"
   }
 }

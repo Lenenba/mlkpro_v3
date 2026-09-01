@@ -129,6 +129,14 @@
       "locked": "Verrouillee",
       "closed_at": "Fermee",
       "reopened_at": "Reouverte",
+      "activity_chart": {
+        "title": "Activite comptable par periode",
+        "subtitle": "Compare les ecritures et les lots generes sur les mois disponibles.",
+        "period_range": "{start} - {end}",
+        "period_label": "Periode",
+        "count_label": "Nombre",
+        "table_caption": "Nombre d ecritures et de lots comptables par periode."
+      },
       "statuses": {
         "open": "Ouverte",
         "in_review": "En revue",

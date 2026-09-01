@@ -74,6 +74,16 @@
       "relations": "Repartition des rattachements",
       "sources": "Mix des sources"
     },
+    "source_chart": {
+      "subtitle": "{count} demandes dans les filtres actuels.",
+      "series": "Demandes",
+      "category_label": "Source",
+      "value_label": "Demandes",
+      "table_caption": "Répartition exacte des demandes par source.",
+      "count_and_share": "{count} ({share} %)",
+      "empty": "Aucune source à afficher.",
+      "invalid": "La répartition des sources est incohérente et ne peut pas être représentée."
+    },
     "empty": {
       "title": "Aucune demande pour le moment",
       "body": "Les nouvelles demandes de service apparaitront ici des qu elles seront creees ou capturees."

@@ -1,7 +1,10 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, defineAsyncComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
+import { buildCustomerActivityChartData } from '@/utils/moduleRankingCharts';
+
+const Barchart = defineAsyncComponent(() => import('@/Components/UI/Barchart.vue'));
 
 const props = defineProps({
     items: {
@@ -30,98 +33,89 @@ const resolvedSubtitle = computed(() => {
         : 'customers.activity.subtitle_jobs');
 });
 
-const activityValue = (item) => (
-    (quotesFeatureEnabled.value ? Number(item.quotes_count || 0) : 0)
-    + (jobsFeatureEnabled.value ? Number(item.works_count || 0) : 0)
-);
-
-const total = computed(() =>
-    props.items.reduce((sum, item) => sum + activityValue(item), 0)
-);
-
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
-const displayName = (item) => item.company_name || `${item.first_name || ''} ${item.last_name || ''}`.trim();
-
-const getPercent = (item) => {
-    const value = activityValue(item);
-    if (!total.value) {
-        return 0;
-    }
-    return Math.round((value / total.value) * 100);
-};
+const displayName = (item) => item.company_name
+    || `${item.first_name || ''} ${item.last_name || ''}`.trim()
+    || `${t('customers.labels.customer_fallback')} #${item.id}`;
+const chartData = computed(() => buildCustomerActivityChartData(props.items, {
+    labelForCustomer: displayName,
+    quotesEnabled: quotesFeatureEnabled.value,
+    jobsEnabled: jobsFeatureEnabled.value,
+    quotesLabel: t('customers.activity.quotes_series'),
+    jobsLabel: t('customers.activity.jobs_series'),
+}));
+const total = computed(() => chartData.value.details.reduce(
+    (sum, item) => sum + item.total,
+    0,
+));
+const chartHeight = computed(() => Math.min(
+    420,
+    Math.max(240, chartData.value.categories.length * 48 + 80),
+));
+const chartSubtitle = computed(() => [
+    resolvedSubtitle.value,
+    t('customers.activity.actions', { count: formatNumber(total.value) }),
+].filter(Boolean).join(' · '));
+const colorTones = computed(() => [
+    quotesFeatureEnabled.value ? 'blue' : null,
+    jobsFeatureEnabled.value ? 'emerald' : null,
+].filter(Boolean));
+const chartOptions = computed(() => ({
+    dataLabels: {
+        enabled: true,
+        formatter: (value) => formatNumber(value),
+    },
+    plotOptions: {
+        bar: {
+            barHeight: '62%',
+        },
+    },
+    xaxis: {
+        min: 0,
+        forceNiceScale: true,
+        labels: {
+            formatter: (value) => formatNumber(value),
+        },
+    },
+    yaxis: {
+        labels: {
+            maxWidth: 128,
+        },
+    },
+}));
 </script>
 
 <template>
-    <div
-        class="size-full flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm border-t-4 border-t-emerald-700 dark:bg-neutral-800 dark:border-neutral-700">
-        <div class="p-5 pb-4 flex items-center justify-between gap-x-4">
-            <div>
-                <h2 class="inline-block font-semibold text-stone-800 dark:text-neutral-200">
-                    {{ resolvedTitle }}
-                </h2>
-                <p class="text-xs text-stone-500 dark:text-neutral-500">
-                    {{ resolvedSubtitle }}
-                </p>
-            </div>
-            <div class="text-sm text-stone-500 dark:text-neutral-400">
-                {{ t('customers.activity.actions', { count: formatNumber(total) }) }}
-            </div>
-        </div>
-
-        <div class="h-full p-5 pt-0">
-            <div v-if="!items.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                {{ t('customers.activity.empty') }}
-            </div>
-            <div v-else class="space-y-4">
-                <div class="flex gap-x-1 w-full h-2.5 rounded-full overflow-hidden">
-                    <div
-                        v-for="item in items"
-                        :key="item.id"
-                        class="flex flex-col justify-center overflow-hidden bg-emerald-500 text-xs text-white text-center whitespace-nowrap"
-                        :style="{ width: `${getPercent(item)}%` }"
-                        role="progressbar"
-                        :aria-valuenow="getPercent(item)"
-                        aria-valuemin="0"
-                        aria-valuemax="100"
-                    ></div>
+    <div class="size-full min-w-0">
+        <Suspense>
+            <Barchart
+                class="h-full"
+                :title="resolvedTitle"
+                :subtitle="chartSubtitle"
+                :series="chartData.series"
+                :categories="chartData.categories"
+                :height="chartHeight"
+                :options="chartOptions"
+                :color-tones="colorTones"
+                :value-formatter="formatNumber"
+                :category-label="t('customers.activity.category_label')"
+                :value-label="t('customers.activity.value_label')"
+                :table-caption="t('customers.activity.table_caption')"
+                :empty-message="t('customers.activity.empty')"
+                horizontal
+            />
+            <template #fallback>
+                <div
+                    class="flex min-h-64 items-center justify-center rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                    role="status"
+                    aria-live="polite"
+                >
+                    <span class="sr-only">{{ t('charts.loading') }}</span>
+                    <span class="h-52 w-full rounded-sm bg-stone-100 motion-safe:animate-pulse dark:bg-neutral-800" aria-hidden="true"></span>
                 </div>
-
-                <ul>
-                    <li v-for="item in items" :key="item.id"
-                        class="py-2 grid grid-cols-2 justify-between items-center gap-x-4">
-                        <div class="flex items-center gap-x-2">
-                            <img
-                                v-if="item.logo_url"
-                                :src="item.logo_url"
-                                :alt="displayName(item)"
-                                class="size-6 rounded-full border border-stone-200 dark:border-neutral-700 object-cover"
-                            />
-                            <span
-                                v-else
-                                class="size-6 rounded-full bg-stone-100 text-stone-700 text-xs font-medium flex items-center justify-center dark:bg-neutral-700 dark:text-neutral-200"
-                            >
-                                {{ displayName(item)[0] || '?' }}
-                            </span>
-                            <span class="text-sm text-stone-800 dark:text-neutral-200">
-                                {{ displayName(item) }}
-                            </span>
-                        </div>
-                        <div class="text-end">
-                            <span class="text-sm text-stone-500 dark:text-neutral-500">
-                                <template v-if="quotesFeatureEnabled">
-                                    {{ formatNumber(item.quotes_count || 0) }} {{ t('customers.activity.quotes_short') }}
-                                </template>
-                                <span v-if="quotesFeatureEnabled && jobsFeatureEnabled"> / </span>
-                                <template v-if="jobsFeatureEnabled">
-                                    {{ formatNumber(item.works_count || 0) }} {{ t('customers.activity.jobs_short') }}
-                                </template>
-                            </span>
-                        </div>
-                    </li>
-                </ul>
-            </div>
-        </div>
+            </template>
+        </Suspense>
     </div>
 </template>

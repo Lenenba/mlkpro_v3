@@ -9,13 +9,17 @@ use App\Models\OfferPackage;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\Quote;
 use App\Models\Reservation;
 use App\Models\Role;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Models\Work;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
@@ -369,6 +373,173 @@ class CustomerOperationalIndexTest extends TestCase
         $this->assertNotNull($row);
         $this->assertArrayNotHasKey('quotes_count', $row);
         $this->assertArrayNotHasKey('works_count', $row);
+    }
+
+    public function test_appointment_profile_exposes_a_bounded_tenant_scoped_complete_week_customer_growth_comparison(): void
+    {
+        $owner = $this->owner('salon', array_replace($this->operationalFeatures(), [
+            'quotes' => true,
+            'jobs' => true,
+        ]));
+        $otherOwner = $this->owner('salon', $this->operationalFeatures());
+
+        foreach ([
+            ['previous-first-a@example.com', '2026-02-17 12:00:00'],
+            ['previous-first-b@example.com', '2026-02-20 12:00:00'],
+            ['previous-last@example.com', '2026-05-05 12:00:00'],
+            ['current-first@example.com', '2026-05-12 12:00:00'],
+            ['current-last-a@example.com', '2026-07-28 12:00:00'],
+            ['current-last-b@example.com', '2026-08-01 12:00:00'],
+            ['outside-window@example.com', '2026-02-13 12:00:00'],
+            ['current-week-excluded@example.com', '2026-08-04 12:00:00'],
+        ] as [$email, $createdAt]) {
+            $this->customer($owner, $email, [], Carbon::parse($createdAt, 'UTC'));
+        }
+        $this->customer(
+            $otherOwner,
+            'foreign-current-week@example.com',
+            [],
+            Carbon::parse('2026-07-29 12:00:00', 'UTC')
+        );
+
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+        $response = $this->index($owner);
+        $queries = collect(DB::getQueryLog());
+        DB::disableQueryLog();
+
+        $response
+            ->assertJsonPath('customerIndexContext.profile', 'appointment')
+            ->assertJsonPath('topCustomers', [])
+            ->assertJsonPath('customerGrowthTrend.categories', [
+                '2026-02-16',
+                '2026-02-23',
+                '2026-03-02',
+                '2026-03-09',
+                '2026-03-16',
+                '2026-03-23',
+                '2026-03-30',
+                '2026-04-06',
+                '2026-04-13',
+                '2026-04-20',
+                '2026-04-27',
+                '2026-05-04',
+                '2026-05-11',
+                '2026-05-18',
+                '2026-05-25',
+                '2026-06-01',
+                '2026-06-08',
+                '2026-06-15',
+                '2026-06-22',
+                '2026-06-29',
+                '2026-07-06',
+                '2026-07-13',
+                '2026-07-20',
+                '2026-07-27',
+            ])
+            ->assertJsonPath('customerGrowthTrend.series.0', [
+                'key' => 'current',
+                'data' => [
+                    null, null, null, null, null, null, null, null, null, null, null, null,
+                    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2,
+                ],
+            ])
+            ->assertJsonPath('customerGrowthTrend.series.1', [
+                'key' => 'previous',
+                'data' => [
+                    2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+                    null, null, null, null, null, null, null, null, null, null, null, null,
+                ],
+            ])
+            ->assertJsonPath('customerGrowthTrend.periods.current', [
+                'start' => '2026-05-11',
+                'end' => '2026-08-02',
+            ])
+            ->assertJsonPath('customerGrowthTrend.periods.previous', [
+                'start' => '2026-02-16',
+                'end' => '2026-05-10',
+            ])
+            ->assertJsonPath('customerGrowthTrend.timezone', 'America/Toronto');
+
+        $boundedTrendQuery = $queries->first(static function (array $query): bool {
+            return Str::contains($query['query'], [
+                'select "created_at" from "customers"',
+                'select `created_at` from `customers`',
+            ]) && Str::contains($query['query'], [
+                '"created_at" >= ?',
+                '`created_at` >= ?',
+            ]) && Str::contains($query['query'], [
+                '"created_at" < ?',
+                '`created_at` < ?',
+            ]);
+        });
+
+        $this->assertNotNull($boundedTrendQuery, 'The customer growth query must remain bounded to its 24-week window.');
+    }
+
+    public function test_top_customers_are_ranked_by_combined_quote_and_job_activity_across_all_pages(): void
+    {
+        $owner = $this->owner('service_general', [
+            'quotes' => true,
+            'jobs' => true,
+        ]);
+        $activityLeader = $this->customer(
+            $owner,
+            'activity-leader@example.com',
+            [],
+            now()->subDays(10)
+        );
+        $quoteLeader = $this->customer(
+            $owner,
+            'quote-leader@example.com',
+            [],
+            now()
+        );
+
+        foreach (range(1, 4) as $offset) {
+            $this->customer(
+                $owner,
+                "page-customer-{$offset}@example.com",
+                [],
+                now()->subDays($offset)
+            );
+        }
+
+        foreach (range(1, 5) as $sequence) {
+            Quote::query()->create([
+                'user_id' => $owner->id,
+                'customer_id' => $activityLeader->id,
+                'job_title' => "Activity quote {$sequence}",
+            ]);
+            Work::query()->create([
+                'user_id' => $owner->id,
+                'customer_id' => $activityLeader->id,
+                'job_title' => "Activity job {$sequence}",
+                'instructions' => 'Combined activity ranking.',
+            ]);
+        }
+
+        foreach (range(1, 6) as $sequence) {
+            Quote::query()->create([
+                'user_id' => $owner->id,
+                'customer_id' => $quoteLeader->id,
+                'job_title' => "Quote-only activity {$sequence}",
+            ]);
+        }
+
+        $response = $this->index($owner, ['per_page' => 5]);
+        $pageIds = collect($response->json('customers.data'))->pluck('id')->all();
+
+        $this->assertNotContains($activityLeader->id, $pageIds);
+        $this->assertContains($quoteLeader->id, $pageIds);
+
+        $response
+            ->assertJsonPath('topCustomers.0.id', $activityLeader->id)
+            ->assertJsonPath('topCustomers.0.quotes_count', 5)
+            ->assertJsonPath('topCustomers.0.works_count', 5)
+            ->assertJsonPath('topCustomers.1.id', $quoteLeader->id)
+            ->assertJsonPath('topCustomers.1.quotes_count', 6)
+            ->assertJsonPath('topCustomers.1.works_count', 0);
     }
 
     public function test_customer_creation_rejects_a_future_birth_date(): void

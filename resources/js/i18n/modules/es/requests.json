@@ -384,6 +384,25 @@
           "by_assignee": "Por responsable",
           "by_assignee_note": "Ordenado por seguimientos atrasados y luego por volumen."
         },
+        "charts": {
+          "status_title": "Prospectos por estado",
+          "status_subtitle": "Número exacto de prospectos activos no archivados en cada etapa.",
+          "source_title": "Volumen y conversión por fuente",
+          "source_subtitle": "Compara el total de prospectos con los convertidos en clientes.",
+          "total_series": "Prospectos",
+          "converted_series": "Convertidos",
+          "overdue_series": "Atrasados",
+          "status_category": "Estado",
+          "source_category": "Fuente",
+          "assignee_category": "Responsable",
+          "count_value": "Número de prospectos",
+          "status_table_caption": "Datos de la distribución de prospectos por estado",
+          "source_table_caption": "Datos del volumen y la conversión de prospectos por fuente",
+          "assignee_table_caption": "Carga exacta y seguimientos atrasados por responsable",
+          "assignee_details_label": "Detalles operativos por responsable",
+          "source_details_label": "Detalles exactos por fuente",
+          "source_detail": "{converted} convertidos · {won} ganados · {lost} perdidos · {rate}"
+        },
         "labels": {
           "due_today": "Seguimiento hoy",
           "overdue": "Atrasado",
@@ -443,6 +462,16 @@
         "utm_mediums": "Medios",
         "utm_campaigns": "Campañas",
         "no_utm": "Sin datos UTM"
+      },
+      "charts": {
+        "source_conversion_title": "Conversión por fuente",
+        "source_conversion_subtitle": "Proporción de prospectos ganados entre los creados en los últimos {days} días.",
+        "source_rate_series": "Tasa de conversión",
+        "source_category": "Fuente",
+        "percent_value": "Tasa de conversión",
+        "source_table_caption": "Datos de la tasa de conversión de prospectos por fuente",
+        "source_details_label": "Detalles exactos de conversión por fuente",
+        "source_detail": "{won} ganados de {total} prospectos · {rate}"
       },
       "by_source": "Conversión por fuente",
       "no_data": "Aún no hay datos.",

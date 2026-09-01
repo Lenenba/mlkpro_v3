@@ -9,7 +9,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { buildPreviewEvents } from '@/utils/schedule';
 import { prepareMediaFile, MEDIA_LIMITS } from '@/utils/media';
-import { buildSparklinePoints, buildTrend } from '@/utils/kpi';
+import { buildKpiSeriesData } from '@/utils/kpi';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import { useI18n } from 'vue-i18n';
@@ -176,11 +176,7 @@ const kpiConfig = {
 const kpiData = computed(() => {
     const data = {};
     Object.entries(kpiConfig).forEach(([key, config]) => {
-        const values = kpiSeries.value?.[key] || [];
-        data[key] = {
-            points: buildSparklinePoints(values),
-            trend: buildTrend(values, config.direction),
-        };
+        data[key] = buildKpiSeriesData(kpiSeries.value?.[key], config.direction);
     });
     return data;
 });

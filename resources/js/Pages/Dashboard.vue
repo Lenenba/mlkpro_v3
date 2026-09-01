@@ -6,7 +6,7 @@ import KpiCompositePanel from '@/Components/Dashboard/KpiCompositePanel.vue';
 import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
-import { buildSparklinePoints, buildTrend } from '@/utils/kpi';
+import { buildKpiSeriesData } from '@/utils/kpi';
 import { useCurrencyFormatter } from '@/utils/currency';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 import { usePermissions } from '@/Composables/usePermissions';
@@ -16,6 +16,9 @@ const AnnouncementsPanel = defineAsyncComponent(
 );
 const ScenarioBusinessOverview = defineAsyncComponent(
     () => import('@/Components/Dashboard/ScenarioBusinessOverview.vue'),
+);
+const FinanceHistoryChart = defineAsyncComponent(
+    () => import('@/Components/Dashboard/FinanceHistoryChart.vue'),
 );
 
 const props = defineProps({
@@ -54,10 +57,6 @@ const props = defineProps({
     activity: {
         type: Array,
         default: () => [],
-    },
-    revenueSeries: {
-        type: Object,
-        default: () => ({ labels: [], values: [], expenseValues: [] }),
     },
     kpiSeries: {
         type: Object,
@@ -665,19 +664,28 @@ const catalogEmpty = computed(() => stat('catalog_total') <= 0);
 const quotesEmpty = computed(() => stat('quotes_total') <= 0);
 const planScansEmpty = computed(() => stat('plan_scans_total') <= 0);
 
-const expenseSeriesValues = computed(() => (
-    hasFeature('expenses') && canExpenses.value ? (props.revenueSeries?.expenseValues || []) : []
-));
 const financeInsights = computed(() => (
     hasFeature('invoices') && canInvoices.value ? (props.financeSummary || {}) : {}
 ));
-const hasExpenseTrend = computed(() => hasFeature('expenses') && canExpenses.value && expenseSeriesValues.value.length > 0);
-const expenseKpiData = computed(() => ({
-    points: hasExpenseTrend.value ? buildSparklinePoints(expenseSeriesValues.value) : [],
-    trend: hasExpenseTrend.value ? buildTrend(expenseSeriesValues.value, 'down') : null,
-}));
 
 const kpiSeries = computed(() => props.kpiSeries || {});
+const hasFinanceHistory = computed(() => {
+    const series = kpiSeries.value.revenue_paid;
+
+    return hasFeature('invoices')
+        && canInvoices.value
+        && series?.isTemporal === true
+        && series?.historyStatus === 'available'
+        && series?.measurement === 'flow'
+        && Array.isArray(series?.labels)
+        && series.labels.length === 12
+        && Array.isArray(series?.values)
+        && series.values.length === 12
+        && series.values.every((value) => value !== null
+            && value !== undefined
+            && value !== ''
+            && Number.isFinite(Number(value)));
+});
 const financeCount = (key) => Number(financeInsights.value?.[key] || 0);
 const kpiConfig = {
     revenue_paid: { direction: 'up' },
@@ -693,11 +701,7 @@ const kpiConfig = {
 const kpiData = computed(() => {
     const data = {};
     Object.entries(kpiConfig).forEach(([key, config]) => {
-        const values = kpiSeries.value?.[key] || [];
-        data[key] = {
-            points: buildSparklinePoints(values),
-            trend: buildTrend(values, config.direction),
-        };
+        data[key] = buildKpiSeriesData(kpiSeries.value?.[key], config.direction);
     });
     return data;
 });
@@ -714,11 +718,19 @@ const financePanelMetrics = computed(() => {
     if (canViewInvoiceFinance) {
         items.push({
             key: 'revenue-paid',
-            label: t('dashboard.kpi.revenue_paid'),
-            value: formatCurrency(stat('revenue_paid')),
-            context: t('dashboard.kpi.revenue_billed', { amount: formatCurrency(stat('revenue_billed')) }),
+            label: t('dashboard.kpi.revenue_paid_month'),
+            value: formatCurrency(
+                kpiData.value.revenue_paid.comparison?.current ?? stat('payments_month'),
+            ),
+            context: t('dashboard.kpi.revenue_paid_total', {
+                amount: formatCurrency(stat('revenue_paid')),
+            }),
             trend: kpiData.value.revenue_paid.trend,
-            points: kpiData.value.revenue_paid.points,
+            chart: {
+                type: 'area',
+                series: kpiData.value.revenue_paid,
+            },
+            tone: 'emerald',
             colorClass: 'bg-emerald-500/70 dark:bg-emerald-400/50',
         });
         items.push({
@@ -728,6 +740,7 @@ const financePanelMetrics = computed(() => {
             context: t('dashboard.kpi.partial_invoices', { count: formatNumber(stat('invoices_partial')) }),
             trend: kpiData.value.revenue_outstanding.trend,
             points: kpiData.value.revenue_outstanding.points,
+            tone: 'amber',
             colorClass: 'bg-amber-500/70 dark:bg-amber-400/50',
         });
         items.push({
@@ -737,6 +750,7 @@ const financePanelMetrics = computed(() => {
             context: t('dashboard.kpi.client_follow_up_amount', {
                 amount: formatCurrency(stat('revenue_outstanding')),
             }),
+            tone: 'blue',
             colorClass: 'bg-sky-500/70 dark:bg-sky-400/50',
         });
     }
@@ -749,6 +763,7 @@ const financePanelMetrics = computed(() => {
             context: t('dashboard.kpi.pos_revenue_month', {
                 amount: formatCurrency(stat('pos_payments_month')),
             }),
+            tone: 'violet',
             colorClass: 'bg-violet-500/70 dark:bg-violet-400/50',
         });
     }
@@ -761,8 +776,7 @@ const financePanelMetrics = computed(() => {
             context: t('dashboard.kpi.expenses_pending_approval', {
                 count: formatNumber(financeCount('pending_expense_approvals_count')),
             }),
-            trend: expenseKpiData.value.trend,
-            points: expenseKpiData.value.points,
+            tone: 'rose',
             colorClass: 'bg-rose-500/70 dark:bg-rose-400/50',
         });
     }
@@ -780,6 +794,7 @@ const pipelinePanelMetrics = computed(() => {
             context: t('dashboard.kpi.accepted_quotes', { count: formatNumber(stat('quotes_accepted')) }),
             trend: kpiData.value.quotes_open.trend,
             points: kpiData.value.quotes_open.points,
+            tone: 'blue',
             colorClass: 'bg-blue-500/70 dark:bg-blue-400/50',
         });
     }
@@ -792,6 +807,7 @@ const pipelinePanelMetrics = computed(() => {
             context: t('dashboard.kpi.jobs_completed', { count: formatNumber(stat('works_completed')) }),
             trend: kpiData.value.works_scheduled.trend,
             points: kpiData.value.works_scheduled.points,
+            tone: 'blue',
             colorClass: 'bg-cyan-500/70 dark:bg-cyan-400/50',
         });
 
@@ -802,6 +818,7 @@ const pipelinePanelMetrics = computed(() => {
             context: t('dashboard.kpi.jobs_total', { count: formatNumber(stat('works_total')) }),
             trend: kpiData.value.works_in_progress.trend,
             points: kpiData.value.works_in_progress.points,
+            tone: 'blue',
             colorClass: 'bg-indigo-500/70 dark:bg-indigo-400/50',
         });
     }
@@ -821,6 +838,7 @@ const inventoryPanelMetrics = computed(() => {
             context: t('dashboard.kpi.products_total', { count: formatNumber(stat('products_total')) }),
             trend: kpiData.value.inventory_value.trend,
             points: kpiData.value.inventory_value.points,
+            tone: 'emerald',
             colorClass: 'bg-teal-500/70 dark:bg-teal-400/50',
         },
         {
@@ -830,6 +848,7 @@ const inventoryPanelMetrics = computed(() => {
             context: t('dashboard.kpi.out_of_stock', { count: formatNumber(stat('products_out')) }),
             trend: kpiData.value.products_low_stock.trend,
             points: kpiData.value.products_low_stock.points,
+            tone: 'amber',
             colorClass: 'bg-orange-500/70 dark:bg-orange-400/50',
         },
     ];
@@ -1133,11 +1152,35 @@ onMounted(() => {
                         :metrics-grid-class="financePanelGridClass"
                         :summary-items="financePanelSummary"
                         :summary-grid-class="financePanelSummaryGridClass"
+                        :show-visual="hasFinanceHistory"
                         :action-href="route('invoice.index')"
                         :action-label="$t('dashboard.revenue.view_invoices')"
                         accent-class="border-t-emerald-600"
                         compact-metrics
-                    />
+                    >
+                        <template #visual>
+                            <Suspense>
+                                <FinanceHistoryChart
+                                    :revenue-series="kpiSeries.revenue_paid"
+                                    :expense-series="kpiSeries.expenses_paid"
+                                    :show-expenses="hasFeature('expenses') && canExpenses"
+                                />
+                                <template #fallback>
+                                    <div
+                                        class="flex min-h-72 items-center justify-center rounded-sm bg-white dark:bg-neutral-800"
+                                        role="status"
+                                        aria-live="polite"
+                                    >
+                                        <span class="sr-only">{{ $t('charts.loading') }}</span>
+                                        <span
+                                            class="h-64 w-full rounded-sm bg-stone-100 motion-safe:animate-pulse dark:bg-neutral-700"
+                                            aria-hidden="true"
+                                        ></span>
+                                    </div>
+                                </template>
+                            </Suspense>
+                        </template>
+                    </KpiCompositePanel>
                     <KpiCompositePanel
                         v-if="pipelinePanelMetrics.length"
                         :class="overviewPanelClass(overviewPanelCount, 'pipeline')"

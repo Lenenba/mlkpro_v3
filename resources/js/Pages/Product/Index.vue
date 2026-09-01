@@ -67,8 +67,8 @@ const props = defineProps({
         <ModuleKpiSection module-key="products">
             <ProductStats :stats="stats" />
         </ModuleKpiSection>
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-2 md:gap-3 lg:gap-5 ">
-            <div class="col-span-1 lg:col-span-3">
+        <div class="grid grid-cols-1 gap-2 md:gap-3 xl:grid-cols-4 xl:gap-5">
+            <div class="col-span-1 xl:col-span-3">
                 <ProductTable
                     :products="products"
                     :count="count"

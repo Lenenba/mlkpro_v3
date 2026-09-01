@@ -80,13 +80,20 @@
       }
     },
     "revenue": {
-      "title": "Tendance des revenus",
-      "subtitle": "Encaissements et depenses des derniers mois.",
+      "title": "Encaissements de factures et dépenses réglées",
+      "revenue_only_title": "Encaissements de factures",
+      "subtitle": "Montants en {currency}, cumulés jusqu’au même jour de chaque mois.",
+      "period": "Du {start} au {end} · {timezone}",
+      "legend_label": "Séries du graphique financier",
       "view_invoices": "Voir les factures",
       "legend": {
-        "revenue": "Revenus",
-        "expenses": "Depenses"
+        "revenue": "Encaissements de factures",
+        "expenses": "Dépenses réglées"
       },
+      "month_label": "Mois",
+      "amount_label": "Montant",
+      "table_caption": "Valeurs exactes des encaissements de factures et des dépenses réglées.",
+      "revenue_only_table_caption": "Valeurs exactes des encaissements de factures.",
       "paid_to_date": "Payé à ce jour",
       "outstanding": "A recevoir",
       "overdue": "En retard"
@@ -134,6 +141,8 @@
     },
     "kpi": {
       "revenue_paid": "Revenu encaissé",
+      "revenue_paid_month": "Encaissements ce mois-ci",
+      "revenue_paid_total": "{amount} encaissés au total",
       "revenue_billed": "Facturé {amount}",
       "pos_revenue": "Ventes POS encaissées",
       "pos_revenue_month": "{amount} encaissés ce mois-ci",
@@ -266,9 +275,12 @@
       "eyebrow": "Scénario de démonstration",
       "title": "Situation opérationnelle réelle",
       "subtitle": "Données calculées au {date} sur les {months} derniers mois.",
-      "history_title": "Revenus et dépenses sur 12 mois",
-      "revenue": "Revenus",
-      "expenses": "Dépenses",
+      "history_title": "Activité opérationnelle sur 12 mois",
+      "history_subtitle": "Nombre de rendez-vous enregistrés chaque mois.",
+      "activity_series": "Rendez-vous",
+      "month_label": "Mois",
+      "activity_count_label": "Nombre",
+      "activity_table_caption": "Valeurs exactes de l’activité opérationnelle mensuelle.",
       "top_services": "Services les plus demandés",
       "top_employees": "Employés les plus occupés",
       "top_products": "Produits les plus vendus",
@@ -300,6 +312,8 @@
         "average_job_value": "Valeur moyenne par intervention",
         "completed_jobs": "Interventions terminées ce mois-ci",
         "quality_incidents": "Incidents qualité",
+        "history_subtitle": "Nombre d’interventions enregistrées chaque mois.",
+        "activity_series": "Interventions",
         "top_employees": "Équipe la plus active",
         "top_products": "Consommables les plus utilisés"
       }

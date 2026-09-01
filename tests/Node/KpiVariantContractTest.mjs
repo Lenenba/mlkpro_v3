@@ -54,19 +54,21 @@ test('the bounded KPI tone palette is generated safely by Tailwind', () => {
     assert.deepEqual(runtimeMatch[1].split(' ').sort(), safelistedTones.sort());
 });
 
-test('dashboard is the only variant with bar graphics and every visual requires real data', () => {
+test('dashboard is the only variant with mini charts and every visual requires real data', () => {
     assert.match(
         metricCard,
-        /const showSparkline = computed\(\(\) => props\.variant === 'dashboard' && props\.metric\?\.points\?\.length\)/u,
+        /const showMiniChart = computed\(\(\) => !props\.metric\?\.loading[\s\S]*?&& props\.variant === 'dashboard'[\s\S]*?&& hasMiniChartCandidate\.value\)/u,
     );
     assert.match(
         metricCard,
-        /const showProgress = computed\(\(\) => props\.variant !== 'record' && progress\.value\)/u,
+        /const showProgress = computed\(\(\) => !props\.metric\?\.loading[\s\S]*?&& props\.variant !== 'record'[\s\S]*?&& progress\.value\)/u,
     );
-    assert.match(metricCard, /v-if="hasContext \|\| showSparkline \|\| showProgress"/u);
-    assert.match(metricCard, /<KpiSparkline[\s\S]*?v-if="showSparkline"/u);
+    assert.match(metricCard, /v-if="hasContext \|\| showMiniChart \|\| showProgress"/u);
+    assert.match(metricCard, /v-if="showMiniChart"[\s\S]*?<KpiMiniChart/u);
     assert.match(metricCard, /v-else-if="showProgress"/u);
-    assert.doesNotMatch(metricCard, /v-if="metric\.points\?\.length"/u);
+    assert.match(metricCard, /Boolean\(props\.metric\?\.chart\)/u);
+    assert.match(metricCard, /props\.metric\.points\.length >= 4/u);
+    assert.match(metricCard, /defineAsyncComponent\(\(\) => import\('@\/Components\/Dashboard\/KpiMiniChart\.vue'\)\)/u);
     assert.doesNotMatch(metricCard, /v-else class="h-10"/u);
     assert.doesNotMatch(metricCard, /\binvisible\b/u);
 });

@@ -143,7 +143,25 @@
       "actions": "{count} actions",
       "empty": "Aucune activite client.",
       "quotes_short": "d",
-      "jobs_short": "c"
+      "jobs_short": "c",
+      "quotes_series": "Devis",
+      "jobs_series": "Chantiers",
+      "category_label": "Client",
+      "value_label": "Nombre d'actions",
+      "table_caption": "Classement exact des clients selon leurs devis et chantiers"
+    },
+    "growth": {
+      "title": "Nouveaux clients par semaine",
+      "subtitle": "Les 12 dernières semaines complètes comparées aux 12 semaines complètes précédentes",
+      "period": "Période actuelle : {currentStart} – {currentEnd} · précédente : {previousStart} – {previousEnd}",
+      "legend_label": "Périodes comparées",
+      "current_series": "12 dernières semaines complètes",
+      "previous_series": "12 semaines complètes précédentes",
+      "week_label": "Semaine du",
+      "value_label": "Nouveaux clients",
+      "table_caption": "Nouveaux clients exacts par semaine pour les périodes actuelle et précédente",
+      "empty": "Aucun nouveau client sur les 24 dernières semaines complètes.",
+      "invalid": "La tendance des nouveaux clients est indisponible."
     },
     "view": {
       "table": "Table",

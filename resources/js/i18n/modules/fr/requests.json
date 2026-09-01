@@ -435,6 +435,25 @@
           "by_assignee": "Par responsable",
           "by_assignee_note": "Trie par relances en retard puis par volume gere."
         },
+        "charts": {
+          "status_title": "Répartition des prospects par statut",
+          "status_subtitle": "Nombre exact de prospects actifs non archivés à chaque étape.",
+          "source_title": "Volume et conversion par source",
+          "source_subtitle": "Compare le nombre total de prospects au nombre converti en clients.",
+          "total_series": "Prospects",
+          "converted_series": "Convertis",
+          "overdue_series": "En retard",
+          "status_category": "Statut",
+          "source_category": "Source",
+          "assignee_category": "Responsable",
+          "count_value": "Nombre de prospects",
+          "status_table_caption": "Données de la répartition des prospects par statut",
+          "source_table_caption": "Données du volume et de la conversion des prospects par source",
+          "assignee_table_caption": "Charge exacte et relances en retard par responsable",
+          "assignee_details_label": "Détails opérationnels par responsable",
+          "source_details_label": "Détails exacts par source",
+          "source_detail": "{converted} convertis · {won} gagnés · {lost} perdus · {rate}"
+        },
         "labels": {
           "due_today": "A relancer aujourd'hui",
           "overdue": "En retard",
@@ -494,6 +513,16 @@
         "utm_mediums": "Canaux",
         "utm_campaigns": "Campagnes",
         "no_utm": "Aucune donnée UTM"
+      },
+      "charts": {
+        "source_conversion_title": "Conversion par source",
+        "source_conversion_subtitle": "Part des prospects gagnés parmi ceux créés au cours des {days} derniers jours.",
+        "source_rate_series": "Taux de conversion",
+        "source_category": "Source",
+        "percent_value": "Taux de conversion",
+        "source_table_caption": "Données du taux de conversion des prospects par source",
+        "source_details_label": "Détails exacts de conversion par source",
+        "source_detail": "{won} gagnés sur {total} prospects · {rate}"
       },
       "by_source": "Conversion par source",
       "no_data": "Aucune donnée pour l'instant.",

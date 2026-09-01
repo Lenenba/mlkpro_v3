@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
@@ -22,6 +22,10 @@ import {
     serviceRequestStatusLabel,
     serviceRequestTitle,
 } from '@/utils/serviceRequestPresentation';
+
+const SourceBreakdownChart = defineAsyncComponent(
+    () => import('@/Pages/ServiceRequests/SourceBreakdownChart.vue'),
+);
 
 const props = defineProps({
     serviceRequests: {
@@ -848,27 +852,25 @@ const setViewMode = (mode) => {
                     </section>
 
                     <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ $t('service_requests.side.sources') }}
-                        </h2>
-                        <div class="mt-3 space-y-3">
-                            <div
-                                v-for="item in sourceBreakdown"
-                                :key="item.source"
-                                class="space-y-1"
-                            >
-                                <div class="flex items-center justify-between text-xs uppercase tracking-wide text-stone-400">
-                                    <span>{{ serviceRequestSourceLabel(item.source, t) }}</span>
-                                    <span>{{ Number(item.total || 0).toLocaleString() }}</span>
+                        <Suspense>
+                            <SourceBreakdownChart
+                                :rows="sourceBreakdown"
+                                :total="Number(stats?.total || 0)"
+                            />
+                            <template #fallback>
+                                <div
+                                    class="flex min-h-64 items-center justify-center rounded-sm bg-stone-50 dark:bg-neutral-900"
+                                    role="status"
+                                    aria-live="polite"
+                                >
+                                    <span class="sr-only">{{ $t('charts.loading') }}</span>
+                                    <span
+                                        class="h-52 w-full rounded-sm bg-stone-100 motion-safe:animate-pulse dark:bg-neutral-800"
+                                        aria-hidden="true"
+                                    ></span>
                                 </div>
-                                <div class="h-2 overflow-hidden rounded-full bg-stone-100 dark:bg-neutral-800">
-                                    <div
-                                        class="h-full rounded-full bg-emerald-500"
-                                        :style="{ width: `${Math.max(8, Math.round(((item.total || 0) / Math.max(1, props.stats?.total || 0)) * 100))}%` }"
-                                    />
-                                </div>
-                            </div>
-                        </div>
+                            </template>
+                        </Suspense>
                     </section>
                 </div>
             </section>

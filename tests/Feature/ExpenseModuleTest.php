@@ -276,8 +276,19 @@ test('expense index exposes period recap for the selected month', function () {
         'expense_date' => '2026-04-20',
         'status' => Expense::STATUS_CANCELLED,
     ]);
+    seedExpense($owner, [
+        'title' => 'USD import',
+        'category_key' => 'marketing',
+        'currency_code' => 'USD',
+        'subtotal' => 75,
+        'tax_amount' => 0,
+        'total' => 75,
+        'expense_date' => '2026-04-18',
+        'status' => Expense::STATUS_DUE,
+        'payment_method' => 'cheque',
+    ]);
 
-    $this->actingAs($owner)
+    $response = $this->actingAs($owner)
         ->getJson(route('expense.index', ['recap_period' => 'month']))
         ->assertOk()
         ->assertJsonPath('periodRecap.period.key', 'month')
@@ -289,9 +300,67 @@ test('expense index exposes period recap for the selected month', function () {
         ->assertJsonPath('periodRecap.kpis.pending_approval_count', 1)
         ->assertJsonPath('periodRecap.kpis.reimbursement_total', 50)
         ->assertJsonPath('periodRecap.kpis.expense_count', 2)
-        ->assertJsonPath('periodRecap.breakdowns.categories.0.key', 'software')
-        ->assertJsonPath('periodRecap.breakdowns.payment_methods.0.key', 'card')
+        ->assertJsonPath('periodRecap.currency.mode', 'mixed')
+        ->assertJsonPath('periodRecap.currency.code', 'CAD')
+        ->assertJsonPath('periodRecap.currency.has_additional_currencies', true)
+        ->assertJsonPath('periodRecap.currency.breakdown.0.currency_code', 'CAD')
+        ->assertJsonPath('periodRecap.currency.breakdown.0.total', 150)
+        ->assertJsonPath('periodRecap.currency.breakdown.1.currency_code', 'USD')
+        ->assertJsonPath('periodRecap.currency.breakdown.1.total', 75)
+        ->assertJsonPath('stats.currency_code', 'CAD')
+        ->assertJsonPath('stats.due_total', 50)
+        ->assertJsonPath('stats.paid_this_month', 100)
+        ->assertJsonPath('periodRecap.breakdowns.categories.rows.0.key', 'software')
+        ->assertJsonPath('periodRecap.breakdowns.payment_methods.rows.0.key', 'card')
         ->assertJsonPath('periodRecap.alerts.0.key', 'missing_receipts');
+
+    expect(collect($response->json('stats.top_categories'))->pluck('key'))
+        ->not->toContain('marketing');
+
+    $this->travelBack();
+});
+
+test('expense recap exposes complete chart breakdowns with an explicit remainder', function () {
+    $this->travelTo(Carbon::parse('2026-04-28 12:00:00'));
+
+    $owner = expenseOwner();
+    $categories = ['inventory', 'materials', 'travel', 'fuel', 'software', 'marketing'];
+    $paymentMethods = ['cash', 'card', 'bank_transfer', 'mobile_money', 'cheque', 'other'];
+
+    foreach ($categories as $index => $category) {
+        $total = ($index + 1) * 10;
+
+        seedExpense($owner, [
+            'title' => 'Breakdown expense '.($index + 1),
+            'category_key' => $category,
+            'payment_method' => $paymentMethods[$index],
+            'subtotal' => $total,
+            'tax_amount' => 0,
+            'total' => $total,
+            'expense_date' => '2026-04-'.str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT),
+            'status' => Expense::STATUS_DUE,
+        ]);
+    }
+
+    $response = $this->actingAs($owner)
+        ->getJson(route('expense.index', ['recap_period' => 'month']))
+        ->assertOk()
+        ->assertJsonPath('periodRecap.kpis.total_spent', 210)
+        ->assertJsonPath('periodRecap.breakdowns.categories.covered_total', 200)
+        ->assertJsonPath('periodRecap.breakdowns.categories.other_total', 10)
+        ->assertJsonPath('periodRecap.breakdowns.categories.is_truncated', true)
+        ->assertJsonPath('periodRecap.breakdowns.categories.rows.5.key', '__remaining')
+        ->assertJsonPath('periodRecap.breakdowns.categories.rows.5.total', 10)
+        ->assertJsonPath('periodRecap.breakdowns.categories.rows.5.is_remainder', true)
+        ->assertJsonPath('periodRecap.breakdowns.payment_methods.covered_total', 180)
+        ->assertJsonPath('periodRecap.breakdowns.payment_methods.other_total', 30)
+        ->assertJsonPath('periodRecap.breakdowns.payment_methods.is_truncated', true)
+        ->assertJsonPath('periodRecap.breakdowns.payment_methods.rows.4.key', '__remaining')
+        ->assertJsonPath('periodRecap.breakdowns.payment_methods.rows.4.total', 30)
+        ->assertJsonCount(5, 'periodRecap.breakdowns.payment_methods.rows');
+
+    expect(collect($response->json('periodRecap.breakdowns.categories.rows'))->sum('total'))->toBe(210)
+        ->and(collect($response->json('periodRecap.breakdowns.payment_methods.rows'))->sum('total'))->toBe(210);
 
     $this->travelBack();
 });

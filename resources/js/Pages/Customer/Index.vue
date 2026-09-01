@@ -5,8 +5,10 @@ import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import CustomerStats from '@/Components/UI/CustomerStats.vue';
 import CustomerActivityStat from '@/Components/UI/CustomerActivityStat.vue';
 import CustomerTable from './UI/CustomerTable.vue';
-import { computed, ref } from 'vue';
+import { computed, defineAsyncComponent, ref } from 'vue';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
+
+const CustomerGrowthTrend = defineAsyncComponent(() => import('@/Components/UI/CustomerGrowthTrend.vue'));
 
 const props = defineProps({
     customers: Object,
@@ -26,6 +28,10 @@ const props = defineProps({
         default: () => ({}),
     },
     topCustomers: Array,
+    customerGrowthTrend: {
+        type: Object,
+        default: () => ({}),
+    },
     bulkActions: {
         type: Object,
         default: () => ({}),
@@ -75,23 +81,43 @@ const activateKpiFilter = (action) => customerTableRef.value?.applyKpiFilter?.(a
                 @activate-filter="activateKpiFilter"
             />
         </ModuleKpiSection>
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-2 md:gap-3 lg:gap-5 ">
-            <div class="col-span-1" :class="showOperationalActivity ? 'lg:col-span-3' : 'lg:col-span-4'">
-                <CustomerTable
-                    ref="customerTableRef"
-                    :customers="customers"
-                    :filters="filters"
-                    :count="count"
-                    :filter-meta="filterMeta"
-                    :filter-options="filterOptions"
-                    :bulk-actions="bulkActions"
-                    :can-edit="canEdit"
-                    :saved-segments="savedSegments"
-                    :can-manage-saved-segments="canManageSavedSegments"
-                    :customer-index-context="customerIndexContext"
+        <div class="grid gap-2 md:gap-3 xl:gap-5">
+            <Suspense>
+                <CustomerGrowthTrend :trend="customerGrowthTrend" />
+                <template #fallback>
+                    <div
+                        class="flex min-h-80 items-center justify-center rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                        role="status"
+                        aria-live="polite"
+                    >
+                        <span class="sr-only">{{ $t('charts.loading') }}</span>
+                        <span class="h-64 w-full rounded-sm bg-stone-100 motion-safe:animate-pulse dark:bg-neutral-800" aria-hidden="true"></span>
+                    </div>
+                </template>
+            </Suspense>
+
+            <div class="grid grid-cols-1 gap-2 md:gap-3 xl:grid-cols-4 xl:gap-5">
+                <div class="order-2 col-span-1 xl:order-1" :class="showOperationalActivity ? 'xl:col-span-3' : 'xl:col-span-4'">
+                    <CustomerTable
+                        ref="customerTableRef"
+                        :customers="customers"
+                        :filters="filters"
+                        :count="count"
+                        :filter-meta="filterMeta"
+                        :filter-options="filterOptions"
+                        :bulk-actions="bulkActions"
+                        :can-edit="canEdit"
+                        :saved-segments="savedSegments"
+                        :can-manage-saved-segments="canManageSavedSegments"
+                        :customer-index-context="customerIndexContext"
+                    />
+                </div>
+                <CustomerActivityStat
+                    v-if="showOperationalActivity"
+                    class="order-1 xl:order-2"
+                    :items="topCustomers"
                 />
             </div>
-            <CustomerActivityStat v-if="showOperationalActivity" :items="topCustomers" />
         </div>
 
     </AuthenticatedLayout>

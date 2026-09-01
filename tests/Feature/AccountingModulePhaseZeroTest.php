@@ -18,6 +18,7 @@ use App\Models\Sale;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\Work;
+use App\Services\Accounting\AccountingSyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -281,6 +282,138 @@ test('accounting phase one bootstraps accounts mappings and journal entries from
 
     expect($invoiceBatch)->not->toBeNull();
     expect($invoiceBatch->status)->toBe(AccountingEntryBatch::STATUS_GENERATED);
+});
+
+test('accounting sync skips unchanged sources without rewriting journal entries', function () {
+    $owner = accountingOwner();
+    $customer = accountingCustomer($owner);
+    $work = accountingWork($owner, $customer);
+    $invoice = Invoice::query()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'work_id' => $work->id,
+        'created_by_user_id' => $owner->id,
+        'status' => 'sent',
+        'approval_status' => 'approved',
+        'subtotal' => 100,
+        'total' => 115,
+        'currency_code' => 'CAD',
+    ]);
+    InvoiceItem::query()->create([
+        'invoice_id' => $invoice->id,
+        'title' => 'Cleaning package',
+        'quantity' => 1,
+        'unit_price' => 100,
+        'total' => 100,
+        'currency_code' => 'CAD',
+    ]);
+    $syncService = app(AccountingSyncService::class);
+
+    $initialSummary = $syncService->syncAccount((int) $owner->id);
+    $batch = AccountingEntryBatch::query()
+        ->where('user_id', $owner->id)
+        ->where('source_type', 'invoice')
+        ->where('source_id', $invoice->id)
+        ->firstOrFail();
+    $initialEntryIds = $batch->entries()->orderBy('id')->pluck('id')->all();
+    $initialGeneratedAt = $batch->generated_at?->toISOString();
+    $unchangedSummary = $syncService->syncAccount((int) $owner->id);
+
+    expect($initialSummary['batches_synced'])->toBe(1)
+        ->and($unchangedSummary['batches_synced'])->toBe(0)
+        ->and($unchangedSummary['entries_written'])->toBe(0)
+        ->and($unchangedSummary['sources_scanned'])->toBe(1)
+        ->and($unchangedSummary['sources_skipped'])->toBe(1)
+        ->and($batch->fresh()->generated_at?->toISOString())->toBe($initialGeneratedAt)
+        ->and($batch->entries()->orderBy('id')->pluck('id')->all())->toBe($initialEntryIds);
+});
+
+test('accounting sync baselines legacy batches without replaying their journal entries', function () {
+    $owner = accountingOwner();
+    $customer = accountingCustomer($owner);
+    $work = accountingWork($owner, $customer);
+    $invoice = Invoice::query()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'work_id' => $work->id,
+        'created_by_user_id' => $owner->id,
+        'status' => 'sent',
+        'approval_status' => 'approved',
+        'subtotal' => 100,
+        'total' => 115,
+        'currency_code' => 'CAD',
+    ]);
+    $syncService = app(AccountingSyncService::class);
+    $syncService->syncAccount((int) $owner->id);
+    $batch = AccountingEntryBatch::query()
+        ->where('user_id', $owner->id)
+        ->where('source_type', 'invoice')
+        ->where('source_id', $invoice->id)
+        ->firstOrFail();
+    $legacyMeta = $batch->meta ?? [];
+    unset($legacyMeta['source_fingerprint'], $legacyMeta['configuration_fingerprint']);
+    $batch->update(['meta' => $legacyMeta]);
+    $initialEntryIds = $batch->entries()->orderBy('id')->pluck('id')->all();
+    $initialGeneratedAt = $batch->generated_at?->toISOString();
+
+    $summary = $syncService->syncAccount((int) $owner->id);
+    $batch->refresh();
+
+    expect($summary['batches_synced'])->toBe(0)
+        ->and($summary['entries_written'])->toBe(0)
+        ->and($summary['sources_skipped'])->toBe(1)
+        ->and(data_get($batch->meta, 'configuration_fingerprint'))->toBeString()
+        ->and(data_get($batch->meta, 'source_fingerprint'))->toBeNull()
+        ->and($batch->generated_at?->toISOString())->toBe($initialGeneratedAt)
+        ->and($batch->entries()->orderBy('id')->pluck('id')->all())->toBe($initialEntryIds);
+});
+
+test('accounting sync resynchronizes an invoice when its line fingerprint changes', function () {
+    $owner = accountingOwner();
+    $customer = accountingCustomer($owner);
+    $work = accountingWork($owner, $customer);
+    $invoice = Invoice::query()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'work_id' => $work->id,
+        'created_by_user_id' => $owner->id,
+        'status' => 'sent',
+        'approval_status' => 'approved',
+        'total' => 115,
+        'currency_code' => 'CAD',
+    ]);
+    $invoiceItem = InvoiceItem::query()->create([
+        'invoice_id' => $invoice->id,
+        'title' => 'Cleaning package',
+        'quantity' => 1,
+        'unit_price' => 100,
+        'total' => 100,
+        'currency_code' => 'CAD',
+    ]);
+    $syncService = app(AccountingSyncService::class);
+    $syncService->syncAccount((int) $owner->id);
+
+    $invoiceItem->update([
+        'unit_price' => 110,
+        'total' => 110,
+    ]);
+    $changedSummary = $syncService->syncAccount((int) $owner->id);
+    $batch = AccountingEntryBatch::query()
+        ->where('user_id', $owner->id)
+        ->where('source_type', 'invoice')
+        ->where('source_id', $invoice->id)
+        ->firstOrFail();
+
+    expect($changedSummary['batches_synced'])->toBe(1)
+        ->and($changedSummary['entries_written'])->toBe(3)
+        ->and($batch->entries()->where([
+            'direction' => AccountingEntry::DIRECTION_DEBIT,
+            'amount' => 115,
+        ])->exists())->toBeTrue()
+        ->and($batch->entries()->where([
+            'direction' => AccountingEntry::DIRECTION_CREDIT,
+            'amount' => 110,
+        ])->exists())->toBeTrue();
 });
 
 test('settled invoice payments debit the charged total and isolate tips as a payable liability', function () {

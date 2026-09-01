@@ -53,6 +53,30 @@
         "team_members": "Por miembro",
         "linked_contexts": "Vinculado a operaciones"
       },
+      "charts": {
+        "categories_title": "Gastos registrados por categoría",
+        "categories_subtitle": "Las cinco categorías principales y el resto, sin mezclar divisas ({currency}).",
+        "payment_methods_title": "Distribución por método de pago",
+        "payment_methods_subtitle": "Los cuatro métodos de pago principales y el resto, en {currency}.",
+        "amount_series": "Importe registrado",
+        "amount_label": "Importe",
+        "category_label": "Categoría",
+        "payment_method_label": "Método de pago",
+        "total_label": "Total del período",
+        "remaining_categories": "Otras categorías",
+        "remaining_payment_methods": "Otros métodos de pago",
+        "categories_table_caption": "Importes exactos de gastos por categoría",
+        "payment_methods_table_caption": "Importes exactos de gastos por método de pago",
+        "categories_empty": "No hay gastos por categoría en este período.",
+        "payment_methods_empty": "No hay métodos de pago en este período.",
+        "invalid": "Los datos del gráfico están incompletos o son incoherentes."
+      },
+      "currency": {
+        "title": "Importes separados por divisa",
+        "description": "Los indicadores y gráficos usan solo {currency}. Las demás divisas siguen visibles y nunca se suman sin conversión.",
+        "summary_label": "Totales del período por divisa"
+      },
+      "linked_contexts_note": "Un gasto puede estar vinculado a varias operaciones; estas filas no representan una distribución del total.",
       "linked_contexts": {
         "customer": "Clientes",
         "work": "Trabajos",

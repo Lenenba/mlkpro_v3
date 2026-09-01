@@ -1,9 +1,12 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, defineAsyncComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import { useCurrencyFormatter } from '@/utils/currency';
 import { buildKpiProgress } from '@/utils/kpi';
+import { buildProductStockPartition } from '@/utils/productStockChart';
+
+const Donutchart = defineAsyncComponent(() => import('@/Components/UI/Donutchart.vue'));
 
 const props = defineProps({
     stats: {
@@ -17,9 +20,16 @@ const formatNumber = (value) =>
 
 const { formatCurrency } = useCurrencyFormatter();
 const { t } = useI18n();
+const stockChartTones = ['emerald', 'amber', 'rose'];
 
 const formatRatio = (value) =>
     Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const stockPartition = computed(() => buildProductStockPartition(props.stats));
+const stockCategories = computed(() => stockPartition.value.keys.map((key) => (
+    t(`products.stock_status.${key}`)
+)));
+const hasStockChart = computed(() => stockPartition.value.isValid && stockPartition.value.total > 0);
 
 const metrics = computed(() => [
     {
@@ -65,5 +75,34 @@ const metrics = computed(() => [
 </script>
 
 <template>
-    <KpiMetricGrid :metrics="metrics" />
+    <div class="space-y-3 md:space-y-4">
+        <KpiMetricGrid :metrics="metrics" />
+
+        <div v-if="hasStockChart" class="min-w-0">
+            <Suspense>
+                <Donutchart
+                    :series="stockPartition.values"
+                    :categories="stockCategories"
+                    :color-tones="stockChartTones"
+                    :title="$t('products.stock_chart.title')"
+                    :subtitle="$t('products.stock_chart.subtitle')"
+                    :total-label="$t('products.stock_chart.total_label')"
+                    :category-label="$t('products.stock_chart.category_label')"
+                    :value-label="$t('products.stock_chart.value_label')"
+                    :table-caption="$t('products.stock_chart.table_caption')"
+                    :value-formatter="formatNumber"
+                />
+
+                <template #fallback>
+                    <div
+                        class="flex min-h-64 items-center rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                        role="status"
+                    >
+                        <span class="sr-only">{{ $t('charts.loading') }}</span>
+                        <div class="h-48 w-full motion-safe:animate-pulse rounded-sm bg-stone-100 dark:bg-neutral-800" aria-hidden="true"></div>
+                    </div>
+                </template>
+            </Suspense>
+        </div>
+    </div>
 </template>

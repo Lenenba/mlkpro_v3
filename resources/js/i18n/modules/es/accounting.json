@@ -129,6 +129,14 @@
       "locked": "Bloqueado",
       "closed_at": "Cerrado",
       "reopened_at": "Reabierto",
+      "activity_chart": {
+        "title": "Actividad contable por periodo",
+        "subtitle": "Compara los asientos y lotes generados durante los meses disponibles.",
+        "period_range": "{start} - {end}",
+        "period_label": "Periodo",
+        "count_label": "Cantidad",
+        "table_caption": "Cantidad de asientos y lotes contables por periodo."
+      },
       "statuses": {
         "open": "Abierto",
         "in_review": "En revision",

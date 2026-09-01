@@ -8,6 +8,7 @@ const dashboard = read('resources/js/Pages/Dashboard.vue');
 const panel = read('resources/js/Components/Dashboard/KpiCompositePanel.vue');
 const metricGrid = read('resources/js/Components/Dashboard/KpiMetricGrid.vue');
 const metricCard = read('resources/js/Components/Dashboard/KpiMetricCard.vue');
+const miniChart = read('resources/js/Components/Dashboard/KpiMiniChart.vue');
 
 const extractFunction = (source, functionName, nextDeclaration) => {
     const start = source.indexOf(`const ${functionName} =`);
@@ -70,6 +71,8 @@ test('KPI panels and their shared metric cards preserve complete labels and valu
     assert.match(panel, /flex flex-wrap items-start justify-between gap-3/u);
     assert.match(panel, /flex-\[1_1_14rem\]/u);
     assert.match(panel, /whitespace-normal/u);
+    assert.match(panel, /break-words text-sm font-semibold tabular-nums/u);
+    assert.doesNotMatch(panel, /whitespace-nowrap text-sm font-semibold tabular-nums/u);
     assert.match(metricCard, /grid-cols-\[auto_minmax\(0,1fr\)\]/u);
     assert.match(metricCard, /\[overflow-wrap:anywhere\]/u);
     assert.match(metricCard, /tabular-nums/u);
@@ -97,14 +100,26 @@ test('shared KPI cards use a structured visual hierarchy without synthetic decor
     assert.match(metricCard, /variant === 'dashboard'[\s\S]*?'rounded-lg border border-stone-200 shadow-sm dark:border-neutral-700'/u);
     assert.match(metricCard, /shadow-sm/u);
     assert.match(metricCard, /'w-1 rounded-full'/u);
-    assert.match(metricCard, /v-if="hasContext \|\| showSparkline \|\| showProgress"/u);
+    assert.match(metricCard, /v-if="hasContext \|\| showMiniChart \|\| showProgress"/u);
     assert.match(metricCard, /border-t border-stone-100/u);
     assert.match(metricCard, /bg-stone-50 dark:bg-neutral-900/u);
     assert.match(metricCard, /text-xl sm:text-2xl/u);
-    assert.match(metricCard, /v-if="showSparkline"/u);
+    assert.match(metricCard, /v-if="showMiniChart"/u);
     assert.match(metricCard, /v-else-if="showProgress"/u);
-    assert.match(sparkline, /flex h-10 items-end gap-1 border-b/u);
-    assert.match(sparkline, /rounded-t-sm opacity-80/u);
+    assert.match(metricCard, /defineAsyncComponent\(\(\) => import\('@\/Components\/Dashboard\/KpiMiniChart\.vue'\)\)/u);
+    assert.match(metricCard, /<KpiMiniChart/u);
+    assert.match(metricCard, /:label="metric\.label"/u);
+    assert.match(miniChart, /<svg/u);
+    assert.match(miniChart, /aria-hidden="true"/u);
+    assert.match(miniChart, /const GEOMETRY_PADDING = 4/u);
+    assert.match(miniChart, /v-if="showReferenceLine"/u);
+    assert.match(miniChart, /v-if="accessibleSummary" class="sr-only"/u);
+    assert.match(miniChart, /charts\.mini_summary/u);
+    assert.doesNotMatch(miniChart, /\bborder-b\b/u);
+    assert.match(sparkline, /import KpiMiniChart from '@\/Components\/Dashboard\/KpiMiniChart\.vue'/u);
+    assert.match(sparkline, /<KpiMiniChart/u);
+    assert.match(sparkline, /label:[\s\S]*?type: String/u);
+    assert.match(sparkline, /:label="label"/u);
     assert.match(trendBadge, /:aria-label="title"/u);
     assert.match(trendBadge, /aria-hidden="true"/u);
 });
@@ -118,7 +133,7 @@ test('KPI panels, grids, and interactive cards keep their accessibility contract
     assert.match(metricGrid, /:aria-labelledby="labelledBy"/u);
     assert.match(metricGrid, /:aria-label="ariaLabel"/u);
 
-    assert.match(metricCard, /const rootElement = computed\(\(\) => interactive\.value \? 'button' : 'article'\)/u);
+    assert.match(metricCard, /const rootElement = computed\(\(\) => interactive\.value \? 'button' : 'div'\)/u);
     assert.match(metricCard, /:type="interactive \? 'button' : undefined"/u);
     assert.match(metricCard, /:disabled="interactive \? Boolean\(metric\.disabled\) : undefined"/u);
     assert.match(metricCard, /:aria-label="interactive \? metric\.ariaLabel : undefined"/u);
@@ -127,8 +142,11 @@ test('KPI panels, grids, and interactive cards keep their accessibility contract
     assert.match(metricCard, /focus-visible:ring-2/u);
     assert.match(metricCard, /emit\('activate', props\.metric\?\.action \?\? props\.metric\)/u);
     assert.match(metricCard, /role="progressbar"/u);
+    assert.match(metricCard, /motion-safe:animate-pulse/u);
     assert.match(metricCard, /:aria-valuemax="progress\.max"/u);
     assert.match(metricCard, /:aria-valuenow="progress\.value"/u);
+    assert.match(metricCard, /backgroundColor: 'var\(--chart-grid\)'/u);
+    assert.match(metricCard, /backgroundColor: `var\(--chart-series-\$\{chartTone\.value\}\)`/u);
 });
 
 test('KPI panel delegates through the shared grid and card while preserving grid customization', () => {

@@ -1,11 +1,15 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, defineAsyncComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import KpiMetricCard from '@/Components/Dashboard/KpiMetricCard.vue';
 import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { humanizeDate } from '@/utils/date';
+
+const SiteTrafficChart = defineAsyncComponent(
+    () => import('@/Components/Dashboard/SiteTrafficChart.vue'),
+);
 
 const props = defineProps({
     metrics: {
@@ -433,34 +437,6 @@ const dataQualityMetrics = computed(() => [
     },
 ]);
 
-const buildSparklinePoints = (values, width = 260, height = 80, padding = 6) => {
-    if (!values.length) {
-        return '';
-    }
-
-    const max = Math.max(...values, 0);
-    const min = Math.min(...values, 0);
-    const range = max - min || 1;
-    const usableWidth = width - padding * 2;
-    const usableHeight = height - padding * 2;
-    const lastIndex = values.length - 1;
-
-    return values.map((value, index) => {
-        const x = padding + (lastIndex === 0 ? 0 : (usableWidth * (index / lastIndex)));
-        const normalized = (value - min) / range;
-        const y = height - padding - (usableHeight * normalized);
-        return `${x},${y}`;
-    }).join(' ');
-};
-
-const trafficTotals = computed(() => siteTrafficSeries.value.map((row) => row.total || 0));
-const trafficUniques = computed(() => siteTrafficSeries.value.map((row) => row.unique || 0));
-const trafficTotalPoints = computed(() => buildSparklinePoints(trafficTotals.value));
-const trafficUniquePoints = computed(() => buildSparklinePoints(trafficUniques.value));
-const trafficHasData = computed(() => trafficTotals.value.some((value) => value > 0) || trafficUniques.value.some((value) => value > 0));
-const trafficStart = computed(() => siteTrafficSeries.value[0]?.date || '');
-const trafficEnd = computed(() => siteTrafficSeries.value[siteTrafficSeries.value.length - 1]?.date || '');
-
 const limitLabel = (key) => t(`super_admin.dashboard.limits.${key}`);
 
 const riskFlagLabels = computed(() => ({
@@ -714,43 +690,19 @@ const resetAuditFilters = () => {
                     grid-class="sm:grid-cols-3"
                 />
                 <div class="mt-4">
-                    <div v-if="!trafficHasData" class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.dashboard.site_traffic.empty') }}
-                    </div>
-                    <div v-else>
-                        <svg viewBox="0 0 260 80" class="h-20 w-full">
-                            <polyline
-                                :points="trafficTotalPoints"
-                                fill="none"
-                                stroke="#16a34a"
-                                stroke-width="2"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                            />
-                            <polyline
-                                :points="trafficUniquePoints"
-                                fill="none"
-                                stroke="#64748b"
-                                stroke-width="2"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                            />
-                        </svg>
-                        <div class="mt-2 flex items-center justify-between text-[11px] text-stone-500 dark:text-neutral-400">
-                            <span>{{ trafficStart }}</span>
-                            <span>{{ trafficEnd }}</span>
-                        </div>
-                        <div class="mt-2 flex flex-wrap gap-3 text-[11px] text-stone-500 dark:text-neutral-400">
-                            <span class="inline-flex items-center gap-1">
-                                <span class="inline-block h-2 w-2 rounded-full bg-emerald-600"></span>
-                                {{ $t('super_admin.dashboard.site_traffic.legend_total') }}
-                            </span>
-                            <span class="inline-flex items-center gap-1">
-                                <span class="inline-block h-2 w-2 rounded-full bg-slate-500"></span>
-                                {{ $t('super_admin.dashboard.site_traffic.legend_unique') }}
-                            </span>
-                        </div>
-                    </div>
+                    <Suspense>
+                        <SiteTrafficChart :rows="siteTrafficSeries" />
+                        <template #fallback>
+                            <div
+                                class="flex min-h-72 items-center justify-center rounded-sm bg-stone-50 dark:bg-neutral-900"
+                                role="status"
+                                aria-live="polite"
+                            >
+                                <span class="sr-only">{{ $t('charts.loading') }}</span>
+                                <span class="h-64 w-full rounded-sm bg-stone-100 motion-safe:animate-pulse dark:bg-neutral-700" aria-hidden="true"></span>
+                            </div>
+                        </template>
+                    </Suspense>
                 </div>
             </div>
 

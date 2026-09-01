@@ -76,6 +76,59 @@ it('persists and casts phase two quote recovery fields', function () {
         ->and($freshQuote->recovery_priority)->toBe(85);
 });
 
+it('returns the five highest quote values from the complete filtered result before pagination', function () {
+    $user = User::factory()->create([
+        'company_type' => 'services',
+        'currency_code' => 'CAD',
+    ]);
+    $customer = Customer::create([
+        'user_id' => $user->id,
+        'first_name' => 'Top',
+        'last_name' => 'Quotes',
+        'company_name' => 'Top Quotes Co',
+        'email' => 'top-quotes@example.com',
+        'salutation' => 'Mr',
+    ]);
+
+    foreach ([100, 200, 300, 400, 500, 600] as $total) {
+        Quote::create([
+            'user_id' => $user->id,
+            'customer_id' => $customer->id,
+            'job_title' => 'Quote '.$total,
+            'status' => 'draft',
+            'subtotal' => $total,
+            'total' => $total,
+            'currency_code' => $total === 100 ? 'USD' : 'CAD',
+        ]);
+    }
+
+    $response = $this->actingAs($user)
+        ->getJson(route('quote.index', [
+            'status' => 'draft',
+            'per_page' => 5,
+        ]))
+        ->assertOk()
+        ->assertJsonPath('count', 6)
+        ->assertJsonPath('quotes.per_page', 5)
+        ->assertJsonCount(5, 'quotes.data')
+        ->assertJsonPath('stats.total_value', 2100)
+        ->assertJsonPath('tenantCurrencyCode', 'CAD')
+        ->assertJsonPath('quoteValueMeta.currency_codes.0', 'CAD')
+        ->assertJsonPath('quoteValueMeta.currency_codes.1', 'USD')
+        ->assertJsonPath('quoteValueMeta.is_currency_consistent', false)
+        ->assertJsonCount(5, 'topQuotes')
+        ->assertJsonPath('topQuotes.0.total', '600.00')
+        ->assertJsonPath('topQuotes.4.total', '200.00');
+
+    expect(collect($response->json('topQuotes'))->pluck('total')->all())->toBe([
+        '600.00',
+        '500.00',
+        '400.00',
+        '300.00',
+        '200.00',
+    ]);
+});
+
 it('classifies quote recovery queues on the quote index response', function () {
     $user = User::factory()->create(['company_type' => 'services']);
 

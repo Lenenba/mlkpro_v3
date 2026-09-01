@@ -25,6 +25,7 @@ use App\Utils\FileHandler;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -70,6 +71,11 @@ class ExpenseController extends Controller
 
         $baseQuery = Expense::query()->byAccount($accountId);
         $filteredQuery = $this->applyFilters(clone $baseQuery, $filters);
+        $owner = $user && (int) $user->id === $accountId
+            ? $user
+            : User::query()->find($accountId);
+        $tenantCurrencyCode = $owner?->businessCurrencyCode() ?? CurrencyCode::default()->value;
+        $reportingQuery = $this->expenseCurrencyQuery(clone $baseQuery, $tenantCurrencyCode);
 
         $sort = in_array($filters['sort'] ?? null, ['title', 'total', 'expense_date', 'due_date', 'created_at'], true)
             ? $filters['sort']
@@ -96,6 +102,7 @@ class ExpenseController extends Controller
         );
 
         $stats = [
+            'currency_code' => $tenantCurrencyCode,
             'total' => (clone $baseQuery)->count(),
             'draft' => (clone $baseQuery)->where('status', Expense::STATUS_DRAFT)->count(),
             'overdue' => (clone $baseQuery)
@@ -103,14 +110,14 @@ class ExpenseController extends Controller
                 ->whereNotNull('due_date')
                 ->whereDate('due_date', '<', now()->toDateString())
                 ->count(),
-            'due_total' => round((float) ((clone $baseQuery)
+            'due_total' => round((float) ((clone $reportingQuery)
                 ->whereNotIn('status', [Expense::STATUS_PAID, Expense::STATUS_REIMBURSED, Expense::STATUS_CANCELLED])
                 ->sum('total') ?? 0), 2),
-            'paid_this_month' => round((float) ((clone $baseQuery)
+            'paid_this_month' => round((float) ((clone $reportingQuery)
                 ->whereIn('status', [Expense::STATUS_PAID, Expense::STATUS_REIMBURSED])
                 ->whereBetween('paid_date', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])
                 ->sum('total') ?? 0), 2),
-            'linked_total' => round((float) ((clone $baseQuery)
+            'linked_total' => round((float) ((clone $reportingQuery)
                 ->where(function ($query) {
                     $query->whereNotNull('customer_id')
                         ->orWhereNotNull('work_id')
@@ -119,15 +126,10 @@ class ExpenseController extends Controller
                         ->orWhereNotNull('campaign_id');
                 })
                 ->sum('total') ?? 0), 2),
-            'top_categories' => $this->topCategoryStats(clone $baseQuery),
-            'top_suppliers' => $this->topSupplierStats(clone $baseQuery),
+            'top_categories' => $this->topCategoryStats(clone $reportingQuery),
+            'top_suppliers' => $this->topSupplierStats(clone $reportingQuery),
         ];
-        $periodRecap = $this->buildPeriodRecap(clone $baseQuery, $filters);
-
-        $owner = $user && (int) $user->id === $accountId
-            ? $user
-            : User::query()->find($accountId);
-        $tenantCurrencyCode = $owner?->businessCurrencyCode() ?? CurrencyCode::default()->value;
+        $periodRecap = $this->buildPeriodRecap(clone $baseQuery, $filters, $tenantCurrencyCode);
         $teamMembers = $this->teamMemberOptions($user, $accountId);
         $pettyCash = $this->buildPettyCashPanel($user, $accountId, $filters, $tenantCurrencyCode, $teamMembers);
 
@@ -2847,14 +2849,22 @@ class ExpenseController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function buildPeriodRecap($baseQuery, array $filters): array
+    private function buildPeriodRecap($baseQuery, array $filters, string $currencyCode): array
     {
+        $reportingCurrencyCode = CurrencyCode::tryFromMixed($currencyCode)?->value
+            ?? CurrencyCode::default()->value;
         $period = $this->resolveRecapPeriod($filters);
         $periodQuery = $this->periodExpenseQuery(clone $baseQuery, $period['start'], $period['end']);
-        $activeQuery = $this->activeExpenseQuery(clone $periodQuery);
+        $allActiveQuery = $this->activeExpenseQuery(clone $periodQuery);
+        $currencyBreakdown = $this->periodCurrencyBreakdown(clone $allActiveQuery, $reportingCurrencyCode);
+        $currencyPeriodQuery = $this->expenseCurrencyQuery(clone $periodQuery, $reportingCurrencyCode);
+        $activeQuery = $this->expenseCurrencyQuery(clone $allActiveQuery, $reportingCurrencyCode);
         $totalSpent = $this->sumExpenseTotal(clone $activeQuery);
-        $previousTotal = $this->sumExpenseTotal($this->activeExpenseQuery(
-            $this->periodExpenseQuery(clone $baseQuery, $period['previous_start'], $period['previous_end'])
+        $previousTotal = $this->sumExpenseTotal($this->expenseCurrencyQuery(
+            $this->activeExpenseQuery(
+                $this->periodExpenseQuery(clone $baseQuery, $period['previous_start'], $period['previous_end'])
+            ),
+            $reportingCurrencyCode
         ));
 
         $approvedStatuses = [
@@ -2869,7 +2879,7 @@ class ExpenseController extends Controller
         ];
 
         $paidTotal = $this->sumExpenseTotal(
-            (clone $baseQuery)
+            $this->expenseCurrencyQuery(clone $baseQuery, $reportingCurrencyCode)
                 ->whereIn('status', [Expense::STATUS_PAID, Expense::STATUS_REIMBURSED])
                 ->whereBetween('paid_date', [$period['start']->toDateString(), $period['end']->toDateString()])
         );
@@ -2879,10 +2889,10 @@ class ExpenseController extends Controller
         $reimbursementTotal = $this->sumExpenseTotal(
             (clone $activeQuery)->where('reimbursement_status', Expense::REIMBURSEMENT_STATUS_PENDING)
         );
-        $pendingApprovalCount = (int) (clone $periodQuery)
+        $pendingApprovalCount = (int) (clone $currencyPeriodQuery)
             ->whereIn('status', $pendingStatuses)
             ->count();
-        $rejectedCount = (int) (clone $periodQuery)
+        $rejectedCount = (int) (clone $currencyPeriodQuery)
             ->where('status', Expense::STATUS_REJECTED)
             ->count();
         $missingReceiptCount = (int) (clone $activeQuery)
@@ -2908,6 +2918,14 @@ class ExpenseController extends Controller
         ];
 
         return [
+            'currency' => [
+                'mode' => count($currencyBreakdown) > 1 ? 'mixed' : 'single',
+                'code' => $reportingCurrencyCode,
+                'codes' => array_column($currencyBreakdown, 'currency_code'),
+                'has_additional_currencies' => collect($currencyBreakdown)
+                    ->contains(fn (array $item): bool => $item['currency_code'] !== $reportingCurrencyCode),
+                'breakdown' => $currencyBreakdown,
+            ],
             'period' => [
                 'key' => $period['key'],
                 'start' => $period['start']->toDateString(),
@@ -3013,6 +3031,20 @@ class ExpenseController extends Controller
         return $query->whereNotIn('status', [Expense::STATUS_CANCELLED, Expense::STATUS_REJECTED]);
     }
 
+    private function expenseCurrencyQuery($query, string $currencyCode)
+    {
+        $normalizedCurrencyCode = CurrencyCode::tryFromMixed($currencyCode)?->value
+            ?? CurrencyCode::default()->value;
+
+        return $query->where(function ($currencyQuery) use ($normalizedCurrencyCode): void {
+            $currencyQuery->where('currency_code', $normalizedCurrencyCode);
+
+            if ($normalizedCurrencyCode === CurrencyCode::default()->value) {
+                $currencyQuery->orWhereNull('currency_code');
+            }
+        });
+    }
+
     private function sumExpenseTotal($query): float
     {
         return round((float) ($query->sum('total') ?? 0), 2);
@@ -3028,25 +3060,25 @@ class ExpenseController extends Controller
     }
 
     /**
-     * @return array<int, array{key:string,label:string,total:float,count:int,share:float}>
+     * @return array{rows:array<int, array{key:string,label:string,total:float,count:int,share:float,is_remainder?:bool}>,covered_total:float,other_total:float,is_truncated:bool}
      */
     private function periodCategoryBreakdown($query, float $periodTotal): array
     {
-        return $query
-            ->selectRaw('COALESCE(category_key, ?) as category_key, COUNT(*) as total_count, COALESCE(SUM(total), 0) as total_amount', ['other'])
-            ->groupBy('category_key')
+        $rows = $query
+            ->selectRaw("COALESCE(NULLIF(category_key, ''), 'other') as category_key, COUNT(*) as total_count, COALESCE(SUM(total), 0) as total_amount")
+            ->groupByRaw("COALESCE(NULLIF(category_key, ''), 'other')")
             ->orderByDesc('total_amount')
-            ->limit(5)
+            ->orderBy('category_key')
             ->get()
             ->map(fn ($row) => [
                 'key' => (string) ($row->category_key ?: 'other'),
                 'label' => (string) ($row->category_key ?: 'other'),
                 'count' => (int) ($row->total_count ?? 0),
                 'total' => round((float) ($row->total_amount ?? 0), 2),
-                'share' => $this->breakdownShare((float) ($row->total_amount ?? 0), $periodTotal),
             ])
-            ->values()
-            ->all();
+            ->values();
+
+        return $this->periodBreakdownPayload($rows, $periodTotal, 5);
     }
 
     /**
@@ -3102,25 +3134,89 @@ class ExpenseController extends Controller
     }
 
     /**
-     * @return array<int, array{key:string,label:string,total:float,count:int,share:float}>
+     * @return array{rows:array<int, array{key:string,label:string,total:float,count:int,share:float,is_remainder?:bool}>,covered_total:float,other_total:float,is_truncated:bool}
      */
     private function periodPaymentMethodBreakdown($query, float $periodTotal): array
     {
-        return $query
+        $rows = $query
             ->selectRaw("COALESCE(NULLIF(payment_method, ''), 'other') as payment_method_key, COUNT(*) as total_count, COALESCE(SUM(total), 0) as total_amount")
-            ->groupBy('payment_method')
+            ->groupByRaw("COALESCE(NULLIF(payment_method, ''), 'other')")
             ->orderByDesc('total_amount')
-            ->limit(5)
+            ->orderBy('payment_method_key')
             ->get()
             ->map(fn ($row) => [
                 'key' => (string) ($row->payment_method_key ?: 'other'),
                 'label' => (string) ($row->payment_method_key ?: 'other'),
                 'count' => (int) ($row->total_count ?? 0),
                 'total' => round((float) ($row->total_amount ?? 0), 2),
-                'share' => $this->breakdownShare((float) ($row->total_amount ?? 0), $periodTotal),
             ])
+            ->values();
+
+        return $this->periodBreakdownPayload($rows, $periodTotal, 4);
+    }
+
+    /**
+     * @return array<int, array{currency_code:string,total:float,count:int}>
+     */
+    private function periodCurrencyBreakdown($query, string $reportingCurrencyCode): array
+    {
+        return $query
+            ->selectRaw('currency_code, COUNT(*) as total_count, COALESCE(SUM(total), 0) as total_amount')
+            ->groupBy('currency_code')
+            ->get()
+            ->map(fn ($row): array => [
+                'currency_code' => CurrencyCode::tryFromMixed($row->currency_code)?->value
+                    ?? CurrencyCode::default()->value,
+                'total' => round((float) ($row->total_amount ?? 0), 2),
+                'count' => (int) ($row->total_count ?? 0),
+            ])
+            ->groupBy('currency_code')
+            ->map(fn (Collection $rows, string $groupCurrencyCode): array => [
+                'currency_code' => $groupCurrencyCode,
+                'total' => round((float) $rows->sum('total'), 2),
+                'count' => (int) $rows->sum('count'),
+            ])
+            ->sortBy(fn (array $row): string => sprintf(
+                '%d-%s',
+                $row['currency_code'] === $reportingCurrencyCode ? 0 : 1,
+                $row['currency_code']
+            ))
             ->values()
             ->all();
+    }
+
+    /**
+     * @param  Collection<int, array{key:string,label:string,total:float,count:int}>  $rows
+     * @return array{rows:array<int, array{key:string,label:string,total:float,count:int,share:float,is_remainder?:bool}>,covered_total:float,other_total:float,is_truncated:bool}
+     */
+    private function periodBreakdownPayload(Collection $rows, float $periodTotal, int $limit): array
+    {
+        $visibleRows = $rows->take($limit)->values();
+        $remainingRows = $rows->slice($limit)->values();
+        $coveredTotal = round((float) $visibleRows->sum('total'), 2);
+        $otherTotal = round((float) $remainingRows->sum('total'), 2);
+
+        if ($remainingRows->isNotEmpty()) {
+            $visibleRows->push([
+                'key' => '__remaining',
+                'label' => '__remaining',
+                'count' => (int) $remainingRows->sum('count'),
+                'total' => $otherTotal,
+                'is_remainder' => true,
+            ]);
+        }
+
+        return [
+            'rows' => $visibleRows
+                ->map(fn (array $row): array => [
+                    ...$row,
+                    'share' => $this->breakdownShare($row['total'], $periodTotal),
+                ])
+                ->all(),
+            'covered_total' => $coveredTotal,
+            'other_total' => $otherTotal,
+            'is_truncated' => $remainingRows->isNotEmpty(),
+        ];
     }
 
     /**

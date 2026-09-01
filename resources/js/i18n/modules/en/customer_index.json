@@ -142,7 +142,25 @@
       "actions": "{count} actions",
       "empty": "No customer activity yet.",
       "quotes_short": "q",
-      "jobs_short": "j"
+      "jobs_short": "j",
+      "quotes_series": "Quotes",
+      "jobs_series": "Jobs",
+      "category_label": "Customer",
+      "value_label": "Action count",
+      "table_caption": "Exact customer ranking by quote and job activity"
+    },
+    "growth": {
+      "title": "New customers by week",
+      "subtitle": "Latest 12 complete weeks compared with the previous 12 complete weeks",
+      "period": "Current period: {currentStart} – {currentEnd} · previous: {previousStart} – {previousEnd}",
+      "legend_label": "Compared periods",
+      "current_series": "Latest 12 complete weeks",
+      "previous_series": "Previous 12 complete weeks",
+      "week_label": "Week starting",
+      "value_label": "New customers",
+      "table_caption": "Exact weekly new-customer counts for the current and previous periods",
+      "empty": "No new customers in the last 24 complete weeks.",
+      "invalid": "The new-customer trend is unavailable."
     },
     "view": {
       "table": "Table",

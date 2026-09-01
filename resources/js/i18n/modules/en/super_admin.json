@@ -63,7 +63,15 @@
         "unique_label": "{count} unique",
         "legend_total": "Total",
         "legend_unique": "Unique",
-        "empty": "No traffic data yet."
+        "legend_label": "Daily traffic series",
+        "trend_title": "Daily trend",
+        "trend_subtitle": "Visits and unique visitors per day, without estimates.",
+        "period": "From {start} to {end}",
+        "date_label": "Date",
+        "value_label": "Visits",
+        "table_caption": "Exact daily traffic: visits and unique visitors.",
+        "empty": "No traffic data yet.",
+        "invalid": "Traffic data is inconsistent and cannot be charted."
       },
       "alerts": {
         "title": "Platform alerts",

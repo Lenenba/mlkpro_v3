@@ -156,7 +156,7 @@ const autoFilter = () => {
     filterTimeout = setTimeout(() => {
         isLoading.value = true;
         router.get(route('quote.index'), filterPayload(), {
-            only: ['quotes', 'filters', 'stats', 'count', 'topQuotes'],
+            only: ['quotes', 'filters', 'stats', 'count', 'topQuotes', 'quoteValueMeta'],
             preserveState: true,
             preserveScroll: true,
             replace: true,
@@ -494,7 +494,7 @@ const runQuickQuoteRecoveryUpdate = (quote, payload, options = {}) => {
 
     router.patch(route('quote.recovery.update', quote.id), payload, {
         preserveScroll: true,
-        only: ['quotes', 'filters', 'stats', 'count', 'topQuotes', 'flash'],
+        only: ['quotes', 'filters', 'stats', 'count', 'topQuotes', 'quoteValueMeta', 'flash'],
         ...options,
         onFinish: (...args) => {
             processingId.value = null;
@@ -539,7 +539,7 @@ const createQuoteRecoveryTask = (quote) => {
 
     router.post(route('quote.recovery.task.store', quote.id), {}, {
         preserveScroll: true,
-        only: ['quotes', 'filters', 'stats', 'count', 'topQuotes', 'flash'],
+        only: ['quotes', 'filters', 'stats', 'count', 'topQuotes', 'quoteValueMeta', 'flash'],
         onFinish: () => {
             processingId.value = null;
         },

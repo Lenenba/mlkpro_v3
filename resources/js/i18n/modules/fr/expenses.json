@@ -53,6 +53,30 @@
         "team_members": "Par membre",
         "linked_contexts": "Lie aux operations"
       },
+      "charts": {
+        "categories_title": "Dépenses enregistrées par catégorie",
+        "categories_subtitle": "Les cinq catégories principales et le reliquat éventuel, sans mélanger les devises ({currency}).",
+        "payment_methods_title": "Répartition par moyen de paiement",
+        "payment_methods_subtitle": "Les quatre principaux moyens de paiement et le reliquat éventuel, dans la devise {currency}.",
+        "amount_series": "Montant enregistré",
+        "amount_label": "Montant",
+        "category_label": "Catégorie",
+        "payment_method_label": "Moyen de paiement",
+        "total_label": "Total période",
+        "remaining_categories": "Autres catégories",
+        "remaining_payment_methods": "Autres moyens de paiement",
+        "categories_table_caption": "Montants exacts des dépenses par catégorie",
+        "payment_methods_table_caption": "Montants exacts des dépenses par moyen de paiement",
+        "categories_empty": "Aucune dépense par catégorie sur cette période.",
+        "payment_methods_empty": "Aucun moyen de paiement sur cette période.",
+        "invalid": "Les données de ce graphique sont incomplètes ou incohérentes."
+      },
+      "currency": {
+        "title": "Montants séparés par devise",
+        "description": "Les indicateurs et graphiques utilisent uniquement {currency}. Les autres devises restent visibles ci-dessous et ne sont jamais additionnées sans conversion.",
+        "summary_label": "Totaux de la période par devise"
+      },
+      "linked_contexts_note": "Une même dépense peut être liée à plusieurs opérations; ces lignes ne constituent pas une répartition du total.",
       "linked_contexts": {
         "customer": "Clients",
         "work": "Jobs",

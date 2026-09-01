@@ -10,11 +10,23 @@
       "out_of_stock": "Agotado",
       "rotation": "Rotación de existencias"
     },
+    "stock_chart": {
+      "title": "Distribución del estado del stock",
+      "subtitle": "Productos disponibles, por vigilar o agotados dentro de los resultados filtrados.",
+      "total_label": "Productos",
+      "category_label": "Estado del stock",
+      "value_label": "Productos",
+      "table_caption": "Distribución exacta de productos por estado del stock"
+    },
     "usage": {
       "title": "Productos más usados",
-      "subtitle": "Basado en cotizaciones y trabajos.",
+      "subtitle": "Basado en cotizaciones, trabajos y ventas pagadas",
       "used": "{count} usado",
-      "empty": "Aún no hay datos de uso."
+      "empty": "Aún no hay datos de uso.",
+      "series_label": "Cantidad utilizada",
+      "category_label": "Producto",
+      "value_label": "Cantidad utilizada",
+      "table_caption": "Clasificación exacta de los productos más utilizados"
     },
     "aria": {
       "dropdown": "Menú desplegable"

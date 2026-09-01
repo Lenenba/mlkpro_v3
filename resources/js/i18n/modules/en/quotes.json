@@ -273,7 +273,14 @@
       "recovery_subtitle": "Follow-up pressure and conversion signals on the current filtered quotes.",
       "top_by_value": "Top quotes by value",
       "based_on_filters": "Based on current filters",
-      "empty": "No quote data yet."
+      "empty": "No quote data yet.",
+      "top_chart_subtitle": "Top {displayed} of {count} filtered quotes, in {currency}.",
+      "value_series": "Quote value",
+      "quote_label": "Quote and customer",
+      "value_label": "Value",
+      "top_chart_table_caption": "Exact values of the leading filtered quotes",
+      "chart_invalid": "Quotes cannot be compared because the data is incomplete or its currency does not match the active currency.",
+      "mixed_currency_context": "Amount hidden: the currencies present ({currencies}) do not all match the active currency, and no conversion is applied."
     },
     "recovery": {
       "label": "Recovery",

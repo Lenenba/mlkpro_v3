@@ -32,6 +32,8 @@ use App\Support\CRM\SalesActivityTaxonomy;
 use App\Support\Database\UserSelects;
 use App\Support\NotificationDispatcher;
 use App\Utils\FileHandler;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -207,6 +209,10 @@ class CustomerController extends Controller
             $customerIndexContext,
             $accountId
         );
+        $customerGrowthTrendResolver = fn (): array => $this->buildCustomerGrowthTrend(
+            $accountOwner,
+            $accountId
+        );
 
         $topCustomers = collect();
         if ($showQuoteOperations || $showJobOperations) {
@@ -219,14 +225,19 @@ class CustomerController extends Controller
             }
 
             $topCustomersQuery = (clone $baseQuery)->withCount($activityCounts);
-            if ($showQuoteOperations) {
+            if ($showQuoteOperations && $showJobOperations) {
+                $topCustomersQuery
+                    ->orderByRaw('(quotes_count + works_count) DESC')
+                    ->orderByDesc('quotes_count')
+                    ->orderByDesc('works_count');
+            } elseif ($showQuoteOperations) {
                 $topCustomersQuery->orderByDesc('quotes_count');
-            }
-            if ($showJobOperations) {
+            } elseif ($showJobOperations) {
                 $topCustomersQuery->orderByDesc('works_count');
             }
 
             $topCustomers = $topCustomersQuery
+                ->orderBy('id')
                 ->limit(5)
                 ->get(['id', 'company_name', 'first_name', 'last_name', 'logo', 'header_image']);
         }
@@ -283,6 +294,7 @@ class CustomerController extends Controller
             'filterMeta' => $filterMeta,
             'filterOptions' => $filterOptions,
             'topCustomers' => $topCustomers,
+            'customerGrowthTrend' => $resolveLazyProp($customerGrowthTrendResolver),
             'canEdit' => $canEdit,
             'savedSegments' => $savedSegments,
             'canManageSavedSegments' => $canManageSavedSegments,
@@ -293,6 +305,81 @@ class CustomerController extends Controller
                 'campaign_bridge_enabled' => $campaignsFeatureEnabled,
             ]),
         ]);
+    }
+
+    /**
+     * @return array{
+     *     categories: list<string>,
+     *     series: list<array{key: string, data: list<int|null>}>,
+     *     periods: array{
+     *         current: array{start: string, end: string},
+     *         previous: array{start: string, end: string}
+     *     },
+     *     timezone: string
+     * }
+     */
+    private function buildCustomerGrowthTrend(User $accountOwner, int $accountId): array
+    {
+        $databaseTimezone = (string) config('app.timezone', 'UTC');
+        $timezone = $accountOwner->company_timezone ?: $databaseTimezone;
+        $currentWeekStart = CarbonImmutable::now($timezone)
+            ->startOfWeek(CarbonInterface::MONDAY)
+            ->startOfDay();
+        $currentPeriodStart = $currentWeekStart->subWeeks(12);
+        $previousPeriodStart = $currentPeriodStart->subWeeks(12);
+        $windowEndExclusive = $currentWeekStart;
+
+        $weeklyCounts = Customer::query()
+            ->byUser($accountId)
+            ->where('created_at', '>=', $previousPeriodStart->setTimezone($databaseTimezone))
+            ->where('created_at', '<', $windowEndExclusive->setTimezone($databaseTimezone))
+            ->select('created_at')
+            ->cursor()
+            ->countBy(static fn (Customer $customer): string => CarbonImmutable::instance($customer->created_at)
+                ->setTimezone($timezone)
+                ->startOfWeek(CarbonInterface::MONDAY)
+                ->toDateString());
+
+        $currentCategories = collect(range(0, 11))
+            ->map(static fn (int $offset): string => $currentPeriodStart->addWeeks($offset)->toDateString());
+        $previousCategories = collect(range(0, 11))
+            ->map(static fn (int $offset): string => $previousPeriodStart->addWeeks($offset)->toDateString());
+
+        $categories = $previousCategories->concat($currentCategories)->values();
+
+        return [
+            'categories' => $categories->all(),
+            'series' => [
+                [
+                    'key' => 'current',
+                    'data' => collect(array_fill(0, 12, null))
+                        ->concat($currentCategories->map(
+                            static fn (string $week): int => (int) $weeklyCounts->get($week, 0)
+                        ))
+                        ->values()
+                        ->all(),
+                ],
+                [
+                    'key' => 'previous',
+                    'data' => $previousCategories
+                        ->map(static fn (string $week): int => (int) $weeklyCounts->get($week, 0))
+                        ->concat(array_fill(0, 12, null))
+                        ->values()
+                        ->all(),
+                ],
+            ],
+            'periods' => [
+                'current' => [
+                    'start' => $currentPeriodStart->toDateString(),
+                    'end' => $currentWeekStart->subDay()->toDateString(),
+                ],
+                'previous' => [
+                    'start' => $previousPeriodStart->toDateString(),
+                    'end' => $currentPeriodStart->subDay()->toDateString(),
+                ],
+            ],
+            'timezone' => $timezone,
+        ];
     }
 
     /**

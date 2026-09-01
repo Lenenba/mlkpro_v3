@@ -74,7 +74,7 @@ defineProps({
 });
 
 const { t } = useI18n();
-const activeTab = ref('list');
+const activeTab = ref('recap');
 const tabs = computed(() => [
     {
         key: 'list',

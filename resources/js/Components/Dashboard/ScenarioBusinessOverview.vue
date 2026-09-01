@@ -2,7 +2,9 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
+import Barchart from '@/Components/UI/Barchart.vue';
 import { useCurrencyFormatter } from '@/utils/currency';
+import { buildScenarioActivityChartData } from '@/utils/scenarioActivityChart';
 
 const props = defineProps({
     insights: {
@@ -41,12 +43,34 @@ const dateTime = (value) => value
         minute: '2-digit',
     }).format(new Date(value))
     : '—';
-const chartMaximum = computed(() => Math.max(
-    1,
-    ...(monthly.value.revenue || []).map(Number),
-    ...(monthly.value.expenses || []).map(Number),
-));
-const barHeight = (value) => `${Math.max(3, (Number(value || 0) / chartMaximum.value) * 100)}%`;
+const activityChartData = computed(() => buildScenarioActivityChartData(monthly.value, {
+    labelForPeriod: monthLabel,
+    seriesLabel: t(isFieldOperations.value
+        ? 'dashboard.scenario.field_operations.activity_series'
+        : 'dashboard.scenario.activity_series'),
+}));
+const activitySeries = computed(() => activityChartData.value.series);
+const activityCategories = computed(() => activityChartData.value.categories);
+const activityChartOptions = computed(() => ({
+    legend: {
+        show: false,
+    },
+    xaxis: {
+        tickAmount: Math.min(6, activityCategories.value.length),
+        labels: {
+            rotate: 0,
+            hideOverlappingLabels: true,
+            trim: true,
+        },
+    },
+    yaxis: {
+        min: 0,
+        forceNiceScale: true,
+        labels: {
+            formatter: (value) => number(Math.round(Number(value || 0))),
+        },
+    },
+}));
 const revenueChange = computed(() => metrics.value.revenue_change_percent);
 const revenueTone = computed(() => Number(revenueChange.value || 0) >= 0 ? 'emerald' : 'rose');
 const revenueColorClass = computed(() => revenueTone.value === 'emerald'
@@ -197,31 +221,23 @@ const cards = computed(() => [
 
         <div class="mt-4 grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
             <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                <div class="flex items-center justify-between gap-2">
-                    <div class="text-xs font-semibold text-stone-700 dark:text-neutral-200">
-                        {{ $t('dashboard.scenario.history_title') }}
-                    </div>
-                    <div class="flex items-center gap-3 text-[10px] text-stone-500 dark:text-neutral-400">
-                        <span class="inline-flex items-center gap-1"><span class="size-2 rounded-sm bg-emerald-500" />{{ $t('dashboard.scenario.revenue') }}</span>
-                        <span class="inline-flex items-center gap-1"><span class="size-2 rounded-sm bg-rose-400" />{{ $t('dashboard.scenario.expenses') }}</span>
-                    </div>
-                </div>
-                <div class="mt-3 grid h-36 grid-cols-12 items-end gap-1.5" data-testid="scenario-twelve-month-chart">
-                    <div
-                        v-for="(label, index) in monthly.labels"
-                        :key="label"
-                        class="flex h-full min-w-0 flex-col justify-end"
-                        :title="`${label} · ${formatCurrency(monthly.revenue[index] || 0)} / ${formatCurrency(monthly.expenses[index] || 0)}`"
-                    >
-                        <div class="flex min-h-0 flex-1 items-end justify-center gap-px">
-                            <span class="w-1/2 rounded-t-sm bg-emerald-500/80" :style="{ height: barHeight(monthly.revenue[index]) }" />
-                            <span class="w-1/2 rounded-t-sm bg-rose-400/75" :style="{ height: barHeight(monthly.expenses[index]) }" />
-                        </div>
-                        <div class="mt-1 truncate text-center text-[9px] text-stone-400 dark:text-neutral-500">
-                            {{ monthLabel(label) }}
-                        </div>
-                    </div>
-                </div>
+                <Barchart
+                    :title="$t('dashboard.scenario.history_title')"
+                    :subtitle="$t(isFieldOperations
+                        ? 'dashboard.scenario.field_operations.history_subtitle'
+                        : 'dashboard.scenario.history_subtitle')"
+                    :series="activitySeries"
+                    :categories="activityCategories"
+                    :height="180"
+                    :options="activityChartOptions"
+                    :color-tones="['blue']"
+                    :category-label="$t('dashboard.scenario.month_label')"
+                    :value-label="$t('dashboard.scenario.activity_count_label')"
+                    :table-caption="$t('dashboard.scenario.activity_table_caption')"
+                    :value-formatter="number"
+                    :framed="false"
+                    data-testid="scenario-monthly-activity-chart"
+                />
             </div>
 
             <div class="grid grid-cols-1 gap-2 sm:grid-cols-3 xl:grid-cols-1">

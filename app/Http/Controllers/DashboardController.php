@@ -21,6 +21,7 @@ use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\Work;
 use App\Queries\Dashboard\DashboardProductsOverviewQuery;
+use App\Queries\Dashboard\OwnerDashboardKpiSeriesQuery;
 use App\Queries\Demo\DemoScenarioDashboardQuery;
 use App\Services\BillingPlanService;
 use App\Services\BillingSubscriptionService;
@@ -39,6 +40,8 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
+    public function __construct(private OwnerDashboardKpiSeriesQuery $ownerDashboardKpiSeriesQuery) {}
+
     public function index()
     {
         $user = Auth::user();
@@ -101,7 +104,9 @@ class DashboardController extends Controller
                 ], $cacheKey);
             }
 
-            $accountOwner = User::query()->select(['id', 'company_type', 'company_name'])->find($customer->user_id);
+            $accountOwner = User::query()
+                ->select(['id', 'company_type', 'company_name', 'company_timezone'])
+                ->find($customer->user_id);
             if ($accountOwner?->company_type === 'products') {
                 $cacheKey = $cacheEnabled ? "dashboard:client-products:{$user->id}:{$dashboardLocale}" : null;
                 if ($cached = $fromCache($cacheKey)) {
@@ -483,40 +488,17 @@ class DashboardController extends Controller
                     ];
                 });
 
-            $seriesMonths = 6;
-            $quotesPendingSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($pendingQuotesQuery) {
-                return (clone $pendingQuotesQuery)
-                    ->whereBetween('created_at', [$start, $end])
-                    ->count();
-            });
-            $worksPendingSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($pendingWorksQuery) {
-                return (clone $pendingWorksQuery)
-                    ->whereBetween('created_at', [$start, $end])
-                    ->count();
-            });
-            $invoicesDueSeries = $autoValidateInvoices
-                ? ['values' => array_fill(0, $seriesMonths, 0)]
-                : $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($invoicesDueQuery) {
-                    return (clone $invoicesDueQuery)
-                        ->whereBetween('created_at', [$start, $end])
-                        ->count();
-                });
-            $ratingsDueSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($quoteRatingsQuery, $workRatingsQuery) {
-                $quoteCount = (clone $quoteRatingsQuery)
-                    ->whereBetween('updated_at', [$start, $end])
-                    ->count();
-                $workCount = (clone $workRatingsQuery)
-                    ->whereBetween('updated_at', [$start, $end])
-                    ->count();
-
-                return $quoteCount + $workCount;
-            });
-            $kpiSeries = [
-                'quotes_pending' => $quotesPendingSeries['values'],
-                'works_pending' => $worksPendingSeries['values'],
-                'invoices_due' => $invoicesDueSeries['values'],
-                'ratings_due' => $ratingsDueSeries['values'],
-            ];
+            $seriesAnchor = $now->copy()->setTimezone($this->dashboardTimezone($accountOwner));
+            $kpiSeries = $this->ownerDashboardKpiSeriesQuery->currentStateSeriesForKeys(
+                $seriesAnchor,
+                6,
+                [
+                    'quotes_pending' => 'lower_is_better',
+                    'works_pending' => 'lower_is_better',
+                    'invoices_due' => 'lower_is_better',
+                    'ratings_due' => 'lower_is_better',
+                ],
+            );
 
             $props = [
                 'profileMissing' => false,
@@ -713,36 +695,17 @@ class DashboardController extends Controller
                 $worksToday = $this->buildWorksToday($worksQuery, $today);
                 $agendaAlerts = $this->buildAgendaAlerts($tasksQuery, $worksQuery, $today);
 
-                $seriesMonths = 6;
-                $tasksTotalSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($tasksQuery) {
-                    return (clone $tasksQuery)
-                        ->whereBetween('created_at', [$start, $end])
-                        ->count();
-                });
-                $tasksTodoSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($tasksQuery) {
-                    return (clone $tasksQuery)
-                        ->where('status', 'todo')
-                        ->whereBetween('created_at', [$start, $end])
-                        ->count();
-                });
-                $tasksInProgressSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($tasksQuery) {
-                    return (clone $tasksQuery)
-                        ->where('status', 'in_progress')
-                        ->whereBetween('created_at', [$start, $end])
-                        ->count();
-                });
-                $tasksDoneSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($tasksQuery) {
-                    return (clone $tasksQuery)
-                        ->where('status', 'done')
-                        ->whereBetween('created_at', [$start, $end])
-                        ->count();
-                });
-                $kpiSeries = [
-                    'tasks_total' => $tasksTotalSeries['values'],
-                    'tasks_todo' => $tasksTodoSeries['values'],
-                    'tasks_in_progress' => $tasksInProgressSeries['values'],
-                    'tasks_done' => $tasksDoneSeries['values'],
-                ];
+                $seriesAnchor = $now->copy()->setTimezone($this->dashboardTimezone($accountOwner));
+                $kpiSeries = $this->ownerDashboardKpiSeriesQuery->currentStateSeriesForKeys(
+                    $seriesAnchor,
+                    6,
+                    [
+                        'tasks_total' => 'neutral',
+                        'tasks_todo' => 'lower_is_better',
+                        'tasks_in_progress' => 'neutral',
+                        'tasks_done' => 'higher_is_better',
+                    ],
+                );
 
                 $props = [
                     'stats' => $stats,
@@ -848,30 +811,16 @@ class DashboardController extends Controller
             $worksToday = $this->buildWorksToday($worksQuery, $today);
             $agendaAlerts = $this->buildAgendaAlerts($tasksQuery, $worksQuery, $today);
 
-            $seriesMonths = 6;
-            $tasksTodoSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($tasksQuery) {
-                return (clone $tasksQuery)
-                    ->where('status', 'todo')
-                    ->whereBetween('created_at', [$start, $end])
-                    ->count();
-            });
-            $tasksInProgressSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($tasksQuery) {
-                return (clone $tasksQuery)
-                    ->where('status', 'in_progress')
-                    ->whereBetween('created_at', [$start, $end])
-                    ->count();
-            });
-            $tasksDoneSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($tasksQuery) {
-                return (clone $tasksQuery)
-                    ->where('status', 'done')
-                    ->whereBetween('created_at', [$start, $end])
-                    ->count();
-            });
-            $kpiSeries = [
-                'tasks_todo' => $tasksTodoSeries['values'],
-                'tasks_in_progress' => $tasksInProgressSeries['values'],
-                'tasks_done' => $tasksDoneSeries['values'],
-            ];
+            $seriesAnchor = $now->copy()->setTimezone($this->dashboardTimezone($accountOwner));
+            $kpiSeries = $this->ownerDashboardKpiSeriesQuery->currentStateSeriesForKeys(
+                $seriesAnchor,
+                6,
+                [
+                    'tasks_todo' => 'lower_is_better',
+                    'tasks_in_progress' => 'neutral',
+                    'tasks_done' => 'higher_is_better',
+                ],
+            );
 
             $props = [
                 'stats' => $stats,
@@ -902,6 +851,7 @@ class DashboardController extends Controller
         $quotesQuery = Quote::byUser($userId);
         $worksQuery = Work::byUser($userId);
         $invoicesQuery = Invoice::byUser($userId);
+        $currencyCode = $accountOwner?->businessCurrencyCode() ?? (string) config('app.currency', 'CAD');
 
         $inventoryValue = (clone $productsQuery)
             ->select(DB::raw('COALESCE(SUM(stock * COALESCE(NULLIF(cost_price, 0), price)), 0) as value'))
@@ -948,18 +898,23 @@ class DashboardController extends Controller
             ->where('user_id', $userId)
             ->whereNotNull('invoice_id')
             ->whereNull('sale_id')
+            ->where('currency_code', $currencyCode)
             ->settled();
         $posPaymentsQuery = Payment::query()
             ->where('user_id', $userId)
             ->whereNotNull('sale_id')
             ->whereNull('invoice_id')
+            ->where('currency_code', $currencyCode)
             ->settled();
 
-        $revenueBilled = (clone $invoicesQuery)->sum('total');
+        $revenueBilled = (clone $invoicesQuery)
+            ->where('currency_code', $currencyCode)
+            ->where('status', '!=', 'void')
+            ->sum('total');
         $revenuePaid = (float) (clone $invoicePaymentsQuery)->sum('amount');
         $stats['revenue_billed'] = $revenueBilled;
         $stats['revenue_paid'] = $revenuePaid;
-        $stats['revenue_outstanding'] = max(0, $revenueBilled - $revenuePaid);
+        $stats['revenue_outstanding'] = $this->outstandingInvoiceBalance($userId, $currencyCode);
         $stats['payments_month'] = (float) (clone $invoicePaymentsQuery)
             ->whereDate('paid_at', '>=', $startOfMonth)
             ->sum('amount');
@@ -1114,7 +1069,12 @@ class DashboardController extends Controller
         $outstandingInvoices = $canViewInvoices
             ? Invoice::byUser($userId)
                 ->with('customer:id,company_name,first_name,last_name')
-                ->withSum(['payments as payments_sum_amount' => fn ($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount')
+                ->withSum([
+                    'payments as payments_sum_amount' => fn ($query) => $query
+                        ->where('currency_code', $currencyCode)
+                        ->whereIn('status', Payment::settledStatuses()),
+                ], 'amount')
+                ->where('currency_code', $currencyCode)
                 ->whereNotIn('status', ['paid', 'void'])
                 ->orderByDesc('total')
                 ->limit(5)
@@ -1184,91 +1144,14 @@ class DashboardController extends Controller
         $scenarioInsights = $accountOwner
             ? app(DemoScenarioDashboardQuery::class)->execute($accountOwner)
             : null;
-        $seriesMonths = $scenarioInsights ? 12 : 6;
+        $seriesMonths = 12;
+        $seriesTimezone = $this->dashboardTimezone($accountOwner, $scenarioInsights['timezone'] ?? null);
         $seriesAnchor = $scenarioInsights
-            ? Carbon::parse(
-                (string) $scenarioInsights['reference_date'],
-                (string) $scenarioInsights['timezone'],
-            )->endOfDay()
-            : $now;
-        $revenueSeries = $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($userId) {
-            return (float) Payment::query()
-                ->where('user_id', $userId)
-                ->whereNotNull('invoice_id')
-                ->whereNull('sale_id')
-                ->settled()
-                ->whereBetween('paid_at', [$start, $end])
-                ->sum('amount');
-        });
-        $expenseSeries = $accountOwner?->hasCompanyFeature('expenses')
-            ? $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($userId) {
-                return (float) Expense::query()
-                    ->byAccount($userId)
-                    ->whereIn('status', [Expense::STATUS_PAID, Expense::STATUS_REIMBURSED])
-                    ->whereBetween('paid_date', [$start->toDateString(), $end->toDateString()])
-                    ->sum('total');
-            })
-            : ['values' => []];
-        $revenueOutstandingSeries = $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($invoicesQuery) {
-            return (float) (clone $invoicesQuery)
-                ->whereNotIn('status', ['paid', 'void'])
-                ->whereBetween('created_at', [$start, $end])
-                ->sum('total');
-        });
-        $quotesOpenSeries = $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($quotesQuery) {
-            return (clone $quotesQuery)
-                ->whereIn('status', ['draft', 'sent'])
-                ->whereBetween('created_at', [$start, $end])
-                ->count();
-        });
-        $worksInProgressSeries = $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($worksQuery, $inProgressStatuses) {
-            return (clone $worksQuery)
-                ->whereIn('status', $inProgressStatuses)
-                ->whereBetween('created_at', [$start, $end])
-                ->count();
-        });
-        $worksScheduledSeries = $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($worksQuery, $scheduledStatuses) {
-            return (clone $worksQuery)
-                ->whereIn('status', $scheduledStatuses)
-                ->whereBetween('created_at', [$start, $end])
-                ->count();
-        });
-        $customersSeries = $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($customersQuery) {
-            return (clone $customersQuery)
-                ->whereBetween('created_at', [$start, $end])
-                ->count();
-        });
-        $lowStockSeries = $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($productsQuery) {
-            return (clone $productsQuery)
-                ->whereColumn('stock', '<=', 'minimum_stock')
-                ->where('stock', '>', 0)
-                ->whereBetween('updated_at', [$start, $end])
-                ->count();
-        });
-        $invoicesPaidSeries = $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($invoicesQuery) {
-            return (clone $invoicesQuery)
-                ->where('status', 'paid')
-                ->whereBetween('updated_at', [$start, $end])
-                ->count();
-        });
-        $inventorySeries = $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($productsQuery) {
-            return (float) (clone $productsQuery)
-                ->whereBetween('created_at', [$start, $end])
-                ->select(DB::raw('COALESCE(SUM(stock * COALESCE(NULLIF(cost_price, 0), price)), 0) as value'))
-                ->value('value');
-        });
-        $kpiSeries = [
-            'revenue_paid' => $revenueSeries['values'],
-            'revenue_outstanding' => $revenueOutstandingSeries['values'],
-            'quotes_open' => $quotesOpenSeries['values'],
-            'works_scheduled' => $worksScheduledSeries['values'],
-            'works_in_progress' => $worksInProgressSeries['values'],
-            'customers_total' => $customersSeries['values'],
-            'products_low_stock' => $lowStockSeries['values'],
-            'invoices_paid' => $invoicesPaidSeries['values'],
-            'inventory_value' => $inventorySeries['values'],
-        ];
-
+            ? Carbon::parse((string) $scenarioInsights['reference_date'], $seriesTimezone)->endOfDay()
+            : $now->copy()->setTimezone($seriesTimezone);
+        $kpiSeries = $accountOwner
+            ? $this->ownerDashboardKpiSeriesQuery->execute($accountOwner, $seriesAnchor, $seriesMonths)
+            : [];
         $billingService = app(BillingSubscriptionService::class);
         $subscriptionSummary = $accountOwner
             ? $billingService->subscriptionSummary($accountOwner)
@@ -1300,9 +1183,6 @@ class DashboardController extends Controller
             'worksToday' => $worksToday,
             'agendaAlerts' => $agendaAlerts,
             'weekSchedule' => $weekSchedule,
-            'revenueSeries' => array_merge($revenueSeries, [
-                'expenseValues' => $expenseSeries['values'],
-            ]),
             'kpiSeries' => $kpiSeries,
             'announcements' => $internalAnnouncements,
             'quickAnnouncements' => $quickAnnouncements,
@@ -1778,6 +1658,14 @@ class DashboardController extends Controller
         ];
     }
 
+    private function dashboardTimezone(?User $accountOwner, mixed $scenarioTimezone = null): string
+    {
+        $fallback = (string) config('app.timezone', 'UTC');
+        $candidate = trim((string) ($scenarioTimezone ?: $accountOwner?->company_timezone ?: $fallback));
+
+        return in_array($candidate, timezone_identifiers_list(), true) ? $candidate : $fallback;
+    }
+
     private function buildMonthlySeries($now, int $months, callable $resolver): array
     {
         $labels = [];
@@ -2093,10 +1981,14 @@ class DashboardController extends Controller
         if ($accountOwner->hasCompanyFeature('invoices')) {
             $outstandingInvoices = Invoice::query()
                 ->byUser($accountId)
+                ->where('currency_code', $accountOwner->businessCurrencyCode())
                 ->whereNotIn('status', ['paid', 'void']);
 
             $summary['outstanding_invoices_count'] = (clone $outstandingInvoices)->count();
-            $summary['outstanding_invoices_amount'] = (float) (clone $outstandingInvoices)->sum('total');
+            $summary['outstanding_invoices_amount'] = $this->outstandingInvoiceBalance(
+                $accountId,
+                $accountOwner->businessCurrencyCode(),
+            );
             $summary['overdue_invoices_count'] = Invoice::query()
                 ->byUser($accountId)
                 ->where('status', 'overdue')
@@ -2156,6 +2048,31 @@ class DashboardController extends Controller
             + $summary['pending_expense_approvals_count'];
 
         return $summary;
+    }
+
+    private function outstandingInvoiceBalance(int $accountId, string $currencyCode): float
+    {
+        $invoiceBalances = Invoice::query()
+            ->leftJoin('payments', function ($join) {
+                $join->on('payments.invoice_id', '=', 'invoices.id')
+                    ->on('payments.currency_code', '=', 'invoices.currency_code')
+                    ->whereIn('payments.status', Payment::settledStatuses());
+            })
+            ->where('invoices.user_id', $accountId)
+            ->where('invoices.currency_code', $currencyCode)
+            ->whereNotIn('invoices.status', ['paid', 'void'])
+            ->groupBy('invoices.id', 'invoices.total')
+            ->select(['invoices.id', 'invoices.total'])
+            ->selectRaw('COALESCE(SUM(payments.amount), 0) AS amount_paid');
+
+        $balance = DB::query()
+            ->fromSub($invoiceBalances, 'invoice_balances')
+            ->selectRaw(
+                'COALESCE(SUM(CASE WHEN total > amount_paid THEN total - amount_paid ELSE 0 END), 0) AS balance_due'
+            )
+            ->value('balance_due');
+
+        return round((float) $balance, 2);
     }
 
     private function resolveMarketingKpis(?User $accountOwner): ?array

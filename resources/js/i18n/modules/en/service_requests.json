@@ -74,6 +74,16 @@
       "relations": "Relation mix",
       "sources": "Source mix"
     },
+    "source_chart": {
+      "subtitle": "{count} requests in the current filters.",
+      "series": "Requests",
+      "category_label": "Source",
+      "value_label": "Requests",
+      "table_caption": "Exact distribution of requests by source.",
+      "count_and_share": "{count} ({share}%)",
+      "empty": "No sources to display.",
+      "invalid": "The source distribution is inconsistent and cannot be charted."
+    },
     "empty": {
       "title": "No requests yet",
       "body": "New service requests will appear here as soon as they are created or captured."

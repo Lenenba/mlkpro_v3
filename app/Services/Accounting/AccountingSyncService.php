@@ -10,11 +10,16 @@ use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Sale;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 class AccountingSyncService
 {
     private array $accountCache = [];
+
+    private array $batchRevisionCache = [];
+
+    private array $configurationRevisionCache = [];
 
     private array $mappingCache = [];
 
@@ -31,54 +36,111 @@ class AccountingSyncService
     {
         $this->bootstrapService->ensureForAccount($accountId);
         $this->clearCache($accountId);
+        $this->baselineLegacyConfigurationFingerprints($accountId);
 
         $result = [
             'batches_synced' => 0,
             'entries_written' => 0,
             'review_required_batches' => 0,
             'locked_period_skips' => 0,
+            'sources_scanned' => 0,
+            'sources_skipped' => 0,
         ];
 
         Invoice::query()
             ->byUser($accountId)
-            ->with('items:id,invoice_id,total')
+            ->withMax('items', 'updated_at')
+            ->withSum('items', 'total')
             ->get()
             ->each(function (Invoice $invoice) use (&$result, $accountId): void {
+                $sourceFingerprint = $this->invoiceFingerprint($invoice);
+                $result['sources_scanned']++;
+                if (! $this->sourceNeedsSync(
+                    $accountId,
+                    'invoice',
+                    (int) $invoice->id,
+                    $this->invoiceShouldGenerate($invoice) ? ['invoice_issued'] : [],
+                    $sourceFingerprint,
+                    [$invoice->updated_at, $invoice->getAttribute('items_max_updated_at')]
+                )) {
+                    $result['sources_skipped']++;
+
+                    return;
+                }
+
+                $invoice->loadMissing('items:id,invoice_id,total');
                 $synced = $this->syncInvoice($accountId, $invoice);
-                $result['batches_synced'] += $synced['batches_synced'];
-                $result['entries_written'] += $synced['entries_written'];
-                $result['review_required_batches'] += $synced['review_required_batches'];
+                $result = $this->mergeResult($result, $synced);
             });
 
         Payment::query()
             ->where('user_id', $accountId)
-            ->with('invoice:id,user_id,number,approval_status,status', 'sale:id,user_id,number')
+            ->with('invoice:id,user_id,number,approval_status,status,updated_at')
             ->get()
             ->each(function (Payment $payment) use (&$result, $accountId): void {
+                $sourceFingerprint = $this->paymentFingerprint($payment);
+                $result['sources_scanned']++;
+                if (! $this->sourceNeedsSync(
+                    $accountId,
+                    'payment',
+                    (int) $payment->id,
+                    $this->paymentShouldGenerate($payment) ? ['payment_collected'] : [],
+                    $sourceFingerprint,
+                    [$payment->updated_at, $payment->invoice?->updated_at]
+                )) {
+                    $result['sources_skipped']++;
+
+                    return;
+                }
+
                 $synced = $this->syncPayment($accountId, $payment);
-                $result['batches_synced'] += $synced['batches_synced'];
-                $result['entries_written'] += $synced['entries_written'];
-                $result['review_required_batches'] += $synced['review_required_batches'];
+                $result = $this->mergeResult($result, $synced);
             });
 
         Sale::query()
             ->where('user_id', $accountId)
             ->get()
             ->each(function (Sale $sale) use (&$result, $accountId): void {
+                $sourceFingerprint = $this->saleFingerprint($sale);
+                $result['sources_scanned']++;
+                if (! $this->sourceNeedsSync(
+                    $accountId,
+                    'sale',
+                    (int) $sale->id,
+                    $this->saleShouldGenerate($sale) ? ['sale_completed'] : [],
+                    $sourceFingerprint,
+                    [$sale->updated_at]
+                )) {
+                    $result['sources_skipped']++;
+
+                    return;
+                }
+
                 $synced = $this->syncSale($accountId, $sale);
-                $result['batches_synced'] += $synced['batches_synced'];
-                $result['entries_written'] += $synced['entries_written'];
-                $result['review_required_batches'] += $synced['review_required_batches'];
+                $result = $this->mergeResult($result, $synced);
             });
 
         Expense::query()
             ->byAccount($accountId)
             ->get()
             ->each(function (Expense $expense) use (&$result, $accountId): void {
+                $sourceFingerprint = $this->expenseFingerprint($expense);
+                $result['sources_scanned']++;
+                if (! $this->sourceNeedsSync(
+                    $accountId,
+                    'expense',
+                    (int) $expense->id,
+                    $this->expenseEventKeys($expense),
+                    $sourceFingerprint,
+                    [$expense->updated_at]
+                )) {
+                    $result['sources_skipped']++;
+
+                    return;
+                }
+
                 $synced = $this->syncExpense($accountId, $expense);
-                $result['batches_synced'] += $synced['batches_synced'];
-                $result['entries_written'] += $synced['entries_written'];
-                $result['review_required_batches'] += $synced['review_required_batches'];
+                $result = $this->mergeResult($result, $synced);
             });
 
         return $result;
@@ -116,7 +178,8 @@ class AccountingSyncService
             meta: [
                 'source_status' => $invoice->status,
                 'approval_status' => $invoice->approval_status,
-            ]
+            ],
+            sourceFingerprint: $this->invoiceFingerprint($invoice)
         );
     }
 
@@ -201,7 +264,8 @@ class AccountingSyncService
                 'charged_total_variance' => $chargeVariance,
             ],
             creditSplits: $creditSplits,
-            debitSplits: $debitSplits
+            debitSplits: $debitSplits,
+            sourceFingerprint: $this->paymentFingerprint($payment)
         );
     }
 
@@ -242,7 +306,8 @@ class AccountingSyncService
             meta: [
                 'sale_status' => $sale->status,
                 'payment_status' => $sale->payment_status,
-            ]
+            ],
+            sourceFingerprint: $this->saleFingerprint($sale)
         );
     }
 
@@ -282,7 +347,8 @@ class AccountingSyncService
                         'expense_status' => $expense->status,
                         'reimbursement_status' => $expense->reimbursement_status,
                         'category_key' => $expense->category_key,
-                    ]
+                    ],
+                    sourceFingerprint: $this->expenseFingerprint($expense)
                 );
                 $result = $this->mergeResult($result, $synced);
             } else {
@@ -310,7 +376,8 @@ class AccountingSyncService
                         'expense_status' => $expense->status,
                         'reimbursement_status' => $expense->reimbursement_status,
                         'category_key' => $expense->category_key,
-                    ]
+                    ],
+                    sourceFingerprint: $this->expenseFingerprint($expense)
                 );
                 $result = $this->mergeResult($result, $synced);
             } else {
@@ -348,7 +415,8 @@ class AccountingSyncService
                 'expense_status' => $expense->status,
                 'reimbursement_status' => $expense->reimbursement_status,
                 'category_key' => $expense->category_key,
-            ]
+            ],
+            sourceFingerprint: $this->expenseFingerprint($expense)
         );
 
         return $this->mergeResult($result, $synced);
@@ -376,7 +444,8 @@ class AccountingSyncService
         float $taxAmount,
         array $meta = [],
         array $creditSplits = [],
-        array $debitSplits = []
+        array $debitSplits = [],
+        ?string $sourceFingerprint = null
     ): array {
         $existingBatch = AccountingEntryBatch::query()
             ->forUser($accountId)
@@ -430,6 +499,12 @@ class AccountingSyncService
                     'mapping_key' => $mappingKey,
                     'missing_mapping_keys' => $linePayload['missing_mapping_keys'],
                     'source_url' => $this->sourceUrl($sourceType, $sourceId),
+                    'source_fingerprint' => $sourceFingerprint,
+                    'configuration_fingerprint' => $this->configurationRevision(
+                        $accountId,
+                        $domain,
+                        $mappingKey
+                    )['fingerprint'],
                 ]),
             ]
         );
@@ -727,6 +802,331 @@ class AccountingSyncService
         return $sale->status === Sale::STATUS_PAID || $sale->paid_at !== null;
     }
 
+    /**
+     * @param  array<int, string>  $expectedEventKeys
+     * @param  array<int, mixed>  $sourceTimestamps
+     */
+    private function sourceNeedsSync(
+        int $accountId,
+        string $sourceType,
+        int $sourceId,
+        array $expectedEventKeys,
+        string $sourceFingerprint,
+        array $sourceTimestamps
+    ): bool {
+        $sourceKey = $this->batchRevisionSourceKey($sourceType, $sourceId);
+        $existingRevisions = $this->batchRevisions($accountId)[$sourceKey] ?? [];
+        $existingEventKeys = array_keys($existingRevisions);
+        sort($existingEventKeys);
+        sort($expectedEventKeys);
+
+        if ($existingEventKeys !== $expectedEventKeys) {
+            return true;
+        }
+
+        if ($expectedEventKeys === []) {
+            return false;
+        }
+
+        foreach ($expectedEventKeys as $eventKey) {
+            $existingRevision = $existingRevisions[$eventKey];
+            $configurationRevision = $this->configurationRevisionForEvent($accountId, $eventKey);
+            $storedSourceFingerprint = $existingRevision['source_fingerprint'];
+            $storedConfigurationFingerprint = $existingRevision['configuration_fingerprint'];
+
+            if (is_string($storedSourceFingerprint) && $storedSourceFingerprint !== $sourceFingerprint) {
+                return true;
+            }
+
+            if (is_string($storedConfigurationFingerprint)
+                && $storedConfigurationFingerprint !== $configurationRevision['fingerprint']) {
+                return true;
+            }
+
+            if (! is_string($storedSourceFingerprint)) {
+                $generatedAt = $existingRevision['generated_at'];
+                $changedAt = $this->latestTimestamp($sourceTimestamps);
+
+                if (! $generatedAt || ($changedAt && $changedAt->gt($generatedAt))) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function expenseEventKeys(Expense $expense): array
+    {
+        $isPaidLike = in_array($expense->status, [Expense::STATUS_PAID, Expense::STATUS_REIMBURSED], true);
+        $isReimbursed = $expense->reimbursable
+            && (
+                $expense->reimbursement_status === Expense::REIMBURSEMENT_STATUS_REIMBURSED
+                || $expense->status === Expense::STATUS_REIMBURSED
+            );
+
+        if ($expense->reimbursable) {
+            return array_values(array_filter([
+                $isPaidLike ? 'reimbursable_expense_paid' : null,
+                $isReimbursed ? 'reimbursable_expense_reimbursed' : null,
+            ]));
+        }
+
+        return $isPaidLike ? ['expense_paid'] : [];
+    }
+
+    private function invoiceFingerprint(Invoice $invoice): string
+    {
+        $itemsTotal = $invoice->getAttribute('items_sum_total');
+        if ($itemsTotal === null && $invoice->relationLoaded('items')) {
+            $itemsTotal = $invoice->items->sum('total');
+        }
+
+        return $this->fingerprint([
+            'approval_status' => $invoice->approval_status,
+            'created_at' => optional($invoice->created_at)->toIso8601String(),
+            'currency_code' => $invoice->currency_code,
+            'items_total' => $itemsTotal === null ? null : round((float) $itemsTotal, 2),
+            'number' => $invoice->number,
+            'status' => $invoice->status,
+            'subtotal' => $invoice->subtotal === null ? null : round((float) $invoice->subtotal, 2),
+            'total' => round((float) $invoice->total, 2),
+        ]);
+    }
+
+    private function paymentFingerprint(Payment $payment): string
+    {
+        return $this->fingerprint([
+            'amount' => round((float) $payment->amount, 2),
+            'charged_total' => $payment->charged_total === null ? null : round((float) $payment->charged_total, 2),
+            'created_at' => optional($payment->created_at)->toIso8601String(),
+            'currency_code' => $payment->currency_code,
+            'invoice_approval_status' => $payment->invoice?->approval_status,
+            'invoice_id' => $payment->invoice_id,
+            'invoice_number' => $payment->invoice?->number,
+            'invoice_status' => $payment->invoice?->status,
+            'paid_at' => optional($payment->paid_at)->toIso8601String(),
+            'reference' => $payment->reference,
+            'sale_id' => $payment->sale_id,
+            'status' => $payment->status,
+            'tip_amount' => round((float) ($payment->tip_amount ?? 0), 2),
+            'tip_reversed_amount' => round((float) ($payment->tip_reversed_amount ?? 0), 2),
+        ]);
+    }
+
+    private function saleFingerprint(Sale $sale): string
+    {
+        return $this->fingerprint([
+            'created_at' => optional($sale->created_at)->toIso8601String(),
+            'currency_code' => $sale->currency_code,
+            'number' => $sale->number,
+            'paid_at' => optional($sale->paid_at)->toIso8601String(),
+            'payment_status' => $sale->payment_status,
+            'status' => $sale->status,
+            'subtotal' => round((float) ($sale->subtotal ?? 0), 2),
+            'tax_total' => round((float) ($sale->tax_total ?? 0), 2),
+            'total' => round((float) $sale->total, 2),
+        ]);
+    }
+
+    private function expenseFingerprint(Expense $expense): string
+    {
+        return $this->fingerprint([
+            'category_key' => $expense->category_key,
+            'currency_code' => $expense->currency_code,
+            'expense_date' => optional($expense->expense_date)->toDateString(),
+            'paid_date' => optional($expense->paid_date)->toDateString(),
+            'reimbursable' => (bool) $expense->reimbursable,
+            'reimbursed_at' => optional($expense->reimbursed_at)->toIso8601String(),
+            'reimbursement_status' => $expense->reimbursement_status,
+            'reference_number' => $expense->reference_number,
+            'status' => $expense->status,
+            'tax_amount' => round((float) ($expense->tax_amount ?? 0), 2),
+            'title' => $expense->title,
+            'total' => round((float) $expense->total, 2),
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $values
+     */
+    private function fingerprint(array $values): string
+    {
+        return hash('sha256', json_encode($values, JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION));
+    }
+
+    /**
+     * @return array<string, array<string, array{generated_at: Carbon|null, source_fingerprint: mixed, configuration_fingerprint: mixed}>>
+     */
+    private function batchRevisions(int $accountId): array
+    {
+        if (! array_key_exists($accountId, $this->batchRevisionCache)) {
+            $this->batchRevisionCache[$accountId] = AccountingEntryBatch::query()
+                ->forUser($accountId)
+                ->get([
+                    'source_type',
+                    'source_id',
+                    'source_event_key',
+                    'generated_at',
+                    'meta',
+                ])
+                ->groupBy(fn (AccountingEntryBatch $batch) => $this->batchRevisionSourceKey(
+                    $batch->source_type,
+                    (int) $batch->source_id
+                ))
+                ->map(fn (Collection $batches) => $batches->mapWithKeys(fn (AccountingEntryBatch $batch) => [
+                    $batch->source_event_key => [
+                        'generated_at' => $batch->generated_at,
+                        'source_fingerprint' => data_get($batch->meta, 'source_fingerprint'),
+                        'configuration_fingerprint' => data_get($batch->meta, 'configuration_fingerprint'),
+                    ],
+                ])->all())
+                ->all();
+        }
+
+        return $this->batchRevisionCache[$accountId];
+    }
+
+    private function batchRevisionSourceKey(string $sourceType, int $sourceId): string
+    {
+        return $sourceType.':'.$sourceId;
+    }
+
+    private function baselineLegacyConfigurationFingerprints(int $accountId): void
+    {
+        $hasLegacyBatches = AccountingEntryBatch::query()
+            ->forUser($accountId)
+            ->whereNull('meta->configuration_fingerprint')
+            ->exists();
+
+        if (! $hasLegacyBatches) {
+            return;
+        }
+
+        foreach ([
+            'invoice_issued',
+            'payment_collected',
+            'sale_completed',
+            'expense_paid',
+            'reimbursable_expense_paid',
+            'reimbursable_expense_reimbursed',
+        ] as $eventKey) {
+            $configurationFingerprint = $this->configurationRevisionForEvent($accountId, $eventKey)['fingerprint'];
+
+            AccountingEntryBatch::query()
+                ->forUser($accountId)
+                ->where('source_event_key', $eventKey)
+                ->whereNull('meta->configuration_fingerprint')
+                ->update([
+                    'meta->configuration_fingerprint' => $configurationFingerprint,
+                ]);
+        }
+
+        unset($this->batchRevisionCache[$accountId]);
+    }
+
+    /**
+     * @return array{fingerprint: string, updated_at: Carbon|null}
+     */
+    private function configurationRevisionForEvent(int $accountId, string $eventKey): array
+    {
+        [$domain, $mappingKey] = match ($eventKey) {
+            'invoice_issued' => ['invoices', 'invoice_issued'],
+            'payment_collected' => ['payments', 'payment_collected'],
+            'sale_completed' => ['sales', 'sale_completed'],
+            'expense_paid' => ['expenses', 'expense_paid'],
+            'reimbursable_expense_paid' => ['expenses', 'reimbursable_expense_paid'],
+            'reimbursable_expense_reimbursed' => ['expenses', 'reimbursable_expense_reimbursed'],
+        };
+
+        return $this->configurationRevision($accountId, $domain, $mappingKey);
+    }
+
+    /**
+     * @return array{fingerprint: string, updated_at: Carbon|null}
+     */
+    private function configurationRevision(int $accountId, string $domain, string $mappingKey): array
+    {
+        $cacheKey = $domain.'.'.$mappingKey;
+        if (! array_key_exists($accountId, $this->configurationRevisionCache)) {
+            $accounts = AccountingAccount::query()
+                ->forUser($accountId)
+                ->orderBy('id')
+                ->get(['id', 'key', 'is_active', 'updated_at']);
+            $mappings = AccountingMapping::query()
+                ->forUser($accountId)
+                ->orderBy('id')
+                ->get([
+                    'source_domain',
+                    'source_key',
+                    'debit_account_id',
+                    'credit_account_id',
+                    'tax_account_id',
+                    'is_active',
+                    'updated_at',
+                ]);
+
+            $this->configurationRevisionCache[$accountId] = [
+                'accounts' => $accounts,
+                'mappings' => $mappings->keyBy(fn (AccountingMapping $mapping) => $mapping->source_domain.'.'.$mapping->source_key),
+                'revisions' => [],
+            ];
+        }
+
+        if (! array_key_exists($cacheKey, $this->configurationRevisionCache[$accountId]['revisions'])) {
+            /** @var Collection<int, AccountingAccount> $accounts */
+            $accounts = $this->configurationRevisionCache[$accountId]['accounts'];
+            /** @var AccountingMapping|null $mapping */
+            $mapping = $this->configurationRevisionCache[$accountId]['mappings']->get($cacheKey);
+            $accountIds = collect([
+                $mapping?->debit_account_id,
+                $mapping?->credit_account_id,
+                $mapping?->tax_account_id,
+            ])->filter()->map(fn ($id) => (int) $id);
+            $relevantAccounts = $accounts
+                ->filter(fn (AccountingAccount $account) => $accountIds->contains((int) $account->id)
+                    || in_array($account->key, ['suspense', 'tips_payable'], true))
+                ->values();
+
+            $this->configurationRevisionCache[$accountId]['revisions'][$cacheKey] = [
+                'fingerprint' => $this->fingerprint([
+                    'accounts' => $relevantAccounts->map(fn (AccountingAccount $account) => [
+                        'id' => (int) $account->id,
+                        'is_active' => (bool) $account->is_active,
+                        'key' => $account->key,
+                    ])->all(),
+                    'mapping' => $mapping ? [
+                        'credit_account_id' => $mapping->credit_account_id,
+                        'debit_account_id' => $mapping->debit_account_id,
+                        'is_active' => (bool) $mapping->is_active,
+                        'tax_account_id' => $mapping->tax_account_id,
+                    ] : null,
+                ]),
+                'updated_at' => $this->latestTimestamp([
+                    $mapping?->updated_at,
+                    ...$relevantAccounts->pluck('updated_at')->all(),
+                ]),
+            ];
+        }
+
+        return $this->configurationRevisionCache[$accountId]['revisions'][$cacheKey];
+    }
+
+    /**
+     * @param  array<int, mixed>  $timestamps
+     */
+    private function latestTimestamp(array $timestamps): ?Carbon
+    {
+        return collect($timestamps)
+            ->filter()
+            ->map(fn ($timestamp) => $timestamp instanceof Carbon ? $timestamp : Carbon::parse($timestamp))
+            ->sortDesc()
+            ->first();
+    }
+
     private function resolveInvoiceSubtotal(Invoice $invoice): float
     {
         if ($invoice->subtotal !== null) {
@@ -765,7 +1165,12 @@ class AccountingSyncService
 
     private function clearCache(int $accountId): void
     {
-        unset($this->accountCache[$accountId], $this->mappingCache[$accountId]);
+        unset(
+            $this->accountCache[$accountId],
+            $this->batchRevisionCache[$accountId],
+            $this->configurationRevisionCache[$accountId],
+            $this->mappingCache[$accountId]
+        );
     }
 
     private function accountByKey(int $accountId, string $key): ?AccountingAccount
@@ -836,6 +1241,8 @@ class AccountingSyncService
             'entries_written' => 0,
             'review_required_batches' => 0,
             'locked_period_skips' => 0,
+            'sources_scanned' => 0,
+            'sources_skipped' => 0,
         ];
     }
 

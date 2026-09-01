@@ -2,6 +2,7 @@
 
 namespace App\Queries\Quotes;
 
+use App\Enums\CurrencyCode;
 use App\Models\Quote;
 use App\Services\Quotes\QuoteRecoveryPriorityScorer;
 use App\Support\DataTablePagination;
@@ -77,6 +78,7 @@ class BuildQuoteRecoveryIndexData
             'count' => $sortedItems->count(),
             'stats' => $this->analyticsData->execute($sortedItems),
             'topQuotes' => $this->topQuotes($sortedItems),
+            'quoteValueMeta' => $this->quoteValueMeta($sortedItems),
         ];
     }
 
@@ -284,6 +286,25 @@ class BuildQuoteRecoveryIndexData
             ->take(5)
             ->values()
             ->all();
+    }
+
+    /**
+     * @return array{currency_codes:array<int, string>,is_currency_consistent:bool}
+     */
+    private function quoteValueMeta(Collection $items): array
+    {
+        $currencyCodes = $items
+            ->map(fn (Quote $quote): string => CurrencyCode::tryFromMixed($quote->currency_code)?->value
+                ?? 'UNKNOWN')
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        return [
+            'currency_codes' => $currencyCodes,
+            'is_currency_consistent' => count($currencyCodes) <= 1,
+        ];
     }
 
     private function normalizeQueueFilter(?string $queue): ?string

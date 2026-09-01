@@ -10,11 +10,23 @@
       "out_of_stock": "Out of stock",
       "rotation": "Stock rotation"
     },
+    "stock_chart": {
+      "title": "Stock status distribution",
+      "subtitle": "Products in stock, requiring attention, or out of stock within the filtered results.",
+      "total_label": "Products",
+      "category_label": "Stock status",
+      "value_label": "Products",
+      "table_caption": "Exact product distribution by stock status"
+    },
     "usage": {
       "title": "Most used products",
-      "subtitle": "Based on quotes and jobs",
+      "subtitle": "Based on quotes, jobs, and paid sales",
       "used": "{count} used",
-      "empty": "No usage data yet."
+      "empty": "No usage data yet.",
+      "series_label": "Used quantity",
+      "category_label": "Product",
+      "value_label": "Used quantity",
+      "table_caption": "Exact ranking of the most used products"
     },
     "aria": {
       "dropdown": "Dropdown"

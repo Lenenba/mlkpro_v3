@@ -271,7 +271,14 @@
       "recovery_subtitle": "Presion de seguimiento y senales de conversion sobre las cotizaciones filtradas.",
       "top_by_value": "Cotizaciones principales por valor",
       "based_on_filters": "Basado en filtros actuales",
-      "empty": "Aún no hay datos de cotización."
+      "empty": "Aún no hay datos de cotización.",
+      "top_chart_subtitle": "Las {displayed} cotizaciones más altas de {count} filtradas, en {currency}.",
+      "value_series": "Valor de la cotización",
+      "quote_label": "Cotización y cliente",
+      "value_label": "Valor",
+      "top_chart_table_caption": "Valores exactos de las principales cotizaciones filtradas",
+      "chart_invalid": "Las cotizaciones no se pueden comparar porque los datos están incompletos o su divisa no coincide con la divisa activa.",
+      "mixed_currency_context": "Importe oculto: las divisas presentes ({currencies}) no coinciden todas con la divisa activa y no se aplica ninguna conversión."
     },
     "recovery": {
       "label": "Recovery",

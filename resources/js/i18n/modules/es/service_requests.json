@@ -74,6 +74,16 @@
       "relations": "Distribucion de relaciones",
       "sources": "Distribucion de fuentes"
     },
+    "source_chart": {
+      "subtitle": "{count} solicitudes en los filtros actuales.",
+      "series": "Solicitudes",
+      "category_label": "Fuente",
+      "value_label": "Solicitudes",
+      "table_caption": "Distribución exacta de solicitudes por fuente.",
+      "count_and_share": "{count} ({share} %)",
+      "empty": "No hay fuentes para mostrar.",
+      "invalid": "La distribución de fuentes es incoherente y no se puede representar."
+    },
     "empty": {
       "title": "Todavia no hay solicitudes",
       "body": "Las nuevas solicitudes de servicio apareceran aqui en cuanto se creen o se capturen."

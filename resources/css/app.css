@@ -62,6 +62,22 @@
     --app-scrollbar-thumb: #cbd5e1;
     --app-destructive: #dc2626;
     --app-destructive-50: #fef2f2;
+    --chart-surface: #ffffff;
+    --chart-surface-muted: #fafaf9;
+    --chart-border: #e7e5e4;
+    --chart-grid: #e7e5e4;
+    --chart-label: #292524;
+    --chart-axis: #78716c;
+    --chart-reference: #57534e;
+    --chart-series-emerald: #059669;
+    --chart-series-blue: #2563eb;
+    --chart-series-violet: #7c3aed;
+    --chart-series-amber: #d97706;
+    --chart-series-rose: #e11d48;
+    --chart-series-neutral: #78716c;
+    --chart-area-opacity: 0.12;
+    --chart-stroke-width: 2;
+    --chart-grid-stroke-width: 1;
   }
 
   html.dark {
@@ -118,6 +134,19 @@
     --app-scrollbar-thumb: #334155;
     --app-destructive: #ef4444;
     --app-destructive-50: #7f1d1d;
+    --chart-surface: #262626;
+    --chart-surface-muted: #171717;
+    --chart-border: #404040;
+    --chart-grid: #404040;
+    --chart-label: #f5f5f5;
+    --chart-axis: #a3a3a3;
+    --chart-reference: #d4d4d4;
+    --chart-series-emerald: #34d399;
+    --chart-series-blue: #60a5fa;
+    --chart-series-violet: #a78bfa;
+    --chart-series-amber: #fbbf24;
+    --chart-series-rose: #fb7185;
+    --chart-series-neutral: #a3a3a3;
   }
 
   html,
@@ -173,6 +202,22 @@
     --a11y-hc-border: #475569;
     --a11y-hc-text: #0f172a;
     --a11y-hc-muted: #334155;
+    --chart-surface: var(--a11y-hc-surface);
+    --chart-surface-muted: var(--a11y-hc-card);
+    --chart-border: var(--a11y-hc-border);
+    --chart-grid: var(--a11y-hc-border);
+    --chart-label: var(--a11y-hc-text);
+    --chart-axis: var(--a11y-hc-muted);
+    --chart-reference: var(--a11y-hc-text);
+    --chart-series-emerald: #047857;
+    --chart-series-blue: #1d4ed8;
+    --chart-series-violet: #6d28d9;
+    --chart-series-amber: #b45309;
+    --chart-series-rose: #be123c;
+    --chart-series-neutral: #334155;
+    --chart-area-opacity: 0.18;
+    --chart-stroke-width: 2.5;
+    --chart-grid-stroke-width: 1.25;
   }
 
   html.dark[data-contrast='high'],
@@ -183,6 +228,12 @@
     --a11y-hc-border: #5b6b7f;
     --a11y-hc-text: #f8fafc;
     --a11y-hc-muted: #cbd5e1;
+    --chart-series-emerald: #6ee7b7;
+    --chart-series-blue: #93c5fd;
+    --chart-series-violet: #c4b5fd;
+    --chart-series-amber: #fcd34d;
+    --chart-series-rose: #fda4af;
+    --chart-series-neutral: #e5e5e5;
   }
 
   html[data-contrast='high'] body,

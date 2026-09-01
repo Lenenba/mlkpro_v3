@@ -10,13 +10,38 @@ const props = defineProps({
         type: Object,
         required: true,
     },
+    currencyMeta: {
+        type: Object,
+        default: () => ({}),
+    },
+    currencyCode: {
+        type: String,
+        default: 'CAD',
+    },
 });
 
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
-const { formatCurrency } = useCurrencyFormatter();
 const { t } = useI18n();
+const preferredCurrency = computed(() => props.currencyCode);
+const { formatCurrency } = useCurrencyFormatter(preferredCurrency);
+const filteredCurrencyCodes = computed(() => Array.isArray(props.currencyMeta?.currency_codes)
+    ? [...new Set(props.currencyMeta.currency_codes.map((code) => String(code || '').trim().toUpperCase()))]
+        .filter(Boolean)
+    : []);
+const hasComparableCurrency = computed(() => Number(props.stats?.total || 0) === 0
+    ? filteredCurrencyCodes.value.length === 0
+    : filteredCurrencyCodes.value.length === 1
+        && filteredCurrencyCodes.value[0] === String(props.currencyCode || '').trim().toUpperCase());
+const formatComparableCurrency = (value) => hasComparableCurrency.value
+    ? formatCurrency(value, props.currencyCode)
+    : '—';
+const currencyContext = computed(() => hasComparableCurrency.value
+    ? ''
+    : t('quotes.stats.mixed_currency_context', {
+        currencies: filteredCurrencyCodes.value.join(', '),
+    }));
 
 const portfolioCards = computed(() => ([
     {
@@ -29,13 +54,15 @@ const portfolioCards = computed(() => ([
         key: 'total_value',
         tone: 'emerald',
         label: t('quotes.stats.total_value'),
-        value: formatCurrency(props.stats.total_value),
+        value: formatComparableCurrency(props.stats.total_value),
+        context: currencyContext.value,
     },
     {
         key: 'average_value',
         tone: 'sky',
         label: t('quotes.stats.average_value'),
-        value: formatCurrency(props.stats.average_value),
+        value: formatComparableCurrency(props.stats.average_value),
+        context: currencyContext.value,
     },
     {
         key: 'open',

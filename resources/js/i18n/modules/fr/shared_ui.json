@@ -35,5 +35,22 @@
     "title": "Indicateurs",
     "show": "Afficher les indicateurs",
     "hide": "Masquer les indicateurs"
+  },
+  "charts": {
+    "default_title": "Graphique",
+    "loading": "Chargement du graphique…",
+    "empty": "Aucune donnée à afficher.",
+    "error": "Impossible d’afficher le graphique.",
+    "retry": "Réessayer",
+    "mini_summary": "{label} : {count} valeurs, de {first} à {last}.",
+    "show_data": "Afficher les données",
+    "hide_data": "Masquer les données",
+    "show_named_data": "Afficher les données — {title}",
+    "hide_named_data": "Masquer les données — {title}",
+    "data_table_caption": "Données accessibles du graphique",
+    "named_data_table_caption": "Données du graphique « {title} »",
+    "category": "Catégorie",
+    "value": "Valeur",
+    "series": "Série {number}"
   }
 }

@@ -435,6 +435,25 @@
           "by_assignee": "By assignee",
           "by_assignee_note": "Sorted by overdue follow-ups, then owned volume."
         },
+        "charts": {
+          "status_title": "Prospects by status",
+          "status_subtitle": "Exact count of active, non-archived prospects at each stage.",
+          "source_title": "Volume and conversion by source",
+          "source_subtitle": "Compares total prospects with those converted to customers.",
+          "total_series": "Prospects",
+          "converted_series": "Converted",
+          "overdue_series": "Overdue",
+          "status_category": "Status",
+          "source_category": "Source",
+          "assignee_category": "Assignee",
+          "count_value": "Prospect count",
+          "status_table_caption": "Prospect distribution data by status",
+          "source_table_caption": "Prospect volume and conversion data by source",
+          "assignee_table_caption": "Exact workload and overdue follow-ups by assignee",
+          "assignee_details_label": "Operational details by assignee",
+          "source_details_label": "Exact details by source",
+          "source_detail": "{converted} converted · {won} won · {lost} lost · {rate}"
+        },
         "labels": {
           "due_today": "Due today",
           "overdue": "Overdue",
@@ -494,6 +513,16 @@
         "utm_mediums": "Mediums",
         "utm_campaigns": "Campaigns",
         "no_utm": "No UTM data"
+      },
+      "charts": {
+        "source_conversion_title": "Conversion by source",
+        "source_conversion_subtitle": "Share of won prospects among those created in the last {days} days.",
+        "source_rate_series": "Conversion rate",
+        "source_category": "Source",
+        "percent_value": "Conversion rate",
+        "source_table_caption": "Prospect conversion rate data by source",
+        "source_details_label": "Exact conversion details by source",
+        "source_detail": "{won} won out of {total} prospects · {rate}"
       },
       "by_source": "Conversion by source",
       "no_data": "No data yet.",

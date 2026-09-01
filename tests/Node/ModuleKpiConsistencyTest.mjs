@@ -2,7 +2,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import test from 'node:test';
-import { buildKpiProgress, buildSparklinePoints, buildTrend } from '../../resources/js/utils/kpi.js';
+import {
+    buildKpiProgress,
+    buildKpiSeriesData,
+    buildSparklinePoints,
+    buildTrend,
+} from '../../resources/js/utils/kpi.js';
 
 const read = (path) => readFileSync(resolve(path), 'utf8');
 
@@ -62,7 +67,7 @@ test('shared KPI contract preserves loading, test IDs, interaction, and auto-fit
 
     assert.match(metricCard, /:aria-busy="metric\.loading \? 'true' : undefined"/u);
     assert.match(metricCard, /v-if="metric\.loading"/u);
-    assert.match(metricCard, /animate-pulse/u);
+    assert.match(metricCard, /motion-safe:animate-pulse/u);
     assert.match(metricCard, /:data-testid="metric\.testId"/u);
     assert.match(metricCard, /:data-measurement-status="metric\.measurementStatus"/u);
     assert.match(metricCard, /const progress = computed/u);
@@ -139,6 +144,112 @@ test('shared KPI graphics stay empty until a real series is available', () => {
     assert.equal(buildTrend([12]), null);
     assert.equal(buildSparklinePoints([0, 2]).length, 2);
     assert.equal(buildTrend([0, 2])?.direction, 'up');
+    assert.deepEqual(buildSparklinePoints([0, null, 2]), []);
+    assert.deepEqual(buildSparklinePoints([0, false, 2]), []);
+    assert.equal(buildTrend([0, '']), null);
+});
+
+test('shared KPI series adapter preserves legacy data and trusts structured measurement metadata', () => {
+    const legacy = buildKpiSeriesData([10, 15], 'up');
+    assert.deepEqual(legacy.values, [10, 15]);
+    assert.equal(legacy.points.length, 2);
+    assert.equal(legacy.trend?.direction, 'up');
+
+    const structured = buildKpiSeriesData({
+        labels: ['2026-07', '2026-08', 'ignored'],
+        values: ['80', '40'],
+        granularity: 'month',
+        measurement: 'flow',
+        isTemporal: true,
+        semanticDirection: 'lower_is_better',
+        comparison: {
+            current: 40,
+            previous: 80,
+            delta: -40,
+            percent: 50,
+            direction: 'down',
+            isFavorable: true,
+        },
+    }, 'up');
+
+    assert.deepEqual(structured.labels, ['2026-07', '2026-08']);
+    assert.deepEqual(structured.values, [80, 40]);
+    assert.deepEqual(structured.points.map((point) => point.label), structured.labels);
+    assert.deepEqual(structured.trend, {
+        diff: -40,
+        direction: 'down',
+        isPositive: true,
+        percent: 50,
+    });
+
+    const currentState = buildKpiSeriesData({
+        labels: ['2026-08'],
+        values: [12],
+        measurement: 'current_state',
+        isTemporal: false,
+        comparison: {
+            delta: 12,
+            percent: null,
+            direction: 'up',
+            isFavorable: false,
+        },
+    });
+    assert.deepEqual(currentState.points, []);
+    assert.equal(currentState.trend, null);
+
+    const noComparison = buildKpiSeriesData({
+        labels: ['2026-07', '2026-08'],
+        values: [5, 8],
+        isTemporal: true,
+        comparison: null,
+    });
+    assert.equal(noComparison.points.length, 2);
+    assert.equal(noComparison.trend, null);
+
+    const incompleteHistory = buildKpiSeriesData({
+        labels: ['2026-05', '2026-06', '2026-07', '2026-08'],
+        values: [5, null, 7, 8],
+        isTemporal: true,
+        comparison: {
+            delta: '',
+            percent: 12,
+        },
+    });
+    assert.deepEqual(incompleteHistory.values, [5, null, 7, 8]);
+    assert.deepEqual(incompleteHistory.points, []);
+    assert.equal(incompleteHistory.trend, null);
+});
+
+test('all dashboard roles consume KPI series through the shared adapter', () => {
+    for (const path of [
+        'resources/js/Pages/Dashboard.vue',
+        'resources/js/Pages/DashboardAdmin.vue',
+        'resources/js/Pages/DashboardMember.vue',
+        'resources/js/Pages/DashboardClient.vue',
+    ]) {
+        const source = read(path);
+
+        assert.match(source, /import \{ buildKpiSeriesData \} from '@\/utils\/kpi'/u, path);
+        assert.match(source, /buildKpiSeriesData\(kpiSeries\.value\?\.\[key\], config\.direction\)/u, path);
+        assert.doesNotMatch(source, /buildTrend\(values, config\.direction\)/u, path);
+    }
+});
+
+test('dashboard mini charts receive the complete structured KPI series', () => {
+    const dashboard = read('resources/js/Pages/Dashboard.vue');
+    const metricCard = read('resources/js/Components/Dashboard/KpiMetricCard.vue');
+    const outstandingStart = dashboard.indexOf("key: 'revenue-outstanding'");
+    const outstandingEnd = dashboard.indexOf("key: 'client-follow-up'", outstandingStart);
+    const outstandingMetric = dashboard.slice(outstandingStart, outstandingEnd);
+
+    assert.match(
+        dashboard,
+        /key: 'revenue-paid'[\s\S]*?chart: \{[\s\S]*?type: 'area',[\s\S]*?series: kpiData\.value\.revenue_paid/u,
+    );
+    assert.match(metricCard, /:chart="metric\.chart"/u);
+    assert.match(metricCard, /:points="metric\.points"/u);
+    assert.ok(outstandingStart >= 0 && outstandingEnd > outstandingStart);
+    assert.doesNotMatch(outstandingMetric, /\bchart:\s*\{/u, 'current-state KPIs stay chartless until snapshots exist');
 });
 
 test('temporal KPI graphics use chronological source data instead of unrelated snapshots', () => {
@@ -155,7 +266,8 @@ test('temporal KPI graphics use chronological source data instead of unrelated s
     assert.match(campaign, /runSummaryValue\(run, field\.key\)/u);
     assert.match(campaign, /points: series\.length \? buildSparklinePoints\(series\) : \[\]/u);
 
-    assert.match(expenseRecap, /const values = \[Number\(previous\), Number\(current\)\]/u);
+    assert.doesNotMatch(expenseRecap, /buildSparklinePoints|totalSpentSeries/u);
+    assert.match(expenseRecap, /kpis\.value\.total_delta_percent/u);
     assert.match(product, /runningTotal -= Number\(movement\.quantity\)/u);
     assert.match(product, /newestToOldest\.reverse\(\)/u);
 

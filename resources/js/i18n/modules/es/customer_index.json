@@ -142,7 +142,25 @@
       "actions": "{count} acciones",
       "empty": "Aún no hay actividad del cliente.",
       "quotes_short": "q",
-      "jobs_short": "j"
+      "jobs_short": "j",
+      "quotes_series": "Cotizaciones",
+      "jobs_series": "Trabajos",
+      "category_label": "Cliente",
+      "value_label": "Número de acciones",
+      "table_caption": "Clasificación exacta de clientes por actividad de cotizaciones y trabajos"
+    },
+    "growth": {
+      "title": "Nuevos clientes por semana",
+      "subtitle": "Las 12 últimas semanas completas comparadas con las 12 semanas completas anteriores",
+      "period": "Periodo actual: {currentStart} – {currentEnd} · anterior: {previousStart} – {previousEnd}",
+      "legend_label": "Períodos comparados",
+      "current_series": "12 últimas semanas completas",
+      "previous_series": "12 semanas completas anteriores",
+      "week_label": "Semana que comienza",
+      "value_label": "Nuevos clientes",
+      "table_caption": "Conteos semanales exactos de nuevos clientes para los períodos actual y anterior",
+      "empty": "No hay nuevos clientes en las últimas 24 semanas completas.",
+      "invalid": "La tendencia de nuevos clientes no está disponible."
     },
     "view": {
       "table": "Tabla",

@@ -222,13 +222,17 @@ const formatAbsoluteDate = (value) => {
 
 const formatRelativeDate = (value) => humanizeDate(value, { now: props.reference_time }) || '-';
 
-const progressWidth = (value) => {
-    const numericValue = Math.max(0, Math.min(100, Number(value || 0)));
+const normalizedProgressValue = (value) => {
+    const numericValue = Number(value);
 
-    return {
-        width: numericValue > 0 ? `${Math.max(4, numericValue)}%` : '0%',
-    };
+    return Number.isFinite(numericValue)
+        ? Math.max(0, Math.min(100, numericValue))
+        : 0;
 };
+
+const progressWidth = (value) => ({
+    width: `${normalizedProgressValue(value)}%`,
+});
 
 const itemCurrency = (item) => item?.quote?.currency_code || item?.opportunity?.amount?.currency_code || null;
 
@@ -491,7 +495,14 @@ const openedLabel = (item) => {
                                     <span>{{ t('crm_manager_dashboard.labels.weighted_share') }}</span>
                                     <span>{{ formatPercent(category.share_percent || 0) }}</span>
                                 </div>
-                                <div class="mt-2 h-2 rounded-full bg-white/70 dark:bg-neutral-900/70">
+                                <div
+                                    class="mt-2 h-2 rounded-full bg-white/70 dark:bg-neutral-900/70"
+                                    role="progressbar"
+                                    aria-valuemin="0"
+                                    aria-valuemax="100"
+                                    :aria-valuenow="normalizedProgressValue(category.share_percent)"
+                                    :aria-label="`${t(`crm_manager_dashboard.categories.${category.key}`)} — ${t('crm_manager_dashboard.labels.weighted_share')}`"
+                                >
                                     <div
                                         class="h-2 rounded-full bg-current transition-all"
                                         :style="progressWidth(category.share_percent)"
@@ -616,7 +627,14 @@ const openedLabel = (item) => {
                                 <span>{{ t('crm_manager_dashboard.labels.weighted_share') }}</span>
                                 <span>{{ formatPercent(stage.share_percent || 0) }}</span>
                             </div>
-                            <div class="mt-2 h-2 rounded-full bg-stone-200 dark:bg-neutral-800">
+                            <div
+                                class="mt-2 h-2 rounded-full bg-stone-200 dark:bg-neutral-800"
+                                role="progressbar"
+                                aria-valuemin="0"
+                                aria-valuemax="100"
+                                :aria-valuenow="normalizedProgressValue(stage.share_percent)"
+                                :aria-label="`${stage.label} — ${t('crm_manager_dashboard.labels.weighted_share')}`"
+                            >
                                 <div
                                     class="h-2 rounded-full bg-teal-500 transition-all dark:bg-teal-400"
                                     :style="progressWidth(stage.share_percent)"

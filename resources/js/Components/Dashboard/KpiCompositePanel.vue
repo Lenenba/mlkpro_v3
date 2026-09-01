@@ -43,6 +43,10 @@ defineProps({
         type: Boolean,
         default: false,
     },
+    showVisual: {
+        type: Boolean,
+        default: false,
+    },
 });
 </script>
 
@@ -81,6 +85,13 @@ defineProps({
             />
 
             <div
+                v-if="showVisual && $slots.visual"
+                class="mt-4 min-w-0 border-t border-stone-200 pt-4 dark:border-neutral-700"
+            >
+                <slot name="visual"></slot>
+            </div>
+
+            <div
                 v-if="summaryItems.length"
                 class="mt-4 grid min-w-0 gap-2"
                 :class="summaryGridClass"
@@ -94,7 +105,10 @@ defineProps({
                     <div class="break-words text-[11px] uppercase tracking-[0.08em] text-stone-500 [overflow-wrap:anywhere] dark:text-neutral-400">
                         {{ item.label }}
                     </div>
-                    <div class="mt-1 max-w-full whitespace-nowrap text-sm font-semibold tabular-nums text-stone-800 dark:text-neutral-100">
+                    <div
+                        class="mt-1 max-w-full break-words text-sm font-semibold tabular-nums text-stone-800 [overflow-wrap:anywhere] dark:text-neutral-100"
+                        :title="String(item.value)"
+                    >
                         {{ item.value }}
                     </div>
                 </div>

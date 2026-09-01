@@ -1,24 +1,44 @@
 <script setup>
+import { computed } from 'vue';
+import KpiMiniChart from '@/Components/Dashboard/KpiMiniChart.vue';
+
 const props = defineProps({
+    label: {
+        type: String,
+        default: '',
+    },
+    chart: {
+        type: Object,
+        default: null,
+    },
     points: {
         type: Array,
         default: () => [],
+    },
+    tone: {
+        type: String,
+        default: '',
     },
     colorClass: {
         type: String,
         default: 'bg-stone-400/70 dark:bg-neutral-500/50',
     },
 });
+
+const legacyTone = computed(() => {
+    const match = String(props.colorClass).match(/(?:bg|text|stroke)-([a-z]+)-\d+/u);
+
+    return match?.[1] ?? 'neutral';
+});
+const resolvedTone = computed(() => props.tone || props.chart?.tone || legacyTone.value);
 </script>
 
 <template>
-    <div class="flex h-10 items-end gap-1 border-b border-stone-200 dark:border-neutral-700" aria-hidden="true">
-        <span
-            v-for="(point, index) in points"
-            :key="index"
-            class="flex-1 rounded-t-sm opacity-80"
-            :class="colorClass"
-            :style="{ height: point.height }"
-        ></span>
-    </div>
+    <KpiMiniChart
+        :label="label"
+        :chart="chart"
+        :points="points"
+        :tone="resolvedTone"
+        :height="40"
+    />
 </template>

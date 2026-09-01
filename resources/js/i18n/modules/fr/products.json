@@ -10,11 +10,23 @@
       "out_of_stock": "Rupture",
       "rotation": "Rotation stock"
     },
+    "stock_chart": {
+      "title": "Répartition de l’état du stock",
+      "subtitle": "Produits en stock, à surveiller ou en rupture dans les résultats filtrés.",
+      "total_label": "Produits",
+      "category_label": "État du stock",
+      "value_label": "Produits",
+      "table_caption": "Répartition exacte des produits par état du stock"
+    },
     "usage": {
       "title": "Produits les plus utilises",
-      "subtitle": "Base sur devis et chantiers",
+      "subtitle": "Basé sur les devis, les chantiers et les ventes encaissées",
       "used": "{count} utilises",
-      "empty": "Aucune donnee d'utilisation pour l'instant."
+      "empty": "Aucune donnee d'utilisation pour l'instant.",
+      "series_label": "Quantité utilisée",
+      "category_label": "Produit",
+      "value_label": "Quantité utilisée",
+      "table_caption": "Classement exact des produits les plus utilisés"
     },
     "aria": {
       "dropdown": "Menu deroulant"

@@ -1,171 +1,91 @@
 <script setup>
+import { computed } from 'vue';
+import BaseApexChart from '@/Components/Charts/BaseApexChart.vue';
+import ChartFrame from '@/Components/Charts/ChartFrame.vue';
+import { mergeChartOptions } from '@/utils/chartTheme';
 
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue';
-import { Head } from '@inertiajs/vue3';
-import ApexCharts from 'apexcharts';
-import { useCurrencyFormatter } from '@/utils/currency';
-
-
-// Props pour personnaliser les données et options du graphique
 const props = defineProps({
-  series: {
-    type: Array,
-    required: true,
-  },
-  categories: {
-    type: Array,
-    required: true,
-  },
-  height: {
-    type: Number,
-    default: 300,
-  },
-  colors: {
-    type: Array,
-    default: () => ['#2563eb', '#9333ea'],
-  },
+    series: { type: Array, default: () => [] },
+    categories: { type: Array, default: () => [] },
+    height: { type: [Number, String], default: 300 },
+    colors: { type: Array, default: () => [] },
+    colorTones: { type: Array, default: () => [] },
+    options: { type: Object, default: () => ({}) },
+    title: { type: String, default: '' },
+    subtitle: { type: String, default: '' },
+    periodLabel: { type: String, default: '' },
+    categoryLabel: { type: String, default: '' },
+    valueLabel: { type: String, default: '' },
+    unitLabel: { type: String, default: '' },
+    tableCaption: { type: String, default: '' },
+    valueFormatter: { type: Function, default: null },
+    loading: { type: Boolean, default: false },
+    error: { type: [Boolean, String, Error], default: false },
+    loadingMessage: { type: String, default: '' },
+    emptyMessage: { type: String, default: '' },
+    errorMessage: { type: String, default: '' },
+    tableOpenByDefault: { type: Boolean, default: false },
+    framed: { type: Boolean, default: true },
 });
 
-// Référence pour le conteneur du graphique
-const chartRef = ref(null);
-// Variable pour stocker l'instance du graphique
-let chartInstance = null;
-const { formatCurrency } = useCurrencyFormatter();
+const emit = defineEmits(['ready', 'render-error']);
 
-// Options du graphique
-const chartOptions = {
-  chart: {
-    height: 300,
-    type: 'area',
-    toolbar: {
-      show: false,
-    },
-    zoom: {
-      enabled: false,
-    },
-  },
-  series: props.series,
-  legend: {
-    show: true,
-    position: 'top',
-    horizontalAlign: 'center',
-  },
-  dataLabels: {
-    enabled: false,
-  },
-  stroke: {
-    curve: 'straight',
-    width: 2,
-  },
-  grid: {
-    strokeDashArray: 2,
-    borderColor: '#e5e7eb',
-  },
-  fill: {
-    type: 'solid',
-    opacity: 0.15,
-  },
-  xaxis: {
-    type: 'category',
-    categories: props.categories,
-    axisBorder: {
-      show: false,
-    },
-    axisTicks: {
-      show: false,
-    },
-        labels: {
-      style: {
-        colors: '#9ca3af',
-        fontSize: '13px',
-        fontFamily: 'var(--app-font-body)',
-        fontWeight: 400,
-      },
-      formatter: (title) => {
-        if (title) {
-          const parts = title.split(' ');
-          return `${parts[0]} ${parts[1].slice(0, 3)}`;
-        }
-        return title;
-      },
-    },
-  },
-  yaxis: {
-    labels: {
-      align: 'left',
-      style: {
-        colors: '#9ca3af',
-        fontSize: '13px',
-        fontFamily: 'var(--app-font-body)',
-        fontWeight: 400,
-      },
-      formatter: (value) => (value >= 1000 ? `${value / 1000}k` : value),
-    },
-  },
-  tooltip: {
-    x: {
-      format: 'MMMM yyyy',
-    },
-    y: {
-      formatter: (value) => formatCurrency(value),
-    },
-  },
-  responsive: [
+const resolvedOptions = computed(() => mergeChartOptions(
     {
-      breakpoint: 568,
-      options: {
-        chart: {
-          height: 300,
+        legend: {
+            show: props.series.length > 1,
+            position: 'top',
+            horizontalAlign: 'center',
+        },
+        stroke: {
+            curve: 'smooth',
+        },
+        fill: {
+            type: 'solid',
+            opacity: 0.14,
         },
         xaxis: {
-          labels: {
-            style: {
-              fontSize: '11px',
-              colors: '#9ca3af',
-            },
-          },
+            axisBorder: { show: false },
+            axisTicks: { show: false },
         },
-        yaxis: {
-          labels: {
-            style: {
-              fontSize: '11px',
-              colors: '#9ca3af',
-            },
-          },
-        },
-      },
     },
-  ],
-  colors: ['#2563eb', '#9333ea'],
-};
-
-// Fonction pour initialiser le graphique
-const initializeChart = () => {
-  if (chartRef.value) {
-    chartInstance = new ApexCharts(chartRef.value, chartOptions);
-    chartInstance.render();
-  } else {
-    console.error('chartRef.value is null. The chart container element might not be rendered yet.');
-  }
-};
-
-// Monte le composant
-onMounted(() => {
-  nextTick(() => {
-    initializeChart();
-  });
-});
-
-// Démonte le composant et nettoie l'instance du graphique
-onBeforeUnmount(() => {
-  if (chartInstance) {
-    chartInstance.destroy();
-    chartInstance = null;
-  }
-});
+    props.valueFormatter
+        ? { tooltip: { y: { formatter: props.valueFormatter } } }
+        : {},
+    props.options,
+));
 </script>
 
 <template>
-  <div ref="chartRef"></div>
+    <ChartFrame
+        :title="title"
+        :subtitle="subtitle"
+        :period-label="periodLabel"
+        :series="series"
+        :categories="categories"
+        :loading="loading"
+        :error="error"
+        :loading-message="loadingMessage"
+        :empty-message="emptyMessage"
+        :error-message="errorMessage"
+        :table-open-by-default="tableOpenByDefault"
+        :table-caption="tableCaption"
+        :category-label="categoryLabel"
+        :value-label="valueLabel"
+        :unit-label="unitLabel"
+        :value-formatter="valueFormatter"
+        :framed="framed"
+    >
+        <BaseApexChart
+            :series="series"
+            :categories="categories"
+            :height="height"
+            :colors="colors"
+            :color-tones="colorTones"
+            :options="resolvedOptions"
+            type="area"
+            @ready="emit('ready', $event)"
+            @render-error="emit('render-error', $event)"
+        />
+    </ChartFrame>
 </template>

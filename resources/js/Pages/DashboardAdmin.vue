@@ -6,7 +6,7 @@ import AnnouncementsPanel from '@/Components/Dashboard/AnnouncementsPanel.vue';
 import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
-import { buildSparklinePoints, buildTrend } from '@/utils/kpi';
+import { buildKpiSeriesData } from '@/utils/kpi';
 
 const props = defineProps({
     stats: Object,
@@ -44,11 +44,7 @@ const kpiConfig = {
 const kpiData = computed(() => {
     const data = {};
     Object.entries(kpiConfig).forEach(([key, config]) => {
-        const values = kpiSeries.value?.[key] || [];
-        data[key] = {
-            points: buildSparklinePoints(values),
-            trend: buildTrend(values, config.direction),
-        };
+        data[key] = buildKpiSeriesData(kpiSeries.value?.[key], config.direction);
     });
     return data;
 });

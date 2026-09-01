@@ -1,13 +1,16 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 import DatePicker from '@/Components/DatePicker.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import { humanizeDate } from '@/utils/date';
 import { useCurrencyFormatter } from '@/utils/currency';
-import { buildSparklinePoints, buildTrend } from '@/utils/kpi';
 import { useI18n } from 'vue-i18n';
+
+const ExpenseBreakdownCharts = defineAsyncComponent(() => import(
+    '@/Pages/Expense/UI/ExpenseBreakdownCharts.vue'
+));
 
 const props = defineProps({
     periodRecap: {
@@ -24,8 +27,8 @@ const props = defineProps({
     },
 });
 
-const { t, te } = useI18n();
-const preferredCurrency = computed(() => props.tenantCurrencyCode);
+const { t } = useI18n();
+const preferredCurrency = computed(() => props.periodRecap?.currency?.code || props.tenantCurrencyCode);
 const { formatCurrency } = useCurrencyFormatter(preferredCurrency);
 const busy = ref(false);
 const periodForm = ref({
@@ -61,6 +64,13 @@ const previousPeriodLabel = computed(() => {
 });
 const hasCustomPeriod = computed(() => periodForm.value.period === 'custom');
 const alerts = computed(() => Array.isArray(props.periodRecap?.alerts) ? props.periodRecap.alerts : []);
+const currency = computed(() => props.periodRecap?.currency || {});
+const currencyBreakdown = computed(() => Array.isArray(currency.value?.breakdown)
+    ? currency.value.breakdown
+    : []);
+const hasAdditionalCurrencies = computed(() => Boolean(currency.value?.has_additional_currencies));
+const categoryBreakdown = computed(() => breakdowns.value.categories || {});
+const paymentBreakdown = computed(() => breakdowns.value.payment_methods || {});
 const linkedContexts = computed(() => (breakdowns.value.linked_contexts || []).filter((item) =>
     Number(item.count || 0) > 0 || Number(item.total || 0) > 0
 ));
@@ -158,33 +168,6 @@ const deltaClass = computed(() => {
         : 'text-emerald-600 dark:text-emerald-300';
 });
 
-const totalSpentSeries = computed(() => {
-    const previous = kpis.value.previous_total_spent;
-    const current = kpis.value.total_spent;
-
-    if (previous === null || previous === undefined || current === null || current === undefined) {
-        return [];
-    }
-
-    const values = [Number(previous), Number(current)];
-
-    return values.every((value) => Number.isFinite(value)) ? values : [];
-});
-
-const categoryLabel = (item) => {
-    const key = item?.key;
-
-    return key && te(`expenses.categories.${key}`)
-        ? t(`expenses.categories.${key}`)
-        : (item?.label || key || t('expenses.labels.uncategorized'));
-};
-const paymentMethodLabel = (item) => {
-    const key = item?.key;
-
-    return key && te(`expenses.payment_methods.${key}`)
-        ? t(`expenses.payment_methods.${key}`)
-        : (item?.label || key || t('expenses.labels.not_set'));
-};
 const linkedContextLabel = (item) => t(`expenses.recap.linked_contexts.${item.key}`);
 const alertLabel = (alert) => t(`expenses.recap.alerts.${alert.key}`);
 
@@ -194,12 +177,6 @@ const moneyKpis = computed(() => ([
         label: t('expenses.recap.kpis.total_spent'),
         value: formatCurrency(kpis.value.total_spent),
         tone: 'red',
-        points: totalSpentSeries.value.length === 2
-            ? buildSparklinePoints(totalSpentSeries.value)
-            : [],
-        trend: totalSpentSeries.value.length === 2
-            ? buildTrend(totalSpentSeries.value, 'down')
-            : null,
     },
     {
         key: 'approved_total',
@@ -233,24 +210,12 @@ const moneyKpis = computed(() => ([
     },
 ]));
 
-const breakdownCards = computed(() => ([
-    {
-        key: 'categories',
-        title: t('expenses.recap.breakdowns.categories'),
-        rows: breakdowns.value.categories || [],
-        label: categoryLabel,
-    },
+const rankingCards = computed(() => ([
     {
         key: 'suppliers',
         title: t('expenses.recap.breakdowns.suppliers'),
         rows: breakdowns.value.suppliers || [],
         label: (item) => item.name || t('expenses.labels.no_supplier'),
-    },
-    {
-        key: 'payment_methods',
-        title: t('expenses.recap.breakdowns.payment_methods'),
-        rows: breakdowns.value.payment_methods || [],
-        label: paymentMethodLabel,
     },
     {
         key: 'team_members',
@@ -320,10 +285,74 @@ const breakdownCards = computed(() => ([
 
         <KpiMetricGrid class="mt-5" :metrics="moneyKpis" />
 
+        <section
+            v-if="hasAdditionalCurrencies"
+            class="mt-4 rounded-sm border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10"
+            data-expense-currency-summary
+            role="note"
+            aria-labelledby="expense-recap-currencies-title"
+        >
+            <h3 id="expense-recap-currencies-title" class="text-sm font-semibold text-amber-950 dark:text-amber-100">
+                {{ $t('expenses.recap.currency.title') }}
+            </h3>
+            <p class="mt-1 text-xs leading-5 text-amber-900 dark:text-amber-200">
+                {{ $t('expenses.recap.currency.description', { currency: currency.code }) }}
+            </p>
+            <ul
+                class="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3"
+                :aria-label="$t('expenses.recap.currency.summary_label')"
+            >
+                <li
+                    v-for="item in currencyBreakdown"
+                    :key="item.currency_code"
+                    class="flex items-center justify-between gap-3 rounded-sm border border-amber-200 bg-white px-3 py-2 dark:border-amber-500/30 dark:bg-neutral-900"
+                >
+                    <div>
+                        <strong class="text-sm text-stone-900 dark:text-neutral-100">
+                            {{ item.currency_code }}
+                        </strong>
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('expenses.recap.row_count', { count: formatNumber(item.count) }) }}
+                        </div>
+                    </div>
+                    <span class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                        {{ formatCurrency(item.total, item.currency_code) }}
+                    </span>
+                </li>
+            </ul>
+        </section>
+
+        <div class="mt-4">
+            <Suspense>
+                <ExpenseBreakdownCharts
+                    :category-breakdown="categoryBreakdown"
+                    :payment-breakdown="paymentBreakdown"
+                    :expected-total="Number(kpis.total_spent || 0)"
+                    :currency-code="currency.code || tenantCurrencyCode"
+                    :period-label="periodLabel"
+                />
+                <template #fallback>
+                    <div
+                        class="grid gap-4 lg:grid-cols-2"
+                        role="status"
+                        aria-live="polite"
+                    >
+                        <span class="sr-only">{{ $t('charts.loading') }}</span>
+                        <span
+                            v-for="index in 2"
+                            :key="index"
+                            class="min-h-72 rounded-sm border border-stone-200 bg-stone-100 motion-safe:animate-pulse dark:border-neutral-700 dark:bg-neutral-900"
+                            aria-hidden="true"
+                        ></span>
+                    </div>
+                </template>
+            </Suspense>
+        </div>
+
         <div class="mt-4 grid gap-4 xl:grid-cols-[1fr,320px]">
             <div class="grid gap-4 lg:grid-cols-2">
                 <div
-                    v-for="card in breakdownCards"
+                    v-for="card in rankingCards"
                     :key="card.key"
                     class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
                 >
@@ -343,16 +372,7 @@ const breakdownCards = computed(() => ([
                                 </div>
                                 <div class="text-right font-medium text-stone-700 dark:text-neutral-200">
                                     {{ formatCurrency(row.total) }}
-                                    <div class="text-xs font-normal text-stone-500 dark:text-neutral-500">
-                                        {{ row.share }}%
-                                    </div>
                                 </div>
-                            </div>
-                            <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-100 dark:bg-neutral-800">
-                                <div
-                                    class="h-full rounded-full bg-red-600"
-                                    :style="{ width: `${Math.min(100, Number(row.share || 0))}%` }"
-                                ></div>
                             </div>
                         </div>
                     </div>
@@ -367,6 +387,9 @@ const breakdownCards = computed(() => ([
                     <h3 class="text-sm font-semibold text-stone-900 dark:text-neutral-100">
                         {{ $t('expenses.recap.breakdowns.linked_contexts') }}
                     </h3>
+                    <p class="mt-1 text-xs leading-5 text-stone-500 dark:text-neutral-400">
+                        {{ $t('expenses.recap.linked_contexts_note') }}
+                    </p>
                     <div v-if="linkedContexts.length" class="mt-3 space-y-3">
                         <div
                             v-for="item in linkedContexts"

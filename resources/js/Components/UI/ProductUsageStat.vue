@@ -1,6 +1,9 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, defineAsyncComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { buildProductUsageChartData } from '@/utils/moduleRankingCharts';
+
+const Barchart = defineAsyncComponent(() => import('@/Components/UI/Barchart.vue'));
 
 const props = defineProps({
     items: {
@@ -15,96 +18,80 @@ const props = defineProps({
 
 const { t } = useI18n();
 
-const colors = ['bg-blue-500', 'bg-violet-500', 'bg-teal-400', 'bg-amber-400', 'bg-stone-300'];
-
-const total = computed(() =>
-    props.items.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
-);
-
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
-const getPercent = (value) => {
-    if (!total.value) {
-        return 0;
-    }
-
-    return Math.round((Number(value || 0) / total.value) * 100);
-};
-
 const displayTitle = computed(() => props.title || t('products.usage.title'));
+const chartData = computed(() => buildProductUsageChartData(props.items, {
+    labelForProduct: (item) => item.name,
+    usageLabel: t('products.usage.series_label'),
+}));
+const total = computed(() => chartData.value.details.reduce(
+    (sum, item) => sum + item.quantity,
+    0,
+));
+const chartHeight = computed(() => Math.min(
+    420,
+    Math.max(240, chartData.value.categories.length * 48 + 80),
+));
+const chartSubtitle = computed(() => [
+    t('products.usage.subtitle'),
+    t('products.usage.used', { count: formatNumber(total.value) }),
+].filter(Boolean).join(' · '));
+const chartOptions = computed(() => ({
+    dataLabels: {
+        enabled: true,
+        formatter: (value) => formatNumber(value),
+    },
+    plotOptions: {
+        bar: {
+            barHeight: '62%',
+        },
+    },
+    xaxis: {
+        min: 0,
+        forceNiceScale: true,
+        labels: {
+            formatter: (value) => formatNumber(value),
+        },
+    },
+    yaxis: {
+        labels: {
+            maxWidth: 128,
+        },
+    },
+}));
 </script>
 
 <template>
-    <div
-        class="size-full flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm border-t-4 border-t-indigo-700 dark:bg-neutral-800 dark:border-neutral-700">
-        <div class="p-5 pb-4 flex items-center justify-between gap-x-4">
-            <div>
-                <h2 class="inline-block font-semibold text-stone-800 dark:text-neutral-200">
-                    {{ displayTitle }}
-                </h2>
-                <p class="text-xs text-stone-500 dark:text-neutral-500">
-                    {{ $t('products.usage.subtitle') }}
-                </p>
-            </div>
-            <div class="text-sm text-stone-500 dark:text-neutral-400">
-                {{ $t('products.usage.used', { count: formatNumber(total) }) }}
-            </div>
-        </div>
-
-        <div class="h-full p-5 pt-0">
-            <div v-if="!items.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                {{ $t('products.usage.empty') }}
-            </div>
-            <div v-else class="h-full flex flex-col justify-between space-y-4">
-                <div class="space-y-4">
-                    <div class="flex gap-x-1 w-full h-2.5 rounded-full overflow-hidden">
-                        <div
-                            v-for="(item, index) in items"
-                            :key="item.id"
-                            class="flex flex-col justify-center overflow-hidden text-xs text-white text-center whitespace-nowrap"
-                            :class="colors[index % colors.length]"
-                            :style="{ width: `${getPercent(item.quantity)}%` }"
-                            role="progressbar"
-                            :aria-valuenow="getPercent(item.quantity)"
-                            aria-valuemin="0"
-                            aria-valuemax="100"
-                        ></div>
-                    </div>
-
-                    <ul>
-                        <li v-for="(item, index) in items" :key="item.id"
-                            class="py-2 grid grid-cols-2 justify-between items-center gap-x-4">
-                            <div class="flex items-center gap-x-2">
-                                <span class="shrink-0 size-2.5 inline-block rounded-sm"
-                                    :class="colors[index % colors.length]"></span>
-                                <div class="flex items-center gap-x-2">
-                                    <img
-                                        v-if="item.image_url"
-                                        :src="item.image_url"
-                                        :alt="item.name"
-                                        class="size-6 rounded-full border border-stone-200 dark:border-neutral-700 object-cover"
-                                    />
-                                    <span
-                                        v-else
-                                        class="size-6 rounded-full bg-stone-100 text-stone-700 text-xs font-medium flex items-center justify-center dark:bg-neutral-700 dark:text-neutral-200"
-                                    >
-                                        {{ item.name?.[0] || '?' }}
-                                    </span>
-                                    <span class="text-sm text-stone-800 dark:text-neutral-200">
-                                        {{ item.name }}
-                                    </span>
-                                </div>
-                            </div>
-                            <div class="text-end">
-                                <span class="text-sm text-stone-500 dark:text-neutral-500">
-                                    {{ formatNumber(item.quantity) }}
-                                </span>
-                            </div>
-                        </li>
-                    </ul>
+    <div class="size-full min-w-0">
+        <Suspense>
+            <Barchart
+                class="h-full"
+                :title="displayTitle"
+                :subtitle="chartSubtitle"
+                :series="chartData.series"
+                :categories="chartData.categories"
+                :height="chartHeight"
+                :options="chartOptions"
+                :color-tones="['blue']"
+                :value-formatter="formatNumber"
+                :category-label="t('products.usage.category_label')"
+                :value-label="t('products.usage.value_label')"
+                :table-caption="t('products.usage.table_caption')"
+                :empty-message="t('products.usage.empty')"
+                horizontal
+            />
+            <template #fallback>
+                <div
+                    class="flex min-h-64 items-center justify-center rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                    role="status"
+                    aria-live="polite"
+                >
+                    <span class="sr-only">{{ t('charts.loading') }}</span>
+                    <span class="h-52 w-full rounded-sm bg-stone-100 motion-safe:animate-pulse dark:bg-neutral-800" aria-hidden="true"></span>
                 </div>
-            </div>
-        </div>
+            </template>
+        </Suspense>
     </div>
 </template>

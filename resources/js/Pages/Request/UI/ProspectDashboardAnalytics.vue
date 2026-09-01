@@ -1,7 +1,16 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, defineAsyncComponent, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
+import {
+    buildProspectAssigneeChartData,
+    buildProspectSourceChartData,
+    buildProspectStatusChartData,
+} from '@/utils/requestAnalyticsCharts';
+
+const Barchart = defineAsyncComponent(
+    () => import('@/Components/UI/Barchart.vue'),
+);
 
 const props = defineProps({
     analytics: {
@@ -72,9 +81,68 @@ const statusLabel = (status) => {
     }
 };
 
-const maxStatusTotal = computed(() => Math.max(...byStatus.value.map((item) => Number(item.total || 0)), 1));
-const maxSourceTotal = computed(() => Math.max(...bySource.value.map((item) => Number(item.total || 0)), 1));
-const maxAssigneeTotal = computed(() => Math.max(...byAssignee.value.map((item) => Number(item.total || 0)), 1));
+const statusChartData = computed(() => buildProspectStatusChartData(byStatus.value, {
+    labelForStatus: statusLabel,
+    totalLabel: t('requests.analytics.dashboard.charts.total_series'),
+}));
+const sourceChartData = computed(() => buildProspectSourceChartData(bySource.value, {
+    labelForSource: sourceLabel,
+    totalLabel: t('requests.analytics.dashboard.charts.total_series'),
+    convertedLabel: t('requests.analytics.dashboard.charts.converted_series'),
+}));
+const assigneeChartData = computed(() => buildProspectAssigneeChartData(byAssignee.value, {
+    labelForAssignee: (key, row) => row.name
+        || (key === 'unassigned' ? t('requests.analytics.dashboard.unassigned') : ''),
+    totalLabel: t('requests.analytics.dashboard.charts.total_series'),
+    overdueLabel: t('requests.analytics.dashboard.charts.overdue_series'),
+}));
+const statusChartHeight = computed(() => Math.min(
+    440,
+    Math.max(280, statusChartData.value.categories.length * 38 + 80),
+));
+const sourceChartHeight = computed(() => Math.min(
+    420,
+    Math.max(260, sourceChartData.value.categories.length * 42 + 80),
+));
+const assigneeChartHeight = computed(() => Math.min(
+    520,
+    Math.max(260, assigneeChartData.value.categories.length * 48 + 80),
+));
+const countChartOptions = computed(() => ({
+    dataLabels: {
+        enabled: true,
+        formatter: (value) => formatNumber(value),
+    },
+    plotOptions: {
+        bar: {
+            barHeight: '58%',
+        },
+    },
+    xaxis: {
+        min: 0,
+        forceNiceScale: true,
+        labels: {
+            formatter: (value) => formatNumber(value),
+        },
+    },
+}));
+const sourceChartOptions = computed(() => ({
+    dataLabels: {
+        enabled: false,
+    },
+    plotOptions: {
+        bar: {
+            barHeight: '64%',
+        },
+    },
+    xaxis: {
+        min: 0,
+        forceNiceScale: true,
+        labels: {
+            formatter: (value) => formatNumber(value),
+        },
+    },
+}));
 
 const tabs = computed(() => [
     {
@@ -190,6 +258,7 @@ const cards = computed(() => [
                     :class="activeTab === tab.key
                         ? 'border-stone-800 bg-stone-800 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-neutral-900'
                         : 'border-stone-200 bg-stone-50 text-stone-600 hover:border-stone-300 hover:text-stone-800 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:border-neutral-500 dark:hover:text-neutral-100'"
+                    :aria-pressed="String(activeTab === tab.key)"
                     @click="activeTab = tab.key"
                 >
                     <div class="text-xs font-semibold uppercase tracking-[0.12em]">
@@ -212,93 +281,143 @@ const cards = computed(() => [
             :aria-label="$t('requests.analytics.dashboard.title')"
         />
 
-        <div v-else-if="activeTab === 'pipeline'" class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr),minmax(0,1fr)]">
+        <div v-if="activeTab === 'overview' || activeTab === 'pipeline'" class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr),minmax(0,1fr)]">
             <div class="rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
-                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                    {{ $t('requests.analytics.dashboard.sections.by_status') }}
-                </h3>
-                <div v-if="byStatus.length" class="mt-4 space-y-3">
-                    <div v-for="item in byStatus" :key="item.status" class="space-y-1">
-                        <div class="flex items-center justify-between text-xs text-stone-500 dark:text-neutral-400">
-                            <span>{{ statusLabel(item.status) }}</span>
-                            <span>{{ formatNumber(item.total) }}</span>
+                <Suspense>
+                    <Barchart
+                        :title="$t('requests.analytics.dashboard.charts.status_title')"
+                        :subtitle="$t('requests.analytics.dashboard.charts.status_subtitle')"
+                        :series="statusChartData.series"
+                        :categories="statusChartData.categories"
+                        :height="statusChartHeight"
+                        :options="countChartOptions"
+                        :color-tones="['blue']"
+                        :value-formatter="formatNumber"
+                        :category-label="$t('requests.analytics.dashboard.charts.status_category')"
+                        :value-label="$t('requests.analytics.dashboard.charts.count_value')"
+                        :table-caption="$t('requests.analytics.dashboard.charts.status_table_caption')"
+                        :empty-message="$t('requests.analytics.no_data')"
+                        :framed="false"
+                        horizontal
+                    />
+                    <template #fallback>
+                        <div
+                            class="flex min-h-64 items-center justify-center rounded-sm bg-stone-50 dark:bg-neutral-800"
+                            role="status"
+                            aria-live="polite"
+                        >
+                            <span class="sr-only">{{ $t('charts.loading') }}</span>
+                            <span class="h-52 w-full rounded-sm bg-stone-100 motion-safe:animate-pulse dark:bg-neutral-700" aria-hidden="true"></span>
                         </div>
-                        <div class="h-2 w-full overflow-hidden rounded-full bg-stone-200 dark:bg-neutral-700">
-                            <div
-                                class="h-full rounded-full bg-stone-700 dark:bg-neutral-300"
-                                :style="{ width: `${Math.max((Number(item.total || 0) / maxStatusTotal) * 100, item.total ? 8 : 0)}%` }"
-                            />
-                        </div>
-                    </div>
-                </div>
-                <div v-else class="mt-3 text-xs text-stone-500 dark:text-neutral-400">
-                    {{ $t('requests.analytics.no_data') }}
-                </div>
+                    </template>
+                </Suspense>
             </div>
 
             <div class="rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
-                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                    {{ $t('requests.analytics.dashboard.sections.by_source') }}
-                </h3>
-                <div v-if="bySource.length" class="mt-4 space-y-3">
-                    <div v-for="item in bySource" :key="item.source" class="space-y-1">
-                        <div class="flex items-center justify-between gap-3 text-xs text-stone-500 dark:text-neutral-400">
-                            <span class="truncate">{{ sourceLabel(item.source) }}</span>
-                            <span>{{ formatNumber(item.total) }} · {{ formatPercent(item.rate) }}</span>
+                <Suspense>
+                    <Barchart
+                        :title="$t('requests.analytics.dashboard.charts.source_title')"
+                        :subtitle="$t('requests.analytics.dashboard.charts.source_subtitle')"
+                        :series="sourceChartData.series"
+                        :categories="sourceChartData.categories"
+                        :height="sourceChartHeight"
+                        :options="sourceChartOptions"
+                        :color-tones="['blue', 'emerald']"
+                        :value-formatter="formatNumber"
+                        :category-label="$t('requests.analytics.dashboard.charts.source_category')"
+                        :value-label="$t('requests.analytics.dashboard.charts.count_value')"
+                        :table-caption="$t('requests.analytics.dashboard.charts.source_table_caption')"
+                        :empty-message="$t('requests.analytics.no_data')"
+                        :framed="false"
+                        horizontal
+                    />
+                    <template #fallback>
+                        <div
+                            class="flex min-h-64 items-center justify-center rounded-sm bg-stone-50 dark:bg-neutral-800"
+                            role="status"
+                            aria-live="polite"
+                        >
+                            <span class="sr-only">{{ $t('charts.loading') }}</span>
+                            <span class="h-52 w-full rounded-sm bg-stone-100 motion-safe:animate-pulse dark:bg-neutral-700" aria-hidden="true"></span>
                         </div>
-                        <div class="h-2 w-full overflow-hidden rounded-full bg-stone-200 dark:bg-neutral-700">
-                            <div
-                                class="h-full rounded-full bg-emerald-500"
-                                :style="{ width: `${Math.max((Number(item.total || 0) / maxSourceTotal) * 100, item.total ? 8 : 0)}%` }"
-                            />
-                        </div>
-                        <div class="flex flex-wrap gap-2 text-[11px] text-stone-500 dark:text-neutral-400">
-                            <span>{{ $t('requests.analytics.dashboard.labels.converted') }}: {{ formatNumber(item.converted) }}</span>
-                            <span>{{ $t('requests.analytics.dashboard.labels.won') }}: {{ formatNumber(item.won) }}</span>
-                            <span>{{ $t('requests.analytics.dashboard.labels.lost') }}: {{ formatNumber(item.lost) }}</span>
-                        </div>
-                    </div>
-                </div>
-                <div v-else class="mt-3 text-xs text-stone-500 dark:text-neutral-400">
-                    {{ $t('requests.analytics.no_data') }}
-                </div>
+                    </template>
+                </Suspense>
+
+                <ul
+                    v-if="sourceChartData.details.length"
+                    class="mt-3 grid gap-2 border-t border-stone-200 pt-3 text-xs dark:border-neutral-700"
+                    :aria-label="$t('requests.analytics.dashboard.charts.source_details_label')"
+                >
+                    <li
+                        v-for="detail in sourceChartData.details"
+                        :key="detail.key"
+                        class="flex flex-wrap items-center justify-between gap-2"
+                    >
+                        <span class="font-medium text-stone-700 dark:text-neutral-200">{{ detail.category }}</span>
+                        <span class="text-stone-500 dark:text-neutral-400">
+                            {{ $t('requests.analytics.dashboard.charts.source_detail', {
+                                converted: formatNumber(detail.converted),
+                                won: formatNumber(detail.won),
+                                lost: formatNumber(detail.lost),
+                                rate: formatPercent(detail.rate),
+                            }) }}
+                        </span>
+                    </li>
+                </ul>
             </div>
         </div>
 
-        <div v-else class="rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
-            <div class="flex flex-wrap items-center justify-between gap-2">
-                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                    {{ $t('requests.analytics.dashboard.sections.by_assignee') }}
-                </h3>
-                <span class="text-xs text-stone-500 dark:text-neutral-400">
-                    {{ $t('requests.analytics.dashboard.sections.by_assignee_note') }}
-                </span>
-            </div>
-            <div v-if="byAssignee.length" class="mt-4 space-y-3">
-                <div
-                    v-for="item in byAssignee"
-                    :key="item.assignee_id ?? 'unassigned'"
+        <div v-if="activeTab === 'assignees'" class="grid gap-4 rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
+            <Suspense>
+                <Barchart
+                    :title="$t('requests.analytics.dashboard.sections.by_assignee')"
+                    :subtitle="$t('requests.analytics.dashboard.sections.by_assignee_note')"
+                    :series="assigneeChartData.series"
+                    :categories="assigneeChartData.categories"
+                    :height="assigneeChartHeight"
+                    :options="countChartOptions"
+                    :color-tones="['blue', 'amber']"
+                    :value-formatter="formatNumber"
+                    :category-label="$t('requests.analytics.dashboard.charts.assignee_category')"
+                    :value-label="$t('requests.analytics.dashboard.charts.count_value')"
+                    :table-caption="$t('requests.analytics.dashboard.charts.assignee_table_caption')"
+                    :empty-message="$t('requests.analytics.no_data')"
+                    :framed="false"
+                    horizontal
+                />
+                <template #fallback>
+                    <div
+                        class="flex min-h-64 items-center justify-center rounded-sm bg-stone-50 dark:bg-neutral-800"
+                        role="status"
+                        aria-live="polite"
+                    >
+                        <span class="sr-only">{{ $t('charts.loading') }}</span>
+                        <span class="h-52 w-full rounded-sm bg-stone-100 motion-safe:animate-pulse dark:bg-neutral-700" aria-hidden="true"></span>
+                    </div>
+                </template>
+            </Suspense>
+
+            <ul
+                v-if="assigneeChartData.details.length"
+                class="grid gap-3 border-t border-stone-200 pt-4 md:grid-cols-2 dark:border-neutral-700"
+                :aria-label="$t('requests.analytics.dashboard.charts.assignee_details_label')"
+            >
+                <li
+                    v-for="item in assigneeChartData.details"
+                    :key="item.key"
                     class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800"
                 >
-                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <div class="min-w-0">
-                            <div class="truncate text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ item.name || $t('requests.analytics.dashboard.unassigned') }}
-                            </div>
-                            <div class="mt-1 h-2 w-full max-w-xs overflow-hidden rounded-full bg-stone-200 dark:bg-neutral-700">
-                                <div
-                                    class="h-full rounded-full bg-indigo-500"
-                                    :style="{ width: `${Math.max((Number(item.total || 0) / maxAssigneeTotal) * 100, item.total ? 8 : 0)}%` }"
-                                />
-                            </div>
-                        </div>
-                        <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                    <div class="flex min-w-0 items-center justify-between gap-3">
+                        <span class="min-w-0 break-words text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ item.category }}
+                        </span>
+                        <span class="shrink-0 text-sm font-semibold tabular-nums text-stone-800 dark:text-neutral-100">
                             {{ formatNumber(item.total) }}
-                        </div>
+                        </span>
                     </div>
                     <div class="mt-3 flex flex-wrap gap-2 text-[11px] text-stone-600 dark:text-neutral-300">
                         <span class="rounded-full bg-stone-200 px-2 py-1 dark:bg-neutral-700">
-                            {{ $t('requests.analytics.dashboard.labels.due_today') }}: {{ formatNumber(item.due_today) }}
+                            {{ $t('requests.analytics.dashboard.labels.due_today') }}: {{ formatNumber(item.dueToday) }}
                         </span>
                         <span class="rounded-full bg-rose-100 px-2 py-1 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">
                             {{ $t('requests.analytics.dashboard.labels.overdue') }}: {{ formatNumber(item.overdue) }}
@@ -313,11 +432,8 @@ const cards = computed(() => [
                             {{ $t('requests.analytics.dashboard.labels.lost') }}: {{ formatNumber(item.lost) }}
                         </span>
                     </div>
-                </div>
-            </div>
-            <div v-else class="mt-3 text-xs text-stone-500 dark:text-neutral-400">
-                {{ $t('requests.analytics.no_data') }}
-            </div>
+                </li>
+            </ul>
         </div>
     </div>
 </template>

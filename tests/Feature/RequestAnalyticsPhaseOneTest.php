@@ -3,8 +3,10 @@
 use App\Models\ActivityLog;
 use App\Models\Request as LeadRequest;
 use App\Models\User;
+use App\Queries\Requests\BuildRequestAnalyticsData;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
@@ -155,5 +157,68 @@ it('exposes phase one request analytics in inertia responses', function () {
             );
     } finally {
         Carbon::setTestNow();
+    }
+});
+
+it('loads triage activity timestamps with a bounded number of queries', function () {
+    $user = User::factory()->create(['company_type' => 'services']);
+    $referenceTime = Carbon::parse('2026-04-20 09:00:00');
+
+    $createStaleLead = function (int $offsetMinutes) use ($referenceTime, $user): void {
+        $createdAt = $referenceTime->copy()->subDays(12)->addMinutes($offsetMinutes);
+        $respondedAt = $referenceTime->copy()->subDays(8)->addMinutes($offsetMinutes);
+
+        Carbon::setTestNow($createdAt);
+        $lead = LeadRequest::create([
+            'user_id' => $user->id,
+            'status' => LeadRequest::STATUS_CONTACTED,
+            'title' => "Stale activity lead {$offsetMinutes}",
+        ]);
+        ActivityLog::record($user, $lead, 'created', [], 'Lead created');
+
+        Carbon::setTestNow($respondedAt);
+        ActivityLog::record($user, $lead, 'contacted', [], 'Lead contacted');
+    };
+
+    $measureAnalytics = function () use ($user): array {
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        try {
+            $analytics = app(BuildRequestAnalyticsData::class)->execute((int) $user->id);
+            $queries = DB::getQueryLog();
+        } finally {
+            DB::disableQueryLog();
+        }
+
+        return [
+            'analytics' => $analytics,
+            'activity_query_count' => collect($queries)
+                ->filter(fn (array $query): bool => str_contains($query['query'], 'activity_logs'))
+                ->count(),
+        ];
+    };
+
+    try {
+        $createStaleLead(0);
+        Carbon::setTestNow($referenceTime);
+        $singleLeadResult = $measureAnalytics();
+
+        foreach (range(1, 8) as $offsetMinutes) {
+            $createStaleLead($offsetMinutes);
+        }
+
+        Carbon::setTestNow($referenceTime);
+        $nineLeadResult = $measureAnalytics();
+
+        expect($singleLeadResult['analytics']['stale_count'])->toBe(1)
+            ->and($singleLeadResult['analytics']['risk_leads'][0]['last_activity_at'])
+            ->toBe($referenceTime->copy()->subDays(8)->toJSON())
+            ->and($nineLeadResult['analytics']['stale_count'])->toBe(9)
+            ->and($singleLeadResult['activity_query_count'])->toBeGreaterThan(0)
+            ->and($nineLeadResult['activity_query_count'])->toBe($singleLeadResult['activity_query_count']);
+    } finally {
+        Carbon::setTestNow();
+        DB::disableQueryLog();
     }
 });

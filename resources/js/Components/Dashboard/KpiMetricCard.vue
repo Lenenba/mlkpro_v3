@@ -1,8 +1,10 @@
 <script setup>
-import { computed } from 'vue';
-import KpiSparkline from '@/Components/Dashboard/KpiSparkline.vue';
+import { computed, defineAsyncComponent } from 'vue';
 import KpiTrendBadge from '@/Components/Dashboard/KpiTrendBadge.vue';
 import { buildKpiProgress } from '@/utils/kpi';
+import { resolveKpiChartTone } from '@/utils/kpiTone';
+
+const KpiMiniChart = defineAsyncComponent(() => import('@/Components/Dashboard/KpiMiniChart.vue'));
 
 const props = defineProps({
     metric: {
@@ -24,7 +26,7 @@ const emit = defineEmits(['activate']);
 const tones = 'amber blue cyan emerald fuchsia green indigo lime orange red rose sky slate stone teal violet'.split(' ');
 
 const interactive = computed(() => Boolean(props.metric?.interactive));
-const rootElement = computed(() => interactive.value ? 'button' : 'article');
+const rootElement = computed(() => interactive.value ? 'button' : 'div');
 const hasContext = computed(() => String(props.metric?.context ?? '').trim() !== '');
 const colorClass = computed(() => {
     const tone = props.metric?.tone;
@@ -40,8 +42,22 @@ const progress = computed(() => {
         source?.label,
     );
 });
-const showSparkline = computed(() => props.variant === 'dashboard' && props.metric?.points?.length);
-const showProgress = computed(() => props.variant !== 'record' && progress.value);
+const chartTone = computed(() => resolveKpiChartTone(props.metric?.tone));
+const progressTrackStyle = {
+    backgroundColor: 'var(--chart-grid)',
+};
+const progressFillStyle = computed(() => ({
+    backgroundColor: `var(--chart-series-${chartTone.value})`,
+    width: `${(progress.value?.value / progress.value?.max) * 100}%`,
+}));
+const hasMiniChartCandidate = computed(() => Boolean(props.metric?.chart)
+    || (Array.isArray(props.metric?.points) && props.metric.points.length >= 4));
+const showMiniChart = computed(() => !props.metric?.loading
+    && props.variant === 'dashboard'
+    && hasMiniChartCandidate.value);
+const showProgress = computed(() => !props.metric?.loading
+    && props.variant !== 'record'
+    && progress.value);
 const activate = () => {
     if (interactive.value && !props.metric?.disabled) {
         emit('activate', props.metric?.action ?? props.metric);
@@ -102,7 +118,7 @@ const activate = () => {
 
                     <div
                         v-if="metric.loading"
-                        class="mt-1.5 h-6 w-24 max-w-full animate-pulse rounded-sm bg-stone-200 dark:bg-neutral-700"
+                        class="mt-1.5 h-6 w-24 max-w-full motion-safe:animate-pulse rounded-sm bg-stone-200 dark:bg-neutral-700"
                         aria-hidden="true"
                     ></div>
 
@@ -120,7 +136,7 @@ const activate = () => {
         </div>
 
         <div
-            v-if="hasContext || showSparkline || showProgress"
+            v-if="hasContext || showMiniChart || showProgress"
             class="mt-auto border-t border-stone-100 dark:border-neutral-700"
             :class="[
                 variant === 'dashboard'
@@ -140,12 +156,19 @@ const activate = () => {
                 {{ metric.context }}
             </p>
 
-            <KpiSparkline
-                v-if="showSparkline"
+            <div
+                v-if="showMiniChart"
                 :class="hasContext ? 'mt-2' : ''"
-                :points="metric.points"
-                :color-class="colorClass"
-            />
+                class="h-10"
+            >
+                <KpiMiniChart
+                    class="h-full"
+                    :label="metric.label"
+                    :chart="metric.chart"
+                    :points="metric.points"
+                    :tone="metric.tone"
+                />
+            </div>
 
             <div
                 v-else-if="showProgress"
@@ -161,13 +184,13 @@ const activate = () => {
                 :aria-label="progress.label || metric.label"
             >
                 <span
-                    class="block h-2 w-full overflow-hidden rounded-sm bg-stone-100 dark:bg-neutral-700"
+                    class="block h-2 w-full overflow-hidden rounded-sm"
+                    :style="progressTrackStyle"
                     aria-hidden="true"
                 >
                     <span
                         class="block h-full rounded-sm"
-                        :class="colorClass"
-                        :style="{ width: `${(progress.value / progress.max) * 100}%` }"
+                        :style="progressFillStyle"
                     ></span>
                 </span>
             </div>

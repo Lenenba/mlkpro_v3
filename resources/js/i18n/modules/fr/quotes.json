@@ -273,7 +273,14 @@
       "recovery_subtitle": "Pression de relance et signaux de conversion sur les devis filtres.",
       "top_by_value": "Top devis par valeur",
       "based_on_filters": "Selon les filtres actifs",
-      "empty": "Aucune donnee de devis."
+      "empty": "Aucune donnee de devis.",
+      "top_chart_subtitle": "{displayed} devis les plus élevés parmi {count} devis filtrés, en {currency}.",
+      "value_series": "Valeur du devis",
+      "quote_label": "Devis et client",
+      "value_label": "Valeur",
+      "top_chart_table_caption": "Valeur exacte des principaux devis filtrés",
+      "chart_invalid": "Les devis ne peuvent pas être comparés : les données sont incomplètes ou leur devise ne correspond pas à la devise active.",
+      "mixed_currency_context": "Montant masqué : les devises présentes ({currencies}) ne correspondent pas toutes à la devise active et aucune conversion n’est appliquée."
     },
     "recovery": {
       "label": "Recovery",

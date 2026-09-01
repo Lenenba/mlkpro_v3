@@ -1,9 +1,14 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, defineAsyncComponent } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
 import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
+import { buildRequestSourceChartData } from '@/utils/requestAnalyticsCharts';
+
+const Barchart = defineAsyncComponent(
+    () => import('@/Components/UI/Barchart.vue'),
+);
 
 const props = defineProps({
     analytics: {
@@ -102,6 +107,46 @@ const sourceKey = (source) => {
     return aliases[value] || value || 'unknown';
 };
 const sourceLabel = (source) => t(`requests.sources.${sourceKey(source)}`);
+const formatChartPercent = (value) => {
+    if (value === null || value === undefined || value === '') {
+        return '-';
+    }
+
+    const number = Number(value);
+
+    if (!Number.isFinite(number)) {
+        return '-';
+    }
+
+    return `${number.toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
+};
+const sourceChartData = computed(() => buildRequestSourceChartData(bySource.value, {
+    labelForSource: sourceLabel,
+    rateLabel: t('requests.analytics.charts.source_rate_series'),
+}));
+const sourceChartHeight = computed(() => Math.min(
+    420,
+    Math.max(260, sourceChartData.value.categories.length * 42 + 80),
+));
+const sourceChartOptions = computed(() => ({
+    dataLabels: {
+        enabled: true,
+        formatter: (value) => formatChartPercent(value),
+    },
+    plotOptions: {
+        bar: {
+            barHeight: '58%',
+        },
+    },
+    xaxis: {
+        min: 0,
+        max: 100,
+        tickAmount: 4,
+        labels: {
+            formatter: (value) => formatChartPercent(value),
+        },
+    },
+}));
 const riskLabel = (days) => {
     if (days >= 14) {
         return t('requests.analytics.risk_14');
@@ -296,23 +341,55 @@ const formKpis = computed(() => ([
 
         <div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr),minmax(0,1fr)]">
             <div class="rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
-                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                    {{ $t('requests.analytics.by_source') }}
-                </h3>
-                <div v-if="bySource.length" class="mt-4 space-y-3">
-                    <div v-for="item in bySource" :key="item.source" class="space-y-1">
-                        <div class="flex items-center justify-between text-xs text-stone-500 dark:text-neutral-400">
-                            <span>{{ sourceLabel(item.source) }}</span>
-                            <span>{{ item.won }}/{{ item.total }} · {{ item.rate }}%</span>
+                <Suspense>
+                    <Barchart
+                        :title="$t('requests.analytics.charts.source_conversion_title')"
+                        :subtitle="$t('requests.analytics.charts.source_conversion_subtitle', { days: windowDays })"
+                        :series="sourceChartData.series"
+                        :categories="sourceChartData.categories"
+                        :height="sourceChartHeight"
+                        :options="sourceChartOptions"
+                        :color-tones="['emerald']"
+                        :value-formatter="formatChartPercent"
+                        :category-label="$t('requests.analytics.charts.source_category')"
+                        :value-label="$t('requests.analytics.charts.percent_value')"
+                        :table-caption="$t('requests.analytics.charts.source_table_caption')"
+                        :empty-message="$t('requests.analytics.no_data')"
+                        :framed="false"
+                        horizontal
+                    />
+                    <template #fallback>
+                        <div
+                            class="flex min-h-64 items-center justify-center rounded-sm bg-stone-50 dark:bg-neutral-800"
+                            role="status"
+                            aria-live="polite"
+                        >
+                            <span class="sr-only">{{ $t('charts.loading') }}</span>
+                            <span class="h-52 w-full rounded-sm bg-stone-100 motion-safe:animate-pulse dark:bg-neutral-700" aria-hidden="true"></span>
                         </div>
-                        <div class="h-2 w-full overflow-hidden rounded-full bg-stone-200 dark:bg-neutral-700">
-                            <div class="h-full rounded-full bg-emerald-500" :style="{ width: `${item.rate}%` }"></div>
-                        </div>
-                    </div>
-                </div>
-                <div v-else class="mt-3 text-xs text-stone-500 dark:text-neutral-400">
-                    {{ $t('requests.analytics.no_data') }}
-                </div>
+                    </template>
+                </Suspense>
+
+                <ul
+                    v-if="sourceChartData.details.length"
+                    class="mt-3 grid gap-2 border-t border-stone-200 pt-3 text-xs dark:border-neutral-700"
+                    :aria-label="$t('requests.analytics.charts.source_details_label')"
+                >
+                    <li
+                        v-for="detail in sourceChartData.details"
+                        :key="detail.key"
+                        class="flex flex-wrap items-center justify-between gap-2"
+                    >
+                        <span class="font-medium text-stone-700 dark:text-neutral-200">{{ detail.category }}</span>
+                        <span class="text-stone-500 dark:text-neutral-400">
+                            {{ $t('requests.analytics.charts.source_detail', {
+                                won: detail.won,
+                                total: detail.total,
+                                rate: formatChartPercent(detail.rate),
+                            }) }}
+                        </span>
+                    </li>
+                </ul>
             </div>
 
             <div class="rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">

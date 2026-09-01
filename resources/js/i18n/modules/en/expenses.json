@@ -53,6 +53,30 @@
         "team_members": "By member",
         "linked_contexts": "Linked to operations"
       },
+      "charts": {
+        "categories_title": "Recorded expenses by category",
+        "categories_subtitle": "The five leading categories plus any remainder, without mixing currencies ({currency}).",
+        "payment_methods_title": "Breakdown by payment method",
+        "payment_methods_subtitle": "The four leading payment methods plus any remainder, in {currency}.",
+        "amount_series": "Recorded amount",
+        "amount_label": "Amount",
+        "category_label": "Category",
+        "payment_method_label": "Payment method",
+        "total_label": "Period total",
+        "remaining_categories": "Other categories",
+        "remaining_payment_methods": "Other payment methods",
+        "categories_table_caption": "Exact expense amounts by category",
+        "payment_methods_table_caption": "Exact expense amounts by payment method",
+        "categories_empty": "No categorized expenses in this period.",
+        "payment_methods_empty": "No payment methods in this period.",
+        "invalid": "The chart data is incomplete or inconsistent."
+      },
+      "currency": {
+        "title": "Amounts separated by currency",
+        "description": "Indicators and charts use {currency} only. Other currencies remain visible below and are never added without conversion.",
+        "summary_label": "Period totals by currency"
+      },
+      "linked_contexts_note": "One expense may be linked to several operations; these rows are not a breakdown of the total.",
       "linked_contexts": {
         "customer": "Customers",
         "work": "Work",

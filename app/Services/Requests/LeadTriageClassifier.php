@@ -26,13 +26,19 @@ class LeadTriageClassifier
 
     private const STALE_DAYS = 7;
 
-    public function classify(LeadRequest $lead, ?Carbon $referenceTime = null): array
-    {
+    /**
+     * @param  array{first_response_at: mixed, last_activity_at: mixed}|null  $activityTimestamps
+     */
+    public function classify(
+        LeadRequest $lead,
+        ?Carbon $referenceTime = null,
+        ?array $activityTimestamps = null,
+    ): array {
         $now = $referenceTime ? $referenceTime->copy() : now();
         $isOpen = $this->isOpen($lead);
 
-        $firstResponseAt = $this->resolveFirstResponseAt($lead);
-        $lastActivityAt = $this->resolveLastActivityAt($lead);
+        $firstResponseAt = $this->resolveFirstResponseAt($lead, $activityTimestamps);
+        $lastActivityAt = $this->resolveLastActivityAt($lead, $activityTimestamps);
         $slaDueAt = $this->resolveSlaDueAt($lead, $firstResponseAt);
         $effectiveDueAt = $this->resolveEffectiveDueAt($lead, $slaDueAt);
         $staleSinceAt = $this->resolveStaleSinceAt($lead, $lastActivityAt, $isOpen);
@@ -110,11 +116,18 @@ class LeadTriageClassifier
         return self::QUEUE_ACTIVE;
     }
 
-    private function resolveFirstResponseAt(LeadRequest $lead): ?Carbon
+    /**
+     * @param  array{first_response_at: mixed, last_activity_at: mixed}|null  $activityTimestamps
+     */
+    private function resolveFirstResponseAt(LeadRequest $lead, ?array $activityTimestamps): ?Carbon
     {
         $explicit = $this->dateValue($lead->first_response_at);
         if ($explicit) {
             return $explicit;
+        }
+
+        if ($activityTimestamps !== null) {
+            return $this->dateValue($activityTimestamps['first_response_at']);
         }
 
         if (! $lead->exists) {
@@ -130,14 +143,22 @@ class LeadTriageClassifier
         return $this->dateValue($value);
     }
 
-    private function resolveLastActivityAt(LeadRequest $lead): ?Carbon
+    /**
+     * @param  array{first_response_at: mixed, last_activity_at: mixed}|null  $activityTimestamps
+     */
+    private function resolveLastActivityAt(LeadRequest $lead, ?array $activityTimestamps): ?Carbon
     {
         $explicit = $this->dateValue($lead->last_activity_at);
         if ($explicit) {
             return $explicit;
         }
 
-        if ($lead->exists) {
+        if ($activityTimestamps !== null) {
+            $activityAt = $this->dateValue($activityTimestamps['last_activity_at']);
+            if ($activityAt) {
+                return $activityAt;
+            }
+        } elseif ($lead->exists) {
             $value = ActivityLog::query()
                 ->where('subject_type', $lead->getMorphClass())
                 ->where('subject_id', $lead->id)

@@ -63,7 +63,15 @@
         "unique_label": "{count} único",
         "legend_total": "Total",
         "legend_unique": "Único",
-        "empty": "Aún no hay datos de tráfico."
+        "legend_label": "Series de tráfico diario",
+        "trend_title": "Evolución diaria",
+        "trend_subtitle": "Visitas y visitantes únicos por día, sin estimaciones.",
+        "period": "Del {start} al {end}",
+        "date_label": "Fecha",
+        "value_label": "Visitas",
+        "table_caption": "Tráfico diario exacto: visitas y visitantes únicos.",
+        "empty": "Aún no hay datos de tráfico.",
+        "invalid": "Los datos de tráfico son incoherentes y no se pueden representar."
       },
       "alerts": {
         "title": "Alertas de plataforma",

@@ -80,13 +80,20 @@
       }
     },
     "revenue": {
-      "title": "Revenue trend",
-      "subtitle": "Revenue collections and expenses over recent months.",
+      "title": "Invoice collections and settled expenses",
+      "revenue_only_title": "Invoice collections",
+      "subtitle": "Amounts in {currency}, accumulated to the same day of each month.",
+      "period": "{start} to {end} · {timezone}",
+      "legend_label": "Financial chart series",
       "view_invoices": "View invoices",
       "legend": {
-        "revenue": "Revenue",
-        "expenses": "Expenses"
+        "revenue": "Invoice collections",
+        "expenses": "Settled expenses"
       },
+      "month_label": "Month",
+      "amount_label": "Amount",
+      "table_caption": "Exact invoice collection and settled expense values.",
+      "revenue_only_table_caption": "Exact invoice collection values.",
       "paid_to_date": "Paid to date",
       "outstanding": "Outstanding",
       "overdue": "Overdue"
@@ -134,6 +141,8 @@
     },
     "kpi": {
       "revenue_paid": "Revenue paid",
+      "revenue_paid_month": "Collections this month",
+      "revenue_paid_total": "{amount} collected in total",
       "revenue_billed": "Billed {amount}",
       "pos_revenue": "POS sales collected",
       "pos_revenue_month": "{amount} collected this month",
@@ -266,9 +275,12 @@
       "eyebrow": "Demo scenario",
       "title": "Live operating picture",
       "subtitle": "Metrics calculated as of {date} across the last {months} months.",
-      "history_title": "Revenue and expenses over 12 months",
-      "revenue": "Revenue",
-      "expenses": "Expenses",
+      "history_title": "Operating activity over 12 months",
+      "history_subtitle": "Number of appointments recorded each month.",
+      "activity_series": "Appointments",
+      "month_label": "Month",
+      "activity_count_label": "Count",
+      "activity_table_caption": "Exact monthly operating activity values.",
       "top_services": "Most requested services",
       "top_employees": "Busiest employees",
       "top_products": "Top-selling products",
@@ -300,6 +312,8 @@
         "average_job_value": "Average job value",
         "completed_jobs": "Jobs completed this month",
         "quality_incidents": "Quality incident rate",
+        "history_subtitle": "Number of jobs recorded each month.",
+        "activity_series": "Jobs",
         "top_employees": "Most active field team",
         "top_products": "Most-used supplies"
       }

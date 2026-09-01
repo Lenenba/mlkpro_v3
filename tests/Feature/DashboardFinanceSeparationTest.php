@@ -82,5 +82,6 @@ it('separates settled invoice collections from point of sale revenue on the dash
         ->assertJsonPath('stats.pos_revenue_paid', 70)
         ->assertJsonPath('stats.pos_payments_month', 70);
 
-    expect(array_sum($response->json('revenueSeries.values')))->toEqual(40);
+    expect(array_sum($response->json('kpiSeries.revenue_paid.values')))->toEqual(40)
+        ->and($response->json('revenueSeries'))->toBeNull();
 });
