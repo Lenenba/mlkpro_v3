@@ -19,6 +19,10 @@ const props = defineProps({
     type: String,
     default: 'product.search',
   },
+  searchScope: {
+    type: String,
+    default: null,
+  },
   itemType: {
     type: String,
     default: null,
@@ -227,6 +231,7 @@ const findCatalogMatch = async (index, query) => {
         params: {
           query,
           item_type: lineItemType,
+          scope: props.searchScope || undefined,
         },
       });
       results = response.data;
@@ -280,6 +285,7 @@ const searchProducts = async (query, index) => {
         params: {
           query,
           item_type: lineItemType,
+          scope: props.searchScope || undefined,
         },
       });
       searchResults.value[index] = response.data;

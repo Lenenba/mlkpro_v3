@@ -21,6 +21,7 @@ use App\Models\User;
 use App\Models\VipTier;
 use App\Models\Work;
 use App\Services\CompanyFeatureService;
+use App\Services\Rbac\AccessControl;
 use App\Support\CRM\CrmActivityLinking;
 use App\Support\CRM\MeetingEventTaxonomy;
 use App\Support\CRM\MessageEventTaxonomy;
@@ -31,8 +32,15 @@ use Illuminate\Support\Facades\DB;
 
 class BuildCustomerDetailViewData
 {
+    private const NOTE_ACTIONS = [
+        'note_added',
+        'notes_updated',
+        'sales_note_added',
+    ];
+
     public function __construct(
-        private readonly CompanyFeatureService $featureService
+        private readonly CompanyFeatureService $featureService,
+        private readonly AccessControl $accessControl,
     ) {}
 
     public function execute(
@@ -43,60 +51,68 @@ class BuildCustomerDetailViewData
         bool $canEdit,
         array $filters
     ): array {
-        $canViewInvoices = (bool) ($user?->can('viewAny', Invoice::class) ?? false);
+        $canViewInvoices = (bool) ($accountOwner
+            && $this->featureService->hasFeature($accountOwner, 'invoices')
+            && ($user?->can('viewAny', Invoice::class) ?? false));
         $currencyCode = $accountOwner?->businessCurrencyCode() ?? 'CAD';
-        $membership = $user?->relationLoaded('teamMembership')
-            ? $user->teamMembership
-            : $user?->teamMembership()->first();
-        $canViewSales = (bool) ($user && $accountOwner && (
-            (int) $user->id === (int) $accountOwner->id
-            || (
-                $membership
-                && $membership->is_active
-                && (int) $membership->account_id === (int) $accountOwner->id
-                && ($membership->role === 'admin'
-                    || $membership->hasPermission('sales.manage')
-                    || $membership->hasPermission('sales.pos'))
-            )
+        $canViewNotes = (bool) ($user && (
+            $this->accessControl->userHasPermission($user, 'view_client_notes', $accountId)
+            || $this->accessControl->userHasPermission($user, 'manage_client_notes', $accountId)
         ));
-        $hasSalesData = (bool) ($accountOwner
-            && $this->featureService->hasFeature($accountOwner, 'sales')
-            && $canViewSales);
-        $hasServiceData = (bool) ($accountOwner && collect([
-            'requests',
-            'quotes',
-            'jobs',
-            'tasks',
-            'invoices',
-            'reservations',
-        ])->contains(fn (string $feature): bool => $this->featureService->hasFeature($accountOwner, $feature)));
+        $canManageNotes = (bool) ($user
+            && $this->accessControl->userHasPermission($user, 'manage_client_notes', $accountId));
+        $allows = fn (string $feature, string $permission): bool => (bool) ($user
+            && $accountOwner
+            && $this->featureService->hasFeature($accountOwner, $feature)
+            && $this->accessControl->userHasPermission($user, $permission, $accountId));
+        $detailCapabilities = [
+            'requests' => $allows('requests', 'requests.view'),
+            'quotes' => $allows('quotes', 'quotes.view'),
+            'jobs' => $allows('jobs', 'jobs.view'),
+            'tasks' => $allows('tasks', 'tasks.view'),
+            'invoices' => $canViewInvoices,
+            'reservations' => $allows('reservations', 'reservations.view'),
+            'sales' => $allows('sales', 'view_sales'),
+        ];
+        $hasSalesData = $detailCapabilities['sales'];
+        $hasServiceData = collect($detailCapabilities)
+            ->except('sales')
+            ->contains(true);
 
         $customer->load(['properties', 'vipTier']);
+        if (! $canViewNotes) {
+            $customer->makeHidden('description');
+        }
         if ($hasServiceData) {
-            $serviceRelations = [
-                'quotes' => fn ($query) => $query
+            $serviceRelations = [];
+            if ($detailCapabilities['quotes']) {
+                $serviceRelations['quotes'] = fn ($query) => $query
                     ->without(['products', 'property'])
                     ->with('property:id,street1,city,country')
                     ->select(CustomerReadSelects::detailQuoteColumns())
                     ->latest()
-                    ->limit(10),
-                'works' => fn ($query) => $query
+                    ->limit(10);
+            }
+            if ($detailCapabilities['jobs']) {
+                $serviceRelations['works'] = fn ($query) => $query
                     ->with('invoice:id,work_id')
                     ->select(CustomerReadSelects::detailWorkColumns())
                     ->latest()
-                    ->limit(10),
-                'requests' => fn ($query) => $query
+                    ->limit(10);
+            }
+            if ($detailCapabilities['requests']) {
+                $serviceRelations['requests'] = fn ($query) => $query
                     ->select(CustomerReadSelects::detailRequestColumns())
                     ->latest()
                     ->limit(10)
-                    ->with('quote:id,request_id,number,status,customer_id'),
-                'serviceRequests' => fn ($query) => $query
+                    ->with('quote:id,request_id,number,status,customer_id');
+                $serviceRelations['serviceRequests'] = fn ($query) => $query
                     ->select(CustomerReadSelects::detailServiceRequestColumns())
                     ->latest()
                     ->limit(10)
-                    ->with('prospect:id,customer_id,status,title,contact_name,contact_email,contact_phone'),
-            ];
-            if ($canViewInvoices) {
+                    ->with('prospect:id,customer_id,status,title,contact_name,contact_email,contact_phone');
+            }
+            if ($detailCapabilities['invoices']) {
                 $serviceRelations['invoices'] = fn ($query) => $query
                     ->whereNull('deleted_at')
                     ->where('currency_code', $currencyCode)
@@ -105,7 +121,9 @@ class BuildCustomerDetailViewData
                     ->latest()
                     ->limit(10);
             }
-            $customer->load($serviceRelations);
+            if ($serviceRelations !== []) {
+                $customer->load($serviceRelations);
+            }
         }
 
         $campaignsFeatureEnabled = $accountOwner
@@ -157,15 +175,14 @@ class BuildCustomerDetailViewData
                 'upcomingJobs' => $upcomingJobs,
                 'recentPayments' => $recentPayments,
                 'billing' => $billing,
-            ] = $this->buildServiceData($customer, $accountId, $canViewInvoices, $currencyCode);
+            ] = $this->buildServiceData($customer, $accountId, $detailCapabilities, $currencyCode);
         }
 
         $activity = $this->buildActivity(
             $customer,
             $accountId,
-            $hasSalesData,
-            $hasServiceData,
-            $canViewInvoices
+            $detailCapabilities,
+            $canViewNotes,
         );
         $customerPackages = $this->buildCustomerPackages($customer, $accountId, $canViewInvoices);
         $purchasedPackData = $this->buildCustomerPurchasedPackData(
@@ -178,6 +195,9 @@ class BuildCustomerDetailViewData
         return [
             'customer' => $customer,
             'canEdit' => $canEdit,
+            'canViewNotes' => $canViewNotes,
+            'canManageNotes' => $canManageNotes,
+            'detailCapabilities' => $detailCapabilities,
             'filters' => $filters,
             'stats' => $stats,
             'sales' => $sales,
@@ -433,59 +453,69 @@ class BuildCustomerDetailViewData
     private function buildServiceData(
         Customer $customer,
         int $accountId,
-        bool $canViewInvoices,
+        array $capabilities,
         string $currencyCode
     ): array {
-        $serviceRequestCount = ServiceRequest::query()
-            ->where('customer_id', $customer->id)
-            ->where('user_id', $accountId)
-            ->count();
-        $legacyRequestCount = LeadRequest::query()
-            ->where('customer_id', $customer->id)
-            ->where('user_id', $accountId)
-            ->count();
+        $serviceRequestCount = 0;
+        $legacyRequestCount = 0;
+        if ($capabilities['requests'] ?? false) {
+            $serviceRequestCount = ServiceRequest::query()
+                ->where('customer_id', $customer->id)
+                ->where('user_id', $accountId)
+                ->count();
+            $legacyRequestCount = LeadRequest::query()
+                ->where('customer_id', $customer->id)
+                ->where('user_id', $accountId)
+                ->count();
+        }
 
-        $tasks = Task::query()
-            ->forAccount($accountId)
-            ->where('customer_id', $customer->id)
-            ->with(['assignee.user:id,name'])
-            ->orderByRaw('CASE WHEN due_date IS NULL THEN 1 ELSE 0 END')
-            ->orderBy('due_date')
-            ->orderByDesc('created_at')
-            ->limit(8)
-            ->get(CustomerReadSelects::detailTaskColumns())
-            ->map(fn ($task) => [
-                'id' => $task->id,
-                'title' => $task->title,
-                'status' => $task->status,
-                'due_date' => $task->due_date,
-                'completed_at' => $task->completed_at,
-                'assignee' => $task->assignee?->user?->name,
-            ])
-            ->values();
+        $tasks = collect();
+        if ($capabilities['tasks'] ?? false) {
+            $tasks = Task::query()
+                ->forAccount($accountId)
+                ->where('customer_id', $customer->id)
+                ->with(['assignee.user:id,name'])
+                ->orderByRaw('CASE WHEN due_date IS NULL THEN 1 ELSE 0 END')
+                ->orderBy('due_date')
+                ->orderByDesc('created_at')
+                ->limit(8)
+                ->get(CustomerReadSelects::detailTaskColumns())
+                ->map(fn ($task) => [
+                    'id' => $task->id,
+                    'title' => $task->title,
+                    'status' => $task->status,
+                    'due_date' => $task->due_date,
+                    'completed_at' => $task->completed_at,
+                    'assignee' => $task->assignee?->user?->name,
+                ])
+                ->values();
+        }
 
-        $upcomingJobs = Work::query()
-            ->where('customer_id', $customer->id)
-            ->where('user_id', $accountId)
-            ->whereDate('start_date', '>=', now()->toDateString())
-            ->orderBy('start_date')
-            ->limit(8)
-            ->get(CustomerReadSelects::detailUpcomingWorkColumns())
-            ->map(fn ($work) => [
-                'id' => $work->id,
-                'job_title' => $work->job_title,
-                'status' => $work->status,
-                'start_date' => $work->start_date,
-                'end_date' => $work->end_date,
-                'created_at' => $work->created_at,
-            ])
-            ->values();
+        $upcomingJobs = collect();
+        if ($capabilities['jobs'] ?? false) {
+            $upcomingJobs = Work::query()
+                ->where('customer_id', $customer->id)
+                ->where('user_id', $accountId)
+                ->whereDate('start_date', '>=', now()->toDateString())
+                ->orderBy('start_date')
+                ->limit(8)
+                ->get(CustomerReadSelects::detailUpcomingWorkColumns())
+                ->map(fn ($work) => [
+                    'id' => $work->id,
+                    'job_title' => $work->job_title,
+                    'status' => $work->status,
+                    'start_date' => $work->start_date,
+                    'end_date' => $work->end_date,
+                    'created_at' => $work->created_at,
+                ])
+                ->values();
+        }
 
         $recentPayments = collect();
         $totalInvoiced = 0.0;
         $totalPaid = 0.0;
         $invoiceCount = 0;
-        if ($canViewInvoices) {
+        if ($capabilities['invoices'] ?? false) {
             $validInvoice = fn ($invoiceQuery) => $invoiceQuery
                 ->where('user_id', $accountId)
                 ->where('customer_id', $customer->id)
@@ -539,21 +569,27 @@ class BuildCustomerDetailViewData
 
         return [
             'stats' => [
-                'active_works' => Work::query()
-                    ->where('customer_id', $customer->id)
-                    ->where('user_id', $accountId)
-                    ->whereIn('status', $this->activeWorkStatuses())
-                    ->count(),
+                'active_works' => ($capabilities['jobs'] ?? false)
+                    ? Work::query()
+                        ->where('customer_id', $customer->id)
+                        ->where('user_id', $accountId)
+                        ->whereIn('status', $this->activeWorkStatuses())
+                        ->count()
+                    : 0,
                 'requests' => $serviceRequestCount > 0 ? $serviceRequestCount : $legacyRequestCount,
-                'quotes' => Quote::query()
-                    ->where('customer_id', $customer->id)
-                    ->where('user_id', $accountId)
-                    ->whereNull('archived_at')
-                    ->count(),
-                'jobs' => Work::query()
-                    ->where('customer_id', $customer->id)
-                    ->where('user_id', $accountId)
-                    ->count(),
+                'quotes' => ($capabilities['quotes'] ?? false)
+                    ? Quote::query()
+                        ->where('customer_id', $customer->id)
+                        ->where('user_id', $accountId)
+                        ->whereNull('archived_at')
+                        ->count()
+                    : 0,
+                'jobs' => ($capabilities['jobs'] ?? false)
+                    ? Work::query()
+                        ->where('customer_id', $customer->id)
+                        ->where('user_id', $accountId)
+                        ->count()
+                    : 0,
                 'invoices' => $invoiceCount,
             ],
             'tasks' => $tasks,
@@ -860,9 +896,8 @@ class BuildCustomerDetailViewData
     private function buildActivity(
         Customer $customer,
         int $accountId,
-        bool $hasSalesData,
-        bool $hasServiceData,
-        bool $canViewInvoices
+        array $capabilities,
+        bool $canViewNotes,
     ): Collection {
         $subjectLabels = [
             LeadRequest::class => 'Request',
@@ -874,19 +909,19 @@ class BuildCustomerDetailViewData
             Customer::class => 'Customer',
         ];
 
-        $requestIds = $hasServiceData
+        $requestIds = ($capabilities['requests'] ?? false)
             ? $this->customerSubjectIds(LeadRequest::query(), $customer, $accountId)
             : collect();
-        $quoteIds = $hasServiceData
+        $quoteIds = ($capabilities['quotes'] ?? false)
             ? $this->customerSubjectIds(Quote::query(), $customer, $accountId)
             : collect();
-        $workIds = $hasServiceData
+        $workIds = ($capabilities['jobs'] ?? false)
             ? $this->customerSubjectIds(Work::query(), $customer, $accountId)
             : collect();
-        $invoiceIds = $hasServiceData && $canViewInvoices
+        $invoiceIds = ($capabilities['invoices'] ?? false)
             ? $this->customerSubjectIds(Invoice::query()->whereNull('deleted_at'), $customer, $accountId)
             : collect();
-        $paymentIds = $canViewInvoices
+        $paymentIds = ($capabilities['invoices'] ?? false)
             ? $this->customerSubjectIds(
                 Payment::query()->whereHas('invoice', fn (Builder $invoiceQuery) => $invoiceQuery
                     ->where('user_id', $accountId)
@@ -896,11 +931,11 @@ class BuildCustomerDetailViewData
                 $accountId
             )
             : collect();
-        $saleIds = $hasSalesData
+        $saleIds = ($capabilities['sales'] ?? false)
             ? $this->customerSubjectIds(Sale::query(), $customer, $accountId)
             : collect();
 
-        return ActivityLog::query()
+        $activityQuery = ActivityLog::query()
             ->where(function ($query) use ($customer, $requestIds, $quoteIds, $workIds, $invoiceIds, $paymentIds, $saleIds) {
                 $query->where(function ($sub) use ($customer) {
                     $sub->where('subject_type', Customer::class)
@@ -948,14 +983,38 @@ class BuildCustomerDetailViewData
                             ->whereIn('subject_id', $saleIds);
                     });
                 }
-            })
+            });
+
+        $restrictedActions = [];
+        if (! ($capabilities['sales'] ?? false)) {
+            $salesActions = array_values(array_unique(array_merge(
+                SalesActivityTaxonomy::actions(),
+                MessageEventTaxonomy::actions(),
+                MeetingEventTaxonomy::actions(),
+            )));
+            $restrictedActions = $canViewNotes
+                ? array_values(array_diff($salesActions, self::NOTE_ACTIONS))
+                : $salesActions;
+        }
+        if (! $canViewNotes) {
+            $restrictedActions = array_values(array_unique(array_merge(
+                $restrictedActions,
+                self::NOTE_ACTIONS,
+            )));
+        }
+        if ($restrictedActions !== []) {
+            $activityQuery->whereNotIn('action', $restrictedActions);
+        }
+
+        return $activityQuery
             ->with('user:id,name')
             ->latest()
             ->limit(12)
             ->get(CustomerReadSelects::detailActivityColumns())
             ->map(fn ($log) => $this->serializeActivityLog(
                 $log,
-                $subjectLabels[$log->subject_type] ?? 'Item'
+                $subjectLabels[$log->subject_type] ?? 'Item',
+                $canViewNotes,
             ))
             ->values();
     }
@@ -973,9 +1032,20 @@ class BuildCustomerDetailViewData
     /**
      * @return array<string, mixed>
      */
-    private function serializeActivityLog(ActivityLog $log, string $subjectLabel): array
-    {
+    private function serializeActivityLog(
+        ActivityLog $log,
+        string $subjectLabel,
+        bool $canViewNotes,
+    ): array {
         $properties = (array) ($log->properties ?? []);
+        if (! $canViewNotes) {
+            unset($properties['note']);
+            foreach (['before', 'after', 'changes'] as $propertyGroup) {
+                if (is_array($properties[$propertyGroup] ?? null)) {
+                    unset($properties[$propertyGroup]['description']);
+                }
+            }
+        }
 
         return [
             'id' => $log->id,

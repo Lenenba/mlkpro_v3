@@ -42,6 +42,14 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    canCreate: {
+        type: Boolean,
+        default: false,
+    },
+    abilities: {
+        type: Object,
+        default: () => ({}),
+    },
     warehouses: {
         type: Array,
         default: () => [],
@@ -77,6 +85,8 @@ const props = defineProps({
                     :warehouses="warehouses"
                     :defaultWarehouseId="defaultWarehouseId"
                     :canEdit="canEdit"
+                    :canCreate="canCreate"
+                    :abilities="abilities"
                     :bulk-actions="bulkActions"
                     :ai-image="ai_image"
                     :tenant-currency-code="tenantCurrencyCode"

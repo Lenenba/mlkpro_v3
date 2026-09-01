@@ -204,7 +204,10 @@ class CustomerHistoryExperienceTest extends TestCase
     {
         $owner = $this->owner();
         $customer = $this->customer($owner);
-        [$ownMember, $service, $employee] = $this->appointmentResources($owner, ['reservations.view']);
+        [$ownMember, $service, $employee] = $this->appointmentResources($owner, [
+            'customers.view',
+            'reservations.view',
+        ]);
         [$otherMember] = $this->appointmentResources($owner);
         $ownReservation = $this->reservation($owner, $customer, $ownMember, $service, now()->addDay());
         $otherReservation = $this->reservation($owner, $customer, $otherMember, $service, now()->addDays(2));
@@ -240,6 +243,7 @@ class CustomerHistoryExperienceTest extends TestCase
         $owner = $this->owner();
         $customer = $this->customer($owner);
         [$viewerMember, $service, $employee] = $this->appointmentResources($owner, [
+            'customers.view',
             'view_all_reservations',
             'sales.manage',
         ]);

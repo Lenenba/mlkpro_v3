@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\CompanyFeatureService;
+use App\Services\Rbac\PermissionCatalog;
 use App\Services\SecurityEventService;
 use App\Services\TenantBrandingResolver;
 use App\Services\TwoFactorService;
@@ -33,7 +34,8 @@ class AuthController extends Controller
         if (! $user->isAccountOwner()) {
             $teamMembership = $user->relationLoaded('teamMembership')
                 ? $user->teamMembership
-                : $user->teamMembership()->first();
+                : $user->teamMembership()->with('companyRole.permissions')->first();
+            $teamMembership?->loadMissing('companyRole.permissions');
         }
 
         $platformAdmin = null;
@@ -41,6 +43,17 @@ class AuthController extends Controller
             $platformAdmin = $user->relationLoaded('platformAdmin')
                 ? $user->platformAdmin
                 : $user->platformAdmin()->first();
+        }
+
+        $teamPermissions = [];
+        if ($teamMembership) {
+            $directPermissions = is_array($teamMembership->permissions)
+                ? $teamMembership->permissions
+                : [];
+            $teamPermissions = array_values(array_unique([
+                ...$directPermissions,
+                ...app(PermissionCatalog::class)->expand($teamMembership->resolvedPermissions()),
+            ]));
         }
 
         return [
@@ -66,7 +79,7 @@ class AuthController extends Controller
             ] : null,
             'team' => $teamMembership ? [
                 'role' => $teamMembership->role,
-                'permissions' => $teamMembership->permissions ?? [],
+                'permissions' => $teamPermissions,
             ] : null,
         ];
     }

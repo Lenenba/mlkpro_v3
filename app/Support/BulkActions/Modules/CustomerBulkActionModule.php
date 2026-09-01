@@ -17,7 +17,8 @@ class CustomerBulkActionModule implements BulkActionModule
      */
     public function definition(array $context = []): array
     {
-        $enabled = (bool) ($context['can_edit'] ?? false);
+        $canEdit = (bool) ($context['can_edit'] ?? false);
+        $canDelete = (bool) ($context['can_delete'] ?? false);
         $contactEnabled = (bool) ($context['contact_enabled'] ?? false);
         $campaignBridgeEnabled = (bool) ($context['campaign_bridge_enabled'] ?? $contactEnabled);
 
@@ -29,36 +30,36 @@ class CustomerBulkActionModule implements BulkActionModule
                 'label_key' => 'customers.bulk_contact.action',
                 'tone' => 'info',
             ] : null,
-            [
+            $canEdit ? [
                 'key' => 'portal_enable',
                 'kind' => 'submit',
                 'action' => 'portal_enable',
                 'label_key' => 'customers.bulk.enable_portal',
                 'tone' => 'success',
                 'divider_before' => true,
-            ],
-            [
+            ] : null,
+            $canEdit ? [
                 'key' => 'portal_disable',
                 'kind' => 'submit',
                 'action' => 'portal_disable',
                 'label_key' => 'customers.bulk.disable_portal',
                 'tone' => 'warning',
-            ],
-            [
+            ] : null,
+            $canEdit ? [
                 'key' => 'archive',
                 'kind' => 'submit',
                 'action' => 'archive',
                 'label_key' => 'customers.actions.archive',
                 'tone' => 'neutral',
-            ],
-            [
+            ] : null,
+            $canEdit ? [
                 'key' => 'restore',
                 'kind' => 'submit',
                 'action' => 'restore',
                 'label_key' => 'customers.actions.restore',
                 'tone' => 'success',
-            ],
-            [
+            ] : null,
+            $canDelete ? [
                 'key' => 'delete',
                 'kind' => 'submit',
                 'action' => 'delete',
@@ -66,12 +67,12 @@ class CustomerBulkActionModule implements BulkActionModule
                 'tone' => 'danger',
                 'divider_before' => true,
                 'confirm_key' => 'customers.bulk.delete_confirm',
-            ],
+            ] : null,
         ]));
 
         return [
             'module' => $this->key(),
-            'enabled' => $enabled,
+            'enabled' => $actions !== [],
             'endpoint' => route('customer.bulk'),
             'method' => 'post',
             'menu_label_key' => 'customers.bulk.title',

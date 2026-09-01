@@ -414,6 +414,7 @@ const submit = () => {
                     >
                         <ProductTableList
                             v-model="form.product"
+                            search-scope="quote"
                             :read-only="isLocked"
                             :allow-mixed-types="true"
                             :enable-price-lookup="true"

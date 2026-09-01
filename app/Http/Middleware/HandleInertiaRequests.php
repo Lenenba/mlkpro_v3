@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\Auth\SocialAuthProviderRegistry;
 use App\Services\CompanyFeatureService;
 use App\Services\Demo\DemoAccountService;
+use App\Services\Rbac\CompanyModuleAccess;
 use App\Services\Rbac\PermissionCatalog;
 use App\Services\TenantBrandingResolver;
 use App\Support\Database\UserSelects;
@@ -68,7 +69,13 @@ class HandleInertiaRequests extends Middleware
                 ? $user->teamMembership
                 : $user->teamMembership()->first();
 
-            $teamMembership?->loadMissing('companyRole.permissions');
+            if (! $teamMembership
+                || ! $teamMembership->is_active
+                || (int) $teamMembership->account_id !== (int) $ownerId) {
+                $teamMembership = null;
+            } else {
+                $teamMembership->loadMissing('companyRole.permissions');
+            }
         }
 
         $companyPermissions = [];
@@ -77,6 +84,14 @@ class HandleInertiaRequests extends Middleware
                 ? $permissionCatalog->permissionSlugs()
                 : $permissionCatalog->expand($teamMembership?->resolvedPermissions() ?? []);
         }
+        $moduleAccess = $user
+            ? app(CompanyModuleAccess::class)->payload(
+                $accountOwner,
+                $companyPermissions,
+                $user->isSuperadmin()
+                    || ($user->isOwner() && (int) $user->id === (int) $accountOwner?->id),
+            )
+            : null;
 
         $platformAdmin = null;
         if ($user && $user->isPlatformAdmin()) {
@@ -193,6 +208,7 @@ class HandleInertiaRequests extends Middleware
                     ] : null,
                     'features' => $accountFeatures,
                     'permissions' => $companyPermissions,
+                    'module_access' => $moduleAccess,
                     'platform' => $platformAdmin ? [
                         'role' => $platformAdmin->role,
                         'permissions' => $platformAdmin->permissions ?? [],

@@ -74,6 +74,10 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    canDelete: {
+        type: Boolean,
+        default: false,
+    },
     savedSegments: {
         type: Array,
         default: () => [],
@@ -158,6 +162,8 @@ const initialSort = featureSortIsAvailable(props.filters?.sort)
     : 'created_at';
 
 const canEdit = computed(() => Boolean(props.canEdit));
+const canDelete = computed(() => Boolean(props.canDelete));
+const canManageBulk = computed(() => Boolean(props.bulkActions?.enabled));
 const canCreateCustomer = computed(() => contextActions.value.can_create_customer !== false);
 const campaignsFeatureEnabled = computed(() => {
     const capability = props.bulkActions?.capabilities?.contact_enabled;
@@ -1023,7 +1029,7 @@ const customerResultsLabel = computed(() => t('customers.filter_summary.results'
             />
 
             <AdminDataTableBulkBar
-                v-if="canEdit"
+                v-if="canManageBulk"
                 :count="selectedCount"
                 :label="$t(bulkSelectionLabelKey, { count: selectedCount })"
                 :result="bulkResult"
@@ -1097,7 +1103,7 @@ const customerResultsLabel = computed(() => t('customers.filter_summary.results'
             <template #head>
                 <tr v-if="appointmentProfile">
                     <th scope="col" class="w-10 px-4 py-2">
-                        <input v-if="canEdit" ref="selectAllRef" type="checkbox" :checked="allSelected" @change="toggleAll"
+                        <input v-if="canManageBulk" ref="selectAllRef" type="checkbox" :checked="allSelected" @change="toggleAll"
                             :aria-label="$t('customers.accessibility.select_all')"
                             class="rounded border-stone-300 text-green-600 shadow-sm focus:ring-green-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-green-400 dark:focus:ring-green-400" />
                     </th>
@@ -1137,7 +1143,7 @@ const customerResultsLabel = computed(() => t('customers.filter_summary.results'
                 </tr>
                 <tr v-else-if="!appointmentProfile">
                             <th scope="col" class="w-10 px-4 py-2">
-                                <input v-if="canEdit" ref="selectAllRef" type="checkbox" :checked="allSelected" @change="toggleAll"
+                                <input v-if="canManageBulk" ref="selectAllRef" type="checkbox" :checked="allSelected" @change="toggleAll"
                                     :aria-label="$t('customers.accessibility.select_all')"
                                     class="rounded border-stone-300 text-green-600 shadow-sm focus:ring-green-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-green-400 dark:focus:ring-green-400" />
                             </th>
@@ -1232,7 +1238,7 @@ const customerResultsLabel = computed(() => t('customers.filter_summary.results'
                 <tr v-else-if="!appointmentProfile">
                             <td class="size-px whitespace-nowrap px-4 py-2">
                                 <Checkbox
-                                    v-if="canEdit"
+                                    v-if="canManageBulk"
                                     :checked="isSelected(customer)"
                                     :aria-label="$t('customers.accessibility.select_customer', { name: customer.company_name || `${customer.first_name} ${customer.last_name}` })"
                                     @update:checked="toggleSelection(customer.id, $event)"
@@ -1315,6 +1321,7 @@ const customerResultsLabel = computed(() => t('customers.filter_summary.results'
                                 <CustomerActionsMenu
                                     :customer="customer"
                                     :can-edit="canEdit"
+                                    :can-delete="canDelete"
                                     :customer-index-context="customerIndexContext"
                                     @toggle-archive="toggleArchive(customer)"
                                     @delete="destroyCustomer(customer)"
@@ -1324,7 +1331,7 @@ const customerResultsLabel = computed(() => t('customers.filter_summary.results'
                 <tr v-else>
                     <td class="size-px whitespace-nowrap px-4 py-2">
                         <Checkbox
-                            v-if="canEdit"
+                            v-if="canManageBulk"
                             :checked="isSelected(customer)"
                             :aria-label="$t('customers.accessibility.select_customer', { name: customer.company_name || `${customer.first_name} ${customer.last_name}` })"
                             @update:checked="toggleSelection(customer.id, $event)"
@@ -1460,6 +1467,7 @@ const customerResultsLabel = computed(() => t('customers.filter_summary.results'
                         <CustomerActionsMenu
                             :customer="customer"
                             :can-edit="canEdit"
+                            :can-delete="canDelete"
                             :customer-index-context="customerIndexContext"
                             @toggle-archive="toggleArchive(customer)"
                             @delete="destroyCustomer(customer)"
@@ -1562,7 +1570,7 @@ const customerResultsLabel = computed(() => t('customers.filter_summary.results'
                             </div>
                             <div class="flex items-center gap-2">
                                 <Checkbox
-                                    v-if="canEdit"
+                                    v-if="canManageBulk"
                                     :checked="isSelected(customer)"
                                     :aria-label="$t('customers.accessibility.select_customer', { name: customer.company_name || `${customer.first_name} ${customer.last_name}` })"
                                     @update:checked="toggleSelection(customer.id, $event)"
@@ -1570,6 +1578,7 @@ const customerResultsLabel = computed(() => t('customers.filter_summary.results'
                                 <CustomerActionsMenu
                                     :customer="customer"
                                     :can-edit="canEdit"
+                                    :can-delete="canDelete"
                                     :customer-index-context="customerIndexContext"
                                     @toggle-archive="toggleArchive(customer)"
                                     @delete="destroyCustomer(customer)"
@@ -1722,7 +1731,7 @@ const customerResultsLabel = computed(() => t('customers.filter_summary.results'
                         </div>
                         <div class="flex items-center gap-2">
                             <Checkbox
-                                v-if="canEdit"
+                                v-if="canManageBulk"
                                 :checked="isSelected(customer)"
                                 :aria-label="$t('customers.accessibility.select_customer', { name: customer.company_name || `${customer.first_name} ${customer.last_name}` })"
                                 @update:checked="toggleSelection(customer.id, $event)"
@@ -1730,6 +1739,7 @@ const customerResultsLabel = computed(() => t('customers.filter_summary.results'
                             <CustomerActionsMenu
                                 :customer="customer"
                                 :can-edit="canEdit"
+                                :can-delete="canDelete"
                                 :customer-index-context="customerIndexContext"
                                 @toggle-archive="toggleArchive(customer)"
                                 @delete="destroyCustomer(customer)"

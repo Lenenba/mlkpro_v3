@@ -22,6 +22,8 @@ use InvalidArgumentException;
 
 class DemoSeedService
 {
+    public function __construct(private readonly DemoAccessRoleProvisioner $accessRoleProvisioner) {}
+
     public function seed(User $account, string $type): void
     {
         if (! config('demo.enabled')) {
@@ -33,17 +35,13 @@ class DemoSeedService
         if ($type === DemoAccountService::TYPE_GUIDED) {
             $this->ensureTourSteps();
             $this->seedGuidedDemo($account);
-
-            return;
-        }
-
-        if ($type === DemoAccountService::TYPE_PRODUCT) {
+        } elseif ($type === DemoAccountService::TYPE_PRODUCT) {
             $this->seedProductDemo($account);
-
-            return;
+        } else {
+            $this->seedServiceDemo($account);
         }
 
-        $this->seedServiceDemo($account);
+        $this->accessRoleProvisioner->provision($account);
     }
 
     private function seedServiceDemo(User $account): void
@@ -608,7 +606,7 @@ class DemoSeedService
                 'role' => 'technician',
                 'title' => 'Field Technician',
                 'phone' => '555-0199',
-                'permissions' => ['jobs', 'tasks'],
+                'permissions' => ['jobs.view', 'jobs.edit', 'tasks.view', 'tasks.edit'],
                 'is_active' => true,
             ]
         );

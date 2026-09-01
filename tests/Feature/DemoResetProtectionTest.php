@@ -1,8 +1,12 @@
 <?php
 
+use App\Models\CompanyRole;
 use App\Models\Customer;
 use App\Models\DemoWorkspace;
+use App\Models\Permission;
+use App\Models\TeamMember;
 use App\Models\User;
+use App\Services\Demo\DemoAccessRoleProvisioner;
 use App\Services\Demo\DemoAccountService;
 use App\Services\Demo\DemoResetService;
 use App\Services\Demo\DemoSeedService;
@@ -152,4 +156,133 @@ test('the legacy seed service rejects an unknown type instead of seeding service
         ->toThrow(InvalidArgumentException::class, 'Unsupported demo type [scenario:unknown].');
 
     expect(Customer::query()->where('user_id', $owner->id)->count())->toBe(0);
+});
+
+test('the legacy guided demo creates an idempotent manageable access role', function () {
+    $owner = demoResetGuardOwner(DemoAccountService::TYPE_GUIDED, 'guided_demo');
+    $seedService = app(DemoSeedService::class);
+
+    $seedService->seed($owner, DemoAccountService::TYPE_GUIDED);
+
+    $member = TeamMember::query()
+        ->forAccount($owner->id)
+        ->with('companyRole.permissions:id,slug')
+        ->firstOrFail();
+    $originalRoleId = $member->company_role_id;
+
+    expect($member->role)->toBe('member')
+        ->and($member->permissions)->toBe([])
+        ->and($member->companyRole?->slug)->toBe('demo_technician')
+        ->and($member->companyRole?->permissions->pluck('slug')->sort()->values()->all())->toBe([
+            'update_jobs',
+            'update_tasks',
+            'view_jobs',
+            'view_tasks',
+        ]);
+
+    $member->companyRole?->update(['is_active' => false]);
+
+    $seedService->seed($owner, DemoAccountService::TYPE_GUIDED);
+
+    $member->refresh()->load('companyRole');
+
+    expect($member->company_role_id)->toBe($originalRoleId)
+        ->and($member->companyRole?->is_active)->toBeFalse()
+        ->and(CompanyRole::query()->where('company_id', $owner->id)->count())->toBe(1);
+});
+
+test('the data migration backfills existing demo roles without touching regular tenants', function () {
+    $demoOwner = demoResetGuardOwner(DemoAccountService::TYPE_GUIDED, 'guided_demo');
+    $regularOwner = User::factory()->create([
+        'is_demo' => false,
+        'is_demo_user' => false,
+    ]);
+    $demoMember = TeamMember::factory()->create([
+        'account_id' => $demoOwner->id,
+        'role' => 'technician',
+        'company_role_id' => null,
+        'permissions' => ['jobs', 'tasks'],
+    ]);
+    $regularMember = TeamMember::factory()->create([
+        'account_id' => $regularOwner->id,
+        'role' => 'technician',
+        'company_role_id' => null,
+        'permissions' => ['jobs', 'tasks'],
+    ]);
+    $crossTenantMembership = TeamMember::factory()->create([
+        'account_id' => $regularOwner->id,
+        'user_id' => $demoOwner->id,
+        'role' => 'member',
+        'company_role_id' => null,
+        'permissions' => ['tasks.view'],
+    ]);
+    $migration = require database_path('migrations/2026_09_01_184055_backfill_demo_access_roles.php');
+
+    $migration->up();
+    $migration->up();
+
+    $demoMember->refresh()->load('companyRole.permissions:id,slug');
+    $regularMember->refresh();
+    $crossTenantMembership->refresh();
+
+    expect($demoMember->role)->toBe('member')
+        ->and($demoMember->permissions)->toBe([])
+        ->and($demoMember->companyRole?->slug)->toBe('demo_technician')
+        ->and($demoMember->companyRole?->permissions->pluck('slug')->sort()->values()->all())->toBe([
+            'update_jobs',
+            'update_tasks',
+            'view_jobs',
+            'view_tasks',
+        ])
+        ->and(CompanyRole::query()->where('company_id', $demoOwner->id)->count())->toBe(1)
+        ->and($regularMember->company_role_id)->toBeNull()
+        ->and($regularMember->permissions)->toBe(['jobs', 'tasks'])
+        ->and($crossTenantMembership->company_role_id)->toBeNull()
+        ->and($crossTenantMembership->permissions)->toBe(['tasks.view'])
+        ->and(CompanyRole::query()->where('company_id', $regularOwner->id)->exists())->toBeFalse();
+});
+
+test('provisioning a missing demo assignment never overwrites an existing managed role', function () {
+    $owner = demoResetGuardOwner(DemoAccountService::TYPE_GUIDED, 'guided_demo');
+    $existingPermission = Permission::query()->where('slug', 'view_reservations')->firstOrFail();
+    $existingRole = CompanyRole::query()->create([
+        'company_id' => $owner->id,
+        'name' => 'Stylist',
+        'slug' => 'demo_stylist',
+        'is_system' => false,
+        'is_default' => false,
+        'is_editable' => true,
+        'is_deletable' => true,
+        'is_active' => true,
+    ]);
+    $existingRole->permissions()->sync([$existingPermission->id]);
+    $existingMember = TeamMember::factory()->create([
+        'account_id' => $owner->id,
+        'role' => 'member',
+        'company_role_id' => $existingRole->id,
+        'permissions' => [],
+    ]);
+    $newMember = TeamMember::factory()->create([
+        'account_id' => $owner->id,
+        'role' => 'stylist',
+        'company_role_id' => null,
+        'permissions' => ['sales.pos'],
+    ]);
+
+    app(DemoAccessRoleProvisioner::class)->provision($owner);
+
+    $existingRole->refresh()->load('permissions:id,slug');
+    $existingMember->refresh();
+    $newMember->refresh()->load('companyRole.permissions:id,slug');
+
+    expect($existingMember->company_role_id)->toBe($existingRole->id)
+        ->and($existingRole->permissions->pluck('slug')->all())->toBe(['view_reservations'])
+        ->and($newMember->company_role_id)->not->toBe($existingRole->id)
+        ->and($newMember->companyRole?->slug)->toStartWith('demo_stylist_')
+        ->and($newMember->companyRole?->permissions->pluck('slug')->sort()->values()->all())->toBe([
+            'create_sales',
+            'manage_cash_register',
+            'view_sales',
+        ])
+        ->and(CompanyRole::query()->where('company_id', $owner->id)->count())->toBe(2);
 });

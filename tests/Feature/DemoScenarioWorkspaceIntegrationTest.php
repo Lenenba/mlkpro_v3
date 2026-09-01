@@ -3,6 +3,7 @@
 use App\Enums\DemoDataVolume;
 use App\Jobs\ProvisionDemoWorkspaceJob;
 use App\Models\ActivityLog;
+use App\Models\CompanyRole;
 use App\Models\Customer;
 use App\Models\CustomerBehaviorEvent;
 use App\Models\CustomerPackage;
@@ -15,6 +16,7 @@ use App\Models\LoyaltyProgram;
 use App\Models\OfferPackage;
 use App\Models\OfferPackageItem;
 use App\Models\Payment;
+use App\Models\Permission;
 use App\Models\Product;
 use App\Models\Quote;
 use App\Models\Reservation;
@@ -33,6 +35,7 @@ use App\Services\Demo\DemoWorkspaceCatalog;
 use App\Services\Demo\DemoWorkspaceProvisioner;
 use App\Services\Demo\DemoWorkspaceTimelineService;
 use App\Services\Demo\Scenarios\StudioNaya\StudioNayaBlueprint;
+use App\Services\Rbac\PermissionCatalog;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
@@ -395,6 +398,17 @@ it('provisions and reproducibly resets the real small Studio Naya scenario', fun
         'role_id' => Role::query()->where('name', 'superadmin')->value('id'),
         'onboarding_completed_at' => now(),
     ]);
+    $unrelatedRole = CompanyRole::query()->create([
+        'company_id' => $unrelatedTenant->id,
+        'name' => 'Unrelated tenant manager',
+        'slug' => 'unrelated_tenant_manager',
+        'description' => 'Must survive another tenant demo reset.',
+        'is_system' => false,
+        'is_default' => false,
+        'is_editable' => true,
+        'is_deletable' => true,
+        'is_active' => true,
+    ]);
     $provisioner = app(DemoWorkspaceProvisioner::class);
 
     $workspace = $provisioner->create(
@@ -403,6 +417,56 @@ it('provisions and reproducibly resets the real small Studio Naya scenario', fun
     );
     $originalOwnerId = $workspace->owner_user_id;
     $originalFingerprint = data_get($workspace->seed_summary, 'dataset_fingerprint');
+    $expectedDemoRoleSlugs = [
+        'demo_assistant_apprentice',
+        'demo_barber',
+        'demo_owner_senior_stylist',
+        'demo_protective_style_specialist',
+        'demo_stylist',
+    ];
+    $expectedSpecialistPermissions = [
+        'assign_reservations',
+        'cancel_reservations',
+        'create_reservations',
+        'create_sales',
+        'manage_cash_register',
+        'manage_reservation_calendar',
+        'manage_reservation_queue',
+        'update_reservations',
+        'view_all_reservations',
+        'view_own_reservations',
+        'view_reservations',
+        'view_sales',
+    ];
+    $demoAccessRoles = CompanyRole::query()
+        ->where('company_id', $workspace->owner_user_id)
+        ->with('permissions:id,slug')
+        ->orderBy('slug')
+        ->get();
+    $originalDemoRoleIds = $demoAccessRoles->pluck('id')->all();
+    $demoTeamMembers = TeamMember::query()
+        ->forAccount((int) $workspace->owner_user_id)
+        ->with(['user:id,name', 'companyRole.permissions:id,slug'])
+        ->oldest('id')
+        ->get();
+    $settingsAccessPayload = $this->actingAs($workspace->owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('settings.roles_permissions.edit'))
+        ->assertOk()
+        ->json();
+    $teamAccessPayload = $this->actingAs($workspace->owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('team.index'))
+        ->assertOk()
+        ->json();
+    $settingsTenantRoles = collect($settingsAccessPayload['roles'] ?? [])->whereNotNull('company_id');
+    $settingsSarahRole = $settingsTenantRoles->firstWhere('slug', 'demo_protective_style_specialist');
+    $teamAccessMembers = collect(data_get($teamAccessPayload, 'teamMembers.data', []));
+    $teamSarahMembership = $teamAccessMembers->firstWhere('user.name', 'Sarah Mbaye');
+    $sarahMembership = $demoTeamMembers->first(
+        fn (TeamMember $member): bool => $member->user?->name === 'Sarah Mbaye'
+    );
+    $sarah = User::query()->findOrFail($sarahMembership?->user_id);
     $selectedModules = collect($workspace->selected_modules)->sort()->values()->all();
     $enabledFeatures = collect($workspace->owner?->company_features)
         ->filter(fn (mixed $enabled): bool => $enabled === true)
@@ -590,6 +654,8 @@ it('provisions and reproducibly resets the real small Studio Naya scenario', fun
         ->and($workspace->scenario_key)->toBe('studio_naya_coiffure')
         ->and($workspace->owner?->demo_type)->toBe('scenario:studio_naya_coiffure')
         ->and(data_get($workspace->seed_summary, 'team_members'))->toBe(5)
+        ->and(data_get($workspace->seed_summary, 'company_roles'))->toBe(5)
+        ->and(data_get($workspace->seed_summary, 'role_assignments'))->toBe(5)
         ->and(data_get($workspace->seed_summary, 'customers'))->toBe(40)
         ->and(data_get($workspace->seed_summary, 'reservations'))->toBe(180)
         ->and(data_get($workspace->seed_summary, 'invoices'))->toBe(110)
@@ -618,6 +684,51 @@ it('provisions and reproducibly resets the real small Studio Naya scenario', fun
         ))->toBeTrue()
         ->and(collect($moduleRoutes)->filter(fn (?string $routeName): bool => blank($routeName))->all())->toBe([])
         ->and(data_get($workspace->seed_summary, 'dataset_fingerprint'))->toBeString()->not->toBeEmpty()
+        ->and($demoAccessRoles->pluck('slug')->all())->toBe($expectedDemoRoleSlugs)
+        ->and($demoAccessRoles->every(
+            fn (CompanyRole $role): bool => ! $role->is_system
+                && $role->is_editable
+                && $role->is_deletable
+                && $role->is_active
+                && $role->permissions->isNotEmpty(),
+        ))->toBeTrue()
+        ->and($demoTeamMembers)->toHaveCount(5)
+        ->and($demoTeamMembers->every(
+            fn (TeamMember $member): bool => $member->company_role_id !== null
+                && (int) $member->companyRole?->company_id === (int) $workspace->owner_user_id
+                && $member->permissions === [],
+        ))->toBeTrue()
+        ->and($demoTeamMembers->mapWithKeys(
+            fn (TeamMember $member): array => [(string) $member->user?->name => $member->role],
+        )->all())->toBe([
+            'Maya Koné' => 'admin',
+            'Sarah Mbaye' => 'member',
+            'Alicia Tremblay' => 'member',
+            'Kevin Diallo' => 'member',
+            'Emma Roy' => 'sales_manager',
+        ])
+        ->and($sarahMembership?->companyRole?->slug)->toBe('demo_protective_style_specialist')
+        ->and($sarahMembership?->companyRole?->permissions->pluck('slug')->sort()->values()->all())
+        ->toBe($expectedSpecialistPermissions)
+        ->and($settingsTenantRoles->pluck('slug')->sort()->values()->all())
+        ->toBe($expectedDemoRoleSlugs)
+        ->and($settingsTenantRoles->every(
+            fn (array $role): bool => (int) ($role['members_count'] ?? 0) === 1,
+        ))->toBeTrue()
+        ->and(collect($settingsSarahRole['permissions'] ?? [])->sort()->values()->all())
+        ->toBe($expectedSpecialistPermissions)
+        ->and(collect($settingsAccessPayload['teamMembers'] ?? [])->whereNull('company_role'))->toBeEmpty()
+        ->and(collect($settingsAccessPayload['permissions'] ?? [])->sum(
+            fn (array $group): int => count($group['permissions'] ?? []),
+        ))->toBe(count(app(PermissionCatalog::class)->permissions()))
+        ->and($teamAccessMembers->whereNull('company_role_id'))->toBeEmpty()
+        ->and($teamAccessMembers->every(
+            fn (array $member): bool => data_get($member, 'company_role') !== null
+                && collect(data_get($member, 'company_role.permissions', []))->isNotEmpty(),
+        ))->toBeTrue()
+        ->and(data_get($teamSarahMembership, 'company_role.slug'))->toBe('demo_protective_style_specialist')
+        ->and(collect($teamAccessPayload['companyRoles'] ?? [])->where('is_system', false)->pluck('slug')->sort()->values()->all())
+        ->toBe($expectedDemoRoleSlugs)
         ->and($enabledFeatures)->toBe($selectedModules)
         ->and(array_diff(
             app(DemoWorkspaceCatalog::class)->requiredModulesForScenario($workspace->scenario_key),
@@ -835,6 +946,23 @@ it('provisions and reproducibly resets the real small Studio Naya scenario', fun
             ->where('profile_picture', 'like', '/images/presets/avatar-%')
             ->count())->toBe(5);
 
+    $this->actingAs($sarah)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('customer.index'))
+        ->assertForbidden();
+    $this->actingAs($sarah)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('product.index'))
+        ->assertForbidden();
+    $this->actingAs($sarah)
+        ->withSession(['two_factor_passed' => true])
+        ->get(route('workspace.hubs.show', ['category' => 'catalog']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('auth.account.module_access.customers', false)
+            ->where('auth.account.module_access.products', false)
+        );
+
     foreach ($criticalTimelineLinks as [$customer, $event, $foreignKey, $expectedId]) {
         $activity = ActivityLog::query()
             ->where('subject_type', $customer->getMorphClass())
@@ -942,10 +1070,23 @@ it('provisions and reproducibly resets the real small Studio Naya scenario', fun
         ->sort()
         ->values()
         ->all();
+    $resetDemoRoles = CompanyRole::query()
+        ->where('company_id', $reset->owner_user_id)
+        ->with('permissions:id,slug')
+        ->orderBy('slug')
+        ->get();
+    $resetDemoMembers = TeamMember::query()
+        ->forAccount((int) $reset->owner_user_id)
+        ->with('companyRole:id,company_id')
+        ->oldest('id')
+        ->get();
 
     expect($reset->owner_user_id)->not->toBe($originalOwnerId)
         ->and(User::query()->find($originalOwnerId))->toBeNull()
         ->and(User::query()->find($unrelatedTenant->id))->not->toBeNull()
+        ->and(CompanyRole::query()->find($unrelatedRole->id)?->company_id)->toBe($unrelatedTenant->id)
+        ->and(CompanyRole::query()->whereIn('id', $originalDemoRoleIds)->exists())->toBeFalse()
+        ->and(CompanyRole::query()->whereNull('company_id')->where('is_system', false)->exists())->toBeFalse()
         ->and($reset->scenario_key)->toBe('studio_naya_coiffure')
         ->and($reset->data_volume)->toBe(DemoDataVolume::Small)
         ->and($reset->reference_date?->toDateString())->toBe('2026-08-20')
@@ -960,10 +1101,25 @@ it('provisions and reproducibly resets the real small Studio Naya scenario', fun
         ->and($resetManagerCredential['password'])->toBe($reset->access_password)
         ->and($resetEnabledFeatures)->toBe($selectedModules)
         ->and(data_get($reset->seed_summary, 'offer_packages'))->toBe(7)
+        ->and(data_get($reset->seed_summary, 'company_roles'))->toBe(5)
+        ->and(data_get($reset->seed_summary, 'role_assignments'))->toBe(5)
         ->and(data_get($reset->seed_summary, 'customer_packages'))->toBe(12)
         ->and(data_get($reset->seed_summary, 'customer_package_usages'))->toBe(40)
         ->and(data_get($reset->seed_summary, 'invariant_report.violation_count'))->toBe(0)
         ->and(data_get($reset->seed_summary, 'dataset_fingerprint'))->toBe($originalFingerprint)
+        ->and($resetDemoRoles->pluck('slug')->all())->toBe($expectedDemoRoleSlugs)
+        ->and($resetDemoRoles->every(
+            fn (CompanyRole $role): bool => $role->permissions->isNotEmpty(),
+        ))->toBeTrue()
+        ->and($resetDemoMembers)->toHaveCount(5)
+        ->and($resetDemoMembers->every(
+            fn (TeamMember $member): bool => $member->company_role_id !== null
+                && (int) $member->companyRole?->company_id === (int) $reset->owner_user_id
+                && $member->permissions === [],
+        ))->toBeTrue()
+        ->and(Permission::query()->count())->toBe(count(app(PermissionCatalog::class)->permissions()))
+        ->and(CompanyRole::query()->whereNull('company_id')->where('is_system', true)->count())
+        ->toBe(count(app(PermissionCatalog::class)->defaultRoles()))
         ->and(DemoWorkspace::query()->count())->toBe(1);
 });
 

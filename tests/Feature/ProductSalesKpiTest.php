@@ -4,11 +4,14 @@ use App\Models\Customer;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\ProductInventory;
+use App\Models\ProductLot;
 use App\Models\Quote;
 use App\Models\Role;
 use App\Models\Sale;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Models\Warehouse;
 use App\Models\Work;
 use App\Notifications\LowStockNotification;
 use App\Services\InventoryService;
@@ -203,7 +206,30 @@ it('adds paid sale items to product usage without multiplying quantities by paym
         ->assertJsonPath('topProducts.0.quantity', 15);
 });
 
-it('shares the owner product catalog with authorized members of a service tenant', function (array $permissions) {
+it('shares the owner product catalog with members who can view products', function () {
+    $owner = User::factory()->create([
+        'company_type' => 'services',
+        'company_sector' => 'salon',
+        'company_features' => [
+            'products' => true,
+            'sales' => true,
+        ],
+    ]);
+    $product = productCapabilityFixture($owner);
+    $member = productCapabilityMember($owner, ['products.view']);
+
+    $this->actingAs($member)
+        ->getJson(route('product.index'))
+        ->assertOk()
+        ->assertJsonPath('products.data.0.id', $product->id);
+
+    $this->actingAs($member)
+        ->getJson(route('product.show', $product))
+        ->assertOk()
+        ->assertJsonPath('product.id', $product->id);
+});
+
+it('does not turn sales permissions into full product catalog access', function (array $permissions) {
     $owner = User::factory()->create([
         'company_type' => 'services',
         'company_sector' => 'salon',
@@ -215,20 +241,123 @@ it('shares the owner product catalog with authorized members of a service tenant
     $product = productCapabilityFixture($owner);
     $member = productCapabilityMember($owner, $permissions);
 
-    $this->actingAs($member)
-        ->getJson(route('product.index'))
-        ->assertOk()
-        ->assertJsonPath('products.data.0.id', $product->id);
-
-    $this->actingAs($member)
-        ->getJson(route('product.show', $product))
-        ->assertOk()
-        ->assertJsonPath('product.id', $product->id);
+    $this->actingAs($member)->getJson(route('product.index'))->assertForbidden();
+    $this->actingAs($member)->getJson(route('product.show', $product))->assertForbidden();
 })->with([
-    'product reader' => [['products.view']],
     'sales manager' => [['sales.manage']],
     'point of sale' => [['sales.pos']],
 ]);
+
+it('isolates product dashboard sections by effective module permissions', function () {
+    $owner = User::factory()->create([
+        'company_type' => 'products',
+        'company_features' => [
+            'products' => true,
+            'sales' => true,
+        ],
+    ]);
+    $product = productCapabilityFixture($owner, 'Dashboard permission product');
+    $product->forceFill([
+        'stock' => 2,
+        'minimum_stock' => 5,
+    ])->save();
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $seller = productCapabilityMember($owner, ['sales.pos'], 'seller');
+    $productReader = productCapabilityMember($owner, ['products.view']);
+    $sale = Sale::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $seller->id,
+        'customer_id' => $customer->id,
+        'status' => Sale::STATUS_PAID,
+        'subtotal' => 20,
+        'tax_total' => 0,
+        'total' => 20,
+        'paid_at' => now(),
+    ]);
+    $sale->items()->create([
+        'product_id' => $product->id,
+        'description' => $product->name,
+        'quantity' => 1,
+        'price' => 20,
+        'total' => 20,
+    ]);
+
+    $this->actingAs($seller)
+        ->getJson(route('dashboard', ['fresh' => 1]))
+        ->assertOk()
+        ->assertJsonPath('access.sales', true)
+        ->assertJsonPath('access.products', false)
+        ->assertJsonPath('stats.sales_today', 1)
+        ->assertJsonPath('stats.products_total', 0)
+        ->assertJsonPath('stats.inventory_value', 0)
+        ->assertJsonCount(0, 'stockAlerts');
+
+    $this->actingAs($productReader)
+        ->getJson(route('dashboard', ['fresh' => 1]))
+        ->assertOk()
+        ->assertJsonPath('access.sales', false)
+        ->assertJsonPath('access.products', true)
+        ->assertJsonPath('stats.sales_today', 0)
+        ->assertJsonPath('stats.products_total', 1)
+        ->assertJsonCount(0, 'recentSales')
+        ->assertJsonCount(0, 'topProducts');
+});
+
+it('excludes service inventory and lots from every product dashboard aggregate', function () {
+    $owner = User::factory()->create([
+        'company_type' => 'products',
+        'company_features' => [
+            'products' => true,
+            'services' => true,
+            'sales' => false,
+        ],
+    ]);
+    $product = productCapabilityFixture($owner, 'Dashboard inventory product');
+    $service = productCapabilityFixture($owner, 'Dashboard inventory service');
+    $service->forceFill(['item_type' => Product::ITEM_TYPE_SERVICE])->save();
+    $warehouse = Warehouse::query()->create([
+        'user_id' => $owner->id,
+        'name' => 'Dashboard warehouse',
+        'code' => 'DASH',
+        'is_default' => true,
+        'is_active' => true,
+    ]);
+    ProductInventory::query()->create([
+        'product_id' => $product->id,
+        'warehouse_id' => $warehouse->id,
+        'on_hand' => 10,
+        'reserved' => 2,
+        'damaged' => 1,
+    ]);
+    ProductInventory::query()->create([
+        'product_id' => $service->id,
+        'warehouse_id' => $warehouse->id,
+        'on_hand' => 50,
+        'reserved' => 20,
+        'damaged' => 10,
+    ]);
+    ProductLot::query()->create([
+        'product_id' => $product->id,
+        'warehouse_id' => $warehouse->id,
+        'lot_number' => 'DASH-PRODUCT',
+        'expires_at' => now()->addDays(5),
+        'quantity' => 2,
+    ]);
+    ProductLot::query()->create([
+        'product_id' => $service->id,
+        'warehouse_id' => $warehouse->id,
+        'lot_number' => 'DASH-SERVICE',
+        'expires_at' => now()->addDays(5),
+        'quantity' => 20,
+    ]);
+
+    $this->actingAs($owner)
+        ->getJson(route('dashboard', ['fresh' => 1]))
+        ->assertOk()
+        ->assertJsonPath('stats.reserved_total', 2)
+        ->assertJsonPath('stats.damaged_total', 1)
+        ->assertJsonPath('stats.expiring_lots', 1);
+});
 
 it('keeps product edits permissioned and tenant scoped', function () {
     $owner = User::factory()->create([
@@ -237,12 +366,12 @@ it('keeps product edits permissioned and tenant scoped', function () {
     ]);
     $product = productCapabilityFixture($owner);
     $reader = productCapabilityMember($owner, ['products.view']);
-    $editor = productCapabilityMember($owner, ['products.edit']);
+    $editor = productCapabilityMember($owner, ['products.view', 'products.edit']);
     $otherOwner = User::factory()->create([
         'company_type' => 'services',
         'company_features' => ['products' => true],
     ]);
-    $otherEditor = productCapabilityMember($otherOwner, ['products.edit']);
+    $otherEditor = productCapabilityMember($otherOwner, ['products.view', 'products.edit']);
 
     expect($reader->can('view', $product))->toBeTrue()
         ->and($reader->can('update', $product))->toBeFalse()

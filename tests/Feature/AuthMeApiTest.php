@@ -1,6 +1,8 @@
 <?php
 
+use App\Models\CompanyRole;
 use App\Models\Customer;
+use App\Models\Permission;
 use App\Models\PlatformAdmin;
 use App\Models\Role;
 use App\Models\TeamMember;
@@ -92,6 +94,54 @@ test('auth me api returns the owner context and team membership for an employee'
         ->assertJsonPath('meta.team.role', 'member')
         ->assertJsonPath('meta.team.permissions.0', 'tasks.view')
         ->assertJsonPath('meta.team.permissions.1', 'quotes.send');
+});
+
+test('auth me api resolves team permissions inherited from an access role', function () {
+    $owner = User::factory()->create([
+        'role_id' => authMeRoleId('owner', 'Account owner role'),
+    ]);
+    $employee = User::factory()->create([
+        'role_id' => authMeRoleId('employee', 'Employee role'),
+    ]);
+    $role = CompanyRole::query()->create([
+        'company_id' => $owner->id,
+        'name' => 'Demo specialist',
+        'slug' => 'demo_specialist',
+        'is_system' => false,
+        'is_default' => false,
+        'is_editable' => true,
+        'is_deletable' => true,
+        'is_active' => true,
+    ]);
+    $permissions = collect([
+        ['group' => 'reservations', 'name' => 'View reservations', 'slug' => 'view_reservations'],
+        ['group' => 'sales', 'name' => 'Create sales', 'slug' => 'create_sales'],
+    ])->map(fn (array $attributes): Permission => Permission::query()->firstOrCreate(
+        ['slug' => $attributes['slug']],
+        $attributes,
+    ));
+    $role->permissions()->sync($permissions->pluck('id')->all());
+
+    TeamMember::factory()->create([
+        'account_id' => $owner->id,
+        'user_id' => $employee->id,
+        'role' => 'member',
+        'company_role_id' => $role->id,
+        'permissions' => [],
+        'is_active' => true,
+    ]);
+
+    Sanctum::actingAs($employee);
+
+    $response = $this->getJson('/api/v1/auth/me')
+        ->assertOk()
+        ->assertJsonPath('meta.team.role', 'member');
+
+    expect($response->json('meta.team.permissions'))->toContain(
+        'view_reservations',
+        'reservations.view',
+        'create_sales',
+    );
 });
 
 test('auth me api resolves the owning workspace for a portal client user', function () {

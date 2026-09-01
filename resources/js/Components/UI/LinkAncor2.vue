@@ -18,11 +18,19 @@ const companyType = computed(() => page.props.auth?.account?.company?.type ?? nu
 const showServices = computed(() => companyType.value !== 'products');
 const showProducts = computed(() => true);
 const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
-const { hasPermission, hasAnyPermission } = usePermissions();
+const { hasModuleAccess, hasPermission } = usePermissions();
 const teamRole = computed(() => page.props.auth?.account?.team?.role || null);
-const canSales = computed(() => hasAnyPermission(['sales.manage', 'sales.pos']));
 const canSalesManage = computed(() => hasPermission('sales.manage'));
 const isSeller = computed(() => teamRole.value === 'seller');
+const canCreateCustomer = computed(() => (
+    hasModuleAccess('customers') && hasPermission('customers.create')
+));
+const canCreateProduct = computed(() => (
+    showProducts.value
+    && hasFeature('products')
+    && hasModuleAccess('products')
+    && hasPermission('products.create')
+));
 
 const quickPalette = {
     customer: { accent: '#8b5cf6', glow: 'rgba(139,92,246,0.35)', label: '#6d28d9', bg: 'rgba(139,92,246,0.12)' },
@@ -47,13 +55,16 @@ const menuItems = computed(() => {
     locale.value;
     const items = [];
 
-    if (!isSeller.value && ((isOwner.value && showServices.value) || (hasFeature('sales') && canSales.value))) {
+    if (canCreateCustomer.value) {
         items.push({
             label: t('quick_create.customer'),
             overlay: '#hs-quick-create-customer',
             icon: `<svg xmlns="http://www.w3.org/2000/svg" class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>`,
             tone: 'customer',
         });
+    }
+
+    if (!isSeller.value) {
         if (hasFeature('services') && showServices.value && isOwner.value) {
             items.push({
                 label: t('quick_create.service'),
@@ -80,7 +91,7 @@ const menuItems = computed(() => {
         }
     }
 
-    if (isOwner.value && showProducts.value && hasFeature('products')) {
+    if (canCreateProduct.value) {
         items.push({
             label: t('quick_create.product'),
             overlay: '#hs-quick-create-product',

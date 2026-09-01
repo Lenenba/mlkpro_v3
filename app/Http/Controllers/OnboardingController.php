@@ -16,10 +16,12 @@ use App\Services\BillingSubscriptionService;
 use App\Services\CompanyFeatureService;
 use App\Services\CreateStripeSubscriptionForTenant;
 use App\Services\PlatformAdminNotifier;
+use App\Services\Rbac\CompanyRoleTemplateProvisioner;
 use App\Services\StripeBillingService;
 use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -75,6 +77,8 @@ class OnboardingController extends Controller
         'campaigns.manage' => 'campaigns',
         'campaigns.send' => 'campaigns',
     ];
+
+    public function __construct(private readonly CompanyRoleTemplateProvisioner $companyRoleTemplateProvisioner) {}
 
     public function index(Request $request)
     {
@@ -622,14 +626,39 @@ class OnboardingController extends Controller
 
     private function completeOnboarding(Request $request, User $accountOwner): string
     {
-        $invitePayload = $this->applyInvitesFromSession($request, $accountOwner);
+        $completion = DB::transaction(function () use ($accountOwner, $request): array {
+            $lockedOwner = User::query()
+                ->whereKey($accountOwner->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+            $wasOnboarded = (bool) $lockedOwner->onboarding_completed_at;
+
+            if ($wasOnboarded) {
+                return [
+                    'was_onboarded' => true,
+                    'invite_payload' => ['passwords' => [], 'count' => 0],
+                ];
+            }
+
+            $this->companyRoleTemplateProvisioner->provision($lockedOwner);
+            $invitePayload = $this->applyInvitesFromSession($request, $lockedOwner);
+            $lockedOwner->forceFill(['onboarding_completed_at' => now()])->save();
+
+            return [
+                'was_onboarded' => false,
+                'invite_payload' => $invitePayload,
+            ];
+        }, 3);
+
+        if ($request->hasSession()) {
+            $request->session()->forget('onboarding_invites');
+        }
+
+        $wasOnboarded = $completion['was_onboarded'];
+        $invitePayload = $completion['invite_payload'];
         $invitePasswords = $invitePayload['passwords'];
         $inviteCount = $invitePayload['count'];
-
-        $wasOnboarded = (bool) $accountOwner->onboarding_completed_at;
-        if (! $wasOnboarded) {
-            $accountOwner->forceFill(['onboarding_completed_at' => now()])->save();
-        }
+        $accountOwner->refresh();
 
         if (! $wasOnboarded && $accountOwner->email) {
             NotificationDispatcher::send($accountOwner, new WelcomeEmailNotification($accountOwner), [
@@ -679,7 +708,7 @@ class OnboardingController extends Controller
             ];
         }
 
-        $invites = $request->session()->pull('onboarding_invites', []);
+        $invites = $request->session()->get('onboarding_invites', []);
         if (! is_array($invites) || $invites === []) {
             return [
                 'passwords' => [],
@@ -688,6 +717,7 @@ class OnboardingController extends Controller
         }
 
         $allowedPermissions = $this->allowedTeamPermissionIdsForAccount($accountOwner);
+        $companyRolesByInvitationRole = $this->companyRoleTemplateProvisioner->invitationRoles($accountOwner);
 
         $employeeRoleId = Role::query()->firstOrCreate(
             ['name' => 'employee'],
@@ -714,6 +744,8 @@ class OnboardingController extends Controller
                 $role = 'member';
             }
 
+            $companyRole = $companyRolesByInvitationRole->get($role);
+
             $plainPassword = Str::random(14);
             $memberUser = User::create([
                 'name' => $name,
@@ -727,7 +759,10 @@ class OnboardingController extends Controller
                 'account_id' => $accountOwner->id,
                 'user_id' => $memberUser->id,
                 'role' => $role,
-                'permissions' => $this->defaultPermissionsForRole($role, $allowedPermissions),
+                'company_role_id' => $companyRole?->id,
+                'permissions' => $companyRole
+                    ? []
+                    : $this->defaultPermissionsForRole($role, $allowedPermissions),
                 'is_active' => true,
             ]);
 

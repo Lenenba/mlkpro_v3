@@ -130,15 +130,14 @@ it('accepts point of sale payments for service tenants with the sales feature', 
         ->and($payment?->status)->toBe(Payment::STATUS_PENDING);
 });
 
-it('uses the owner customer directory for an authorized service sales member', function () {
+it('does not turn sales permissions into full customer directory access', function () {
     $owner = salesFeatureTenantOwner('services');
     $manager = salesFeatureTenantMember($owner, ['sales.manage']);
-    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    Customer::factory()->create(['user_id' => $owner->id]);
 
     $this->actingAs($manager)
         ->getJson(route('customer.index'))
-        ->assertOk()
-        ->assertJsonPath('customers.data.0.id', $customer->id);
+        ->assertForbidden();
 });
 
 it('builds sales and service customer detail data together from enabled capabilities', function () {
@@ -181,16 +180,18 @@ it('keeps customer detail access tenant scoped and rejects inactive memberships'
     $owner = salesFeatureTenantOwner('services');
     $customer = Customer::factory()->create(['user_id' => $owner->id]);
     $manager = salesFeatureTenantMember($owner, ['sales.manage']);
+    $customerReader = salesFeatureTenantMember($owner, ['customers.view']);
     $otherOwner = salesFeatureTenantOwner('services');
-    $otherManager = salesFeatureTenantMember($otherOwner, ['sales.manage']);
+    $otherReader = salesFeatureTenantMember($otherOwner, ['customers.view']);
 
-    expect($manager->can('view', $customer))->toBeTrue()
-        ->and($otherManager->can('view', $customer))->toBeFalse();
+    expect($manager->can('view', $customer))->toBeFalse()
+        ->and($customerReader->can('view', $customer))->toBeTrue()
+        ->and($otherReader->can('view', $customer))->toBeFalse();
 
     TeamMember::query()
-        ->where('user_id', $manager->id)
+        ->where('user_id', $customerReader->id)
         ->update(['is_active' => false]);
-    $manager->unsetRelation('teamMembership');
+    $customerReader->unsetRelation('teamMembership');
 
-    expect($manager->can('view', $customer))->toBeFalse();
+    expect($customerReader->can('view', $customer))->toBeFalse();
 });

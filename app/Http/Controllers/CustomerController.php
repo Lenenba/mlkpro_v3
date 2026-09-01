@@ -27,6 +27,8 @@ use App\Services\CompanyFeatureService;
 use App\Services\Customers\CustomerActivityAudit;
 use App\Services\Customers\CustomerBulkAudienceBridgeService;
 use App\Services\Customers\CustomerBulkContactService;
+use App\Services\Rbac\AccessControl;
+use App\Services\Rbac\CompanyModuleAccess;
 use App\Support\BulkActions\BulkActionRegistry;
 use App\Support\CRM\SalesActivityTaxonomy;
 use App\Support\Database\UserSelects;
@@ -59,11 +61,13 @@ class CustomerController extends Controller
         if (! $user) {
             abort(403);
         }
-        [$accountOwner, $accountId] = $this->resolveCustomerAccount(
-            $user,
-            allowCustomerView: true
-        );
-        $canEdit = $user->id === $accountId;
+        $this->authorize('viewAny', Customer::class);
+        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
+        $accessControl = app(AccessControl::class);
+        $canEdit = $accessControl->userHasPermission($user, 'customers.edit', (int) $accountId);
+        $canDelete = $accessControl->userHasPermission($user, 'customers.delete', (int) $accountId);
+        $canViewNotes = $this->canViewCustomerNotes($user, (int) $accountId);
+        $canManageNotes = $this->canManageCustomerNotes($user, (int) $accountId);
         $canManageSavedSegments = (int) $user->id === (int) $user->accountOwnerId();
         $featureService = app(CompanyFeatureService::class);
         $quotesFeatureEnabled = $featureService->hasFeature($accountOwner, 'quotes');
@@ -72,26 +76,11 @@ class CustomerController extends Controller
         $salesFeatureEnabled = $featureService->hasFeature($accountOwner, 'sales');
         $operationalIndexData = app(BuildCustomerOperationalIndexData::class);
         $customerIndexContext = $operationalIndexData->context($accountOwner);
-        $teamMembership = $user->relationLoaded('teamMembership')
-            ? $user->teamMembership
-            : $user->teamMembership()->first();
-        $canCreateCustomer = $user->id === $accountId
-            || (
-                $teamMembership
-                && (
-                    ($salesFeatureEnabled && $teamMembership->hasPermission('sales.manage'))
-                    || $teamMembership->role === 'admin'
-                    || $teamMembership->hasPermission('customers.create')
-                )
-            );
+        $canCreateCustomer = $user->can('create', Customer::class);
         $canBook = $user->can('create', Reservation::class);
         $canViewBilling = $user->can('viewAny', Invoice::class);
         $canViewSales = $salesFeatureEnabled
-            && (
-                (int) $user->id === (int) $accountOwner->id
-                || ($teamMembership?->hasPermission('sales.manage') ?? false)
-                || ($teamMembership?->hasPermission('sales.pos') ?? false)
-            );
+            && $accessControl->userHasPermission($user, 'view_sales', (int) $accountId);
         $planKey = app(BillingSubscriptionService::class)->resolvePlanKey(
             $accountOwner,
             config('billing.plans', [])
@@ -99,8 +88,14 @@ class CustomerController extends Controller
         $ownerOnlyMode = $planKey !== null
             && app(BillingPlanService::class)->isOwnerOnlyPlan($planKey);
         $customerIndexContext = $operationalIndexData->restrictCapabilities($customerIndexContext, [
+            'reservations' => $accessControl->userHasPermission($user, 'reservations.view', (int) $accountId),
+            'team_members' => $accessControl->userHasPermission($user, 'team.view', (int) $accountId),
             'invoices' => $canViewBilling,
             'sales' => $canViewSales,
+            'campaigns' => $accessControl->userHasPermission($user, 'campaigns.view', (int) $accountId),
+            'packages' => $accessControl->userHasPermission($user, 'products.view', (int) $accountId)
+                || $accessControl->userHasPermission($user, 'services.view', (int) $accountId)
+                || $accessControl->userHasPermission($user, 'view_sales', (int) $accountId),
         ]);
         $customerIndexContext['actions'] = [
             'can_create_customer' => (bool) $canCreateCustomer,
@@ -110,8 +105,12 @@ class CustomerController extends Controller
             'can_view_billing' => (bool) ($customerIndexContext['capabilities']['invoices'] ?? false),
         ];
         $appointmentProfile = ($customerIndexContext['profile'] ?? null) === 'appointment';
-        $showQuoteOperations = $quotesFeatureEnabled && ! $appointmentProfile;
-        $showJobOperations = $jobsFeatureEnabled && ! $appointmentProfile;
+        $showQuoteOperations = $quotesFeatureEnabled
+            && $accessControl->userHasPermission($user, 'quotes.view', (int) $accountId)
+            && ! $appointmentProfile;
+        $showJobOperations = $jobsFeatureEnabled
+            && $accessControl->userHasPermission($user, 'jobs.view', (int) $accountId)
+            && ! $appointmentProfile;
         $invoicesFeatureEnabled = (bool) ($customerIndexContext['capabilities']['invoices'] ?? false);
         if (! $showQuoteOperations) {
             unset($requestedFilters['has_quotes']);
@@ -191,6 +190,11 @@ class CustomerController extends Controller
             $accountOwner,
             $customerIndexContext
         );
+        if (! $canViewNotes) {
+            $customers->getCollection()->each(
+                fn (Customer $customer): Customer => $customer->makeHidden('description')
+            );
+        }
 
         $totalCount = $customers->total();
         $statsBuilder = app(BuildCustomerIndexStats::class);
@@ -284,12 +288,16 @@ class CustomerController extends Controller
             'filterOptions' => $filterOptions,
             'topCustomers' => $topCustomers,
             'canEdit' => $canEdit,
+            'canDelete' => $canDelete,
+            'canViewNotes' => $canViewNotes,
+            'canManageNotes' => $canManageNotes,
             'savedSegments' => $savedSegments,
             'canManageSavedSegments' => $canManageSavedSegments,
             'customerIndexContext' => $customerIndexContext,
             'bulkActions' => app(BulkActionRegistry::class)->definitionFor('customer', [
                 'can_edit' => $canEdit,
-                'contact_enabled' => $canEdit && $campaignsFeatureEnabled,
+                'can_delete' => $canDelete,
+                'contact_enabled' => $canManageSavedSegments && $campaignsFeatureEnabled,
                 'campaign_bridge_enabled' => $campaignsFeatureEnabled,
             ]),
         ]);
@@ -304,8 +312,15 @@ class CustomerController extends Controller
         if (! $user) {
             abort(403);
         }
-        [, $accountId] = $this->resolveCustomerAccount($user);
         $scope = $this->normalizeCustomerOptionScope((string) $request->query('scope', 'full'));
+        [$accountOwner, $accountId] = $this->resolveCustomerAccount(
+            $user,
+            contextPermissions: $this->customerOptionPermissions($scope),
+        );
+        $contextFeature = $this->customerOptionFeature($scope);
+        if ($contextFeature && ! $accountOwner->hasCompanyFeature($contextFeature)) {
+            abort(403);
+        }
         $search = trim((string) $request->query('search', ''));
         $limit = (int) $request->query('limit', 0);
 
@@ -355,6 +370,7 @@ class CustomerController extends Controller
     {
         $user = Auth::user();
         if ($user) {
+            $this->authorize('create', Customer::class);
             $this->resolveCustomerAccount($user, false, true);
         }
 
@@ -362,6 +378,9 @@ class CustomerController extends Controller
             'customer' => new Customer([
                 'client_type' => CustomerClientType::default()->value,
             ]),
+            'canManageNotes' => $user
+                ? $this->canManageCustomerNotes($user, (int) $user->accountOwnerId())
+                : false,
         ]);
     }
 
@@ -380,9 +399,14 @@ class CustomerController extends Controller
         }
 
         $customer->load('properties');
+        $canViewNotes = (bool) ($user?->can('viewNotes', $customer) ?? false);
+        if (! $canViewNotes) {
+            $customer->makeHidden('description');
+        }
 
         return $this->inertiaOrJson('Customer/Create', [
             'customer' => $customer,
+            'canManageNotes' => (bool) ($user?->can('manageNotes', $customer) ?? false),
         ]);
     }
 
@@ -464,7 +488,7 @@ class CustomerController extends Controller
 
     public function updateNotes(Request $request, Customer $customer)
     {
-        $this->authorize('update', $customer);
+        $this->authorize('manageNotes', $customer);
 
         $validated = $request->validate([
             'description' => 'nullable|string|max:255',
@@ -606,12 +630,19 @@ class CustomerController extends Controller
         if (! $user) {
             abort(403);
         }
+        $this->authorize('create', Customer::class);
         [$accountOwner, $accountId] = $this->resolveCustomerAccount($user, false, true);
 
         $validated = $this->enforceAutoValidationFeatures(
             $this->normalizeCustomerPayload($request->validated()),
             $accountOwner
         );
+        if (
+            array_key_exists('description', $validated)
+            && trim((string) ($validated['description'] ?? '')) !== ''
+        ) {
+            $this->ensureCanManageCustomerNotes($user, $accountId);
+        }
         $defaultLogo = Customer::defaultLogoPathFor(
             $validated['client_type'] ?? null,
             $validated['company_name'] ?? null
@@ -716,6 +747,12 @@ class CustomerController extends Controller
             $this->normalizeCustomerPayload($request->validated()),
             $accountOwner
         );
+        if (
+            array_key_exists('description', $validated)
+            && trim((string) ($validated['description'] ?? '')) !== ''
+        ) {
+            $this->ensureCanManageCustomerNotes($user, $accountId);
+        }
         $defaultLogo = Customer::defaultLogoPathFor(
             $validated['client_type'] ?? null,
             $validated['company_name'] ?? null
@@ -828,11 +865,18 @@ class CustomerController extends Controller
         [$accountOwner] = $this->resolveCustomerAccount($user);
         $audit = app(CustomerActivityAudit::class);
         $before = $audit->profileSnapshot($customer);
+        $notesBefore = (string) ($customer->description ?? '');
 
         $validated = $this->enforceAutoValidationFeatures(
             $this->normalizeCustomerPayload($request->validated(), $customer),
             $accountOwner
         );
+        if (
+            array_key_exists('description', $validated)
+            && (string) ($validated['description'] ?? '') !== (string) ($customer->description ?? '')
+        ) {
+            $this->authorize('manageNotes', $customer);
+        }
         $defaultLogo = Customer::defaultLogoPathFor(
             $validated['client_type'] ?? null,
             $validated['company_name'] ?? null
@@ -904,11 +948,28 @@ class CustomerController extends Controller
             $audit->profileSnapshot($customer),
             'Customer updated'
         );
+        $notesAfter = (string) ($customer->description ?? '');
+        if ($notesBefore !== $notesAfter) {
+            $audit->recordChanges(
+                $request->user(),
+                $customer,
+                'notes_updated',
+                ['description' => $notesBefore],
+                ['description' => $notesAfter],
+                'Customer notes updated',
+                ['note' => $notesAfter]
+            );
+        }
 
         if ($this->shouldReturnJson($request)) {
+            $responseCustomer = $customer->load('properties');
+            if (! $user->can('viewNotes', $customer)) {
+                $responseCustomer->makeHidden('description');
+            }
+
             return response()->json([
                 'message' => 'Customer updated successfully.',
-                'customer' => $customer->load('properties'),
+                'customer' => $responseCustomer,
             ]);
         }
 
@@ -1335,7 +1396,7 @@ class CustomerController extends Controller
         User $user,
         bool $allowPos = false,
         bool $requireCustomerCreation = false,
-        bool $allowCustomerView = false
+        array $contextPermissions = [],
     ): array {
         $ownerId = $user->accountOwnerId();
         $owner = $ownerId === $user->id
@@ -1348,51 +1409,79 @@ class CustomerController extends Controller
             abort(403);
         }
 
-        $accountId = $user->id;
-        $featureService = app(CompanyFeatureService::class);
-        $usesSalesDirectory = $featureService->hasFeature($owner, 'sales');
-        $usesReservationDirectory = $featureService->hasFeature($owner, 'reservations');
-        $usesSharedCustomerDirectory = $usesSalesDirectory || $usesReservationDirectory;
+        if ($user->id === $owner->id) {
+            $canUseCustomerModule = app(CompanyModuleAccess::class)->allows(
+                $user,
+                'customers',
+                (int) $owner->id,
+            );
 
-        if ($usesSharedCustomerDirectory) {
-            if ($user->id !== $owner->id) {
-                $membership = $user->relationLoaded('teamMembership')
-                    ? $user->teamMembership
-                    : $user->teamMembership()->first();
-                $validMembership = $membership
-                    && (int) $membership->account_id === (int) $owner->id
-                    && $membership->is_active;
-
-                if (! $validMembership) {
-                    abort(403);
-                }
-
-                $canUseSalesDirectory = $usesSalesDirectory
-                    && (
-                        $membership->hasPermission('sales.manage')
-                        || ($allowPos && $membership->hasPermission('sales.pos'))
-                    );
-                $canUseReservationDirectory = $usesReservationDirectory
-                    && (
-                        ! $requireCustomerCreation
-                        || $membership->role === 'admin'
-                        || $membership->hasPermission('customers.create')
-                    );
-                $canViewCustomerDirectory = $allowCustomerView
-                    && $membership->hasPermission('customers.view');
-                if (! $canUseSalesDirectory && ! $canUseReservationDirectory && ! $canViewCustomerDirectory) {
-                    abort(403);
-                }
+            if (! $canUseCustomerModule && ! $requireCustomerCreation && $contextPermissions === []) {
+                abort(403);
             }
-            $accountId = $owner->id;
+
+            return [$owner, $owner->id];
         }
 
-        return [$owner, $accountId];
+        $membership = $user->relationLoaded('teamMembership')
+            ? $user->teamMembership
+            : $user->teamMembership()->first();
+        $validMembership = $membership
+            && (int) $membership->account_id === (int) $owner->id
+            && $membership->is_active;
+
+        if (! $validMembership) {
+            abort(403);
+        }
+
+        $user->setRelation('teamMembership', $membership);
+        $canUseCustomerModule = app(CompanyModuleAccess::class)->allows(
+            $user,
+            'customers',
+            (int) $owner->id,
+        );
+        $canCreateCustomer = $requireCustomerCreation
+            && $membership->hasPermission('customers.create');
+        $canCreateFromPointOfSale = $requireCustomerCreation
+            && $allowPos
+            && app(CompanyFeatureService::class)->hasFeature($owner, 'sales')
+            && (
+                $membership->hasPermission('sales.manage')
+                || $membership->hasPermission('sales.pos')
+            );
+        $canUseContext = collect($contextPermissions)
+            ->contains(fn (string $permission): bool => $membership->hasPermission($permission));
+
+        if (! $canUseCustomerModule && ! $canCreateCustomer && ! $canCreateFromPointOfSale && ! $canUseContext) {
+            abort(403);
+        }
+
+        return [$owner, $owner->id];
     }
 
     private function ensureBulkContactAuthorized(User $user, int $accountId): void
     {
         if ($user->id !== $accountId) {
+            abort(403);
+        }
+    }
+
+    private function canViewCustomerNotes(User $user, int $accountId): bool
+    {
+        $accessControl = app(AccessControl::class);
+
+        return $accessControl->userHasPermission($user, 'view_client_notes', $accountId)
+            || $accessControl->userHasPermission($user, 'manage_client_notes', $accountId);
+    }
+
+    private function canManageCustomerNotes(User $user, int $accountId): bool
+    {
+        return app(AccessControl::class)->userHasPermission($user, 'manage_client_notes', $accountId);
+    }
+
+    private function ensureCanManageCustomerNotes(User $user, int $accountId): void
+    {
+        if (! $this->canManageCustomerNotes($user, $accountId)) {
             abort(403);
         }
     }
@@ -1510,6 +1599,43 @@ class CustomerController extends Controller
         return in_array($scope, ['full', 'request', 'quote', 'audience'], true)
             ? $scope
             : 'full';
+    }
+
+    /**
+     * Permissions for bounded selectors embedded in another authorized module.
+     *
+     * @return list<string>
+     */
+    private function customerOptionPermissions(string $scope): array
+    {
+        return match ($scope) {
+            'request' => [
+                'requests.create',
+                'requests.edit',
+                'prospects.create',
+                'prospects.edit',
+                'prospects.convert',
+            ],
+            'quote' => [
+                'quotes.create',
+                'quotes.edit',
+            ],
+            'audience' => [
+                'campaigns.manage',
+                'campaigns.send',
+            ],
+            default => [],
+        };
+    }
+
+    private function customerOptionFeature(string $scope): ?string
+    {
+        return match ($scope) {
+            'request' => 'requests',
+            'quote' => 'quotes',
+            'audience' => 'campaigns',
+            default => null,
+        };
     }
 
     private function customerOptionScopeIncludesProperties(string $scope): bool

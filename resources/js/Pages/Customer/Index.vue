@@ -34,6 +34,10 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    canDelete: {
+        type: Boolean,
+        default: false,
+    },
     savedSegments: {
         type: Array,
         default: () => [],
@@ -86,6 +90,7 @@ const activateKpiFilter = (action) => customerTableRef.value?.applyKpiFilter?.(a
                     :filter-options="filterOptions"
                     :bulk-actions="bulkActions"
                     :can-edit="canEdit"
+                    :can-delete="canDelete"
                     :saved-segments="savedSegments"
                     :can-manage-saved-segments="canManageSavedSegments"
                     :customer-index-context="customerIndexContext"

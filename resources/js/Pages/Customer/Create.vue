@@ -27,6 +27,10 @@ import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     customer: Object,
+    canManageNotes: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const { t } = useI18n();
@@ -136,7 +140,7 @@ const form = useForm({
     billing_same_as_physical: props.customer?.billing_same_as_physical || false,
     logo: initialLogoPreview,
     logo_icon: defaultLogoIcon,
-    description: props.customer?.description || '',
+    description: props.canManageNotes ? (props.customer?.description || '') : '',
     refer_by: props.customer?.refer_by || '',
     salutation: props.customer?.salutation || 'Mr',
     phone: props.customer?.phone || '',
@@ -239,6 +243,9 @@ const performSubmit = ({ createAnother = false } = {}) => {
             }
             if (!payload.logo_icon) {
                 delete payload.logo_icon;
+            }
+            if (!props.canManageNotes) {
+                delete payload.description;
             }
             if (isCreating && createAnother) {
                 payload.create_another = true;
@@ -602,7 +609,7 @@ const handleCancelClick = (event) => {
                             </p>
                         </div>
                         <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-                            <div class="md:col-span-2">
+                            <div v-if="canManageNotes" class="md:col-span-2">
                                 <FloatingTextarea
                                     id="customer-description"
                                     v-model="form.description"
