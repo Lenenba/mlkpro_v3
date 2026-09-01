@@ -128,7 +128,6 @@
       "no_customer_selected_hint": "The reservation will be created without linking it to a customer profile.",
       "rebooking": {
         "title": "Book again",
-        "hint": "Reuse a recent visit or a usual service, then simply choose a new date.",
         "loading": "Loading this customer’s booking habits…",
         "load_error": "This customer’s history could not be loaded.",
         "retry": "Try again",
@@ -201,6 +200,19 @@
       "title": "Hybrid queue",
       "subtitle": "Operate walk-ins and appointments in a single queue.",
       "empty": "No queue items right now.",
+      "view": {
+        "label": "Queue display mode",
+        "table": "Table",
+        "cards": "Cards"
+      },
+      "details": {
+        "schedule": "Schedule",
+        "check_in": "Arrival",
+        "duration": "Estimated duration",
+        "call_deadline": "Call deadline",
+        "view_reservation": "View reservation",
+        "view_reservation_for": "View reservation for {client}"
+      },
       "cards": {
         "waiting": "Waiting",
         "called": "Called",

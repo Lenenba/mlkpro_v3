@@ -210,6 +210,7 @@ test('public store, showcase and kiosk expose one tenant brand and one platform 
     const store = source('resources/js/Pages/Public/Store.vue');
     const showcase = source('resources/js/Pages/Public/Showcase.vue');
     const kiosk = source('resources/js/Pages/Public/ReservationKiosk.vue');
+    const kioskLayout = source('resources/js/Layouts/PublicKioskLayout.vue');
 
     assert.equal(occurrences(store, '<CompanyBrandLogo'), 1);
     assert.match(store, /route\('public\.store\.show', \{ slug: company\.slug \}, false\)/);
@@ -223,10 +224,15 @@ test('public store, showcase and kiosk expose one tenant brand and one platform 
     for (const [path, pageSource] of [
         ['resources/js/Pages/Public/Store.vue', store],
         ['resources/js/Pages/Public/Showcase.vue', showcase],
-        ['resources/js/Pages/Public/ReservationKiosk.vue', kiosk],
     ]) {
         assert.equal(occurrences(pageSource, 'account.branding.powered_by'), 1, path);
     }
+
+    assert.equal(occurrences(kiosk, '<CompanyBrandLogo'), 1);
+    assert.match(kiosk, /<PublicKioskLayout>/);
+    assert.doesNotMatch(kiosk, /account\.branding\.powered_by/);
+    assert.equal(occurrences(kioskLayout, '<AppFooter'), 1);
+    assert.match(kioskLayout, /variant="powered-by"/);
 });
 
 test('client portal attribution and metadata branding remain context-aware', () => {
