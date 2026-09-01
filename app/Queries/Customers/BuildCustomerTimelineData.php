@@ -15,6 +15,7 @@ use App\Models\Reservation;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Services\CompanyFeatureService;
+use App\Services\Rbac\AccessControl;
 use App\Support\CRM\MeetingEventTaxonomy;
 use App\Support\CRM\MessageEventTaxonomy;
 use App\Support\CRM\SalesActivityTaxonomy;
@@ -60,7 +61,8 @@ final class BuildCustomerTimelineData
     ];
 
     public function __construct(
-        private readonly CompanyFeatureService $featureService
+        private readonly CompanyFeatureService $featureService,
+        private readonly AccessControl $accessControl,
     ) {}
 
     /**
@@ -135,7 +137,8 @@ final class BuildCustomerTimelineData
         }
 
         $activityTypes = array_values(array_intersect($requestedTypes, [
-            ...($capabilities['crm_communications'] ? ['notes', 'communications'] : []),
+            ...($capabilities['notes'] ? ['notes'] : []),
+            ...($capabilities['activity_communications'] ? ['communications'] : []),
             'profile_changes',
         ]));
         if ($activityTypes !== []) {
@@ -143,6 +146,7 @@ final class BuildCustomerTimelineData
                 $customer,
                 $accountId,
                 $activityTypes,
+                $capabilities,
                 $fromUtc,
                 $toUtc,
                 $cursor,
@@ -209,33 +213,29 @@ final class BuildCustomerTimelineData
     private function capabilities(User $actor, User $accountOwner, int $accountId): array
     {
         $hasReservations = $this->featureService->hasFeature($accountOwner, 'reservations')
-            && $actor->can('viewAny', Reservation::class);
+            && $this->accessControl->userHasPermission($actor, 'reservations.view', $accountId);
         $hasInvoices = $this->featureService->hasFeature($accountOwner, 'invoices')
             && $actor->can('viewAny', Invoice::class);
         $hasCampaignEvents = $this->featureService->hasFeature($accountOwner, 'campaigns')
             && $actor->can('viewAny', Campaign::class);
-        $membership = $actor->relationLoaded('teamMembership')
-            ? $actor->teamMembership
-            : $actor->teamMembership()->first();
-        $canViewCrm = (int) $actor->id === $accountId
-            || (
-                $membership
-                && $membership->is_active
-                && (int) $membership->account_id === $accountId
-                && ($membership->role === 'admin'
-                    || $membership->hasPermission('sales.manage')
-                    || $membership->hasPermission('sales.pos'))
-            );
+        $canViewNotes = $this->accessControl->userHasPermission($actor, 'view_client_notes', $accountId)
+            || $this->accessControl->userHasPermission($actor, 'manage_client_notes', $accountId);
+        $canViewSalesActivity = $this->featureService->hasFeature($accountOwner, 'sales')
+            && $this->accessControl->userHasPermission($actor, 'view_sales', $accountId);
 
         return [
             'appointments' => $hasReservations,
             'invoices' => $hasInvoices,
             'payments' => $hasInvoices,
-            'notes' => $canViewCrm,
-            'communications' => $canViewCrm || $hasCampaignEvents,
+            'notes' => $canViewNotes,
+            'communications' => $canViewSalesActivity || $hasCampaignEvents,
             'profile_changes' => (int) $actor->accountOwnerId() === $accountId,
             'campaign_events' => $hasCampaignEvents,
-            'crm_communications' => $canViewCrm,
+            'activity_communications' => $canViewSalesActivity,
+            'requests' => $this->featureService->hasFeature($accountOwner, 'requests')
+                && $this->accessControl->userHasPermission($actor, 'requests.view', $accountId),
+            'quotes' => $this->featureService->hasFeature($accountOwner, 'quotes')
+                && $this->accessControl->userHasPermission($actor, 'quotes.view', $accountId),
         ];
     }
 
@@ -319,11 +319,8 @@ final class BuildCustomerTimelineData
             ->active()
             ->where('user_id', $actor->id)
             ->first();
-        $resolvedPermissions = $membership?->resolvedPermissions() ?? [];
         $canViewAll = $membership
-            && ($membership->role === 'admin'
-                || in_array('reservations.manage', $resolvedPermissions, true)
-                || in_array('view_all_reservations', $resolvedPermissions, true));
+            && $this->accessControl->userHasPermission($actor, 'view_all_reservations', $accountId);
 
         if (! $canViewAll) {
             $query->where('team_member_id', (int) ($membership?->id ?? 0));
@@ -552,6 +549,7 @@ final class BuildCustomerTimelineData
         Customer $customer,
         int $accountId,
         array $types,
+        array $capabilities,
         ?Carbon $fromUtc,
         ?Carbon $toUtc,
         ?array $cursor,
@@ -575,14 +573,18 @@ final class BuildCustomerTimelineData
         }
         $allowedActions = array_values(array_unique($allowedActions));
         $relatedActions = array_values(array_unique(array_merge($noteActions, $communicationActions)));
-        $leadIds = LeadRequest::query()
-            ->where('user_id', $accountId)
-            ->where('customer_id', $customer->id)
-            ->pluck('id');
-        $quoteIds = Quote::query()
-            ->where('user_id', $accountId)
-            ->where('customer_id', $customer->id)
-            ->pluck('id');
+        $leadIds = ($capabilities['requests'] ?? false)
+            ? LeadRequest::query()
+                ->where('user_id', $accountId)
+                ->where('customer_id', $customer->id)
+                ->pluck('id')
+            : collect();
+        $quoteIds = ($capabilities['quotes'] ?? false)
+            ? Quote::query()
+                ->where('user_id', $accountId)
+                ->where('customer_id', $customer->id)
+                ->pluck('id')
+            : collect();
 
         $query = ActivityLog::query()
             ->whereIn('action', $allowedActions)
@@ -617,12 +619,20 @@ final class BuildCustomerTimelineData
             ->orderByDesc('id')
             ->limit($limit + 1)
             ->get(['id', 'user_id', 'action', 'description', 'properties', 'subject_type', 'subject_id', 'created_at'])
-            ->map(function (ActivityLog $log) use ($types): ?array {
+            ->map(function (ActivityLog $log) use ($capabilities, $types): ?array {
                 $type = $this->activityType((string) $log->action);
                 if (! in_array($type, $types, true)) {
                     return null;
                 }
                 $properties = (array) ($log->properties ?? []);
+                if (! ($capabilities['notes'] ?? false)) {
+                    unset($properties['note']);
+                    foreach (['before', 'after', 'changes'] as $propertyGroup) {
+                        if (is_array($properties[$propertyGroup] ?? null)) {
+                            unset($properties[$propertyGroup]['description']);
+                        }
+                    }
+                }
 
                 return $this->event(
                     self::SOURCE_ACTIVITY,

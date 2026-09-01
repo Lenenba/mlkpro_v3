@@ -41,6 +41,18 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    canViewNotes: {
+        type: Boolean,
+        default: false,
+    },
+    canManageNotes: {
+        type: Boolean,
+        default: false,
+    },
+    detailCapabilities: {
+        type: Object,
+        default: () => ({}),
+    },
     stats: {
         type: Object,
         default: () => ({}),
@@ -155,14 +167,15 @@ const props = defineProps({
 const { t } = useI18n();
 
 const { visibleFeaturePayload, hasFeature } = useAccountFeatures();
-const showSales = computed(() => hasFeature('sales'));
+const allowsDetail = (capability) => Boolean(props.detailCapabilities?.[capability]);
+const showSales = computed(() => hasFeature('sales') && allowsDetail('sales'));
 const loyalty = computed(() => visibleFeaturePayload('loyalty', props.loyalty));
-const quotesFeatureEnabled = computed(() => hasFeature('quotes'));
-const requestsFeatureEnabled = computed(() => hasFeature('requests'));
-const jobsFeatureEnabled = computed(() => hasFeature('jobs'));
-const tasksFeatureEnabled = computed(() => hasFeature('tasks'));
-const invoicesFeatureEnabled = computed(() => hasFeature('invoices'));
-const reservationsFeatureEnabled = computed(() => hasFeature('reservations'));
+const quotesFeatureEnabled = computed(() => hasFeature('quotes') && allowsDetail('quotes'));
+const requestsFeatureEnabled = computed(() => hasFeature('requests') && allowsDetail('requests'));
+const jobsFeatureEnabled = computed(() => hasFeature('jobs') && allowsDetail('jobs'));
+const tasksFeatureEnabled = computed(() => hasFeature('tasks') && allowsDetail('tasks'));
+const invoicesFeatureEnabled = computed(() => hasFeature('invoices') && allowsDetail('invoices'));
+const reservationsFeatureEnabled = computed(() => hasFeature('reservations') && allowsDetail('reservations'));
 const showServiceOps = computed(() => (
     requestsFeatureEnabled.value
     || quotesFeatureEnabled.value
@@ -958,6 +971,10 @@ const notesForm = useForm({
 });
 
 const startEditNotes = () => {
+    if (!props.canManageNotes) {
+        return;
+    }
+
     notesForm.description = props.customer?.description || '';
     notesForm.clearErrors();
     editingNotes.value = true;
@@ -2087,6 +2104,7 @@ const deleteProperty = (property) => {
 
                                     <div class="flex justify-end">
                                         <button
+                                            v-if="canEdit"
                                             type="button"
                                             @click="startEditTags"
                                             class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
@@ -2120,7 +2138,7 @@ const deleteProperty = (property) => {
                                 </form>
                             </div>
 
-                            <div class="rounded-sm border border-stone-200 bg-stone-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/60">
+                            <div v-if="canViewNotes" class="rounded-sm border border-stone-200 bg-stone-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/60">
                                 <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
                                     {{ $t('customers.details.notes.title') }}
                                 </div>
@@ -2131,6 +2149,7 @@ const deleteProperty = (property) => {
                                     </p>
                                     <div class="flex justify-end">
                                         <button
+                                            v-if="canManageNotes"
                                             type="button"
                                             @click="startEditNotes"
                                             class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"

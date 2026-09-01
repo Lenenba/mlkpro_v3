@@ -3,17 +3,30 @@
 namespace App\Policies;
 
 use App\Models\Customer;
-use App\Models\TeamMember;
 use App\Models\User;
+use App\Services\Rbac\AccessControl;
+use App\Services\Rbac\CompanyModuleAccess;
 
 class CustomerPolicy
 {
+    public function __construct(
+        private CompanyModuleAccess $moduleAccess,
+        private AccessControl $accessControl,
+    ) {}
+
+    public function viewAny(User $user): bool
+    {
+        return $this->moduleAccess->allows($user, 'customers');
+    }
+
     /**
      * Determine whether the user can update the model.
      */
     public function update(User $user, Customer $customer): bool
     {
-        return $user->id === $customer->user_id;
+        return (int) $user->accountOwnerId() === (int) $customer->user_id
+            && $this->moduleAccess->allows($user, 'customers', (int) $customer->user_id)
+            && $this->accessControl->userHasPermission($user, 'customers.edit', (int) $customer->user_id);
     }
 
     /**
@@ -21,7 +34,17 @@ class CustomerPolicy
      */
     public function delete(User $user, Customer $customer): bool
     {
-        return $user->id === $customer->user_id;
+        return (int) $user->accountOwnerId() === (int) $customer->user_id
+            && $this->moduleAccess->allows($user, 'customers', (int) $customer->user_id)
+            && $this->accessControl->userHasPermission($user, 'customers.delete', (int) $customer->user_id);
+    }
+
+    public function create(User $user): bool
+    {
+        $accountId = $user->accountOwnerId();
+
+        return $this->moduleAccess->allows($user, 'customers', $accountId)
+            && $this->accessControl->userHasPermission($user, 'customers.create', $accountId);
     }
 
     /**
@@ -33,49 +56,23 @@ class CustomerPolicy
             return false;
         }
 
-        if ((int) $user->id === (int) $customer->user_id) {
-            return true;
-        }
+        return $this->moduleAccess->allows($user, 'customers', (int) $customer->user_id);
+    }
 
-        $owner = User::query()->find($customer->user_id);
-        if (! $owner) {
+    public function viewNotes(User $user, Customer $customer): bool
+    {
+        if (! $this->view($user, $customer)) {
             return false;
         }
 
-        $membership = $user->relationLoaded('teamMembership')
-            ? $user->teamMembership
-            : $user->teamMembership()->first();
-        if (! $membership
-            || ! $membership->is_active
-            || (int) $membership->account_id !== (int) $owner->id) {
-            return false;
-        }
+        return $this->accessControl->userHasPermission($user, 'view_client_notes', (int) $customer->user_id)
+            || $this->accessControl->userHasPermission($user, 'manage_client_notes', (int) $customer->user_id);
+    }
 
-        if ($membership->hasPermission('customers.view')
-            || $membership->hasPermission('customers.create')) {
-            return true;
-        }
-
-        $capabilityPermissions = [
-            'sales' => ['sales.manage', 'sales.pos'],
-            'reservations' => ['reservations.view', 'reservations.queue', 'reservations.manage'],
-            'jobs' => ['jobs.view', 'jobs.edit'],
-            'tasks' => ['tasks.view', 'tasks.create', 'tasks.edit', 'tasks.delete'],
-        ];
-
-        foreach ($capabilityPermissions as $feature => $permissions) {
-            if (! $owner->hasCompanyFeature($feature)) {
-                continue;
-            }
-
-            foreach ($permissions as $permission) {
-                if ($membership->hasPermission($permission)) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
+    public function manageNotes(User $user, Customer $customer): bool
+    {
+        return $this->view($user, $customer)
+            && $this->accessControl->userHasPermission($user, 'manage_client_notes', (int) $customer->user_id);
     }
 
     public function logActivity(User $user, Customer $customer): bool
@@ -88,17 +85,6 @@ class CustomerPolicy
             return true;
         }
 
-        $membership = $user->relationLoaded('teamMembership')
-            ? $user->teamMembership
-            : TeamMember::query()
-                ->forAccount((int) $customer->user_id)
-                ->active()
-                ->where('user_id', $user->id)
-                ->first();
-
-        return (bool) $membership
-            && (int) $membership->account_id === (int) $customer->user_id
-            && (bool) $membership->is_active
-            && ($membership->role === 'admin' || $membership->hasPermission('sales.manage'));
+        return $this->accessControl->userHasPermission($user, 'sales.manage', (int) $customer->user_id);
     }
 }

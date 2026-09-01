@@ -894,6 +894,7 @@ onBeforeUnmount(() => {
                     >
                         <ProductTableList
                             v-model="form.products"
+                            search-scope="job"
                             :read-only="isLockedFromQuote"
                             :allow-mixed-types="true"
                             :enable-price-lookup="true"

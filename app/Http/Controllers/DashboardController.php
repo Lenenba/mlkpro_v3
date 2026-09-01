@@ -26,6 +26,8 @@ use App\Services\BillingPlanService;
 use App\Services\BillingSubscriptionService;
 use App\Services\Campaigns\DashboardKpiService;
 use App\Services\FinanceApprovalService;
+use App\Services\Rbac\AccessControl;
+use App\Services\Rbac\PermissionCatalog;
 use App\Services\StripeInvoiceService;
 use App\Services\StripeSaleService;
 use App\Services\UsageLimitService;
@@ -557,7 +559,8 @@ class DashboardController extends Controller
             $accountOwner,
             'quick_actions'
         );
-        $isAccountOwner = ($user?->id ?? Auth::id()) === $accountId;
+        $isAccountOwner = ($user?->id ?? Auth::id()) === $accountId
+            && (bool) $user?->isAccountOwner();
 
         $membership = null;
         if (! $isAccountOwner && $user) {
@@ -568,8 +571,21 @@ class DashboardController extends Controller
                 ->first();
         }
 
+        if (! $isAccountOwner && ! $membership) {
+            abort(403);
+        }
+
         if ($accountOwner?->company_type === 'products') {
-            $cacheKey = $cacheEnabled ? "dashboard:products:{$accountId}:{$user?->id}:{$dashboardLocale}" : null;
+            $accessFingerprint = 'owner';
+            if ($membership) {
+                $membership->loadMissing('companyRole.permissions');
+                $effectivePermissions = app(PermissionCatalog::class)->expand($membership->resolvedPermissions());
+                sort($effectivePermissions);
+                $accessFingerprint = substr(hash('sha256', implode('|', $effectivePermissions)), 0, 16);
+            }
+            $cacheKey = $cacheEnabled
+                ? "dashboard:products:{$accountId}:{$user?->id}:{$accessFingerprint}:{$dashboardLocale}"
+                : null;
             if ($cached = $fromCache($cacheKey)) {
                 return $this->inertiaOrJson($cached['component'], $cached['props']);
             }
@@ -627,12 +643,25 @@ class DashboardController extends Controller
         }
 
         if ($membership) {
+            $membership->loadMissing('companyRole.permissions');
+            $effectivePermissions = app(PermissionCatalog::class)->expand($membership->resolvedPermissions());
+            sort($effectivePermissions);
+            $accessFingerprint = substr(hash('sha256', implode('|', $effectivePermissions)), 0, 16);
+            $canViewTasks = (bool) $accountOwner?->hasCompanyFeature('tasks')
+                && $membership->hasPermission('tasks.view');
+            $canViewJobs = (bool) $accountOwner?->hasCompanyFeature('jobs')
+                && $membership->hasPermission('jobs.view');
+
             if ($membership->role === 'admin') {
-                $cacheKey = $cacheEnabled ? "dashboard:admin:{$accountId}:{$user->id}:{$dashboardLocale}" : null;
+                $cacheKey = $cacheEnabled
+                    ? "dashboard:admin:{$accountId}:{$user->id}:{$accessFingerprint}:{$dashboardLocale}"
+                    : null;
                 if ($cached = $fromCache($cacheKey)) {
                     return $this->inertiaOrJson($cached['component'], $cached['props']);
                 }
-                $tasksQuery = Task::query()->forAccount($accountId);
+                $tasksQuery = Task::query()
+                    ->forAccount($accountId)
+                    ->when(! $canViewTasks, fn ($query) => $query->whereRaw('1 = 0'));
 
                 $stats = [
                     'tasks_total' => (clone $tasksQuery)->count(),
@@ -709,7 +738,9 @@ class DashboardController extends Controller
                         ];
                     });
 
-                $worksQuery = Work::query()->byUser($accountId);
+                $worksQuery = Work::query()
+                    ->byUser($accountId)
+                    ->when(! $canViewJobs, fn ($query) => $query->whereRaw('1 = 0'));
                 $worksToday = $this->buildWorksToday($worksQuery, $today);
                 $agendaAlerts = $this->buildAgendaAlerts($tasksQuery, $worksQuery, $today);
 
@@ -758,14 +789,17 @@ class DashboardController extends Controller
                 return $respond('DashboardAdmin', $props, $cacheKey);
             }
 
-            $cacheKey = $cacheEnabled ? "dashboard:member:{$accountId}:{$user->id}:{$dashboardLocale}" : null;
+            $cacheKey = $cacheEnabled
+                ? "dashboard:member:{$accountId}:{$user->id}:{$accessFingerprint}:{$dashboardLocale}"
+                : null;
             if ($cached = $fromCache($cacheKey)) {
                 return $this->inertiaOrJson($cached['component'], $cached['props']);
             }
 
             $tasksQuery = Task::query()
                 ->forAccount($accountId)
-                ->where('assigned_team_member_id', $membership->id);
+                ->where('assigned_team_member_id', $membership->id)
+                ->when(! $canViewTasks, fn ($query) => $query->whereRaw('1 = 0'));
 
             $stats = [
                 'tasks_total' => (clone $tasksQuery)->count(),
@@ -844,7 +878,8 @@ class DashboardController extends Controller
 
             $worksQuery = Work::query()
                 ->byUser($accountId)
-                ->whereHas('teamMembers', fn ($query) => $query->whereKey($membership->id));
+                ->whereHas('teamMembers', fn ($query) => $query->whereKey($membership->id))
+                ->when(! $canViewJobs, fn ($query) => $query->whereRaw('1 = 0'));
             $worksToday = $this->buildWorksToday($worksQuery, $today);
             $agendaAlerts = $this->buildAgendaAlerts($tasksQuery, $worksQuery, $today);
 
@@ -1405,12 +1440,25 @@ class DashboardController extends Controller
                 ->first();
         }
 
-        $tasksQuery = Task::query()->forAccount($accountId);
+        $accountOwner = $isAccountOwner
+            ? $user
+            : User::query()->find($accountId);
+        $accessControl = app(AccessControl::class);
+        $canViewTasks = (bool) $accountOwner?->hasCompanyFeature('tasks')
+            && $accessControl->userHasPermission($user, 'tasks.view', $accountId);
+        $canViewJobs = (bool) $accountOwner?->hasCompanyFeature('jobs')
+            && $accessControl->userHasPermission($user, 'jobs.view', $accountId);
+
+        $tasksQuery = Task::query()
+            ->forAccount($accountId)
+            ->when(! $canViewTasks, fn ($query) => $query->whereRaw('1 = 0'));
         if ($membership && $membership->role !== 'admin') {
             $tasksQuery->where('assigned_team_member_id', $membership->id);
         }
 
-        $worksQuery = Work::query()->byUser($accountId);
+        $worksQuery = Work::query()
+            ->byUser($accountId)
+            ->when(! $canViewJobs, fn ($query) => $query->whereRaw('1 = 0'));
         if ($membership && $membership->role !== 'admin') {
             $worksQuery->whereHas('teamMembers', fn ($query) => $query->whereKey($membership->id));
         }

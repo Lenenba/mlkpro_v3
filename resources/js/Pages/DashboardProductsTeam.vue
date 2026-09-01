@@ -10,6 +10,10 @@ import { humanizeDate } from '@/utils/date';
 import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
+    access: {
+        type: Object,
+        default: () => ({}),
+    },
     stats: {
         type: Object,
         default: () => ({}),
@@ -41,6 +45,9 @@ const greeting = computed(() => (
         : t('dashboard.welcome_generic')
 ));
 const hasAnnouncements = computed(() => (props.announcements || []).length > 0);
+const canViewSales = computed(() => Boolean(props.access?.sales));
+const canViewProducts = computed(() => Boolean(props.access?.products));
+const canRequestStock = computed(() => Boolean(props.access?.request_stock));
 
 const isHydrating = ref(true);
 
@@ -64,6 +71,7 @@ const overviewMetrics = computed(() => ([
         colorClass: 'bg-emerald-500/70 dark:bg-emerald-400/50',
         trend: null,
         points: [],
+        visible: canViewSales.value,
     },
     {
         key: 'revenue-today',
@@ -73,6 +81,7 @@ const overviewMetrics = computed(() => ([
         colorClass: 'bg-sky-500/70 dark:bg-sky-400/50',
         trend: null,
         points: [],
+        visible: canViewSales.value,
     },
     {
         key: 'low-stock',
@@ -82,6 +91,7 @@ const overviewMetrics = computed(() => ([
         colorClass: 'bg-amber-500/70 dark:bg-amber-400/50',
         trend: null,
         points: [],
+        visible: canViewProducts.value,
     },
     {
         key: 'out-of-stock',
@@ -91,26 +101,30 @@ const overviewMetrics = computed(() => ([
         colorClass: 'bg-rose-500/70 dark:bg-rose-400/50',
         trend: null,
         points: [],
+        visible: canViewProducts.value,
     },
-]));
+].filter((metric) => metric.visible)));
 
 const overviewSummaryItems = computed(() => ([
     {
         key: 'sales-month',
         label: t('dashboard_products.owner.kpi.sales_month'),
         value: formatNumber(props.stats.sales_month),
+        visible: canViewSales.value,
     },
     {
         key: 'revenue-month',
         label: t('dashboard_products.common.metrics.revenue_month'),
         value: formatCurrency(props.stats.revenue_month),
+        visible: canViewSales.value,
     },
     {
         key: 'products-total',
         label: t('dashboard.limits.products'),
         value: formatNumber(props.stats.products_total),
+        visible: canViewProducts.value,
     },
-]));
+].filter((item) => item.visible)));
 
 const statusLabels = computed(() => ({
     draft: t('client_orders.status.draft'),
@@ -168,17 +182,18 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                         </p>
                         <div class="flex flex-wrap gap-3 text-xs text-stone-500 dark:text-neutral-400">
                             <span>{{ $t('dashboard_products.team.subtitle') }}</span>
-                            <span>
+                            <span v-if="canViewSales">
                                 {{ $t('dashboard_products.owner.kpi.sales_month') }}:
                                 {{ formatNumber(stats.sales_month) }}
                             </span>
-                            <span>
+                            <span v-if="canViewSales">
                                 {{ $t('dashboard_products.common.metrics.revenue_month') }}:
                                 {{ formatCurrency(stats.revenue_month) }}
                             </span>
                         </div>
                     </div>
                     <Link
+                        v-if="canViewSales"
                         :href="route('sales.create')"
                         class="rounded-sm bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700"
                     >
@@ -189,6 +204,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
 
             <div :class="['grid gap-4 items-start', hasAnnouncements ? 'xl:grid-cols-[minmax(0,1fr)_320px]' : 'grid-cols-1']">
                 <KpiCompositePanel
+                    v-if="overviewMetrics.length"
                     class="rise-in"
                     :style="{ animationDelay: '40ms' }"
                     :title="$t('dashboard.kpi_panels.overview_title')"
@@ -209,8 +225,8 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                 />
             </div>
 
-            <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-                <Card class="rise-in lg:col-span-2" :style="{ animationDelay: '120ms' }">
+            <div v-if="canViewSales || canViewProducts" class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                <Card v-if="canViewSales" class="rise-in lg:col-span-2" :style="{ animationDelay: '120ms' }">
                     <template #title>{{ $t('dashboard_products.common.recent_sales_title') }}</template>
                     <div v-if="isHydrating" class="divide-y divide-stone-200 dark:divide-neutral-700">
                         <div
@@ -256,7 +272,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                     </div>
                 </Card>
 
-                <Card class="rise-in" :style="{ animationDelay: '160ms' }">
+                <Card v-if="canViewProducts" class="rise-in" :style="{ animationDelay: '160ms' }">
                     <template #title>{{ $t('dashboard_products.common.stock_alerts_title') }}</template>
                     <div v-if="isHydrating" class="space-y-3">
                         <div
@@ -301,6 +317,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                             <div class="flex items-center justify-between text-xs text-stone-500 dark:text-neutral-400">
                                 <span>{{ product.supplier_name || $t('dashboard_products.common.supplier_unknown') }}</span>
                                 <button
+                                    v-if="canRequestStock"
                                     type="button"
                                     class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-[11px] font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
                                     :disabled="!product.supplier_email"
@@ -314,7 +331,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                 </Card>
             </div>
 
-            <Card v-if="isHydrating || topProducts.length" class="rise-in" :style="{ animationDelay: '200ms' }">
+            <Card v-if="canViewSales && (isHydrating || topProducts.length)" class="rise-in" :style="{ animationDelay: '200ms' }">
                 <template #title>{{ $t('dashboard_products.common.top_products_title') }}</template>
                 <div v-if="isHydrating" class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                     <div

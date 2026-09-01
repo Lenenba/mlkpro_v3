@@ -208,6 +208,20 @@ class TeamMemberController extends Controller
         if ($companyRoleId) {
             $this->authorizeCompanyPermission($user, 'assign_roles');
         }
+        $directPermissions = array_values($validated['permissions'] ?? []);
+        if ($directPermissions !== []) {
+            $this->authorizeCompanyPermission($user, 'manage_roles_permissions');
+        }
+        if ($companyRoleId && $directPermissions !== []) {
+            throw ValidationException::withMessages([
+                'permissions' => 'Direct permissions cannot be combined with an access role.',
+            ]);
+        }
+        $permissions = $directPermissions;
+        if ($permissions === [] && ! $companyRoleId) {
+            $this->authorizeCompanyPermission($user, 'manage_roles_permissions');
+            $permissions = $this->defaultPermissionsForRole($validated['role'], $allowedPermissions);
+        }
 
         $roleId = Role::where('name', 'employee')->value('id');
         if (! $roleId) {
@@ -234,11 +248,6 @@ class TeamMemberController extends Controller
             'must_change_password' => true,
             'profile_picture' => $profilePicture,
         ]);
-
-        $permissions = array_values($validated['permissions'] ?? []);
-        if (! $permissions && ! $companyRoleId) {
-            $permissions = $this->defaultPermissionsForRole($validated['role'], $allowedPermissions);
-        }
 
         $planningRules = $this->normalizePlanningRules($validated['planning_rules'] ?? null);
 
@@ -338,6 +347,21 @@ class TeamMemberController extends Controller
                 $this->authorizeCompanyPermission($user, 'assign_roles');
             }
         }
+        if (array_key_exists('role', $validated) && $validated['role'] !== $teamMember->role) {
+            $this->authorizeCompanyPermission($user, 'assign_roles');
+        }
+        $resultingCompanyRoleId = array_key_exists('company_role_id', $validated)
+            ? $companyRoleId
+            : $teamMember->company_role_id;
+        $directPermissions = array_values($validated['permissions'] ?? []);
+        if (array_key_exists('permissions', $validated)) {
+            $this->authorizeCompanyPermission($user, 'manage_roles_permissions');
+        }
+        if ($resultingCompanyRoleId && $directPermissions !== []) {
+            throw ValidationException::withMessages([
+                'permissions' => 'Direct permissions cannot be combined with an access role.',
+            ]);
+        }
 
         $userUpdates = [];
         if (array_key_exists('name', $validated)) {
@@ -383,7 +407,7 @@ class TeamMemberController extends Controller
         }
         if (array_key_exists('company_role_id', $validated)) {
             $teamMemberUpdates['company_role_id'] = $companyRoleId;
-            if ($companyRoleChanged && ! array_key_exists('permissions', $validated)) {
+            if ($companyRoleId || ($companyRoleChanged && ! array_key_exists('permissions', $validated))) {
                 $teamMemberUpdates['permissions'] = [];
             }
         }

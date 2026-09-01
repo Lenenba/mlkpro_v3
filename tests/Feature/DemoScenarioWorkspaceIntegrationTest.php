@@ -466,6 +466,7 @@ it('provisions and reproducibly resets the real small Studio Naya scenario', fun
     $sarahMembership = $demoTeamMembers->first(
         fn (TeamMember $member): bool => $member->user?->name === 'Sarah Mbaye'
     );
+    $sarah = User::query()->findOrFail($sarahMembership?->user_id);
     $selectedModules = collect($workspace->selected_modules)->sort()->values()->all();
     $enabledFeatures = collect($workspace->owner?->company_features)
         ->filter(fn (mixed $enabled): bool => $enabled === true)
@@ -944,6 +945,23 @@ it('provisions and reproducibly resets the real small Studio Naya scenario', fun
                 ->pluck('user_id'))
             ->where('profile_picture', 'like', '/images/presets/avatar-%')
             ->count())->toBe(5);
+
+    $this->actingAs($sarah)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('customer.index'))
+        ->assertForbidden();
+    $this->actingAs($sarah)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('product.index'))
+        ->assertForbidden();
+    $this->actingAs($sarah)
+        ->withSession(['two_factor_passed' => true])
+        ->get(route('workspace.hubs.show', ['category' => 'catalog']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('auth.account.module_access.customers', false)
+            ->where('auth.account.module_access.products', false)
+        );
 
     foreach ($criticalTimelineLinks as [$customer, $event, $foreignKey, $expectedId]) {
         $activity = ActivityLog::query()

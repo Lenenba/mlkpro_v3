@@ -89,9 +89,8 @@ const categories = computed(() => buildWorkspaceHubCategories({
 const visibleCategories = computed(() => categories.value.filter((category) => category.visible));
 
 const currentCategory = computed(() => (
-    categories.value.find((category) => category.key === props.category)
+    visibleCategories.value.find((category) => category.key === props.category)
     || visibleCategories.value[0]
-    || categories.value[0]
     || null
 ));
 

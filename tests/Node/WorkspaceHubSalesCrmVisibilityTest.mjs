@@ -7,12 +7,16 @@ const read = (path) => readFileSync(resolve(path), 'utf8');
 
 const loadWorkspaceHubBuilder = async () => {
     const source = read('resources/js/utils/workspaceHub.js')
-        .replace(/^import .*;\n/gm, '')
+        .replace(/^import[\s\S]*?from ['"][^'"]+['"];\n/gm, '')
         .replace('export function buildWorkspaceHubCategories', 'function buildWorkspaceHubCategories');
     const dependencies = `
         const isFeatureEnabled = (features, key) => features?.[key] === true;
         const hasAccountPermission = (account, permission) => (account?.permissions || []).includes(permission);
         const hasAnyAccountPermission = (account, permissions) => permissions.some((permission) => hasAccountPermission(account, permission));
+        const hasAccountModuleAccess = (account, module) => account?.module_access
+            && Object.prototype.hasOwnProperty.call(account.module_access, module)
+            ? Boolean(account.module_access[module])
+            : Boolean(account?.is_owner) || Boolean(account?.is_superadmin);
     `;
     const moduleSource = `${dependencies}\n${source}\nexport { buildWorkspaceHubCategories };`;
 
@@ -24,6 +28,7 @@ const serviceOwner = (features) => ({
     is_client: false,
     features,
     permissions: ['sales.manage'],
+    module_access: { customers: true, products: true },
     company: { type: 'services' },
     team: { role: null },
 });
@@ -96,6 +101,7 @@ test('sales navigation still requires the tenant feature and a member permission
         is_client: false,
         features: { sales: true },
         permissions: [],
+        module_access: { customers: false, products: false },
         company: { type: 'services' },
         team: { role: 'member' },
     };
@@ -126,6 +132,7 @@ test('operational cards use enabled capabilities instead of company type', async
         is_client: false,
         features: { reservations: true, performance: true, planning: true },
         permissions: ['reservations.view', 'reports.view'],
+        module_access: { customers: false, products: false },
         company: { type: 'products' },
         team: { role: 'member' },
     };
@@ -147,13 +154,59 @@ test('operational cards use enabled capabilities instead of company type', async
         is_client: false,
         features: { sales: true, products: true, performance: true, planning: true },
         permissions: ['sales.manage'],
+        module_access: { customers: false, products: false },
         company: { type: 'services' },
         team: { role: 'manager' },
     });
-    assert.ok(serviceSalesModules.includes('customers'));
-    assert.ok(serviceSalesModules.includes('products'));
+    assert.ok(!serviceSalesModules.includes('customers'));
+    assert.ok(!serviceSalesModules.includes('products'));
     assert.ok(serviceSalesModules.includes('performance'));
     assert.ok(serviceSalesModules.includes('planning'));
+});
+
+test('customer and product cards follow module access independently from sales permissions', async () => {
+    const { buildWorkspaceHubCategories } = await loadWorkspaceHubBuilder();
+    const visibleModuleKeys = (account) => buildWorkspaceHubCategories({ account })
+        .flatMap((category) => category.modules)
+        .map((module) => module.key);
+    const salesMember = {
+        is_owner: false,
+        is_client: false,
+        features: { sales: true, products: true },
+        permissions: ['sales.manage'],
+        module_access: { customers: false, products: false },
+        company: { type: 'services' },
+        team: { role: 'manager' },
+    };
+
+    for (const permission of ['sales.manage', 'sales.pos']) {
+        const salesOnlyModules = visibleModuleKeys({ ...salesMember, permissions: [permission] });
+
+        assert.ok(!salesOnlyModules.includes('customers'));
+        assert.ok(!salesOnlyModules.includes('products'));
+    }
+
+    const customerModules = visibleModuleKeys({
+        ...salesMember,
+        module_access: { customers: true, products: false },
+    });
+    assert.ok(customerModules.includes('customers'));
+    assert.ok(!customerModules.includes('products'));
+
+    const productModules = visibleModuleKeys({
+        ...salesMember,
+        module_access: { customers: false, products: true },
+    });
+    assert.ok(!productModules.includes('customers'));
+    assert.ok(productModules.includes('products'));
+
+    const sellerModules = visibleModuleKeys({
+        ...salesMember,
+        team: { role: 'seller' },
+        module_access: { customers: true, products: true },
+    });
+    assert.ok(sellerModules.includes('customers'));
+    assert.ok(sellerModules.includes('products'));
 });
 
 test('product and customer UI gates follow features and permissions', () => {
@@ -161,14 +214,30 @@ test('product and customer UI gates follow features and permissions', () => {
     const productTable = read('resources/js/Pages/Product/UI/ProductTable.vue');
     const globalSearch = read('resources/js/Components/UI/GlobalSearch.vue');
     const quickMenu = read('resources/js/Components/UI/LinkAncor2.vue');
+    const quickCreateModals = read('resources/js/Components/QuickCreate/QuickCreateModals.vue');
+    const productTableList = read('resources/js/Components/ProductTableList.vue');
+    const quoteCreate = read('resources/js/Pages/Quote/Create.vue');
+    const workCreate = read('resources/js/Pages/Work/Create.vue');
     const sidebar = read('resources/js/Layouts/UI/Sidebar.vue');
     const dashboard = read('resources/js/Pages/Dashboard.vue');
 
-    assert.match(customerShow, /showSales = computed\(\(\) => hasFeature\('sales'\)\)/);
+    assert.match(customerShow, /showSales = computed\(\(\) => hasFeature\('sales'\) && allowsDetail\('sales'\)\)/);
+    assert.match(customerShow, /v-if="canViewNotes"/);
+    assert.match(customerShow, /v-if="canManageNotes"/);
     assert.doesNotMatch(customerShow, /showServiceOps = computed\(\(\) => companyType/);
-    assert.match(productTable, /hasFeature\('sales'\) && hasAnyPermission\(\['sales\.manage', 'sales\.pos'\]\)/);
+    assert.match(productTable, /canCreateBulkOrder = computed\(\(\) => resolveAbility\('create_order'\)\)/);
+    assert.match(productTable, /v-if="canAdjustStock"/);
+    assert.match(productTable, /:can-delete="canDelete"/);
     assert.doesNotMatch(globalSearch, /companyType\.value === 'products' && hasFeature\('sales'\)/);
+    assert.match(globalSearch, /hasModuleAccess\('products'\)[\s\S]*hasPermission\('products\.create'\)/);
+    assert.doesNotMatch(globalSearch, /isOwner\.value && hasFeature\('products'\)/);
     assert.doesNotMatch(quickMenu, /companyType\.value === 'products' && hasFeature\('sales'\)/);
+    assert.match(quickMenu, /hasModuleAccess\('products'\)[\s\S]*hasPermission\('products\.create'\)/);
+    assert.match(quickCreateModals, /hasModuleAccess\('products'\)[\s\S]*hasPermission\('products\.create'\)/);
+    assert.match(productTable, /<Modal v-if="canCreate"[^>]+hs-pro-dasadpm/);
+    assert.match(productTableList, /scope: props\.searchScope \|\| undefined/);
+    assert.match(quoteCreate, /search-scope="quote"/);
+    assert.match(workCreate, /search-scope="job"/);
     assert.match(sidebar, /v-if="hasFeature\('reservations'\) && canReservations/);
     assert.doesNotMatch(sidebar, /showServices && hasFeature\('reservations'\)/);
     assert.match(dashboard, /!hasFeature\('products'\) \|\| !canProducts\.value/);

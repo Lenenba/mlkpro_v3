@@ -19,7 +19,6 @@ final class CustomerActivityAudit
         'last_name',
         'email',
         'phone',
-        'description',
         'refer_by',
         'tags',
         'is_active',

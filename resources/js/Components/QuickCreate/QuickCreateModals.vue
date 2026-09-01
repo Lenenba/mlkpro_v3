@@ -10,11 +10,20 @@ import QuoteQuickDialog from '@/Components/QuickCreate/QuoteQuickDialog.vue';
 import RequestQuickForm from '@/Components/QuickCreate/RequestQuickForm.vue';
 import { useI18n } from 'vue-i18n';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
+import { usePermissions } from '@/Composables/usePermissions';
 
 const { hasFeature } = useAccountFeatures();
+const { hasModuleAccess, hasPermission } = usePermissions();
 const page = usePage();
 const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
-const canProducts = computed(() => isOwner.value && hasFeature('products'));
+const canCreateCustomer = computed(() => (
+    hasModuleAccess('customers') && hasPermission('customers.create')
+));
+const canProducts = computed(() => (
+    hasFeature('products')
+    && hasModuleAccess('products')
+    && hasPermission('products.create')
+));
 const canServices = computed(() => isOwner.value && hasFeature('services'));
 const canQuotes = computed(() => hasFeature('quotes'));
 const canRequests = computed(() => hasFeature('requests'));
@@ -356,7 +365,7 @@ const handleServiceModalOpen = () => {
 </script>
 
 <template>
-    <Modal :title="$t('quick_create.new_customer')" :id="'hs-quick-create-customer'" @open="handleCustomerModalOpen">
+    <Modal v-if="canCreateCustomer" :title="$t('quick_create.new_customer')" :id="'hs-quick-create-customer'" @open="handleCustomerModalOpen">
         <CustomerQuickForm
             v-if="customerModalOpened"
             :overlay-id="'#hs-quick-create-customer'"

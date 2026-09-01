@@ -1,5 +1,9 @@
 import { isFeatureEnabled } from '@/utils/features';
-import { hasAccountPermission, hasAnyAccountPermission } from '@/utils/permissions';
+import {
+    hasAccountModuleAccess,
+    hasAccountPermission,
+    hasAnyAccountPermission,
+} from '@/utils/permissions';
 
 export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 } = {}) {
     const features = account?.features || {};
@@ -17,16 +21,8 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
 
     const canSales = hasAnyAccountPermission(account, ['sales.manage', 'sales.pos']);
     const canSalesManage = hasAccountPermission(account, 'sales.manage');
-    const canProducts = hasAnyAccountPermission(account, [
-        'products.view',
-        'products.create',
-        'products.edit',
-        'products.delete',
-        'products.inventory',
-        'products.stock',
-        'sales.manage',
-        'sales.pos',
-    ]);
+    const canCustomers = hasAccountModuleAccess(account, 'customers');
+    const canProducts = hasAccountModuleAccess(account, 'products');
     const canJobs = hasAnyAccountPermission(account, ['jobs.view', 'jobs.edit']);
     const canTasks = hasAnyAccountPermission(account, ['tasks.view', 'tasks.create', 'tasks.edit', 'tasks.delete']);
     const canService = hasAnyAccountPermission(account, ['jobs.view', 'tasks.view', 'jobs.edit', 'tasks.edit']);
@@ -168,7 +164,7 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             descriptionKey: 'workspace_hub.modules.customers',
             routeName: 'customer.index',
             tone: 'customers',
-            visible: ((showServices && isOwner) || (hasFeature('sales') && canSales)) && !isSeller,
+            visible: canCustomers,
         },
         prospects: {
             key: 'prospects',
@@ -399,7 +395,7 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             descriptionKey: 'workspace_hub.modules.products',
             routeName: 'product.index',
             tone: 'products',
-            visible: showProducts && hasFeature('products') && canProducts && !isSeller,
+            visible: showProducts && hasFeature('products') && canProducts,
         },
         offer_packages: {
             key: 'offer_packages',

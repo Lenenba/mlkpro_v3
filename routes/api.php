@@ -320,7 +320,7 @@ Route::group([], function () {
             });
 
             Route::middleware('company.feature:products')->group(function () {
-                Route::get('product/search', ProductsSearchController::class);
+                Route::get('product/search', ProductsSearchController::class)->name('api.product.search');
                 Route::get('product/price-lookup', ProductPriceLookupController::class);
                 Route::get('products/options', [ProductController::class, 'options']);
                 Route::post('products/quick', [ProductController::class, 'storeQuick']);
@@ -337,12 +337,15 @@ Route::group([], function () {
             });
 
             Route::prefix('integrations')->group(function () {
-                Route::get('products', [IntegrationInventoryController::class, 'products']);
-                Route::get('products/{product}', [IntegrationInventoryController::class, 'product']);
-                Route::get('warehouses', [IntegrationInventoryController::class, 'warehouses']);
-                Route::get('movements', [IntegrationInventoryController::class, 'movements']);
-                Route::get('alerts', [IntegrationInventoryController::class, 'alerts']);
-                Route::post('products/{product}/adjust', [IntegrationInventoryController::class, 'adjust']);
+                Route::middleware(['company.feature:products', 'permission:products.view'])->group(function () {
+                    Route::get('products', [IntegrationInventoryController::class, 'products']);
+                    Route::get('products/{product}', [IntegrationInventoryController::class, 'product']);
+                    Route::get('warehouses', [IntegrationInventoryController::class, 'warehouses']);
+                    Route::get('movements', [IntegrationInventoryController::class, 'movements']);
+                    Route::get('alerts', [IntegrationInventoryController::class, 'alerts']);
+                });
+                Route::post('products/{product}/adjust', [IntegrationInventoryController::class, 'adjust'])
+                    ->middleware(['company.feature:products', 'permission:products.view', 'permission:products.stock']);
                 Route::post('requests', [IntegrationRequestController::class, 'store'])
                     ->name('api.integrations.requests.store');
                 Route::post('crm/connector-events', [IntegrationCrmConnectorEventController::class, 'store'])

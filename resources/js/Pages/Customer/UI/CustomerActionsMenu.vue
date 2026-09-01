@@ -13,6 +13,10 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    canDelete: {
+        type: Boolean,
+        default: false,
+    },
     customerIndexContext: {
         type: Object,
         default: () => ({
@@ -108,9 +112,9 @@ const billingHref = computed(() => (
         >
             {{ customer.is_active ? t('customers.actions.archive') : t('customers.actions.restore') }}
         </button>
-        <div v-if="canEdit" class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
+        <div v-if="canDelete && (canEdit || appointmentProfile)" class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
         <button
-            v-if="canEdit"
+            v-if="canDelete"
             type="button"
             class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback"
             data-tone="danger"

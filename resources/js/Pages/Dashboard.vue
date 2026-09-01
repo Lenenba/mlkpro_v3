@@ -105,20 +105,10 @@ const greeting = computed(() =>
 );
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
 const showServices = computed(() => companyType.value !== 'products');
-const { hasAnyPermission } = usePermissions();
-const teamRole = computed(() => page.props.auth?.account?.team?.role || null);
-const isSeller = computed(() => teamRole.value === 'seller');
+const { hasAnyPermission, hasModuleAccess, hasPermission } = usePermissions();
 const canSales = computed(() => hasAnyPermission(['sales.manage', 'sales.pos']));
-const canProducts = computed(() => hasAnyPermission([
-    'products.view',
-    'products.create',
-    'products.edit',
-    'products.delete',
-    'products.inventory',
-    'products.stock',
-    'sales.manage',
-    'sales.pos',
-]));
+const canCustomers = computed(() => hasModuleAccess('customers'));
+const canProducts = computed(() => hasModuleAccess('products'));
 const canQuotes = computed(() => hasAnyPermission(['quotes.view', 'quotes.edit', 'quotes.send']));
 const canSalesManage = computed(() => hasAnyPermission(['sales.manage']));
 const canJobs = computed(() => hasAnyPermission(['jobs.view', 'jobs.edit']));
@@ -147,11 +137,12 @@ const hasCatalogFeature = computed(() =>
     showServices.value ? hasFeature('services') : hasFeature('products')
 );
 const canQuickCreateCustomer = computed(() => (
-    !isSeller.value
-    && (
-        (isOwner.value && showServices.value)
-        || (companyType.value === 'products' && hasFeature('sales') && canSales.value)
-    )
+    canCustomers.value && hasPermission('customers.create')
+));
+const canQuickCreateProduct = computed(() => (
+    hasFeature('products')
+    && canProducts.value
+    && hasPermission('products.create')
 ));
 const hasPlanScans = computed(() => showServices.value && hasFeature('quotes') && hasFeature('plan_scans'));
 const hasTopAnnouncements = computed(() => (props.announcements || []).length > 0);
@@ -959,12 +950,14 @@ const onboardingChecklist = computed(() => {
         });
     }
 
-    steps.push({
-        key: 'customer',
-        label: t('dashboard.onboarding.add_first_customer'),
-        route: 'customer.create',
-        completed: stat('customers_total') > 0,
-    });
+    if (canCustomers.value) {
+        steps.push({
+            key: 'customer',
+            label: t('dashboard.onboarding.add_first_customer'),
+            route: 'customer.create',
+            completed: stat('customers_total') > 0,
+        });
+    }
 
     if (hasFeature('quotes') && canQuotes.value) {
         steps.push({
@@ -1006,7 +999,7 @@ const suggestionActions = computed(() => {
         });
     }
 
-    if (hasCatalogFeature.value && isOwner.value) {
+    if (hasCatalogFeature.value && (showServices.value ? isOwner.value : canQuickCreateProduct.value)) {
         actions.push({
             key: 'catalog',
             label: showServices.value

@@ -4,23 +4,11 @@ namespace App\Policies;
 
 use App\Models\Product;
 use App\Models\User;
+use App\Services\Rbac\AccessControl;
+use App\Services\Rbac\CompanyModuleAccess;
 
 class ProductPolicy
 {
-    /**
-     * @var list<string>
-     */
-    private const VIEW_PERMISSIONS = [
-        'products.view',
-        'products.create',
-        'products.edit',
-        'products.delete',
-        'products.inventory',
-        'products.stock',
-        'sales.manage',
-        'sales.pos',
-    ];
-
     /**
      * @var list<string>
      */
@@ -31,9 +19,22 @@ class ProductPolicy
         'services.delete',
     ];
 
+    public function __construct(
+        private CompanyModuleAccess $moduleAccess,
+        private AccessControl $accessControl,
+    ) {}
+
     public function viewAny(User $user): bool
     {
-        return $this->canAccessAccount($user, self::VIEW_PERMISSIONS);
+        return $this->canAccessProductModule($user);
+    }
+
+    public function create(User $user): bool
+    {
+        $accountId = $user->accountOwnerId();
+
+        return $this->moduleAccess->allows($user, 'products', $accountId)
+            && $this->accessControl->userHasPermission($user, 'products.create', $accountId);
     }
 
     public function view(User $user, Product $product): bool
@@ -42,11 +43,13 @@ class ProductPolicy
             return false;
         }
 
+        if ($product->item_type === Product::ITEM_TYPE_PRODUCT) {
+            return $this->canAccessProductModule($user);
+        }
+
         return $this->canAccessAccount(
             $user,
-            $product->item_type === Product::ITEM_TYPE_SERVICE
-                ? self::SERVICE_VIEW_PERMISSIONS
-                : self::VIEW_PERMISSIONS,
+            self::SERVICE_VIEW_PERMISSIONS,
             $this->featureFor($product),
         );
     }
@@ -54,6 +57,11 @@ class ProductPolicy
     public function update(User $user, Product $product): bool
     {
         if ((int) $user->accountOwnerId() !== (int) $product->user_id) {
+            return false;
+        }
+
+        if ($product->item_type === Product::ITEM_TYPE_PRODUCT
+            && ! $this->canAccessProductModule($user)) {
             return false;
         }
 
@@ -70,11 +78,42 @@ class ProductPolicy
             return false;
         }
 
+        if ($product->item_type === Product::ITEM_TYPE_PRODUCT
+            && ! $this->canAccessProductModule($user)) {
+            return false;
+        }
+
         return $this->canAccessAccount(
             $user,
             [$product->item_type === Product::ITEM_TYPE_SERVICE ? 'services.delete' : 'products.delete'],
             $this->featureFor($product),
         );
+    }
+
+    public function adjustStock(User $user, Product $product): bool
+    {
+        if ((int) $user->accountOwnerId() !== (int) $product->user_id) {
+            return false;
+        }
+
+        if (! $this->canAccessProductModule($user)) {
+            return false;
+        }
+
+        return $this->canAccessAccount(
+            $user,
+            ['products.stock'],
+            $this->featureFor($product),
+        );
+    }
+
+    public function duplicate(User $user, Product $product): bool
+    {
+        if (! $this->view($user, $product) || ! $this->create($user)) {
+            return false;
+        }
+
+        return (int) $product->stock <= 0 || $this->adjustStock($user, $product);
     }
 
     /**
@@ -111,6 +150,17 @@ class ProductPolicy
         }
 
         return false;
+    }
+
+    private function canAccessProductModule(User $user): bool
+    {
+        $ownerId = $user->accountOwnerId();
+        $owner = (int) $user->id === (int) $ownerId
+            ? $user
+            : User::query()->find($ownerId);
+
+        return (bool) $owner?->hasCompanyFeature('products')
+            && $this->moduleAccess->allows($user, 'products', (int) $ownerId);
     }
 
     private function featureFor(Product $product): string

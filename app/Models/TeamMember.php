@@ -114,26 +114,19 @@ class TeamMember extends Model
      */
     public function resolvedPermissions(): array
     {
-        $permissions = $this->permissions ?? [];
+        if ($this->company_role_id) {
+            $role = $this->relationLoaded('companyRole')
+                ? $this->companyRole
+                : $this->companyRole()->with('permissions')->first();
 
-        if (! is_array($permissions)) {
-            $permissions = [];
-        }
+            if (! $role || ! $role->is_active) {
+                return [];
+            }
 
-        $role = $this->relationLoaded('companyRole')
-            ? $this->companyRole
-            : null;
-
-        if (! $role && $this->company_role_id) {
-            $role = $this->companyRole()->with('permissions')->first();
-        }
-
-        if ($role && $role->is_active) {
             $role->loadMissing('permissions');
-            $permissions = [
-                ...$permissions,
-                ...$role->permissions->pluck('slug')->all(),
-            ];
+            $permissions = $role->permissions->pluck('slug')->all();
+        } else {
+            $permissions = is_array($this->permissions) ? $this->permissions : [];
         }
 
         return array_values(array_unique(array_filter(

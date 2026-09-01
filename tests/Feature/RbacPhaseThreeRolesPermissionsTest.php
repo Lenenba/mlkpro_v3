@@ -5,7 +5,9 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Services\Rbac\AccessControl;
 use Database\Seeders\RbacSeeder;
+use Illuminate\Support\Facades\Notification;
 
 function rbacPhaseThreeEmployeeRoleId(): int
 {
@@ -386,4 +388,169 @@ it('allows updating another team field without assign roles when the role is unc
         ])
         ->assertOk()
         ->assertJsonPath('team_member.title', 'Styliste');
+});
+
+it('uses only the assigned access role even when legacy admin and direct permissions are stale', function () {
+    $this->seed(RbacSeeder::class);
+
+    $owner = rbacPhaseThreeOwner();
+    $member = rbacPhaseThreeMember($owner, ['view_tasks']);
+    $membership = TeamMember::query()
+        ->where('account_id', $owner->id)
+        ->where('user_id', $member->id)
+        ->firstOrFail();
+
+    $membership->update([
+        'role' => 'admin',
+        'permissions' => [
+            'view_clients',
+            'view_products',
+            'manage_roles_permissions',
+            'admin',
+        ],
+    ]);
+    $membership = $membership->fresh('companyRole.permissions');
+
+    expect($membership->resolvedPermissions())->toBe(['view_tasks'])
+        ->and($membership->hasPermission('view_tasks'))->toBeTrue()
+        ->and($membership->hasPermission('view_clients'))->toBeFalse()
+        ->and($membership->hasPermission('view_products'))->toBeFalse()
+        ->and($membership->hasPermission('manage_roles_permissions'))->toBeFalse()
+        ->and($membership->hasPermission('admin'))->toBeFalse()
+        ->and(app(AccessControl::class)->userHasPermission($member, 'view_clients', $owner->id))->toBeFalse()
+        ->and(app(AccessControl::class)->userHasPermission($member, 'view_products', $owner->id))->toBeFalse()
+        ->and(app(AccessControl::class)->userHasPermission($member, 'manage_roles_permissions', $owner->id))->toBeFalse();
+
+    $this->actingAs($member)
+        ->getJson(route('settings.roles_permissions.edit'))
+        ->assertForbidden();
+});
+
+it('does not fall back to direct permissions when an assigned access role is inactive', function () {
+    $this->seed(RbacSeeder::class);
+
+    $owner = rbacPhaseThreeOwner();
+    $member = rbacPhaseThreeMember($owner, ['view_tasks']);
+    $membership = TeamMember::query()
+        ->where('account_id', $owner->id)
+        ->where('user_id', $member->id)
+        ->firstOrFail();
+
+    $membership->update([
+        'permissions' => ['view_clients', 'view_products', 'manage_roles_permissions'],
+    ]);
+    $membership->companyRole()->firstOrFail()->update(['is_active' => false]);
+    $membership = $membership->fresh('companyRole.permissions');
+
+    expect($membership->resolvedPermissions())->toBe([])
+        ->and($membership->hasPermission('view_tasks'))->toBeFalse()
+        ->and($membership->hasPermission('view_clients'))->toBeFalse()
+        ->and($membership->hasPermission('view_products'))->toBeFalse()
+        ->and($membership->hasPermission('manage_roles_permissions'))->toBeFalse()
+        ->and(app(AccessControl::class)->userHasPermission($member, 'view_clients', $owner->id))->toBeFalse();
+});
+
+it('blocks an updater without role management permission from adding or clearing direct permissions', function () {
+    $this->seed(RbacSeeder::class);
+
+    $owner = rbacPhaseThreeOwner();
+    $updater = rbacPhaseThreeMember($owner, ['update_team_members']);
+    $targetUser = rbacPhaseThreeMember($owner);
+    $targetMembership = TeamMember::query()
+        ->where('account_id', $owner->id)
+        ->where('user_id', $targetUser->id)
+        ->firstOrFail();
+    $targetMembership->update(['permissions' => ['tasks.view']]);
+
+    $this->actingAs($updater)
+        ->putJson(route('team.update', $targetMembership), [
+            'permissions' => ['tasks.create'],
+        ])
+        ->assertForbidden();
+
+    expect($targetMembership->fresh()->permissions)->toBe(['tasks.view']);
+
+    $this->actingAs($updater)
+        ->putJson(route('team.update', $targetMembership), [
+            'permissions' => [],
+        ])
+        ->assertForbidden();
+
+    expect($targetMembership->fresh()->permissions)->toBe(['tasks.view']);
+});
+
+it('rejects combining an access role with non empty direct permissions on update and creation', function () {
+    $this->seed(RbacSeeder::class);
+
+    $owner = rbacPhaseThreeOwner();
+    $manager = rbacPhaseThreeMember($owner, [
+        'create_team_members',
+        'update_team_members',
+        'assign_roles',
+        'manage_roles_permissions',
+    ]);
+    $targetUser = rbacPhaseThreeMember($owner);
+    $targetMembership = TeamMember::query()
+        ->where('account_id', $owner->id)
+        ->where('user_id', $targetUser->id)
+        ->firstOrFail();
+    $role = rbacPhaseThreeCustomRole($owner, 'Role without direct permissions');
+
+    $this->actingAs($manager)
+        ->putJson(route('team.update', $targetMembership), [
+            'company_role_id' => $role->id,
+            'permissions' => ['tasks.view'],
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('permissions')
+        ->assertJsonPath('errors.permissions.0', 'Direct permissions cannot be combined with an access role.');
+
+    $targetMembership->refresh();
+
+    expect($targetMembership->company_role_id)->toBeNull()
+        ->and($targetMembership->permissions)->toBe([]);
+
+    Notification::fake();
+    $email = 'role-and-direct-permissions@example.test';
+
+    $this->actingAs($manager)
+        ->postJson(route('team.store'), [
+            'name' => 'Invalid Mixed Access Member',
+            'email' => $email,
+            'role' => 'member',
+            'company_role_id' => $role->id,
+            'permissions' => ['tasks.view'],
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('permissions')
+        ->assertJsonPath('errors.permissions.0', 'Direct permissions cannot be combined with an access role.');
+
+    $this->assertDatabaseMissing('users', ['email' => $email]);
+    Notification::assertNothingSent();
+});
+
+it('does not create an orphan user when a creator cannot configure legacy direct permissions', function () {
+    $this->seed(RbacSeeder::class);
+
+    $owner = rbacPhaseThreeOwner();
+    $creator = rbacPhaseThreeMember($owner, ['create_team_members']);
+    $email = 'legacy-member-without-access-role@example.test';
+    $userCountBefore = User::query()->count();
+    $membershipCountBefore = TeamMember::query()->count();
+
+    Notification::fake();
+
+    $this->actingAs($creator)
+        ->postJson(route('team.store'), [
+            'name' => 'Forbidden Legacy Member',
+            'email' => $email,
+            'role' => 'member',
+        ])
+        ->assertForbidden();
+
+    expect(User::query()->count())->toBe($userCountBefore)
+        ->and(TeamMember::query()->count())->toBe($membershipCountBefore);
+
+    $this->assertDatabaseMissing('users', ['email' => $email]);
+    Notification::assertNothingSent();
 });
