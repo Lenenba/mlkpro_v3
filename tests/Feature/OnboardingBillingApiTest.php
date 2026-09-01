@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\CompanyRole;
 use App\Models\User;
 use App\Services\StripeBillingService;
 use Illuminate\Support\Facades\Notification;
@@ -18,6 +19,8 @@ test('onboarding billing api returns a canceled status when checkout is canceled
         ->assertJsonPath('status', 'canceled')
         ->assertJsonPath('message', __('ui.onboarding.checkout_canceled'))
         ->assertJsonPath('onboarding_completed', false);
+
+    expect(CompanyRole::query()->where('company_id', $owner->id)->exists())->toBeFalse();
 });
 
 test('onboarding billing api requires a checkout session id for stripe success callbacks', function () {
@@ -68,5 +71,9 @@ test('onboarding billing api completes onboarding after a successful stripe call
         ->assertJsonPath('onboarding_completed', true)
         ->assertJsonPath('user.id', $owner->id);
 
-    expect($owner->fresh()->onboarding_completed_at)->not->toBeNull();
+    expect($owner->fresh()->onboarding_completed_at)->not->toBeNull()
+        ->and(CompanyRole::query()
+            ->where('company_id', $owner->id)
+            ->where('is_default', true)
+            ->count())->toBe(4);
 });

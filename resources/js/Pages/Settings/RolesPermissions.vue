@@ -28,8 +28,8 @@ const selectedGroup = ref('all');
 const mode = ref('edit');
 
 const selectedRole = computed(() => props.roles.find((role) => Number(role.id) === Number(selectedRoleId.value)) || null);
-const customRoles = computed(() => props.roles.filter((role) => !role.is_system));
-const systemRoles = computed(() => props.roles.filter((role) => role.is_system));
+const standardRoles = computed(() => props.roles.filter((role) => !role.is_system && role.is_default));
+const customRoles = computed(() => props.roles.filter((role) => !role.is_system && !role.is_default));
 const activeRoles = computed(() => props.roles.filter((role) => role.is_active));
 const permissionCount = computed(() => props.permissions.reduce((total, group) => total + (group.permissions?.length || 0), 0));
 const roleMetrics = computed(() => ([
@@ -40,9 +40,9 @@ const roleMetrics = computed(() => ([
         tone: 'emerald',
     },
     {
-        key: 'system-roles',
-        label: 'Rôles système',
-        value: systemRoles.value.length,
+        key: 'standard-roles',
+        label: 'Rôles standards',
+        value: standardRoles.value.length,
         tone: 'sky',
     },
     {
@@ -179,9 +179,27 @@ const roleTone = (role) => {
         return 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200';
     }
 
+    if (role.is_default) {
+        return role.is_active
+            ? 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-200'
+            : 'border-stone-200 bg-stone-50 text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300';
+    }
+
     return role.is_active
         ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200'
         : 'border-stone-200 bg-stone-50 text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300';
+};
+
+const roleBadge = (role) => {
+    if (role.is_system) {
+        return 'Système';
+    }
+
+    if (role.is_default) {
+        return role.is_active ? 'Standard' : 'Standard · Inactif';
+    }
+
+    return role.is_active ? 'Actif' : 'Inactif';
 };
 </script>
 
@@ -200,7 +218,7 @@ const roleTone = (role) => {
                             Rôles d'accès
                         </h1>
                         <p class="mt-2 max-w-3xl text-sm leading-6 text-stone-600 dark:text-neutral-400">
-                            Configurez les rôles d'accès de l’entreprise. Les permissions pilotent les pages visibles, les actions possibles et les accès backend.
+                            Adaptez les rôles standards proposés pour votre secteur ou créez vos propres rôles. Les permissions pilotent les pages visibles, les actions possibles et les accès backend.
                         </p>
                     </div>
                     <button
@@ -240,7 +258,7 @@ const roleTone = (role) => {
                                         <p class="mt-1 truncate text-xs text-stone-500 dark:text-neutral-400">{{ role.description || 'Aucune description.' }}</p>
                                     </div>
                                     <span class="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold" :class="roleTone(role)">
-                                        {{ role.is_system ? 'Système' : (role.is_active ? 'Actif' : 'Inactif') }}
+                                        {{ roleBadge(role) }}
                                     </span>
                                 </div>
                                 <div class="mt-3 flex items-center justify-between text-[11px] text-stone-500 dark:text-neutral-400">
@@ -280,6 +298,9 @@ const roleTone = (role) => {
                             </h2>
                             <p v-if="selectedRole?.is_system" class="mt-2 max-w-2xl text-sm text-stone-600 dark:text-neutral-400">
                                 Ce rôle d'accès système sert de modèle. Dupliquez-le pour créer une version personnalisée propre à cette entreprise.
+                            </p>
+                            <p v-else-if="selectedRole?.is_default" class="mt-2 max-w-2xl text-sm text-stone-600 dark:text-neutral-400">
+                                Ce rôle standard a été préparé pour le secteur de l’entreprise. Vous pouvez modifier son nom, ses permissions et son statut, ou le désactiver sans perdre sa configuration.
                             </p>
                         </div>
                         <div v-if="selectedRole && mode === 'edit'" class="flex flex-wrap gap-2">
