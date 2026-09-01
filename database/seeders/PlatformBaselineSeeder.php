@@ -17,6 +17,7 @@ class PlatformBaselineSeeder extends Seeder
     {
         $this->call([
             PlanCatalogSeeder::class,
+            RbacSeeder::class,
         ]);
 
         $roles = [

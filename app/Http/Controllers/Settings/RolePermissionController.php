@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CompanyRole;
 use App\Models\Permission;
 use App\Models\TeamMember;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -135,11 +136,12 @@ class RolePermissionController extends Controller
     private function rolePayload(int $accountId): array
     {
         return CompanyRole::query()
-            ->with(['permissions:id,group,name,slug', 'teamMembers:id,company_role_id'])
-            ->where(function ($query) use ($accountId) {
-                $query->whereNull('company_id')
-                    ->orWhere('company_id', $accountId);
-            })
+            ->with('permissions:id,group,name,slug')
+            ->withCount([
+                'teamMembers as tenant_members_count' => fn (Builder $query): Builder => $query
+                    ->where('account_id', $accountId),
+            ])
+            ->availableForCompany($accountId)
             ->orderByDesc('is_system')
             ->orderBy('name')
             ->get()
@@ -247,7 +249,7 @@ class RolePermissionController extends Controller
 
     private function ensureReadableRole(CompanyRole $role, int $accountId): void
     {
-        if ($role->company_id === null || (int) $role->company_id === $accountId) {
+        if ($role->isAvailableForCompany($accountId)) {
             return;
         }
 
@@ -279,7 +281,7 @@ class RolePermissionController extends Controller
             'is_editable' => $role->is_editable && $role->company_id !== null,
             'is_deletable' => $role->is_deletable && $role->company_id !== null,
             'is_active' => $role->is_active,
-            'members_count' => $role->teamMembers->count(),
+            'members_count' => (int) $role->tenant_members_count,
             'permissions' => $role->permissions
                 ->pluck('slug')
                 ->values()
@@ -290,7 +292,12 @@ class RolePermissionController extends Controller
     private function roleMutationResponse(Request $request, string $message, CompanyRole $role, int $status = 200)
     {
         if ($this->shouldReturnJson($request)) {
-            $freshRole = $role->fresh(['permissions', 'teamMembers']) ?? $role->load(['permissions', 'teamMembers']);
+            $accountId = (int) $request->user()->accountOwnerId();
+            $freshRole = $role->fresh('permissions') ?? $role->load('permissions');
+            $freshRole->loadCount([
+                'teamMembers as tenant_members_count' => fn (Builder $query): Builder => $query
+                    ->where('account_id', $accountId),
+            ]);
 
             return response()->json([
                 'message' => $message,

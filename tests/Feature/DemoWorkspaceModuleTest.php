@@ -5,6 +5,7 @@ use App\Jobs\ProvisionDemoWorkspaceJob;
 use App\Models\AccountingEntry;
 use App\Models\AccountingEntryBatch;
 use App\Models\ActivityLog;
+use App\Models\CompanyRole;
 use App\Models\DemoWorkspace;
 use App\Models\DemoWorkspaceTemplate;
 use App\Models\Expense;
@@ -407,6 +408,26 @@ it('provisions a realistic service demo workspace from the admin module', functi
         ->whereIn('expense_id', Expense::query()->where('user_id', $workspace->owner_user_id)->select('id'))
         ->count())->toBeGreaterThan(0);
     expect(TeamMember::query()->where('account_id', $workspace->owner_user_id)->count())->toBeGreaterThan(0);
+    $demoTeamMembers = TeamMember::query()
+        ->forAccount((int) $workspace->owner_user_id)
+        ->with('companyRole.permissions:id,slug')
+        ->get();
+    $demoCompanyRoles = CompanyRole::query()
+        ->where('company_id', $workspace->owner_user_id)
+        ->with('permissions:id,slug')
+        ->get();
+
+    expect(data_get($workspace->seed_summary, 'company_roles'))->toBe($demoCompanyRoles->count())
+        ->and(data_get($workspace->seed_summary, 'role_assignments'))->toBe($demoTeamMembers->count())
+        ->and($demoCompanyRoles)->not->toBeEmpty()
+        ->and($demoCompanyRoles->every(
+            fn (CompanyRole $role): bool => $role->permissions->isNotEmpty(),
+        ))->toBeTrue()
+        ->and($demoTeamMembers->every(
+            fn (TeamMember $member): bool => $member->company_role_id !== null
+                && (int) $member->companyRole?->company_id === (int) $workspace->owner_user_id
+                && $member->permissions === [],
+        ))->toBeTrue();
     Storage::disk('public')->assertExists(
         ExpenseAttachment::query()
             ->whereIn('expense_id', Expense::query()->where('user_id', $workspace->owner_user_id)->select('id'))

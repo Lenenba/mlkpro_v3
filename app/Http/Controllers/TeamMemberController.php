@@ -457,10 +457,7 @@ class TeamMemberController extends Controller
         return CompanyRole::query()
             ->with('permissions:id,slug')
             ->where('is_active', true)
-            ->where(function ($query) use ($accountId) {
-                $query->whereNull('company_id')
-                    ->orWhere('company_id', $accountId);
-            })
+            ->availableForCompany($accountId)
             ->orderByDesc('is_system')
             ->orderBy('name')
             ->get()
@@ -485,10 +482,7 @@ class TeamMemberController extends Controller
         $role = CompanyRole::query()
             ->whereKey((int) $companyRoleId)
             ->where('is_active', true)
-            ->where(function ($query) use ($accountId) {
-                $query->whereNull('company_id')
-                    ->orWhere('company_id', $accountId);
-            })
+            ->availableForCompany($accountId)
             ->first();
 
         if (! $role) {

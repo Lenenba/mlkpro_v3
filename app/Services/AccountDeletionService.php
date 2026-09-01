@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\CompanyRole;
 use App\Models\Customer;
 use App\Models\ExpenseAttachment;
 use App\Models\PlanScan;
@@ -197,6 +198,7 @@ class AccountDeletionService
         DB::table('product_categories')->where('user_id', $accountId)->delete();
         DB::table('customers')->where('user_id', $accountId)->delete();
         DB::table('team_members')->where('account_id', $accountId)->delete();
+        CompanyRole::query()->where('company_id', $accountId)->delete();
     }
 
     private function purgeUserArtifacts(Collection $userIds, Collection $userEmails): void

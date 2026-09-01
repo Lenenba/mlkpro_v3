@@ -113,6 +113,28 @@ it('protects the roles and permissions settings page with manage roles permissio
         ]);
 });
 
+it('scopes shared system role member counts to the current tenant', function () {
+    $this->seed(RbacSeeder::class);
+
+    $firstOwner = rbacPhaseThreeOwner();
+    $firstManager = rbacPhaseThreeMember($firstOwner, ['manage_roles_permissions']);
+    $firstMember = rbacPhaseThreeMember($firstOwner);
+    $secondOwner = rbacPhaseThreeOwner();
+    $secondMember = rbacPhaseThreeMember($secondOwner);
+    $systemRole = CompanyRole::query()->where('slug', 'coiffeur')->firstOrFail();
+
+    TeamMember::query()
+        ->whereIn('user_id', [$firstMember->id, $secondMember->id])
+        ->update(['company_role_id' => $systemRole->id]);
+
+    $response = $this->actingAs($firstManager)
+        ->getJson(route('settings.roles_permissions.edit'))
+        ->assertOk();
+    $systemRolePayload = collect($response->json('roles'))->firstWhere('id', $systemRole->id);
+
+    expect($systemRolePayload['members_count'] ?? null)->toBe(1);
+});
+
 it('keeps scoped permissions from satisfying manager-level aliases', function () {
     $member = new TeamMember([
         'permissions' => [
@@ -230,6 +252,16 @@ it('prevents deleting protected system roles and custom roles currently used by 
         ->update(['company_role_id' => $customRole->id]);
 
     $this->actingAs($manager)
+        ->putJson(route('settings.roles_permissions.roles.update', $customRole), [
+            'name' => 'Gestionnaire accueil',
+            'description' => 'Role assigned to one member.',
+            'is_active' => true,
+            'permissions' => ['view_team_members'],
+        ])
+        ->assertOk()
+        ->assertJsonPath('role.members_count', 1);
+
+    $this->actingAs($manager)
         ->deleteJson(route('settings.roles_permissions.roles.destroy', $customRole))
         ->assertUnprocessable()
         ->assertJsonPath('message', 'Role is assigned to team members and cannot be deleted.');
@@ -262,6 +294,48 @@ it('allows assigning a company role to a team member when assign roles permissio
         'id' => $targetMembership->id,
         'company_role_id' => $role->id,
     ]);
+});
+
+it('hides orphaned custom roles and rejects assigning them to a team member', function () {
+    $this->seed(RbacSeeder::class);
+
+    $owner = rbacPhaseThreeOwner();
+    $manager = rbacPhaseThreeMember($owner, [
+        'view_team_members',
+        'update_team_members',
+        'assign_roles',
+        'manage_roles_permissions',
+    ]);
+    $targetUser = rbacPhaseThreeMember($owner);
+    $targetMembership = TeamMember::query()
+        ->where('account_id', $owner->id)
+        ->where('user_id', $targetUser->id)
+        ->firstOrFail();
+    $orphanedRole = CompanyRole::query()->create([
+        'company_id' => null,
+        'name' => 'Orphaned tenant role',
+        'slug' => 'orphaned_tenant_role',
+        'description' => 'Must never be exposed as a global role.',
+        'is_system' => false,
+        'is_default' => false,
+        'is_editable' => true,
+        'is_deletable' => true,
+        'is_active' => true,
+    ]);
+
+    $settingsResponse = $this->actingAs($manager)
+        ->getJson(route('settings.roles_permissions.edit'))
+        ->assertOk();
+
+    expect(collect($settingsResponse->json('roles'))->pluck('id')->all())
+        ->not->toContain($orphanedRole->id);
+
+    $this->actingAs($manager)
+        ->putJson(route('team.update', $targetMembership), [
+            'company_role_id' => $orphanedRole->id,
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('company_role_id');
 });
 
 it('blocks changing a team member role without assign roles permission', function () {

@@ -88,6 +88,7 @@ class DemoWorkspaceProvisioner
         private MarketingSettingsService $marketingSettingsService,
         private AccountDeletionService $accountDeletionService,
         private DemoScenarioManager $scenarioManager,
+        private DemoAccessRoleProvisioner $accessRoleProvisioner,
         private SocialPostRevisionService $socialPostRevisions,
     ) {}
 
@@ -1442,6 +1443,7 @@ class DemoWorkspaceProvisioner
                 (string) $workspace->timezone
             );
             $summary = $this->scenarioManager->generate((string) $workspace->scenario_key, $context);
+            $roleSummary = $this->accessRoleProvisioner->provision($owner);
 
             return array_replace([
                 'scenario_key' => $scenario->key(),
@@ -1449,7 +1451,7 @@ class DemoWorkspaceProvisioner
                 'data_volume' => $context->dataVolume->value,
                 'reference_date' => $context->referenceDate->toDateString(),
                 'random_seed' => $context->randomSeed,
-            ], $summary);
+            ], $summary, $roleSummary);
         }
 
         $selectedModules = $workspace->selected_modules ?? [];
@@ -1533,6 +1535,7 @@ class DemoWorkspaceProvisioner
         $assistantSummary = $this->createSalonEclatAssistant($owner, $selectedModules, $isSalonEclat);
         $socialPosts = $this->createSalonEclatSocialContent($owner, $selectedModules, $isSalonEclat);
         $accountingSummary = $this->createAccountingSummary($owner, $selectedModules);
+        $roleSummary = $this->accessRoleProvisioner->provision($owner);
 
         return [
             'customers' => $customers->count(),
@@ -1581,6 +1584,7 @@ class DemoWorkspaceProvisioner
                 ])
                 ->values()
                 ->all(),
+            ...$roleSummary,
             ...$accountingSummary,
         ];
     }
