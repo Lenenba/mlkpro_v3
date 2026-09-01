@@ -17,10 +17,16 @@
       "active": "Actif",
       "inactive": "Inactif"
     },
+    "view": {
+      "label": "Mode d'affichage des membres",
+      "table": "Tableau",
+      "cards": "Cartes"
+    },
     "actions": {
       "clear": "Effacer",
       "add_member": "Ajouter un membre",
-      "member_actions": "Actions du membre",
+      "member_actions": "Actions pour {name}",
+      "view_member": "Voir la fiche de {name}",
       "details": "Details",
       "edit": "Modifier",
       "deactivate": "Desactiver",

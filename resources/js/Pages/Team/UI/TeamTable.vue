@@ -5,16 +5,22 @@ import { useI18n } from 'vue-i18n';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
+import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
 import Modal from '@/Components/UI/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import InputError from '@/Components/InputError.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import DropzoneInput from '@/Components/DropzoneInput.vue';
-import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
+import {
+    DATA_TABLE_PER_PAGE_OPTIONS,
+    normalizeDataTablePerPage,
+    resolveDataTablePerPage,
+} from '@/Components/DataTable/pagination';
 import { humanizeDate } from '@/utils/date';
 import { avatarIconPresets, defaultAvatarIcon } from '@/utils/iconPresets';
 import { usePermissions } from '@/Composables/usePermissions';
+import { crmSegmentedControlButtonClass, crmSegmentedControlClass } from '@/utils/crmButtonStyles';
 
 const props = defineProps({
     teamMembers: {
@@ -37,8 +43,11 @@ const props = defineProps({
 
 const { t } = useI18n();
 const page = usePage();
-const { hasPermission } = usePermissions();
+const { hasAnyPermission, hasPermission } = usePermissions();
 const canAssignRoles = computed(() => hasPermission('assign_roles'));
+const canCreateTeamMembers = computed(() => hasPermission('create_team_members'));
+const canUpdateTeamMembers = computed(() => hasPermission('update_team_members'));
+const canDeactivateTeamMembers = computed(() => hasPermission('deactivate_team_members'));
 const translateOrFallback = (key, fallback, params = {}) => {
     const translated = t(key, params);
 
@@ -48,6 +57,14 @@ const filterForm = useForm({
     search: props.filters?.search ?? '',
 });
 const isLoading = ref(false);
+const teamViewModes = ['table', 'cards'];
+const viewMode = ref('table');
+if (typeof window !== 'undefined') {
+    const storedViewMode = window.localStorage.getItem('team_view_mode');
+    if (teamViewModes.includes(storedViewMode)) {
+        viewMode.value = storedViewMode;
+    }
+}
 const isAvatarIcon = (value) => avatarIconPresets.includes(value);
 const roleOptions = computed(() => ([
     { id: 'admin', name: t('team.roles.admin') },
@@ -74,6 +91,11 @@ const companyRoleOptions = computed(() => [
 const teamRows = computed(() => (Array.isArray(props.teamMembers?.data) ? props.teamMembers.data : []));
 const teamLinks = computed(() => (Array.isArray(props.teamMembers?.links) ? props.teamMembers.links : []));
 const currentPerPage = computed(() => resolveDataTablePerPage(props.teamMembers?.per_page, props.filters?.per_page));
+const teamPaginationPageCount = computed(() => teamLinks.value
+    .map((link) => String(link?.label ?? '').replace(/<[^>]*>/g, '').trim())
+    .filter((label) => /^\d+$/u.test(label))
+    .length);
+const hasMultipleTeamPages = computed(() => teamPaginationPageCount.value > 1);
 const teamResultsLabel = computed(() => t('datatable.shared.results_count', {
     count: props.teamMembers?.total ?? teamRows.value.length ?? 0,
 }));
@@ -118,6 +140,36 @@ const clearFilters = () => {
     filterForm.search = '';
 };
 
+const updatePerPage = (event) => {
+    const nextPerPage = normalizeDataTablePerPage(event?.target?.value, currentPerPage.value);
+
+    isLoading.value = true;
+    router.get(route('team.index'), {
+        ...filterPayload(),
+        per_page: nextPerPage,
+    }, {
+        only: ['teamMembers', 'filters', 'stats'],
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        onFinish: () => {
+            isLoading.value = false;
+        },
+    });
+};
+
+const setViewMode = (mode) => {
+    if (!teamViewModes.includes(mode) || viewMode.value === mode) {
+        return;
+    }
+
+    viewMode.value = mode;
+
+    if (typeof window !== 'undefined') {
+        window.localStorage.setItem('team_view_mode', mode);
+    }
+};
+
 const closeOverlay = (overlayId) => {
     if (window.HSOverlay) {
         window.HSOverlay.close(overlayId);
@@ -151,22 +203,41 @@ const openEditFromDetail = () => {
 };
 
 const accountFeatures = computed(() => page.props.auth?.account?.features || {});
-const accountCompanyType = computed(() => page.props.auth?.account?.company?.type || null);
-const canOpenEmployeePerformance = computed(() => {
+const performanceMode = computed(() => {
     const features = accountFeatures.value;
-    if (!features || !features.performance) {
-        return false;
+
+    if (features.reservations) {
+        return 'reservations';
     }
 
-    if (accountCompanyType.value === 'products') {
-        return Boolean(features.sales);
+    if (features.jobs || features.tasks) {
+        return 'services';
     }
 
-    return Boolean(features.jobs || features.tasks);
+    return features.sales ? 'products' : null;
+});
+const canViewTeamPerformance = computed(() => (
+    Boolean(page.props.auth?.account?.is_owner)
+    || page.props.auth?.account?.team?.role === 'admin'
+    || hasAnyPermission(['reports.team', 'reports.view', 'view_team_reports', 'view_reports'])
+    || (performanceMode.value === 'products' && hasAnyPermission(['sales.manage', 'view_sales_reports']))
+));
+const canViewOwnPerformance = computed(() => {
+    if (performanceMode.value === 'reservations') {
+        return hasAnyPermission(['reservations.view', 'reservations.queue', 'reservations.manage']);
+    }
+
+    if (performanceMode.value === 'services') {
+        return hasAnyPermission(['jobs.view', 'jobs.edit', 'tasks.view', 'tasks.edit']);
+    }
+
+    return performanceMode.value === 'products'
+        && hasAnyPermission(['sales.pos', 'sales.manage', 'view_sales_reports']);
 });
 
 const memberPerformanceUrl = (member) => {
-    if (!canOpenEmployeePerformance.value) {
+    const bypassesFeatureMiddleware = Boolean(page.props.auth?.account?.is_superadmin);
+    if ((!accountFeatures.value.performance && !bypassesFeatureMiddleware) || !performanceMode.value) {
         return null;
     }
 
@@ -174,6 +245,12 @@ const memberPerformanceUrl = (member) => {
     if (!userId) {
         return null;
     }
+
+    const isCurrentUser = Number(userId) === Number(page.props.auth?.user?.id);
+    if (!canViewTeamPerformance.value && !(isCurrentUser && canViewOwnPerformance.value)) {
+        return null;
+    }
+
     return route('performance.employee.show', userId);
 };
 
@@ -195,7 +272,7 @@ const createForm = useForm({
 });
 
 const submitCreate = () => {
-    if (createForm.processing) {
+    if (!canCreateTeamMembers.value || createForm.processing) {
         return;
     }
 
@@ -261,6 +338,10 @@ const editForm = useForm({
 });
 
 const openEditMember = (member) => {
+    if (!canUpdateTeamMembers.value) {
+        return;
+    }
+
     editingMemberId.value = member.id;
     editForm.clearErrors();
 
@@ -290,7 +371,7 @@ const openEditMember = (member) => {
 };
 
 const submitEdit = () => {
-    if (!editingMemberId.value || editForm.processing) {
+    if (!canUpdateTeamMembers.value || !editingMemberId.value || editForm.processing) {
         return;
     }
 
@@ -333,6 +414,10 @@ const submitEdit = () => {
 };
 
 const deactivateMember = (member) => {
+    if (!canDeactivateTeamMembers.value) {
+        return;
+    }
+
     if (!confirm(t('team.confirm.deactivate', { name: memberDisplayName(member) }))) {
         return;
     }
@@ -340,6 +425,10 @@ const deactivateMember = (member) => {
 };
 
 const activateMember = (member) => {
+    if (!canUpdateTeamMembers.value) {
+        return;
+    }
+
     router.put(route('team.update', member.id), { is_active: true }, { preserveScroll: true });
 };
 
@@ -460,6 +549,8 @@ const permissionLabels = (member) => {
 
     return [...new Set(labels)];
 };
+const visiblePermissionLabels = (member) => permissionLabels(member).slice(0, 3);
+const hiddenPermissionLabelCount = (member) => Math.max(0, permissionLabels(member).length - 3);
 
 watch(() => filterForm.search, () => {
     autoFilter();
@@ -505,7 +596,41 @@ watch(() => editForm.profile_picture, (value) => {
             </template>
 
             <template #actions>
-                <button type="button" data-hs-overlay="#hs-team-create"
+                <div
+                    :class="crmSegmentedControlClass()"
+                    role="group"
+                    :aria-label="t('team.view.label')"
+                >
+                    <button
+                        type="button"
+                        data-testid="team-view-table"
+                        :class="crmSegmentedControlButtonClass(viewMode === 'table')"
+                        :aria-pressed="viewMode === 'table'"
+                        @click="setViewMode('table')"
+                    >
+                        <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M3 3h18v6H3z" />
+                            <path d="M3 13h18v8H3z" />
+                        </svg>
+                        {{ t('team.view.table') }}
+                    </button>
+                    <button
+                        type="button"
+                        data-testid="team-view-cards"
+                        :class="crmSegmentedControlButtonClass(viewMode === 'cards')"
+                        :aria-pressed="viewMode === 'cards'"
+                        @click="setViewMode('cards')"
+                    >
+                        <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <rect x="3" y="3" width="7" height="7" rx="1" />
+                            <rect x="14" y="3" width="7" height="7" rx="1" />
+                            <rect x="3" y="14" width="7" height="7" rx="1" />
+                            <rect x="14" y="14" width="7" height="7" rx="1" />
+                        </svg>
+                        {{ t('team.view.cards') }}
+                    </button>
+                </div>
+                <button v-if="canCreateTeamMembers" type="button" data-hs-overlay="#hs-team-create"
                     class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
                     + {{ t('team.actions.add_member') }}
                 </button>
@@ -513,6 +638,7 @@ watch(() => editForm.profile_picture, (value) => {
         </AdminDataTableToolbar>
 
         <AdminDataTable
+            v-if="viewMode === 'table'"
             embedded
             :rows="teamRows"
             :links="teamLinks"
@@ -583,12 +709,14 @@ watch(() => editForm.profile_picture, (value) => {
                                     </span>
                                 </div>
                                 <div class="flex flex-col">
-                                    <span
-                                        class="text-sm font-medium text-stone-800 hover:text-stone-900 cursor-pointer dark:text-neutral-200 dark:hover:text-white"
+                                    <button
+                                        type="button"
+                                        class="rounded-sm text-start text-sm font-medium text-stone-800 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:text-neutral-200 dark:hover:text-emerald-300 dark:focus-visible:ring-offset-neutral-800"
+                                        :aria-label="t('team.actions.view_member', { name: memberDisplayName(member) })"
                                         @click="openDetailMember(member)"
                                     >
                                         {{ memberDisplayName(member) }}
-                                    </span>
+                                    </button>
                                     <span class="text-xs text-stone-500 dark:text-neutral-500">
                                         {{ member.user?.email || '-' }}
                                     </span>
@@ -628,7 +756,7 @@ watch(() => editForm.profile_picture, (value) => {
                             </span>
                         </td>
                         <td class="size-px whitespace-nowrap px-4 py-2 text-end">
-                            <AdminDataTableActions :label="t('team.actions.member_actions')">
+                            <AdminDataTableActions :label="t('team.actions.member_actions', { name: memberDisplayName(member) })">
                                 <button type="button" @click="openDetailMember(member)"
                                     class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
                                     {{ t('team.actions.details') }}
@@ -640,16 +768,19 @@ watch(() => editForm.profile_picture, (value) => {
                                 >
                                     {{ t('performance.employees.view_employee') }}
                                 </Link>
-                                <button type="button" @click="openEditMember(member)"
+                                <button v-if="canUpdateTeamMembers" type="button" @click="openEditMember(member)"
                                     class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
                                     {{ t('team.actions.edit') }}
                                 </button>
-                                <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                                <button v-if="member.is_active" type="button" @click="deactivateMember(member)"
+                                <div
+                                    v-if="(canDeactivateTeamMembers && member.is_active) || (canUpdateTeamMembers && !member.is_active)"
+                                    class="my-1 border-t border-stone-200 dark:border-neutral-800"
+                                ></div>
+                                <button v-if="canDeactivateTeamMembers && member.is_active" type="button" @click="deactivateMember(member)"
                                     class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800">
                                     {{ t('team.actions.deactivate') }}
                                 </button>
-                                <button v-else type="button" @click="activateMember(member)"
+                                <button v-else-if="canUpdateTeamMembers && !member.is_active" type="button" @click="activateMember(member)"
                                     class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800">
                                     {{ t('team.actions.activate') }}
                                 </button>
@@ -659,6 +790,249 @@ watch(() => editForm.profile_picture, (value) => {
                 </tbody>
             </template>
         </AdminDataTable>
+
+        <div v-else class="space-y-3" data-testid="team-card-view">
+            <div v-if="isLoading && !teamRows.length" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <div
+                    v-for="row in 6"
+                    :key="`team-card-skeleton-${row}`"
+                    class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                >
+                    <div class="animate-pulse space-y-4">
+                        <div class="flex items-center gap-3">
+                            <div class="size-11 rounded-full bg-stone-200 dark:bg-neutral-700" />
+                            <div class="flex-1 space-y-2">
+                                <div class="h-3 w-3/4 rounded-sm bg-stone-200 dark:bg-neutral-700" />
+                                <div class="h-3 w-1/2 rounded-sm bg-stone-200 dark:bg-neutral-700" />
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div v-for="item in 4" :key="`team-card-skeleton-${row}-${item}`" class="h-12 rounded-sm bg-stone-200 dark:bg-neutral-700" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                v-else-if="!teamRows.length"
+                class="rounded-sm border border-dashed border-stone-300 bg-stone-50 px-4 py-10 text-center text-sm text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
+            >
+                {{ t('team.table.empty') }}
+            </div>
+
+            <div v-else class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3" data-testid="team-card-grid">
+                <article
+                    v-for="member in teamRows"
+                    :key="`team-card-${member.id}`"
+                    class="flex h-full flex-col overflow-hidden rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                    :aria-labelledby="`team-card-title-${member.id}`"
+                >
+                    <header class="flex items-start justify-between gap-3 border-b border-stone-100 px-4 py-3 dark:border-neutral-800">
+                        <div class="flex min-w-0 items-center gap-3">
+                            <div class="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-stone-100 text-stone-600 dark:bg-neutral-700 dark:text-neutral-200">
+                                <img
+                                    v-if="memberAvatarUrl(member)"
+                                    :src="memberAvatarUrl(member)"
+                                    :alt="t('team.table.member_avatar_alt')"
+                                    class="h-full w-full object-cover"
+                                    loading="lazy"
+                                    decoding="async"
+                                >
+                                <span v-else class="text-xs font-semibold">
+                                    {{ memberInitials(member) }}
+                                </span>
+                            </div>
+                            <div class="min-w-0">
+                                <p :id="`team-card-title-${member.id}`" class="truncate text-sm font-semibold text-stone-900 dark:text-white">
+                                    {{ memberDisplayName(member) }}
+                                </p>
+                                <p class="mt-0.5 truncate text-xs text-stone-500 dark:text-neutral-400" :title="member.user?.email || '-'">
+                                    {{ member.user?.email || '-' }}
+                                </p>
+                            </div>
+                        </div>
+                        <span
+                            class="inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                            :class="statusBadge(member)"
+                        >
+                            {{ statusLabel(member) }}
+                        </span>
+                    </header>
+
+                    <div class="flex-1 space-y-3 p-4">
+                        <div class="flex flex-wrap gap-1.5">
+                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="roleBadge(member)">
+                                {{ roleLabel(member.role) }}
+                            </span>
+                            <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200">
+                                {{ companyRoleLabel(member) }}
+                            </span>
+                        </div>
+
+                        <dl class="grid grid-cols-2 gap-3">
+                            <div class="min-w-0 rounded-sm bg-stone-50 p-2.5 dark:bg-neutral-800">
+                                <dt class="text-[0.6875rem] font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    {{ t('team.detail.title') }}
+                                </dt>
+                                <dd class="mt-1 truncate text-xs font-medium text-stone-700 dark:text-neutral-200" :title="member.title || '-'">
+                                    {{ member.title || '-' }}
+                                </dd>
+                            </div>
+                            <div class="min-w-0 rounded-sm bg-stone-50 p-2.5 dark:bg-neutral-800">
+                                <dt class="text-[0.6875rem] font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    {{ t('team.detail.phone') }}
+                                </dt>
+                                <dd class="mt-1 truncate text-xs font-medium text-stone-700 dark:text-neutral-200" :title="member.phone || '-'">
+                                    {{ member.phone || '-' }}
+                                </dd>
+                            </div>
+                            <div class="min-w-0 rounded-sm border border-stone-200 px-3 py-2.5 dark:border-neutral-700">
+                                <dt class="text-[0.6875rem] font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    {{ t('team.detail.joined') }}
+                                </dt>
+                                <dd class="mt-1 text-xs font-medium text-stone-700 dark:text-neutral-200">
+                                    {{ formatDate(member.created_at) }}
+                                </dd>
+                            </div>
+                            <div class="min-w-0 rounded-sm border border-stone-200 px-3 py-2.5 dark:border-neutral-700">
+                                <dt class="text-[0.6875rem] font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    {{ t('team.detail.member_id') }}
+                                </dt>
+                                <dd class="mt-1 text-xs font-medium text-stone-700 dark:text-neutral-200">
+                                    #{{ member.id }}
+                                </dd>
+                            </div>
+                        </dl>
+
+                        <div class="rounded-sm border border-stone-200 px-3 py-2.5 dark:border-neutral-700">
+                            <p class="text-[0.6875rem] font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                {{ t('team.detail.permissions') }}
+                            </p>
+                            <div v-if="visiblePermissionLabels(member).length" class="mt-2 flex flex-wrap gap-1.5">
+                                <span
+                                    v-for="permission in visiblePermissionLabels(member)"
+                                    :key="`${member.id}-${permission}`"
+                                    class="inline-flex max-w-full items-center truncate rounded-sm bg-stone-100 px-2 py-1 text-[11px] font-medium text-stone-700 dark:bg-neutral-800 dark:text-neutral-200"
+                                    :title="permission"
+                                >
+                                    {{ permission }}
+                                </span>
+                                <span
+                                    v-if="hiddenPermissionLabelCount(member)"
+                                    class="inline-flex items-center rounded-sm bg-stone-100 px-2 py-1 text-[11px] font-semibold text-stone-500 dark:bg-neutral-800 dark:text-neutral-400"
+                                >
+                                    +{{ hiddenPermissionLabelCount(member) }}
+                                </span>
+                            </div>
+                            <p v-else class="mt-1 text-xs text-stone-400 dark:text-neutral-500">
+                                {{ t('team.detail.no_permissions') }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <footer class="flex items-center justify-between gap-2 border-t border-stone-100 bg-stone-50 px-4 py-2.5 dark:border-neutral-800 dark:bg-neutral-950">
+                        <button
+                            type="button"
+                            class="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-sm bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-500 dark:text-neutral-950 dark:hover:bg-emerald-400 dark:focus-visible:ring-offset-neutral-950"
+                            :aria-label="t('team.actions.view_member', { name: memberDisplayName(member) })"
+                            :data-testid="`team-card-open-${member.id}`"
+                            @click="openDetailMember(member)"
+                        >
+                            <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <path d="M2.1 12a10.5 10.5 0 0 1 19.8 0 10.5 10.5 0 0 1-19.8 0Z" />
+                                <circle cx="12" cy="12" r="3" />
+                            </svg>
+                            {{ t('team.actions.details') }}
+                        </button>
+
+                        <AdminDataTableActions :label="t('team.actions.member_actions', { name: memberDisplayName(member) })">
+                            <button
+                                type="button"
+                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                @click="openDetailMember(member)"
+                            >
+                                {{ t('team.actions.details') }}
+                            </button>
+                            <Link
+                                v-if="memberPerformanceUrl(member)"
+                                :href="memberPerformanceUrl(member)"
+                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                            >
+                                {{ t('performance.employees.view_employee') }}
+                            </Link>
+                            <button
+                                v-if="canUpdateTeamMembers"
+                                type="button"
+                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                @click="openEditMember(member)"
+                            >
+                                {{ t('team.actions.edit') }}
+                            </button>
+                            <div
+                                v-if="(canDeactivateTeamMembers && member.is_active) || (canUpdateTeamMembers && !member.is_active)"
+                                class="my-1 border-t border-stone-200 dark:border-neutral-800"
+                            />
+                            <button
+                                v-if="canDeactivateTeamMembers && member.is_active"
+                                type="button"
+                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800"
+                                @click="deactivateMember(member)"
+                            >
+                                {{ t('team.actions.deactivate') }}
+                            </button>
+                            <button
+                                v-else-if="canUpdateTeamMembers && !member.is_active"
+                                type="button"
+                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800"
+                                @click="activateMember(member)"
+                            >
+                                {{ t('team.actions.activate') }}
+                            </button>
+                        </AdminDataTableActions>
+                    </footer>
+                </article>
+            </div>
+
+            <div
+                class="border-t border-stone-200 pt-4 dark:border-neutral-700"
+                data-testid="team-card-footer"
+            >
+                <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center">
+                    <p class="min-w-0 text-sm text-stone-500 dark:text-neutral-400 md:col-start-1">
+                        {{ teamResultsLabel }}
+                    </p>
+                    <div v-if="hasMultipleTeamPages" class="flex justify-start md:col-start-2 md:justify-center">
+                        <AdminPaginationLinks :links="teamLinks" />
+                    </div>
+                    <div class="flex justify-start md:col-start-3 md:justify-end">
+                        <label class="inline-flex items-center gap-2 whitespace-nowrap text-xs text-stone-500 dark:text-neutral-400">
+                            <span>{{ t('datatable.shared.rows_per_page') }}</span>
+                            <span class="relative inline-flex">
+                                <select
+                                    :value="currentPerPage"
+                                    class="appearance-none rounded-sm border border-stone-200 bg-none bg-white py-1 pl-2 pr-7 text-xs text-stone-700 focus:border-green-500 focus:ring-green-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                                    data-testid="team-card-per-page"
+                                    @change="updatePerPage"
+                                >
+                                    <option
+                                        v-for="option in DATA_TABLE_PER_PAGE_OPTIONS"
+                                        :key="`team-card-per-page-${option}`"
+                                        :value="option"
+                                    >
+                                        {{ option }}
+                                    </option>
+                                </select>
+                                <span class="pointer-events-none absolute inset-y-0 right-2 flex items-center text-stone-400 dark:text-neutral-500">
+                                    <svg class="size-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <path d="m5 7.5 5 5 5-5" />
+                                    </svg>
+                                </span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <Modal :title="t('team.dialogs.member_details')" :id="'hs-team-detail'">
@@ -794,7 +1168,7 @@ watch(() => editForm.profile_picture, (value) => {
                 >
                     {{ t('performance.employees.view_employee') }}
                 </Link>
-                <button type="button" @click="openEditFromDetail"
+                <button v-if="canUpdateTeamMembers" type="button" @click="openEditFromDetail"
                     class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
                     {{ t('team.actions.edit') }}
                 </button>
@@ -809,7 +1183,7 @@ watch(() => editForm.profile_picture, (value) => {
         </div>
     </Modal>
 
-    <Modal :title="t('team.dialogs.add_member')" :id="'hs-team-create'">
+    <Modal v-if="canCreateTeamMembers" :title="t('team.dialogs.add_member')" :id="'hs-team-create'">
         <form class="space-y-4" @submit.prevent="submitCreate">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
@@ -913,7 +1287,7 @@ watch(() => editForm.profile_picture, (value) => {
         </form>
     </Modal>
 
-    <Modal :title="t('team.dialogs.edit_member')" :id="'hs-team-edit'">
+    <Modal v-if="canUpdateTeamMembers" :title="t('team.dialogs.edit_member')" :id="'hs-team-edit'">
         <form class="space-y-4" @submit.prevent="submitEdit">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
