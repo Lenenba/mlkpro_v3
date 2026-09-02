@@ -1097,6 +1097,9 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         ->name('customer.tags.update');
     Route::patch('/customer/{customer}/auto-validation', [CustomerController::class, 'updateAutoValidation'])
         ->name('customer.auto-validation.update');
+    Route::post('/customer/{customer}/portal-invitation', [CustomerController::class, 'resendPortalInvitation'])
+        ->middleware('throttle:6,1')
+        ->name('customer.portal-invitation.resend');
     Route::get('/customer/{customer}/activity', [CustomerController::class, 'activity'])
         ->name('customer.activity_index');
     Route::post('/customer/{customer}/packages', [CustomerPackageController::class, 'store'])

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\CompanyFeatureService;
+use App\Services\Portal\PortalAccessService;
 use App\Services\Rbac\PermissionCatalog;
 use App\Services\SecurityEventService;
 use App\Services\TenantBrandingResolver;
@@ -21,6 +22,10 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    public function __construct(
+        private readonly PortalAccessService $portalAccessService,
+    ) {}
+
     protected function buildMeta(User $user): array
     {
         $brandingResolver = app(TenantBrandingResolver::class);
@@ -101,6 +106,13 @@ class AuthController extends Controller
 
         if ($user->isSuspended()) {
             return response()->json(['message' => 'Account suspended.'], 403);
+        }
+
+        $user->loadMissing('role');
+        if ($user->isClient() && ! $this->portalAccessService->clientHasPortalAccess($user)) {
+            return response()->json([
+                'message' => __('ui.auth.portal_access_disabled'),
+            ], 403);
         }
 
         $deviceName = $validated['device_name'] ?? '';

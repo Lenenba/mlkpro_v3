@@ -3,6 +3,7 @@
 return [
     'auth' => [
         'account_suspended' => 'Compte suspendu. Veuillez contacter le support.',
+        'portal_access_disabled' => 'Votre accès au portail client a été désactivé. Veuillez contacter l’entreprise.',
         'two_factor_delivery_failed' => 'Impossible d envoyer un code de verification. Veuillez reessayer.',
         'update_temporary_password' => 'Veuillez mettre a jour votre mot de passe temporaire.',
         'social' => [

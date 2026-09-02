@@ -3,6 +3,7 @@
 return [
     'auth' => [
         'account_suspended' => 'Cuenta suspendida. Ponte en contacto con soporte.',
+        'portal_access_disabled' => 'Tu acceso al portal de clientes ha sido desactivado. Ponte en contacto con la empresa.',
         'two_factor_delivery_failed' => 'No se pudo enviar el codigo de verificacion. Intentalo de nuevo.',
         'update_temporary_password' => 'Actualiza tu contrasena temporal.',
         'social' => [

@@ -438,6 +438,8 @@
       "add_customer": "Add customer",
       "archive": "Archive",
       "restore": "Restore",
+      "resend_portal_invitation": "Resend portal invitation",
+      "resending_portal_invitation": "Sending invitation…",
       "delete_confirm": "Delete \"{name}\"?",
       "archive_confirm": "{action} \"{name}\"?",
       "view": "View"

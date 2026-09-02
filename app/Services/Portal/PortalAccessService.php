@@ -13,11 +13,25 @@ use Illuminate\Http\Request;
 
 class PortalAccessService
 {
+    public function clientHasPortalAccess(User $user): bool
+    {
+        if (! $user->isClient()) {
+            return false;
+        }
+
+        return (bool) $this->clientCustomer($user)?->portal_access;
+    }
+
     public function customer(Request $request): Customer
     {
-        $customer = $request->user()?->customerProfile;
-        if (! $customer) {
+        $user = $request->user();
+        if (! $user instanceof User || ! $user->isClient()) {
             abort(403);
+        }
+
+        $customer = $this->clientCustomer($user);
+        if (! $customer || ! $customer->portal_access) {
+            abort(403, __('ui.auth.portal_access_disabled'));
         }
 
         return $customer;
@@ -117,5 +131,17 @@ class PortalAccessService
         }
 
         return $owner;
+    }
+
+    private function clientCustomer(User $user): ?Customer
+    {
+        if ($user->relationLoaded('customerProfile')) {
+            return $user->customerProfile;
+        }
+
+        $customer = $user->customerProfile()->first();
+        $user->setRelation('customerProfile', $customer);
+
+        return $customer;
     }
 }

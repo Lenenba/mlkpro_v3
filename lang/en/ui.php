@@ -3,6 +3,7 @@
 return [
     'auth' => [
         'account_suspended' => 'Account suspended. Please contact support.',
+        'portal_access_disabled' => 'Your client portal access has been disabled. Please contact the business.',
         'two_factor_delivery_failed' => 'Unable to deliver a verification code. Please try again.',
         'update_temporary_password' => 'Please update your temporary password.',
         'social' => [

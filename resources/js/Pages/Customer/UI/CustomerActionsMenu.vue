@@ -1,6 +1,6 @@
 <script setup>
-import { Link } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { Link, router } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
 
@@ -31,6 +31,7 @@ const props = defineProps({
 defineEmits(['toggle-archive', 'delete']);
 
 const { t } = useI18n();
+const resendingPortalInvitation = ref(false);
 const appointmentProfile = computed(() => props.customerIndexContext?.profile === 'appointment');
 const capabilities = computed(() => props.customerIndexContext?.capabilities || {});
 const contextActions = computed(() => props.customerIndexContext?.actions || {});
@@ -55,6 +56,26 @@ const billingHref = computed(() => (
         ? route('invoice.show', unpaidInvoiceId.value)
         : route('invoice.index', { customer_id: props.customer.id })
 ));
+const canResendPortalInvitation = computed(() => (
+    props.canEdit
+    && Boolean(props.customer?.portal_access)
+    && Boolean(props.customer?.portal_user_id)
+));
+
+const resendPortalInvitation = () => {
+    if (!canResendPortalInvitation.value || resendingPortalInvitation.value) {
+        return;
+    }
+
+    resendingPortalInvitation.value = true;
+
+    router.post(route('customer.portal-invitation.resend', props.customer.id), {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            resendingPortalInvitation.value = false;
+        },
+    });
+};
 </script>
 
 <template>
@@ -103,6 +124,18 @@ const billingHref = computed(() => (
         >
             {{ t('customers.actions.edit') }}
         </Link>
+        <button
+            v-if="canResendPortalInvitation"
+            type="button"
+            class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-emerald-400 dark:hover:bg-neutral-800"
+            :disabled="resendingPortalInvitation"
+            :aria-busy="resendingPortalInvitation"
+            @click="resendPortalInvitation"
+        >
+            {{ t(resendingPortalInvitation
+                ? 'customers.actions.resending_portal_invitation'
+                : 'customers.actions.resend_portal_invitation') }}
+        </button>
         <button
             v-if="canEdit"
             type="button"

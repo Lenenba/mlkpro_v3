@@ -25,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\SetLocale::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
             \App\Http\Middleware\SecurityHeaders::class,
+            \App\Http\Middleware\EnsureClientPortalAccess::class,
             \App\Http\Middleware\EnsureTwoFactorVerified::class,
             \App\Http\Middleware\EnsureOnboardingIsComplete::class,
             \App\Http\Middleware\EnsureNotSuspended::class,

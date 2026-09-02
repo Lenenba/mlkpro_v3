@@ -5,6 +5,7 @@ namespace App\Services\Auth;
 use App\Models\User;
 use App\Services\AttendanceService;
 use App\Services\Demo\DemoWorkspaceTimelineService;
+use App\Services\Portal\PortalAccessService;
 use App\Services\SecurityEventService;
 use App\Services\TwoFactorService;
 use App\Support\LocalePreference;
@@ -14,6 +15,10 @@ use Illuminate\Support\Facades\Auth;
 
 class WebLoginResponseService
 {
+    public function __construct(
+        private readonly PortalAccessService $portalAccessService,
+    ) {}
+
     /**
      * @param  array<string, mixed>  $context
      */
@@ -36,6 +41,17 @@ class WebLoginResponseService
             return redirect()
                 ->route('login')
                 ->withErrors(['email' => __('ui.auth.account_suspended')]);
+        }
+
+        $user->loadMissing('role');
+        if ($user->isClient() && ! $this->portalAccessService->clientHasPortalAccess($user)) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()
+                ->route('login')
+                ->withErrors(['email' => __('ui.auth.portal_access_disabled')]);
         }
 
         if ($user->requiresTwoFactor()) {

@@ -23,10 +23,6 @@ class CustomerRequest extends FormRequest
     {
         $customer = $this->route('customer');
         $customerId = $customer ? $customer->id : null;
-        $portalUserId = $customer ? $customer->portal_user_id : null;
-        $portalAccess = $this->has('portal_access')
-            ? filter_var($this->input('portal_access'), FILTER_VALIDATE_BOOLEAN)
-            : (bool) ($customer?->portal_access ?? true);
         $clientType = CustomerClientType::infer(
             $this->input('client_type'),
             (string) ($this->input('company_name') ?? $customer?->company_name ?? '')
@@ -41,9 +37,6 @@ class CustomerRequest extends FormRequest
             'max:255',
             Rule::unique('customers')->ignore($customerId),
         ];
-        if ($portalAccess) {
-            $emailRules[] = Rule::unique('users', 'email')->ignore($portalUserId);
-        }
 
         return [
             'client_type' => ['nullable', 'string', Rule::in(CustomerClientType::values())],
@@ -133,7 +126,7 @@ class CustomerRequest extends FormRequest
             'registration_number' => trim((string) ($this->input('registration_number') ?? '')) ?: null,
             'industry' => trim((string) ($this->input('industry') ?? '')) ?: null,
             'salutation' => $salutation,
-            'email' => is_string($email) ? strtolower($email) : $email,
+            'email' => is_string($email) ? strtolower(trim($email)) : $email,
         ]);
     }
 }

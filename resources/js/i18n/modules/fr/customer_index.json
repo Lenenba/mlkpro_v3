@@ -439,6 +439,8 @@
       "add_customer": "Ajouter client",
       "archive": "Archiver",
       "restore": "Restaurer",
+      "resend_portal_invitation": "Renvoyer l’invitation au portail",
+      "resending_portal_invitation": "Envoi de l’invitation…",
       "delete_confirm": "Supprimer \"{name}\" ?",
       "archive_confirm": "{action} \"{name}\" ?",
       "view": "Voir"

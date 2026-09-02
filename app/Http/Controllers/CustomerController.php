@@ -11,10 +11,8 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Product;
 use App\Models\Reservation;
-use App\Models\Role;
 use App\Models\SavedSegment;
 use App\Models\User;
-use App\Notifications\InviteUserNotification;
 use App\Queries\Customers\BuildCustomerDetailViewData;
 use App\Queries\Customers\BuildCustomerIndexStats;
 use App\Queries\Customers\BuildCustomerOperationalIndexData;
@@ -27,22 +25,20 @@ use App\Services\CompanyFeatureService;
 use App\Services\Customers\CustomerActivityAudit;
 use App\Services\Customers\CustomerBulkAudienceBridgeService;
 use App\Services\Customers\CustomerBulkContactService;
+use App\Services\Customers\CustomerPortalAccessService;
 use App\Services\Rbac\AccessControl;
 use App\Services\Rbac\CompanyModuleAccess;
 use App\Support\BulkActions\BulkActionRegistry;
 use App\Support\CRM\SalesActivityTaxonomy;
 use App\Support\Database\UserSelects;
-use App\Support\NotificationDispatcher;
 use App\Utils\FileHandler;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class CustomerController extends Controller
 {
@@ -624,7 +620,7 @@ class CustomerController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\RedirectResponse
      */
-    public function store(CustomerRequest $request)
+    public function store(CustomerRequest $request, CustomerPortalAccessService $portalAccessService)
     {
         $user = $request->user();
         if (! $user) {
@@ -658,22 +654,17 @@ class CustomerController extends Controller
             ? (bool) $validated['portal_access']
             : true;
 
-        $customerData = Arr::except($validated, ['temporary_password']);
-        $customerData['portal_access'] = $portalAccess;
+        $customerData = Arr::except($validated, ['temporary_password', 'portal_access']);
+        $customerData['portal_access'] = false;
         $customerData['user_id'] = $accountId;
 
-        [$customer, $portalUser] = DB::transaction(function () use ($validated, $customerData, $portalAccess) {
-            $portalUser = null;
-            if ($portalAccess) {
-                $roleId = $this->resolveClientRoleId();
-                $portalUser = $this->createPortalUser($validated, $roleId);
-                $customerData['portal_user_id'] = $portalUser->id;
-            }
-
+        $portalAccessResult = DB::transaction(function () use ($customerData, $portalAccess, $portalAccessService) {
             $customer = Customer::create($customerData);
 
-            return [$customer, $portalUser];
+            return $portalAccessService->setAccess($customer, $portalAccess);
         });
+        $customer = $portalAccessResult->customer;
+        $portalUser = $portalAccessResult->portalUser;
 
         // Add properties if provided
         if (! empty($validated['properties'])) {
@@ -690,19 +681,8 @@ class CustomerController extends Controller
             'email' => $customer->email,
         ], 'Customer created');
 
-        $inviteQueued = true;
-        if ($portalUser) {
-            $token = Password::broker()->createToken($portalUser);
-            $inviteQueued = NotificationDispatcher::send($portalUser, new InviteUserNotification(
-                $token,
-                $accountOwner?->company_name ?: config('app.name'),
-                $accountOwner?->company_logo_url,
-                'client',
-                $accountOwner?->id,
-            ), [
-                'customer_id' => $customer->id,
-            ]);
-        }
+        $inviteQueued = ! $portalAccessResult->invitationRequired
+            || $portalAccessService->sendInvitation($customer, $accountOwner);
 
         if ($this->shouldReturnJson($request)) {
             if (! $inviteQueued) {
@@ -735,7 +715,7 @@ class CustomerController extends Controller
     /**
      * Store a customer from quick-create dialogs.
      */
-    public function storeQuick(CustomerRequest $request)
+    public function storeQuick(CustomerRequest $request, CustomerPortalAccessService $portalAccessService)
     {
         $user = $request->user();
         if (! $user) {
@@ -768,22 +748,16 @@ class CustomerController extends Controller
             ? (bool) $validated['portal_access']
             : true;
 
-        $customerData = Arr::except($validated, ['temporary_password']);
-        $customerData['portal_access'] = $portalAccess;
+        $customerData = Arr::except($validated, ['temporary_password', 'portal_access']);
+        $customerData['portal_access'] = false;
         $customerData['user_id'] = $accountId;
 
-        [$customer, $portalUser] = DB::transaction(function () use ($validated, $customerData, $portalAccess) {
-            $portalUser = null;
-            if ($portalAccess) {
-                $roleId = $this->resolveClientRoleId();
-                $portalUser = $this->createPortalUser($validated, $roleId);
-                $customerData['portal_user_id'] = $portalUser->id;
-            }
-
+        $portalAccessResult = DB::transaction(function () use ($customerData, $portalAccess, $portalAccessService) {
             $customer = Customer::create($customerData);
 
-            return [$customer, $portalUser];
+            return $portalAccessService->setAccess($customer, $portalAccess);
         });
+        $customer = $portalAccessResult->customer;
 
         $property = null;
         if (! empty($validated['properties'])) {
@@ -800,19 +774,8 @@ class CustomerController extends Controller
             'email' => $customer->email,
         ], 'Customer created');
 
-        $inviteQueued = true;
-        if ($portalUser) {
-            $token = Password::broker()->createToken($portalUser);
-            $inviteQueued = NotificationDispatcher::send($portalUser, new InviteUserNotification(
-                $token,
-                $accountOwner?->company_name ?: config('app.name'),
-                $accountOwner?->company_logo_url,
-                'client',
-                $accountOwner?->id,
-            ), [
-                'customer_id' => $customer->id,
-            ]);
-        }
+        $inviteQueued = ! $portalAccessResult->invitationRequired
+            || $portalAccessService->sendInvitation($customer, $accountOwner);
 
         $propertyData = [];
         if ($property) {
@@ -855,8 +818,11 @@ class CustomerController extends Controller
     /**
      * Update the specified customer in the database.
      */
-    public function update(CustomerRequest $request, Customer $customer)
-    {
+    public function update(
+        CustomerRequest $request,
+        Customer $customer,
+        CustomerPortalAccessService $portalAccessService
+    ) {
         $this->authorize('update', $customer);
         $user = $request->user();
         if (! $user) {
@@ -910,7 +876,22 @@ class CustomerController extends Controller
             $customer->header_image
         );
 
-        $customer->update($validated);
+        $portalAccess = (bool) ($validated['portal_access'] ?? $customer->portal_access);
+        unset($validated['portal_access']);
+
+        $portalAccessResult = DB::transaction(function () use (
+            $customer,
+            $validated,
+            $portalAccess,
+            $portalAccessService
+        ) {
+            $customer->update($validated);
+
+            return $portalAccessService->setAccess($customer, $portalAccess);
+        });
+        $customer = $portalAccessResult->customer;
+        $inviteQueued = ! $portalAccessResult->invitationRequired
+            || $portalAccessService->sendInvitation($customer, $accountOwner);
 
         if (! empty($validated['properties'])) {
             $propertyPayload = $validated['properties'];
@@ -968,12 +949,52 @@ class CustomerController extends Controller
             }
 
             return response()->json([
-                'message' => 'Customer updated successfully.',
+                'message' => $inviteQueued
+                    ? 'Customer updated successfully.'
+                    : 'Customer updated, but the invite email could not be sent.',
+                'warning' => ! $inviteQueued,
                 'customer' => $responseCustomer,
             ]);
         }
 
+        if (! $inviteQueued) {
+            return redirect()
+                ->route('customer.index')
+                ->with('warning', 'Customer updated, but the invite email could not be sent.');
+        }
+
         return redirect()->route('customer.index')->with('success', 'Customer updated successfully.');
+    }
+
+    public function resendPortalInvitation(
+        Request $request,
+        Customer $customer,
+        CustomerPortalAccessService $portalAccessService
+    ) {
+        $this->authorize('update', $customer);
+
+        $user = $request->user();
+        if (! $user) {
+            abort(403);
+        }
+        [$accountOwner] = $this->resolveCustomerAccount($user);
+
+        $inviteQueued = $portalAccessService->sendInvitation($customer, $accountOwner);
+        $message = $inviteQueued
+            ? 'Portal invitation sent.'
+            : 'The portal invitation could not be sent.';
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => $message,
+                'warning' => ! $inviteQueued,
+            ]);
+        }
+
+        return redirect()->back()->with(
+            $inviteQueued ? 'success' : 'warning',
+            $message
+        );
     }
 
     /**
@@ -1006,13 +1027,13 @@ class CustomerController extends Controller
     /**
      * Bulk actions on customers.
      */
-    public function bulk(Request $request)
+    public function bulk(Request $request, CustomerPortalAccessService $portalAccessService)
     {
         $user = $request->user();
         if (! $user) {
             abort(403);
         }
-        [, $accountId] = $this->resolveCustomerAccount($user);
+        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
 
         $data = $request->validate([
             'action' => 'required|in:portal_enable,portal_disable,archive,restore,delete',
@@ -1030,11 +1051,12 @@ class CustomerController extends Controller
             foreach ($customers as $customer) {
                 $this->authorize('update', $customer);
             }
-            $this->updateCustomersWithAudit(
+            $result = $this->updateCustomerPortalAccessWithAudit(
                 $customers,
                 $user,
-                'portal_access',
+                $accountOwner,
                 true,
+                $portalAccessService,
                 'portal_access_enabled',
                 'Customer portal access enabled'
             );
@@ -1043,8 +1065,16 @@ class CustomerController extends Controller
                 return response()->json($this->bulkActionResult(
                     'Portal access enabled.',
                     $data['ids'],
-                    $processedIds
+                    $result['processed_ids'],
+                    [
+                        'failed_count' => $result['failed_count'],
+                        'errors' => $result['errors'],
+                    ]
                 ));
+            }
+
+            if ($result['errors'] !== []) {
+                return redirect()->back()->with('warning', implode(' ', $result['errors']));
             }
 
             return redirect()->back()->with('success', 'Portal access enabled.');
@@ -1054,11 +1084,12 @@ class CustomerController extends Controller
             foreach ($customers as $customer) {
                 $this->authorize('update', $customer);
             }
-            $this->updateCustomersWithAudit(
+            $result = $this->updateCustomerPortalAccessWithAudit(
                 $customers,
                 $user,
-                'portal_access',
+                $accountOwner,
                 false,
+                $portalAccessService,
                 'portal_access_disabled',
                 'Customer portal access disabled'
             );
@@ -1067,8 +1098,16 @@ class CustomerController extends Controller
                 return response()->json($this->bulkActionResult(
                     'Portal access disabled.',
                     $data['ids'],
-                    $processedIds
+                    $result['processed_ids'],
+                    [
+                        'failed_count' => $result['failed_count'],
+                        'errors' => $result['errors'],
+                    ]
                 ));
+            }
+
+            if ($result['errors'] !== []) {
+                return redirect()->back()->with('warning', implode(' ', $result['errors']));
             }
 
             return redirect()->back()->with('success', 'Portal access disabled.');
@@ -1392,6 +1431,78 @@ class CustomerController extends Controller
         });
     }
 
+    /**
+     * @param  iterable<int, Customer>  $customers
+     * @return array{processed_ids: array<int, int>, failed_count: int, errors: array<int, string>}
+     */
+    private function updateCustomerPortalAccessWithAudit(
+        iterable $customers,
+        User $actor,
+        User $accountOwner,
+        bool $enabled,
+        CustomerPortalAccessService $portalAccessService,
+        string $action,
+        string $description
+    ): array {
+        $audit = app(CustomerActivityAudit::class);
+        $processedIds = [];
+        $failedCount = 0;
+        $errors = [];
+
+        foreach ($customers as $customer) {
+            try {
+                $result = DB::transaction(function () use (
+                    $customer,
+                    $actor,
+                    $enabled,
+                    $portalAccessService,
+                    $audit,
+                    $action,
+                    $description
+                ) {
+                    $before = ['portal_access' => (bool) $customer->portal_access];
+                    $result = $portalAccessService->setAccess($customer, $enabled);
+
+                    if ($result->accessChanged || $result->portalUserCreated || $result->portalUserLinked) {
+                        $audit->recordChanges(
+                            $actor,
+                            $result->customer,
+                            $action,
+                            $before,
+                            ['portal_access' => (bool) $result->customer->portal_access],
+                            $description,
+                            ['source' => 'bulk']
+                        );
+                    }
+
+                    return $result;
+                });
+                $processedIds[] = (int) $result->customer->id;
+
+                if (
+                    $result->invitationRequired
+                    && ! $portalAccessService->sendInvitation($result->customer, $accountOwner)
+                ) {
+                    $errors[] = sprintf(
+                        'Customer %d: portal access was enabled, but the invitation could not be sent.',
+                        $result->customer->id
+                    );
+                }
+            } catch (ValidationException $exception) {
+                $failedCount++;
+                $message = collect($exception->errors())->flatten()->first()
+                    ?: 'Portal access could not be updated.';
+                $errors[] = sprintf('Customer %d: %s', $customer->id, $message);
+            }
+        }
+
+        return [
+            'processed_ids' => $processedIds,
+            'failed_count' => $failedCount,
+            'errors' => $errors,
+        ];
+    }
+
     private function resolveCustomerAccount(
         User $user,
         bool $allowPos = false,
@@ -1514,14 +1625,6 @@ class CustomerController extends Controller
             ->first();
     }
 
-    private function resolveClientRoleId(): int
-    {
-        return Role::firstOrCreate(
-            ['name' => 'client'],
-            ['description' => 'Access to client functionalities']
-        )->id;
-    }
-
     private function normalizeCustomerPayload(array $validated, ?Customer $customer = null): array
     {
         $companyName = array_key_exists('company_name', $validated)
@@ -1553,7 +1656,7 @@ class CustomerController extends Controller
             : false;
         $validated['portal_access'] = array_key_exists('portal_access', $validated)
             ? (bool) $validated['portal_access']
-            : ($customer ? false : true);
+            : (bool) ($customer?->portal_access ?? true);
         $validated['billing_mode'] = $validated['billing_mode'] ?? $customer?->billing_mode ?? 'end_of_job';
         $validated['billing_grouping'] = $validated['billing_grouping'] ?? $customer?->billing_grouping ?? 'single';
         $validated['discount_rate'] = array_key_exists('discount_rate', $validated) && is_numeric($validated['discount_rate'])
@@ -1704,25 +1807,5 @@ class CustomerController extends Controller
             ->values();
 
         return $payload;
-    }
-
-    private function createPortalUser(array $validated, int $roleId): User
-    {
-        $name = trim(($validated['first_name'] ?? '').' '.($validated['last_name'] ?? ''));
-        if ($name === '') {
-            $name = $validated['company_name'] ?? $validated['email'];
-        }
-
-        return User::create([
-            'name' => $name ?: $validated['email'],
-            'email' => $validated['email'],
-            'password' => Hash::make(Str::random(32)),
-            'role_id' => $roleId,
-            'phone_number' => $validated['phone'] ?? null,
-            'company_name' => ($validated['client_type'] ?? null) === CustomerClientType::COMPANY->value
-                ? ($validated['company_name'] ?? null)
-                : null,
-            'must_change_password' => true,
-        ]);
     }
 }

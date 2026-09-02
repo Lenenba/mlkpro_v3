@@ -10,10 +10,12 @@ use App\Models\SavedSegment;
 use App\Models\Task;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Notifications\InviteUserNotification;
 use App\Queries\Quotes\BuildQuoteRecoveryIndexData;
 use App\Services\Playbooks\PlaybookExecutionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schema;
 
 uses(RefreshDatabase::class);
@@ -581,6 +583,143 @@ it('executes a customer archive playbook manually', function () {
         ->and($run->summary['message'] ?? null)->toBe('Customers archived.')
         ->and($customerOne->fresh()?->is_active)->toBeFalse()
         ->and($customerTwo->fresh()?->is_active)->toBeFalse();
+});
+
+it('executes portal access playbooks through the shared customer lifecycle', function () {
+    $owner = User::factory()->create([
+        'company_type' => 'services',
+    ]);
+    $customer = Customer::create([
+        'user_id' => $owner->id,
+        'first_name' => 'Portal',
+        'last_name' => 'Playbook',
+        'company_name' => 'Portal Playbook Customer',
+        'email' => 'portal-playbook@example.com',
+        'salutation' => 'Mr',
+        'portal_access' => false,
+    ]);
+    $segment = SavedSegment::create([
+        'user_id' => $owner->id,
+        'module' => SavedSegment::MODULE_CUSTOMER,
+        'name' => 'Portal playbook customer',
+        'search_term' => $customer->email,
+    ]);
+    $enablePlaybook = Playbook::create([
+        'user_id' => $owner->id,
+        'saved_segment_id' => $segment->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'module' => SavedSegment::MODULE_CUSTOMER,
+        'name' => 'Enable portal access',
+        'action_key' => 'portal_enable',
+        'schedule_type' => Playbook::SCHEDULE_MANUAL,
+        'is_active' => true,
+    ]);
+    $userCount = User::query()->count();
+    Notification::fake();
+
+    $enableRun = app(PlaybookExecutionService::class)->executeManual($enablePlaybook, $owner);
+    $customer->refresh();
+    $portalUser = User::query()->findOrFail($customer->portal_user_id);
+
+    expect($enableRun->status)->toBe(PlaybookRun::STATUS_COMPLETED)
+        ->and($enableRun->selected_count)->toBe(1)
+        ->and($enableRun->processed_count)->toBe(1)
+        ->and($enableRun->success_count)->toBe(1)
+        ->and($enableRun->failed_count)->toBe(0)
+        ->and($customer->portal_access)->toBeTrue()
+        ->and($portalUser->email)->toBe($customer->email)
+        ->and($portalUser->isClient())->toBeTrue()
+        ->and($portalUser->must_change_password)->toBeTrue()
+        ->and(User::query()->count())->toBe($userCount + 1);
+    Notification::assertSentToTimes($portalUser, InviteUserNotification::class, 1);
+
+    $disablePlaybook = Playbook::create([
+        'user_id' => $owner->id,
+        'saved_segment_id' => $segment->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'module' => SavedSegment::MODULE_CUSTOMER,
+        'name' => 'Disable portal access',
+        'action_key' => 'portal_disable',
+        'schedule_type' => Playbook::SCHEDULE_MANUAL,
+        'is_active' => true,
+    ]);
+
+    $disableRun = app(PlaybookExecutionService::class)->executeManual($disablePlaybook, $owner);
+    $customer->refresh();
+
+    expect($disableRun->status)->toBe(PlaybookRun::STATUS_COMPLETED)
+        ->and($disableRun->selected_count)->toBe(1)
+        ->and($disableRun->processed_count)->toBe(1)
+        ->and($disableRun->success_count)->toBe(1)
+        ->and($disableRun->failed_count)->toBe(0)
+        ->and($customer->portal_access)->toBeFalse()
+        ->and($customer->portal_user_id)->toBe($portalUser->id)
+        ->and(User::query()->find($portalUser->id))->not->toBeNull()
+        ->and(User::query()->count())->toBe($userCount + 1);
+    Notification::assertSentToTimes($portalUser, InviteUserNotification::class, 1);
+});
+
+it('records portal provisioning failures per customer and continues the playbook', function () {
+    $owner = User::factory()->create([
+        'company_type' => 'services',
+    ]);
+    $validCustomer = Customer::create([
+        'user_id' => $owner->id,
+        'first_name' => 'Valid',
+        'last_name' => 'Portal',
+        'company_name' => 'Valid Portal Customer',
+        'email' => 'valid-portal-playbook@example.com',
+        'salutation' => 'Mr',
+        'portal_access' => false,
+    ]);
+    $invalidCustomer = Customer::create([
+        'user_id' => $owner->id,
+        'first_name' => 'Invalid',
+        'last_name' => 'Portal',
+        'company_name' => 'Invalid Portal Customer',
+        'email' => $owner->email,
+        'salutation' => 'Mr',
+        'portal_access' => false,
+    ]);
+    $segment = SavedSegment::create([
+        'user_id' => $owner->id,
+        'module' => SavedSegment::MODULE_CUSTOMER,
+        'name' => 'All portal customers',
+    ]);
+    $playbook = Playbook::create([
+        'user_id' => $owner->id,
+        'saved_segment_id' => $segment->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'module' => SavedSegment::MODULE_CUSTOMER,
+        'name' => 'Enable every portal account',
+        'action_key' => 'portal_enable',
+        'schedule_type' => Playbook::SCHEDULE_MANUAL,
+        'is_active' => true,
+    ]);
+    $userCount = User::query()->count();
+    Notification::fake();
+
+    $run = app(PlaybookExecutionService::class)->executeManual($playbook, $owner);
+    $validCustomer->refresh();
+    $invalidCustomer->refresh();
+    $portalUser = User::query()->findOrFail($validCustomer->portal_user_id);
+
+    expect($run->status)->toBe(PlaybookRun::STATUS_COMPLETED)
+        ->and($run->selected_count)->toBe(2)
+        ->and($run->processed_count)->toBe(2)
+        ->and($run->success_count)->toBe(1)
+        ->and($run->failed_count)->toBe(1)
+        ->and($run->skipped_count)->toBe(0)
+        ->and($run->summary['errors'] ?? [])->toHaveCount(1)
+        ->and($run->summary['errors'][0] ?? null)->toContain("Customer {$invalidCustomer->id}:")
+        ->and($validCustomer->portal_access)->toBeTrue()
+        ->and($invalidCustomer->portal_access)->toBeFalse()
+        ->and($invalidCustomer->portal_user_id)->toBeNull()
+        ->and(User::query()->count())->toBe($userCount + 1);
+    Notification::assertSentToTimes($portalUser, InviteUserNotification::class, 1);
 });
 
 it('executes a quote follow-up task playbook manually', function () {

@@ -89,6 +89,7 @@ use App\Http\Controllers\WorkChecklistController;
 use App\Http\Controllers\WorkController;
 use App\Http\Controllers\WorkMediaController;
 use App\Http\Controllers\WorkProofController;
+use App\Http\Middleware\EnsureClientPortalAccess;
 use App\Http\Middleware\EnsureClientUser;
 use App\Http\Middleware\EnsureInternalUser;
 use App\Http\Middleware\EnsureNotSuspended;
@@ -111,7 +112,7 @@ Route::group([], function () {
         Route::post('two-factor/resend', [ApiTwoFactorController::class, 'resend']);
     });
 
-    Route::middleware(['auth:sanctum', EnsureNotSuspended::class])->group(function () {
+    Route::middleware(['auth:sanctum', EnsureClientPortalAccess::class, EnsureNotSuspended::class])->group(function () {
         Route::prefix('auth')->group(function () {
             Route::get('me', [AuthController::class, 'me']);
             Route::post('logout', [AuthController::class, 'logout']);
@@ -121,7 +122,7 @@ Route::group([], function () {
         Route::post('push-tokens', [PushTokenController::class, 'store']);
     });
 
-    Route::middleware(['auth:sanctum', EnsureClientUser::class, EnsureNotSuspended::class])
+    Route::middleware(['auth:sanctum', EnsureClientPortalAccess::class, EnsureClientUser::class, EnsureNotSuspended::class])
         ->prefix('portal')
         ->group(function () {
             Route::get('dashboard', [DashboardController::class, 'index']);
@@ -162,7 +163,7 @@ Route::group([], function () {
             });
         });
 
-    Route::middleware(['auth:sanctum', EnsureInternalUser::class, EnsureNotSuspended::class])->group(function () {
+    Route::middleware(['auth:sanctum', EnsureClientPortalAccess::class, EnsureInternalUser::class, EnsureNotSuspended::class])->group(function () {
 
         Route::get('onboarding', [OnboardingController::class, 'index']);
         Route::post('onboarding', [OnboardingController::class, 'store']);
@@ -594,7 +595,7 @@ Route::group([], function () {
         });
     });
 
-    Route::middleware(['auth:sanctum', EnsurePlatformAdmin::class, EnsureNotSuspended::class])
+    Route::middleware(['auth:sanctum', EnsureClientPortalAccess::class, EnsurePlatformAdmin::class, EnsureNotSuspended::class])
         ->prefix('super-admin')
         ->group(function () {
             Route::get('dashboard', [SuperAdminDashboardController::class, 'index']);

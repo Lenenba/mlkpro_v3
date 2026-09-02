@@ -192,6 +192,28 @@ test('auth me api resolves the owning workspace for a portal client user', funct
         ->assertJsonPath('meta.team', null);
 });
 
+test('auth me api returns 403 for a client with disabled portal access', function () {
+    $owner = User::factory()->create([
+        'role_id' => authMeRoleId('owner', 'Account owner role'),
+    ]);
+    $client = User::factory()->create([
+        'role_id' => authMeRoleId('client', 'Client role'),
+    ]);
+    Customer::factory()->create([
+        'user_id' => $owner->id,
+        'portal_user_id' => $client->id,
+        'portal_access' => false,
+        'email' => $client->email,
+    ]);
+    Sanctum::actingAs($client);
+
+    $this->getJson('/api/v1/auth/me')
+        ->assertForbidden()
+        ->assertExactJson([
+            'message' => __('ui.auth.portal_access_disabled'),
+        ]);
+});
+
 test('auth me api exposes platform admin permissions when the current user is a platform admin', function () {
     $platformAdminUser = User::factory()->create([
         'role_id' => authMeRoleId('admin', 'Platform admin role'),

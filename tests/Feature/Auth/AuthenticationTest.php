@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Customer;
+use App\Models\Role;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -29,6 +31,36 @@ test('users can authenticate using the login screen', function () {
 
     $this->assertAuthenticated();
     $response->assertRedirect(route('dashboard', absolute: false));
+});
+
+test('clients with disabled portal access can not authenticate using the login screen', function () {
+    $clientRole = Role::query()->firstOrCreate(
+        ['name' => 'client'],
+        ['description' => 'Client role'],
+    );
+    $owner = User::factory()->create();
+    $client = User::factory()->create([
+        'role_id' => $clientRole->id,
+        'password' => 'password',
+    ]);
+    Customer::factory()->create([
+        'user_id' => $owner->id,
+        'portal_user_id' => $client->id,
+        'portal_access' => false,
+        'email' => $client->email,
+    ]);
+
+    $response = $this->post('/login', [
+        'email' => $client->email,
+        'password' => 'password',
+    ]);
+
+    $response
+        ->assertRedirect(route('login'))
+        ->assertSessionHasErrors([
+            'email' => __('ui.auth.portal_access_disabled'),
+        ]);
+    $this->assertGuest();
 });
 
 test('users can authenticate from onboarding and keep the selected plan context', function () {

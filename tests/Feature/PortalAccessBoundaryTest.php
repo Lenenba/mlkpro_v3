@@ -129,6 +129,54 @@ beforeEach(function () {
     $this->withoutMiddleware(EnsureTwoFactorVerified::class);
 });
 
+it('logs out a client whose portal access was disabled', function () {
+    $owner = phase7CreatePortalOwner();
+    $client = phase7CreatePortalClient();
+    phase7CreatePortalCustomer($owner, $client, [
+        'portal_access' => false,
+    ]);
+
+    $response = $this->actingAs($client)->get(route('dashboard'));
+
+    $response
+        ->assertRedirect(route('login'))
+        ->assertSessionHasErrors([
+            'email' => __('ui.auth.portal_access_disabled'),
+        ]);
+    $this->assertGuest();
+});
+
+it('returns 403 json without clearing the web session when portal access was disabled', function () {
+    $owner = phase7CreatePortalOwner();
+    $client = phase7CreatePortalClient();
+    phase7CreatePortalCustomer($owner, $client, [
+        'portal_access' => false,
+    ]);
+
+    $this->actingAs($client)
+        ->getJson(route('portal.invoices.index'))
+        ->assertForbidden()
+        ->assertJsonPath('message', __('ui.auth.portal_access_disabled'));
+    $this->assertAuthenticatedAs($client);
+});
+
+it('keeps an html impersonation session active when the client portal is disabled', function () {
+    $owner = phase7CreatePortalOwner();
+    $client = phase7CreatePortalClient();
+    $impersonator = phase7CreatePortalClient([
+        'role_id' => phase7PortalRoleId('superadmin'),
+    ]);
+    phase7CreatePortalCustomer($owner, $client, [
+        'portal_access' => false,
+    ]);
+
+    $this->actingAs($client)
+        ->withSession(['impersonator_id' => $impersonator->id])
+        ->get(route('dashboard'))
+        ->assertOk();
+    $this->assertAuthenticatedAs($client);
+});
+
 it('forbids portal invoice access for an unrelated client', function () {
     $owner = phase7CreatePortalOwner();
     $allowedClient = phase7CreatePortalClient();
