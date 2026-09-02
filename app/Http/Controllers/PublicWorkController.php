@@ -8,6 +8,7 @@ use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\Work;
 use App\Notifications\ActionEmailNotification;
+use App\Services\Portal\PortalCapabilityService;
 use App\Services\TaskBillingService;
 use App\Services\TenantBrandingResolver;
 use App\Services\UsageLimitService;
@@ -16,6 +17,7 @@ use App\Services\WorkScheduleService;
 use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -24,6 +26,10 @@ use Inertia\Response;
 class PublicWorkController extends Controller
 {
     private const LINK_TTL_DAYS = 7;
+
+    public function __construct(
+        private readonly PortalCapabilityService $portalCapabilities,
+    ) {}
 
     public function show(Request $request, Work $work): Response
     {
@@ -34,15 +40,23 @@ class PublicWorkController extends Controller
 
         $customer = $work->customer;
         $owner = User::find($work->user_id);
+        $capabilities = $owner
+            ? $this->portalCapabilities->forOwner($owner, $customer)
+            : [];
+        abort_unless(
+            data_get($capabilities, 'works.view') === true,
+            403,
+            __('ui.portal.capability_unavailable')
+        );
         $tenantBranding = app(TenantBrandingResolver::class)->forAccountOwner($owner);
 
-        $allowValidation = in_array($work->status, [Work::STATUS_PENDING_REVIEW, Work::STATUS_TECH_COMPLETE], true);
-        $allowDispute = in_array($work->status, [Work::STATUS_PENDING_REVIEW, Work::STATUS_TECH_COMPLETE], true);
-        if ($customer && $customer->auto_validate_jobs) {
-            $allowValidation = false;
-            $allowDispute = false;
-        }
-        $allowSchedule = $work->status === Work::STATUS_SCHEDULED && (int) $work->tasks_count === 0;
+        $allowValidation = data_get($capabilities, 'works.validate') === true
+            && in_array($work->status, [Work::STATUS_PENDING_REVIEW, Work::STATUS_TECH_COMPLETE], true);
+        $allowDispute = data_get($capabilities, 'works.dispute') === true
+            && in_array($work->status, [Work::STATUS_PENDING_REVIEW, Work::STATUS_TECH_COMPLETE], true);
+        $allowSchedule = data_get($capabilities, 'works.schedule') === true
+            && $work->status === Work::STATUS_SCHEDULED
+            && (int) $work->tasks_count === 0;
 
         $expiresAt = $this->resolveExpiry($request);
         $validateUrl = URL::temporarySignedRoute(
@@ -109,7 +123,7 @@ class PublicWorkController extends Controller
                 'validate' => $allowValidation,
                 'dispute' => $allowDispute,
                 'schedule' => $allowSchedule,
-                'proofs' => ! (bool) ($customer?->auto_validate_tasks ?? false),
+                'proofs' => data_get($capabilities, 'works.proofs') === true,
             ],
             'actions' => [
                 'validateUrl' => $validateUrl,
@@ -123,6 +137,7 @@ class PublicWorkController extends Controller
 
     public function validateWork(Request $request, Work $work, WorkBillingService $billingService)
     {
+        $capabilities = $this->authorizeCapability($work, 'works.validate');
         $customer = $work->customer;
         if ($customer && $customer->auto_validate_jobs) {
             return redirect()->back()->withErrors([
@@ -142,21 +157,26 @@ class PublicWorkController extends Controller
         }
 
         $previousStatus = $work->status;
-        $work->status = Work::STATUS_VALIDATED;
-        $work->save();
+        $owner = User::query()->findOrFail($work->user_id);
+        $billingResolver = app(TaskBillingService::class);
+        $shouldCreateInvoice = data_get($capabilities, 'invoices.create') === true
+            && $billingResolver->shouldInvoiceOnWorkValidation($work);
+
+        DB::transaction(function () use ($billingService, $owner, $shouldCreateInvoice, $work): void {
+            $work->status = Work::STATUS_VALIDATED;
+            $work->save();
+
+            if ($shouldCreateInvoice) {
+                $billingService->createInvoiceFromWork($work, $owner);
+            }
+        });
 
         ActivityLog::record(null, $work, 'status_changed', [
             'from' => $previousStatus,
             'to' => $work->status,
         ], 'Job validated by client (public link)');
 
-        $billingResolver = app(TaskBillingService::class);
-        if ($billingResolver->shouldInvoiceOnWorkValidation($work)) {
-            $billingService->createInvoiceFromWork($work, null);
-        }
-
-        $owner = User::find($work->user_id);
-        if ($owner && $owner->email) {
+        if ($owner->email) {
             $customerLabel = $customer?->company_name
                 ?: trim(($customer?->first_name ?? '').' '.($customer?->last_name ?? ''));
 
@@ -181,6 +201,8 @@ class PublicWorkController extends Controller
 
     public function dispute(Request $request, Work $work)
     {
+        $this->authorizeCapability($work, 'works.dispute');
+
         $customer = $work->customer;
         if ($customer && $customer->auto_validate_jobs) {
             return redirect()->back()->withErrors([
@@ -234,6 +256,8 @@ class PublicWorkController extends Controller
 
     public function confirmSchedule(Request $request, Work $work, WorkScheduleService $scheduleService)
     {
+        $this->authorizeCapability($work, 'works.schedule');
+
         if ($work->status === Work::STATUS_CANCELLED) {
             return redirect()->back()->withErrors([
                 'status' => __('public.work.messages.cannot_be_scheduled'),
@@ -304,6 +328,8 @@ class PublicWorkController extends Controller
 
     public function rejectSchedule(Request $request, Work $work)
     {
+        $this->authorizeCapability($work, 'works.schedule');
+
         if ($work->status === Work::STATUS_CANCELLED) {
             return redirect()->back()->withErrors([
                 'status' => __('public.work.messages.cannot_update_now'),
@@ -348,6 +374,26 @@ class PublicWorkController extends Controller
         }
 
         return redirect()->back()->with('success', __('public.work.messages.schedule_sent_back'));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function authorizeCapability(Work $work, string $capability): array
+    {
+        $work->loadMissing('customer');
+        $owner = User::query()->find($work->user_id);
+        $capabilities = $owner
+            ? $this->portalCapabilities->forOwner($owner, $work->customer)
+            : [];
+
+        abort_unless(
+            data_get($capabilities, $capability) === true,
+            403,
+            __('ui.portal.capability_unavailable')
+        );
+
+        return $capabilities;
     }
 
     private function resolveExpiry(Request $request): Carbon

@@ -21,6 +21,7 @@ const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superad
 const userName = computed(() => page.props.auth?.user?.name || '');
 const userEmail = computed(() => page.props.auth?.user?.email || '');
 const companyName = computed(() => page.props.auth?.account?.company?.name || '');
+const accountName = computed(() => userName.value || t('account.default_name'));
 const hasAvatarImage = computed(() =>
     Boolean(page.props.auth?.user?.profile_picture_url || page.props.auth?.user?.profile_picture)
 );
@@ -58,16 +59,16 @@ watch(isOpen, async (open) => {
             ref="toggleRef"
             type="button"
             data-testid="account-menu-trigger"
-            class="relative inline-flex size-9 items-center justify-center rounded-full transition hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-stone-300 dark:hover:bg-neutral-800 dark:focus:ring-neutral-600"
+            class="relative inline-flex size-11 items-center justify-center rounded-full transition hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-stone-300 sm:size-9 dark:hover:bg-neutral-800 dark:focus:ring-neutral-600"
             :aria-expanded="isOpen ? 'true' : 'false'"
-            :aria-label="userName || 'Account menu'"
+            :aria-label="t('account.open_menu', { name: accountName })"
             @click="toggleMenu"
         >
             <img
                 v-if="hasAvatarImage"
                 class="size-9 rounded-full object-cover"
                 :src="avatarUrl"
-                :alt="userName || 'Avatar'"
+                :alt="t('account.avatar_alt', { name: accountName })"
             >
             <div
                 v-else

@@ -17,7 +17,14 @@
       "back_to_dashboard": "Volver al tablero",
       "reset_filters": "Reiniciar",
       "cancel_order": "Cancelar pedido",
-      "cancel_confirm": "¿Cancelar este pedido?"
+      "cancel_confirm": "¿Cancelar este pedido?",
+      "close_cart": "Cerrar el carrito",
+      "close_product_details": "Cerrar los detalles del producto",
+      "decrease_quantity": "Reducir la cantidad de {product}",
+      "increase_quantity": "Aumentar la cantidad de {product}"
+    },
+    "validation": {
+      "title": "Corrija la información resaltada antes de continuar."
     },
     "locked_notice": "Este pedido ya está en entrega o completado. Los cambios están bloqueados.",
     "status": {
@@ -127,7 +134,8 @@
       "delivery": "Entrega",
       "total": "Total",
       "checkout_update": "Orden de actualización",
-      "checkout_create": "Realizar pedido"
+      "checkout_create": "Realizar pedido",
+      "checkout_processing": "Enviando..."
     },
     "stock": {
       "out": "Agotado",

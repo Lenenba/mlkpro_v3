@@ -339,7 +339,8 @@ class PublicBookingService
                     $details,
                     $actionUrl,
                     $isFr ? 'Ouvrir les reservations' : 'Open reservations',
-                    $title
+                    $title,
+                    mirrorInApp: false
                 ), $context);
             }
         }

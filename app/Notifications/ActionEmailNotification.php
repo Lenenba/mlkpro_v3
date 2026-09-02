@@ -33,6 +33,8 @@ class ActionEmailNotification extends Notification implements ShouldQueue
 
     private bool $platformBranding = false;
 
+    private bool $mirrorInApp = true;
+
     public function __construct(
         string $title,
         ?string $intro = null,
@@ -43,6 +45,7 @@ class ActionEmailNotification extends Notification implements ShouldQueue
         ?string $note = null,
         ?int $accountOwnerId = null,
         bool $platformBranding = false,
+        bool $mirrorInApp = true,
     ) {
         $this->title = $title;
         $this->intro = $intro;
@@ -53,6 +56,7 @@ class ActionEmailNotification extends Notification implements ShouldQueue
         $this->note = $note;
         $this->accountOwnerId = $accountOwnerId;
         $this->platformBranding = $platformBranding;
+        $this->mirrorInApp = $mirrorInApp;
         $this->onQueue(QueueWorkload::queue('notifications'));
     }
 
@@ -64,6 +68,11 @@ class ActionEmailNotification extends Notification implements ShouldQueue
     public function via(object $notifiable): array
     {
         return ['mail'];
+    }
+
+    public function shouldMirrorInApp(): bool
+    {
+        return $this->mirrorInApp;
     }
 
     public function toMail(object $notifiable): MailMessage

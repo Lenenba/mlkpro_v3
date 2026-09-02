@@ -61,10 +61,20 @@ const shouldShowAutoBreadcrumbs = computed(() => !hasCustomBreadcrumb.value && a
 
         <FlashToaster />
 
-        <div class="flex min-h-screen w-full min-w-0 flex-col overflow-x-hidden bg-stone-50 pt-[59px] dark:bg-neutral-950 lg:ps-16 lg:pt-[59px]">
+        <div
+            class="flex min-h-screen min-w-0 flex-col overflow-x-hidden bg-stone-50 pt-[59px] dark:bg-neutral-950 lg:pt-[59px]"
+            :class="isClient
+                ? 'w-full lg:ml-16 lg:w-auto'
+                : 'w-full lg:ps-16'"
+        >
             <!-- ========== MAIN CONTENT ========== -->
             <main id="content" class="flex w-full min-w-0 flex-1 flex-col">
-                <div class="flex min-w-0 flex-1 flex-col gap-5 p-2 sm:p-5 sm:py-0 md:pt-5">
+                <div
+                    class="flex min-w-0 flex-1 flex-col gap-5"
+                    :class="isClient
+                        ? 'mx-auto w-full max-w-7xl p-2 sm:p-5'
+                        : 'p-2 sm:p-5 sm:py-0 md:pt-5'"
+                >
                     <div v-if="maintenance.enabled && !isSuperadmin"
                         class="bg-amber-50 border-s-4 border-amber-500 p-4 dark:bg-amber-800/30" role="alert" tabindex="-1"
                         aria-labelledby="hs-platform-maintenance-label">
@@ -107,13 +117,21 @@ const shouldShowAutoBreadcrumbs = computed(() => !hasCustomBreadcrumb.value && a
                         v-else-if="shouldShowAutoBreadcrumbs"
                         :items="autoBreadcrumbItems"
                     />
-                    <slot />
+                    <div v-if="isClient" class="w-full min-w-0">
+                        <slot />
+                    </div>
+                    <slot v-else />
                 </div>
             </main>
             <!-- ========== END MAIN CONTENT ========== -->
 
-            <div v-if="props.showFooter" class="w-full px-2 pb-3 pt-2 sm:px-5 sm:pb-5">
+            <div
+                v-if="props.showFooter"
+                class="w-full px-2 pb-3 pt-2 sm:px-5 sm:pb-5"
+                :class="isClient ? 'mx-auto max-w-7xl' : null"
+            >
                 <AppFooter
+                    :class="isClient ? '!rounded-sm' : null"
                     :floating-action-reserve="hasFloatingAssistant ? 'compact' : 'none'"
                     :variant="isClient ? 'powered-by' : 'platform'"
                 />

@@ -105,3 +105,21 @@ test('the floating select associates its label with the native control', () => {
     assert.match(source, /:required="required"/);
     assert.match(source, /:aria-required="required \? 'true' : undefined"/);
 });
+
+test('the filterable floating select keeps its model and combobox semantics aligned', () => {
+    const source = read('resources/js/Components/FloatingSelect.vue');
+
+    assert.match(source, /toggleLabel:\s*\{[\s\S]*?default: ''/);
+    assert.match(source, /selectOnFocus:\s*\{[\s\S]*?default: false/);
+    assert.match(source, /const listboxId = computed\(\(\) => `\$\{controlId\.value\}-listbox`\)/);
+    assert.match(source, /id: `\$\{controlId\.value\}-option-\$\{index\}`/);
+    assert.match(source, /const match = resolveMatch\(value\);\s*model\.value = match \? match\.value : '';/);
+    assert.match(source, /if \(props\.selectOnFocus\) \{\s*event\.currentTarget\?\.select\(\);/);
+
+    assert.match(source, /<input[\s\S]*?role="combobox"[\s\S]*?aria-autocomplete="list"/);
+    assert.match(source, /:aria-expanded="isOpen"[\s\S]*?:aria-controls="listboxId"[\s\S]*?:aria-activedescendant="activeOptionId"/);
+    assert.match(source, /<div[\s\S]*?:id="listboxId"[\s\S]*?role="listbox"/);
+    assert.match(source, /<button[\s\S]*?:id="option\.id"[\s\S]*?role="option"[\s\S]*?:aria-selected="isOptionSelected\(option\)"/);
+    assert.match(source, /:aria-label="resolvedToggleLabel"/);
+    assert.doesNotMatch(source, /aria-label="Toggle options"/);
+});

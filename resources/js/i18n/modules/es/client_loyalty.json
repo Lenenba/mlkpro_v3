@@ -20,6 +20,12 @@
     },
     "ledger": {
       "title": "Historial de puntos"
+    },
+    "feedback": {
+      "load_error": "No se pudieron actualizar sus puntos. Inténtelo de nuevo.",
+      "loading": "Actualizando...",
+      "retry": "Reintentar",
+      "retrying": "Reintentando..."
     }
   }
 }

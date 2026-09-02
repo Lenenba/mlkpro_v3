@@ -46,4 +46,7 @@ return [
     'announcements' => [
         'media_only_requires_media' => 'El modo «Medio a ancho completo» requiere una imagen o un vídeo.',
     ],
+    'portal' => [
+        'capability_unavailable' => 'Esta función no está disponible en tu portal de clientes.',
+    ],
 ];

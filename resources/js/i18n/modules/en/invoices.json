@@ -171,6 +171,7 @@
       "invoices": "No invoices yet."
     },
     "pagination": {
+      "label": "Invoice pagination",
       "previous": "Previous",
       "next": "Next",
       "of": "of"

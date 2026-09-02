@@ -77,7 +77,7 @@ const paymentChargedTotal = (payment) => {
     <Head :title="$t('invoices.history.title')" />
 
     <AuthenticatedLayout>
-        <div class="mx-auto w-full max-w-5xl space-y-4">
+        <div class="w-full min-w-0 max-w-full space-y-4">
             <section class="rounded-sm border border-stone-200 border-t-4 border-t-emerald-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
                     {{ $t('invoices.history.title') }}
@@ -195,13 +195,14 @@ const paymentChargedTotal = (payment) => {
                 {{ $t('invoices.empty.invoices') }}
             </section>
 
-            <nav v-if="paginationLinks.length > 3" class="flex flex-wrap justify-center gap-1" :aria-label="$t('invoices.pagination.of')">
+            <nav v-if="paginationLinks.length > 3" class="flex flex-wrap justify-center gap-1" :aria-label="$t('invoices.pagination.label')">
                 <template v-for="(link, index) in paginationLinks" :key="`${index}-${link.label}`">
                     <Link
                         v-if="link.url"
                         :href="link.url"
                         preserve-scroll
                         class="rounded-sm border px-3 py-2 text-sm"
+                        :aria-current="link.active ? 'page' : undefined"
                         :class="link.active
                             ? 'border-emerald-600 bg-emerald-600 text-white'
                             : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800'"
@@ -211,6 +212,7 @@ const paymentChargedTotal = (payment) => {
                     <span
                         v-else
                         class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-400 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-500"
+                        aria-disabled="true"
                     >
                         <span v-html="link.label"></span>
                     </span>

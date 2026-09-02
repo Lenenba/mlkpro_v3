@@ -14,6 +14,10 @@ const props = defineProps({
         type: Boolean,
         default: true,
     },
+    mobileExpanded: {
+        type: Boolean,
+        default: false,
+    },
     active: {
         type: Boolean,
     },
@@ -90,6 +94,15 @@ const toneTextClass = computed(() => {
     return tone.text;
 });
 
+const listItemClass = computed(() => (
+    props.mobileExpanded ? 'w-full lg:w-auto' : null
+));
+
+const linkLayoutClass = computed(() => (
+    props.mobileExpanded
+        ? 'min-h-11 w-full flex-row justify-start gap-x-3 px-3 py-1.5 text-sm lg:min-h-0 lg:w-auto lg:flex-col lg:justify-center lg:gap-x-0 lg:gap-y-1 lg:px-0 lg:py-0 lg:text-[11px]'
+        : 'flex-col justify-center gap-y-1 text-[11px]'
+));
 
 const classes = computed(() =>
     props.active
@@ -161,12 +174,12 @@ onBeforeUnmount(() => {
 });
 </script>
 <template>
-    <li>
+    <li :class="listItemClass">
         <Link
             ref="anchorRef"
             :href="route(href, params || undefined)"
-            class="relative group flex flex-col justify-center items-center gap-y-1 text-[11px] text-stone-600 dark:text-neutral-200 disabled:opacity-50 disabled:pointer-events-none focus:outline-none"
-            :class="toneTextClass"
+            class="group relative flex items-center text-stone-600 focus:outline-none disabled:pointer-events-none disabled:opacity-50 dark:text-neutral-200"
+            :class="[toneTextClass, linkLayoutClass]"
             :aria-label="label"
             :title="label"
             @mouseenter="showTooltip"
@@ -183,12 +196,19 @@ onBeforeUnmount(() => {
                 </span>
             </span>
             <span v-if="!compact">{{ label }}</span>
+            <span
+                v-else-if="mobileExpanded"
+                class="min-w-0 flex-1 truncate text-left font-medium lg:sr-only"
+            >
+                {{ label }}
+            </span>
             <span v-else class="sr-only">{{ label }}</span>
         </Link>
         <Teleport to="body">
             <div
                 v-if="compact && tooltipVisible"
                 class="fixed z-[9999] -translate-y-1/2 whitespace-nowrap rounded-sm bg-stone-900 px-2 py-1 text-[11px] text-white shadow-lg pointer-events-none dark:bg-neutral-800"
+                :class="mobileExpanded ? 'hidden lg:block' : null"
                 :style="tooltipStyle"
                 role="tooltip"
             >

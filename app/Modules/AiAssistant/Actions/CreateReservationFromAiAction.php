@@ -204,7 +204,8 @@ class CreateReservationFromAiAction
                     $details,
                     $actionUrl,
                     $isFr ? 'Ouvrir la conversation' : 'Open conversation',
-                    $title
+                    $title,
+                    mirrorInApp: false
                 ), $context);
             }
         }

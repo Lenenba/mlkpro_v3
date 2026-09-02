@@ -264,7 +264,12 @@ it('exposes a signed receipt download link for a paid invoice in the client port
 });
 
 it('forbids portal quote actions for an unrelated client', function () {
-    $owner = phase7CreatePortalOwner();
+    $owner = phase7CreatePortalOwner([
+        'company_features' => [
+            'quotes' => true,
+            'jobs' => true,
+        ],
+    ]);
     $allowedClient = phase7CreatePortalClient();
     $otherClient = phase7CreatePortalClient();
 
@@ -278,7 +283,12 @@ it('forbids portal quote actions for an unrelated client', function () {
 });
 
 it('forbids portal work proof access for an unrelated client', function () {
-    $owner = phase7CreatePortalOwner();
+    $owner = phase7CreatePortalOwner([
+        'company_features' => [
+            'jobs' => true,
+            'tasks' => true,
+        ],
+    ]);
     $allowedClient = phase7CreatePortalClient();
     $otherClient = phase7CreatePortalClient();
 
@@ -294,6 +304,10 @@ it('forbids portal work proof access for an unrelated client', function () {
 it('hides portal orders for an unrelated client', function () {
     $owner = phase7CreatePortalOwner([
         'company_type' => 'products',
+        'company_features' => [
+            'products' => true,
+            'sales' => true,
+        ],
     ]);
     $allowedClient = phase7CreatePortalClient();
     $otherClient = phase7CreatePortalClient();

@@ -3,8 +3,12 @@
 namespace App\Support\Notifications;
 
 use App\Models\User;
+use App\Notifications\ActionEmailNotification;
+use App\Notifications\EmailMirrorNotification;
+use App\Notifications\ReservationDatabaseNotification;
 use App\Services\NotificationPreferenceService;
 use App\Support\DataTablePagination;
+use App\Support\LocalePreference;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Carbon;
@@ -27,6 +31,7 @@ class UserNotificationCenter
     public function headerPayload(User $user, int $limit = 6): array
     {
         $limit = max(1, min(12, $limit));
+        $user->loadMissing('role');
         $query = $this->headerQuery($user);
 
         return [
@@ -34,7 +39,7 @@ class UserNotificationCenter
             'items' => (clone $query)
                 ->limit($limit)
                 ->get()
-                ->map(fn (DatabaseNotification $notification): array => $this->present($notification))
+                ->map(fn (DatabaseNotification $notification): array => $this->present($notification, $user))
                 ->values(),
         ];
     }
@@ -43,8 +48,9 @@ class UserNotificationCenter
      * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
      */
-    public function pagePayload(User $user, array $filters = []): array
+    public function pagePayload(User $user, array $filters = [], ?string $locale = null): array
     {
+        $user->loadMissing('role');
         $status = $this->normalizeStatus($filters['status'] ?? null);
         $type = $this->normalizeTypeFilter($filters['type'] ?? null);
         $perPage = DataTablePagination::resolve($filters['per_page'] ?? null, 10);
@@ -59,7 +65,7 @@ class UserNotificationCenter
 
         $notifications->setCollection(
             $notifications->getCollection()
-                ->map(fn (DatabaseNotification $notification): array => $this->present($notification))
+                ->map(fn (DatabaseNotification $notification): array => $this->present($notification, $user, $locale))
         );
 
         return [
@@ -160,16 +166,20 @@ class UserNotificationCenter
     /**
      * @return array<string, mixed>
      */
-    public function present(DatabaseNotification $notification): array
-    {
+    public function present(
+        DatabaseNotification $notification,
+        ?User $user = null,
+        ?string $locale = null
+    ): array {
         $data = is_array($notification->data) ? $notification->data : [];
         $type = $this->resolveType($notification);
         $archivedAt = $notification->getAttribute('archived_at');
+        $content = $this->localizedContent($notification, $data, $user, $locale);
 
         return [
             'id' => $notification->id,
-            'title' => (string) ($data['title'] ?? 'Notification'),
-            'message' => (string) ($data['message'] ?? ''),
+            'title' => $content['title'],
+            'message' => $content['message'],
             'type' => $type,
             'created_at' => $notification->created_at?->toIso8601String(),
             'read_at' => $notification->read_at?->toIso8601String(),
@@ -177,6 +187,125 @@ class UserNotificationCenter
             'is_read' => $notification->read_at !== null,
             'is_archived' => filled($archivedAt),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array{title: string, message: string}
+     */
+    private function localizedContent(
+        DatabaseNotification $notification,
+        array $data,
+        ?User $user,
+        ?string $requestedLocale
+    ): array {
+        $locale = $this->presentationLocale($user, $requestedLocale);
+        $title = (string) ($data['title'] ?? 'Notification');
+        $message = (string) ($data['message'] ?? '');
+        $parameters = is_array($data['parameters'] ?? null) ? $data['parameters'] : [];
+        $titleKey = is_string($data['title_key'] ?? null) ? trim($data['title_key']) : '';
+        $messageKey = is_string($data['message_key'] ?? null) ? trim($data['message_key']) : '';
+
+        if ($titleKey !== '') {
+            $title = $this->translateOrFallback($titleKey, $parameters, $locale, $title);
+        }
+        if ($messageKey !== '') {
+            $message = $this->translateOrFallback($messageKey, $parameters, $locale, $message);
+        }
+
+        if ($user?->isClient() && $titleKey === '' && $messageKey === '') {
+            if ($notification->type === ReservationDatabaseNotification::class) {
+                return $this->legacyReservationContent($data, $locale);
+            }
+
+            if ($this->isLegacyReservationEmailMirror($notification, $data)) {
+                return [
+                    'title' => LocalePreference::trans('reservation_notifications.legacy.email_confirmation.title', locale: $locale),
+                    'message' => LocalePreference::trans('reservation_notifications.legacy.email_confirmation.message', locale: $locale),
+                ];
+            }
+        }
+
+        return compact('title', 'message');
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array{title: string, message: string}
+     */
+    private function legacyReservationContent(array $data, string $locale): array
+    {
+        $event = is_string($data['event'] ?? null) ? trim($data['event']) : '';
+        $queueEvents = [
+            'queue_ticket_created',
+            'queue_eta_10m',
+            'queue_pre_call',
+            'queue_called',
+            'queue_grace_expired',
+            'queue_status_changed',
+        ];
+
+        if (in_array($event, $queueEvents, true)) {
+            $parameters = [
+                'minutes' => 10,
+                'from' => '-',
+                'to' => (string) ($data['status'] ?? '-'),
+            ];
+            $baseKey = 'reservation_notifications.queue.client.'.$event;
+
+            return [
+                'title' => LocalePreference::trans($baseKey.'.title', $parameters, $locale),
+                'message' => LocalePreference::trans($baseKey.'.message', $parameters, $locale),
+            ];
+        }
+
+        return [
+            'title' => LocalePreference::trans('reservation_notifications.legacy.client_reservation.title', locale: $locale),
+            'message' => LocalePreference::trans('reservation_notifications.legacy.client_reservation.message', locale: $locale),
+        ];
+    }
+
+    private function presentationLocale(?User $user, ?string $requestedLocale = null): string
+    {
+        if (LocalePreference::isSupported($requestedLocale)) {
+            return LocalePreference::normalize($requestedLocale);
+        }
+
+        $applicationLocale = app()->getLocale();
+
+        return LocalePreference::isSupported($applicationLocale)
+            ? LocalePreference::normalize($applicationLocale)
+            : LocalePreference::forUser($user);
+    }
+
+    /**
+     * @param  array<string, mixed>  $parameters
+     */
+    private function translateOrFallback(
+        string $key,
+        array $parameters,
+        string $locale,
+        string $fallback
+    ): string {
+        $translated = LocalePreference::trans($key, $parameters, $locale);
+
+        return $translated !== $key ? $translated : $fallback;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function isLegacyReservationEmailMirror(DatabaseNotification $notification, array $data): bool
+    {
+        if ($notification->type !== EmailMirrorNotification::class) {
+            return false;
+        }
+
+        $sourceNotification = (string) data_get($data, 'data.notification', '');
+        $actionUrl = (string) ($data['action_url'] ?? data_get($data, 'data.action_url', ''));
+
+        return $sourceNotification === ActionEmailNotification::class
+            && Str::contains($actionUrl, '/client/reservations');
     }
 
     /**

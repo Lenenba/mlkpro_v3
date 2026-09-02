@@ -6,6 +6,7 @@ use App\Actions\Invoices\CreateInvoicePaymentAction;
 use App\Models\Invoice;
 use App\Models\User;
 use App\Notifications\ActionEmailNotification;
+use App\Services\Portal\PortalCapabilityService;
 use App\Services\StripeInvoiceService;
 use App\Services\TenantBrandingResolver;
 use App\Services\TenantPaymentMethodGuardService;
@@ -25,6 +26,10 @@ class PublicInvoiceController extends Controller
 {
     private const LINK_TTL_DAYS = 7;
 
+    public function __construct(
+        private readonly PortalCapabilityService $portalCapabilities,
+    ) {}
+
     public function show(Request $request, Invoice $invoice): Response
     {
         $invoice->load([
@@ -35,24 +40,27 @@ class PublicInvoiceController extends Controller
             'items',
             'payments.tipAssignee:id,name',
         ]);
+        $customer = $invoice->customer;
+        $owner = User::find($invoice->user_id);
+        $capabilities = $owner
+            ? $this->portalCapabilities->forOwner($owner, $customer)
+            : [];
 
         $sessionId = $request->query('session_id');
-        if ($sessionId) {
+        if ($sessionId && data_get($capabilities, 'invoices.pay') === true) {
             $stripeService = app(StripeInvoiceService::class);
             if ($stripeService->isConfigured()) {
                 $connectAccountId = $stripeService->resolveConnectedAccountId($invoice);
-                $payment = $stripeService->syncFromCheckoutSessionId($sessionId, $connectAccountId);
+                $payment = $stripeService->syncFromCheckoutSessionId($sessionId, $connectAccountId, $invoice);
                 if ($payment && $payment->invoice_id === $invoice->id) {
                     $invoice->refresh();
                 }
             }
         }
 
-        $owner = User::find($invoice->user_id);
         $tenantBranding = app(TenantBrandingResolver::class)->forAccountOwner($owner);
-        $customer = $invoice->customer;
 
-        [$canPay, $paymentMessage] = $this->resolvePaymentAvailability($invoice, $customer);
+        [$canPay, $paymentMessage] = $this->resolvePaymentAvailability($invoice, $customer, $capabilities);
 
         $expiresAt = $this->resolveExpiry($request);
         $paymentUrl = URL::temporarySignedRoute(
@@ -132,10 +140,11 @@ class PublicInvoiceController extends Controller
 
     public function storePayment(Request $request, Invoice $invoice)
     {
+        $capabilities = $this->authorizeCapability($invoice, 'invoices.pay');
         $invoice->load('customer');
         $customer = $invoice->customer;
 
-        [$canPay, $message] = $this->resolvePaymentAvailability($invoice, $customer);
+        [$canPay, $message] = $this->resolvePaymentAvailability($invoice, $customer, $capabilities);
         if (! $canPay) {
             return redirect()->back()->withErrors([
                 'status' => $message,
@@ -235,10 +244,11 @@ class PublicInvoiceController extends Controller
 
     public function createStripeCheckout(Request $request, Invoice $invoice)
     {
+        $capabilities = $this->authorizeCapability($invoice, 'invoices.pay');
         $invoice->load('customer');
         $customer = $invoice->customer;
 
-        [$canPay, $message] = $this->resolvePaymentAvailability($invoice, $customer);
+        [$canPay, $message] = $this->resolvePaymentAvailability($invoice, $customer, $capabilities);
         if (! $canPay) {
             return redirect()->back()->with('error', $message);
         }
@@ -325,8 +335,32 @@ class PublicInvoiceController extends Controller
         return now()->addDays(self::LINK_TTL_DAYS);
     }
 
-    private function resolvePaymentAvailability(Invoice $invoice, $customer = null): array
+    /**
+     * @return array<string, mixed>
+     */
+    private function authorizeCapability(Invoice $invoice, string $capability): array
     {
+        $invoice->loadMissing('customer');
+        $owner = User::query()->find($invoice->user_id);
+        $capabilities = $owner
+            ? $this->portalCapabilities->forOwner($owner, $invoice->customer)
+            : [];
+
+        abort_unless(
+            data_get($capabilities, $capability) === true,
+            403,
+            __('ui.portal.capability_unavailable')
+        );
+
+        return $capabilities;
+    }
+
+    private function resolvePaymentAvailability(Invoice $invoice, $customer = null, array $capabilities = []): array
+    {
+        if (data_get($capabilities, 'invoices.pay') !== true) {
+            return [false, __('ui.portal.capability_unavailable')];
+        }
+
         if ($invoice->status === 'void' || $invoice->status === 'draft') {
             return [false, __('public.invoice.messages.cannot_pay')];
         }

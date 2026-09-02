@@ -138,7 +138,7 @@ const publicRootPages = new Set([
 const exactPageDomains = {
     Dashboard: ['dashboard'],
     DashboardAdmin: ['dashboard', 'dashboard_tasks'],
-    DashboardClient: ['client_dashboard', 'dashboard', 'public_invoice', 'sales'],
+    DashboardClient: ['client_dashboard', 'client_orders', 'dashboard', 'public_invoice', 'sales'],
     DashboardMember: ['dashboard', 'dashboard_tasks'],
     DashboardProductsClient: ['client_orders', 'portal_shop'],
     DashboardProductsOwner: ['client_orders', 'dashboard', 'dashboard_products'],

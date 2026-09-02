@@ -7,6 +7,7 @@ import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
 import { useCurrencyFormatter } from '@/utils/currency';
+import { buildClientPortalNavigation, resolveClientPortalMode } from '@/utils/clientPortalNavigation';
 
 const props = defineProps({
     company: {
@@ -33,6 +34,14 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    portalCapabilities: {
+        type: Object,
+        default: () => ({}),
+    },
+    portalContext: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const { formatCurrency } = useCurrencyFormatter();
@@ -42,27 +51,26 @@ const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
 const companyName = computed(() => props.company?.name || t('portal_shop.header.company_fallback'));
+const hasPortalCapability = (capability) => Boolean(props.portalCapabilities?.orders?.[capability]);
+const canCreateOrders = computed(() => hasPortalCapability('create'));
+const canUpdateOrders = computed(() => hasPortalCapability('update'));
+const canReorderOrders = computed(() => hasPortalCapability('reorder'));
+const portalMode = computed(() => (
+    props.portalContext?.mode
+    || resolveClientPortalMode(props.portalCapabilities)
+));
 
-const productTabs = computed(() => ([
-    {
-        id: 'orders',
-        label: t('client_orders.title'),
-        description: props.company?.name
-            ? t('client_orders.subtitle_company', { name: props.company.name })
-            : t('client_orders.subtitle_default'),
-        href: route('dashboard'),
-        badge: formatNumber(props.stats.orders_total),
-        tone: 'orange',
-        active: true,
-    },
-    {
-        id: 'shop',
-        label: t('portal_shop.header.section'),
-        description: t('portal_shop.header.create_subtitle'),
-        href: route('portal.orders.index'),
-        tone: 'indigo',
-    },
-]));
+const productTabs = computed(() => buildClientPortalNavigation(
+    props.portalCapabilities,
+    portalMode.value,
+).map((item) => ({
+    id: item.key,
+    label: t(item.labelKey),
+    href: route(item.routeName),
+    badge: item.key === 'orders' ? formatNumber(props.stats.orders_total) : undefined,
+    tone: item.key === 'orders' ? 'orange' : (item.key === 'reservations' ? 'indigo' : 'emerald'),
+    active: item.key === 'dashboard',
+})));
 
 const heroCards = computed(() => ([
     {
@@ -199,7 +207,7 @@ const paymentBadgeClass = (sale) => {
 };
 
 const canEditOrder = (sale) => {
-    if (!sale || sale.status === 'canceled') {
+    if (!canUpdateOrders.value || !sale || sale.status === 'canceled') {
         return false;
     }
 
@@ -231,18 +239,18 @@ const paidSummary = (sale) => {
     <AuthenticatedLayout>
         <Head :title="$t('client_orders.title')" />
 
-        <div class="mx-auto max-w-6xl space-y-5">
-            <section class="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-white shadow-[0_30px_80px_-50px_rgba(15,23,42,0.45)] dark:border-neutral-800 dark:bg-neutral-900">
+        <div class="w-full min-w-0 max-w-full space-y-5">
+            <section class="overflow-hidden rounded-sm border border-stone-200/80 bg-white shadow-[0_30px_80px_-50px_rgba(15,23,42,0.45)] dark:border-neutral-800 dark:bg-neutral-900">
                 <div class="grid gap-0 lg:grid-cols-[1.45fr_0.95fr]">
                     <div class="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-400 to-orange-300 px-6 py-7 text-white sm:px-8">
                         <div class="absolute -right-10 top-8 h-40 w-40 rounded-full bg-white/10 blur-2xl"></div>
                         <div class="absolute bottom-0 right-16 h-28 w-28 rounded-full border border-white/15"></div>
 
                         <div class="relative flex h-full flex-col justify-between gap-6">
-                            <div class="flex items-start justify-between gap-4">
-                                <div class="space-y-4">
-                                    <div class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]">
-                                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/16">
+                            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                <div class="min-w-0 space-y-4">
+                                    <div class="inline-flex max-w-full items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]">
+                                        <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/16">
                                             <svg class="size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                 <path d="M6 2v4" />
                                                 <path d="M18 2v4" />
@@ -252,20 +260,20 @@ const paidSummary = (sale) => {
                                                 <path d="M8 18h5" />
                                             </svg>
                                         </span>
-                                        {{ companyName }}
+                                        <span class="min-w-0 truncate">{{ companyName }}</span>
                                     </div>
 
                                     <div>
                                         <h1 class="text-3xl font-semibold tracking-tight sm:text-[2.15rem]">
                                             {{ $t('client_orders.title') }}
                                         </h1>
-                                        <p class="mt-2 max-w-xl text-sm leading-6 text-white/85 sm:text-base">
+                                        <p class="mt-2 max-w-xl [overflow-wrap:anywhere] text-sm leading-6 text-white/85 sm:text-base">
                                             {{ props.company?.name ? $t('client_orders.subtitle_company', { name: props.company.name }) : $t('client_orders.subtitle_default') }}
                                         </p>
                                     </div>
                                 </div>
 
-                                <div class="rounded-[1.35rem] border border-white/20 bg-white/10 px-4 py-3 text-right backdrop-blur">
+                                <div class="w-full rounded-sm border border-white/20 bg-white/10 px-4 py-3 text-left backdrop-blur sm:w-auto sm:shrink-0 sm:text-right">
                                     <p class="text-xs uppercase tracking-[0.18em] text-white/70">
                                         {{ $t('client_orders.kpi.orders') }}
                                     </p>
@@ -277,12 +285,13 @@ const paidSummary = (sale) => {
 
                             <div class="flex flex-wrap items-center gap-3">
                                 <Link
+                                    v-if="canCreateOrders"
                                     :href="route('portal.orders.index')"
-                                    class="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-orange-700 transition hover:-translate-y-0.5 hover:shadow-md"
+                                    class="inline-flex items-center gap-2 rounded-sm bg-white px-4 py-2 text-sm font-semibold text-orange-700 transition hover:-translate-y-0.5 hover:shadow-md"
                                 >
                                     {{ $t('client_orders.actions.order') }}
                                 </Link>
-                                <span class="rounded-full border border-white/20 bg-white/10 px-3 py-2 text-xs font-medium text-white/80">
+                                <span class="max-w-full rounded-full border border-white/20 bg-white/10 px-3 py-2 [overflow-wrap:anywhere] text-xs font-medium text-white/80">
                                     {{ $t('client_orders.kpi.amount_paid') }}: {{ formatCurrency(props.stats.amount_paid) }}
                                 </span>
                             </div>
@@ -302,7 +311,7 @@ const paidSummary = (sale) => {
                             </p>
                         </div>
 
-                        <div class="rounded-[1.5rem] border border-stone-200/80 bg-white px-4 py-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                        <div class="rounded-sm border border-stone-200/80 bg-white px-4 py-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
                             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500 dark:text-neutral-400">
                                 {{ $t('client_orders.kpi.amount_paid') }}
                             </p>
@@ -319,24 +328,25 @@ const paidSummary = (sale) => {
 
             <ClientPortalTabs
                 :tabs="productTabs"
-                aria-label="Product client sections"
-                :columns="2"
+                :aria-label="$t('client_orders.portal_navigation')"
+                :columns="Math.min(productTabs.length, 4)"
             />
 
             <section>
                 <KpiMetricGrid
+                    class="[&>*]:!rounded-sm"
                     variant="dashboard"
                     :metrics="heroCards"
-                    grid-class="grid-cols-1 md:grid-cols-3"
+                    grid-class="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
                     :aria-label="$t('client_orders.title')"
                 />
             </section>
 
-            <div class="grid gap-4 xl:grid-cols-[1.3fr_1fr]">
-                <section class="space-y-4">
-                    <article class="rounded-[1.75rem] border border-stone-200/80 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
-                        <div class="flex items-center justify-between gap-3">
-                            <div>
+            <div class="grid min-w-0 gap-4 xl:grid-cols-[1.3fr_1fr]">
+                <section class="min-w-0 space-y-4">
+                    <article class="rounded-sm border border-stone-200/80 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                        <div class="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="min-w-0">
                                 <h2 class="text-lg font-semibold text-stone-900 dark:text-neutral-100">
                                     {{ $t('client_orders.sections.pending_orders') }}
                                 </h2>
@@ -344,12 +354,12 @@ const paidSummary = (sale) => {
                                     {{ $t('client_orders.subtitle_default') }}
                                 </p>
                             </div>
-                            <span class="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-orange-700 dark:border-orange-500/20 dark:bg-orange-500/10 dark:text-orange-200">
+                            <span class="shrink-0 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-orange-700 dark:border-orange-500/20 dark:bg-orange-500/10 dark:text-orange-200">
                                 {{ formatNumber(props.pendingOrders.length) }}
                             </span>
                         </div>
 
-                        <div v-if="!pendingOrders.length" class="mt-4 rounded-[1.25rem] border border-dashed border-stone-200 bg-stone-50 px-4 py-5 text-sm text-stone-500 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-400">
+                        <div v-if="!pendingOrders.length" class="mt-4 rounded-sm border border-dashed border-stone-200 bg-stone-50 px-4 py-5 text-sm text-stone-500 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-400">
                             {{ $t('client_orders.empty.pending_orders') }}
                         </div>
 
@@ -357,18 +367,18 @@ const paidSummary = (sale) => {
                             <article
                                 v-for="sale in pendingOrders"
                                 :key="sale.id"
-                                class="rounded-[1.4rem] border border-stone-200/80 bg-stone-50/80 p-4 transition hover:-translate-y-0.5 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-950/70"
+                                class="rounded-sm border border-stone-200/80 bg-stone-50/80 p-4 transition hover:-translate-y-0.5 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-950/70"
                             >
-                                <div class="flex items-start justify-between gap-4">
-                                    <div>
-                                        <p class="text-base font-semibold text-stone-900 dark:text-neutral-100">
+                                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                    <div class="min-w-0">
+                                        <p class="[overflow-wrap:anywhere] text-base font-semibold text-stone-900 dark:text-neutral-100">
                                             {{ orderLabel(sale) }}
                                         </p>
                                         <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
                                             {{ formatDate(sale.created_at) }}
                                         </p>
                                     </div>
-                                    <div class="text-right">
+                                    <div class="max-w-full text-left sm:shrink-0 sm:text-right">
                                         <p class="text-lg font-semibold text-stone-900 dark:text-neutral-100">
                                             {{ formatCurrency(sale.total) }}
                                         </p>
@@ -393,7 +403,7 @@ const paidSummary = (sale) => {
                                     </span>
                                     <Link
                                         :href="orderActionRoute(sale)"
-                                        class="ms-auto inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-stone-700 transition hover:border-stone-300 hover:bg-stone-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                        class="inline-flex w-full items-center justify-center gap-2 rounded-sm border border-stone-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-stone-700 transition hover:border-stone-300 hover:bg-stone-100 sm:ms-auto sm:w-auto dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
                                     >
                                         {{ orderActionLabel(sale) }}
                                         <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -406,25 +416,26 @@ const paidSummary = (sale) => {
                         </div>
                     </article>
 
-                    <article class="rounded-[1.75rem] border border-stone-200/80 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
-                        <div class="flex items-center justify-between gap-3">
-                            <div>
+                    <article class="rounded-sm border border-stone-200/80 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                        <div class="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="min-w-0">
                                 <h2 class="text-lg font-semibold text-stone-900 dark:text-neutral-100">
                                     {{ $t('client_orders.sections.recent_sales') }}
                                 </h2>
-                                <p class="mt-1 text-sm text-stone-500 dark:text-neutral-400">
+                                <p class="mt-1 break-words text-sm text-stone-500 dark:text-neutral-400">
                                     {{ companyName }}
                                 </p>
                             </div>
                             <Link
+                                v-if="canCreateOrders"
                                 :href="route('portal.orders.index')"
-                                class="rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-semibold text-stone-700 transition hover:bg-stone-100 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                class="inline-flex w-full shrink-0 justify-center rounded-sm border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-semibold text-stone-700 transition hover:bg-stone-100 sm:w-auto dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-200 dark:hover:bg-neutral-800"
                             >
                                 {{ $t('client_orders.actions.order') }}
                             </Link>
                         </div>
 
-                        <div v-if="!sales.length" class="mt-4 rounded-[1.25rem] border border-dashed border-stone-200 bg-stone-50 px-4 py-5 text-sm text-stone-500 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-400">
+                        <div v-if="!sales.length" class="mt-4 rounded-sm border border-dashed border-stone-200 bg-stone-50 px-4 py-5 text-sm text-stone-500 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-400">
                             {{ $t('client_orders.empty.recent_sales') }}
                         </div>
 
@@ -432,18 +443,18 @@ const paidSummary = (sale) => {
                             <article
                                 v-for="sale in sales"
                                 :key="sale.id"
-                                class="rounded-[1.4rem] border border-stone-200/80 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950/70"
+                                class="rounded-sm border border-stone-200/80 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950/70"
                             >
-                                <div class="flex items-start justify-between gap-4">
-                                    <div>
-                                        <p class="text-base font-semibold text-stone-900 dark:text-neutral-100">
+                                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                    <div class="min-w-0">
+                                        <p class="[overflow-wrap:anywhere] text-base font-semibold text-stone-900 dark:text-neutral-100">
                                             {{ sale.number || $t('client_orders.labels.sale_label', { id: sale.id }) }}
                                         </p>
                                         <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
                                             {{ formatDate(sale.created_at) }}
                                         </p>
                                     </div>
-                                    <div class="text-right">
+                                    <div class="max-w-full text-left sm:shrink-0 sm:text-right">
                                         <p class="text-lg font-semibold text-stone-900 dark:text-neutral-100">
                                             {{ formatCurrency(sale.total) }}
                                         </p>
@@ -466,18 +477,18 @@ const paidSummary = (sale) => {
 
                                     <Link
                                         :href="orderActionRoute(sale)"
-                                        class="ms-auto inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-[11px] font-semibold text-stone-700 transition hover:bg-stone-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                        class="inline-flex w-full items-center justify-center gap-2 rounded-sm border border-stone-200 bg-stone-50 px-3 py-1.5 text-[11px] font-semibold text-stone-700 transition hover:bg-stone-100 sm:ms-auto sm:w-auto dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
                                     >
                                         {{ orderActionLabel(sale) }}
                                     </Link>
 
                                     <Link
-                                        v-if="sale.status === 'paid'"
+                                        v-if="sale.status === 'paid' && canReorderOrders"
                                         :href="route('portal.orders.reorder', sale.id)"
                                         method="post"
                                         as="button"
                                         type="button"
-                                        class="inline-flex items-center rounded-full bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-emerald-700"
+                                        class="inline-flex w-full items-center justify-center rounded-sm bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-emerald-700 sm:w-auto"
                                     >
                                         {{ $t('client_orders.actions.reorder') }}
                                     </Link>
@@ -487,10 +498,10 @@ const paidSummary = (sale) => {
                     </article>
                 </section>
 
-                <section class="space-y-4">
-                    <article class="rounded-[1.75rem] border border-stone-200/80 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
-                        <div class="flex items-center justify-between gap-3">
-                            <div>
+                <section class="min-w-0 space-y-4">
+                    <article class="rounded-sm border border-stone-200/80 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                        <div class="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="min-w-0">
                                 <h2 class="text-lg font-semibold text-stone-900 dark:text-neutral-100">
                                     {{ $t('client_orders.sections.deliveries') }}
                                 </h2>
@@ -498,12 +509,12 @@ const paidSummary = (sale) => {
                                     {{ $t('client_orders.labels.delivery_in_progress') }}
                                 </p>
                             </div>
-                            <span class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-200">
+                            <span class="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-200">
                                 {{ formatNumber(props.inDeliveryOrders.length) }}
                             </span>
                         </div>
 
-                        <div v-if="!inDeliveryOrders.length" class="mt-4 rounded-[1.25rem] border border-dashed border-stone-200 bg-stone-50 px-4 py-5 text-sm text-stone-500 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-400">
+                        <div v-if="!inDeliveryOrders.length" class="mt-4 rounded-sm border border-dashed border-stone-200 bg-stone-50 px-4 py-5 text-sm text-stone-500 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-400">
                             {{ $t('client_orders.empty.deliveries') }}
                         </div>
 
@@ -511,11 +522,11 @@ const paidSummary = (sale) => {
                             <article
                                 v-for="sale in inDeliveryOrders"
                                 :key="sale.id"
-                                class="rounded-[1.4rem] border border-emerald-200/70 bg-emerald-50/70 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/10"
+                                class="rounded-sm border border-emerald-200/70 bg-emerald-50/70 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/10"
                             >
-                                <div class="flex items-start justify-between gap-3">
-                                    <div>
-                                        <p class="text-base font-semibold text-stone-900 dark:text-neutral-100">
+                                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                    <div class="min-w-0">
+                                        <p class="[overflow-wrap:anywhere] text-base font-semibold text-stone-900 dark:text-neutral-100">
                                             {{ orderLabel(sale) }}
                                         </p>
                                         <p class="mt-1 text-xs text-stone-600 dark:text-neutral-300">
@@ -525,7 +536,7 @@ const paidSummary = (sale) => {
                                             }}
                                         </p>
                                     </div>
-                                    <div class="text-right">
+                                    <div class="max-w-full text-left sm:shrink-0 sm:text-right">
                                         <p class="text-lg font-semibold text-stone-900 dark:text-neutral-100">
                                             {{ formatCurrency(sale.total) }}
                                         </p>
@@ -538,9 +549,9 @@ const paidSummary = (sale) => {
                         </div>
                     </article>
 
-                    <article class="rounded-[1.75rem] border border-amber-200/80 bg-amber-50/90 p-5 shadow-sm dark:border-amber-500/20 dark:bg-amber-500/10">
-                        <div class="flex items-center justify-between gap-3">
-                            <div>
+                    <article class="rounded-sm border border-amber-200/80 bg-amber-50/90 p-5 shadow-sm dark:border-amber-500/20 dark:bg-amber-500/10">
+                        <div class="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="min-w-0">
                                 <h2 class="text-lg font-semibold text-stone-900 dark:text-neutral-100">
                                     {{ $t('client_orders.sections.delivery_alerts') }}
                                 </h2>
@@ -548,12 +559,12 @@ const paidSummary = (sale) => {
                                     {{ $t('client_orders.fulfillment.completed_unconfirmed') }}
                                 </p>
                             </div>
-                            <span class="rounded-full border border-amber-300 bg-white/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-amber-800 dark:border-amber-300/20 dark:bg-white/5 dark:text-amber-100">
+                            <span class="shrink-0 rounded-full border border-amber-300 bg-white/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-amber-800 dark:border-amber-300/20 dark:bg-white/5 dark:text-amber-100">
                                 {{ formatNumber(props.deliveryAlerts.length) }}
                             </span>
                         </div>
 
-                        <div v-if="!deliveryAlerts.length" class="mt-4 rounded-[1.25rem] border border-dashed border-amber-300/70 bg-white/70 px-4 py-5 text-sm text-amber-900 dark:border-amber-300/20 dark:bg-white/5 dark:text-amber-100">
+                        <div v-if="!deliveryAlerts.length" class="mt-4 rounded-sm border border-dashed border-amber-300/70 bg-white/70 px-4 py-5 text-sm text-amber-900 dark:border-amber-300/20 dark:bg-white/5 dark:text-amber-100">
                             {{ $t('client_orders.empty.delivery_alerts') }}
                         </div>
 
@@ -561,11 +572,11 @@ const paidSummary = (sale) => {
                             <article
                                 v-for="sale in deliveryAlerts"
                                 :key="sale.id"
-                                class="rounded-[1.35rem] border border-amber-200 bg-white/80 p-4 shadow-sm dark:border-amber-500/20 dark:bg-neutral-900/70"
+                                class="rounded-sm border border-amber-200 bg-white/80 p-4 shadow-sm dark:border-amber-500/20 dark:bg-neutral-900/70"
                             >
-                                <div class="flex items-start justify-between gap-3">
-                                    <div>
-                                        <p class="text-sm font-semibold text-stone-900 dark:text-neutral-100">
+                                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                    <div class="min-w-0">
+                                        <p class="[overflow-wrap:anywhere] text-sm font-semibold text-stone-900 dark:text-neutral-100">
                                             {{ orderLabel(sale) }}
                                         </p>
                                         <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
@@ -575,16 +586,16 @@ const paidSummary = (sale) => {
                                             }}
                                         </p>
                                     </div>
-                                    <span class="text-sm font-semibold text-stone-900 dark:text-neutral-100">
+                                    <span class="max-w-full [overflow-wrap:anywhere] text-sm font-semibold text-stone-900 sm:shrink-0 dark:text-neutral-100">
                                         {{ formatCurrency(sale.total) }}
                                     </span>
                                 </div>
 
-                                <div class="mt-3 flex items-center justify-between gap-2 text-xs text-stone-500 dark:text-neutral-400">
+                                <div class="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-stone-500 dark:text-neutral-400">
                                     <span>{{ fulfillmentLabel(sale) }}</span>
                                     <Link
                                         :href="orderActionRoute(sale)"
-                                        class="font-semibold text-amber-800 hover:underline dark:text-amber-100"
+                                        class="shrink-0 font-semibold text-amber-800 hover:underline dark:text-amber-100"
                                     >
                                         {{ orderActionLabel(sale) }}
                                     </Link>

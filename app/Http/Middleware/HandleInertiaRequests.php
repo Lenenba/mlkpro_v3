@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Services\Auth\SocialAuthProviderRegistry;
 use App\Services\CompanyFeatureService;
 use App\Services\Demo\DemoAccountService;
+use App\Services\Portal\PortalAccessService;
+use App\Services\Portal\PortalCapabilityService;
 use App\Services\Rbac\CompanyModuleAccess;
 use App\Services\Rbac\PermissionCatalog;
 use App\Services\TenantBrandingResolver;
@@ -55,6 +57,15 @@ class HandleInertiaRequests extends Middleware
         $accountFeatures = null;
         if ($user && $accountOwner) {
             $accountFeatures = $featureService->resolveEnabledFeatures($accountOwner);
+        }
+        $portalCapabilities = null;
+        $portalContext = null;
+        if ($user
+            && $user->isClient()
+            && app(PortalAccessService::class)->clientHasPortalAccess($user)) {
+            $portalCapabilityService = app(PortalCapabilityService::class);
+            $portalCapabilities = $portalCapabilityService->forUser($user);
+            $portalContext = $portalCapabilityService->context($portalCapabilities);
         }
 
         $impersonatorId = $request->session()->get('impersonator_id');
@@ -209,6 +220,8 @@ class HandleInertiaRequests extends Middleware
                     'features' => $accountFeatures,
                     'permissions' => $companyPermissions,
                     'module_access' => $moduleAccess,
+                    ...($portalCapabilities !== null ? ['portal_capabilities' => $portalCapabilities] : []),
+                    ...($portalContext !== null ? ['portal_context' => $portalContext] : []),
                     'platform' => $platformAdmin ? [
                         'role' => $platformAdmin->role,
                         'permissions' => $platformAdmin->permissions ?? [],

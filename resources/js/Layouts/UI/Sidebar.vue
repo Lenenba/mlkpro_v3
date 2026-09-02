@@ -8,6 +8,8 @@ import MenuDropdown from "@/Components/UI/LinkAncor2.vue";
 import LanguageSwitcherMenu from '@/Components/UI/LanguageSwitcherMenu.vue';
 import QuickCreateModals from "@/Components/QuickCreate/QuickCreateModals.vue";
 import CategoryIcon from '@/Components/Workspace/CategoryIcon.vue';
+import ClientPortalSidebarLink from '@/Components/Portal/ClientPortalSidebarLink.vue';
+import { buildClientPortalNavigation, resolveClientPortalMode } from '@/utils/clientPortalNavigation';
 import { buildWorkspaceHubCategories } from '@/utils/workspaceHub';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 import { usePermissions } from '@/Composables/usePermissions';
@@ -19,6 +21,16 @@ const showServices = computed(() => companyType.value !== 'products');
 const showProducts = computed(() => true);
 const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
 const isClient = computed(() => Boolean(page.props.auth?.account?.is_client));
+const portalCapabilities = computed(() => page.props.auth?.account?.portal_capabilities || {});
+const portalMode = computed(() => (
+    page.props.auth?.account?.portal_context?.mode
+    || resolveClientPortalMode(portalCapabilities.value)
+));
+const clientPortalNavigation = computed(() => buildClientPortalNavigation(
+    portalCapabilities.value,
+    portalMode.value,
+));
+const isClientPortalItemActive = (item) => item.activePatterns.some((pattern) => route().current(pattern));
 const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superadmin));
 const isPlatformAdmin = computed(() => Boolean(page.props.auth?.account?.is_platform_admin));
 const isImpersonating = computed(() => Boolean(page.props.auth?.impersonator));
@@ -134,16 +146,25 @@ const isCustomerActive = computed(() => {
     <aside class="relative">
         <div id="hs-pro-sidebar" class="hs-overlay [--auto-close:lg]
             hs-overlay-open:translate-x-0
-            -translate-x-full transition-all duration-300 transform
-            w-16 h-full
+            -translate-x-full transition-all duration-300 transform motion-reduce:transition-none motion-reduce:duration-0
+            h-full
             hidden
             fixed inset-y-0 start-0 z-[60]
             bg-white border-r border-stone-200
             lg:block lg:translate-x-0 lg:end-auto lg:bottom-0
-            dark:bg-neutral-950 dark:border-neutral-800" tabindex="-1" aria-label="Compact Sidebar">
+            dark:bg-neutral-950 dark:border-neutral-800"
+            :class="isClient ? 'w-64 max-w-[calc(100vw-1rem)] lg:w-16 lg:max-w-none' : 'w-16'"
+            tabindex="-1"
+            :aria-label="isClient ? $t('account.client_portal.navigation') : $t('nav.workspace')">
             <div class="h-full flex">
-                <div class="relative z-10 w-16 flex flex-col h-full max-h-full pb-5">
-                    <header class="w-16 py-2.5 flex justify-center shrink-0">
+                <div
+                    class="relative z-10 flex h-full max-h-full flex-col pb-5"
+                    :class="isClient ? 'w-full lg:w-16' : 'w-16'"
+                >
+                    <header
+                        class="flex shrink-0 justify-center py-2.5"
+                        :class="isClient ? 'w-full lg:w-16' : 'w-16'"
+                    >
                         <CompanyBrandLogo
                             v-if="tenantBrand"
                             :company="tenantBrand"
@@ -163,7 +184,10 @@ const isCustomerActive = computed(() => {
                     </header>
 
                     <!-- Content -->
-                    <div class="w-16 flex-1 min-h-0 flex flex-col">
+                    <div
+                        class="flex min-h-0 flex-1 flex-col"
+                        :class="isClient ? 'w-full lg:w-16' : 'w-16'"
+                    >
                         <div class="mb-3 flex shrink-0 flex-col items-center gap-3 border-b border-stone-100 pb-3 dark:border-neutral-800">
                             <LanguageSwitcherMenu :button-class="languageButtonClass" :icon-class="'size-6'" />
 
@@ -183,7 +207,10 @@ const isCustomerActive = computed(() => {
 
                         <!-- Nav -->
                         <nav class="flex-1 overflow-y-auto">
-                            <ul class="text-center space-y-3 pb-2">
+                            <ul
+                                class="space-y-3 pb-2 text-center"
+                                :class="isClient ? 'px-2 lg:px-0' : null"
+                            >
                                 <template v-if="showPlatformNav">
                                     <LinkAncor v-if="isSuperadmin" :label="$t('nav.dashboard')" :href="'superadmin.dashboard'" tone="dashboard"
                                         :active="route().current('superadmin.dashboard')">
@@ -395,6 +422,15 @@ const isCustomerActive = computed(() => {
                                     </LinkAncor>
                                 </template>
                                 <template v-else>
+                                <template v-if="isClient">
+                                    <ClientPortalSidebarLink
+                                        v-for="item in clientPortalNavigation"
+                                        :key="item.key"
+                                        :item="item"
+                                        :active="isClientPortalItemActive(item)"
+                                    />
+                                </template>
+                                <template v-else>
                                 <!-- Item -->
                                 <LinkAncor :label="$t('nav.dashboard')" :href="'dashboard'" tone="dashboard"
                                     :active="route().current('dashboard')">
@@ -407,112 +443,6 @@ const isCustomerActive = computed(() => {
                                             <rect width="7" height="5" x="14" y="3" rx="1" />
                                             <rect width="7" height="9" x="14" y="12" rx="1" />
                                             <rect width="7" height="5" x="3" y="16" rx="1" />
-                                        </svg>
-                                    </template>
-                                </LinkAncor>
-                                <!-- End Item -->
-
-                                <!-- Item -->
-                                <LinkAncor v-if="isClient && hasFeature('products') && hasFeature('sales')" :label="$t('nav.orders')" :href="'portal.orders.index'" tone="orders"
-                                    :active="route().current('portal.orders.*')">
-                                    <template #icon>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round"
-                                            class="lucide lucide-shopping-bag">
-                                            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-                                            <path d="M3 6h18" />
-                                            <path d="M16 10a4 4 0 0 1-8 0" />
-                                        </svg>
-                                    </template>
-                                </LinkAncor>
-                                <!-- End Item -->
-
-                                <!-- Item -->
-                                <LinkAncor
-                                    v-if="isClient && hasFeature('loyalty')"
-                                    :label="$t('nav.loyalty')"
-                                    :href="'portal.loyalty.index'"
-                                    tone="loyalty"
-                                    :active="route().current('portal.loyalty.*')"
-                                >
-                                    <template #icon>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round"
-                                            class="lucide lucide-award">
-                                            <circle cx="12" cy="8" r="6" />
-                                            <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
-                                        </svg>
-                                    </template>
-                                </LinkAncor>
-                                <!-- End Item -->
-
-                                <!-- Item -->
-                                <LinkAncor
-                                    v-if="isClient"
-                                    :label="$t('nav.my_packages')"
-                                    :href="'portal.packages.index'"
-                                    tone="products"
-                                    :active="route().current('portal.packages.*')"
-                                >
-                                    <template #icon>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round"
-                                            class="lucide lucide-package-check">
-                                            <path d="m16 16 2 2 4-4" />
-                                            <path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14" />
-                                            <path d="m7.5 4.27 9 5.15" />
-                                            <polyline points="3.29 7 12 12 20.71 7" />
-                                            <line x1="12" x2="12" y1="22" y2="12" />
-                                        </svg>
-                                    </template>
-                                </LinkAncor>
-                                <!-- End Item -->
-
-                                <!-- Item -->
-                                <LinkAncor
-                                    v-if="isClient && hasFeature('reservations')"
-                                    :label="$t('nav.book_reservation')"
-                                    :href="'client.reservations.book'"
-                                    tone="planning"
-                                    :active="route().current('client.reservations.book')"
-                                >
-                                    <template #icon>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round"
-                                            class="lucide lucide-calendar-plus-2">
-                                            <path d="M8 2v4" />
-                                            <path d="M16 2v4" />
-                                            <path d="M3 10h18" />
-                                            <path d="M21 9v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z" />
-                                            <path d="M12 15v6" />
-                                            <path d="M9 18h6" />
-                                        </svg>
-                                    </template>
-                                </LinkAncor>
-                                <!-- End Item -->
-
-                                <!-- Item -->
-                                <LinkAncor
-                                    v-if="isClient && hasFeature('reservations')"
-                                    :label="$t('nav.my_reservations')"
-                                    :href="'client.reservations.index'"
-                                    tone="planning"
-                                    :active="route().current('client.reservations.*') && !route().current('client.reservations.book')"
-                                >
-                                    <template #icon>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round"
-                                            class="lucide lucide-calendar-check-2">
-                                            <path d="M8 2v4" />
-                                            <path d="M16 2v4" />
-                                            <path d="M3 10h18" />
-                                            <path d="M21 9v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z" />
-                                            <path d="m9 16 2 2 4-4" />
                                         </svg>
                                     </template>
                                 </LinkAncor>
@@ -676,7 +606,7 @@ const isCustomerActive = computed(() => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor v-if="hasPerformanceSource && hasFeature('performance') && canViewTeamPerformance" :label="$t('nav.performance')" :href="'performance.index'" tone="performance"
+                                <LinkAncor v-if="!isClient && hasPerformanceSource && hasFeature('performance') && canViewTeamPerformance" :label="$t('nav.performance')" :href="'performance.index'" tone="performance"
                                     :active="route().current('performance.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
@@ -1004,6 +934,7 @@ const isCustomerActive = computed(() => {
                                     </template>
                                 </LinkAncor>
                                 <!-- End Item -->
+                                </template>
                                 </template>
                                 </template>
                             </ul>

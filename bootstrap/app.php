@@ -42,6 +42,38 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: [
             'integrations/facebook/data-deletion',
         ]);
+        $middleware->prependToPriorityList(
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \Illuminate\Routing\Middleware\ValidateSignature::class,
+        );
+        $middleware->prependToPriorityList(
+            \Illuminate\Routing\Middleware\ValidateSignature::class,
+            \App\Http\Middleware\SetLocale::class,
+        );
+        $middleware->prependToPriorityList(
+            \Illuminate\Routing\Middleware\ValidateSignature::class,
+            \App\Http\Middleware\SecurityHeaders::class,
+        );
+        $middleware->prependToPriorityList(
+            \Illuminate\Routing\Middleware\ValidateSignature::class,
+            \App\Http\Middleware\HandleInertiaRequests::class,
+        );
+        $middleware->prependToPriorityList(
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \App\Http\Middleware\EnsureClientPortalAccess::class,
+        );
+        $middleware->prependToPriorityList(
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \App\Http\Middleware\EnsureClientUser::class,
+        );
+        $middleware->prependToPriorityList(
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \App\Http\Middleware\EnsureNotSuspended::class,
+        );
+        $middleware->prependToPriorityList(
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \App\Http\Middleware\EnsurePortalCapability::class,
+        );
 
         $middleware->alias([
             'company.feature' => \App\Http\Middleware\EnsureCompanyFeature::class,
@@ -49,6 +81,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'impersonating' => \App\Http\Middleware\EnsureImpersonating::class,
             'demo.safe' => \App\Http\Middleware\EnsureDemoSafeMode::class,
             'not.superadmin' => \App\Http\Middleware\EnsureNotSuperadmin::class,
+            'portal.capability' => \App\Http\Middleware\EnsurePortalCapability::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

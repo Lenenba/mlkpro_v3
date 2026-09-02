@@ -19,6 +19,7 @@ use App\Models\TeamMemberAttendance;
 use App\Models\User;
 use App\Models\WeeklyAvailability;
 use App\Notifications\ActionEmailNotification;
+use App\Services\Portal\PortalCapabilityService;
 use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationQueueService;
 use App\Services\SmsNotificationService;
@@ -323,7 +324,12 @@ it('allows a client to book a reservation from available slots', function () {
     $this->actingAs($clientUser)
         ->withSession(['two_factor_passed' => true])
         ->get(route('client.reservations.book'))
-        ->assertOk();
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Reservation/ClientBook')
+            ->where('capabilities.view', true)
+            ->where('capabilities.manage', true)
+        );
 
     $slotResponse = $this->actingAs($clientUser)
         ->withSession(['two_factor_passed' => true])
@@ -362,6 +368,115 @@ it('allows a client to book a reservation from available slots', function () {
         'status' => Reservation::STATUS_PENDING,
         'source' => Reservation::SOURCE_CLIENT,
     ]);
+});
+
+it('does not expose reservation history to a client with booking-only access', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $teamMember = createTeamMemberForAccount($owner);
+    [$clientUser, $customer] = createClientForAccount($owner, 'Booking Only Client', 'booking.only@example.com');
+    $startsAt = now('UTC')->addDays(3)->setTime(10, 0);
+
+    Reservation::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $teamMember->id,
+        'client_id' => $customer->id,
+        'client_user_id' => $clientUser->id,
+        'status' => Reservation::STATUS_PENDING,
+        'source' => Reservation::SOURCE_CLIENT,
+        'timezone' => 'UTC',
+        'starts_at' => $startsAt,
+        'ends_at' => $startsAt->copy()->addHour(),
+        'duration_minutes' => 60,
+        'buffer_minutes' => 0,
+    ]);
+
+    ReservationWaitlist::query()->create([
+        'account_id' => $owner->id,
+        'client_id' => $customer->id,
+        'client_user_id' => $clientUser->id,
+        'team_member_id' => $teamMember->id,
+        'status' => ReservationWaitlist::STATUS_PENDING,
+        'requested_start_at' => $startsAt,
+        'requested_end_at' => $startsAt->copy()->addDays(2),
+        'duration_minutes' => 60,
+    ]);
+
+    ReservationQueueItem::query()->create([
+        'account_id' => $owner->id,
+        'client_id' => $customer->id,
+        'client_user_id' => $clientUser->id,
+        'team_member_id' => $teamMember->id,
+        'item_type' => ReservationQueueItem::TYPE_TICKET,
+        'source' => 'client',
+        'queue_number' => 'BOOK-ONLY-001',
+        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+        'estimated_duration_minutes' => 60,
+        'checked_in_at' => now('UTC'),
+    ]);
+
+    $this->partialMock(PortalCapabilityService::class, function ($mock) use ($clientUser): void {
+        $mock->shouldReceive('forUser')
+            ->withArgs(fn (User $user): bool => $user->is($clientUser))
+            ->andReturn([
+                'version' => 1,
+                'reservations' => [
+                    'view' => false,
+                    'book' => true,
+                    'manage' => false,
+                    'review' => false,
+                ],
+            ]);
+    });
+    $this->partialMock(ReservationQueueService::class, function ($mock): void {
+        $mock->shouldNotReceive('clientTickets');
+    });
+
+    $this->actingAs($clientUser)
+        ->withSession(['two_factor_passed' => true])
+        ->get(route('client.reservations.book'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Reservation/ClientBook')
+            ->where('capabilities.view', false)
+            ->where('capabilities.manage', false)
+            ->has('upcomingReservations', 0)
+            ->has('waitlistEntries', 0)
+            ->has('queueTickets', 0)
+        );
+});
+
+it('renders one reservation hub and keeps the booking deep link coherent in owner-only mode', function () {
+    config()->set('billing.plans.portal_owner_only_test', [
+        'owner_only' => true,
+        'default_modules' => [
+            'reservations' => true,
+        ],
+    ]);
+    $owner = createOwnerWithReservationsEnabled([
+        'selected_plan_key' => 'portal_owner_only_test',
+    ]);
+    [$clientUser] = createClientForAccount($owner, 'Solo Portal Client', 'solo.portal.client@example.com');
+
+    $this->actingAs($clientUser)
+        ->withSession(['two_factor_passed' => true])
+        ->get(route('client.reservations.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Reservation/ClientIndex')
+            ->where('stats.upcoming', 0)
+            ->where('settings.owner_only_mode', true)
+            ->where('settings.slot_booking_enabled', false)
+        );
+
+    $this->actingAs($clientUser)
+        ->withSession(['two_factor_passed' => true])
+        ->get(route('client.reservations.book'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Reservation/ClientBook')
+            ->where('settings.owner_only_mode', true)
+            ->where('settings.slot_booking_enabled', false)
+        );
 });
 
 it('prevents double booking on the same team member slot', function () {
@@ -573,14 +688,14 @@ it('sends reservation notifications when a client books', function () {
         ])
         ->assertCreated();
 
-    Notification::assertSentTo($owner, ActionEmailNotification::class, function (ActionEmailNotification $notification) {
-        return str_contains(strtolower($notification->title), 'reservation');
-    });
-
     $teamUser = $teamMember->user()->first();
-    Notification::assertSentTo($teamUser, ActionEmailNotification::class, function (ActionEmailNotification $notification) {
-        return str_contains(strtolower($notification->title), 'reservation');
-    });
+    $ownerNotification = Notification::sent($owner, ActionEmailNotification::class)->sole();
+    $teamNotification = Notification::sent($teamUser, ActionEmailNotification::class)->sole();
+
+    expect($ownerNotification->title)
+        ->toBe(__('reservation_notifications.lifecycle.internal.created.client_source.title', locale: $owner->preferredLocale()))
+        ->and($teamNotification->title)
+        ->toBe(__('reservation_notifications.lifecycle.internal.created.client_source.title', locale: $teamUser->preferredLocale()));
 });
 
 it('prevents marking future reservations as completed', function () {
@@ -651,8 +766,8 @@ it('allows a client to submit a review after reservation completion', function (
 
     expect(ReservationReview::query()->where('reservation_id', $reservation->id)->exists())->toBeTrue();
 
-    Notification::assertSentTo($owner, ActionEmailNotification::class, function (ActionEmailNotification $notification) {
-        return str_contains(strtolower($notification->title), 'review');
+    Notification::assertSentTo($owner, ActionEmailNotification::class, function (ActionEmailNotification $notification) use ($owner) {
+        return $notification->title === __('reservation_notifications.lifecycle.internal.review_submitted.title', locale: $owner->preferredLocale());
     });
 });
 
@@ -3814,6 +3929,7 @@ it('sends queue notifications for pre-call, call, and grace expiry', function ()
     $owner = createOwnerWithReservationsEnabled();
     $teamMember = createTeamMemberForAccount($owner);
     [$clientUser, $customer] = createClientForAccount($owner, 'Queue Notify Client', 'queue.notify.client@example.com');
+    $clientUser->update(['locale' => 'es']);
 
     $owner->update([
         'company_notification_settings' => [
@@ -3873,8 +3989,8 @@ it('sends queue notifications for pre-call, call, and grace expiry', function ()
         ->patchJson(route('reservation.queue.pre-call', $ticket))
         ->assertOk();
 
-    Notification::assertSentTo($clientUser, ActionEmailNotification::class, function (ActionEmailNotification $notification) {
-        return str_contains(strtolower($notification->title), 'pre-call');
+    Notification::assertSentTo($clientUser, ActionEmailNotification::class, function (ActionEmailNotification $notification) use ($clientUser) {
+        return $notification->title === __('reservation_notifications.queue.client.queue_pre_call.title', locale: $clientUser->preferredLocale());
     });
 
     $this->actingAs($owner)
@@ -3882,8 +3998,8 @@ it('sends queue notifications for pre-call, call, and grace expiry', function ()
         ->patchJson(route('reservation.queue.call', $ticket))
         ->assertOk();
 
-    Notification::assertSentTo($clientUser, ActionEmailNotification::class, function (ActionEmailNotification $notification) {
-        return str_contains(strtolower($notification->title), 'queue called');
+    Notification::assertSentTo($clientUser, ActionEmailNotification::class, function (ActionEmailNotification $notification) use ($clientUser) {
+        return $notification->title === __('reservation_notifications.queue.client.queue_called.title', locale: $clientUser->preferredLocale());
     });
 
     ReservationQueueItem::query()
@@ -3898,8 +4014,8 @@ it('sends queue notifications for pre-call, call, and grace expiry', function ()
         ->get(route('reservation.index'))
         ->assertOk();
 
-    Notification::assertSentTo($clientUser, ActionEmailNotification::class, function (ActionEmailNotification $notification) {
-        return str_contains(strtolower($notification->title), 'grace expired');
+    Notification::assertSentTo($clientUser, ActionEmailNotification::class, function (ActionEmailNotification $notification) use ($clientUser) {
+        return $notification->title === __('reservation_notifications.queue.client.queue_grace_expired.title', locale: $clientUser->preferredLocale());
     });
 });
 
@@ -3909,6 +4025,7 @@ it('sends queue sms notifications when sms channel is enabled', function () {
     $owner = createOwnerWithReservationsEnabled();
     $teamMember = createTeamMemberForAccount($owner);
     [$clientUser, $customer] = createClientForAccount($owner, 'Queue Sms Client', 'queue.sms.client@example.com');
+    $clientUser->update(['locale' => 'es']);
 
     $owner->update([
         'company_notification_settings' => [
@@ -3970,7 +4087,7 @@ it('sends queue sms notifications when sms channel is enabled', function () {
         ->once()
         ->with(
             '+15550001111',
-            \Mockery::on(fn (string $message) => str_contains(strtolower($message), 'turn'))
+            \Mockery::on(fn (string $message) => str_contains(mb_strtolower($message), 'es tu turno'))
         )
         ->andReturn(true);
     $this->app->instance(SmsNotificationService::class, $smsMock);
@@ -3989,6 +4106,7 @@ it('sends one queue eta sms alert when eta enters the 10 minute window', functio
     $owner = createOwnerWithReservationsEnabled();
     $teamMember = createTeamMemberForAccount($owner);
     [$clientUser, $customer] = createClientForAccount($owner, 'Queue Eta Client', 'queue.eta.client@example.com');
+    $clientUser->update(['locale' => 'en']);
 
     $owner->update([
         'company_notification_settings' => [
@@ -4061,7 +4179,7 @@ it('sends one queue eta sms alert when eta enters the 10 minute window', functio
         ->once()
         ->with(
             '+15550001111',
-            \Mockery::on(fn (string $message) => str_contains(strtolower($message), 'about 5 min'))
+            \Mockery::on(fn (string $message) => str_contains(strtolower($message), 'approximately 5 minutes'))
         )
         ->andReturn(true);
     $this->app->instance(SmsNotificationService::class, $smsMock);
@@ -4086,6 +4204,7 @@ it('sends queue missed-turn sms when grace expires', function () {
     $owner = createOwnerWithReservationsEnabled();
     $teamMember = createTeamMemberForAccount($owner);
     [$clientUser, $customer] = createClientForAccount($owner, 'Queue Missed Client', 'queue.missed.client@example.com');
+    $clientUser->update(['locale' => 'fr']);
 
     $owner->update([
         'company_notification_settings' => [
@@ -4148,7 +4267,7 @@ it('sends queue missed-turn sms when grace expires', function () {
         ->once()
         ->with(
             '+15550001111',
-            \Mockery::on(fn (string $message) => str_contains(strtolower($message), 'turn was missed'))
+            \Mockery::on(fn (string $message) => str_contains(mb_strtolower($message), 'délai de présentation a expiré'))
         )
         ->andReturn(true);
     $this->app->instance(SmsNotificationService::class, $smsMock);
@@ -4172,6 +4291,7 @@ it('sends queue status change sms when status-change notifications are enabled',
     $owner = createOwnerWithReservationsEnabled();
     $teamMember = createTeamMemberForAccount($owner);
     [$clientUser, $customer] = createClientForAccount($owner, 'Queue Status Client', 'queue.status.client@example.com');
+    $clientUser->update(['locale' => 'en']);
 
     $owner->update([
         'company_notification_settings' => [

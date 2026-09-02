@@ -10,18 +10,21 @@ use App\Models\User;
 use App\Models\Work;
 use App\Notifications\ActionEmailNotification;
 use App\Services\Portal\PortalAccessService;
+use App\Services\Portal\PortalCapabilityService;
 use App\Services\TaskBillingService;
 use App\Services\UsageLimitService;
 use App\Services\WorkBillingService;
 use App\Services\WorkScheduleService;
 use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class PortalWorkController extends Controller
 {
     public function __construct(
-        private readonly PortalAccessService $portalAccess
+        private readonly PortalAccessService $portalAccess,
+        private readonly PortalCapabilityService $portalCapabilities,
     ) {}
 
     public function validateWork(Request $request, Work $work, WorkBillingService $billingService)
@@ -57,21 +60,27 @@ class PortalWorkController extends Controller
         }
 
         $previousStatus = $work->status;
-        $work->status = Work::STATUS_VALIDATED;
-        $work->save();
+        $owner = User::query()->findOrFail($work->user_id);
+        $billingResolver = app(TaskBillingService::class);
+        $shouldCreateInvoice = $request->user() instanceof User
+            && $this->portalCapabilities->allows($request->user(), 'invoices.create')
+            && $billingResolver->shouldInvoiceOnWorkValidation($work);
+
+        DB::transaction(function () use ($billingService, $owner, $shouldCreateInvoice, $work): void {
+            $work->status = Work::STATUS_VALIDATED;
+            $work->save();
+
+            if ($shouldCreateInvoice) {
+                $billingService->createInvoiceFromWork($work, $owner);
+            }
+        });
 
         ActivityLog::record($request->user(), $work, 'status_changed', [
             'from' => $previousStatus,
             'to' => $work->status,
         ], 'Job validated by client');
 
-        $billingResolver = app(TaskBillingService::class);
-        if ($billingResolver->shouldInvoiceOnWorkValidation($work)) {
-            $billingService->createInvoiceFromWork($work, $request->user());
-        }
-
-        $owner = User::find($work->user_id);
-        if ($owner && $owner->email) {
+        if ($owner->email) {
             $customerLabel = $customer->company_name
                 ?: trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
 

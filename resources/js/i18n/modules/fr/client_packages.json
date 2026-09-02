@@ -26,12 +26,14 @@
       "remaining": "Restant",
       "consumed": "Consomme",
       "allocation": "Quota du mois",
-      "carried_over": "Reliquat ajoute"
+      "carried_over": "Reliquat ajoute",
+      "balance_progress": "Solde restant pour {name}"
     },
     "actions": {
       "request_renewal": "Demander le renouvellement",
       "request_cancellation": "Demander l'annulation",
       "submit_request": "Envoyer la demande",
+      "submitting_request": "Envoi en cours…",
       "cancel": "Annuler",
       "view_invoice": "Voir / payer"
     },

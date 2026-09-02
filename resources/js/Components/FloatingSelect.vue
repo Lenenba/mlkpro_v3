@@ -23,6 +23,14 @@ const props = defineProps({
         type: String,
         default: '',
     },
+    toggleLabel: {
+        type: String,
+        default: '',
+    },
+    selectOnFocus: {
+        type: Boolean,
+        default: false,
+    },
     required: {
         type: Boolean,
         default: false,
@@ -62,6 +70,12 @@ const isFocused = ref(false);
 const isFiltering = ref(false);
 const attrs = useAttrs();
 const controlId = computed(() => attrs.id || generatedId);
+const listboxId = computed(() => `${controlId.value}-listbox`);
+const resolvedToggleLabel = computed(() => props.toggleLabel
+    || props.label
+    || props.filterPlaceholder
+    || props.placeholder
+    || undefined);
 
 const normalizedOptions = computed(() =>
     (props.options || []).map((option, index) => {
@@ -79,6 +93,7 @@ const normalizedOptions = computed(() =>
                 label,
                 disabled: Boolean(option.disabled),
                 key: option.key ?? value ?? label ?? index,
+                id: `${controlId.value}-option-${index}`,
                 search,
             };
         }
@@ -88,6 +103,7 @@ const normalizedOptions = computed(() =>
             label: String(option),
             disabled: false,
             key: option ?? index,
+            id: `${controlId.value}-option-${index}`,
             search: String(option ?? '').toLowerCase(),
         };
     })
@@ -148,6 +164,18 @@ const filteredOptions = computed(() => {
         list.findIndex((entry) => entry.key === option.key) === index
     );
 });
+const activeOptionId = computed(() => {
+    if (!isOpen.value || activeIndex.value < 0) {
+        return undefined;
+    }
+
+    return filteredOptions.value[activeIndex.value]?.id;
+});
+const isOptionSelected = (option) => {
+    const selectedValue = Array.isArray(model.value) ? model.value[0] : model.value;
+
+    return String(option?.value ?? '') === String(selectedValue ?? '');
+};
 
 const setActiveIndex = (index) => {
     const list = filteredOptions.value;
@@ -238,13 +266,17 @@ const selectOption = (option) => {
     closeDropdown();
 };
 
-const handleFocus = () => {
+const handleFocus = (event) => {
     if (!useFilterInput.value) {
         return;
     }
     isFocused.value = true;
     isFiltering.value = false;
     openDropdown();
+
+    if (props.selectOnFocus) {
+        event.currentTarget?.select();
+    }
 };
 
 const handleBlur = () => {
@@ -416,9 +448,7 @@ watch(
         }
 
         const match = resolveMatch(value);
-        if (match) {
-            model.value = match.value;
-        }
+        model.value = match ? match.value : '';
     }
 );
 
@@ -445,6 +475,11 @@ defineExpose({ focus: () => input.value.focus() });
             :aria-required="required ? 'true' : undefined"
             :placeholder="filterPlaceholder || placeholder || label"
             :aria-label="filterPlaceholder || label"
+            role="combobox"
+            aria-autocomplete="list"
+            :aria-expanded="isOpen"
+            :aria-controls="listboxId"
+            :aria-activedescendant="activeOptionId"
             autocomplete="off"
             @focus="handleFocus"
             @blur="handleBlur"
@@ -456,9 +491,13 @@ defineExpose({ focus: () => input.value.focus() });
             type="button"
             class="absolute inset-y-0 end-0 flex items-center px-3 text-stone-400 hover:text-stone-600 dark:text-neutral-500 dark:hover:text-neutral-300"
             :class="isDisabled ? 'pointer-events-none opacity-50' : ''"
+            :disabled="isDisabled"
+            :aria-label="resolvedToggleLabel"
+            :aria-controls="listboxId"
+            :aria-expanded="isOpen"
+            aria-haspopup="listbox"
             @mousedown.prevent
             @click="toggleDropdown"
-            aria-label="Toggle options"
         >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                 <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.104l3.71-3.873a.75.75 0 1 1 1.08 1.04l-4.24 4.43a.75.75 0 0 1-1.08 0L5.21 8.27a.75.75 0 0 1 .02-1.06z" clip-rule="evenodd" />
@@ -489,13 +528,20 @@ defineExpose({ focus: () => input.value.focus() });
         </label>
         <div
             v-if="useFilterInput && isOpen"
+            :id="listboxId"
             class="absolute z-30 mt-1 w-full max-h-60 overflow-auto rounded-sm border border-stone-200 bg-white py-1 text-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:border-neutral-700 dark:bg-neutral-900 dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)]"
+            role="listbox"
+            :aria-label="label"
         >
             <button
                 v-for="(option, index) in filteredOptions"
                 :key="option.key"
+                :id="option.id"
                 type="button"
                 class="flex min-w-0 w-full items-center whitespace-normal break-words px-3 py-2 text-left text-sm text-stone-700 transition dark:text-neutral-200"
+                role="option"
+                :aria-selected="isOptionSelected(option)"
+                :aria-disabled="option.disabled"
                 :class="[
                     option.disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-stone-100 dark:hover:bg-neutral-800',
                     index === activeIndex ? 'bg-stone-100 dark:bg-neutral-800' : '',

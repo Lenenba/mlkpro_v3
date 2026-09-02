@@ -671,7 +671,7 @@
     "client": {
       "book": {
         "title": "Réserver",
-        "subtitle": "Choisissez un créneau disponible.",
+        "subtitle": "Réservez en quelques étapes : précisez votre besoin, choisissez un créneau et vérifiez les détails.",
         "my_reservations": "Mes réservations",
         "summary_title": "Détails de la réservation",
         "selected_slot": "Créneau sélectionné",
@@ -683,9 +683,80 @@
         "select_slot_error": "Sélectionnez un créneau disponible pour continuer.",
         "deposit_notice": "Acompte de réservation requis : {amount}",
         "no_show_notice": "Politique d'absence : {amount}",
+        "slot_conflict_error": "Ce créneau n'est plus disponible. Choisissez-en un autre.",
+        "generic_service": "Réservation générale",
+        "generic_service_description": "Continuez sans choisir un service précis.",
+        "service_fallback_description": "Service offert sur réservation.",
+        "service_search_hint": "Tapez quelques lettres pour filtrer automatiquement les services proposés.",
+        "follow_up_title": "Après votre réservation",
+        "stepper": {
+          "aria_label": "Étapes de réservation",
+          "progress": "Étape {current} sur {total}",
+          "step_label": "Étape {current} sur {total} : {label}",
+          "completed": "Étape terminée"
+        },
+        "steps": {
+          "preferences": {
+            "label": "Votre besoin",
+            "short": "Besoin",
+            "eyebrow": "Étape 1",
+            "title": "Préparez votre demande",
+            "description": "Choisissez le service, le professionnel souhaité et le nombre de personnes."
+          },
+          "slot": {
+            "label": "Votre créneau",
+            "short": "Créneau",
+            "eyebrow": "Étape 2",
+            "title": "Choisissez une disponibilité",
+            "description": "Choisissez d'abord un jour, puis l'heure qui vous convient.",
+            "week": "Semaine",
+            "previous_week": "Voir la semaine précédente",
+            "next_week": "Voir la semaine suivante",
+            "day_availability": "{date}, {count} créneau(x) disponible(s)",
+            "available_count": "{count} disponible(s)",
+            "unavailable": "Complet",
+            "times_for": "Horaires du {date}",
+            "time_hint": "Sélectionnez un horaire pour poursuivre.",
+            "slot_label": "{time}, avec {member}",
+            "no_slots_for_day": "Aucun créneau n'est disponible ce jour-là. Choisissez un autre jour."
+          },
+          "review": {
+            "label": "Vérification",
+            "short": "Vérifier",
+            "eyebrow": "Étape 3",
+            "title": "Vérifiez votre réservation",
+            "description": "Confirmez vos coordonnées et les détails avant l'envoi."
+          },
+          "done": {
+            "label": "Confirmation",
+            "short": "Terminé"
+          }
+        },
+        "summary": {
+          "service": "Service",
+          "slot": "Date et heure",
+          "party_size": "Nombre de personnes",
+          "contact": "Coordonnées",
+          "contact_hint": "Les coordonnées de votre compte sont préremplies.",
+          "not_selected": "À sélectionner",
+          "not_provided": "Non renseigné"
+        },
+        "states": {
+          "unavailable_title": "Réservation planifiée indisponible",
+          "unavailable_description": "Cette entreprise n'accepte pas les réservations planifiées depuis le portail pour le moment.",
+          "no_services": "Aucun service précis n'est proposé. Vous pouvez continuer avec une réservation générale.",
+          "no_service_match": "Aucun service ne correspond à votre recherche."
+        },
+        "success": {
+          "title": "Votre demande est envoyée",
+          "description": "L'entreprise a reçu votre demande de réservation. Vous pouvez maintenant la suivre dans Mes réservations.",
+          "description_book_only": "L'entreprise a reçu votre demande de réservation."
+        },
         "fields": {
           "team_member": "Membre d'équipe",
           "service": "Service",
+          "service_search": "Rechercher un service",
+          "service_search_placeholder": "Nom ou description du service",
           "duration": "Durée (minutes)",
           "party_size": "Nombre de personnes",
           "contact_name": "Nom du contact",
@@ -696,7 +767,13 @@
         "actions": {
           "submit": "Confirmer la réservation",
           "submitting": "Envoi...",
-          "submitted": "Demande de réservation envoyée."
+          "submitted": "Demande de réservation envoyée.",
+          "continue": "Continuer",
+          "back": "Retour",
+          "show_service_suggestions": "Afficher les suggestions de services",
+          "start_over": "Faire une autre réservation",
+          "view_reservations": "Voir mes réservations",
+          "back_to_dashboard": "Retour au tableau de bord"
         },
         "waitlist": {
           "title": "Liste d'attente",

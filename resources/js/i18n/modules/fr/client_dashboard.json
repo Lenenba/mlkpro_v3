@@ -2,6 +2,17 @@
   "client_dashboard": {
     "title": "Tableau client",
     "welcome": "Bon retour, {name}. Voici ce qui attend votre validation.",
+    "welcome_service": "Bon retour, {name}. Retrouvez vos réservations, demandes et interventions au même endroit.",
+    "welcome_product": "Bon retour, {name}. Retrouvez vos commandes et achats au même endroit.",
+    "welcome_hybrid": "Bon retour, {name}. Vos services et vos achats sont maintenant réunis dans un seul espace.",
+    "welcome_minimal": "Bon retour, {name}. Retrouvez ici les éléments que l'entreprise partage avec vous.",
+    "portal_navigation": "Sections de votre espace client",
+    "experience": {
+      "service": "Services",
+      "product": "Achats",
+      "hybrid": "Services et achats",
+      "minimal": "Espace essentiel"
+    },
     "profile_missing": "Votre profil client n'est pas encore lie. Contactez l'entreprise pour connecter votre compte.",
     "kpi": {
       "quotes_pending": "Devis à valider",
@@ -18,6 +29,9 @@
       "ratings_due": "Avis a laisser",
       "recently_validated": "Valide recemment",
       "schedule_preview": "Apercu planning",
+      "orders_overview": "Suivez vos commandes sans quitter votre espace services.",
+      "reservations": "Réservations",
+      "reservations_overview": "Consultez et gérez vos rendez-vous depuis un seul point d'entrée.",
       "quotes": "Devis",
       "jobs": "Chantiers"
     },
@@ -32,6 +46,9 @@
       "pay_now": "Payer",
       "pay_with_stripe": "Payer avec Stripe",
       "view_invoice_history": "Voir l'historique des factures",
+      "view_orders": "Voir les commandes",
+      "view_reservations": "Voir mes réservations",
+      "book_reservation": "Réserver",
       "submit": "Envoyer",
       "close": "Fermer",
       "request_changes": "Demander changements",
@@ -51,6 +68,7 @@
       "completed_on": "Termine {date}",
       "issued_on": "Emis {date}",
       "amount": "Montant",
+      "payment_method": "Mode de paiement",
       "partial_payment_help": "Vous pouvez payer le solde complet ou choisir un montant partiel.",
       "pay_full_balance": "Payer le solde",
       "pay_half": "50%",
@@ -103,6 +121,7 @@
       "job_ratings": "Aucun avis de chantier a laisser.",
       "validated_quotes": "Aucun devis valide.",
       "validated_jobs": "Aucun chantier valide.",
+      "minimal": "Aucun nouveau parcours n'est actif pour le moment. Les documents et historiques partagés resteront accessibles ici.",
       "schedule_details": "Les details du planning ne sont pas encore disponibles."
     },
     "frequency": {

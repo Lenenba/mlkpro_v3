@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Support\LocalePreference;
 use App\Support\Notifications\UserNotificationCenter;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\DatabaseNotification;
@@ -19,7 +20,8 @@ class NotificationController extends Controller
         return response()->json(
             app(UserNotificationCenter::class)->pagePayload(
                 $user,
-                $request->only(['status', 'type', 'per_page'])
+                $request->only(['status', 'type', 'per_page']),
+                LocalePreference::forRequest($request, $user)
             )
         );
     }

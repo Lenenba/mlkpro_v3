@@ -20,6 +20,12 @@
     },
     "ledger": {
       "title": "Points history"
+    },
+    "feedback": {
+      "load_error": "Unable to refresh your points. Please try again.",
+      "loading": "Refreshing...",
+      "retry": "Try again",
+      "retrying": "Retrying..."
     }
   }
 }

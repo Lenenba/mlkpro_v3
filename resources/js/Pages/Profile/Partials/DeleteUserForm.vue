@@ -7,9 +7,11 @@ import SecondaryButton from '@/Components/SecondaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { useForm } from '@inertiajs/vue3';
 import { nextTick, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const confirmingUserDeletion = ref(false);
 const passwordInput = ref(null);
+const { t } = useI18n();
 
 const form = useForm({
     password: '',
@@ -41,37 +43,33 @@ const closeModal = () => {
 <template>
     <section class="space-y-6">
         <header>
-            <h2 class="text-lg font-medium text-stone-900">
-                Delete Account
+            <h2 class="text-lg font-medium text-stone-900 dark:text-neutral-100">
+                {{ t('account.profile_page.deletion.title') }}
             </h2>
 
-            <p class="mt-1 text-sm text-stone-600">
-                Once your account is deleted, all of its resources and data will
-                be permanently deleted. Before deleting your account, please
-                download any data or information that you wish to retain.
+            <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
+                {{ t('account.profile_page.deletion.subtitle') }}
             </p>
         </header>
 
-        <DangerButton @click="confirmUserDeletion">Delete Account</DangerButton>
+        <DangerButton @click="confirmUserDeletion">{{ t('account.profile_page.actions.delete') }}</DangerButton>
 
         <Modal :show="confirmingUserDeletion" @close="closeModal">
-            <div class="p-6">
+            <div class="p-6" :aria-busy="form.processing">
                 <h2
-                    class="text-lg font-medium text-stone-900"
+                    class="text-lg font-medium text-stone-900 dark:text-neutral-100"
                 >
-                    Are you sure you want to delete your account?
+                    {{ t('account.profile_page.deletion.confirm_title') }}
                 </h2>
 
-                <p class="mt-1 text-sm text-stone-600">
-                    Once your account is deleted, all of its resources and data
-                    will be permanently deleted. Please enter your password to
-                    confirm you would like to permanently delete your account.
+                <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
+                    {{ t('account.profile_page.deletion.confirm_body') }}
                 </p>
 
                 <div class="mt-6">
                     <InputLabel
                         for="password"
-                        value="Password"
+                        :value="t('account.profile_page.deletion.password')"
                         class="sr-only"
                     />
 
@@ -81,7 +79,8 @@ const closeModal = () => {
                         v-model="form.password"
                         type="password"
                         class="mt-1 block w-full"
-                        placeholder="Password"
+                        :placeholder="t('account.profile_page.deletion.password')"
+                        :disabled="form.processing"
                         @keyup.enter="deleteUser"
                     />
 
@@ -89,8 +88,8 @@ const closeModal = () => {
                 </div>
 
                 <div class="mt-6 flex justify-end">
-                    <SecondaryButton @click="closeModal">
-                        Cancel
+                    <SecondaryButton :disabled="form.processing" @click="closeModal">
+                        {{ t('account.profile_page.actions.cancel') }}
                     </SecondaryButton>
 
                     <DangerButton
@@ -99,7 +98,7 @@ const closeModal = () => {
                         :disabled="form.processing"
                         @click="deleteUser"
                     >
-                        Delete Account
+                        {{ form.processing ? t('account.profile_page.actions.deleting') : t('account.profile_page.actions.delete') }}
                     </DangerButton>
                 </div>
             </div>

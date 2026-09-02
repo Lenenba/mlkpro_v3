@@ -171,6 +171,7 @@
       "invoices": "Aucune facture pour le moment."
     },
     "pagination": {
+      "label": "Pagination des factures",
       "previous": "Precedent",
       "next": "Suivant",
       "of": "sur"

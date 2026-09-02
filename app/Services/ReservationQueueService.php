@@ -228,11 +228,11 @@ class ReservationQueueService
         );
 
         return $item->fresh([
-            'teamMember.user:id,name',
+            'teamMember.user:id,name,locale',
             'service:id,name',
             'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
-            'client.portalUser:id,name,email,phone_number',
-            'clientUser:id,name,email,phone_number',
+            'client.portalUser:id,name,email,phone_number,locale',
+            'clientUser:id,name,email,phone_number,locale',
         ]) ?: $item;
     }
 
@@ -415,16 +415,16 @@ class ReservationQueueService
             }
 
             $updated = $locked->fresh([
-                'teamMember.user:id,name',
+                'teamMember.user:id,name,locale',
                 'service:id,name,price,currency_code,tax_rate',
                 'checkoutPayment:id,reservation_queue_item_id,amount,currency_code,tip_amount,charged_total,status,paid_at',
                 'reservation:id,starts_at,status',
                 'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
-                'client.portalUser:id,name,email,phone_number',
-                'clientUser:id,name,email,phone_number',
+                'client.portalUser:id,name,email,phone_number,locale',
+                'clientUser:id,name,email,phone_number,locale',
                 'reservation.client:id,first_name,last_name,company_name,email,phone,portal_user_id',
-                'reservation.client.portalUser:id,name,email,phone_number',
-                'reservation.clientUser:id,name,email,phone_number',
+                'reservation.client.portalUser:id,name,email,phone_number,locale',
+                'reservation.clientUser:id,name,email,phone_number,locale',
             ]) ?: $locked;
 
             $nextStatus = (string) ($payload['status'] ?? $updated->status);
@@ -451,16 +451,16 @@ class ReservationQueueService
         );
 
         return $result['item']->fresh([
-            'teamMember.user:id,name',
+            'teamMember.user:id,name,locale',
             'service:id,name,price,currency_code,tax_rate',
             'checkoutPayment:id,reservation_queue_item_id,amount,currency_code,tip_amount,charged_total,status,paid_at',
             'reservation:id,starts_at,status',
             'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
-            'client.portalUser:id,name,email,phone_number',
-            'clientUser:id,name,email,phone_number',
+            'client.portalUser:id,name,email,phone_number,locale',
+            'clientUser:id,name,email,phone_number,locale',
             'reservation.client:id,first_name,last_name,company_name,email,phone,portal_user_id',
-            'reservation.client.portalUser:id,name,email,phone_number',
-            'reservation.clientUser:id,name,email,phone_number',
+            'reservation.client.portalUser:id,name,email,phone_number,locale',
+            'reservation.clientUser:id,name,email,phone_number,locale',
         ]) ?: $result['item'];
     }
 
@@ -479,11 +479,11 @@ class ReservationQueueService
             $item = ReservationQueueItem::query()
                 ->forAccount($accountId)
                 ->with([
-                    'teamMember.user:id,name',
+                    'teamMember.user:id,name,locale',
                     'service:id,name',
                     'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
-                    'client.portalUser:id,name,email,phone_number',
-                    'clientUser:id,name,email,phone_number',
+                    'client.portalUser:id,name,email,phone_number,locale',
+                    'clientUser:id,name,email,phone_number,locale',
                 ])
                 ->find($itemId);
             $actor = User::query()->find($actorId);
@@ -561,15 +561,15 @@ class ReservationQueueService
             ->forAccount($accountId)
             ->with([
                 'service:id,name',
-                'teamMember.user:id,name,email',
+                'teamMember.user:id,name,email,locale',
                 'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
-                'client.portalUser:id,name,email,phone_number',
-                'clientUser:id,name,email,phone_number',
+                'client.portalUser:id,name,email,phone_number,locale',
+                'clientUser:id,name,email,phone_number,locale',
                 'reservation:id,starts_at,status,team_member_id,client_id,client_user_id',
                 'reservation.client:id,first_name,last_name,company_name,email,phone,portal_user_id',
-                'reservation.client.portalUser:id,name,email,phone_number',
-                'reservation.clientUser:id,name,email,phone_number',
-                'reservation.teamMember.user:id,name,email',
+                'reservation.client.portalUser:id,name,email,phone_number,locale',
+                'reservation.clientUser:id,name,email,phone_number,locale',
+                'reservation.teamMember.user:id,name,email,locale',
             ])
             ->find($itemId);
     }
@@ -802,7 +802,7 @@ class ReservationQueueService
             $reservation = Reservation::query()
                 ->forAccount($accountId)
                 ->with([
-                    'teamMember.user:id,name',
+                    'teamMember.user:id,name,locale',
                     'client:id,first_name,last_name,company_name',
                     'service:id,name,price',
                 ])
@@ -856,7 +856,7 @@ class ReservationQueueService
         $query = ReservationQueueItem::query()
             ->forAccount($accountId)
             ->with([
-                'teamMember.user:id,name',
+                'teamMember.user:id,name,locale',
                 'service:id,name,price,currency_code,tax_rate',
                 'checkoutPayment:id,reservation_queue_item_id,amount,currency_code,tip_amount,charged_total,status,paid_at',
                 'client:id,first_name,last_name,company_name,email',
@@ -1268,7 +1268,7 @@ class ReservationQueueService
                 $query->whereIn('status', ReservationQueueItem::ACTIVE_STATUSES)
                     ->orWhere('updated_at', '>=', now('UTC')->subDays(2));
             })
-            ->with(['teamMember.user:id,name', 'service:id,name'])
+            ->with(['teamMember.user:id,name,locale', 'service:id,name'])
             ->orderByDesc('created_at')
             ->limit($limit)
             ->get()
@@ -1518,15 +1518,15 @@ class ReservationQueueService
             if ($crossedEtaThreshold) {
                 $this->notificationService->handleQueueEvent($item->fresh([
                     'service:id,name',
-                    'teamMember.user:id,name,email',
+                    'teamMember.user:id,name,email,locale',
                     'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
-                    'client.portalUser:id,name,email,phone_number',
-                    'clientUser:id,name,email,phone_number',
+                    'client.portalUser:id,name,email,phone_number,locale',
+                    'clientUser:id,name,email,phone_number,locale',
                     'reservation:id,starts_at,status,team_member_id,client_id,client_user_id',
                     'reservation.client:id,first_name,last_name,company_name,email,phone,portal_user_id',
-                    'reservation.client.portalUser:id,name,email,phone_number',
-                    'reservation.clientUser:id,name,email,phone_number',
-                    'reservation.teamMember.user:id,name,email',
+                    'reservation.client.portalUser:id,name,email,phone_number,locale',
+                    'reservation.clientUser:id,name,email,phone_number,locale',
+                    'reservation.teamMember.user:id,name,email,locale',
                 ]) ?: $item, 'queue_eta_10m');
             }
         }

@@ -7,6 +7,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\CompanyFeatureService;
 use App\Services\Portal\PortalAccessService;
+use App\Services\Portal\PortalCapabilityService;
 use App\Services\Rbac\PermissionCatalog;
 use App\Services\SecurityEventService;
 use App\Services\TenantBrandingResolver;
@@ -24,6 +25,7 @@ class AuthController extends Controller
 {
     public function __construct(
         private readonly PortalAccessService $portalAccessService,
+        private readonly PortalCapabilityService $portalCapabilityService,
     ) {}
 
     protected function buildMeta(User $user): array
@@ -34,6 +36,12 @@ class AuthController extends Controller
         $tenantBranding = $brandingResolver->forAccountOwner($owner);
 
         $features = $owner ? app(CompanyFeatureService::class)->resolveEnabledFeatures($owner) : [];
+        $portalCapabilities = null;
+        $portalContext = null;
+        if ($user->isClient() && $this->portalAccessService->clientHasPortalAccess($user)) {
+            $portalCapabilities = $this->portalCapabilityService->forUser($user);
+            $portalContext = $this->portalCapabilityService->context($portalCapabilities);
+        }
 
         $teamMembership = null;
         if (! $user->isAccountOwner()) {
@@ -77,6 +85,8 @@ class AuthController extends Controller
                 'has_custom_logo' => $tenantBranding['has_custom_logo'],
             ] : null,
             'features' => $features,
+            ...($portalCapabilities !== null ? ['portal_capabilities' => $portalCapabilities] : []),
+            ...($portalContext !== null ? ['portal_context' => $portalContext] : []),
             'platform' => $platformAdmin ? [
                 'role' => $platformAdmin->role,
                 'permissions' => $platformAdmin->permissions ?? [],

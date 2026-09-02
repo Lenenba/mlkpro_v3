@@ -670,8 +670,8 @@
     },
     "client": {
       "book": {
-        "title": "Reserva de libros",
-        "subtitle": "Elija la ranura que mejor se adapte a sus necesidades.",
+        "title": "Reservar",
+        "subtitle": "Reserve en pocos pasos: indique lo que necesita, elija un horario y revise los detalles.",
         "my_reservations": "Mis reservas",
         "summary_title": "Detalles de la reserva",
         "selected_slot": "Ranura seleccionada",
@@ -683,9 +683,80 @@
         "select_slot_error": "Seleccione un espacio disponible para continuar.",
         "deposit_notice": "Depósito de reserva requerido: {amount}",
         "no_show_notice": "Política de tarifas por no presentarse: {amount}",
+        "slot_conflict_error": "Este horario ya no está disponible. Elija otro.",
+        "generic_service": "Reserva general",
+        "generic_service_description": "Continúe sin elegir un servicio específico.",
+        "service_fallback_description": "Servicio disponible con reserva.",
+        "service_search_hint": "Escriba algunas letras para filtrar automáticamente los servicios disponibles.",
+        "follow_up_title": "Después de su reserva",
+        "stepper": {
+          "aria_label": "Pasos de la reserva",
+          "progress": "Paso {current} de {total}",
+          "step_label": "Paso {current} de {total}: {label}",
+          "completed": "Paso completado"
+        },
+        "steps": {
+          "preferences": {
+            "label": "Sus necesidades",
+            "short": "Necesidades",
+            "eyebrow": "Paso 1",
+            "title": "Prepare su solicitud",
+            "description": "Elija el servicio, el profesional de su preferencia y el número de personas."
+          },
+          "slot": {
+            "label": "Su horario",
+            "short": "Horario",
+            "eyebrow": "Paso 2",
+            "title": "Elija un horario disponible",
+            "description": "Elija primero un día y después la hora que más le convenga.",
+            "week": "Semana",
+            "previous_week": "Ver la semana anterior",
+            "next_week": "Ver la semana siguiente",
+            "day_availability": "{date}, {count} horario(s) disponible(s)",
+            "available_count": "{count} disponible(s)",
+            "unavailable": "Completo",
+            "times_for": "Horarios para {date}",
+            "time_hint": "Seleccione una hora para continuar.",
+            "slot_label": "{time}, con {member}",
+            "no_slots_for_day": "No hay horarios disponibles ese día. Elija otro día."
+          },
+          "review": {
+            "label": "Revisión",
+            "short": "Revisar",
+            "eyebrow": "Paso 3",
+            "title": "Revise su reserva",
+            "description": "Confirme sus datos de contacto y los detalles antes de enviar la solicitud."
+          },
+          "done": {
+            "label": "Confirmación",
+            "short": "Listo"
+          }
+        },
+        "summary": {
+          "service": "Servicio",
+          "slot": "Fecha y hora",
+          "party_size": "Número de personas",
+          "contact": "Datos de contacto",
+          "contact_hint": "Los datos de contacto de su cuenta ya están completados.",
+          "not_selected": "Pendiente de selección",
+          "not_provided": "No indicado"
+        },
+        "states": {
+          "unavailable_title": "Reserva programada no disponible",
+          "unavailable_description": "Esta empresa no acepta reservas programadas desde el portal en este momento.",
+          "no_services": "No hay servicios específicos disponibles. Puede continuar con una reserva general.",
+          "no_service_match": "Ningún servicio coincide con su búsqueda."
+        },
+        "success": {
+          "title": "Su solicitud fue enviada",
+          "description": "La empresa recibió su solicitud de reserva. Ahora puede seguirla en Mis reservas.",
+          "description_book_only": "La empresa recibió su solicitud de reserva."
+        },
         "fields": {
           "team_member": "Miembro del equipo",
           "service": "Servicio",
+          "service_search": "Buscar un servicio",
+          "service_search_placeholder": "Nombre o descripción del servicio",
           "duration": "Duración (minutos)",
           "party_size": "Tamaño del grupo",
           "contact_name": "Nombre de contacto",
@@ -696,7 +767,13 @@
         "actions": {
           "submit": "Enviar reserva",
           "submitting": "Enviando...",
-          "submitted": "Solicitud de reserva enviada."
+          "submitted": "Solicitud de reserva enviada.",
+          "continue": "Continuar",
+          "back": "Volver",
+          "show_service_suggestions": "Mostrar sugerencias de servicios",
+          "start_over": "Hacer otra reserva",
+          "view_reservations": "Ver mis reservas",
+          "back_to_dashboard": "Volver al tablero"
         },
         "waitlist": {
           "title": "Lista de espera",

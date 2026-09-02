@@ -2,6 +2,7 @@
 import { computed, ref, reactive, watchEffect } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import ClientPortalNotice from '@/Components/Portal/ClientPortalNotice.vue';
 import ClientPortalTabs from '@/Components/Portal/ClientPortalTabs.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
@@ -440,17 +441,17 @@ const submitProductReview = (productId) => {
     <AuthenticatedLayout>
         <Head :title="t('portal_order.title', { number: orderNumber })" />
 
-        <div class="space-y-4">
-            <section class="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-white shadow-[0_30px_80px_-50px_rgba(15,23,42,0.45)] dark:border-neutral-800 dark:bg-neutral-900">
+        <div class="w-full min-w-0 max-w-full space-y-4">
+            <section class="overflow-hidden rounded-sm border border-stone-200/80 bg-white shadow-[0_30px_80px_-50px_rgba(15,23,42,0.45)] dark:border-neutral-800 dark:bg-neutral-900">
                 <div class="grid gap-0 lg:grid-cols-[1.45fr_0.95fr]">
                     <div class="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-400 to-orange-300 px-6 py-7 text-white sm:px-8">
                         <div class="absolute -right-8 top-8 h-40 w-40 rounded-full bg-white/10 blur-2xl"></div>
                         <div class="absolute bottom-0 right-20 h-28 w-28 rounded-full border border-white/15"></div>
 
                         <div class="relative flex h-full flex-col justify-between gap-6">
-                            <div class="flex items-start justify-between gap-4">
-                                <div class="space-y-4">
-                                    <div class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]">
+                            <div class="flex flex-col items-stretch gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                <div class="min-w-0 space-y-4">
+                                    <div class="inline-flex max-w-full items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]">
                                         <CompanyBrandLogo
                                             :company="company"
                                             :name="companyName"
@@ -459,11 +460,11 @@ const submitProductReview = (productId) => {
                                             class="shrink-0 !rounded-full !border-white/30 shadow-none"
                                             loading="lazy"
                                         />
-                                        {{ companyName }}
+                                        <span class="min-w-0 break-words">{{ companyName }}</span>
                                     </div>
 
-                                    <div>
-                                        <h1 class="text-3xl font-semibold tracking-tight sm:text-[2.1rem]">
+                                    <div class="min-w-0">
+                                        <h1 class="break-words text-3xl font-semibold tracking-tight sm:text-[2.1rem]">
                                             {{ t('portal_order.title', { number: orderNumber }) }}
                                         </h1>
                                         <p class="mt-2 max-w-xl text-sm leading-6 text-white/85 sm:text-base">
@@ -472,7 +473,7 @@ const submitProductReview = (productId) => {
                                     </div>
                                 </div>
 
-                                <div class="rounded-[1.35rem] border border-white/20 bg-white/10 px-4 py-3 text-right backdrop-blur">
+                                <div class="w-full rounded-sm border border-white/20 bg-white/10 px-4 py-3 text-left backdrop-blur sm:w-auto sm:shrink-0 sm:text-right">
                                     <p class="text-xs uppercase tracking-[0.18em] text-white/70">
                                         {{ t('portal_shop.summary.total') }}
                                     </p>
@@ -498,7 +499,7 @@ const submitProductReview = (productId) => {
                     </div>
 
                     <div class="flex flex-col justify-between gap-3 bg-stone-50/80 p-5 dark:bg-neutral-950/70">
-                        <div class="rounded-[1.4rem] border border-stone-200/80 bg-white px-4 py-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                        <div class="rounded-sm border border-stone-200/80 bg-white px-4 py-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
                             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500 dark:text-neutral-400">
                                 {{ t('portal_order.labels.created_on', { date: formatDate(order.created_at) }) }}
                             </p>
@@ -509,7 +510,7 @@ const submitProductReview = (productId) => {
 
                         <div
                             v-if="order.paid_at"
-                            class="rounded-[1.4rem] border border-stone-200/80 bg-white px-4 py-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900"
+                            class="rounded-sm border border-stone-200/80 bg-white px-4 py-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900"
                         >
                             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500 dark:text-neutral-400">
                                 {{ t('portal_order.labels.paid_on', { date: formatDate(order.paid_at) }) }}
@@ -524,11 +525,11 @@ const submitProductReview = (productId) => {
 
             <ClientPortalTabs
                 :tabs="productTabs"
-                aria-label="Product client sections"
+                :aria-label="t('client_orders.portal_navigation')"
                 :columns="2"
             />
 
-            <div class="flex flex-wrap items-center justify-end gap-2">
+            <div class="flex flex-wrap items-center justify-end gap-2" :aria-busy="paymentProcessing">
                 <button
                     v-if="canPayDeposit"
                     type="button"
@@ -564,9 +565,7 @@ const submitProductReview = (productId) => {
                 </Link>
             </div>
 
-            <div v-if="paymentError" class="text-right text-xs text-red-600 dark:text-red-300">
-                {{ paymentError }}
-            </div>
+            <ClientPortalNotice v-if="paymentError" :message="paymentError" tone="error" compact />
 
             <div class="grid gap-4 lg:grid-cols-[2fr_1fr]">
                 <div class="rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
@@ -737,7 +736,7 @@ const submitProductReview = (productId) => {
                                 {{ customer?.name || t('sales.labels.customer') }}
                             </span>
                         </div>
-                        <div class="mt-3 space-y-1 text-sm text-stone-700 dark:text-neutral-200">
+                        <div class="mt-3 space-y-1 break-words text-sm text-stone-700 dark:text-neutral-200">
                             <div v-if="customer?.email">{{ customer.email }}</div>
                             <div v-if="customer?.phone">{{ customer.phone }}</div>
                         </div>
@@ -815,7 +814,7 @@ const submitProductReview = (productId) => {
                                 {{ fulfillmentLabel }}
                             </span>
                         </div>
-                        <div class="mt-3 space-y-1 text-sm text-stone-700 dark:text-neutral-200">
+                        <div class="mt-3 space-y-1 break-words text-sm text-stone-700 dark:text-neutral-200">
                             <div v-if="order.fulfillment_status" class="text-xs text-stone-500 dark:text-neutral-400">
                                 {{ t('sales.show.fulfillment_status', { status: fulfillmentLabels[order.fulfillment_status] || order.fulfillment_status }) }}
                             </div>
@@ -851,14 +850,19 @@ const submitProductReview = (productId) => {
                         >
                     </div>
 
-                    <div v-if="canConfirmReceipt" class="rounded-sm border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+                    <div
+                        v-if="canConfirmReceipt"
+                        class="rounded-sm border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100"
+                        :aria-busy="confirmForm.processing"
+                    >
                         <p class="font-semibold">{{ t('portal_shop.confirm_receipt.title') }}</p>
-                        <p class="text-xs text-emerald-700">{{ t('portal_shop.confirm_receipt.subtitle') }}</p>
+                        <p class="text-xs text-emerald-700 dark:text-emerald-200">{{ t('portal_shop.confirm_receipt.subtitle') }}</p>
                         <div class="mt-2 flex flex-wrap items-center gap-2">
                             <input
                                 type="file"
                                 accept="image/*"
                                 class="text-xs text-stone-600 file:mr-2 file:rounded-sm file:border-0 file:bg-white file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-stone-700"
+                                :disabled="confirmForm.processing"
                                 @change="handleProofSelected"
                             >
                             <button
@@ -870,9 +874,7 @@ const submitProductReview = (productId) => {
                                 {{ t('portal_shop.confirm_receipt.action') }}
                             </button>
                         </div>
-                        <div v-if="confirmForm.errors.proof" class="mt-1 text-xs text-red-600">
-                            {{ confirmForm.errors.proof }}
-                        </div>
+                        <ClientPortalNotice v-if="confirmForm.errors.proof" class="mt-2" :message="confirmForm.errors.proof" tone="error" compact />
                     </div>
 
                     <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
@@ -887,9 +889,9 @@ const submitProductReview = (productId) => {
                                 <div
                                     v-for="payment in paymentTimeline"
                                     :key="payment.id"
-                                    class="flex items-center justify-between rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300"
+                                    class="flex flex-col items-start gap-2 rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 sm:flex-row sm:items-center sm:justify-between"
                                 >
-                                    <div>
+                                    <div class="min-w-0 break-words">
                                         <div class="text-[11px] uppercase tracking-wide text-stone-400 dark:text-neutral-500">
                                             {{ payment.timeline_label }}
                                         </div>
@@ -901,7 +903,7 @@ const submitProductReview = (productId) => {
                                         </div>
                                     </div>
                                     <span
-                                        class="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                                        class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium"
                                         :class="paymentEntryStatusClass(payment)"
                                     >
                                         {{ paymentEntryStatusLabel(payment) }}

@@ -26,12 +26,14 @@
       "remaining": "Restante",
       "consumed": "Consumido",
       "allocation": "Cupo mensual",
-      "carried_over": "Remanente agregado"
+      "carried_over": "Remanente agregado",
+      "balance_progress": "Saldo restante de {name}"
     },
     "actions": {
       "request_renewal": "Solicitar renovacion",
       "request_cancellation": "Solicitar cancelacion",
       "submit_request": "Enviar solicitud",
+      "submitting_request": "Enviando…",
       "cancel": "Cancelar",
       "view_invoice": "Ver / pagar"
     },

@@ -26,12 +26,14 @@
       "remaining": "Remaining",
       "consumed": "Consumed",
       "allocation": "Monthly allowance",
-      "carried_over": "Carry-over added"
+      "carried_over": "Carry-over added",
+      "balance_progress": "Remaining balance for {name}"
     },
     "actions": {
       "request_renewal": "Request renewal",
       "request_cancellation": "Request cancellation",
       "submit_request": "Send request",
+      "submitting_request": "Sending…",
       "cancel": "Cancel",
       "view_invoice": "View / pay"
     },

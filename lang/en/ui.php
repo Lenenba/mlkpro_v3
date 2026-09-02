@@ -46,4 +46,7 @@ return [
     'announcements' => [
         'media_only_requires_media' => 'Media-only display requires an image or video.',
     ],
+    'portal' => [
+        'capability_unavailable' => 'This feature is not available in your client portal.',
+    ],
 ];

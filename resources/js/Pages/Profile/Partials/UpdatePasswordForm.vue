@@ -5,11 +5,13 @@ import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const passwordInput = ref(null);
 const currentPasswordInput = ref(null);
 
 const page = usePage();
+const { t } = useI18n();
 const usernameValue = page.props.auth?.user?.email || page.props.auth?.user?.name || '';
 
 const form = useForm({
@@ -39,17 +41,16 @@ const updatePassword = () => {
 <template>
     <section>
         <header>
-            <h2 class="text-lg font-medium text-stone-900">
-                Update Password
+            <h2 class="text-lg font-medium text-stone-900 dark:text-neutral-100">
+                {{ t('account.profile_page.password.title') }}
             </h2>
 
-            <p class="mt-1 text-sm text-stone-600">
-                Ensure your account is using a long, random password to stay
-                secure.
+            <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
+                {{ t('account.profile_page.password.subtitle') }}
             </p>
         </header>
 
-        <form @submit.prevent="updatePassword" class="mt-6 space-y-6">
+        <form @submit.prevent="updatePassword" class="mt-6 space-y-6" :aria-busy="form.processing">
             <input
                 type="text"
                 class="sr-only"
@@ -60,7 +61,7 @@ const updatePassword = () => {
             />
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                    <InputLabel for="current_password" value="Current Password" />
+                    <InputLabel for="current_password" :value="t('account.profile_page.password.current')" />
 
                     <TextInput
                         id="current_password"
@@ -78,7 +79,7 @@ const updatePassword = () => {
                 </div>
 
                 <div>
-                    <InputLabel for="password" value="New Password" />
+                    <InputLabel for="password" :value="t('account.profile_page.password.new')" />
 
                     <TextInput
                         id="password"
@@ -95,7 +96,7 @@ const updatePassword = () => {
                 <div class="md:col-span-2">
                     <InputLabel
                         for="password_confirmation"
-                        value="Confirm Password"
+                        :value="t('account.profile_page.password.confirm')"
                     />
 
                     <TextInput
@@ -114,7 +115,9 @@ const updatePassword = () => {
             </div>
 
             <div class="flex items-center gap-4">
-                <PrimaryButton :disabled="form.processing">Save</PrimaryButton>
+                <PrimaryButton :disabled="form.processing">
+                    {{ form.processing ? t('account.profile_page.actions.saving') : t('account.profile_page.actions.save') }}
+                </PrimaryButton>
 
                 <Transition
                     enter-active-class="transition ease-in-out"
@@ -124,9 +127,11 @@ const updatePassword = () => {
                 >
                     <p
                         v-if="form.recentlySuccessful"
-                        class="text-sm text-stone-600"
+                        class="text-sm text-stone-600 dark:text-neutral-300"
+                        role="status"
+                        aria-live="polite"
                     >
-                        Saved.
+                        {{ t('account.profile_page.actions.saved') }}
                     </p>
                 </Transition>
             </div>

@@ -126,41 +126,39 @@ Route::group([], function () {
         ->prefix('portal')
         ->group(function () {
             Route::get('dashboard', [DashboardController::class, 'index']);
-            Route::get('orders', [PortalProductOrderController::class, 'index']);
-            Route::get('orders/history', [PortalProductOrderController::class, 'history']);
-            Route::get('orders/{sale}', [PortalProductOrderController::class, 'show']);
-            Route::get('orders/{sale}/edit', [PortalProductOrderController::class, 'edit']);
-            Route::post('orders', [PortalProductOrderController::class, 'store']);
-            Route::put('orders/{sale}', [PortalProductOrderController::class, 'update']);
-            Route::post('orders/{sale}/pay', [PortalProductOrderController::class, 'pay']);
-            Route::post('orders/{sale}/confirm', [PortalProductOrderController::class, 'confirmReceipt']);
-            Route::delete('orders/{sale}', [PortalProductOrderController::class, 'destroy']);
-            Route::post('orders/{sale}/reorder', [PortalProductOrderController::class, 'reorder']);
+            Route::get('orders', [PortalProductOrderController::class, 'index'])->middleware('portal.capability:orders.history');
+            Route::get('orders/history', [PortalProductOrderController::class, 'history'])->middleware('portal.capability:orders.history');
+            Route::get('orders/{sale}', [PortalProductOrderController::class, 'show'])->middleware('portal.capability:orders.history');
+            Route::get('orders/{sale}/edit', [PortalProductOrderController::class, 'edit'])->middleware('portal.capability:orders.update');
+            Route::post('orders', [PortalProductOrderController::class, 'store'])->middleware('portal.capability:orders.create');
+            Route::put('orders/{sale}', [PortalProductOrderController::class, 'update'])->middleware('portal.capability:orders.update');
+            Route::post('orders/{sale}/pay', [PortalProductOrderController::class, 'pay'])->middleware('portal.capability:orders.pay');
+            Route::post('orders/{sale}/confirm', [PortalProductOrderController::class, 'confirmReceipt'])->middleware('portal.capability:orders.confirm');
+            Route::delete('orders/{sale}', [PortalProductOrderController::class, 'destroy'])->middleware('portal.capability:orders.cancel');
+            Route::post('orders/{sale}/reorder', [PortalProductOrderController::class, 'reorder'])->middleware('portal.capability:orders.reorder');
             Route::get('notifications', [PortalNotificationController::class, 'index']);
             Route::post('notifications/read-all', [PortalNotificationController::class, 'markAllRead']);
             Route::post('notifications/{notification}/read', [PortalNotificationController::class, 'markRead']);
-            Route::post('quotes/{quote}/accept', [PortalQuoteController::class, 'accept']);
-            Route::post('quotes/{quote}/decline', [PortalQuoteController::class, 'decline']);
-            Route::post('works/{work}/validate', [PortalWorkController::class, 'validateWork']);
-            Route::post('works/{work}/schedule/confirm', [PortalWorkController::class, 'confirmSchedule']);
-            Route::post('works/{work}/schedule/reject', [PortalWorkController::class, 'rejectSchedule']);
-            Route::post('works/{work}/dispute', [PortalWorkController::class, 'dispute']);
-            Route::get('works/{work}/proofs', [PortalWorkProofController::class, 'show']);
-            Route::post('tasks/{task}/media', [PortalTaskMediaController::class, 'store']);
-            Route::post('invoices/{invoice}/payments', [PortalInvoiceController::class, 'storePayment']);
-            Route::post('quotes/{quote}/ratings', [PortalRatingController::class, 'storeQuote']);
-            Route::post('works/{work}/ratings', [PortalRatingController::class, 'storeWork']);
+            Route::post('quotes/{quote}/accept', [PortalQuoteController::class, 'accept'])->middleware('portal.capability:quotes.accept');
+            Route::post('quotes/{quote}/decline', [PortalQuoteController::class, 'decline'])->middleware('portal.capability:quotes.decline');
+            Route::post('works/{work}/validate', [PortalWorkController::class, 'validateWork'])->middleware('portal.capability:works.validate');
+            Route::post('works/{work}/schedule/confirm', [PortalWorkController::class, 'confirmSchedule'])->middleware('portal.capability:works.schedule');
+            Route::post('works/{work}/schedule/reject', [PortalWorkController::class, 'rejectSchedule'])->middleware('portal.capability:works.schedule');
+            Route::post('works/{work}/dispute', [PortalWorkController::class, 'dispute'])->middleware('portal.capability:works.dispute');
+            Route::get('works/{work}/proofs', [PortalWorkProofController::class, 'show'])->middleware('portal.capability:works.proofs');
+            Route::post('tasks/{task}/media', [PortalTaskMediaController::class, 'store'])->middleware('portal.capability:tasks.upload');
+            Route::post('invoices/{invoice}/payments', [PortalInvoiceController::class, 'storePayment'])->middleware('portal.capability:invoices.pay');
+            Route::post('quotes/{quote}/ratings', [PortalRatingController::class, 'storeQuote'])->middleware('portal.capability:quotes.rate');
+            Route::post('works/{work}/ratings', [PortalRatingController::class, 'storeWork'])->middleware('portal.capability:works.rate');
 
-            Route::middleware('company.feature:reservations')->group(function () {
-                Route::get('reservations/book', [ClientReservationController::class, 'book']);
-                Route::get('reservations/slots', [ClientReservationController::class, 'slots']);
-                Route::post('reservations/book', [ClientReservationController::class, 'store']);
-                Route::get('reservations', [ClientReservationController::class, 'index']);
-                Route::get('reservations/events', [ClientReservationController::class, 'events']);
-                Route::patch('reservations/{reservation}/cancel', [ClientReservationController::class, 'cancel']);
-                Route::post('reservations/{reservation}/review', [ClientReservationController::class, 'review']);
-                Route::patch('reservations/{reservation}/reschedule', [ClientReservationController::class, 'reschedule']);
-            });
+            Route::get('reservations/book', [ClientReservationController::class, 'book'])->middleware('portal.capability:reservations.book');
+            Route::get('reservations/slots', [ClientReservationController::class, 'slots'])->middleware('portal.capability:reservations.book');
+            Route::post('reservations/book', [ClientReservationController::class, 'store'])->middleware('portal.capability:reservations.book');
+            Route::get('reservations', [ClientReservationController::class, 'index'])->middleware('portal.capability:reservations.view');
+            Route::get('reservations/events', [ClientReservationController::class, 'events'])->middleware('portal.capability:reservations.view');
+            Route::patch('reservations/{reservation}/cancel', [ClientReservationController::class, 'cancel'])->middleware('portal.capability:reservations.manage');
+            Route::post('reservations/{reservation}/review', [ClientReservationController::class, 'review'])->middleware('portal.capability:reservations.review');
+            Route::patch('reservations/{reservation}/reschedule', [ClientReservationController::class, 'reschedule'])->middleware('portal.capability:reservations.manage');
         });
 
     Route::middleware(['auth:sanctum', EnsureClientPortalAccess::class, EnsureInternalUser::class, EnsureNotSuspended::class])->group(function () {

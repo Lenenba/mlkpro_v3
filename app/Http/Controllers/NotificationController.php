@@ -16,7 +16,9 @@ use App\Models\ServiceRequest;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\Work;
+use App\Services\Portal\PortalCapabilityService;
 use App\Support\Notifications\UserNotificationCenter;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,6 +26,10 @@ use Illuminate\Notifications\DatabaseNotification;
 
 class NotificationController extends Controller
 {
+    public function __construct(
+        private readonly PortalCapabilityService $portalCapabilityService,
+    ) {}
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -118,6 +124,11 @@ class NotificationController extends Controller
     private function resolveDestinationUrl(DatabaseNotification $notification, User $user): ?string
     {
         $data = is_array($notification->data) ? $notification->data : [];
+
+        if ($user->isClient()) {
+            return $this->resolveClientDestinationUrl($data, $user);
+        }
+
         $entityUrl = $this->resolveEntityUrl($data, (int) $user->accountOwnerId());
 
         if (filled($entityUrl)) {
@@ -131,6 +142,223 @@ class NotificationController extends Controller
         $actionUrl = data_get($data, 'action_url');
 
         return filled($actionUrl) ? (string) $actionUrl : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function resolveClientDestinationUrl(array $data, User $user): string
+    {
+        $dashboardUrl = route('dashboard');
+        $capabilities = $this->portalCapabilityService->forUser($user);
+        $customer = $user->customerProfile;
+
+        if (! $customer instanceof Customer) {
+            return $dashboardUrl;
+        }
+
+        $invoiceReference = $this->firstFilled($data, ['invoice_id']);
+        if ($invoiceReference !== null) {
+            if (data_get($capabilities, 'invoices.history') !== true) {
+                return $dashboardUrl;
+            }
+
+            $invoice = $this->findClientInvoice($invoiceReference, $customer);
+
+            return $invoice instanceof Invoice
+                ? route('portal.invoices.show', $invoice)
+                : $dashboardUrl;
+        }
+
+        $saleReference = $this->firstFilled($data, ['sale_id', 'order_id']);
+        if ($saleReference !== null) {
+            if (data_get($capabilities, 'orders.history') !== true) {
+                return $dashboardUrl;
+            }
+
+            $sale = $this->findClientSale($saleReference, $customer);
+
+            return $sale instanceof Sale
+                ? route('portal.orders.show', $sale)
+                : $dashboardUrl;
+        }
+
+        $reservationReference = $this->firstFilled($data, ['reservation_id']);
+        if ($reservationReference !== null) {
+            if (data_get($capabilities, 'reservations.view') !== true) {
+                return $dashboardUrl;
+            }
+
+            $reservation = $this->findClientReservation($reservationReference, $customer, $user);
+
+            return $reservation instanceof Reservation
+                ? route('client.reservations.index')
+                : $dashboardUrl;
+        }
+
+        if ($this->hasEntityReference($data)) {
+            return $dashboardUrl;
+        }
+
+        return $this->resolveSafeClientActionUrl(data_get($data, 'action_url'), $capabilities)
+            ?? $dashboardUrl;
+    }
+
+    private function findClientInvoice(mixed $id, Customer $customer): ?Invoice
+    {
+        $id = $this->normalizeId($id);
+        if ($id === null) {
+            return null;
+        }
+
+        return Invoice::query()
+            ->whereKey($id)
+            ->where('customer_id', $customer->id)
+            ->where('user_id', $customer->user_id)
+            ->first();
+    }
+
+    private function findClientSale(mixed $id, Customer $customer): ?Sale
+    {
+        $id = $this->normalizeId($id);
+        if ($id === null) {
+            return null;
+        }
+
+        return Sale::query()
+            ->whereKey($id)
+            ->where('customer_id', $customer->id)
+            ->where('user_id', $customer->user_id)
+            ->first();
+    }
+
+    private function findClientReservation(mixed $id, Customer $customer, User $user): ?Reservation
+    {
+        $id = $this->normalizeId($id);
+        if ($id === null) {
+            return null;
+        }
+
+        return Reservation::query()
+            ->whereKey($id)
+            ->where('account_id', $customer->user_id)
+            ->where(function (Builder $query) use ($customer, $user): void {
+                $query
+                    ->where('client_user_id', $user->id)
+                    ->orWhere('client_id', $customer->id);
+            })
+            ->first();
+    }
+
+    /**
+     * @param  array<string, mixed>  $capabilities
+     */
+    private function resolveSafeClientActionUrl(mixed $actionUrl, array $capabilities): ?string
+    {
+        if (! is_string($actionUrl) || blank($actionUrl)) {
+            return null;
+        }
+
+        $actionUrl = trim($actionUrl);
+        $path = $this->sameOriginPath($actionUrl);
+
+        if ($path === null || ! $this->isSafeClientPath($path, $capabilities)) {
+            return null;
+        }
+
+        return $actionUrl;
+    }
+
+    private function sameOriginPath(string $url): ?string
+    {
+        $parts = parse_url($url);
+        if ($parts === false || isset($parts['user']) || isset($parts['pass'])) {
+            return null;
+        }
+
+        $path = $parts['path'] ?? null;
+        if (! is_string($path) || ! str_starts_with($path, '/') || str_starts_with($path, '//')) {
+            return null;
+        }
+
+        $decodedPath = rawurldecode($path);
+        if (str_contains($decodedPath, '\\')
+            || preg_match('#(?:^|/)\.{1,2}(?:/|$)#', $decodedPath) === 1) {
+            return null;
+        }
+
+        $hasExplicitOrigin = isset($parts['scheme']) || isset($parts['host']) || isset($parts['port']);
+        if (! $hasExplicitOrigin) {
+            return $path;
+        }
+
+        if (! isset($parts['scheme'], $parts['host'])) {
+            return null;
+        }
+
+        $applicationParts = parse_url(url('/'));
+        if ($applicationParts === false || ! isset($applicationParts['scheme'], $applicationParts['host'])) {
+            return null;
+        }
+
+        $scheme = strtolower($parts['scheme']);
+        $applicationScheme = strtolower($applicationParts['scheme']);
+
+        if (! in_array($scheme, ['http', 'https'], true)
+            || $scheme !== $applicationScheme
+            || strtolower($parts['host']) !== strtolower($applicationParts['host'])
+            || $this->originPort($parts) !== $this->originPort($applicationParts)) {
+            return null;
+        }
+
+        return $path;
+    }
+
+    /**
+     * @param  array<string, mixed>  $parts
+     */
+    private function originPort(array $parts): ?int
+    {
+        if (isset($parts['port'])) {
+            return (int) $parts['port'];
+        }
+
+        return match (strtolower((string) ($parts['scheme'] ?? ''))) {
+            'http' => 80,
+            'https' => 443,
+            default => null,
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $capabilities
+     */
+    private function isSafeClientPath(string $path, array $capabilities): bool
+    {
+        if ($this->pathMatches($path, '/dashboard') || $this->pathMatches($path, '/profile')) {
+            return true;
+        }
+
+        $requiredCapability = match (true) {
+            $this->pathMatches($path, '/notifications') => 'notifications.view',
+            $this->pathMatches($path, '/client/reservations') => 'reservations.view',
+            $this->pathMatches($path, '/portal/orders') => 'orders.history',
+            $this->pathMatches($path, '/portal/invoices') => 'invoices.history',
+            $this->pathMatches($path, '/portal/packages') => 'packages.view',
+            $this->pathMatches($path, '/portal/loyalty') => 'loyalty.view',
+            $this->pathMatches($path, '/portal/quotes') => 'quotes.view',
+            $this->pathMatches($path, '/portal/works') => 'works.view',
+            $this->pathMatches($path, '/portal/tasks') => 'tasks.view',
+            default => null,
+        };
+
+        return $requiredCapability !== null
+            && data_get($capabilities, $requiredCapability) === true;
+    }
+
+    private function pathMatches(string $path, string $prefix): bool
+    {
+        return $path === $prefix || str_starts_with($path, $prefix.'/');
     }
 
     /**

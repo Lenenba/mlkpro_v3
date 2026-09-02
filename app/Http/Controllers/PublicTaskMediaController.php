@@ -4,16 +4,33 @@ namespace App\Http\Controllers;
 
 use App\Models\Task;
 use App\Models\TaskMedia;
+use App\Models\User;
+use App\Services\Portal\PortalCapabilityService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class PublicTaskMediaController extends Controller
 {
+    public function __construct(
+        private readonly PortalCapabilityService $portalCapabilities,
+    ) {}
+
     public function store(Request $request, Task $task): RedirectResponse
     {
         $task->loadMissing('work.customer');
         $customer = $task->customer ?: $task->work?->customer;
+        $ownerId = $task->account_id ?: $task->work?->user_id;
+        $owner = $ownerId ? User::query()->find($ownerId) : null;
+        $capabilities = $owner
+            ? $this->portalCapabilities->forOwner($owner, $customer)
+            : [];
+        abort_unless(
+            data_get($capabilities, 'tasks.upload') === true,
+            403,
+            __('ui.portal.capability_unavailable')
+        );
+
         if ($customer && $customer->auto_validate_tasks) {
             return redirect()->back()->withErrors([
                 'status' => 'Task actions are handled by the company.',
@@ -27,7 +44,7 @@ class PublicTaskMediaController extends Controller
         ]);
 
         $file = $request->file('file');
-        if (!$file) {
+        if (! $file) {
             return redirect()->back()->withErrors([
                 'file' => 'Upload failed.',
             ]);
@@ -36,7 +53,7 @@ class PublicTaskMediaController extends Controller
         $path = $file->store('task-media', 'public');
         $mime = $file->getMimeType() ?: '';
         $mediaType = str_starts_with($mime, 'video/') ? 'video' : 'image';
-        if (!$task->account_id) {
+        if (! $task->account_id) {
             return redirect()->back()->withErrors([
                 'status' => 'Unable to record proof.',
             ]);

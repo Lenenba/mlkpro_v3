@@ -1,6 +1,8 @@
 <script setup>
 import { computed, reactive, ref, watchEffect, nextTick } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import Modal from '@/Components/Modal.vue';
+import ClientPortalTabs from '@/Components/Portal/ClientPortalTabs.vue';
 import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
@@ -14,6 +16,7 @@ import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import { useI18n } from 'vue-i18n';
 import { useCurrencyFormatter } from '@/utils/currency';
+import { buildClientPortalNavigation, resolveClientPortalMode } from '@/utils/clientPortalNavigation';
 
 const props = defineProps({
     stats: {
@@ -80,15 +83,91 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    portalCapabilities: {
+        type: Object,
+        default: () => ({}),
+    },
+    portalContext: {
+        type: Object,
+        default: () => ({}),
+    },
+    orderOverview: {
+        type: Object,
+        default: null,
+    },
 });
 
 const page = usePage();
 const { t } = useI18n();
+const { formatCurrency } = useCurrencyFormatter();
 const userName = computed(() => page.props.auth?.user?.name || t('client_dashboard.labels.fallback_name'));
+const portalMode = computed(() => (
+    props.portalContext?.mode
+    || resolveClientPortalMode(props.portalCapabilities)
+));
+const dashboardWelcome = computed(() => t(
+    `client_dashboard.welcome_${portalMode.value}`,
+    { name: userName.value },
+));
 const autoValidation = computed(() => ({
     tasks: Boolean(props.autoValidation?.tasks),
     invoices: Boolean(props.autoValidation?.invoices),
 }));
+const hasPortalCapability = (domain, capability) => Boolean(props.portalCapabilities?.[domain]?.[capability]);
+const canViewPendingQuotes = computed(() => hasPortalCapability('quotes', 'view'));
+const canViewWorks = computed(() => hasPortalCapability('works', 'view'));
+const canManagePendingWorks = computed(() => (
+    hasPortalCapability('works', 'validate') || hasPortalCapability('works', 'dispute')
+));
+const canManageSchedules = computed(() => hasPortalCapability('works', 'schedule'));
+const canViewTaskProofs = computed(() => hasPortalCapability('tasks', 'view'));
+const canUploadTaskProofs = computed(() => hasPortalCapability('tasks', 'upload'));
+const canPayInvoices = computed(() => hasPortalCapability('invoices', 'pay'));
+const canViewInvoiceHistory = computed(() => hasPortalCapability('invoices', 'history'));
+const canRateQuotes = computed(() => hasPortalCapability('quotes', 'rate'));
+const canRateWorks = computed(() => hasPortalCapability('works', 'rate'));
+const canViewQuoteHistory = computed(() => (
+    hasPortalCapability('quotes', 'history')
+    && (canViewPendingQuotes.value || props.validatedQuotes.length > 0)
+));
+const reservationEntry = computed(() => {
+    if (hasPortalCapability('reservations', 'view')) {
+        return {
+            routeName: 'client.reservations.index',
+            labelKey: 'client_dashboard.actions.view_reservations',
+        };
+    }
+    if (hasPortalCapability('reservations', 'book')) {
+        return {
+            routeName: 'client.reservations.book',
+            labelKey: 'client_dashboard.actions.book_reservation',
+        };
+    }
+
+    return null;
+});
+const portalTabs = computed(() => buildClientPortalNavigation(
+    props.portalCapabilities,
+    portalMode.value,
+).map((item) => ({
+    id: item.key,
+    label: t(item.labelKey),
+    href: route(item.routeName),
+    active: item.key === 'dashboard',
+    tone: item.key === 'orders' ? 'orange' : (item.key === 'reservations' ? 'indigo' : 'emerald'),
+    badge: item.key === 'orders'
+        ? Number(props.orderOverview?.stats?.orders_total || 0)
+        : undefined,
+})));
+const hasOrderOverview = computed(() => (
+    hasPortalCapability('orders', 'view')
+    && Boolean(props.orderOverview)
+));
+const hasActiveWorkCards = computed(() => (
+    canViewPendingQuotes.value || canManageSchedules.value || canManagePendingWorks.value
+));
+const hasRatings = computed(() => canRateQuotes.value || canRateWorks.value);
+const hasValidatedHistory = computed(() => canViewQuoteHistory.value || canViewWorks.value);
 const stripeEnabled = computed(() => Boolean(props.stripe?.enabled));
 const ALLOWED_INTERNAL_METHODS = ['cash', 'card', 'bank_transfer', 'check'];
 const allowedPaymentMethods = computed(() => {
@@ -187,7 +266,7 @@ const kpiData = computed(() => {
 
 const stat = (key) => props.stats?.[key] ?? 0;
 const clientMetrics = computed(() => ([
-    {
+    ...(canViewPendingQuotes.value ? [{
         key: 'quotes-pending',
         label: t('client_dashboard.kpi.quotes_pending'),
         value: stat('quotes_pending'),
@@ -195,8 +274,8 @@ const clientMetrics = computed(() => ([
         colorClass: 'bg-stone-400/70 dark:bg-neutral-500/50',
         trend: kpiData.value.quotes_pending.trend,
         points: kpiData.value.quotes_pending.points,
-    },
-    {
+    }] : []),
+    ...(canManagePendingWorks.value ? [{
         key: 'works-pending',
         label: t('client_dashboard.kpi.jobs_pending'),
         value: stat('works_pending'),
@@ -204,8 +283,8 @@ const clientMetrics = computed(() => ([
         colorClass: 'bg-stone-400/70 dark:bg-neutral-500/50',
         trend: kpiData.value.works_pending.trend,
         points: kpiData.value.works_pending.points,
-    },
-    ...(!autoValidation.value.invoices ? [{
+    }] : []),
+    ...(canPayInvoices.value ? [{
         key: 'invoices-due',
         label: t('client_dashboard.kpi.invoices_due'),
         value: stat('invoices_due'),
@@ -214,7 +293,7 @@ const clientMetrics = computed(() => ([
         trend: kpiData.value.invoices_due.trend,
         points: kpiData.value.invoices_due.points,
     }] : []),
-    {
+    ...(hasRatings.value ? [{
         key: 'ratings-due',
         label: t('client_dashboard.kpi.ratings_due'),
         value: stat('ratings_due'),
@@ -222,10 +301,35 @@ const clientMetrics = computed(() => ([
         colorClass: 'bg-stone-400/70 dark:bg-neutral-500/50',
         trend: kpiData.value.ratings_due.trend,
         points: kpiData.value.ratings_due.points,
-    },
+    }] : []),
 ]));
 
-const { formatCurrency } = useCurrencyFormatter();
+const orderMetrics = computed(() => ([
+    {
+        key: 'orders-total',
+        label: t('client_orders.kpi.orders'),
+        value: Number(props.orderOverview?.stats?.orders_total || 0),
+        tone: 'orange',
+    },
+    {
+        key: 'orders-pending',
+        label: t('client_orders.kpi.pending'),
+        value: Number(props.orderOverview?.stats?.orders_pending || 0),
+        tone: 'amber',
+    },
+    {
+        key: 'orders-paid',
+        label: t('client_orders.kpi.paid'),
+        value: Number(props.orderOverview?.stats?.orders_paid || 0),
+        tone: 'emerald',
+    },
+    {
+        key: 'orders-amount-paid',
+        label: t('client_orders.kpi.amount_paid'),
+        value: formatCurrency(props.orderOverview?.stats?.amount_paid || 0),
+        tone: 'green',
+    },
+]));
 
 const formatDate = (value) => humanizeDate(value) || '-';
 
@@ -321,6 +425,7 @@ const statusClass = (status) => {
         case 'todo':
             return 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400';
         case 'declined':
+        case 'canceled':
         case 'overdue':
         case 'void':
             return 'bg-red-100 text-red-800 dark:bg-red-500/10 dark:text-red-400';
@@ -783,20 +888,25 @@ const submitWorkRating = (workId) => {
     <Head :title="$t('client_dashboard.title')" />
 
     <AuthenticatedLayout>
-        <div class="space-y-6">
+        <div class="w-full min-w-0 max-w-full space-y-4 sm:space-y-6">
             <section
                 class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div class="space-y-1">
-                        <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ $t('client_dashboard.title') }}
-                        </h1>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ $t('client_dashboard.title') }}
+                            </h1>
+                            <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                                {{ $t(`client_dashboard.experience.${portalMode}`) }}
+                            </span>
+                        </div>
                         <p class="text-sm text-stone-600 dark:text-neutral-400">
-                            {{ $t('client_dashboard.welcome', { name: userName }) }}
+                            {{ dashboardWelcome }}
                         </p>
                     </div>
                     <Link
-                        v-if="!profileMissing"
+                        v-if="!profileMissing && canViewInvoiceHistory"
                         :href="route('portal.invoices.index')"
                         class="inline-flex items-center text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline dark:text-emerald-400 dark:hover:text-emerald-300"
                     >
@@ -804,7 +914,8 @@ const submitWorkRating = (workId) => {
                     </Link>
                 </div>
                 <KpiMetricGrid
-                    class="mt-4"
+                    v-if="clientMetrics.length"
+                    class="mt-4 [&>*]:!rounded-sm"
                     variant="dashboard"
                     :metrics="clientMetrics"
                     grid-class="grid-cols-1 sm:grid-cols-2 xl:grid-cols-4"
@@ -812,13 +923,106 @@ const submitWorkRating = (workId) => {
                 />
             </section>
 
+            <ClientPortalTabs
+                v-if="portalTabs.length > 1"
+                :tabs="portalTabs"
+                :aria-label="$t('client_dashboard.portal_navigation')"
+                :columns="Math.min(portalTabs.length, 4)"
+            />
+
             <div v-if="profileMissing"
                 class="rounded-sm border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
                 {{ $t('client_dashboard.profile_missing') }}
             </div>
 
-            <section v-else class="grid grid-cols-1 xl:grid-cols-3 gap-4">
-                <div class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
+            <section
+                v-if="!profileMissing && reservationEntry"
+                class="flex flex-col gap-4 rounded-sm border border-indigo-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-indigo-500/20 dark:bg-neutral-900"
+            >
+                <div>
+                    <h2 class="text-lg font-semibold text-stone-900 dark:text-neutral-100">
+                        {{ $t('client_dashboard.sections.reservations') }}
+                    </h2>
+                    <p class="mt-1 text-sm text-stone-500 dark:text-neutral-400">
+                        {{ $t('client_dashboard.sections.reservations_overview') }}
+                    </p>
+                </div>
+                <Link
+                    :href="route(reservationEntry.routeName)"
+                    class="inline-flex shrink-0 items-center justify-center rounded-sm bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+                >
+                    {{ $t(reservationEntry.labelKey) }}
+                </Link>
+            </section>
+
+            <div
+                v-if="!profileMissing && portalMode === 'minimal'"
+                class="rounded-sm border border-stone-200 bg-stone-50 p-5 text-sm text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
+            >
+                {{ $t('client_dashboard.empty.minimal') }}
+            </div>
+
+            <section
+                v-if="!profileMissing && hasOrderOverview"
+                class="space-y-4 rounded-sm border border-orange-200 bg-white p-5 shadow-sm dark:border-orange-500/20 dark:bg-neutral-900"
+            >
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h2 class="text-lg font-semibold text-stone-900 dark:text-neutral-100">
+                            {{ $t('client_orders.title') }}
+                        </h2>
+                        <p class="mt-1 text-sm text-stone-500 dark:text-neutral-400">
+                            {{ $t('client_dashboard.sections.orders_overview') }}
+                        </p>
+                    </div>
+                    <Link
+                        :href="route('portal.orders.index')"
+                        class="inline-flex items-center text-sm font-semibold text-orange-700 hover:underline dark:text-orange-300"
+                    >
+                        {{ $t('client_dashboard.actions.view_orders') }}
+                    </Link>
+                </div>
+
+                <KpiMetricGrid
+                    class="[&>*]:!rounded-sm"
+                    variant="dashboard"
+                    :metrics="orderMetrics"
+                    grid-class="grid-cols-1 sm:grid-cols-2 xl:grid-cols-4"
+                    :aria-label="$t('client_orders.title')"
+                />
+
+                <div v-if="orderOverview.sales?.length" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    <Link
+                        v-for="sale in orderOverview.sales"
+                        :key="sale.id"
+                        :href="route('portal.orders.show', sale.id)"
+                        class="rounded-sm border border-stone-200 p-4 transition hover:border-orange-300 hover:bg-orange-50/50 dark:border-neutral-700 dark:hover:border-orange-500/30 dark:hover:bg-orange-500/5"
+                    >
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="truncate text-sm font-semibold text-stone-900 dark:text-neutral-100">
+                                    {{ sale.number || $t('client_orders.labels.order_label', { id: sale.id }) }}
+                                </p>
+                                <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ formatDate(sale.created_at) }}
+                                </p>
+                            </div>
+                            <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="statusClass(sale.status)">
+                                {{ formatStatus(sale.status, 'client_orders.status') }}
+                            </span>
+                        </div>
+                        <p class="mt-3 text-sm font-semibold text-stone-900 dark:text-neutral-100">
+                            {{ formatCurrency(sale.total) }}
+                        </p>
+                    </Link>
+                </div>
+                <p v-else class="text-sm text-stone-500 dark:text-neutral-400">
+                    {{ $t('client_orders.empty.recent_sales') }}
+                </p>
+            </section>
+
+            <section v-if="!profileMissing && hasActiveWorkCards" class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                <div v-if="canViewPendingQuotes" class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="flex items-center justify-between">
                         <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                             {{ $t('client_dashboard.sections.quotes_pending') }}
@@ -847,11 +1051,11 @@ const submitWorkRating = (workId) => {
                                 </div>
                             </div>
                             <div class="flex flex-wrap items-center gap-2">
-                                <button type="button" @click="acceptQuote(quote.id)"
+                                <button v-if="hasPortalCapability('quotes', 'accept')" type="button" @click="acceptQuote(quote.id)"
                                     class="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700">
                                     {{ $t('client_dashboard.actions.accept') }}
                                 </button>
-                                <button type="button" @click="declineQuote(quote.id)"
+                                <button v-if="hasPortalCapability('quotes', 'decline')" type="button" @click="declineQuote(quote.id)"
                                     class="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
                                     {{ $t('client_dashboard.actions.decline') }}
                                 </button>
@@ -866,7 +1070,7 @@ const submitWorkRating = (workId) => {
                     </div>
                 </div>
 
-                <div class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
+                <div v-if="canManageSchedules" class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="flex items-center justify-between">
                         <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                             {{ $t('client_dashboard.sections.schedules_pending') }}
@@ -905,7 +1109,7 @@ const submitWorkRating = (workId) => {
                     </div>
                 </div>
 
-                <div class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
+                <div v-if="canManagePendingWorks" class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="flex items-center justify-between">
                         <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                             {{ $t('client_dashboard.sections.jobs_pending') }}
@@ -929,11 +1133,11 @@ const submitWorkRating = (workId) => {
                                 </span>
                             </div>
                             <div class="flex flex-wrap items-center gap-2">
-                                <button type="button" @click="validateWork(work.id)"
+                                <button v-if="hasPortalCapability('works', 'validate')" type="button" @click="validateWork(work.id)"
                                     class="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700">
                                     {{ $t('client_dashboard.actions.validate_job') }}
                                 </button>
-                                <button type="button" @click="disputeWork(work.id)"
+                                <button v-if="hasPortalCapability('works', 'dispute')" type="button" @click="disputeWork(work.id)"
                                     class="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
                                     {{ $t('client_dashboard.actions.dispute') }}
                                 </button>
@@ -946,7 +1150,7 @@ const submitWorkRating = (workId) => {
                 </div>
             </section>
 
-            <section v-if="!profileMissing && !autoValidation.tasks"
+            <section v-if="!profileMissing && canViewTaskProofs"
                 class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                 <div class="flex items-center justify-between">
                     <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
@@ -974,11 +1178,11 @@ const submitWorkRating = (workId) => {
                             </span>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
-                            <button type="button" @click="openTaskProof(task)"
+                            <button v-if="canUploadTaskProofs" type="button" @click="openTaskProof(task)"
                                 class="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
                                 {{ $t('client_dashboard.actions.add_proof') }}
                             </button>
-                            <Link v-if="task.work_id" :href="route('portal.works.proofs', task.work_id)"
+                            <Link v-if="task.work_id && hasPortalCapability('works', 'proofs')" :href="route('portal.works.proofs', task.work_id)"
                                 class="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
                                 {{ $t('client_dashboard.actions.view_proofs') }}
                             </Link>
@@ -990,9 +1194,9 @@ const submitWorkRating = (workId) => {
                 </div>
             </section>
 
-            <section v-if="!profileMissing"
-                :class="['grid grid-cols-1 gap-4', autoValidation.invoices ? 'xl:grid-cols-1' : 'xl:grid-cols-2']">
-                <div v-if="!autoValidation.invoices"
+            <section v-if="!profileMissing && (canPayInvoices || hasRatings)"
+                :class="['grid grid-cols-1 gap-4', canPayInvoices && hasRatings ? 'xl:grid-cols-2' : 'xl:grid-cols-1']">
+                <div v-if="canPayInvoices"
                     class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="flex items-center justify-between">
                         <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
@@ -1075,7 +1279,7 @@ const submitWorkRating = (workId) => {
                                         />
                                     </div>
                                     <div v-else class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
-                                        Payment method:
+                                        {{ $t('client_dashboard.labels.payment_method') }}:
                                         <span class="font-semibold text-stone-700 dark:text-neutral-200">
                                             {{ paymentMethodLabel(paymentMethods[invoice.id]) }}
                                         </span>
@@ -1251,14 +1455,14 @@ const submitWorkRating = (workId) => {
                     </div>
                 </div>
 
-                <div class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
+                <div v-if="hasRatings" class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="flex items-center justify-between">
                         <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                             {{ $t('client_dashboard.sections.ratings_due') }}
                         </h2>
                     </div>
                     <div class="mt-4 space-y-4">
-                        <div>
+                        <div v-if="canRateQuotes">
                             <h3 class="text-xs font-semibold uppercase text-stone-500 dark:text-neutral-400">
                                 {{ $t('client_dashboard.sections.quotes') }}
                             </h3>
@@ -1299,7 +1503,7 @@ const submitWorkRating = (workId) => {
                                 </div>
                             </div>
                         </div>
-                        <div>
+                        <div v-if="canRateWorks">
                             <h3 class="text-xs font-semibold uppercase text-stone-500 dark:text-neutral-400">
                                 {{ $t('client_dashboard.sections.jobs') }}
                             </h3>
@@ -1344,14 +1548,14 @@ const submitWorkRating = (workId) => {
                 </div>
             </section>
 
-            <section v-if="!profileMissing" class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
+            <section v-if="!profileMissing && hasValidatedHistory" class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                 <div class="flex items-center justify-between">
                     <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                         {{ $t('client_dashboard.sections.recently_validated') }}
                     </h2>
                 </div>
                 <div class="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm">
-                    <div>
+                    <div v-if="canViewQuoteHistory">
                         <h3 class="text-xs font-semibold uppercase text-stone-500 dark:text-neutral-400">
                             {{ $t('client_dashboard.sections.quotes') }}
                         </h3>
@@ -1376,7 +1580,7 @@ const submitWorkRating = (workId) => {
                             </div>
                         </div>
                     </div>
-                    <div>
+                    <div v-if="canViewWorks">
                         <h3 class="text-xs font-semibold uppercase text-stone-500 dark:text-neutral-400">
                             {{ $t('client_dashboard.sections.jobs') }}
                         </h3>
@@ -1405,51 +1609,55 @@ const submitWorkRating = (workId) => {
             </section>
         </div>
 
-        <div v-if="schedulePreviewOpen" class="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
-            <div class="absolute inset-0 bg-stone-900/60" @click="closeSchedulePreview"></div>
-            <div
-                class="relative w-full max-w-5xl rounded-sm border border-stone-200 bg-white p-5 shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="flex items-start justify-between gap-4">
-                    <div>
+        <Modal
+            :show="schedulePreviewOpen"
+            max-width="5xl"
+            full-screen-mobile
+            @close="closeSchedulePreview"
+        >
+            <div class="flex h-dvh min-h-0 flex-col sm:h-auto sm:max-h-[calc(100dvh-3rem)]">
+                <div class="flex shrink-0 items-start justify-between gap-4 border-b border-stone-200 px-4 py-4 dark:border-neutral-700 sm:px-5">
+                    <div class="min-w-0">
                         <h3 class="text-base font-semibold text-stone-800 dark:text-neutral-100">
                             {{ $t('client_dashboard.sections.schedule_preview') }}
                         </h3>
-                        <p class="text-sm text-stone-500 dark:text-neutral-400">
+                        <p class="break-words text-sm text-stone-500 dark:text-neutral-400">
                             {{ schedulePreviewWork?.job_title || $t('client_dashboard.labels.job_fallback') }}
                         </p>
                     </div>
                     <button type="button" @click="closeSchedulePreview"
-                        class="py-1.5 px-3 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                        class="shrink-0 rounded-sm border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
                         {{ $t('client_dashboard.actions.close') }}
                     </button>
                 </div>
 
-                <div v-if="schedulePreviewWork" class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+                <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
+                    <div v-if="schedulePreviewWork" class="grid grid-cols-1 gap-4 lg:grid-cols-3">
                     <div class="space-y-3 lg:col-span-1">
                         <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
                             <div class="text-xs font-semibold uppercase text-stone-500 dark:text-neutral-400">
                                 {{ $t('client_dashboard.labels.summary') }}
                             </div>
                             <div class="mt-2 space-y-2 text-sm text-stone-700 dark:text-neutral-200">
-                                <div class="flex items-center justify-between">
+                                <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
                                     <span>{{ $t('client_dashboard.labels.start_date') }}</span>
-                                    <span>{{ formatCalendarDate(schedulePreviewWork.start_date) }}</span>
+                                    <span class="text-right">{{ formatCalendarDate(schedulePreviewWork.start_date) }}</span>
                                 </div>
-                                <div class="flex items-center justify-between">
+                                <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
                                     <span>{{ $t('client_dashboard.labels.time') }}</span>
-                                    <span>{{ formatTimeRange(schedulePreviewWork.start_time, schedulePreviewWork.end_time) }}</span>
+                                    <span class="text-right">{{ formatTimeRange(schedulePreviewWork.start_time, schedulePreviewWork.end_time) }}</span>
                                 </div>
-                                <div v-if="schedulePreviewIsRecurring" class="flex items-center justify-between">
+                                <div v-if="schedulePreviewIsRecurring" class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
                                     <span>{{ $t('client_dashboard.labels.frequency') }}</span>
-                                    <span>{{ formatStatus(String(schedulePreviewWork.frequency || '').toLowerCase(), 'client_dashboard.frequency') }}</span>
+                                    <span class="text-right">{{ formatStatus(String(schedulePreviewWork.frequency || '').toLowerCase(), 'client_dashboard.frequency') }}</span>
                                 </div>
-                                <div v-if="schedulePreviewIsRecurring" class="flex items-center justify-between">
+                                <div v-if="schedulePreviewIsRecurring" class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
                                     <span>{{ $t('client_dashboard.labels.visits') }}</span>
-                                    <span>{{ schedulePreviewEvents.length || schedulePreviewWork.totalVisits || 0 }}</span>
+                                    <span class="text-right">{{ schedulePreviewEvents.length || schedulePreviewWork.totalVisits || 0 }}</span>
                                 </div>
-                                <div v-if="schedulePreviewIsRecurring" class="flex items-center justify-between">
+                                <div v-if="schedulePreviewIsRecurring" class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
                                     <span>{{ $t('client_dashboard.labels.range') }}</span>
-                                    <span>{{ schedulePreviewRange.start }} - {{ schedulePreviewRange.end }}</span>
+                                    <span class="text-right">{{ schedulePreviewRange.start }} - {{ schedulePreviewRange.end }}</span>
                                 </div>
                             </div>
                         </div>
@@ -1478,7 +1686,11 @@ const submitWorkRating = (workId) => {
                     <div class="lg:col-span-2">
                         <div v-if="schedulePreviewIsRecurring"
                             class="rounded-sm border border-stone-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900">
-                            <FullCalendar :options="schedulePreviewCalendarOptions" ref="schedulePreviewCalendar" />
+                            <div class="overflow-x-auto overscroll-x-contain">
+                                <div class="min-w-[40rem] sm:min-w-0">
+                                    <FullCalendar :options="schedulePreviewCalendarOptions" ref="schedulePreviewCalendar" />
+                                </div>
+                            </div>
                         </div>
                         <div v-else
                             class="rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
@@ -1488,7 +1700,7 @@ const submitWorkRating = (workId) => {
                             <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
                                 {{ $t('client_dashboard.labels.single_visit_note') }}
                             </p>
-                            <div class="mt-3 grid grid-cols-2 gap-3 text-sm text-stone-700 dark:text-neutral-200">
+                            <div class="mt-3 grid grid-cols-1 gap-3 text-sm text-stone-700 dark:text-neutral-200 sm:grid-cols-2">
                                 <div>
                                     <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_dashboard.labels.date') }}</div>
                                     <div>{{ formatCalendarDate(schedulePreviewWork.start_date) }}</div>
@@ -1500,9 +1712,10 @@ const submitWorkRating = (workId) => {
                             </div>
                         </div>
                     </div>
+                    </div>
                 </div>
 
-                <div class="mt-5 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-stone-200 px-4 py-4 dark:border-neutral-700 sm:px-5">
                     <p class="text-xs text-stone-500 dark:text-neutral-400">
                         {{ $t('client_dashboard.labels.accept_creates_tasks') }}
                     </p>
@@ -1519,60 +1732,66 @@ const submitWorkRating = (workId) => {
                     </div>
                 </div>
             </div>
-        </div>
+        </Modal>
 
-        <div v-if="taskProofOpen" class="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
-            <div class="absolute inset-0 bg-stone-900/60" @click="closeTaskProof"></div>
-            <div class="relative w-full max-w-lg rounded-sm border border-stone-200 bg-white p-5 shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="flex items-start justify-between gap-4">
-                    <div>
+        <Modal
+            :show="taskProofOpen"
+            max-width="lg"
+            full-screen-mobile
+            @close="closeTaskProof"
+        >
+            <div class="flex h-dvh min-h-0 flex-col sm:h-auto sm:max-h-[calc(100dvh-3rem)]">
+                <div class="flex shrink-0 items-start justify-between gap-4 border-b border-stone-200 px-4 py-4 dark:border-neutral-700 sm:px-5">
+                    <div class="min-w-0">
                         <h3 class="text-base font-semibold text-stone-800 dark:text-neutral-100">
                             {{ $t('client_dashboard.proof.title') }}
                         </h3>
-                        <p class="text-sm text-stone-500 dark:text-neutral-400">
+                        <p class="break-words text-sm text-stone-500 dark:text-neutral-400">
                             {{ taskProofTask?.title || $t('client_dashboard.labels.task_fallback') }}
                         </p>
                     </div>
                     <button type="button" @click="closeTaskProof"
-                        class="py-1.5 px-3 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                        class="shrink-0 rounded-sm border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
                         {{ $t('client_dashboard.actions.close') }}
                     </button>
                 </div>
 
-                <form class="mt-4 space-y-4" @submit.prevent="submitTaskProof">
-                    <div>
-                        <div class="mt-1">
-                            <FloatingSelect
-                                v-model="taskProofForm.type"
-                                :label="$t('client_dashboard.proof.type')"
-                                :options="proofTypeOptions"
+                <form class="flex min-h-0 flex-1 flex-col" @submit.prevent="submitTaskProof">
+                    <div class="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
+                        <div>
+                            <div class="mt-1">
+                                <FloatingSelect
+                                    v-model="taskProofForm.type"
+                                    :label="$t('client_dashboard.proof.type')"
+                                    :options="proofTypeOptions"
+                                />
+                            </div>
+                            <div v-if="taskProofForm.errors.type" class="mt-1 text-xs text-red-600">
+                                {{ taskProofForm.errors.type }}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_dashboard.proof.file') }}</label>
+                            <input type="file" @change="handleTaskProofFile" accept="image/*,video/*"
+                                class="mt-1 block w-full text-sm text-stone-600 file:mr-4 file:py-2 file:px-3 file:rounded-sm file:border-0 file:text-sm file:font-medium file:bg-stone-100 file:text-stone-700 hover:file:bg-stone-200 dark:text-neutral-300 dark:file:bg-neutral-800 dark:file:text-neutral-200" />
+                            <div v-if="taskProofForm.errors.file" class="mt-1 text-xs text-red-600">
+                                {{ taskProofForm.errors.file }}
+                            </div>
+                        </div>
+
+                        <div>
+                            <FloatingInput
+                                v-model="taskProofForm.note"
+                                :label="$t('client_dashboard.proof.note_optional')"
                             />
-                        </div>
-                        <div v-if="taskProofForm.errors.type" class="mt-1 text-xs text-red-600">
-                            {{ taskProofForm.errors.type }}
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_dashboard.proof.file') }}</label>
-                        <input type="file" @change="handleTaskProofFile" accept="image/*,video/*"
-                            class="mt-1 block w-full text-sm text-stone-600 file:mr-4 file:py-2 file:px-3 file:rounded-sm file:border-0 file:text-sm file:font-medium file:bg-stone-100 file:text-stone-700 hover:file:bg-stone-200 dark:text-neutral-300 dark:file:bg-neutral-800 dark:file:text-neutral-200" />
-                        <div v-if="taskProofForm.errors.file" class="mt-1 text-xs text-red-600">
-                            {{ taskProofForm.errors.file }}
+                            <div v-if="taskProofForm.errors.note" class="mt-1 text-xs text-red-600">
+                                {{ taskProofForm.errors.note }}
+                            </div>
                         </div>
                     </div>
 
-                    <div>
-                        <FloatingInput
-                            v-model="taskProofForm.note"
-                            :label="$t('client_dashboard.proof.note_optional')"
-                        />
-                        <div v-if="taskProofForm.errors.note" class="mt-1 text-xs text-red-600">
-                            {{ taskProofForm.errors.note }}
-                        </div>
-                    </div>
-
-                    <div class="flex justify-end gap-2">
+                    <div class="flex shrink-0 justify-end gap-2 border-t border-stone-200 px-4 py-4 dark:border-neutral-700 sm:px-5">
                         <button type="button" @click="closeTaskProof"
                             class="py-2 px-3 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
                             {{ $t('client_dashboard.actions.cancel') }}
@@ -1584,7 +1803,7 @@ const submitWorkRating = (workId) => {
                     </div>
                 </form>
             </div>
-        </div>
+        </Modal>
     </AuthenticatedLayout>
 </template>
 

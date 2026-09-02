@@ -847,9 +847,22 @@ class StripeInvoiceService
     public function recordPaymentFromCheckoutSession(
         array $session,
         ?string $eventStripeAccountId = null,
-        ?ReservationQueuePaymentAttempt $expectedAttempt = null
+        ?ReservationQueuePaymentAttempt $expectedAttempt = null,
+        ?Invoice $expectedInvoice = null,
     ): ?Payment {
         $metadata = is_array($session['metadata'] ?? null) ? $session['metadata'] : [];
+
+        if ($expectedInvoice && ! $this->checkoutSessionMatchesInvoice($session, $metadata, $expectedInvoice)) {
+            Log::warning('Stripe Checkout session invoice mismatch.', [
+                'expected_invoice_id' => $expectedInvoice->id,
+                'metadata_invoice_id' => $metadata['invoice_id'] ?? null,
+                'client_reference_id' => $session['client_reference_id'] ?? null,
+                'checkout_session_id' => $session['id'] ?? null,
+            ]);
+
+            return null;
+        }
+
         $attempt = $this->resolveQueuePaymentAttempt($metadata, $expectedAttempt);
         if ($attempt) {
             $this->verifyQueueCheckoutSession($session, $attempt, $eventStripeAccountId);
@@ -943,13 +956,36 @@ class StripeInvoiceService
         );
     }
 
-    public function syncFromCheckoutSessionId(string $sessionId, ?string $stripeAccountId = null): ?Payment
-    {
+    public function syncFromCheckoutSessionId(
+        string $sessionId,
+        ?string $stripeAccountId = null,
+        ?Invoice $expectedInvoice = null,
+    ): ?Payment {
         $options = $stripeAccountId ? ['stripe_account' => $stripeAccountId] : [];
         $session = $this->client()->checkout->sessions->retrieve($sessionId, [], $options);
         $payload = is_array($session) ? $session : $session->toArray();
 
-        return $this->recordPaymentFromCheckoutSession($payload, $stripeAccountId);
+        return $this->recordPaymentFromCheckoutSession(
+            $payload,
+            $stripeAccountId,
+            expectedInvoice: $expectedInvoice,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $session
+     * @param  array<string, mixed>  $metadata
+     */
+    private function checkoutSessionMatchesInvoice(array $session, array $metadata, Invoice $invoice): bool
+    {
+        $expectedInvoiceId = (string) $invoice->getKey();
+        $metadataInvoiceId = $this->nullableString($metadata['invoice_id'] ?? null);
+        $clientReferenceId = $this->nullableString($session['client_reference_id'] ?? null);
+
+        return $metadataInvoiceId !== null
+            && $clientReferenceId !== null
+            && hash_equals($expectedInvoiceId, $metadataInvoiceId)
+            && hash_equals($expectedInvoiceId, $clientReferenceId);
     }
 
     public function recordPaymentFromPaymentIntent(array $intent, ?string $eventStripeAccountId = null): ?Payment

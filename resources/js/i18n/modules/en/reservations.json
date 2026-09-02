@@ -671,7 +671,7 @@
     "client": {
       "book": {
         "title": "Book reservation",
-        "subtitle": "Choose a slot that works best for you.",
+        "subtitle": "Book in a few steps: tell us what you need, choose a time, and review the details.",
         "my_reservations": "My reservations",
         "summary_title": "Booking details",
         "selected_slot": "Selected slot",
@@ -683,9 +683,80 @@
         "select_slot_error": "Select an available slot to continue.",
         "deposit_notice": "Booking deposit required: {amount}",
         "no_show_notice": "No-show fee policy: {amount}",
+        "slot_conflict_error": "This time slot is no longer available. Choose another one.",
+        "generic_service": "General booking",
+        "generic_service_description": "Continue without choosing a specific service.",
+        "service_fallback_description": "Service available by appointment.",
+        "service_search_hint": "Type a few letters to automatically filter the available services.",
+        "follow_up_title": "After your booking",
+        "stepper": {
+          "aria_label": "Booking steps",
+          "progress": "Step {current} of {total}",
+          "step_label": "Step {current} of {total}: {label}",
+          "completed": "Completed step"
+        },
+        "steps": {
+          "preferences": {
+            "label": "Your needs",
+            "short": "Needs",
+            "eyebrow": "Step 1",
+            "title": "Prepare your request",
+            "description": "Choose the service, preferred professional, and party size."
+          },
+          "slot": {
+            "label": "Your time",
+            "short": "Time",
+            "eyebrow": "Step 2",
+            "title": "Choose an available time",
+            "description": "Choose a day first, then select the time that works for you.",
+            "week": "Week",
+            "previous_week": "View previous week",
+            "next_week": "View next week",
+            "day_availability": "{date}, {count} available time(s)",
+            "available_count": "{count} available",
+            "unavailable": "Full",
+            "times_for": "Times for {date}",
+            "time_hint": "Select a time to continue.",
+            "slot_label": "{time}, with {member}",
+            "no_slots_for_day": "No times are available that day. Choose another day."
+          },
+          "review": {
+            "label": "Review",
+            "short": "Review",
+            "eyebrow": "Step 3",
+            "title": "Review your booking",
+            "description": "Confirm your contact information and booking details before submitting."
+          },
+          "done": {
+            "label": "Confirmation",
+            "short": "Done"
+          }
+        },
+        "summary": {
+          "service": "Service",
+          "slot": "Date and time",
+          "party_size": "Party size",
+          "contact": "Contact information",
+          "contact_hint": "Your account contact information is prefilled.",
+          "not_selected": "To be selected",
+          "not_provided": "Not provided"
+        },
+        "states": {
+          "unavailable_title": "Scheduled booking unavailable",
+          "unavailable_description": "This business is not accepting scheduled bookings through the portal right now.",
+          "no_services": "No specific services are listed. You can continue with a general booking.",
+          "no_service_match": "No service matches your search."
+        },
+        "success": {
+          "title": "Your request has been sent",
+          "description": "The business received your booking request. You can now track it under My reservations.",
+          "description_book_only": "The business received your booking request."
+        },
         "fields": {
           "team_member": "Team member",
           "service": "Service",
+          "service_search": "Search for a service",
+          "service_search_placeholder": "Service name or description",
           "duration": "Duration (minutes)",
           "party_size": "Party size",
           "contact_name": "Contact name",
@@ -696,7 +767,13 @@
         "actions": {
           "submit": "Submit reservation",
           "submitting": "Submitting...",
-          "submitted": "Reservation request submitted."
+          "submitted": "Reservation request submitted.",
+          "continue": "Continue",
+          "back": "Back",
+          "show_service_suggestions": "Show service suggestions",
+          "start_over": "Book another reservation",
+          "view_reservations": "View my reservations",
+          "back_to_dashboard": "Back to dashboard"
         },
         "waitlist": {
           "title": "Waitlist",

@@ -314,6 +314,7 @@ test('the reservation calendar remains responsive, accessible and visually infor
     const staffPage = source('resources/js/Pages/Reservation/Index.vue');
     const clientPage = source('resources/js/Pages/Reservation/ClientIndex.vue');
     const clientBook = source('resources/js/Pages/Reservation/ClientBook.vue');
+    const clientBookingJourney = source('resources/js/Components/Reservation/ClientBookingJourney.vue');
     const statusStyles = source('resources/js/Components/Reservation/status.js');
 
     assert.match(calendar, /overflow-x-auto/);
@@ -356,10 +357,11 @@ test('the reservation calendar remains responsive, accessible and visually infor
     assert.doesNotMatch(calendar, /\.format\('M{3,4} D, YYYY'\)/);
     assert.match(staffPage, /:timezone="timezone"/);
     assert.equal(
-        [...`${staffPage}\n${clientPage}\n${clientBook}`.matchAll(/<ReservationCalendarBoard[\s\S]*?:timezone="timezone"[\s\S]*?\/>/g)].length,
-        4,
-        'every reservation calendar receives the tenant timezone'
+        [...`${staffPage}\n${clientPage}`.matchAll(/<ReservationCalendarBoard[\s\S]*?:timezone="timezone"[\s\S]*?\/>/g)].length,
+        3,
+        'every operational reservation calendar receives the tenant timezone'
     );
+    assert.doesNotMatch(`${clientBook}\n${clientBookingJourney}`, /ReservationCalendarBoard/u);
     assert.match(staffPage, /calendarAbortController\?\.abort\(\)/);
     assert.match(staffPage, /calendarRequestSequence/);
     assert.match(calendar, /const openDay = \(date\) => \{[\s\S]*?viewMode\.value = 'day'/);
@@ -372,7 +374,7 @@ test('the reservation calendar remains responsive, accessible and visually infor
     assert.doesNotMatch(calendar, />\s*Year\s*</);
     assert.doesNotMatch(calendar, /}}\s+more\s*</);
     assert.doesNotMatch(
-        `${calendar}\n${statusStyles}\n${staffPage}\n${clientPage}\n${clientBook}`,
+        `${calendar}\n${statusStyles}\n${staffPage}\n${clientPage}\n${clientBook}\n${clientBookingJourney}`,
         /gradient/i
     );
 

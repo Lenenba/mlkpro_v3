@@ -1,10 +1,12 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Head, router, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import ClientPortalNotice from '@/Components/Portal/ClientPortalNotice.vue';
+import ClientPortalTabs from '@/Components/Portal/ClientPortalTabs.vue';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
@@ -17,7 +19,6 @@ import ReservationCalendarBoard from '@/Components/Reservation/ReservationCalend
 import ReservationStats from '@/Components/Reservation/ReservationStats.vue';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { reservationStatusBadgeClass } from '@/Components/Reservation/status';
-import { crmButtonClass, crmSegmentedControlButtonClass, crmSegmentedControlClass } from '@/utils/crmButtonStyles';
 
 const { t } = useI18n();
 
@@ -69,9 +70,11 @@ const calendarRange = ref({
     end: dayjs().endOf('month').toISOString(),
 });
 const detailsActionError = ref('');
+const cancellingReservationId = ref(null);
 const queueTickets = ref([...(props.queueTickets || [])]);
 const queueActionError = ref('');
 const queueActionSuccess = ref('');
+const queueActionTicketId = ref(null);
 
 const filterForm = useForm({
     status: props.filters?.status || '',
@@ -346,32 +349,40 @@ const openFromEvent = (rawEvent) => {
 };
 
 const cancelReservation = async (reservation) => {
-    if (!reservation?.id) {
+    if (!reservation?.id || cancellingReservationId.value !== null) {
         return;
     }
 
     detailsActionError.value = '';
-    const reason = window.prompt(t('reservations.client.index.cancel_prompt')) || null;
+    const reason = window.prompt(t('reservations.client.index.cancel_prompt'));
+    if (reason === null) {
+        return;
+    }
+
+    cancellingReservationId.value = reservation.id;
 
     try {
         await axios.patch(route('client.reservations.cancel', reservation.id), {
-            reason,
+            reason: reason || null,
         });
 
         showDetails.value = false;
         refreshList();
     } catch (error) {
         detailsActionError.value = error?.response?.data?.message || t('reservations.errors.cancel');
+    } finally {
+        cancellingReservationId.value = null;
     }
 };
 
 const cancelQueueTicket = async (ticket) => {
-    if (!ticket?.id || !ticket?.can_cancel) {
+    if (!ticket?.id || !ticket?.can_cancel || queueActionTicketId.value !== null) {
         return;
     }
 
     queueActionError.value = '';
     queueActionSuccess.value = '';
+    queueActionTicketId.value = ticket.id;
 
     try {
         const response = await axios.patch(route('client.reservations.tickets.cancel', ticket.id), {}, {
@@ -386,16 +397,19 @@ const cancelQueueTicket = async (ticket) => {
         queueActionSuccess.value = response?.data?.message || t('reservations.queue.client.cancelled');
     } catch (error) {
         queueActionError.value = error?.response?.data?.message || t('reservations.queue.client.update_error');
+    } finally {
+        queueActionTicketId.value = null;
     }
 };
 
 const stillHereQueueTicket = async (ticket) => {
-    if (!ticket?.id || !ticket?.can_still_here) {
+    if (!ticket?.id || !ticket?.can_still_here || queueActionTicketId.value !== null) {
         return;
     }
 
     queueActionError.value = '';
     queueActionSuccess.value = '';
+    queueActionTicketId.value = ticket.id;
 
     try {
         const response = await axios.patch(route('client.reservations.tickets.still-here', ticket.id), {}, {
@@ -410,6 +424,8 @@ const stillHereQueueTicket = async (ticket) => {
         queueActionSuccess.value = response?.data?.message || t('reservations.queue.client.still_here_done');
     } catch (error) {
         queueActionError.value = error?.response?.data?.message || t('reservations.queue.client.update_error');
+    } finally {
+        queueActionTicketId.value = null;
     }
 };
 
@@ -578,7 +594,7 @@ onBeforeUnmount(() => {
 <template>
     <Head :title="$t('reservations.client.index.title')" />
     <AuthenticatedLayout>
-        <div class="space-y-4">
+        <div class="w-full min-w-0 max-w-full space-y-4">
             <section class="rounded-sm border border-stone-200 border-t-4 border-t-green-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                     <div class="flex min-w-0 items-start gap-3">
@@ -600,40 +616,20 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
 
-                    <div class="flex flex-wrap items-center gap-2">
-                        <nav :class="crmSegmentedControlClass()" aria-label="Service client sections">
-                            <Link
-                                v-for="tab in serviceTabs"
-                                :key="tab.id"
-                                :href="tab.href"
-                                :aria-current="tab.active ? 'page' : null"
-                                :class="crmSegmentedControlButtonClass(tab.active)"
-                            >
-                                <span>{{ tab.label }}</span>
-                                <span
-                                    v-if="tab.badge !== undefined && tab.badge !== null"
-                                    class="rounded-sm px-1.5 py-0.5 text-[10px] leading-none"
-                                    :class="tab.active ? 'bg-white/20 text-white' : 'bg-stone-100 text-stone-500 dark:bg-neutral-800 dark:text-neutral-400'"
-                                >
-                                    {{ tab.badge }}
-                                </span>
-                            </Link>
-                        </nav>
-                        <Link
-                            :href="route('client.reservations.book')"
-                            :class="crmButtonClass('primary', 'dialog')"
-                        >
-                            {{ $t('reservations.client.index.book_button') }}
-                        </Link>
-                    </div>
                 </div>
 
                 <KpiMetricGrid
-                    class="mt-4"
+                    class="mt-4 [&>*]:!rounded-sm"
                     :metrics="serviceOverviewCards"
-                    grid-class="grid-cols-1 md:grid-cols-3"
+                    grid-class="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
                 />
             </section>
+
+            <ClientPortalTabs
+                :tabs="serviceTabs"
+                :aria-label="$t('nav.reservations')"
+                :columns="2"
+            />
 
             <div
                 v-if="ownerOnlyMode"
@@ -643,12 +639,13 @@ onBeforeUnmount(() => {
             </div>
 
             <ModuleKpiSection module-key="reservations">
-                <ReservationStats :stats="stats" />
+                <ReservationStats class="[&_article]:!rounded-sm" :stats="stats" />
             </ModuleKpiSection>
 
             <section
-                v-if="false"
+                v-if="queueModeEnabled"
                 class="p-5 space-y-4 flex flex-col border-t-4 border-t-zinc-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700"
+                :aria-busy="queueActionTicketId !== null"
             >
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <div>
@@ -670,12 +667,8 @@ onBeforeUnmount(() => {
                     </a>
                 </div>
 
-                <div v-if="queueActionError" class="mt-3 rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
-                    {{ queueActionError }}
-                </div>
-                <div v-if="queueActionSuccess" class="mt-3 rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-                    {{ queueActionSuccess }}
-                </div>
+                <ClientPortalNotice v-if="queueActionError" tone="error" :message="queueActionError" compact />
+                <ClientPortalNotice v-if="queueActionSuccess" tone="success" :message="queueActionSuccess" compact />
 
                 <AdminDataTable embedded :rows="queueTickets" :show-pagination="false">
                     <template #head>
@@ -722,18 +715,26 @@ onBeforeUnmount(() => {
                                     <button
                                         v-if="ticket.can_still_here"
                                         type="button"
-                                        class="text-xs text-indigo-700 underline"
+                                        class="text-xs text-indigo-700 underline disabled:cursor-wait disabled:opacity-50"
+                                        :disabled="queueActionTicketId !== null"
+                                        :aria-busy="queueActionTicketId === ticket.id"
                                         @click="stillHereQueueTicket(ticket)"
                                     >
-                                        {{ $t('reservations.queue.client.still_here') }}
+                                        {{ queueActionTicketId === ticket.id
+                                            ? $t('reservations.client.book.actions.submitting')
+                                            : $t('reservations.queue.client.still_here') }}
                                     </button>
                                     <button
                                         v-if="ticket.can_cancel"
                                         type="button"
-                                        class="text-xs text-rose-700 underline"
+                                        class="text-xs text-rose-700 underline disabled:cursor-wait disabled:opacity-50"
+                                        :disabled="queueActionTicketId !== null"
+                                        :aria-busy="queueActionTicketId === ticket.id"
                                         @click="cancelQueueTicket(ticket)"
                                     >
-                                        {{ $t('reservations.actions.cancel') }}
+                                        {{ queueActionTicketId === ticket.id
+                                            ? $t('reservations.client.book.actions.submitting')
+                                            : $t('reservations.actions.cancel') }}
                                     </button>
                                 </div>
                             </td>
@@ -803,6 +804,7 @@ onBeforeUnmount(() => {
 
             <ReservationCalendarBoard
                 v-if="viewMode === 'calendar'"
+                class="!rounded-sm [&_.rounded-md]:!rounded-sm [&_.rounded-lg]:!rounded-sm [&_.rounded-xl]:!rounded-sm [&_.rounded-2xl]:!rounded-sm"
                 :events="calendarEvents"
                 :loading="calendarLoading"
                 :error="calendarError"
@@ -872,10 +874,14 @@ onBeforeUnmount(() => {
                                     <button
                                         v-if="canCancel(reservation)"
                                         type="button"
-                                        class="text-xs text-rose-600"
+                                        class="text-xs text-rose-600 disabled:cursor-wait disabled:opacity-50"
+                                        :disabled="cancellingReservationId !== null"
+                                        :aria-busy="cancellingReservationId === reservation.id"
                                         @click="cancelReservation(reservation)"
                                     >
-                                        {{ $t('reservations.actions.cancel') }}
+                                        {{ cancellingReservationId === reservation.id
+                                            ? $t('reservations.client.book.actions.submitting')
+                                            : $t('reservations.actions.cancel') }}
                                     </button>
                                     <button
                                         v-if="canReview(reservation)"
@@ -906,7 +912,11 @@ onBeforeUnmount(() => {
         </div>
 
         <Modal :show="showDetails" maxWidth="2xl" @close="showDetails = false">
-            <div v-if="activeReservation" class="p-5">
+            <div
+                v-if="activeReservation"
+                class="p-5"
+                :aria-busy="cancellingReservationId === activeReservation.id"
+            >
                 <h2 class="text-sm font-semibold">{{ $t('reservations.client.index.details_title') }}</h2>
                 <div class="mt-3 space-y-2 text-sm">
                     <div>{{ $t('reservations.table.when') }}: {{ formatDateTime(activeReservation.starts_at) }} - {{ formatDateTime(activeReservation.ends_at) }}</div>
@@ -932,9 +942,13 @@ onBeforeUnmount(() => {
                     {{ $t('reservations.client.index.cancellation_cutoff', { hours: settings?.cancellation_cutoff_hours || 0 }) }}
                 </div>
 
-                <div v-if="detailsActionError" class="mt-3 rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
-                    {{ detailsActionError }}
-                </div>
+                <ClientPortalNotice
+                    v-if="detailsActionError"
+                    class="mt-3"
+                    tone="error"
+                    :message="detailsActionError"
+                    compact
+                />
 
                 <div class="mt-4 flex flex-wrap justify-end gap-2">
                     <button
@@ -948,10 +962,14 @@ onBeforeUnmount(() => {
                     <button
                         v-if="canCancel(activeReservation)"
                         type="button"
-                        class="rounded-sm bg-rose-600 px-3 py-2 text-xs text-white"
+                        class="rounded-sm bg-rose-600 px-3 py-2 text-xs text-white disabled:cursor-wait disabled:opacity-50"
+                        :disabled="cancellingReservationId !== null"
+                        :aria-busy="cancellingReservationId === activeReservation.id"
                         @click="cancelReservation(activeReservation)"
                     >
-                        {{ $t('reservations.actions.cancel') }}
+                        {{ cancellingReservationId === activeReservation.id
+                            ? $t('reservations.client.book.actions.submitting')
+                            : $t('reservations.actions.cancel') }}
                     </button>
                     <button
                         v-if="canReview(activeReservation)"
@@ -966,7 +984,7 @@ onBeforeUnmount(() => {
         </Modal>
 
         <Modal :show="showReschedule" maxWidth="3xl" @close="showReschedule = false">
-            <div class="p-5">
+            <div class="p-5" :aria-busy="rescheduleSubmitting">
                 <h2 class="text-sm font-semibold">{{ $t('reservations.client.index.reschedule_title') }}</h2>
 
                 <div class="mt-3 grid gap-3 md:grid-cols-2">
@@ -977,6 +995,7 @@ onBeforeUnmount(() => {
 
                 <div class="mt-3">
                     <ReservationCalendarBoard
+                        class="!rounded-sm [&_.rounded-md]:!rounded-sm [&_.rounded-lg]:!rounded-sm [&_.rounded-xl]:!rounded-sm [&_.rounded-2xl]:!rounded-sm"
                         :events="rescheduleCalendarEvents"
                         :loading="rescheduleLoading"
                         :error="rescheduleError"
@@ -1020,7 +1039,7 @@ onBeforeUnmount(() => {
         </Modal>
 
         <Modal :show="showReview" maxWidth="md" @close="showReview = false">
-            <div class="p-5">
+            <div class="p-5" :aria-busy="reviewSubmitting">
                 <h2 class="text-sm font-semibold">{{ $t('reservations.client.index.review.title') }}</h2>
                 <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('reservations.client.index.review.description') }}</p>
 
@@ -1039,9 +1058,13 @@ onBeforeUnmount(() => {
                     <InputError :message="reviewForm.errors.feedback" />
                 </div>
 
-                <div v-if="reviewError" class="mt-3 rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
-                    {{ reviewError }}
-                </div>
+                <ClientPortalNotice
+                    v-if="reviewError"
+                    class="mt-3"
+                    tone="error"
+                    :message="reviewError"
+                    compact
+                />
 
                 <div class="mt-4 flex justify-end gap-2">
                     <button

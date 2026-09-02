@@ -46,4 +46,7 @@ return [
     'announcements' => [
         'media_only_requires_media' => 'Le mode « Média plein cadre » nécessite une image ou une vidéo.',
     ],
+    'portal' => [
+        'capability_unavailable' => 'Cette fonctionnalité n’est pas disponible dans votre portail client.',
+    ],
 ];

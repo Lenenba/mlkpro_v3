@@ -1,6 +1,66 @@
 {
   "account": {
     "default_name": "Cuenta",
+    "open_menu": "Abrir el menú de la cuenta de {name}",
+    "avatar_alt": "Foto de perfil de {name}",
+    "open_settings": "Abrir la configuración",
+    "client_portal": {
+      "title": "Portal del cliente",
+      "company_fallback": "Tu empresa",
+      "navigation": "Navegación del portal del cliente",
+      "open_navigation": "Abrir la navegación del portal del cliente"
+    },
+    "profile_page": {
+      "title": "Mi cuenta",
+      "subtitle": "Gestiona tu información personal y la seguridad de tu cuenta.",
+      "sections_label": "Secciones de la cuenta",
+      "tabs": {
+        "identity": "Identidad",
+        "identity_description": "Nombre, datos de contacto y foto",
+        "password": "Contraseña",
+        "password_description": "Proteger mi acceso",
+        "deletion": "Eliminación",
+        "deletion_description": "Cerrar mi cuenta"
+      },
+      "information": {
+        "title": "Información del perfil",
+        "subtitle": "Actualiza tus datos de contacto y tu correo electrónico.",
+        "photo_label": "Foto o icono del perfil",
+        "upload_photo": "Subir una foto",
+        "choose_avatar": "O elige un icono de avatar",
+        "avatar_choice": "Elegir el avatar {number}",
+        "default_avatar": "Predeterminado",
+        "clear_avatar": "Quitar el icono",
+        "name": "Nombre",
+        "email": "Correo electrónico",
+        "phone": "Teléfono",
+        "email_unverified": "Tu correo electrónico no está verificado.",
+        "resend_verification": "Reenviar el correo de verificación.",
+        "verification_sent": "Te hemos enviado un nuevo enlace de verificación."
+      },
+      "password": {
+        "title": "Cambiar la contraseña",
+        "subtitle": "Usa una contraseña larga y única para proteger tu cuenta.",
+        "current": "Contraseña actual",
+        "new": "Nueva contraseña",
+        "confirm": "Confirmar contraseña"
+      },
+      "deletion": {
+        "title": "Eliminar la cuenta",
+        "subtitle": "La eliminación de tu cuenta y sus datos relacionados es permanente.",
+        "confirm_title": "¿Seguro que quieres eliminar tu cuenta?",
+        "confirm_body": "Esta acción no se puede deshacer. Introduce tu contraseña para eliminar definitivamente tu cuenta.",
+        "password": "Contraseña"
+      },
+      "actions": {
+        "save": "Guardar",
+        "saving": "Guardando…",
+        "saved": "Guardado.",
+        "cancel": "Cancelar",
+        "delete": "Eliminar la cuenta",
+        "deleting": "Eliminando…"
+      }
+    },
     "company_label": "Empresa",
     "settings": "Configuracion",
     "billing": "Facturacion",

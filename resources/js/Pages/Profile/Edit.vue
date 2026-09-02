@@ -1,6 +1,7 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Head } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import SettingsTabs from '@/Components/SettingsTabs.vue';
 import DeleteUserForm from './Partials/DeleteUserForm.vue';
@@ -17,18 +18,19 @@ defineProps({
 });
 
 const tabPrefix = 'settings-profile';
-const tabs = [
-    { id: 'profile', label: 'Identite', description: 'Nom et email' },
-    { id: 'security', label: 'Mot de passe', description: 'Mise a jour' },
-    { id: 'danger', label: 'Suppression', description: 'Fermer le compte' },
-];
+const { t } = useI18n();
+const tabs = computed(() => [
+    { id: 'profile', label: t('account.profile_page.tabs.identity'), description: t('account.profile_page.tabs.identity_description') },
+    { id: 'security', label: t('account.profile_page.tabs.password'), description: t('account.profile_page.tabs.password_description') },
+    { id: 'danger', label: t('account.profile_page.tabs.deletion'), description: t('account.profile_page.tabs.deletion_description') },
+]);
 
 const resolveInitialTab = () => {
     if (typeof window === 'undefined') {
-        return tabs[0].id;
+        return tabs.value[0].id;
     }
     const stored = window.sessionStorage.getItem(`${tabPrefix}-tab`);
-    return tabs.some((tab) => tab.id === stored) ? stored : tabs[0].id;
+    return tabs.value.some((tab) => tab.id === stored) ? stored : tabs.value[0].id;
 };
 
 const activeTab = ref(resolveInitialTab());
@@ -42,14 +44,14 @@ watch(activeTab, (value) => {
 </script>
 
 <template>
-    <Head title="Profil" />
+    <Head :title="t('account.profile_page.title')" />
 
-    <SettingsLayout active="profile" content-class="w-[1400px] max-w-full">
-        <div class="w-full space-y-5">
+    <SettingsLayout active="profile">
+        <div class="w-full min-w-0 max-w-full space-y-5">
             <div>
-                <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">Profil</h1>
+                <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ t('account.profile_page.title') }}</h1>
                 <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
-                    Gere vos informations de compte et la securite.
+                    {{ t('account.profile_page.subtitle') }}
                 </p>
             </div>
 
@@ -57,7 +59,7 @@ watch(activeTab, (value) => {
                 v-model="activeTab"
                 :tabs="tabs"
                 :id-prefix="tabPrefix"
-                aria-label="Sections du profil"
+                :aria-label="t('account.profile_page.sections_label')"
             />
 
             <div
@@ -102,6 +104,4 @@ watch(activeTab, (value) => {
         </div>
     </SettingsLayout>
 </template>
-
-
 

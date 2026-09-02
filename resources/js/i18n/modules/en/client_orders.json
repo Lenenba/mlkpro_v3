@@ -3,6 +3,7 @@
     "title": "My purchases",
     "subtitle_company": "Sales with {name}",
     "subtitle_default": "Your recent sales",
+    "portal_navigation": "Your client portal sections",
     "actions": {
       "order": "Order",
       "reorder": "Reorder",
