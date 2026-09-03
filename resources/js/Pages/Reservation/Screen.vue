@@ -485,27 +485,58 @@ onBeforeUnmount(() => {
             <template v-else>
                 <KpiMetricGrid v-if="!isTvMode" :metrics="summaryMetrics" />
 
-                <section :class="isTvMode ? 'grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5' : 'grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'">
+                <section
+                    data-testid="reservation-chair-grid"
+                    :class="isTvMode
+                        ? 'grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'
+                        : 'grid items-stretch gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'"
+                >
                     <article
                         v-for="chair in chairs"
                         :key="`chair-card-${chair.id}`"
-                        class="overflow-hidden rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                        :aria-labelledby="`chair-card-label-${chair.id} chair-card-title-${chair.id}`"
+                        class="flex h-full min-w-0 flex-col overflow-hidden rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                        data-testid="reservation-chair-card"
                     >
-                        <div class="h-1.5" :class="chairStateMeta(chair.state).band" />
-                        <div class="space-y-2.5 p-3">
-                            <div class="flex items-start justify-between gap-2">
-                                <div :class="isTvMode ? 'min-w-0 flex-1 min-h-[4.75rem]' : 'min-w-0 flex-1 min-h-[4.25rem]'">
-                                    <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                        <div class="h-1.5 shrink-0" :class="chairStateMeta(chair.state).band" />
+                        <div
+                            class="grid min-w-0 flex-1 gap-2.5 p-3"
+                            :class="isTvMode
+                                ? 'md:grid-rows-[5.25rem_210px_7.75rem_6.25rem]'
+                                : 'md:grid-rows-[4.75rem_180px_7.25rem_6.25rem]'"
+                        >
+                            <div class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-2 overflow-hidden">
+                                <div class="min-w-0 overflow-hidden">
+                                    <p
+                                        :id="`chair-card-label-${chair.id}`"
+                                        class="truncate text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400"
+                                        :title="chair.chair_label || `Chair ${chair.chair_number || '-'}`"
+                                    >
                                         {{ chair.chair_label || `Chair ${chair.chair_number || '-'}` }}
                                     </p>
-                                    <p :class="isTvMode ? 'mt-1 text-lg font-semibold leading-tight text-stone-900 dark:text-neutral-100' : 'mt-1 text-sm font-semibold leading-tight text-stone-900 dark:text-neutral-100'">
+                                    <h2
+                                        :id="`chair-card-title-${chair.id}`"
+                                        class="truncate"
+                                        :class="isTvMode ? 'mt-1 text-lg font-semibold leading-tight text-stone-900 dark:text-neutral-100' : 'mt-1 text-sm font-semibold leading-tight text-stone-900 dark:text-neutral-100'"
+                                        :title="chair.team_member_name || '-'"
+                                    >
                                         {{ chair.team_member_name || '-' }}
+                                    </h2>
+                                    <p
+                                        v-if="chair.team_member_title"
+                                        class="mt-0.5 line-clamp-2 break-words text-xs leading-4 text-stone-500 [overflow-wrap:anywhere] dark:text-neutral-400"
+                                        :title="chair.team_member_title"
+                                    >
+                                        {{ chair.team_member_title }}
                                     </p>
-                                    <p v-if="chair.team_member_title" class="mt-0.5 text-xs text-stone-500 dark:text-neutral-400">{{ chair.team_member_title }}</p>
                                 </div>
-                                <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="chairStateMeta(chair.state).badge">
-                                    <span class="size-1.5 rounded-full bg-current" />
-                                    {{ chairStateMeta(chair.state).label }}
+                                <span
+                                    class="inline-flex max-w-[8.5rem] min-w-0 shrink-0 items-start gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold leading-4"
+                                    :class="chairStateMeta(chair.state).badge"
+                                    :title="chairStateMeta(chair.state).label"
+                                >
+                                    <span class="mt-1 size-1.5 shrink-0 rounded-full bg-current" />
+                                    <span class="line-clamp-2">{{ chairStateMeta(chair.state).label }}</span>
                                 </span>
                             </div>
 
@@ -517,7 +548,7 @@ onBeforeUnmount(() => {
                                     {{ queueNumberLabel(chair.current) }}
                                 </div>
 
-                                <div :class="isTvMode ? 'relative min-h-[210px]' : 'relative min-h-[180px]'">
+                                <div :class="isTvMode ? 'relative min-h-[210px] md:h-full md:min-h-0' : 'relative min-h-[180px] md:h-full md:min-h-0'">
                                         <video
                                             v-if="isTakenChairVideoPlaying(chair)"
                                             :key="`taken-chair-video-${chair.id}-${idleChairVideoCycle}`"
@@ -567,18 +598,26 @@ onBeforeUnmount(() => {
                                 </div>
                             </div>
 
-                            <div class="rounded-sm border border-stone-200 bg-stone-50 p-2.5 dark:border-neutral-700 dark:bg-neutral-800/70">
+                            <div class="min-w-0 overflow-hidden rounded-sm border border-stone-200 bg-stone-50 p-2.5 dark:border-neutral-700 dark:bg-neutral-800/70">
                                 <p class="text-[11px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ $t('reservations.queue.screen.current') }}</p>
                                 <template v-if="chair.current">
-                                    <div class="mt-1 flex items-center gap-1.5">
-                                        <p :class="isTvMode ? 'text-base font-semibold text-stone-900 dark:text-neutral-100' : 'text-sm font-semibold text-stone-900 dark:text-neutral-100'">
+                                    <div class="mt-1 flex min-w-0 items-center gap-1.5">
+                                        <p
+                                            class="min-w-0 flex-1 truncate"
+                                            :class="isTvMode ? 'text-base font-semibold text-stone-900 dark:text-neutral-100' : 'text-sm font-semibold text-stone-900 dark:text-neutral-100'"
+                                            :title="chair.current.display_client_name || chair.current.client_name || '-'"
+                                        >
                                             {{ chair.current.display_client_name || chair.current.client_name || '-' }}
                                         </p>
-                                        <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="originBadgeClass(chair.current.origin)">
-                                            {{ originLabel(chair.current.origin, chair.current.item_type) }}
+                                        <span
+                                            class="inline-flex max-w-[7rem] min-w-0 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap"
+                                            :class="originBadgeClass(chair.current.origin)"
+                                            :title="originLabel(chair.current.origin, chair.current.item_type)"
+                                        >
+                                            <span class="truncate">{{ originLabel(chair.current.origin, chair.current.item_type) }}</span>
                                         </span>
                                     </div>
-                                    <p class="text-xs text-stone-600 dark:text-neutral-300">{{ chair.current.service_name || '-' }}</p>
+                                    <p class="truncate text-xs text-stone-600 dark:text-neutral-300" :title="chair.current.service_name || '-'">{{ chair.current.service_name || '-' }}</p>
                                     <div class="mt-2">
                                         <div class="flex items-center justify-between text-xs">
                                             <span class="text-stone-500 dark:text-neutral-400">{{ $t('reservations.queue.screen.timer') }}</span>
@@ -592,17 +631,21 @@ onBeforeUnmount(() => {
                                 <p v-else class="mt-1 text-sm text-stone-500 dark:text-neutral-400">{{ $t('reservations.queue.screen.states.available') }}</p>
                             </div>
 
-                            <div class="rounded-sm border border-stone-200 bg-white p-2.5 dark:border-neutral-700 dark:bg-neutral-900/40">
+                            <div class="min-w-0 overflow-hidden rounded-sm border border-stone-200 bg-white p-2.5 dark:border-neutral-700 dark:bg-neutral-900/40">
                                 <p class="text-[11px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ $t('reservations.queue.screen.up_next') }}</p>
                                 <template v-if="chair.next">
-                                    <div class="mt-1 flex items-center justify-between gap-2">
-                                        <p class="text-sm font-semibold text-stone-900 dark:text-neutral-100">{{ queueNumberLabel(chair.next) }}</p>
-                                        <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="originBadgeClass(chair.next.origin)">
-                                            {{ originLabel(chair.next.origin, chair.next.item_type) }}
+                                    <div class="mt-1 flex min-w-0 items-center justify-between gap-2">
+                                        <p class="min-w-0 flex-1 truncate text-sm font-semibold text-stone-900 dark:text-neutral-100" :title="queueNumberLabel(chair.next)">{{ queueNumberLabel(chair.next) }}</p>
+                                        <span
+                                            class="inline-flex max-w-[7rem] min-w-0 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap"
+                                            :class="originBadgeClass(chair.next.origin)"
+                                            :title="originLabel(chair.next.origin, chair.next.item_type)"
+                                        >
+                                            <span class="truncate">{{ originLabel(chair.next.origin, chair.next.item_type) }}</span>
                                         </span>
                                     </div>
-                                    <p class="text-xs text-stone-600 dark:text-neutral-300">{{ chair.next.display_client_name || chair.next.client_name || '-' }}</p>
-                                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                    <p class="truncate text-xs text-stone-600 dark:text-neutral-300" :title="chair.next.display_client_name || chair.next.client_name || '-'">{{ chair.next.display_client_name || chair.next.client_name || '-' }}</p>
+                                    <p class="truncate text-xs text-stone-500 dark:text-neutral-400">
                                         ETA {{ chair.next.eta_minutes !== null && chair.next.eta_minutes !== undefined ? `${chair.next.eta_minutes} min` : '-' }}
                                         <span v-if="chair.next.reservation_starts_at">· {{ formatDateTime(chair.next.reservation_starts_at) }}</span>
                                     </p>

@@ -1,9 +1,12 @@
 <?php
 
 use App\Http\Middleware\EnsureTwoFactorVerified;
+use App\Models\CompanyRole;
+use App\Models\Permission;
 use App\Models\Role;
 use App\Models\TeamMember;
 use App\Models\User;
+use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -197,6 +200,68 @@ test('team member page exposes prospect permissions when the requests module is 
                     'prospects.merge',
                     'prospects.export',
                 ])->every(fn ($id) => in_array($id, $ids, true));
+            })
+        );
+});
+
+test('team member page filters role permissions by enabled tenant modules', function () {
+    $this->seed(RbacSeeder::class);
+
+    $owner = teamPermissionOwner([
+        'company_features' => [
+            'team_members' => true,
+            'tasks' => false,
+            'requests' => false,
+            'social' => true,
+        ],
+    ]);
+    $role = CompanyRole::query()->create([
+        'company_id' => $owner->id,
+        'name' => 'Éditeur Pulse',
+        'slug' => 'editeur-pulse',
+        'description' => 'Pulse sans accès aux prospects.',
+        'is_system' => false,
+        'is_default' => false,
+        'is_editable' => true,
+        'is_deletable' => true,
+        'is_active' => true,
+    ]);
+    $role->permissions()->sync(
+        Permission::query()
+            ->whereIn('slug', ['view_prospects', 'view_social'])
+            ->pluck('id')
+            ->all()
+    );
+    $memberUser = User::factory()->create([
+        'role_id' => teamPermissionRoleId('employee'),
+    ]);
+    $membership = TeamMember::factory()->create([
+        'account_id' => $owner->id,
+        'user_id' => $memberUser->id,
+        'role' => 'member',
+        'company_role_id' => $role->id,
+        'permissions' => [],
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($owner)
+        ->get(route('team.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Team/Index')
+            ->where('companyRoles', function ($roles) use ($role) {
+                $rolePayload = collect($roles)->firstWhere('id', $role->id);
+
+                return ($rolePayload['permissions'] ?? []) === ['view_social'];
+            })
+            ->where('teamMembers.data', function ($members) use ($membership) {
+                $memberPayload = collect($members)->firstWhere('id', $membership->id);
+                $permissionSlugs = collect(data_get($memberPayload, 'company_role.permissions', []))
+                    ->pluck('slug')
+                    ->values()
+                    ->all();
+
+                return $permissionSlugs === ['view_social'];
             })
         );
 });

@@ -1715,9 +1715,9 @@ class StaffReservationController extends Controller
                     $state = 'break';
                 } elseif (! $isPresent) {
                     $state = 'offline';
-                } elseif ($next && (string) ($next['status'] ?? '') === ReservationQueueItem::STATUS_NOT_ARRIVED) {
+                } elseif ($next && $this->queueItemRequiresCheckIn($next)) {
                     $state = 'check_in_needed';
-                } elseif ($next) {
+                } elseif ($next && (string) ($next['status'] ?? '') !== ReservationQueueItem::STATUS_NOT_ARRIVED) {
                     $state = 'available_ready';
                 }
 
@@ -1738,6 +1738,23 @@ class StaffReservationController extends Controller
             })
             ->values()
             ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $queueItem
+     */
+    private function queueItemRequiresCheckIn(array $queueItem): bool
+    {
+        if ((string) ($queueItem['status'] ?? '') !== ReservationQueueItem::STATUS_NOT_ARRIVED) {
+            return false;
+        }
+
+        $reservationStartsAt = $queueItem['reservation_starts_at'] ?? null;
+        if (! is_string($reservationStartsAt) || trim($reservationStartsAt) === '') {
+            return true;
+        }
+
+        return Carbon::parse($reservationStartsAt)->lte(now('UTC'));
     }
 
     /**

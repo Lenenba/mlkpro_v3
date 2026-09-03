@@ -9,9 +9,11 @@ use App\Models\TeamMember;
 use App\Models\User;
 use App\Notifications\InviteUserNotification;
 use App\Services\CompanyFeatureService;
+use App\Services\Rbac\CompanyPermissionAvailability;
 use App\Services\UsageLimitService;
 use App\Support\NotificationDispatcher;
 use App\Utils\FileHandler;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -23,6 +25,8 @@ use Illuminate\Validation\ValidationException;
 
 class TeamMemberController extends Controller
 {
+    public function __construct(private readonly CompanyPermissionAvailability $permissionAvailability) {}
+
     private const AVAILABLE_PERMISSIONS = [
         ['id' => 'jobs.view', 'name' => 'View assigned jobs'],
         ['id' => 'jobs.edit', 'name' => 'Edit assigned jobs'],
@@ -119,6 +123,7 @@ class TeamMemberController extends Controller
         $this->authorizeCompanyPermission($user, 'view_team_members');
         $accountId = (int) $user->accountOwnerId();
         $accountOwner = User::query()->findOrFail($accountId);
+        $availableCompanyPermissionSlugs = $this->permissionAvailability->availableSlugs($accountOwner);
 
         $filters = $request->only([
             'search',
@@ -144,7 +149,11 @@ class TeamMemberController extends Controller
             });
 
         $teamMembers = (clone $baseQuery)
-            ->with(['user', 'companyRole.permissions'])
+            ->with([
+                'user',
+                'companyRole.permissions' => fn (BelongsToMany $permissions): BelongsToMany => $permissions
+                    ->whereIn('permissions.slug', $availableCompanyPermissionSlugs),
+            ])
             ->orderBy('created_at')
             ->paginate((int) $filters['per_page'])
             ->withQueryString();
@@ -161,7 +170,7 @@ class TeamMemberController extends Controller
             'teamMembers' => $teamMembers,
             'filters' => $filters,
             'availablePermissions' => $availablePermissions,
-            'companyRoles' => $this->companyRolesForAccount($accountId),
+            'companyRoles' => $this->companyRolesForAccount($accountId, $availableCompanyPermissionSlugs),
             'stats' => [
                 'total' => $statsMembers->count(),
                 'active' => $statsMembers->where('is_active', true)->count(),
@@ -474,12 +483,17 @@ class TeamMemberController extends Controller
     }
 
     /**
+     * @param  array<int, string>  $availablePermissionSlugs
      * @return array<int, array<string, mixed>>
      */
-    private function companyRolesForAccount(int $accountId): array
+    private function companyRolesForAccount(int $accountId, array $availablePermissionSlugs): array
     {
         return CompanyRole::query()
-            ->with('permissions:id,slug')
+            ->with([
+                'permissions' => fn (BelongsToMany $permissions): BelongsToMany => $permissions
+                    ->select(['permissions.id', 'permissions.slug'])
+                    ->whereIn('permissions.slug', $availablePermissionSlugs),
+            ])
             ->where('is_active', true)
             ->availableForCompany($accountId)
             ->orderByDesc('is_system')

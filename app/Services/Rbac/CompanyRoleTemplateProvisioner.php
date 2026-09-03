@@ -5,7 +5,6 @@ namespace App\Services\Rbac;
 use App\Models\CompanyRole;
 use App\Models\Permission;
 use App\Models\User;
-use App\Services\CompanyFeatureService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -16,7 +15,7 @@ final readonly class CompanyRoleTemplateProvisioner
         private CompanyRoleTemplateCatalog $templateCatalog,
         private PermissionCatalog $permissionCatalog,
         private RbacCatalogSynchronizer $catalogSynchronizer,
-        private CompanyFeatureService $companyFeatureService,
+        private CompanyPermissionAvailability $permissionAvailability,
     ) {}
 
     /**
@@ -57,12 +56,14 @@ final readonly class CompanyRoleTemplateProvisioner
                 ->whereIn('slug', $templates->pluck('permissions')->flatten()->unique()->values())
                 ->get(['id', 'group', 'slug'])
                 ->keyBy('slug');
-            $enabledFeatures = $this->companyFeatureService->resolveEffectiveFeatures($lockedOwner);
+            $availablePermissionLookup = array_fill_keys(
+                $this->permissionAvailability->availableSlugs($lockedOwner),
+                true,
+            );
 
             return $templates->map(function (array $template) use (
                 $accountId,
-                $enabledFeatures,
-                $lockedOwner,
+                $availablePermissionLookup,
                 $permissions,
             ): CompanyRole {
                 $role = CompanyRole::query()->firstOrCreate(
@@ -85,11 +86,7 @@ final readonly class CompanyRoleTemplateProvisioner
                     $permissionIds = collect($template['permissions'])
                         ->map(fn (string $slug): ?Permission => $permissions->get($slug))
                         ->filter(fn (?Permission $permission): bool => $permission !== null)
-                        ->filter(fn (Permission $permission): bool => $this->permissionIsEnabled(
-                            $permission,
-                            $lockedOwner,
-                            $enabledFeatures,
-                        ))
+                        ->filter(fn (Permission $permission): bool => isset($availablePermissionLookup[$permission->slug]))
                         ->pluck('id')
                         ->all();
 
@@ -125,66 +122,6 @@ final readonly class CompanyRoleTemplateProvisioner
         return collect($slugsByInvitationRole)
             ->map(fn (string $slug): ?CompanyRole => $rolesBySlug->get($slug))
             ->filter(fn (?CompanyRole $role): bool => $role !== null);
-    }
-
-    /**
-     * @param  array<string, bool>  $enabledFeatures
-     */
-    private function permissionIsEnabled(
-        Permission $permission,
-        User $accountOwner,
-        array $enabledFeatures,
-    ): bool {
-        $feature = match ($permission->group) {
-            'reservations', 'chairs' => 'reservations',
-            'services' => 'services',
-            'products' => 'products',
-            'sales' => 'sales',
-            'team' => 'team_members',
-            'presence' => 'presence',
-            'reports' => 'performance',
-            'campaigns' => 'campaigns',
-            'jobs' => 'jobs',
-            'tasks' => 'tasks',
-            'quotes' => 'quotes',
-            'prospects' => 'requests',
-            'social' => 'social',
-            'finance' => $this->financeFeature($permission->slug),
-            'storefront' => $this->storefrontFeature($permission->slug, $accountOwner),
-            default => null,
-        };
-
-        return $feature === null || (bool) ($enabledFeatures[$feature] ?? false);
-    }
-
-    private function financeFeature(string $permissionSlug): ?string
-    {
-        if (str_contains($permissionSlug, 'invoice')) {
-            return 'invoices';
-        }
-
-        if (str_contains($permissionSlug, 'expense')) {
-            return 'expenses';
-        }
-
-        if (str_contains($permissionSlug, 'accounting') || $permissionSlug === 'view_financial_reports') {
-            return 'accounting';
-        }
-
-        return null;
-    }
-
-    private function storefrontFeature(string $permissionSlug, User $accountOwner): string
-    {
-        if ($permissionSlug === 'manage_public_services') {
-            return 'services';
-        }
-
-        if ($permissionSlug === 'manage_public_products') {
-            return 'products';
-        }
-
-        return $accountOwner->company_type === 'products' ? 'products' : 'services';
     }
 
     private function ensurePermissionCatalog(): void

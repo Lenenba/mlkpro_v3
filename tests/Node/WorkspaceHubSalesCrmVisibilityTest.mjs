@@ -164,6 +164,26 @@ test('operational cards use enabled capabilities instead of company type', async
     assert.ok(serviceSalesModules.includes('planning'));
 });
 
+test('presence card requires both the enabled module and the member permission', async () => {
+    const { buildWorkspaceHubCategories } = await loadWorkspaceHubBuilder();
+    const visibleModuleKeys = (account) => buildWorkspaceHubCategories({ account })
+        .flatMap((category) => category.modules)
+        .map((module) => module.key);
+    const member = {
+        is_owner: false,
+        is_client: false,
+        features: { presence: true },
+        permissions: ['view_presence'],
+        module_access: { customers: false, products: false },
+        company: { type: 'services' },
+        team: { role: 'member' },
+    };
+
+    assert.ok(visibleModuleKeys(member).includes('presence'));
+    assert.ok(!visibleModuleKeys({ ...member, features: { presence: false } }).includes('presence'));
+    assert.ok(!visibleModuleKeys({ ...member, permissions: [] }).includes('presence'));
+});
+
 test('customer and product cards follow module access independently from sales permissions', async () => {
     const { buildWorkspaceHubCategories } = await loadWorkspaceHubBuilder();
     const visibleModuleKeys = (account) => buildWorkspaceHubCategories({ account })

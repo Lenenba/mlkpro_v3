@@ -40,6 +40,50 @@ test('queue cards expose operational detail and open appointment details explici
     assert.match(index, /const trigger = openQueueActionsFor\.value[\s\S]*?trigger\?\.focus\(\)/u);
 });
 
+test('queue screen chair cards keep operational rows aligned and long labels contained', () => {
+    const screen = source('resources/js/Pages/Reservation/Screen.vue');
+    const chairGridOpeningTag = screen.match(/<section[^>]*data-testid="reservation-chair-grid"[^>]*>/u)?.[0] || '';
+    const chairCardOpeningTag = screen.match(/<article[^>]*data-testid="reservation-chair-card"[^>]*>/u)?.[0] || '';
+    const chairCard = screen.match(/<article[^>]*data-testid="reservation-chair-card"[\s\S]*?<\/article>/u)?.[0] || '';
+    const rowGridOpeningTag = chairCard.match(/<div\s+class="grid min-w-0 flex-1 gap-2\.5 p-3"[^>]*>/u)?.[0] || '';
+    const chairLabelOpeningTag = chairCard.match(/<p[^>]*:id="`chair-card-label-\$\{chair\.id\}`"[^>]*>/u)?.[0] || '';
+    const memberHeadingOpeningTag = chairCard.match(/<h2[^>]*:title="chair\.team_member_name \|\| '-'"[^>]*>/u)?.[0] || '';
+    const mediaOpeningTag = chairCard.match(/<div :class="isTvMode \? 'relative[^>]*>/u)?.[0] || '';
+
+    assert.notEqual(chairGridOpeningTag, '');
+    assert.notEqual(chairCardOpeningTag, '');
+    assert.notEqual(chairCard, '');
+    assert.notEqual(rowGridOpeningTag, '');
+    assert.notEqual(chairLabelOpeningTag, '');
+    assert.notEqual(memberHeadingOpeningTag, '');
+    assert.notEqual(mediaOpeningTag, '');
+    assert.match(
+        chairGridOpeningTag.replace(/\s+/gu, ' '),
+        /:class="isTvMode \? 'grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4' : 'grid items-stretch gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'"/u,
+    );
+    assert.match(chairCardOpeningTag, /class="flex h-full min-w-0 flex-col overflow-hidden/u);
+    assert.match(chairCardOpeningTag, /:aria-labelledby="`chair-card-label-\$\{chair\.id\} chair-card-title-\$\{chair\.id\}`"/u);
+    assert.match(
+        rowGridOpeningTag.replace(/\s+/gu, ' '),
+        /:class="isTvMode \? 'md:grid-rows-\[5\.25rem_210px_7\.75rem_6\.25rem\]' : 'md:grid-rows-\[4\.75rem_180px_7\.25rem_6\.25rem\]'"/u,
+    );
+    assert.match(chairLabelOpeningTag, /:id="`chair-card-label-\$\{chair\.id\}`"/u);
+    assert.match(memberHeadingOpeningTag, /:id="`chair-card-title-\$\{chair\.id\}`"/u);
+    assert.match(memberHeadingOpeningTag, /class="truncate"/u);
+    assert.match(chairCard, /grid-cols-\[minmax\(0,1fr\)_auto\][^\n]*overflow-hidden/u);
+    assert.match(chairCard, /line-clamp-2 break-words[^\n]*\[overflow-wrap:anywhere\]/u);
+    assert.match(chairCard, /max-w-\[8\.5rem\][^\n]*shrink-0[^\n]*leading-4/u);
+    assert.match(chairCard, /chairStateMeta\(chair\.state\)\.label[\s\S]*?<span class="line-clamp-2">/u);
+    assert.match(
+        mediaOpeningTag,
+        /:class="isTvMode \? 'relative min-h-\[210px\] md:h-full md:min-h-0' : 'relative min-h-\[180px\] md:h-full md:min-h-0'"/u,
+    );
+    assert.match(chairCard, /class="min-w-0 flex-1 truncate"[\s\S]*?:title="chair\.current\.display_client_name/u);
+    assert.match(chairCard, /class="truncate text-xs text-stone-600 dark:text-neutral-300" :title="chair\.current\.service_name/u);
+    assert.match(chairCard, /class="min-w-0 flex-1 truncate text-sm font-semibold[^\n]*:title="queueNumberLabel\(chair\.next\)"/u);
+    assert.match(chairCard, /class="truncate text-xs text-stone-600 dark:text-neutral-300" :title="chair\.next\.display_client_name/u);
+});
+
 test('hybrid queue view and detail copy is complete in every reservation locale', () => {
     const requiredViewKeys = ['label', 'table', 'cards'];
     const requiredDetailKeys = [

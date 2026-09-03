@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\CompanyRole;
 use App\Models\Permission;
 use App\Models\TeamMember;
+use App\Models\User;
+use App\Services\Rbac\CompanyPermissionAvailability;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -13,21 +15,26 @@ use Illuminate\Validation\Rule;
 
 class RolePermissionController extends Controller
 {
+    public function __construct(private readonly CompanyPermissionAvailability $permissionAvailability) {}
+
     public function edit(Request $request)
     {
-        $accountId = (int) $request->user()->accountOwnerId();
+        $accountOwner = $this->accountOwner($request);
+        $availablePermissionSlugs = $this->permissionAvailability->availableSlugs($accountOwner);
 
         return $this->inertiaOrJson('Settings/RolesPermissions', [
-            'roles' => $this->rolePayload($accountId),
-            'permissions' => $this->permissionPayload(),
-            'teamMembers' => $this->teamMemberPayload($accountId),
+            'roles' => $this->rolePayload($accountOwner->id, $availablePermissionSlugs),
+            'permissions' => $this->permissionPayload($availablePermissionSlugs),
+            'teamMembers' => $this->teamMemberPayload($accountOwner->id),
         ]);
     }
 
     public function store(Request $request)
     {
-        $accountId = (int) $request->user()->accountOwnerId();
-        $validated = $this->validatedRoleInput($request);
+        $accountOwner = $this->accountOwner($request);
+        $accountId = (int) $accountOwner->id;
+        $availablePermissionSlugs = $this->permissionAvailability->availableSlugs($accountOwner);
+        $validated = $this->validatedRoleInput($request, $availablePermissionSlugs);
 
         $role = CompanyRole::query()->create([
             'company_id' => $accountId,
@@ -41,32 +48,42 @@ class RolePermissionController extends Controller
             'is_active' => (bool) ($validated['is_active'] ?? true),
         ]);
 
-        $role->permissions()->sync($this->permissionIds($validated['permissions'] ?? []));
+        $role->permissions()->sync($this->permissionIds(
+            $validated['permissions'] ?? [],
+            $availablePermissionSlugs,
+        ));
 
         return $this->roleMutationResponse($request, 'Role created.', $role, 201);
     }
 
     public function update(Request $request, CompanyRole $companyRole)
     {
-        $accountId = (int) $request->user()->accountOwnerId();
+        $accountOwner = $this->accountOwner($request);
+        $accountId = (int) $accountOwner->id;
         $this->ensureMutableCompanyRole($companyRole, $accountId);
 
-        $validated = $this->validatedRoleInput($request);
+        $availablePermissionSlugs = $this->permissionAvailability->availableSlugs($accountOwner);
+        $validated = $this->validatedRoleInput($request, $availablePermissionSlugs);
 
         $companyRole->update([
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
             'is_active' => (bool) ($validated['is_active'] ?? true),
         ]);
-        $companyRole->permissions()->sync($this->permissionIds($validated['permissions'] ?? []));
+        $companyRole->permissions()->sync($this->permissionIds(
+            $validated['permissions'] ?? [],
+            $availablePermissionSlugs,
+        ));
 
         return $this->roleMutationResponse($request, 'Role updated.', $companyRole);
     }
 
     public function duplicate(Request $request, CompanyRole $companyRole)
     {
-        $accountId = (int) $request->user()->accountOwnerId();
+        $accountOwner = $this->accountOwner($request);
+        $accountId = (int) $accountOwner->id;
         $this->ensureReadableRole($companyRole, $accountId);
+        $availablePermissionSlugs = $this->permissionAvailability->availableSlugs($accountOwner);
 
         $validated = $request->validate([
             'name' => ['nullable', 'string', 'max:255'],
@@ -85,7 +102,10 @@ class RolePermissionController extends Controller
             'is_deletable' => true,
             'is_active' => true,
         ]);
-        $copy->permissions()->sync($source->permissions->pluck('id')->all());
+        $copy->permissions()->sync($this->permissionIds(
+            $source->permissions->pluck('slug')->all(),
+            $availablePermissionSlugs,
+        ));
 
         return $this->roleMutationResponse($request, 'Role duplicated.', $copy, 201);
     }
@@ -131,9 +151,10 @@ class RolePermissionController extends Controller
     }
 
     /**
+     * @param  array<int, string>  $availablePermissionSlugs
      * @return array<int, array<string, mixed>>
      */
-    private function rolePayload(int $accountId): array
+    private function rolePayload(int $accountId, array $availablePermissionSlugs): array
     {
         return CompanyRole::query()
             ->with('permissions:id,group,name,slug')
@@ -145,24 +166,26 @@ class RolePermissionController extends Controller
             ->orderByDesc('is_system')
             ->orderBy('name')
             ->get()
-            ->map(fn (CompanyRole $role): array => $this->formatRole($role))
+            ->map(fn (CompanyRole $role): array => $this->formatRole($role, $availablePermissionSlugs))
             ->values()
             ->all();
     }
 
     /**
+     * @param  array<int, string>  $availablePermissionSlugs
      * @return array<int, array<string, mixed>>
      */
-    private function permissionPayload(): array
+    private function permissionPayload(array $availablePermissionSlugs): array
     {
         return Permission::query()
+            ->whereIn('slug', $availablePermissionSlugs)
             ->orderBy('group')
             ->orderBy('name')
             ->get(['id', 'group', 'name', 'slug', 'description'])
             ->groupBy('group')
             ->map(fn ($items, string $group): array => [
                 'group' => $group,
-                'label' => Str::headline($group),
+                'label' => $this->permissionGroupLabel($group),
                 'permissions' => $items->map(fn (Permission $permission): array => [
                     'id' => $permission->id,
                     'slug' => $permission->slug,
@@ -172,6 +195,14 @@ class RolePermissionController extends Controller
             ])
             ->values()
             ->all();
+    }
+
+    private function permissionGroupLabel(string $group): string
+    {
+        return match ($group) {
+            'social' => 'Pulse',
+            default => Str::headline($group),
+        };
     }
 
     /**
@@ -202,27 +233,29 @@ class RolePermissionController extends Controller
     }
 
     /**
+     * @param  array<int, string>  $availablePermissionSlugs
      * @return array{name: string, description?: string|null, is_active?: bool, permissions?: array<int, string>}
      */
-    private function validatedRoleInput(Request $request): array
+    private function validatedRoleInput(Request $request, array $availablePermissionSlugs): array
     {
         return $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:1000'],
             'is_active' => ['nullable', 'boolean'],
             'permissions' => ['nullable', 'array'],
-            'permissions.*' => ['string', Rule::exists('permissions', 'slug')],
+            'permissions.*' => ['string', Rule::in($availablePermissionSlugs)],
         ]);
     }
 
     /**
      * @param  array<int, string>  $slugs
+     * @param  array<int, string>  $availablePermissionSlugs
      * @return array<int, int>
      */
-    private function permissionIds(array $slugs): array
+    private function permissionIds(array $slugs, array $availablePermissionSlugs): array
     {
         return Permission::query()
-            ->whereIn('slug', $slugs)
+            ->whereIn('slug', array_values(array_intersect($slugs, $availablePermissionSlugs)))
             ->pluck('id')
             ->map(fn ($id): int => (int) $id)
             ->all();
@@ -266,9 +299,10 @@ class RolePermissionController extends Controller
     }
 
     /**
+     * @param  array<int, string>  $availablePermissionSlugs
      * @return array<string, mixed>
      */
-    private function formatRole(CompanyRole $role): array
+    private function formatRole(CompanyRole $role, array $availablePermissionSlugs): array
     {
         return [
             'id' => $role->id,
@@ -283,6 +317,7 @@ class RolePermissionController extends Controller
             'is_active' => $role->is_active,
             'members_count' => (int) $role->tenant_members_count,
             'permissions' => $role->permissions
+                ->whereIn('slug', $availablePermissionSlugs)
                 ->pluck('slug')
                 ->values()
                 ->all(),
@@ -293,6 +328,8 @@ class RolePermissionController extends Controller
     {
         if ($this->shouldReturnJson($request)) {
             $accountId = (int) $request->user()->accountOwnerId();
+            $accountOwner = User::query()->findOrFail($accountId);
+            $availablePermissionSlugs = $this->permissionAvailability->availableSlugs($accountOwner);
             $freshRole = $role->fresh('permissions') ?? $role->load('permissions');
             $freshRole->loadCount([
                 'teamMembers as tenant_members_count' => fn (Builder $query): Builder => $query
@@ -301,7 +338,7 @@ class RolePermissionController extends Controller
 
             return response()->json([
                 'message' => $message,
-                'role' => $this->formatRole($freshRole),
+                'role' => $this->formatRole($freshRole, $availablePermissionSlugs),
             ], $status);
         }
 
@@ -319,5 +356,10 @@ class RolePermissionController extends Controller
         return redirect()->back()->withErrors([
             'role' => $message,
         ]);
+    }
+
+    private function accountOwner(Request $request): User
+    {
+        return User::query()->findOrFail((int) $request->user()->accountOwnerId());
     }
 }

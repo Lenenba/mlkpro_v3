@@ -17,19 +17,21 @@ function rbacPhaseThreeEmployeeRoleId(): int
     )->id;
 }
 
-function rbacPhaseThreeOwner(): User
+function rbacPhaseThreeOwner(array $attributes = []): User
 {
-    return User::factory()->create([
+    return User::factory()->create(array_merge([
         'company_type' => 'services',
         'company_sector' => 'salon',
         'company_features' => [
+            'services' => true,
             'team_members' => true,
             'presence' => true,
             'reservations' => true,
+            'sales' => true,
             'tasks' => true,
         ],
         'selected_plan_key' => null,
-    ]);
+    ], $attributes));
 }
 
 function rbacPhaseThreeMember(User $owner, array $permissionSlugs = []): User
@@ -135,6 +137,251 @@ it('scopes shared system role member counts to the current tenant', function () 
     $systemRolePayload = collect($response->json('roles'))->firstWhere('id', $systemRole->id);
 
     expect($systemRolePayload['members_count'] ?? null)->toBe(1);
+});
+
+it('only exposes catalog permissions for enabled tenant modules while keeping core groups', function () {
+    $this->seed(RbacSeeder::class);
+
+    $owner = rbacPhaseThreeOwner([
+        'company_sector' => 'service_general',
+        'company_features' => [
+            'services' => false,
+            'reservations' => true,
+            'products' => false,
+            'sales' => false,
+            'team_members' => false,
+            'presence' => false,
+            'performance' => false,
+            'campaigns' => false,
+            'jobs' => false,
+            'tasks' => false,
+            'quotes' => false,
+            'requests' => false,
+            'social' => false,
+            'invoices' => false,
+            'expenses' => false,
+            'accounting' => false,
+        ],
+    ]);
+    $unavailablePermission = Permission::query()->where('slug', 'view_tasks')->firstOrFail();
+    $orphanedPermission = Permission::query()->create([
+        'group' => 'legacy',
+        'name' => 'Legacy permission',
+        'slug' => 'legacy_permission',
+        'description' => null,
+    ]);
+    $customRole = rbacPhaseThreeCustomRole($owner, 'Accueil limité');
+    $customRole->permissions()->syncWithoutDetaching([
+        $unavailablePermission->id,
+        $orphanedPermission->id,
+    ]);
+
+    $response = $this->actingAs($owner)
+        ->getJson(route('settings.roles_permissions.edit'))
+        ->assertOk();
+    $permissionGroups = collect($response->json('permissions'));
+    $rolePayload = collect($response->json('roles'))->firstWhere('id', $customRole->id);
+
+    expect($permissionGroups->pluck('group')->all())->toBe([
+        'chairs',
+        'clients',
+        'reservations',
+        'settings',
+    ])->and($permissionGroups->pluck('permissions')->flatten(1)->pluck('slug')->all())
+        ->not->toContain('view_tasks', 'legacy_permission')
+        ->and($rolePayload['permissions'] ?? [])->toBe([]);
+
+    $this->actingAs($owner)
+        ->postJson(route('settings.roles_permissions.roles.store'), [
+            'name' => 'Ancien droit interdit',
+            'permissions' => ['legacy_permission'],
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('permissions.0');
+
+    $this->assertDatabaseMissing('company_roles', [
+        'company_id' => $owner->id,
+        'name' => 'Ancien droit interdit',
+    ]);
+});
+
+it('filters finance and storefront permissions at permission level', function () {
+    $this->seed(RbacSeeder::class);
+
+    $owner = rbacPhaseThreeOwner([
+        'company_type' => 'products',
+        'company_sector' => 'retail',
+        'company_features' => [
+            'products' => true,
+            'services' => false,
+            'invoices' => true,
+            'expenses' => false,
+            'accounting' => false,
+        ],
+    ]);
+
+    $response = $this->actingAs($owner)
+        ->getJson(route('settings.roles_permissions.edit'))
+        ->assertOk();
+    $permissionGroups = collect($response->json('permissions'))->keyBy('group');
+
+    expect(collect($permissionGroups['finance']['permissions'])->pluck('slug')->all())
+        ->toEqualCanonicalizing([
+            'view_invoices',
+            'create_invoices',
+            'update_invoices',
+            'approve_invoices',
+            'approve_high_value_invoices',
+        ])
+        ->and(collect($permissionGroups['storefront']['permissions'])->pluck('slug')->all())
+        ->toEqualCanonicalizing([
+            'view_storefront',
+            'manage_storefront',
+            'manage_public_products',
+        ]);
+});
+
+it('labels enabled social permissions as Pulse and hides them when the module is disabled', function () {
+    $this->seed(RbacSeeder::class);
+
+    $enabledOwner = rbacPhaseThreeOwner([
+        'company_sector' => 'service_general',
+        'company_features' => [
+            'social' => true,
+        ],
+    ]);
+    $disabledOwner = rbacPhaseThreeOwner([
+        'company_sector' => 'service_general',
+        'company_features' => [
+            'social' => false,
+        ],
+    ]);
+
+    $enabledResponse = $this->actingAs($enabledOwner)
+        ->getJson(route('settings.roles_permissions.edit'))
+        ->assertOk();
+    $pulseGroup = collect($enabledResponse->json('permissions'))->firstWhere('group', 'social');
+
+    expect($pulseGroup['label'] ?? null)->toBe('Pulse')
+        ->and(collect($pulseGroup['permissions'] ?? [])->pluck('slug')->all())
+        ->toEqualCanonicalizing([
+            'view_social',
+            'manage_social',
+            'publish_social',
+            'approve_social',
+        ]);
+
+    $roleResponse = $this->actingAs($enabledOwner)
+        ->postJson(route('settings.roles_permissions.roles.store'), [
+            'name' => 'Éditeur Pulse',
+            'permissions' => ['view_social', 'publish_social'],
+        ])
+        ->assertCreated();
+    $delegatedRole = CompanyRole::query()->findOrFail($roleResponse->json('role.id'));
+
+    expect($roleResponse->json('role.permissions'))
+        ->toEqualCanonicalizing(['view_social', 'publish_social'])
+        ->and($delegatedRole->permissions()->pluck('slug')->all())
+        ->toEqualCanonicalizing(['view_social', 'publish_social']);
+
+    $disabledResponse = $this->actingAs($disabledOwner)
+        ->getJson(route('settings.roles_permissions.edit'))
+        ->assertOk();
+
+    expect(collect($disabledResponse->json('permissions'))->pluck('group'))
+        ->not->toContain('social');
+});
+
+it('rejects unavailable permissions and purges hidden permissions when saving a role', function () {
+    $this->seed(RbacSeeder::class);
+
+    $owner = rbacPhaseThreeOwner([
+        'company_sector' => 'service_general',
+        'company_features' => [
+            'tasks' => true,
+            'reservations' => false,
+        ],
+    ]);
+
+    $this->actingAs($owner)
+        ->postJson(route('settings.roles_permissions.roles.store'), [
+            'name' => 'Réservations interdites',
+            'permissions' => ['view_reservations'],
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('permissions.0');
+
+    $this->assertDatabaseMissing('company_roles', [
+        'company_id' => $owner->id,
+        'name' => 'Réservations interdites',
+    ]);
+
+    $customRole = rbacPhaseThreeCustomRole($owner, 'Opérations limitées');
+    $customRole->permissions()->sync(
+        Permission::query()
+            ->whereIn('slug', ['view_clients', 'view_reservations'])
+            ->pluck('id')
+            ->all()
+    );
+
+    $this->actingAs($owner)
+        ->putJson(route('settings.roles_permissions.roles.update', $customRole), [
+            'name' => 'Opérations limitées',
+            'description' => 'Le droit masqué doit être supprimé.',
+            'is_active' => true,
+            'permissions' => ['view_clients', 'view_reservations'],
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('permissions.1');
+
+    expect($customRole->fresh()->permissions()->pluck('slug')->all())
+        ->toEqualCanonicalizing(['view_clients', 'view_reservations']);
+
+    $this->actingAs($owner)
+        ->putJson(route('settings.roles_permissions.roles.update', $customRole), [
+            'name' => 'Opérations limitées',
+            'description' => 'Le droit masqué doit être supprimé.',
+            'is_active' => true,
+            'permissions' => ['view_clients'],
+        ])
+        ->assertOk()
+        ->assertJsonPath('role.permissions', ['view_clients']);
+
+    expect($customRole->fresh()->permissions()->pluck('slug')->all())->toBe(['view_clients']);
+});
+
+it('only copies permissions available to the tenant when duplicating a role', function () {
+    $this->seed(RbacSeeder::class);
+
+    $owner = rbacPhaseThreeOwner([
+        'company_sector' => 'service_general',
+        'company_features' => [
+            'services' => false,
+            'reservations' => false,
+            'products' => false,
+            'sales' => false,
+            'team_members' => false,
+            'presence' => false,
+            'performance' => false,
+            'jobs' => false,
+            'tasks' => false,
+            'quotes' => false,
+            'requests' => false,
+        ],
+    ]);
+    $systemRole = CompanyRole::query()->where('slug', 'manager')->firstOrFail();
+
+    $response = $this->actingAs($owner)
+        ->postJson(route('settings.roles_permissions.roles.duplicate', $systemRole), [
+            'name' => 'Gestionnaire limité',
+        ])
+        ->assertCreated();
+    $copy = CompanyRole::query()->findOrFail($response->json('role.id'));
+    $copiedPermissions = $copy->permissions()->get(['group', 'slug']);
+
+    expect($copiedPermissions)->not->toBeEmpty()
+        ->and($copiedPermissions->pluck('group')->unique()->values()->all())->toBe(['clients'])
+        ->and($copiedPermissions->pluck('slug')->all())->not->toContain('view_tasks', 'view_reservations');
 });
 
 it('keeps scoped permissions from satisfying manager-level aliases', function () {

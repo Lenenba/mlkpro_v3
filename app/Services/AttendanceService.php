@@ -45,7 +45,8 @@ class AttendanceService
         $enabled = $owner->hasCompanyFeature('sales')
             || $owner->hasCompanyFeature('jobs')
             || $owner->hasCompanyFeature('tasks')
-            || $owner->hasCompanyFeature('reservations');
+            || $owner->hasCompanyFeature('reservations')
+            || $owner->hasCompanyFeature('presence');
         if (! $enabled) {
             return [
                 'enabled' => false,
@@ -84,7 +85,11 @@ class AttendanceService
             return null;
         }
 
-        return $this->clockIn($user, $membership, 'auto');
+        $timezone = filled($owner->company_timezone)
+            ? (string) $owner->company_timezone
+            : (string) config('app.timezone', 'UTC');
+
+        return $this->clockIn($user, $membership, 'auto', $timezone);
     }
 
     public function autoClockOut(User $user): ?TeamMemberAttendance
@@ -111,20 +116,40 @@ class AttendanceService
         return $this->clockOut($user, $membership, 'auto');
     }
 
-    public function clockIn(User $user, ?TeamMember $membership, string $method = 'manual'): TeamMemberAttendance
-    {
+    public function clockIn(
+        User $user,
+        ?TeamMember $membership,
+        string $method = 'manual',
+        ?string $localTimezone = null
+    ): TeamMemberAttendance {
         $accountId = $user->accountOwnerId();
 
-        return DB::transaction(function () use ($accountId, $user, $membership, $method) {
+        return DB::transaction(function () use ($accountId, $user, $membership, $method, $localTimezone) {
             $openAttendance = TeamMemberAttendance::query()
                 ->where('account_id', $accountId)
                 ->where('user_id', $user->id)
                 ->whereNull('clock_out_at')
                 ->orderByDesc('clock_in_at')
+                ->lockForUpdate()
                 ->first();
 
             if ($openAttendance) {
-                return $openAttendance;
+                $openedAtLocal = $localTimezone
+                    ? $openAttendance->clock_in_at->copy()->setTimezone($localTimezone)
+                    : null;
+                $openedOnPreviousLocalDay = $openedAtLocal
+                    && $openedAtLocal->toDateString() < now($localTimezone)->toDateString();
+
+                if (! $openedOnPreviousLocalDay) {
+                    return $openAttendance;
+                }
+
+                $openAttendance->update([
+                    'clock_out_at' => $openedAtLocal->copy()->endOfDay()->utc(),
+                    'clock_out_method' => 'auto',
+                    'team_member_id' => $openAttendance->team_member_id ?? $membership?->id,
+                    'current_status' => TeamMemberAttendance::STATUS_OFFLINE,
+                ]);
             }
 
             return TeamMemberAttendance::create([

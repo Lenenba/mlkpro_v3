@@ -3660,6 +3660,75 @@ it('syncs queue staff availability with presence clock-in and clock-out', functi
     ]);
 });
 
+it('keeps an available chair green until a future appointment reaches its start time', function () {
+    Carbon::setTestNow(Carbon::parse('2026-09-03 13:00:00', 'UTC'));
+
+    try {
+        $owner = createOwnerWithReservationsEnabled();
+        $member = createTeamMemberForAccount($owner, [
+            'role' => 'employee',
+            'permissions' => [],
+        ]);
+
+        ReservationSetting::query()->updateOrCreate(
+            [
+                'account_id' => $owner->id,
+                'team_member_id' => null,
+            ],
+            [
+                'business_preset' => 'salon',
+                'waitlist_enabled' => true,
+                'queue_mode_enabled' => true,
+                'queue_assignment_mode' => 'per_staff',
+                'queue_dispatch_mode' => 'fifo_with_appointment_priority',
+                'queue_grace_minutes' => 5,
+                'queue_pre_call_threshold' => 2,
+                'queue_no_show_on_grace_expiry' => false,
+            ]
+        );
+
+        createActiveChairForMember($owner, $member);
+        checkInTeamMember($owner, $member);
+
+        $startsAt = now('UTC')->addMinutes(90);
+        $reservation = Reservation::query()->create([
+            'account_id' => $owner->id,
+            'team_member_id' => $member->id,
+            'status' => Reservation::STATUS_CONFIRMED,
+            'source' => Reservation::SOURCE_STAFF,
+            'timezone' => 'UTC',
+            'starts_at' => $startsAt,
+            'ends_at' => $startsAt->copy()->addHour(),
+            'duration_minutes' => 60,
+            'buffer_minutes' => 0,
+        ]);
+
+        $futureScreen = $this->actingAs($owner)
+            ->withSession(['two_factor_passed' => true])
+            ->getJson(route('reservation.screen.data', ['anonymize' => 1]))
+            ->assertOk();
+
+        expect($futureScreen->json('queue.chairs.0.state'))->toBe('available');
+        expect($futureScreen->json('queue.chairs.0.team_member_status'))->toBe(TeamMemberAttendance::STATUS_AVAILABLE);
+        expect($futureScreen->json('queue.chairs.0.next.status'))->toBe(ReservationQueueItem::STATUS_NOT_ARRIVED);
+        expect($futureScreen->json('queue.chairs.0.next.reservation_starts_at'))->toBe($startsAt->toIso8601String());
+
+        $reservation->update([
+            'starts_at' => now('UTC')->subMinutes(5),
+            'ends_at' => now('UTC')->addMinutes(55),
+        ]);
+
+        $dueScreen = $this->actingAs($owner)
+            ->withSession(['two_factor_passed' => true])
+            ->getJson(route('reservation.screen.data', ['anonymize' => 1]))
+            ->assertOk();
+
+        expect($dueScreen->json('queue.chairs.0.state'))->toBe('check_in_needed');
+    } finally {
+        Carbon::setTestNow();
+    }
+});
+
 it('exposes only operational chairs and blocks queue assignment when the assigned member is unavailable', function () {
     $owner = createOwnerWithReservationsEnabled();
     $member = createTeamMemberForAccount($owner, [

@@ -202,7 +202,14 @@ final class StudioNayaBlueprint
                 'role_key' => 'stylist',
                 'title' => 'Coiffeuse',
                 'specialties' => ['coupes', 'brushings', 'soins_capillaires'],
-                'permissions' => ['reservations.view', 'reservations.queue', 'reservations.manage', 'sales.pos'],
+                'permissions' => [
+                    'reservations.view',
+                    'reservations.queue',
+                    'reservations.manage',
+                    'sales.pos',
+                    'presence.view',
+                    'presence.manage_own',
+                ],
                 'performance_profile' => ['occupancy_target' => 0.75, 'average_ticket_target' => 86.00, 'demand_weight' => 0.96],
                 'schedule' => [
                     2 => ['starts_at' => '09:00', 'ends_at' => '17:00'],

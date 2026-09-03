@@ -35,6 +35,7 @@ use App\Services\Demo\DemoWorkspaceCatalog;
 use App\Services\Demo\DemoWorkspaceProvisioner;
 use App\Services\Demo\DemoWorkspaceTimelineService;
 use App\Services\Demo\Scenarios\StudioNaya\StudioNayaBlueprint;
+use App\Services\Rbac\CompanyPermissionAvailability;
 use App\Services\Rbac\PermissionCatalog;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Hash;
@@ -389,6 +390,38 @@ it('keeps the live tenant intact when a queued shadow reset fails', function () 
         ->and(Customer::query()->find($originalCustomer->id)?->first_name)->toBe('Live');
 });
 
+it('lets Alicia open Presence after Studio Naya provisioning', function () {
+    $admin = demoScenarioIntegrationAdmin();
+    $workspace = app(DemoWorkspaceProvisioner::class)->create(
+        demoScenarioIntegrationPayload(),
+        $admin
+    );
+    $aliciaMembership = TeamMember::query()
+        ->forAccount((int) $workspace->owner_user_id)
+        ->whereHas('user', fn ($query) => $query->where('name', 'Alicia Tremblay'))
+        ->with(['user', 'companyRole.permissions:id,slug'])
+        ->firstOrFail();
+    $alicia = $aliciaMembership->user;
+
+    expect($alicia)->toBeInstanceOf(User::class)
+        ->and($aliciaMembership->companyRole?->slug)->toBe('demo_stylist')
+        ->and($aliciaMembership->hasPermission('view_presence'))->toBeTrue()
+        ->and($aliciaMembership->hasPermission('manage_own_presence'))->toBeTrue();
+
+    $this->actingAs($alicia)
+        ->withSession(['two_factor_passed' => true])
+        ->get(route('presence.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Presence/Index')
+            ->where('auth.account.features.presence', true)
+            ->where('permissions.can_clock', true)
+            ->where('auth.account.permissions', fn (mixed $permissions): bool => collect($permissions)->contains('view_presence')
+                && collect($permissions)->contains('presence.view')
+                && collect($permissions)->contains('manage_own_presence'))
+        );
+});
+
 it('provisions and reproducibly resets the real small Studio Naya scenario', function () {
     $admin = demoScenarioIntegrationAdmin();
     $unrelatedTenant = User::query()->create([
@@ -461,6 +494,7 @@ it('provisions and reproducibly resets the real small Studio Naya scenario', fun
         ->json();
     $settingsTenantRoles = collect($settingsAccessPayload['roles'] ?? [])->whereNotNull('company_id');
     $settingsSarahRole = $settingsTenantRoles->firstWhere('slug', 'demo_protective_style_specialist');
+    $availablePermissionCount = count(app(CompanyPermissionAvailability::class)->availableSlugs($workspace->owner));
     $teamAccessMembers = collect(data_get($teamAccessPayload, 'teamMembers.data', []));
     $teamSarahMembership = $teamAccessMembers->firstWhere('user.name', 'Sarah Mbaye');
     $sarahMembership = $demoTeamMembers->first(
@@ -720,7 +754,7 @@ it('provisions and reproducibly resets the real small Studio Naya scenario', fun
         ->and(collect($settingsAccessPayload['teamMembers'] ?? [])->whereNull('company_role'))->toBeEmpty()
         ->and(collect($settingsAccessPayload['permissions'] ?? [])->sum(
             fn (array $group): int => count($group['permissions'] ?? []),
-        ))->toBe(count(app(PermissionCatalog::class)->permissions()))
+        ))->toBe($availablePermissionCount)
         ->and($teamAccessMembers->whereNull('company_role_id'))->toBeEmpty()
         ->and($teamAccessMembers->every(
             fn (array $member): bool => data_get($member, 'company_role') !== null
