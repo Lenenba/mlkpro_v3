@@ -840,7 +840,7 @@ class ReservationQueueService
     public function boardForStaff(int $accountId, array $access, array $settings): array
     {
         if (! $this->isQueueFeatureEnabled($settings)) {
-            return ['items' => [], 'stats' => ['waiting' => 0, 'called' => 0, 'in_service' => 0]];
+            return ['items' => [], 'stats' => $this->staffBoardStats([])];
         }
 
         $assignmentMode = $this->normalizeAssignmentMode((string) ($settings['queue_assignment_mode'] ?? self::ASSIGNMENT_MODE_PER_STAFF));
@@ -918,6 +918,12 @@ class ReservationQueueService
                             && (string) ($item->item_type ?? '') === ReservationQueueItem::TYPE_TICKET
                         )
                     ));
+                $callable = (bool) ($metrics[$item->id]['callable'] ?? false);
+                $actionContract = $this->staffBoardActionContract(
+                    (string) $item->status,
+                    $callable,
+                    $canUpdateStatus
+                );
 
                 return [
                     'id' => $item->id,
@@ -939,26 +945,79 @@ class ReservationQueueService
                     'checked_in_at' => $item->checked_in_at?->toIso8601String(),
                     'called_at' => $item->called_at?->toIso8601String(),
                     'started_at' => $item->started_at?->toIso8601String(),
-                    'callable' => (bool) ($metrics[$item->id]['callable'] ?? false),
+                    'callable' => $callable,
                     'recommended_team_member_id' => $metrics[$item->id]['recommended_team_member_id'] ?? null,
                     'call_expires_at' => $item->call_expires_at?->toIso8601String(),
                     'can_update_status' => $canUpdateStatus,
+                    'allowed_actions' => $actionContract['allowed_actions'],
+                    'primary_action' => $actionContract['primary_action'],
                     'checkout' => $checkout,
                 ];
             })->values()->all();
 
         return [
             'items' => $items,
-            'stats' => [
-                'waiting' => count(array_filter($items, fn (array $item) => in_array($item['status'], [
-                    ReservationQueueItem::STATUS_CHECKED_IN,
-                    ReservationQueueItem::STATUS_PRE_CALLED,
-                    ReservationQueueItem::STATUS_CALLED,
-                    ReservationQueueItem::STATUS_SKIPPED,
-                ], true))),
-                'called' => count(array_filter($items, fn (array $item) => $item['status'] === ReservationQueueItem::STATUS_CALLED)),
-                'in_service' => count(array_filter($items, fn (array $item) => $item['status'] === ReservationQueueItem::STATUS_IN_SERVICE)),
-            ],
+            'stats' => $this->staffBoardStats($items),
+        ];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $items
+     * @return array{total: int, not_arrived: int, waiting: int, called: int, in_service: int, awaiting_payment: int, done: int}
+     */
+    private function staffBoardStats(array $items): array
+    {
+        return [
+            'total' => count($items),
+            'not_arrived' => count(array_filter($items, fn (array $item) => $item['status'] === ReservationQueueItem::STATUS_NOT_ARRIVED)),
+            'waiting' => count(array_filter($items, fn (array $item) => in_array($item['status'], [
+                ReservationQueueItem::STATUS_CHECKED_IN,
+                ReservationQueueItem::STATUS_PRE_CALLED,
+                ReservationQueueItem::STATUS_SKIPPED,
+            ], true))),
+            'called' => count(array_filter($items, fn (array $item) => $item['status'] === ReservationQueueItem::STATUS_CALLED)),
+            'in_service' => count(array_filter($items, fn (array $item) => $item['status'] === ReservationQueueItem::STATUS_IN_SERVICE)),
+            'awaiting_payment' => count(array_filter($items, fn (array $item) => $item['status'] === ReservationQueueItem::STATUS_AWAITING_PAYMENT)),
+            'done' => count(array_filter($items, fn (array $item) => $item['status'] === ReservationQueueItem::STATUS_DONE)),
+        ];
+    }
+
+    /**
+     * @return array{allowed_actions: list<string>, primary_action: string|null}
+     */
+    private function staffBoardActionContract(string $status, bool $callable, bool $canUpdateStatus): array
+    {
+        if (! $canUpdateStatus) {
+            return [
+                'allowed_actions' => [],
+                'primary_action' => null,
+            ];
+        }
+
+        $allowedActions = match ($status) {
+            ReservationQueueItem::STATUS_NOT_ARRIVED => ['check-in'],
+            ReservationQueueItem::STATUS_CHECKED_IN => ['pre-call', 'call', 'start', 'skip'],
+            ReservationQueueItem::STATUS_PRE_CALLED => ['call', 'start', 'skip'],
+            ReservationQueueItem::STATUS_CALLED => ['start', 'finish', 'skip'],
+            ReservationQueueItem::STATUS_SKIPPED => ['pre-call', 'call', 'done'],
+            ReservationQueueItem::STATUS_IN_SERVICE => ['finish'],
+            ReservationQueueItem::STATUS_AWAITING_PAYMENT => ['checkout'],
+            default => [],
+        };
+        $primaryAction = match ($status) {
+            ReservationQueueItem::STATUS_NOT_ARRIVED => 'check-in',
+            ReservationQueueItem::STATUS_CHECKED_IN,
+            ReservationQueueItem::STATUS_SKIPPED => $callable ? 'call' : 'pre-call',
+            ReservationQueueItem::STATUS_PRE_CALLED => 'call',
+            ReservationQueueItem::STATUS_CALLED => 'start',
+            ReservationQueueItem::STATUS_IN_SERVICE => 'finish',
+            ReservationQueueItem::STATUS_AWAITING_PAYMENT => 'checkout',
+            default => null,
+        };
+
+        return [
+            'allowed_actions' => $allowedActions,
+            'primary_action' => $primaryAction,
         ];
     }
 

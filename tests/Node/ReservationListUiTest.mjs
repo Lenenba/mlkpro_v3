@@ -4,13 +4,17 @@ import { resolve } from 'node:path';
 import test from 'node:test';
 import {
     nextReservationListSort,
+    reservationListAllowedStatusTransitions,
     reservationListCanDelete,
     reservationListCanEdit,
+    reservationListCanUpdateStatus,
     reservationListCanView,
     reservationListClient,
     reservationListEntityName,
     reservationListImageSource,
     reservationListServiceName,
+    reservationListQuickStatusAction,
+    reservationListSecondaryStatusActions,
     reservationListSourceKey,
     reservationListSortColumn,
     reservationListSortDirection,
@@ -96,6 +100,64 @@ test('reservation list sorting cycles every exposed column in both directions', 
     assert.equal(reservationListSortValue('unsupported', 'sideways'), 'date_asc');
 });
 
+test('reservation list exposes one contextual primary status action and keeps alternatives secondary', () => {
+    const now = new Date('2026-09-03T16:00:00.000Z');
+    const pending = {
+        id: 11,
+        status: 'pending',
+        ends_at: '2026-09-04T16:00:00.000Z',
+        permissions: {
+            can_view: true,
+            can_update_status: true,
+            allowed_status_transitions: ['confirmed', 'cancelled'],
+        },
+    };
+
+    assert.equal(reservationListCanUpdateStatus(pending), true);
+    assert.deepEqual(reservationListAllowedStatusTransitions(pending), ['confirmed', 'cancelled']);
+    assert.deepEqual(
+        reservationListQuickStatusAction(pending, now),
+        { status: 'confirmed', labelKey: 'confirm', destructive: false },
+    );
+    assert.deepEqual(
+        reservationListSecondaryStatusActions(pending, now),
+        [{ status: 'cancelled', labelKey: 'cancel', destructive: true }],
+    );
+
+    const past = {
+        ...pending,
+        id: 12,
+        status: 'confirmed',
+        ends_at: '2026-09-03T15:00:00.000Z',
+        permissions: {
+            ...pending.permissions,
+            allowed_status_transitions: ['completed', 'no_show', 'cancelled'],
+        },
+    };
+
+    assert.equal(reservationListQuickStatusAction(past, now)?.status, 'completed');
+    assert.deepEqual(
+        reservationListSecondaryStatusActions(past, now).map((action) => action.status),
+        ['no_show', 'cancelled'],
+    );
+
+    const cancelled = {
+        ...pending,
+        id: 13,
+        status: 'cancelled',
+        permissions: {
+            ...pending.permissions,
+            allowed_status_transitions: ['confirmed'],
+        },
+    };
+
+    assert.deepEqual(
+        reservationListQuickStatusAction(cancelled, now),
+        { status: 'confirmed', labelKey: 'confirm', destructive: false },
+    );
+    assert.equal(reservationListQuickStatusAction({ ...pending, permissions: { can_update_status: false } }, now), null);
+});
+
 test('reservation list copy is complete in French, English, and Spanish', () => {
     const requiredListKeys = [
         'title',
@@ -137,6 +199,11 @@ test('reservation list copy is complete in French, English, and Spanish', () => 
         assert.match(reservationMessages.list.open, /\{client\}/u, `${locale}:client interpolation`);
         assert.equal(typeof reservationMessages.table?.source, 'string', `${locale}:reservations.table.source`);
         assert.equal(typeof reservationMessages.errors?.load_list, 'string', `${locale}:reservations.errors.load_list`);
+        for (const key of ['label', 'all', 'pending', 'today', 'upcoming', 'past', 'completed', 'no_show', 'cancelled']) {
+            assert.equal(typeof reservationMessages.quick?.[key], 'string', `${locale}:reservations.quick.${key}`);
+            assert.notEqual(reservationMessages.quick[key].trim(), '', `${locale}:reservations.quick.${key}`);
+        }
+        assert.match(reservationMessages.actions?.cancel_confirm || '', /\{reference\}/u, `${locale}:cancel confirmation interpolation`);
     }
 });
 
@@ -180,6 +247,10 @@ test('reservation list is flat, responsive, accessible, and resilient', () => {
     assert.match(component, /motion-reduce:animate-none/u);
     assert.match(component, /dark:bg-/u);
     assert.match(component, /reservation-actions-trigger-/u);
+    assert.match(component, /reservationListQuickStatusAction/u);
+    assert.match(component, /reservationListSecondaryStatusActions/u);
+    assert.match(component, /emit\('transition-status', reservation, action\.status\)/u);
+    assert.match(component, /statusActionError/u);
     assert.match(component, /emit\('sort', 'service'\)/u);
     assert.match(component, /emit\('sort', 'client'\)/u);
     assert.match(component, /emit\('sort', 'team_member'\)/u);
@@ -195,6 +266,11 @@ test('reservation list is flat, responsive, accessible, and resilient', () => {
     assert.match(index, /:loading="listLoading"/u);
     assert.match(index, /:error="listError"/u);
     assert.match(index, /@clear-filters="clearFilters"/u);
+    assert.match(index, /data-testid="reservation-quick-filters"/u);
+    assert.match(index, /:aria-pressed="filterForm\.quick === quickFilter\.value"/u);
+    assert.match(index, /quick:\s*filterForm\.quick \|\| undefined/u);
+    assert.match(index, /only:\s*\[[^\]]*'quickCounts'/u);
+    assert.match(index, /@transition-status="updateReservationStatusFromList"/u);
     assert.match(index, /listError\.value = t\('reservations\.errors\.load_list'\)/u);
     assert.match(index, /let listRequestSequence = 0/u);
     assert.match(index, /const requestSequence = \+\+listRequestSequence/u);

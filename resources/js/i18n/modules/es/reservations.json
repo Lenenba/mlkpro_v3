@@ -74,10 +74,15 @@
       "all": "Todas las reservas"
     },
     "quick": {
+      "label": "Vistas rápidas de reservas",
+      "all": "Todas",
       "pending": "Pendiente",
       "today": "hoy",
       "upcoming": "Próximo",
-      "past": "Pasado"
+      "past": "Pasado",
+      "completed": "Completadas",
+      "no_show": "Ausencias",
+      "cancelled": "Canceladas"
     },
     "sort": {
       "date_asc": "Fecha (la más antigua primero)",
@@ -101,7 +106,8 @@
       "reschedule": "Reprogramar",
       "filters": "Filtros",
       "clear_filters": "Limpiar filtros",
-      "delete_confirm": "¿Eliminar esta reserva?"
+      "delete_confirm": "¿Eliminar esta reserva?",
+      "cancel_confirm": "¿Cancelar la reserva {reference}?"
     },
     "form": {
       "create_title": "Crear reserva",
@@ -204,6 +210,18 @@
         "label": "Modo de visualización de la cola",
         "table": "Tabla",
         "cards": "Tarjetas"
+      },
+      "filters": {
+        "label": "Filtrar la cola por etapa",
+        "all": "Todos",
+        "not_arrived": "Próximos",
+        "waiting": "En espera",
+        "called": "Llamados",
+        "in_service": "En servicio",
+        "awaiting_payment": "Pendiente de pago",
+        "done": "Completados",
+        "empty": "Ningún elemento de la cola coincide con este filtro.",
+        "clear": "Mostrar toda la cola"
       },
       "details": {
         "schedule": "Horario",
@@ -383,6 +401,11 @@
         "disabled": "El modo de cola híbrida está deshabilitado. Habilítelo en la configuración de reservas."
       }
     },
+    "public_navigation": {
+      "aria_label": "Navegación pública de reservas",
+      "book": "Reservar en línea",
+      "kiosk": "Abrir el quiosco"
+    },
     "kiosk": {
       "title": "Quiosco de salón",
       "subtitle": "Tome un boleto sin cita previa, regístrese como cliente existente o realice un seguimiento de su boleto.",
@@ -405,6 +428,28 @@
         "searching": "Buscando...",
         "creating": "Creando...",
         "clear": "Borrar"
+      },
+      "guided": {
+        "progress": "Progreso del recorrido",
+        "continue": "Continuar",
+        "back": "Atrás",
+        "restart": "Empezar de nuevo",
+        "finish": "Terminar",
+        "confirmation": "Confirmación",
+        "waiting": "En espera",
+        "in_service": "En servicio",
+        "position": "Posición",
+        "eta": "Espera estimada",
+        "ticket_title": "Su boleto está listo",
+        "arrival_title": "Su llegada",
+        "tracking_title": "Su boleto en directo",
+        "result_help": "Tenga este número a mano. Le indicaremos qué hacer cuando se acerque su turno.",
+        "next_action_help": "Revise la información siguiente para completar su llegada.",
+        "client_not_found_title": "Todavía no encontramos su perfil",
+        "client_not_found_help": "Puede continuar sin cita previa con el mismo número de teléfono.",
+        "take_ticket": "Tomar un boleto",
+        "identified_client": "Cliente identificado",
+        "auto_reset": "Por su privacidad, esta pantalla se reinicia automáticamente después de 60 segundos."
       },
       "preview": {
         "label": "VISTA PREVIA",

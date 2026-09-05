@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import {
@@ -15,13 +16,16 @@ import {
     Mail,
     Phone,
     Sparkles,
+    TicketCheck,
     UserRound,
 } from 'lucide-vue-next';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import PublicChatWidget from '@/Components/AiAssistant/PublicChatWidget.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
+import { shouldShowPublicBookingReservationsLink } from '@/utils/clientPortalNavigation';
 
 const props = defineProps({
     company: {
@@ -44,6 +48,12 @@ const props = defineProps({
         type: Object,
         required: true,
     },
+    public_navigation: {
+        type: Object,
+        default: () => ({
+            kiosk_url: null,
+        }),
+    },
     ai_assistant: {
         type: Object,
         default: () => ({
@@ -52,6 +62,17 @@ const props = defineProps({
         }),
     },
 });
+
+const page = usePage();
+const { t } = useI18n();
+const showClientReservationsLink = computed(() => shouldShowPublicBookingReservationsLink(
+    page.props.auth?.account,
+    props.company?.id,
+));
+const clientReservationsHref = computed(() => (
+    showClientReservationsLink.value ? route('client.reservations.index') : ''
+));
+const publicKioskHref = computed(() => String(props.public_navigation?.kiosk_url || '').trim());
 
 const steps = [
     { key: 'service', label: 'Service', short: 'Service' },
@@ -65,8 +86,10 @@ const steps = [
 
 const currentStep = ref(0);
 const maxVisitedStep = ref(0);
-const selectedServiceId = ref(props.services?.[0]?.id ? String(props.services[0].id) : '');
+const selectedServiceId = ref('');
 const serviceWasChosen = ref(false);
+const selectedServiceImageFailed = ref(false);
+const bookingHeroImageFailed = ref(false);
 const calendarMonth = ref(dayjs().startOf('month'));
 const selectedDate = ref('');
 const selectedTime = ref('');
@@ -92,6 +115,19 @@ const form = useForm({
 });
 
 const timezone = computed(() => props.settings?.timezone || 'UTC');
+const defaultBookingHeroImageUrl = '/images/landing/stock/salon-front-desk.jpg';
+const bookingHeroImageUrl = computed(() => {
+    const configuredImageUrl = String(props.settings?.kiosk_image_url || '').trim();
+
+    return configuredImageUrl && !bookingHeroImageFailed.value
+        ? configuredImageUrl
+        : defaultBookingHeroImageUrl;
+});
+const serviceOptions = computed(() => (props.services || []).map((service) => ({
+    value: String(service.id),
+    label: service.name,
+    search: [service.name, service.description].filter(Boolean).join(' '),
+})));
 const selectedService = computed(() => (props.services || []).find((service) => String(service.id) === selectedServiceId.value));
 const durationMinutes = computed(() => Number(selectedService.value?.duration_minutes || resolvedDurationMinutes.value || 60));
 const availableDateSet = computed(() => new Set(monthAvailableDates.value));
@@ -351,8 +387,9 @@ const setCurrentStep = (index) => {
 };
 
 const selectService = (service) => {
-    selectedServiceId.value = String(service.id);
-    serviceWasChosen.value = true;
+    selectedServiceId.value = service?.id ? String(service.id) : '';
+    serviceWasChosen.value = Boolean(service);
+    selectedServiceImageFailed.value = false;
     selectedDate.value = '';
     selectedTime.value = '';
     selectedTeamMemberId.value = 'auto';
@@ -361,6 +398,13 @@ const selectService = (service) => {
     form.clearErrors();
     stepError.value = '';
     submitError.value = '';
+};
+
+const selectServiceById = (serviceId) => {
+    const service = (props.services || [])
+        .find((candidate) => String(candidate.id) === String(serviceId || ''));
+
+    selectService(service || null);
 };
 
 const selectDate = (day) => {
@@ -608,6 +652,8 @@ const submitBooking = async () => {
 };
 
 const resetBooking = () => {
+    selectedServiceId.value = '';
+    selectedServiceImageFailed.value = false;
     selectedDate.value = '';
     selectedTime.value = '';
     selectedTeamMemberId.value = 'auto';
@@ -649,36 +695,84 @@ watch(
         }
     }
 );
+
+watch(
+    () => props.settings?.kiosk_image_url,
+    () => {
+        bookingHeroImageFailed.value = false;
+    }
+);
 </script>
 
 <template>
     <GuestLayout
+        class="public-booking-layout"
         :company="company"
+        brand-bar
         :footer-floating-action-reserve="aiAssistantEnabled ? 'wide' : 'none'"
         logo-href=""
         card-class="mt-4 w-full"
     >
+        <template #brand-actions>
+            <nav
+                v-if="publicKioskHref || showClientReservationsLink"
+                class="flex min-w-0 items-center justify-end gap-2"
+                :aria-label="t('reservations.public_navigation.aria_label')"
+            >
+                <a
+                    v-if="publicKioskHref"
+                    :href="publicKioskHref"
+                    class="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 whitespace-nowrap rounded-sm border border-stone-200 bg-white px-2.5 py-2 text-xs font-semibold text-stone-700 shadow-sm transition-colors hover:border-emerald-600 hover:text-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 sm:px-3 sm:text-sm"
+                    :aria-label="t('reservations.public_navigation.kiosk')"
+                    data-testid="public-booking-kiosk-link"
+                >
+                    <TicketCheck class="size-4 shrink-0" aria-hidden="true" />
+                    <span class="hidden sm:inline">{{ t('reservations.public_navigation.kiosk') }}</span>
+                </a>
+                <Link
+                    v-if="showClientReservationsLink"
+                    :href="clientReservationsHref"
+                    class="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 whitespace-nowrap rounded-sm border border-emerald-700 bg-emerald-700 px-2.5 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:border-emerald-800 hover:bg-emerald-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 sm:px-3 sm:text-sm"
+                    :aria-label="t('reservations.client.book.my_reservations')"
+                >
+                    <CalendarDays class="size-4 shrink-0" aria-hidden="true" />
+                    <span class="hidden sm:inline">{{ t('reservations.client.book.my_reservations') }}</span>
+                </Link>
+            </nav>
+        </template>
+
         <Head :title="link.name" />
 
         <div class="w-full bg-stone-50 text-stone-900">
             <div class="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8">
-                <header class="flex flex-wrap items-center justify-between gap-4 rounded-sm border border-stone-200 bg-white px-4 py-3 shadow-sm">
-                    <div class="flex min-w-0 items-center gap-3">
+                <header class="grid overflow-hidden rounded-sm border border-stone-200 bg-white shadow-sm md:min-h-44 md:grid-cols-[minmax(15rem,19rem)_minmax(0,1fr)]">
+                    <div class="relative h-40 overflow-hidden border-b border-stone-200 bg-stone-100 sm:h-44 md:h-auto md:min-h-44 md:border-b-0 md:border-r">
+                        <img
+                            :src="bookingHeroImageUrl"
+                            alt=""
+                            aria-hidden="true"
+                            class="absolute inset-0 size-full object-cover object-center"
+                            loading="eager"
+                            data-testid="public-booking-hero-image"
+                            @error="bookingHeroImageFailed = true"
+                        >
+                    </div>
+                    <div class="flex min-w-0 flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-5">
                         <div class="min-w-0">
                             <p class="truncate text-xs font-semibold uppercase tracking-wide text-emerald-700">{{ company.name }}</p>
                             <h1 class="truncate text-xl font-semibold text-stone-950 sm:text-2xl">{{ link.name }}</h1>
                             <p v-if="link.description" class="mt-1 line-clamp-2 max-w-3xl text-sm text-stone-500">{{ link.description }}</p>
                         </div>
-                    </div>
-                    <div class="flex flex-wrap items-center gap-2 text-xs text-stone-500">
-                        <span v-if="company.phone" class="inline-flex items-center gap-1 rounded-full bg-stone-100 px-3 py-1">
-                            <Phone class="size-3.5" />
-                            {{ company.phone }}
-                        </span>
-                        <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">
-                            <CalendarDays class="size-3.5" />
-                            {{ timezone }}
-                        </span>
+                        <div class="flex flex-wrap items-center gap-2 text-xs text-stone-500">
+                            <span v-if="company.phone" class="inline-flex items-center gap-1 rounded-full bg-stone-100 px-3 py-1">
+                                <Phone class="size-3.5" />
+                                {{ company.phone }}
+                            </span>
+                            <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">
+                                <CalendarDays class="size-3.5" />
+                                {{ timezone }}
+                            </span>
+                        </div>
                     </div>
                 </header>
 
@@ -720,7 +814,10 @@ watch(
                 </nav>
 
                 <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-                    <main class="min-h-[560px] rounded-sm border border-stone-200 bg-white shadow-sm">
+                    <main
+                        class="rounded-sm border border-stone-200 bg-white shadow-sm"
+                        :class="currentStepKey === 'service' ? 'min-h-0' : 'min-h-[560px]'"
+                    >
                         <section v-if="currentStepKey === 'service'" class="p-4 sm:p-6">
                             <div class="flex items-start justify-between gap-4">
                                 <div>
@@ -730,36 +827,91 @@ watch(
                                 <Sparkles class="size-5 text-amber-500" />
                             </div>
 
-                            <div class="mt-5 grid gap-3 md:grid-cols-2">
-                                <button
-                                    v-for="service in services"
-                                    :key="`public-service-${service.id}`"
-                                    type="button"
-                                    class="rounded-sm border p-4 text-left transition hover:border-emerald-500 hover:bg-emerald-50/50"
-                                    :class="String(service.id) === selectedServiceId
-                                        ? 'border-emerald-600 bg-emerald-50 shadow-sm'
-                                        : 'border-stone-200 bg-white'"
-                                    @click="selectService(service)"
+                            <div class="mt-5 grid items-start gap-3 sm:grid-cols-[minmax(0,1.15fr)_minmax(16rem,0.85fr)]">
+                                <div class="min-w-0">
+                                    <FloatingSelect
+                                        id="public-booking-service-search"
+                                        :model-value="selectedServiceId"
+                                        :options="serviceOptions"
+                                        option-value="value"
+                                        option-label="label"
+                                        filterable
+                                        select-on-focus
+                                        required
+                                        label="Rechercher un service"
+                                        filter-placeholder="Nom ou description du service"
+                                        empty-label="Aucun service ne correspond à votre recherche."
+                                        toggle-label="Afficher les suggestions de services"
+                                        aria-describedby="public-booking-service-search-hint"
+                                        @update:model-value="selectServiceById"
+                                    />
+                                    <p id="public-booking-service-search-hint" class="mt-1.5 text-xs text-stone-500">
+                                        Tapez quelques lettres pour filtrer automatiquement les services proposés.
+                                    </p>
+                                </div>
+
+                                <div
+                                    class="flex min-w-0 items-stretch rounded-sm border"
+                                    :class="selectedService
+                                        ? 'overflow-hidden border-emerald-200 bg-emerald-50/70 shadow-sm'
+                                        : 'gap-3 border-dashed border-stone-200 bg-stone-50 px-3 py-3'"
+                                    aria-live="polite"
+                                    data-testid="public-booking-selected-service"
                                 >
-                                    <div class="flex items-start justify-between gap-3">
-                                        <div>
-                                            <h3 class="text-base font-semibold text-stone-950">{{ service.name }}</h3>
-                                            <p class="mt-1 line-clamp-3 text-sm text-stone-500">{{ service.description || 'Service disponible sur reservation.' }}</p>
+                                    <template v-if="selectedService">
+                                        <div class="relative w-20 shrink-0 overflow-hidden bg-stone-100 sm:w-24">
+                                            <img
+                                                v-if="selectedService.has_image && selectedService.image_url && !selectedServiceImageFailed"
+                                                :src="selectedService.image_url"
+                                                alt=""
+                                                class="absolute inset-0 size-full object-cover"
+                                                decoding="async"
+                                                data-testid="public-booking-selected-service-image"
+                                                @error="selectedServiceImageFailed = true"
+                                            >
+                                            <span v-else class="flex size-full min-h-32 items-center justify-center bg-emerald-100 text-emerald-700">
+                                                <Sparkles class="size-6" aria-hidden="true" />
+                                            </span>
+                                            <span class="absolute left-2 top-2 flex size-6 items-center justify-center rounded-full bg-white/95 text-emerald-700 shadow-sm">
+                                                <CheckCircle2 class="size-4" aria-hidden="true" />
+                                            </span>
                                         </div>
-                                        <span class="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-emerald-700 shadow-sm">
-                                            {{ durationLabel(service.duration_minutes || durationMinutes) }}
+                                        <div class="min-w-0 p-3">
+                                            <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                                                Service sélectionné
+                                            </p>
+                                            <h3 class="mt-0.5 truncate font-semibold text-stone-950">{{ selectedService.name }}</h3>
+                                            <p class="mt-0.5 line-clamp-2 text-xs text-stone-600">
+                                                {{ selectedService.description || 'Service disponible sur réservation.' }}
+                                            </p>
+                                            <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-stone-600">
+                                                <span class="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 shadow-sm">
+                                                    <Clock3 class="size-3.5" aria-hidden="true" />
+                                                    {{ durationLabel(selectedService.duration_minutes || durationMinutes) }}
+                                                </span>
+                                                <span
+                                                    v-if="formatMoney(selectedService.price, selectedService.currency_code)"
+                                                    class="rounded-full bg-white px-2.5 py-1 font-semibold text-stone-700 shadow-sm"
+                                                >
+                                                    {{ formatMoney(selectedService.price, selectedService.currency_code) }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    <template v-else>
+                                        <span class="flex size-9 shrink-0 items-center justify-center rounded-sm bg-white text-stone-400 shadow-sm">
+                                            <Sparkles class="size-4" aria-hidden="true" />
                                         </span>
-                                    </div>
-                                    <div class="mt-4 flex flex-wrap items-center gap-2 text-xs text-stone-500">
-                                        <span class="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2.5 py-1">
-                                            <Clock3 class="size-3.5" />
-                                            {{ durationLabel(service.duration_minutes || durationMinutes) }}
-                                        </span>
-                                        <span v-if="formatMoney(service.price, service.currency_code)" class="rounded-full bg-stone-100 px-2.5 py-1 font-semibold text-stone-700">
-                                            {{ formatMoney(service.price, service.currency_code) }}
-                                        </span>
-                                    </div>
-                                </button>
+                                        <div class="min-w-0">
+                                            <p class="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                                                Service sélectionné
+                                            </p>
+                                            <p class="mt-0.5 text-sm text-stone-500">
+                                                Aucun service choisi pour le moment.
+                                            </p>
+                                        </div>
+                                    </template>
+                                </div>
                             </div>
 
                             <div v-if="!services.length" class="mt-5 rounded-sm border border-dashed border-stone-300 bg-stone-50 px-4 py-8 text-center text-sm text-stone-500">
@@ -1029,13 +1181,21 @@ watch(
                         <h2 class="text-sm font-semibold text-stone-950">Resume</h2>
                         <div class="mt-4 space-y-3 text-sm">
                             <div class="flex items-start gap-3">
-                                <span class="mt-0.5 flex size-8 items-center justify-center rounded-sm bg-emerald-50 text-emerald-700">
-                                    <Sparkles class="size-4" />
+                                <span class="mt-0.5 flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-emerald-50 text-emerald-700">
+                                    <img
+                                        v-if="selectedService?.has_image && selectedService.image_url && !selectedServiceImageFailed"
+                                        :src="selectedService.image_url"
+                                        alt=""
+                                        class="size-full object-cover"
+                                        decoding="async"
+                                        @error="selectedServiceImageFailed = true"
+                                    >
+                                    <Sparkles v-else class="size-4" />
                                 </span>
                                 <div class="min-w-0">
                                     <div class="text-xs font-semibold uppercase tracking-wide text-stone-400">Service</div>
                                     <div class="truncate font-medium text-stone-900">{{ selectedService?.name || 'A choisir' }}</div>
-                                    <div class="text-xs text-stone-500">{{ durationLabel(durationMinutes) }}</div>
+                                    <div v-if="selectedService" class="text-xs text-stone-500">{{ durationLabel(durationMinutes) }}</div>
                                 </div>
                             </div>
                             <div class="flex items-start gap-3">

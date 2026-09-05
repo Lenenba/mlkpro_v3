@@ -1,7 +1,7 @@
 <script setup>
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import axios from 'axios';
-import { AlertCircle, Bot, Loader2, MessageCircle, Send, X } from 'lucide-vue-next';
+import { AlertCircle, Bot, Loader2, MessageCircle, RotateCcw, Send, X } from 'lucide-vue-next';
 
 const props = defineProps({
     companyName: {
@@ -52,9 +52,12 @@ const loadingConversation = ref(false);
 const sending = ref(false);
 const errorMessage = ref('');
 const conversationUuid = ref('');
+const conversationStatus = ref('');
 const messages = ref([]);
+const quickReplies = ref([]);
 const draftMessage = ref('');
 const transcriptRef = ref(null);
+const resumeAttempted = ref(false);
 
 const canSend = computed(() => draftMessage.value.trim().length > 0 && !sending.value && !loadingConversation.value);
 const hasConversation = computed(() => conversationUuid.value !== '');
@@ -63,6 +66,20 @@ const messageEndpoint = computed(() => {
     const endpoint = String(props.endpoints?.message || '');
 
     return endpoint.replace('__conversation__', conversationUuid.value);
+});
+
+const showEndpoint = computed(() => {
+    const endpoint = String(props.endpoints?.show || '');
+
+    return endpoint.replace('__conversation__', conversationUuid.value);
+});
+
+const conversationStorageKey = computed(() => {
+    const bookingLink = props.initialMetadata?.booking_link_id
+        || props.initialMetadata?.booking_link_slug
+        || 'default';
+
+    return `malikia:ai-assistant:${props.companySlug}:${props.channel}:${bookingLink}`;
 });
 
 const normalizeMessage = (message) => ({
@@ -78,9 +95,90 @@ const scrollToEnd = async () => {
     }
 };
 
+const rememberConversation = (uuid) => {
+    try {
+        window.sessionStorage.setItem(conversationStorageKey.value, uuid);
+    } catch {
+        // The chat remains usable when browser storage is disabled.
+    }
+};
+
+const forgetConversation = () => {
+    try {
+        window.sessionStorage.removeItem(conversationStorageKey.value);
+    } catch {
+        // The in-memory conversation can still be reset.
+    }
+};
+
+const storedConversationUuid = () => {
+    try {
+        return window.sessionStorage.getItem(conversationStorageKey.value) || '';
+    } catch {
+        return '';
+    }
+};
+
+const restoreConversation = async () => {
+    if (hasConversation.value || loadingConversation.value || resumeAttempted.value) {
+        return hasConversation.value;
+    }
+
+    resumeAttempted.value = true;
+    const storedUuid = storedConversationUuid();
+    const endpoint = String(props.endpoints?.show || '');
+    if (!storedUuid || !endpoint) {
+        return false;
+    }
+
+    conversationUuid.value = storedUuid;
+    loadingConversation.value = true;
+    errorMessage.value = '';
+
+    try {
+        const response = await axios.get(showEndpoint.value, {
+            params: {
+                company: props.companySlug,
+                channel: props.channel,
+            },
+            headers: {
+                Accept: 'application/json',
+            },
+        });
+
+        conversationStatus.value = response?.data?.conversation?.status || '';
+        messages.value = (response?.data?.messages || []).map(normalizeMessage);
+        quickReplies.value = response?.data?.quick_replies || [];
+        await scrollToEnd();
+
+        return true;
+    } catch (error) {
+        if ([404, 422].includes(Number(error?.response?.status))) {
+            forgetConversation();
+            conversationUuid.value = '';
+            conversationStatus.value = '';
+            messages.value = [];
+            quickReplies.value = [];
+        } else {
+            errorMessage.value = 'Impossible de recuperer la conversation pour le moment.';
+        }
+
+        return false;
+    } finally {
+        loadingConversation.value = false;
+    }
+};
+
 const startConversation = async () => {
     if (hasConversation.value || loadingConversation.value) {
         return;
+    }
+
+    if (!resumeAttempted.value) {
+        await restoreConversation();
+        if (hasConversation.value) {
+            return;
+        }
     }
 
     loadingConversation.value = true;
@@ -101,9 +199,14 @@ const startConversation = async () => {
         });
 
         conversationUuid.value = response?.data?.conversation?.uuid || '';
+        conversationStatus.value = response?.data?.conversation?.status || '';
         messages.value = response?.data?.message
             ? [normalizeMessage(response.data.message)]
             : [];
+        quickReplies.value = response?.data?.quick_replies || [];
+        if (conversationUuid.value) {
+            rememberConversation(conversationUuid.value);
+        }
         await scrollToEnd();
     } catch (error) {
         errorMessage.value = error?.response?.data?.message || 'Assistant indisponible pour le moment.';
@@ -114,7 +217,7 @@ const startConversation = async () => {
 
 const openWidget = async () => {
     isOpen.value = true;
-    await startConversation();
+    await restoreConversation();
 };
 
 const closeWidget = () => {
@@ -123,8 +226,24 @@ const closeWidget = () => {
     }
 };
 
-const sendMessage = async () => {
-    const message = draftMessage.value.trim();
+const resetConversation = async () => {
+    forgetConversation();
+    conversationUuid.value = '';
+    conversationStatus.value = '';
+    messages.value = [];
+    quickReplies.value = [];
+    errorMessage.value = '';
+    resumeAttempted.value = true;
+
+    if (!isFloating.value) {
+        await startConversation();
+    }
+};
+
+const sendMessage = async (quickReplyMessage = '') => {
+    const message = typeof quickReplyMessage === 'string' && quickReplyMessage.trim() !== ''
+        ? quickReplyMessage.trim()
+        : draftMessage.value.trim();
     if (!message || sending.value) {
         return;
     }
@@ -140,10 +259,17 @@ const sendMessage = async () => {
     sending.value = true;
     errorMessage.value = '';
     draftMessage.value = '';
+    quickReplies.value = [];
 
     try {
         const response = await axios.post(messageEndpoint.value, {
             message,
+            company: props.companySlug,
+            channel: props.channel,
+            visitor_name: props.visitorName || null,
+            visitor_email: props.visitorEmail || null,
+            visitor_phone: props.visitorPhone || null,
+            metadata: props.initialMetadata || {},
         }, {
             headers: {
                 Accept: 'application/json',
@@ -154,6 +280,8 @@ const sendMessage = async () => {
             ...messages.value,
             ...(response?.data?.messages || []).map(normalizeMessage),
         ];
+        conversationStatus.value = response?.data?.conversation?.status || conversationStatus.value;
+        quickReplies.value = response?.data?.quick_replies || [];
         await scrollToEnd();
     } catch (error) {
         draftMessage.value = message;
@@ -167,11 +295,14 @@ const handleSubmit = () => {
     sendMessage();
 };
 
-watch(isOpen, (opened) => {
-    if (opened) {
-        startConversation();
-    }
-});
+watch([
+    () => props.initialMetadata,
+    () => props.visitorName,
+    () => props.visitorEmail,
+    () => props.visitorPhone,
+], () => {
+    errorMessage.value = '';
+}, { deep: true });
 
 onMounted(() => {
     if (!isFloating.value) {
@@ -210,21 +341,46 @@ onMounted(() => {
                         <div class="truncate text-xs text-stone-300">{{ companyName }}</div>
                     </div>
                 </div>
-                <button
-                    v-if="isFloating"
-                    type="button"
-                    class="inline-flex size-8 items-center justify-center rounded-sm text-stone-300 hover:bg-white/10 hover:text-white"
-                    aria-label="Fermer"
-                    @click="closeWidget"
-                >
-                    <X class="size-4" />
-                </button>
+                <div class="flex shrink-0 items-center gap-1">
+                    <button
+                        v-if="hasConversation"
+                        type="button"
+                        class="inline-flex size-8 items-center justify-center rounded-sm text-stone-300 hover:bg-white/10 hover:text-white"
+                        aria-label="Nouvelle conversation"
+                        title="Nouvelle conversation"
+                        data-testid="public-ai-chat-reset"
+                        @click="resetConversation"
+                    >
+                        <RotateCcw class="size-4" />
+                    </button>
+                    <button
+                        v-if="isFloating"
+                        type="button"
+                        class="inline-flex size-8 items-center justify-center rounded-sm text-stone-300 hover:bg-white/10 hover:text-white"
+                        aria-label="Fermer"
+                        @click="closeWidget"
+                    >
+                        <X class="size-4" />
+                    </button>
+                </div>
             </header>
 
             <div ref="transcriptRef" class="flex-1 space-y-3 overflow-y-auto bg-stone-50 px-4 py-4">
                 <div v-if="loadingConversation && !messages.length" class="flex items-center gap-2 text-sm text-stone-500">
                     <Loader2 class="size-4 animate-spin text-emerald-700" />
                     Connexion...
+                </div>
+
+                <div
+                    v-else-if="!messages.length"
+                    class="border border-stone-200 bg-white p-4 text-sm leading-6 text-stone-600 shadow-sm"
+                    data-testid="public-ai-chat-empty"
+                >
+                    <div class="mb-1 flex items-center gap-2 font-semibold text-stone-900">
+                        <Bot class="size-4 text-emerald-700" />
+                        Comment puis-je vous aider ?
+                    </div>
+                    Écrivez votre demande pour commencer la conversation avec {{ assistantName }}.
                 </div>
 
                 <article
@@ -250,6 +406,29 @@ onMounted(() => {
                 <div v-if="sending" class="flex items-center gap-2 text-sm text-stone-500">
                     <Loader2 class="size-4 animate-spin text-emerald-700" />
                     Reponse...
+                </div>
+            </div>
+
+            <div
+                v-if="quickReplies.length"
+                class="border-t border-stone-200 bg-white px-4 py-3"
+                data-testid="public-ai-chat-quick-replies"
+            >
+                <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500">Réponses rapides</div>
+                <div class="flex flex-wrap gap-2">
+                    <button
+                        v-for="reply in quickReplies"
+                        :key="`${reply.message}-${reply.label}`"
+                        type="button"
+                        class="rounded-sm border px-3 py-2 text-left text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
+                        :class="reply.tone === 'primary'
+                            ? 'border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-800'
+                            : 'border-stone-300 bg-white text-stone-700 hover:border-emerald-600 hover:text-emerald-700'"
+                        :disabled="sending || loadingConversation"
+                        @click="sendMessage(reply.message)"
+                    >
+                        {{ reply.label }}
+                    </button>
                 </div>
             </div>
 

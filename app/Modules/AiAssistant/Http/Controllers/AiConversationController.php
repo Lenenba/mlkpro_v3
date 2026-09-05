@@ -8,8 +8,10 @@ use App\Modules\AiAssistant\Models\AiAction;
 use App\Modules\AiAssistant\Models\AiConversation;
 use App\Modules\AiAssistant\Models\AiMessage;
 use App\Modules\AiAssistant\Requests\SendAiMessageRequest;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 class AiConversationController extends Controller
 {
@@ -17,7 +19,10 @@ class AiConversationController extends Controller
     {
         $account = $this->resolveAccount($request);
         $this->authorize('viewAny', AiConversation::class);
-        $filters = $request->only(['status', 'channel', 'intent', 'date', 'queue']);
+        $filters = $request->only(['status', 'channel', 'intent', 'date', 'queue', 'q']);
+        $filters['q'] = is_string($filters['q'] ?? null)
+            ? Str::limit(trim($filters['q']), 160, '')
+            : '';
         $timezone = $account->company_timezone ?: config('app.timezone', 'UTC');
 
         $conversations = AiConversation::query()
@@ -26,12 +31,25 @@ class AiConversationController extends Controller
                 'pendingActions' => fn ($query) => $query
                     ->select(['id', 'tenant_id', 'conversation_id', 'action_type', 'status', 'input_payload', 'created_at'])
                     ->latest(),
+                'reservation' => fn ($query) => $query
+                    ->select(['id', 'account_id', 'service_id', 'status', 'starts_at'])
+                    ->where('account_id', $account->id),
+                'reservation.service' => fn ($query) => $query
+                    ->select(['id', 'user_id', 'name'])
+                    ->where('user_id', $account->id),
             ])
             ->withCount(['messages', 'pendingActions'])
+            ->withMax('messages as last_message_at', 'created_at')
+            ->withCasts(['last_message_at' => 'datetime'])
             ->when(($filters['queue'] ?? null) === 'review', fn ($query) => $this->applyNeedsReviewScope($query))
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
             ->when($filters['channel'] ?? null, fn ($query, $channel) => $query->where('channel', $channel))
             ->when($filters['intent'] ?? null, fn ($query, $intent) => $query->where('intent', $intent))
+            ->when($filters['q'] !== '', fn (Builder $query) => $this->applySearchScope(
+                $query,
+                $filters['q'],
+                (int) $account->id,
+            ))
             ->when($filters['date'] ?? null, function ($query, $date) use ($timezone) {
                 $day = Carbon::parse((string) $date, $timezone);
 
@@ -40,7 +58,8 @@ class AiConversationController extends Controller
                     $day->copy()->endOfDay()->utc(),
                 ]);
             })
-            ->latest()
+            ->orderByRaw('COALESCE(last_message_at, ai_conversations.created_at) DESC')
+            ->orderByDesc('ai_conversations.id')
             ->paginate($this->resolveDataTablePerPage($request))
             ->withQueryString();
 
@@ -119,6 +138,8 @@ class AiConversationController extends Controller
      */
     private function conversationRow(AiConversation $conversation, ?string $timezone = null): array
     {
+        $lastMessageAt = $this->conversationLastMessageAt($conversation);
+
         return [
             'id' => (int) $conversation->id,
             'public_uuid' => (string) $conversation->public_uuid,
@@ -140,6 +161,9 @@ class AiConversationController extends Controller
                     ->values()
                     ->all()
                 : [],
+            'reservation' => $this->reservationPreview($conversation),
+            'last_message_at' => $lastMessageAt?->toIso8601String(),
+            'last_activity_at' => ($lastMessageAt ?? $conversation->created_at)?->toIso8601String(),
             'created_at' => $conversation->created_at?->toIso8601String(),
             'updated_at' => $conversation->updated_at?->toIso8601String(),
         ];
@@ -159,12 +183,6 @@ class AiConversationController extends Controller
                 'contact_name' => $conversation->prospect->contact_name,
                 'contact_email' => $conversation->prospect->contact_email,
                 'contact_phone' => $conversation->prospect->contact_phone,
-            ] : null,
-            'reservation' => $conversation->reservation ? [
-                'id' => (int) $conversation->reservation->id,
-                'status' => $conversation->reservation->status,
-                'service_name' => $conversation->reservation->service?->name,
-                'starts_at' => $conversation->reservation->starts_at?->toIso8601String(),
             ] : null,
             'messages' => $conversation->messages->map(fn (AiMessage $message): array => [
                 'id' => (int) $message->id,
@@ -188,13 +206,77 @@ class AiConversationController extends Controller
         ];
     }
 
-    private function applyNeedsReviewScope($query)
+    private function applyNeedsReviewScope(Builder $query): Builder
     {
         return $query->where(function ($query): void {
             $query
                 ->where('status', AiConversation::STATUS_WAITING_HUMAN)
                 ->orWhereHas('pendingActions');
         });
+    }
+
+    private function applySearchScope(Builder $query, string $search, int $tenantId): Builder
+    {
+        $like = '%'.$search.'%';
+        $reservationId = $this->reservationIdFromSearch($search);
+
+        return $query->where(function (Builder $query) use ($like, $reservationId, $tenantId): void {
+            $query
+                ->where('visitor_name', 'like', $like)
+                ->orWhere('visitor_email', 'like', $like)
+                ->orWhere('visitor_phone', 'like', $like)
+                ->orWhere('public_uuid', 'like', $like)
+                ->orWhereHas('messages', fn (Builder $messageQuery) => $messageQuery
+                    ->where('content', 'like', $like))
+                ->orWhereHas('reservation', fn (Builder $reservationQuery) => $reservationQuery
+                    ->where('account_id', $tenantId)
+                    ->whereHas('service', fn (Builder $serviceQuery) => $serviceQuery
+                        ->where('user_id', $tenantId)
+                        ->where('name', 'like', $like)));
+
+            if ($reservationId !== null) {
+                $query->orWhere('reservation_id', $reservationId);
+            }
+        });
+    }
+
+    private function reservationIdFromSearch(string $search): ?int
+    {
+        if (! preg_match('/^#?(\d+)$/', $search, $matches)) {
+            return null;
+        }
+
+        $reservationId = (int) $matches[1];
+
+        return $reservationId > 0 ? $reservationId : null;
+    }
+
+    private function conversationLastMessageAt(AiConversation $conversation): ?Carbon
+    {
+        $lastMessageAt = $conversation->getAttribute('last_message_at');
+
+        if ($lastMessageAt === null && $conversation->relationLoaded('messages')) {
+            $lastMessageAt = $conversation->messages->max('created_at');
+        }
+
+        return $lastMessageAt !== null ? Carbon::parse($lastMessageAt) : null;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function reservationPreview(AiConversation $conversation): ?array
+    {
+        if (! $conversation->relationLoaded('reservation') || ! $conversation->reservation) {
+            return null;
+        }
+
+        return [
+            'id' => (int) $conversation->reservation->id,
+            'status' => (string) $conversation->reservation->status,
+            'service_name' => $conversation->reservation->service?->name,
+            'starts_at' => $conversation->reservation->starts_at?->toIso8601String(),
+        ];
     }
 
     /**

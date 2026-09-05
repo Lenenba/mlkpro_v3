@@ -499,10 +499,15 @@ class ReservationAvailabilityService
         });
     }
 
+    /**
+     * @param  array<string, mixed>  $payload
+     * @param  array<int, string>  $allowedFromStatuses
+     */
     public function reschedule(
         Reservation $reservation,
         array $payload,
-        User $actor
+        User $actor,
+        array $allowedFromStatuses = Reservation::ACTIVE_STATUSES
     ): ReservationStatusTransitionResult {
         $accountId = (int) $reservation->account_id;
         $expectedStatusVersion = (int) $reservation->status_version;
@@ -561,6 +566,7 @@ class ReservationAvailabilityService
             $requestedResourceFilters,
             $requestedPartySize,
             $actor,
+            $allowedFromStatuses,
             $expectedStatusVersion,
             $expectedScheduleVersion,
             $expectedMutationVersion
@@ -669,6 +675,7 @@ class ReservationAvailabilityService
             ],
                 $actor,
                 $this->transitionSourceForActor($actor),
+                allowedFromStatuses: $allowedFromStatuses,
                 expectedStatusVersion: $expectedStatusVersion,
                 expectedScheduleVersion: $expectedScheduleVersion,
                 expectedMutationVersion: $expectedMutationVersion

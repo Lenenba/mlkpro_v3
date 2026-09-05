@@ -20,6 +20,7 @@ use App\Services\CompanyFeatureService;
 use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationIntentGuardService;
 use App\Services\ReservationQueueService;
+use App\Services\Reservations\PublicReservationNavigationService;
 use App\Services\SmsNotificationService;
 use App\Services\TenantBrandingResolver;
 use App\Support\ReservationPresetResolver;
@@ -48,6 +49,7 @@ class PublicKioskReservationController extends Controller
         private readonly CompanyFeatureService $featureService,
         private readonly SmsNotificationService $smsService,
         private readonly TenantBrandingResolver $tenantBrandingResolver,
+        private readonly PublicReservationNavigationService $publicReservationNavigation,
     ) {}
 
     public function show(Request $request)
@@ -114,6 +116,9 @@ class PublicKioskReservationController extends Controller
             'services' => $services,
             'team_members' => $teamMembers,
             'endpoints' => $this->buildSignedEndpoints($account),
+            'public_navigation' => [
+                'booking_url' => $this->publicReservationNavigation->publicBookingUrl($account),
+            ],
         ]);
     }
 

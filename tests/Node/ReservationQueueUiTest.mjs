@@ -2,6 +2,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import test from 'node:test';
+import {
+    normalizeReservationQueueQuickFilter,
+    reservationQueueMatchesQuickFilter,
+    reservationQueuePrimaryAction,
+    reservationQueueQuickCounts,
+} from '../../resources/js/utils/reservationQueue.js';
 
 const source = (path) => readFileSync(resolve(path), 'utf8');
 const messages = (locale) => JSON.parse(source(`resources/js/i18n/modules/${locale}/reservations.json`));
@@ -14,10 +20,47 @@ test('hybrid queue offers persistent accessible table and card views', () => {
     assert.match(index, /window\.localStorage\.setItem\('reservation_queue_view_mode', mode\)/u);
     assert.match(index, /data-testid="reservation-queue-view-table"[\s\S]*?:aria-pressed="queueViewMode === 'table'"/u);
     assert.match(index, /data-testid="reservation-queue-view-cards"[\s\S]*?:aria-pressed="queueViewMode === 'cards'"/u);
-    assert.match(index, /<AdminDataTable v-if="queueViewMode === 'table'" embedded :rows="queueRows"/u);
-    assert.match(index, /v-else-if="queueRows\.length"[\s\S]*?data-testid="reservation-queue-card-grid"/u);
+    assert.match(index, /<AdminDataTable v-if="queueViewMode === 'table'" embedded :rows="filteredQueueRows"/u);
+    assert.match(index, /v-else-if="filteredQueueRows\.length"[\s\S]*?data-testid="reservation-queue-card-grid"/u);
     assert.match(index, /grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3/u);
     assert.match(index, /dark:border-neutral-700 dark:bg-neutral-900/u);
+});
+
+test('hybrid queue filters use exclusive stages and select one contextual primary action', () => {
+    const rows = [
+        { id: 1, status: 'not_arrived', can_update_status: true, primary_action: 'check-in' },
+        { id: 2, status: 'checked_in', can_update_status: true, callable: true, primary_action: 'call' },
+        { id: 3, status: 'pre_called', can_update_status: true, primary_action: 'call' },
+        { id: 4, status: 'called', can_update_status: true, primary_action: 'start' },
+        { id: 5, status: 'skipped', can_update_status: true, callable: false, primary_action: 'pre-call' },
+        { id: 6, status: 'in_service', can_update_status: true, primary_action: 'finish' },
+        { id: 7, status: 'awaiting_payment', can_update_status: true, primary_action: 'checkout' },
+        { id: 8, status: 'done', can_update_status: true, primary_action: null },
+    ];
+
+    assert.equal(normalizeReservationQueueQuickFilter('unexpected'), 'all');
+    assert.equal(reservationQueueMatchesQuickFilter(rows[2], 'waiting'), true);
+    assert.equal(reservationQueueMatchesQuickFilter(rows[3], 'waiting'), false);
+    assert.deepEqual(reservationQueueQuickCounts(rows), {
+        all: 8,
+        not_arrived: 1,
+        waiting: 3,
+        called: 1,
+        in_service: 1,
+        awaiting_payment: 1,
+        done: 1,
+    });
+    assert.deepEqual(rows.map((row) => reservationQueuePrimaryAction(row)), [
+        'check_in',
+        'call',
+        'call',
+        'start',
+        'pre_call',
+        'finish',
+        'checkout',
+        null,
+    ]);
+    assert.equal(reservationQueuePrimaryAction({ ...rows[1], can_update_status: false }), null);
 });
 
 test('queue cards expose operational detail and open appointment details explicitly', () => {
@@ -38,6 +81,10 @@ test('queue cards expose operational detail and open appointment details explici
     assert.match(index, /\['ArrowDown', 'ArrowUp', 'Home', 'End'\]\.includes\(event\.key\)/u);
     assert.match(index, /querySelector\('\[role="menuitem"\]:not\(\[disabled\]\)'\)\?\.focus\(\)/u);
     assert.match(index, /const trigger = openQueueActionsFor\.value[\s\S]*?trigger\?\.focus\(\)/u);
+    assert.match(index, /data-testid="reservation-queue-quick-filters"/u);
+    assert.match(index, /:aria-pressed="queueQuickFilter === quickFilter\.value"/u);
+    assert.match(index, /data-testid="`reservation-queue-primary-\$\{item\.id\}`"/u);
+    assert.match(index, /const runQueuePrimaryAction = \(item\) =>/u);
 });
 
 test('queue screen chair cards keep operational rows aligned and long labels contained', () => {
@@ -94,6 +141,18 @@ test('hybrid queue view and detail copy is complete in every reservation locale'
         'view_reservation',
         'view_reservation_for',
     ];
+    const requiredFilterKeys = [
+        'label',
+        'all',
+        'not_arrived',
+        'waiting',
+        'called',
+        'in_service',
+        'awaiting_payment',
+        'done',
+        'empty',
+        'clear',
+    ];
 
     for (const locale of ['fr', 'en', 'es']) {
         const queue = messages(locale).reservations.queue;
@@ -106,6 +165,11 @@ test('hybrid queue view and detail copy is complete in every reservation locale'
         for (const key of requiredDetailKeys) {
             assert.equal(typeof queue.details[key], 'string', `${locale}.queue.details.${key}`);
             assert.notEqual(queue.details[key].trim(), '', `${locale}.queue.details.${key}`);
+        }
+
+        for (const key of requiredFilterKeys) {
+            assert.equal(typeof queue.filters[key], 'string', `${locale}.queue.filters.${key}`);
+            assert.notEqual(queue.filters[key].trim(), '', `${locale}.queue.filters.${key}`);
         }
 
         assert.match(queue.details.view_reservation_for, /\{client\}/u, `${locale} detail label keeps client interpolation`);

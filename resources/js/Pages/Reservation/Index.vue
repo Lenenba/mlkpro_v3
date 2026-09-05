@@ -26,11 +26,20 @@ import { paymentMethodLabel as resolvePaymentMethodLabel, useTenantPaymentMethod
 import { crmSegmentedControlButtonClass, crmSegmentedControlClass } from '@/utils/crmButtonStyles';
 import {
     nextReservationListSort,
+    reservationListAllowedStatusTransitions,
+    reservationListCanUpdateStatus,
     reservationListCanView,
     reservationListSortColumn,
     reservationListSortDirection,
     reservationListSortValue,
 } from '@/utils/reservationList';
+import {
+    RESERVATION_QUEUE_QUICK_FILTERS,
+    normalizeReservationQueueQuickFilter,
+    reservationQueueMatchesQuickFilter,
+    reservationQueuePrimaryAction,
+    reservationQueueQuickCounts,
+} from '@/utils/reservationQueue';
 
 const { t, locale } = useI18n();
 const queueStripeReturn = (() => {
@@ -91,6 +100,10 @@ const props = defineProps({
         default: () => [],
     },
     stats: {
+        type: Object,
+        default: () => ({}),
+    },
+    quickCounts: {
         type: Object,
         default: () => ({}),
     },
@@ -162,6 +175,8 @@ const calendarLoading = ref(false);
 const calendarError = ref('');
 const listLoading = ref(false);
 const listError = ref('');
+const listStatusActionError = ref('');
+const listStatusUpdatingId = ref(null);
 const detailsActionError = ref('');
 const detailsActionLoading = ref(false);
 const waitlistRows = ref([...(props.waitlists || [])]);
@@ -171,11 +186,16 @@ const waitlistUpdatingId = ref(null);
 const queueRows = ref([...(props.queueItems || [])]);
 const queueViewModes = ['table', 'cards'];
 const queueViewMode = ref('table');
+const queueQuickFilter = ref('all');
 if (typeof window !== 'undefined') {
     const storedQueueViewMode = window.localStorage.getItem('reservation_queue_view_mode');
     if (queueViewModes.includes(storedQueueViewMode)) {
         queueViewMode.value = storedQueueViewMode;
     }
+
+    queueQuickFilter.value = normalizeReservationQueueQuickFilter(
+        window.localStorage.getItem('reservation_queue_quick_filter')
+    );
 }
 const queueActionError = ref(queueStripeReturn.status === 'error'
     ? t('reservations.queue.checkout.stripe_return.error')
@@ -304,6 +324,7 @@ const filterForm = useForm({
     date_from: props.filters?.date_from ?? '',
     date_to: props.filters?.date_to ?? '',
     scope: props.filters?.scope ?? (ownTeamMemberId.value ? 'mine' : 'all'),
+    quick: props.filters?.quick ?? '',
     sort: props.filters?.sort ?? 'date_asc',
     view_mode: props.filters?.view_mode ?? viewMode.value,
 });
@@ -343,6 +364,23 @@ const statusOptions = computed(() => [
         label: t(`reservations.status.${status}`) || status.replace(/_/g, ' '),
     })),
 ]);
+
+const reservationQuickFilters = computed(() => [
+    {
+        value: '',
+        label: t('reservations.quick.all'),
+        count: Number(props.quickCounts?.all ?? props.stats?.total ?? 0),
+    },
+    ...['pending', 'today', 'upcoming', 'past', 'completed', 'no_show', 'cancelled'].map((value) => ({
+        value,
+        label: t(`reservations.quick.${value}`),
+        count: Number(props.quickCounts?.[value] || 0),
+    })),
+]);
+
+const setReservationQuickFilter = (value) => {
+    filterForm.quick = filterForm.quick === value ? '' : value;
+};
 
 const scopeOptions = computed(() => {
     const options = [];
@@ -399,6 +437,7 @@ const reservationPaginationLabel = computed(() => t('reservations.pagination.sho
 const hasActiveReservationFilters = computed(() => Boolean(
     filterForm.search
     || filterForm.status
+    || filterForm.quick
     || filterForm.service_id
     || filterForm.date_from
     || filterForm.date_to
@@ -463,15 +502,56 @@ const queueStatusBadgeClass = (status) => (
         ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300'
         : statusBadgeClass(status)
 );
-const queueRowHasActions = (item) => Boolean(item?.can_update_status) && [
-    'not_arrived',
-    'checked_in',
-    'pre_called',
-    'called',
-    'skipped',
-    'in_service',
-    'awaiting_payment',
-].includes(String(item?.status || ''));
+const queueRowHasActions = (item) => {
+    if (!item?.can_update_status) {
+        return false;
+    }
+
+    if (Array.isArray(item?.allowed_actions)) {
+        return item.allowed_actions.length > 0;
+    }
+
+    return [
+        'not_arrived',
+        'checked_in',
+        'pre_called',
+        'called',
+        'skipped',
+        'in_service',
+        'awaiting_payment',
+    ].includes(String(item?.status || ''));
+};
+const localQueueQuickCounts = computed(() => reservationQueueQuickCounts(queueRows.value));
+const queueQuickFilters = computed(() => RESERVATION_QUEUE_QUICK_FILTERS.map((value) => ({
+    value,
+    label: t(`reservations.queue.filters.${value}`),
+    count: Number(props.queueStats?.[value] ?? localQueueQuickCounts.value[value] ?? 0),
+})));
+const filteredQueueRows = computed(() => queueRows.value.filter(
+    (item) => reservationQueueMatchesQuickFilter(item, queueQuickFilter.value)
+));
+const queuePrimaryActionFor = (item) => reservationQueuePrimaryAction(item);
+const queuePrimaryActionLabel = (item) => {
+    const action = queuePrimaryActionFor(item);
+
+    return action
+        ? t(`reservations.queue.actions.${action === 'finish' ? 'finish_checkout' : action}`)
+        : '';
+};
+const queueActionIsPrimary = (item, action) => (
+    queuePrimaryActionFor(item) === String(action || '').replaceAll('-', '_')
+);
+const queueRowHasSecondaryActions = (item) => {
+    if (!Array.isArray(item?.allowed_actions)) {
+        return false;
+    }
+
+    const primaryAction = queuePrimaryActionFor(item);
+
+    return item.allowed_actions.some(
+        (action) => String(action || '').replaceAll('-', '_') !== primaryAction
+    );
+};
 const formatQueueMoney = (value, currencyCode = 'CAD') => {
     const amount = Number(value || 0);
     const currency = String(currencyCode || 'CAD').toUpperCase();
@@ -676,6 +756,7 @@ const loadEvents = async () => {
                 date_from: filterForm.date_from || undefined,
                 date_to: filterForm.date_to || undefined,
                 scope: filterForm.scope || undefined,
+                quick: filterForm.quick || undefined,
             },
         });
 
@@ -721,6 +802,7 @@ const refreshList = (overrides = {}) => {
             date_from: filterForm.date_from || undefined,
             date_to: filterForm.date_to || undefined,
             scope: filterForm.scope || undefined,
+            quick: filterForm.quick || undefined,
             sort: filterForm.sort || undefined,
             view_mode: viewMode.value,
             per_page: requestedPerPage,
@@ -729,7 +811,7 @@ const refreshList = (overrides = {}) => {
             preserveState: true,
             preserveScroll: true,
             replace: true,
-            only: ['filters', 'reservations', 'stats', 'performance', 'waitlists', 'waitlistStats', 'queueItems', 'queueStats'],
+            only: ['filters', 'reservations', 'stats', 'quickCounts', 'performance', 'waitlists', 'waitlistStats', 'queueItems', 'queueStats'],
             onError: () => {
                 if (tracksReservationList && requestSequence === listRequestSequence) {
                     listError.value = t('reservations.errors.load_list');
@@ -857,6 +939,7 @@ watch(
         filterForm.date_from,
         filterForm.date_to,
         filterForm.scope,
+        filterForm.quick,
         filterForm.sort,
         viewMode.value,
     ],
@@ -914,6 +997,7 @@ const clearFilters = () => {
     filterForm.service_id = '';
     filterForm.date_from = '';
     filterForm.date_to = '';
+    filterForm.quick = '';
     filterForm.sort = 'date_asc';
 };
 
@@ -1333,6 +1417,42 @@ const updateStatus = async (status) => {
     }
 };
 
+const updateReservationStatusFromList = async (reservation, status) => {
+    const reservationId = Number(reservation?.id || 0);
+    const allowedTransitions = reservationListAllowedStatusTransitions(reservation);
+
+    if (
+        !reservationId
+        || !reservationListCanUpdateStatus(reservation)
+        || !allowedTransitions.includes(status)
+        || listStatusUpdatingId.value !== null
+    ) {
+        return;
+    }
+
+    if (
+        status === 'cancelled'
+        && typeof window !== 'undefined'
+        && !window.confirm(t('reservations.actions.cancel_confirm', { reference: `#${reservationId}` }))
+    ) {
+        return;
+    }
+
+    listStatusActionError.value = '';
+    listStatusUpdatingId.value = reservationId;
+
+    try {
+        await axios.patch(route('reservation.status', reservationId), { status });
+        refreshList();
+    } catch (error) {
+        listStatusActionError.value = firstValidationMessage(error?.response?.data?.errors)
+            || error?.response?.data?.message
+            || t('reservations.errors.update_status');
+    } finally {
+        listStatusUpdatingId.value = null;
+    }
+};
+
 const updateWaitlistStatus = async (entry, status) => {
     if (!entry?.id || !entry?.can_update_status) {
         return;
@@ -1503,6 +1623,15 @@ const setQueueViewMode = (mode) => {
     }
 };
 
+const setQueueQuickFilter = (value) => {
+    closeQueueActions();
+    queueQuickFilter.value = normalizeReservationQueueQuickFilter(value);
+
+    if (typeof window !== 'undefined') {
+        window.localStorage.setItem('reservation_queue_quick_filter', queueQuickFilter.value);
+    }
+};
+
 const openQueueReservation = (item) => {
     const reservationId = Number(item?.reservation_id || 0);
     if (!reservationId) {
@@ -1620,6 +1749,19 @@ const updateQueueStatus = async (item, action, options = {}) => {
         queueActionError.value = error?.response?.data?.message || t('reservations.queue.actions.update_error');
     } finally {
         queueUpdatingId.value = null;
+    }
+};
+
+const runQueuePrimaryAction = (item) => {
+    const action = queuePrimaryActionFor(item);
+
+    if (['finish', 'checkout'].includes(action)) {
+        openQueueCheckout(item);
+        return;
+    }
+
+    if (action) {
+        updateQueueStatus(item, action.replace('_', '-'));
     }
 };
 
@@ -1999,15 +2141,6 @@ const removeReservation = (reservation) => {
                         <span class="rounded-full bg-cyan-100 px-2 py-0.5 font-semibold text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-300">
                             {{ $t(`reservations.queue.assignment_mode.${queueAssignmentMode}`) }}
                         </span>
-                        <span class="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
-                            {{ $t('reservations.queue.cards.waiting') }}: {{ queueStats.waiting || 0 }}
-                        </span>
-                        <span class="rounded-full bg-indigo-100 px-2 py-0.5 font-semibold text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300">
-                            {{ $t('reservations.queue.cards.called') }}: {{ queueStats.called || 0 }}
-                        </span>
-                        <span class="rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
-                            {{ $t('reservations.queue.cards.in_service') }}: {{ queueStats.in_service || 0 }}
-                        </span>
                         <button
                             type="button"
                             class="rounded-sm bg-emerald-600 px-2.5 py-1 font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
@@ -2017,6 +2150,36 @@ const removeReservation = (reservation) => {
                             {{ queueCallingNext ? $t('planning.filters.loading') : $t('reservations.queue.actions.call_next') }}
                         </button>
                     </div>
+                </div>
+
+                <div
+                    class="flex max-w-full gap-2 overflow-x-auto pb-1"
+                    role="group"
+                    :aria-label="$t('reservations.queue.filters.label')"
+                    data-testid="reservation-queue-quick-filters"
+                >
+                    <button
+                        v-for="quickFilter in queueQuickFilters"
+                        :key="`reservation-queue-filter-${quickFilter.value}`"
+                        type="button"
+                        class="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-sm border px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-800"
+                        :class="queueQuickFilter === quickFilter.value
+                            ? 'border-emerald-600 bg-emerald-600 text-white dark:border-emerald-500 dark:bg-emerald-500 dark:text-neutral-950'
+                            : 'border-stone-200 bg-white text-stone-700 hover:border-emerald-300 hover:bg-emerald-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:border-emerald-700 dark:hover:bg-emerald-500/10'"
+                        :aria-pressed="queueQuickFilter === quickFilter.value"
+                        :data-testid="`reservation-queue-filter-${quickFilter.value}`"
+                        @click="setQueueQuickFilter(quickFilter.value)"
+                    >
+                        <span>{{ quickFilter.label }}</span>
+                        <span
+                            class="min-w-5 rounded-sm px-1.5 py-0.5 text-center text-[10px] leading-none"
+                            :class="queueQuickFilter === quickFilter.value
+                                ? 'bg-black/15 text-current dark:bg-white/20'
+                                : 'bg-stone-100 text-stone-600 dark:bg-neutral-800 dark:text-neutral-300'"
+                        >
+                            {{ quickFilter.count }}
+                        </span>
+                    </button>
                 </div>
 
                 <div v-if="queueActionError" class="mt-3 rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
@@ -2038,7 +2201,7 @@ const removeReservation = (reservation) => {
                     </a>
                 </div>
 
-                <AdminDataTable v-if="queueViewMode === 'table'" embedded :rows="queueRows" :show-pagination="false">
+                <AdminDataTable v-if="queueViewMode === 'table'" embedded :rows="filteredQueueRows" :show-pagination="false">
                     <template #head>
                         <tr>
                             <th scope="col" class="min-w-36 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
@@ -2112,23 +2275,35 @@ const removeReservation = (reservation) => {
                                 </span>
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-2 text-end align-top">
-                                <div v-if="queueRowHasActions(item)" class="relative inline-flex">
+                                <div v-if="queueRowHasActions(item)" class="inline-flex items-center justify-end gap-1.5">
                                     <button
+                                        v-if="queuePrimaryActionFor(item)"
                                         type="button"
-                                        class="size-7 inline-flex items-center justify-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:pointer-events-none disabled:opacity-50 focus:bg-stone-50 focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                        aria-haspopup="menu"
-                                        :aria-expanded="openQueueActionsFor === Number(item.id)"
-                                        :aria-label="$t('reservations.table.actions')"
+                                        class="inline-flex min-h-8 max-w-36 items-center justify-center rounded-sm bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 disabled:pointer-events-none disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-500 dark:text-neutral-950 dark:hover:bg-emerald-400 dark:focus-visible:ring-offset-neutral-800"
                                         :disabled="queueUpdatingId === Number(item.id)"
-                                        :ref="(element) => setQueueActionButtonRef(item.id, element)"
-                                        @click="toggleQueueActions(item.id)"
+                                        :data-testid="`reservation-queue-primary-${item.id}`"
+                                        @click="runQueuePrimaryAction(item)"
                                     >
-                                        <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <circle cx="12" cy="12" r="1" />
-                                            <circle cx="12" cy="5" r="1" />
-                                            <circle cx="12" cy="19" r="1" />
-                                        </svg>
+                                        <span class="truncate">{{ queuePrimaryActionLabel(item) }}</span>
                                     </button>
+                                    <div v-if="queueRowHasSecondaryActions(item)" class="relative inline-flex">
+                                        <button
+                                            type="button"
+                                            class="size-8 inline-flex items-center justify-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:pointer-events-none disabled:opacity-50 focus:bg-stone-50 focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                                            aria-haspopup="menu"
+                                            :aria-expanded="openQueueActionsFor === Number(item.id)"
+                                            :aria-label="$t('reservations.table.actions')"
+                                            :disabled="queueUpdatingId === Number(item.id)"
+                                            :ref="(element) => setQueueActionButtonRef(item.id, element)"
+                                            @click="toggleQueueActions(item.id)"
+                                        >
+                                            <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <circle cx="12" cy="12" r="1" />
+                                                <circle cx="12" cy="5" r="1" />
+                                                <circle cx="12" cy="19" r="1" />
+                                            </svg>
+                                        </button>
+                                    </div>
                                 </div>
                                 <span v-else class="text-xs text-stone-400 dark:text-neutral-500">-</span>
                             </td>
@@ -2136,19 +2311,27 @@ const removeReservation = (reservation) => {
                     </template>
 
                     <template #empty>
-                        <div class="rounded-sm border border-dashed border-stone-300 bg-stone-50 px-4 py-4 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
-                            {{ $t('reservations.queue.empty') }}
+                        <div class="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-dashed border-stone-300 bg-stone-50 px-4 py-4 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
+                            <span>{{ queueQuickFilter === 'all' ? $t('reservations.queue.empty') : $t('reservations.queue.filters.empty') }}</span>
+                            <button
+                                v-if="queueQuickFilter !== 'all'"
+                                type="button"
+                                class="font-semibold text-emerald-700 hover:text-emerald-800 dark:text-emerald-300 dark:hover:text-emerald-200"
+                                @click="setQueueQuickFilter('all')"
+                            >
+                                {{ $t('reservations.queue.filters.clear') }}
+                            </button>
                         </div>
                     </template>
                 </AdminDataTable>
 
                 <div
-                    v-else-if="queueRows.length"
+                    v-else-if="filteredQueueRows.length"
                     data-testid="reservation-queue-card-grid"
                     class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"
                 >
                     <article
-                        v-for="item in queueRows"
+                        v-for="item in filteredQueueRows"
                         :key="`queue-card-${item.id}`"
                         class="overflow-hidden rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
                         :aria-labelledby="`queue-card-title-${item.id}`"
@@ -2240,7 +2423,7 @@ const removeReservation = (reservation) => {
 
                         <footer
                             v-if="item.reservation_id || queueRowHasActions(item)"
-                            class="flex items-center justify-between gap-2 border-t border-stone-100 bg-stone-50 px-4 py-2.5 dark:border-neutral-800 dark:bg-neutral-950"
+                            class="flex flex-wrap items-center justify-between gap-2 border-t border-stone-100 bg-stone-50 px-4 py-2.5 dark:border-neutral-800 dark:bg-neutral-950"
                         >
                             <button
                                 v-if="item.reservation_id"
@@ -2257,23 +2440,35 @@ const removeReservation = (reservation) => {
                                 {{ $t('reservations.queue.details.view_reservation') }}
                             </button>
                             <span v-else />
-                            <div v-if="queueRowHasActions(item)" class="relative inline-flex">
+                            <div v-if="queueRowHasActions(item)" class="inline-flex items-center gap-1.5">
                                 <button
+                                    v-if="queuePrimaryActionFor(item)"
                                     type="button"
-                                    class="size-8 inline-flex items-center justify-center rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-100 disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                                    aria-haspopup="menu"
-                                    :aria-expanded="openQueueActionsFor === Number(item.id)"
-                                    :aria-label="$t('reservations.table.actions')"
+                                    class="inline-flex min-h-8 max-w-36 items-center justify-center rounded-sm bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 disabled:pointer-events-none disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-500 dark:text-neutral-950 dark:hover:bg-emerald-400 dark:focus-visible:ring-offset-neutral-950"
                                     :disabled="queueUpdatingId === Number(item.id)"
-                                    :ref="(element) => setQueueActionButtonRef(item.id, element)"
-                                    @click="toggleQueueActions(item.id)"
+                                    :data-testid="`reservation-queue-primary-${item.id}`"
+                                    @click="runQueuePrimaryAction(item)"
                                 >
-                                    <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                        <circle cx="12" cy="12" r="1" />
-                                        <circle cx="12" cy="5" r="1" />
-                                        <circle cx="12" cy="19" r="1" />
-                                    </svg>
+                                    <span class="truncate">{{ queuePrimaryActionLabel(item) }}</span>
                                 </button>
+                                <div v-if="queueRowHasSecondaryActions(item)" class="relative inline-flex">
+                                    <button
+                                        type="button"
+                                        class="size-8 inline-flex items-center justify-center rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-100 disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                        aria-haspopup="menu"
+                                        :aria-expanded="openQueueActionsFor === Number(item.id)"
+                                        :aria-label="$t('reservations.table.actions')"
+                                        :disabled="queueUpdatingId === Number(item.id)"
+                                        :ref="(element) => setQueueActionButtonRef(item.id, element)"
+                                        @click="toggleQueueActions(item.id)"
+                                    >
+                                        <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                            <circle cx="12" cy="12" r="1" />
+                                            <circle cx="12" cy="5" r="1" />
+                                            <circle cx="12" cy="19" r="1" />
+                                        </svg>
+                                    </button>
+                                </div>
                             </div>
                         </footer>
                     </article>
@@ -2281,9 +2476,17 @@ const removeReservation = (reservation) => {
 
                 <div
                     v-else
-                    class="rounded-sm border border-dashed border-stone-300 bg-stone-50 px-4 py-4 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400"
+                    class="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-dashed border-stone-300 bg-stone-50 px-4 py-4 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400"
                 >
-                    {{ $t('reservations.queue.empty') }}
+                    <span>{{ queueQuickFilter === 'all' ? $t('reservations.queue.empty') : $t('reservations.queue.filters.empty') }}</span>
+                    <button
+                        v-if="queueQuickFilter !== 'all'"
+                        type="button"
+                        class="font-semibold text-emerald-700 hover:text-emerald-800 dark:text-emerald-300 dark:hover:text-emerald-200"
+                        @click="setQueueQuickFilter('all')"
+                    >
+                        {{ $t('reservations.queue.filters.clear') }}
+                    </button>
                 </div>
 
                 <Teleport to="body">
@@ -2296,7 +2499,7 @@ const removeReservation = (reservation) => {
                         aria-orientation="vertical"
                     >
                         <button
-                            v-if="activeQueueActionItem.status === 'not_arrived'"
+                            v-if="activeQueueActionItem.status === 'not_arrived' && !queueActionIsPrimary(activeQueueActionItem, 'check-in')"
                             type="button"
                             role="menuitem"
                             class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-neutral-800"
@@ -2305,7 +2508,7 @@ const removeReservation = (reservation) => {
                             {{ $t('reservations.queue.actions.check_in') }}
                         </button>
                         <button
-                            v-if="['checked_in', 'skipped'].includes(activeQueueActionItem.status)"
+                            v-if="['checked_in', 'skipped'].includes(activeQueueActionItem.status) && !queueActionIsPrimary(activeQueueActionItem, 'pre-call')"
                             type="button"
                             role="menuitem"
                             class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-neutral-800"
@@ -2314,7 +2517,7 @@ const removeReservation = (reservation) => {
                             {{ $t('reservations.queue.actions.pre_call') }}
                         </button>
                         <button
-                            v-if="['checked_in', 'pre_called', 'skipped'].includes(activeQueueActionItem.status)"
+                            v-if="['checked_in', 'pre_called', 'skipped'].includes(activeQueueActionItem.status) && !queueActionIsPrimary(activeQueueActionItem, 'call')"
                             type="button"
                             role="menuitem"
                             class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-neutral-800"
@@ -2323,7 +2526,7 @@ const removeReservation = (reservation) => {
                             {{ $t('reservations.queue.actions.call') }}
                         </button>
                         <button
-                            v-if="['checked_in', 'pre_called', 'called'].includes(activeQueueActionItem.status)"
+                            v-if="['checked_in', 'pre_called', 'called'].includes(activeQueueActionItem.status) && !queueActionIsPrimary(activeQueueActionItem, 'start')"
                             type="button"
                             role="menuitem"
                             class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-sky-700 hover:bg-sky-50 dark:text-sky-300 dark:hover:bg-neutral-800"
@@ -2332,7 +2535,7 @@ const removeReservation = (reservation) => {
                             {{ $t('reservations.queue.actions.start') }}
                         </button>
                         <button
-                            v-if="['in_service', 'called'].includes(activeQueueActionItem.status)"
+                            v-if="['in_service', 'called'].includes(activeQueueActionItem.status) && !queueActionIsPrimary(activeQueueActionItem, 'finish')"
                             type="button"
                             role="menuitem"
                             class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-neutral-800"
@@ -2341,7 +2544,7 @@ const removeReservation = (reservation) => {
                             {{ $t('reservations.queue.actions.finish_checkout') }}
                         </button>
                         <button
-                            v-if="activeQueueActionItem.status === 'awaiting_payment'"
+                            v-if="activeQueueActionItem.status === 'awaiting_payment' && !queueActionIsPrimary(activeQueueActionItem, 'checkout')"
                             type="button"
                             role="menuitem"
                             class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-neutral-800"
@@ -2609,6 +2812,37 @@ const removeReservation = (reservation) => {
                         </div>
                     </div>
 
+                    <div
+                        class="flex max-w-full gap-2 overflow-x-auto pb-1"
+                        role="group"
+                        :aria-label="$t('reservations.quick.label')"
+                        data-testid="reservation-quick-filters"
+                    >
+                        <button
+                            v-for="quickFilter in reservationQuickFilters"
+                            :key="`reservation-quick-${quickFilter.value || 'all'}`"
+                            type="button"
+                            class="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-sm border px-3 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-60 dark:focus-visible:ring-offset-neutral-900"
+                            :class="filterForm.quick === quickFilter.value
+                                ? 'border-green-600 bg-green-600 text-white dark:border-green-500 dark:bg-green-500 dark:text-neutral-950'
+                                : 'border-stone-200 bg-white text-stone-700 hover:border-green-300 hover:bg-green-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:border-green-700 dark:hover:bg-green-500/10'"
+                            :aria-pressed="filterForm.quick === quickFilter.value"
+                            :disabled="listLoading || calendarLoading"
+                            :data-testid="`reservation-quick-filter-${quickFilter.value || 'all'}`"
+                            @click="setReservationQuickFilter(quickFilter.value)"
+                        >
+                            <span>{{ quickFilter.label }}</span>
+                            <span
+                                class="min-w-5 rounded-sm px-1.5 py-0.5 text-center text-[10px] leading-none"
+                                :class="filterForm.quick === quickFilter.value
+                                    ? 'bg-black/15 text-current dark:bg-white/20'
+                                    : 'bg-stone-100 text-stone-600 dark:bg-neutral-800 dark:text-neutral-300'"
+                            >
+                                {{ quickFilter.count }}
+                            </span>
+                        </button>
+                    </div>
+
                     <div v-if="showAdvanced" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
                         <FloatingSelect v-model="filterForm.status" :options="statusOptions" :label="$t('reservations.filters.status')" dense />
                         <FloatingSelect v-model="filterForm.service_id" :options="serviceOptions" :label="$t('reservations.form.item')" dense />
@@ -2647,6 +2881,8 @@ const removeReservation = (reservation) => {
                 :total="Number(reservations?.total ?? reservationRows.length)"
                 :loading="listLoading"
                 :error="listError"
+                :status-action-error="listStatusActionError"
+                :status-updating-id="listStatusUpdatingId"
                 :can-manage="canManageReservationActions"
                 :show-team-member="!ownerOnlyMode"
                 :timezone="timezone"
@@ -2660,6 +2896,7 @@ const removeReservation = (reservation) => {
                 @open="openDetails"
                 @edit="openEdit"
                 @delete="removeReservation"
+                @transition-status="updateReservationStatusFromList"
                 @retry="refreshList"
                 @clear-filters="clearFilters"
                 @toggle-date-sort="toggleDateSort"
@@ -3007,6 +3244,13 @@ const removeReservation = (reservation) => {
                             class="border-t border-stone-200 px-5 py-5 dark:border-neutral-700 sm:px-6 sm:py-6"
                             aria-labelledby="reservation-details-section-title"
                         >
+                            <div
+                                v-if="reservationForm.errors.reservation"
+                                class="mb-4 rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200"
+                                role="alert"
+                            >
+                                {{ reservationForm.errors.reservation }}
+                            </div>
                             <div class="mb-4 flex items-start gap-3">
                                 <span class="flex size-7 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs font-semibold text-white">
                                     <template v-if="!activeReservation">2</template>

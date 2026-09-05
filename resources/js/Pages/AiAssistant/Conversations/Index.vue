@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
@@ -32,13 +32,19 @@ const props = defineProps({
 const rows = computed(() => props.conversations?.data || []);
 const paginationLinks = computed(() => props.conversations?.links || []);
 const filterState = computed(() => ({
+    q: props.filters?.q || '',
     status: props.filters?.status || '',
     channel: props.filters?.channel || '',
     intent: props.filters?.intent || '',
     date: props.filters?.date || '',
     queue: props.filters?.queue || '',
 }));
+const searchQuery = ref(filterState.value.q);
 const activeQueue = computed(() => filterState.value.queue || (filterState.value.status || 'all'));
+
+watch(() => props.filters?.q, (value) => {
+    searchQuery.value = value || '';
+});
 
 const statusLabels = {
     open: 'En cours',
@@ -61,6 +67,16 @@ const channelLabels = {
     email: 'Email',
     whatsapp: 'WhatsApp',
     voice: 'Voix',
+};
+
+const reservationStatusLabels = {
+    pending: 'En attente',
+    confirmed: 'Confirmee',
+    cancelled: 'Annulee',
+    rescheduled: 'Replanifiee',
+    completed: 'Terminee',
+    no_show: 'Absence',
+    expired: 'Expiree',
 };
 
 const quickFilters = computed(() => [
@@ -124,6 +140,10 @@ const applyQuickFilter = (item) => {
     });
 };
 
+const applySearch = () => {
+    applyFilter('q', searchQuery.value.trim());
+};
+
 const clearFilters = () => {
     router.get(route('admin.ai-assistant.conversations.index'), {}, {
         preserveScroll: true,
@@ -134,6 +154,7 @@ const clearFilters = () => {
 const labelForStatus = (status) => statusLabels[status] || status || '-';
 const classForStatus = (status) => statusClasses[status] || statusClasses.abandoned;
 const labelForChannel = (channel) => channelLabels[channel] || channel || '-';
+const labelForReservationStatus = (status) => reservationStatusLabels[status] || status || '-';
 
 const formatDate = (value) => {
     if (!value) {
@@ -196,7 +217,29 @@ const paginationLabel = (label) => String(label || '')
             </ModuleKpiSection>
 
             <section class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="grid gap-2 md:grid-cols-[1fr_1fr_1fr_auto]">
+                <form
+                    class="grid gap-2 md:grid-cols-4 lg:grid-cols-[minmax(280px,2fr)_1fr_1fr_1fr_auto]"
+                    role="search"
+                    @submit.prevent="applySearch"
+                >
+                    <div class="flex min-w-0 md:col-span-4 lg:col-span-1">
+                        <label class="sr-only" for="ai-conversation-search">Rechercher une conversation</label>
+                        <input
+                            id="ai-conversation-search"
+                            v-model="searchQuery"
+                            data-ai-conversation-search
+                            type="search"
+                            autocomplete="off"
+                            class="min-w-0 flex-1 rounded-l-sm border-stone-200 text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                            placeholder="Nom, contact, UUID, reservation, message ou service"
+                        />
+                        <button
+                            type="submit"
+                            class="rounded-r-sm bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+                        >
+                            Rechercher
+                        </button>
+                    </div>
                     <select
                         class="rounded-sm border-stone-200 text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
                         :value="filterState.channel"
@@ -230,7 +273,7 @@ const paginationLabel = (label) => String(label || '')
                     >
                         Reinitialiser
                     </button>
-                </div>
+                </form>
             </section>
 
             <section class="space-y-3">
@@ -264,7 +307,14 @@ const paginationLabel = (label) => String(label || '')
                             <div class="mt-2 flex flex-wrap gap-2 text-xs text-stone-500 dark:text-neutral-400">
                                 <span>{{ labelForChannel(conversation.channel) }}</span>
                                 <span v-if="conversation.intent">· {{ conversation.intent }}</span>
-                                <span>· {{ formatDate(conversation.updated_at || conversation.created_at) }}</span>
+                                <span>· Activite {{ formatDate(conversation.last_activity_at || conversation.created_at) }}</span>
+                            </div>
+                            <div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-stone-500 dark:text-neutral-400">
+                                <span v-if="conversation.visitor_email">{{ conversation.visitor_email }}</span>
+                                <span v-if="conversation.visitor_phone">{{ conversation.visitor_phone }}</span>
+                                <span class="max-w-full truncate" :title="conversation.public_uuid">
+                                    UUID {{ conversation.public_uuid }}
+                                </span>
                             </div>
                         </div>
                         <Link
@@ -273,6 +323,25 @@ const paginationLabel = (label) => String(label || '')
                         >
                             Traiter
                         </Link>
+                    </div>
+
+                    <div
+                        v-if="conversation.reservation"
+                        data-ai-reservation-preview
+                        class="mt-3 rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm dark:border-emerald-500/30 dark:bg-emerald-500/10"
+                    >
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <span class="font-semibold text-emerald-900 dark:text-emerald-100">
+                                Reservation #{{ conversation.reservation.id }}
+                            </span>
+                            <span class="text-xs font-semibold text-emerald-700 dark:text-emerald-200">
+                                {{ labelForReservationStatus(conversation.reservation.status) }}
+                            </span>
+                        </div>
+                        <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-emerald-800 dark:text-emerald-200">
+                            <span>{{ conversation.reservation.service_name || 'Service non renseigne' }}</span>
+                            <span>{{ formatDate(conversation.reservation.starts_at) }}</span>
+                        </div>
                     </div>
 
                     <div v-if="conversation.pending_actions?.length" class="mt-3 grid gap-2 md:grid-cols-2">

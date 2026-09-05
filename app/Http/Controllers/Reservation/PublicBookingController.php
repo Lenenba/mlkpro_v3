@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Reservation;
 
 use App\Http\Controllers\Controller;
+use App\Models\Product;
 use App\Models\PublicBookingLink;
 use App\Models\User;
 use App\Modules\AiAssistant\Models\AiAssistantSetting;
 use App\Services\CompanyPublicSlugService;
 use App\Services\ReservationAvailabilityService;
 use App\Services\Reservations\PublicBookingService;
+use App\Services\Reservations\PublicReservationNavigationService;
 use App\Services\TenantBrandingResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -23,6 +25,7 @@ class PublicBookingController extends Controller
         private readonly ReservationAvailabilityService $availabilityService,
         private readonly CompanyPublicSlugService $companySlugs,
         private readonly TenantBrandingResolver $tenantBrandingResolver,
+        private readonly PublicReservationNavigationService $publicReservationNavigation,
     ) {}
 
     public function show(Request $request, string $company, string $slug)
@@ -38,6 +41,7 @@ class PublicBookingController extends Controller
             ]);
         }
 
+        $reservationSettings = $this->availabilityService->resolveSettings((int) $account->id, null);
         $link->load(['services' => fn ($query) => $query
             ->where('products.is_active', true)
             ->orderBy('products.name')]);
@@ -81,15 +85,21 @@ class PublicBookingController extends Controller
                         'price' => (float) ($service->price ?? 0),
                         'currency_code' => $service->currency_code,
                         'duration_minutes' => $durationMinutes,
+                        'image_url' => $service->image_url,
+                        'has_image' => $this->hasCustomServiceImage($service),
                     ];
                 })
                 ->values(),
             'settings' => [
                 'timezone' => $this->availabilityService->timezoneForAccount($account),
+                'kiosk_image_url' => $reservationSettings['kiosk_image_url'] ?? null,
             ],
             'endpoints' => [
                 'slots' => route('public.booking.slots', ['company' => $company, 'slug' => $slug]),
                 'store' => route('public.booking.store', ['company' => $company, 'slug' => $slug]),
+            ],
+            'public_navigation' => [
+                'kiosk_url' => $this->publicReservationNavigation->publicKioskUrl($account, $reservationSettings),
             ],
             'ai_assistant' => [
                 'enabled' => $assistantEnabled,
@@ -100,6 +110,7 @@ class PublicBookingController extends Controller
                     : null,
                 'endpoints' => [
                     'create' => route('public.ai-assistant.conversations.store'),
+                    'show' => route('public.ai-assistant.conversations.show', ['conversation' => '__conversation__']),
                     'message' => route('public.ai-assistant.conversations.messages.store', ['conversation' => '__conversation__']),
                 ],
             ],
@@ -229,5 +240,16 @@ class PublicBookingController extends Controller
                 'range_end' => ['Please request a date range of 60 days or less.'],
             ]);
         }
+    }
+
+    private function hasCustomServiceImage(Product $service): bool
+    {
+        $path = ltrim(trim((string) $service->image), '/');
+
+        return $path !== '' && ! in_array($path, [
+            Product::LEGACY_DEFAULT_IMAGE_PATH,
+            Product::DEFAULT_PRODUCT_IMAGE_PATH,
+            Product::DEFAULT_SERVICE_IMAGE_PATH,
+        ], true);
     }
 }

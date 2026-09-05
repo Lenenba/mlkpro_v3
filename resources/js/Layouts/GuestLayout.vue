@@ -5,6 +5,7 @@ import ValidationSummary from '@/Components/ValidationSummary.vue';
 import FlashToaster from '@/Components/UI/FlashToaster.vue';
 import CookieBanner from '@/Components/UI/CookieBanner.vue';
 import AppFooter from '@/Components/UI/AppFooter.vue';
+import PublicBrandBar from '@/Components/Public/PublicBrandBar.vue';
 import { computed } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 
@@ -16,6 +17,10 @@ const props = defineProps({
     company: {
         type: Object,
         default: null,
+    },
+    brandBar: {
+        type: Boolean,
+        default: false,
     },
     logoUrl: {
         type: String,
@@ -82,9 +87,26 @@ const shouldShowFooter = computed(() => (
     <div class="flex min-h-screen flex-col bg-stone-50 text-stone-900 dark:bg-neutral-950 dark:text-neutral-100">
         <FlashToaster />
         <CookieBanner />
-        <div class="flex w-full flex-1 flex-col items-center justify-center pt-6 sm:pt-0">
+        <div
+            :class="[
+                'flex w-full flex-1 flex-col items-center',
+                props.brandBar ? 'justify-start pt-4 sm:pt-5' : 'justify-center pt-6 sm:pt-0',
+            ]"
+        >
+            <header v-if="props.brandBar" class="w-full">
+                <div class="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+                    <PublicBrandBar
+                        :company="tenantCompany"
+                        :logo-href="resolvedLogoHref"
+                        :show-platform-logo="props.showPlatformLogo"
+                    >
+                        <slot name="brand-actions" />
+                    </PublicBrandBar>
+                </div>
+            </header>
+
             <CompanyBrandLogo
-                v-if="tenantCompany"
+                v-if="!props.brandBar && tenantCompany"
                 :company="tenantCompany"
                 :href="resolvedLogoHref"
                 :link-label="tenantCompany?.name || 'Malikia Pro'"
@@ -92,7 +114,7 @@ const shouldShowFooter = computed(() => (
             />
             <component
                 :is="resolvedLogoHref ? Link : 'div'"
-                v-else-if="props.showPlatformLogo"
+                v-else-if="!props.brandBar && props.showPlatformLogo"
                 v-bind="resolvedLogoHref ? { href: resolvedLogoHref } : {}"
                 :aria-label="resolvedLogoHref ? 'Malikia Pro' : undefined"
             >
@@ -105,9 +127,14 @@ const shouldShowFooter = computed(() => (
             </div>
         </div>
 
-        <div v-if="shouldShowFooter" class="w-full px-2 pb-3 pt-5 sm:px-5 sm:pb-5">
+        <div
+            v-if="shouldShowFooter"
+            :class="props.brandBar
+                ? 'mx-auto w-full max-w-7xl px-4 pb-3 pt-5 sm:px-6 sm:pb-5 lg:px-8'
+                : 'w-full px-2 pb-3 pt-5 sm:px-5 sm:pb-5'"
+        >
             <AppFooter
-                class="mx-auto w-full max-w-6xl"
+                :class="props.brandBar ? 'w-full !rounded-sm' : 'mx-auto w-full max-w-6xl'"
                 :floating-action-reserve="props.footerFloatingActionReserve"
                 :variant="showTenantAttribution ? 'powered-by' : 'platform'"
             />

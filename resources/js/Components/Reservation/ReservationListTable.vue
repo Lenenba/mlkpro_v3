@@ -34,6 +34,8 @@ import {
     reservationListService,
     reservationListServiceName,
     reservationListSourceKey,
+    reservationListQuickStatusAction,
+    reservationListSecondaryStatusActions,
     reservationListSortColumn,
     reservationListSortDirection,
     reservationListSortValue,
@@ -85,6 +87,14 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    statusActionError: {
+        type: String,
+        default: '',
+    },
+    statusUpdatingId: {
+        type: [Number, String],
+        default: null,
+    },
     isDateSort: {
         type: Boolean,
         default: false,
@@ -114,6 +124,7 @@ const emit = defineEmits([
     'sort',
     'set-sort',
     'per-page',
+    'transition-status',
 ]);
 
 const { locale, t } = useI18n();
@@ -258,7 +269,24 @@ const sourceIcon = (reservation) => ({
 
 const canEdit = (reservation) => reservationListCanEdit(reservation, props.canManage);
 const canDelete = (reservation) => reservationListCanDelete(reservation, props.canManage);
-const rowHasManagementActions = (reservation) => canEdit(reservation) || canDelete(reservation);
+const quickStatusAction = (reservation) => reservationListQuickStatusAction(reservation);
+const secondaryStatusActions = (reservation) => reservationListSecondaryStatusActions(reservation);
+const rowHasManagementActions = (reservation) => (
+    canEdit(reservation)
+    || canDelete(reservation)
+    || secondaryStatusActions(reservation).length > 0
+);
+const statusActionLabel = (action) => action?.labelKey
+    ? t(`reservations.actions.${action.labelKey}`)
+    : '';
+const isStatusUpdating = (reservation) => Number(props.statusUpdatingId) === Number(reservation?.id);
+const transitionStatus = (reservation, action) => {
+    if (!action?.status || isStatusUpdating(reservation)) {
+        return;
+    }
+
+    emit('transition-status', reservation, action.status);
+};
 const openReservation = (reservation) => {
     if (reservationListCanView(reservation)) {
         emit('open', reservation);
@@ -337,6 +365,14 @@ const setMobilePerPage = (event) => {
                 {{ $t('reservations.list.timezone', { timezone: safeTimezone }) }}
             </span>
         </header>
+
+        <div
+            v-if="statusActionError"
+            class="mx-4 mt-4 rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200 sm:mx-5"
+            role="alert"
+        >
+            {{ statusActionError }}
+        </div>
 
         <div
             v-if="error"
@@ -726,40 +762,74 @@ const setMobilePerPage = (event) => {
                                 </div>
                             </td>
                             <td class="px-4 py-3 text-end align-middle">
-                                <AdminDataTableActions
-                                    :label="actionsLabel(reservation)"
-                                    menu-width-class="w-40"
-                                    :trigger-test-id="`reservation-actions-trigger-${reservation.id}`"
-                                    :menu-test-id="`reservation-actions-menu-${reservation.id}`"
-                                >
+                                <div class="flex items-center justify-end gap-2">
                                     <button
+                                        v-if="quickStatusAction(reservation)"
                                         type="button"
-                                        class="reservation-list-action"
-                                        @click="openReservation(reservation)"
+                                        class="inline-flex min-h-9 max-w-36 items-center justify-center rounded-sm border px-3 py-1.5 text-xs font-semibold transition disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-900"
+                                        :class="quickStatusAction(reservation).destructive
+                                            ? 'border-rose-200 bg-white text-rose-700 hover:bg-rose-50 focus-visible:ring-rose-500 dark:border-rose-500/30 dark:bg-neutral-900 dark:text-rose-300 dark:hover:bg-rose-500/10'
+                                            : 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 focus-visible:ring-emerald-500 dark:border-emerald-500 dark:bg-emerald-500 dark:text-neutral-950 dark:hover:bg-emerald-400'"
+                                        :disabled="isStatusUpdating(reservation)"
+                                        :data-testid="`reservation-primary-action-${reservation.id}`"
+                                        @click="transitionStatus(reservation, quickStatusAction(reservation))"
                                     >
-                                        <Eye class="h-4 w-4 text-stone-500 dark:text-neutral-400" aria-hidden="true" />
-                                        {{ $t('reservations.actions.view') }}
+                                        <span class="truncate">{{ statusActionLabel(quickStatusAction(reservation)) }}</span>
                                     </button>
-                                    <button
-                                        v-if="canEdit(reservation)"
-                                        type="button"
-                                        class="reservation-list-action"
-                                        @click="emit('edit', reservation)"
+
+                                    <AdminDataTableActions
+                                        :label="actionsLabel(reservation)"
+                                        menu-width-class="w-48"
+                                        :trigger-test-id="`reservation-actions-trigger-${reservation.id}`"
+                                        :menu-test-id="`reservation-actions-menu-${reservation.id}`"
                                     >
-                                        <Pencil class="h-4 w-4 text-stone-500 dark:text-neutral-400" aria-hidden="true" />
-                                        {{ $t('reservations.actions.edit') }}
-                                    </button>
-                                    <div v-if="rowHasManagementActions(reservation)" class="my-1 border-t border-stone-200 dark:border-neutral-700" />
-                                    <button
-                                        v-if="canDelete(reservation)"
-                                        type="button"
-                                        class="reservation-list-action reservation-list-action--delete"
-                                        @click="emit('delete', reservation)"
-                                    >
-                                        <Trash2 class="h-4 w-4" aria-hidden="true" />
-                                        {{ $t('reservations.actions.delete') }}
-                                    </button>
-                                </AdminDataTableActions>
+                                        <button
+                                            type="button"
+                                            class="reservation-list-action"
+                                            @click="openReservation(reservation)"
+                                        >
+                                            <Eye class="h-4 w-4 text-stone-500 dark:text-neutral-400" aria-hidden="true" />
+                                            {{ $t('reservations.actions.view') }}
+                                        </button>
+                                        <button
+                                            v-if="canEdit(reservation)"
+                                            type="button"
+                                            class="reservation-list-action"
+                                            @click="emit('edit', reservation)"
+                                        >
+                                            <Pencil class="h-4 w-4 text-stone-500 dark:text-neutral-400" aria-hidden="true" />
+                                            {{ $t('reservations.actions.edit') }}
+                                        </button>
+                                        <div
+                                            v-if="secondaryStatusActions(reservation).length || canDelete(reservation)"
+                                            class="my-1 border-t border-stone-200 dark:border-neutral-700"
+                                        />
+                                        <button
+                                            v-for="action in secondaryStatusActions(reservation)"
+                                            :key="`reservation-status-action-${reservation.id}-${action.status}`"
+                                            type="button"
+                                            class="reservation-list-action"
+                                            :class="action.destructive ? 'reservation-list-action--delete' : ''"
+                                            :disabled="isStatusUpdating(reservation)"
+                                            @click="transitionStatus(reservation, action)"
+                                        >
+                                            {{ statusActionLabel(action) }}
+                                        </button>
+                                        <div
+                                            v-if="canDelete(reservation) && secondaryStatusActions(reservation).length"
+                                            class="my-1 border-t border-stone-200 dark:border-neutral-700"
+                                        />
+                                        <button
+                                            v-if="canDelete(reservation)"
+                                            type="button"
+                                            class="reservation-list-action reservation-list-action--delete"
+                                            @click="emit('delete', reservation)"
+                                        >
+                                            <Trash2 class="h-4 w-4" aria-hidden="true" />
+                                            {{ $t('reservations.actions.delete') }}
+                                        </button>
+                                    </AdminDataTableActions>
+                                </div>
                             </td>
                         </tr>
                     </template>
@@ -869,18 +939,40 @@ const setMobilePerPage = (event) => {
                         </span>
                         <div class="flex shrink-0 items-center gap-1.5">
                             <button
+                                v-if="quickStatusAction(reservation)"
                                 type="button"
-                                class="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-500 dark:text-neutral-950 dark:hover:bg-emerald-400 dark:focus-visible:ring-offset-neutral-950"
+                                class="inline-flex min-h-9 max-w-32 items-center justify-center rounded-sm border px-3 py-1.5 text-xs font-semibold transition disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950"
+                                :class="quickStatusAction(reservation).destructive
+                                    ? 'border-rose-200 bg-white text-rose-700 hover:bg-rose-50 focus-visible:ring-rose-500 dark:border-rose-500/30 dark:bg-neutral-900 dark:text-rose-300 dark:hover:bg-rose-500/10'
+                                    : 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 focus-visible:ring-emerald-500 dark:border-emerald-500 dark:bg-emerald-500 dark:text-neutral-950 dark:hover:bg-emerald-400'"
+                                :disabled="isStatusUpdating(reservation)"
+                                @click="transitionStatus(reservation, quickStatusAction(reservation))"
+                            >
+                                <span class="truncate">{{ statusActionLabel(quickStatusAction(reservation)) }}</span>
+                            </button>
+                            <button
+                                v-else
+                                type="button"
+                                class="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-sm bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-500 dark:text-neutral-950 dark:hover:bg-emerald-400 dark:focus-visible:ring-offset-neutral-950"
                                 @click="openReservation(reservation)"
                             >
                                 <Eye class="h-3.5 w-3.5" aria-hidden="true" />
                                 {{ $t('reservations.actions.view') }}
                             </button>
                             <AdminDataTableActions
-                                v-if="rowHasManagementActions(reservation)"
+                                v-if="rowHasManagementActions(reservation) || quickStatusAction(reservation)"
                                 :label="actionsLabel(reservation)"
-                                menu-width-class="w-40"
+                                menu-width-class="w-48"
                             >
+                                <button
+                                    v-if="quickStatusAction(reservation)"
+                                    type="button"
+                                    class="reservation-list-action"
+                                    @click="openReservation(reservation)"
+                                >
+                                    <Eye class="h-4 w-4 text-stone-500 dark:text-neutral-400" aria-hidden="true" />
+                                    {{ $t('reservations.actions.view') }}
+                                </button>
                                 <button
                                     v-if="canEdit(reservation)"
                                     type="button"
@@ -890,7 +982,25 @@ const setMobilePerPage = (event) => {
                                     <Pencil class="h-4 w-4 text-stone-500 dark:text-neutral-400" aria-hidden="true" />
                                     {{ $t('reservations.actions.edit') }}
                                 </button>
-                                <div v-if="canEdit(reservation) && canDelete(reservation)" class="my-1 border-t border-stone-200 dark:border-neutral-700" />
+                                <div
+                                    v-if="secondaryStatusActions(reservation).length"
+                                    class="my-1 border-t border-stone-200 dark:border-neutral-700"
+                                />
+                                <button
+                                    v-for="action in secondaryStatusActions(reservation)"
+                                    :key="`reservation-mobile-status-action-${reservation.id}-${action.status}`"
+                                    type="button"
+                                    class="reservation-list-action"
+                                    :class="action.destructive ? 'reservation-list-action--delete' : ''"
+                                    :disabled="isStatusUpdating(reservation)"
+                                    @click="transitionStatus(reservation, action)"
+                                >
+                                    {{ statusActionLabel(action) }}
+                                </button>
+                                <div
+                                    v-if="canDelete(reservation) && (canEdit(reservation) || secondaryStatusActions(reservation).length)"
+                                    class="my-1 border-t border-stone-200 dark:border-neutral-700"
+                                />
                                 <button
                                     v-if="canDelete(reservation)"
                                     type="button"

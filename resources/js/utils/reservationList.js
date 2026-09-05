@@ -126,6 +126,95 @@ export const reservationListCanDelete = (reservation, canManage) => {
     return reservationListCanView(reservation) && Boolean(canManage) && capability !== false;
 };
 
+export const reservationListCanUpdateStatus = (reservation) => (
+    reservationListCanView(reservation)
+    && reservationCapability(reservation, 'update_status') === true
+);
+
+export const reservationListAllowedStatusTransitions = (reservation) => {
+    if (!reservationListCanUpdateStatus(reservation)) {
+        return [];
+    }
+
+    const transitions = reservation?.permissions?.allowed_status_transitions
+        ?? reservation?.capabilities?.allowed_status_transitions
+        ?? reservation?.allowed_status_transitions
+        ?? [];
+
+    return Array.isArray(transitions)
+        ? [...new Set(transitions.map((status) => String(status || '').trim()).filter(Boolean))]
+        : [];
+};
+
+const validReservationDate = (value) => {
+    const date = value ? new Date(value) : null;
+
+    return date && !Number.isNaN(date.getTime()) ? date : null;
+};
+
+export const reservationListQuickStatusAction = (reservation, now = new Date()) => {
+    const allowed = reservationListAllowedStatusTransitions(reservation);
+    const status = String(reservation?.status || '');
+
+    if (!allowed.length) {
+        return null;
+    }
+
+    if (status === 'pending' && allowed.includes('confirmed')) {
+        return { status: 'confirmed', labelKey: 'confirm', destructive: false };
+    }
+
+    if (status === 'rescheduled' && allowed.includes('confirmed')) {
+        return { status: 'confirmed', labelKey: 'confirm', destructive: false };
+    }
+
+    const endsAt = validReservationDate(reservation?.ends_at || reservation?.end);
+    const referenceNow = validReservationDate(now) || new Date();
+    if (endsAt && endsAt <= referenceNow && allowed.includes('completed')) {
+        return { status: 'completed', labelKey: 'complete', destructive: false };
+    }
+
+    if (allowed.includes('cancelled')) {
+        return { status: 'cancelled', labelKey: 'cancel', destructive: true };
+    }
+
+    const fallbackStatus = allowed[0];
+    const fallbackLabelKeys = {
+        confirmed: 'confirm',
+        pending: 'set_pending',
+        completed: 'complete',
+        no_show: 'no_show',
+        cancelled: 'cancel',
+    };
+
+    return fallbackLabelKeys[fallbackStatus]
+        ? {
+            status: fallbackStatus,
+            labelKey: fallbackLabelKeys[fallbackStatus],
+            destructive: fallbackStatus === 'cancelled',
+        }
+        : null;
+};
+
+export const reservationListSecondaryStatusActions = (reservation, now = new Date()) => {
+    const primaryStatus = reservationListQuickStatusAction(reservation, now)?.status;
+    const labelKeys = {
+        confirmed: 'confirm',
+        pending: 'set_pending',
+        completed: 'complete',
+        no_show: 'no_show',
+        cancelled: 'cancel',
+    };
+
+    return reservationListAllowedStatusTransitions(reservation)
+        .filter((status) => status !== primaryStatus && labelKeys[status])
+        .map((status) => ({
+            status,
+            labelKey: labelKeys[status],
+            destructive: status === 'cancelled',
+        }));
+};
+
 const RESERVATION_LIST_SORT_COLUMNS = new Set([
     'date',
     'status',

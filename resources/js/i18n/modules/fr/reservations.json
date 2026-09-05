@@ -74,10 +74,15 @@
       "all": "Toutes les réservations"
     },
     "quick": {
+      "label": "Vues rapides des réservations",
+      "all": "Toutes",
       "pending": "En attente",
       "today": "Aujourd'hui",
       "upcoming": "À venir",
-      "past": "Passées"
+      "past": "Passées",
+      "completed": "Terminées",
+      "no_show": "Absences",
+      "cancelled": "Annulées"
     },
     "sort": {
       "date_asc": "Date (plus anciennes d'abord)",
@@ -101,7 +106,8 @@
       "reschedule": "Replanifier",
       "filters": "Filtres",
       "clear_filters": "Réinitialiser",
-      "delete_confirm": "Supprimer cette réservation ?"
+      "delete_confirm": "Supprimer cette réservation ?",
+      "cancel_confirm": "Annuler la réservation {reference} ?"
     },
     "form": {
       "create_title": "Créer une réservation",
@@ -204,6 +210,18 @@
         "label": "Mode d’affichage de la file",
         "table": "Tableau",
         "cards": "Cartes"
+      },
+      "filters": {
+        "label": "Filtrer la file par étape",
+        "all": "Tous",
+        "not_arrived": "À venir",
+        "waiting": "En attente",
+        "called": "Appelés",
+        "in_service": "En service",
+        "awaiting_payment": "À encaisser",
+        "done": "Terminés",
+        "empty": "Aucun élément ne correspond à ce filtre.",
+        "clear": "Afficher toute la file"
       },
       "details": {
         "schedule": "Horaire",
@@ -383,6 +401,11 @@
         "disabled": "Le mode file hybride est desactive. Activez-le dans les parametres reservations."
       }
     },
+    "public_navigation": {
+      "aria_label": "Navigation publique des réservations",
+      "book": "Réserver en ligne",
+      "kiosk": "Accéder au kiosque"
+    },
     "kiosk": {
       "title": "Kiosque salon",
       "subtitle": "Prenez un ticket walk-in, enregistrez-vous en tant que client existant, ou suivez votre ticket.",
@@ -405,6 +428,28 @@
         "searching": "Recherche...",
         "creating": "Creation...",
         "clear": "Effacer"
+      },
+      "guided": {
+        "progress": "Progression du parcours",
+        "continue": "Continuer",
+        "back": "Retour",
+        "restart": "Recommencer",
+        "finish": "Terminer",
+        "confirmation": "Confirmation",
+        "waiting": "En file",
+        "in_service": "En service",
+        "position": "Position",
+        "eta": "Attente estimée",
+        "ticket_title": "Votre ticket est prêt",
+        "arrival_title": "Votre arrivée",
+        "tracking_title": "Votre ticket en direct",
+        "result_help": "Gardez ce numéro à portée de main. Nous vous indiquerons la suite dès que votre tour approchera.",
+        "next_action_help": "Vérifiez les informations ci-dessous pour terminer votre arrivée.",
+        "client_not_found_title": "Nous ne trouvons pas encore votre profil",
+        "client_not_found_help": "Vous pouvez continuer sans rendez-vous avec le même numéro de téléphone.",
+        "take_ticket": "Prendre un ticket",
+        "identified_client": "Client identifié",
+        "auto_reset": "Pour votre confidentialité, cet écran se réinitialise automatiquement après 60 secondes."
       },
       "preview": {
         "label": "APERCU",

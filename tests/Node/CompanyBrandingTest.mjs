@@ -119,8 +119,11 @@ test('tenant public and contextual auth pages delegate their main logo to GuestL
     }
 
     const guestLayout = source('resources/js/Layouts/GuestLayout.vue');
+    const publicBrandBar = source('resources/js/Components/Public/PublicBrandBar.vue');
     const appFooter = source('resources/js/Components/UI/AppFooter.vue');
-    assert.match(guestLayout, /<CompanyBrandLogo[\s\S]*?v-if="tenantCompany"/);
+    assert.match(guestLayout, /<PublicBrandBar[\s\S]*?:company="tenantCompany"/);
+    assert.match(guestLayout, /<CompanyBrandLogo[\s\S]*?v-if="!props\.brandBar && tenantCompany"/);
+    assert.match(publicBrandBar, /<CompanyBrandLogo[\s\S]*?v-if="props\.company"/);
     assert.match(guestLayout, /<ApplicationLogo[\s\S]*?class="h-14 w-44 sm:h-16 sm:w-52"/);
     assert.match(guestLayout, /:variant="showTenantAttribution \? 'powered-by' : 'platform'"/);
     assert.match(appFooter, /account\.branding\.powered_by/);
@@ -144,6 +147,49 @@ test('booking and AI chat keep one tenant brand while preserving tenant routing'
     assert.match(chatWidget, /<Bot class="size-5" aria-hidden="true"/);
 });
 
+test('the shared public brand bar removes the frame behind tenant logos', () => {
+    const booking = source('resources/js/Pages/Public/PublicBooking.vue');
+    const assistantPage = source('resources/js/Pages/Public/AiAssistantChat.vue');
+    const guestLayout = source('resources/js/Layouts/GuestLayout.vue');
+    const kioskLayout = source('resources/js/Layouts/PublicKioskLayout.vue');
+    const publicBrandBar = source('resources/js/Components/Public/PublicBrandBar.vue');
+    const logoStyles = publicBrandBar.match(/\.public-brand-bar :deep\(\.company-brand-logo--custom\) \{([^}]*)\}/)?.[1] || '';
+
+    assert.match(booking, /<GuestLayout[\s\S]*?class="public-booking-layout"/);
+    assert.match(publicBrandBar, /data-testid="public-brand-bar"/);
+    assert.match(publicBrandBar, /container-class="h-11 w-24 p-0 sm:h-12 sm:w-44"/);
+    assert.match(publicBrandBar, /logo-class="h-full w-auto max-w-full object-contain object-left"/);
+    assert.match(logoStyles, /border: 0;/);
+    assert.match(logoStyles, /justify-content: flex-start;/);
+    assert.match(logoStyles, /background-color: transparent;/);
+    assert.match(logoStyles, /background-image: none;/);
+    assert.match(logoStyles, /box-shadow: none;/);
+    assert.equal(occurrences(guestLayout, '<PublicBrandBar'), 1);
+    assert.equal(occurrences(kioskLayout, '<PublicBrandBar'), 1);
+    assert.doesNotMatch(booking, /\.public-booking-layout :deep\(\.company-brand-logo--custom\)/);
+    assert.doesNotMatch(assistantPage, /public-booking-layout/);
+});
+
+test('public booking opts into the compact brand bar and renders available navigation actions', () => {
+    const booking = source('resources/js/Pages/Public/PublicBooking.vue');
+    const guestLayout = source('resources/js/Layouts/GuestLayout.vue');
+    const publicBrandBar = source('resources/js/Components/Public/PublicBrandBar.vue');
+
+    assert.match(guestLayout, /brandBar:[\s\S]*?type: Boolean[\s\S]*?default: false/);
+    assert.match(guestLayout, /import PublicBrandBar from '@\/Components\/Public\/PublicBrandBar\.vue'/);
+    assert.match(guestLayout, /<header v-if="props\.brandBar"[\s\S]*?<PublicBrandBar[\s\S]*?<slot name="brand-actions"/);
+    assert.match(publicBrandBar, /<slot \/>/);
+    assert.match(booking, /<GuestLayout[\s\S]*?brand-bar/);
+    assert.match(booking, /shouldShowPublicBookingReservationsLink\([\s\S]*?page\.props\.auth\?\.account[\s\S]*?props\.company\?\.id/);
+    assert.match(booking, /showClientReservationsLink\.value \? route\('client\.reservations\.index'\) : ''/);
+    assert.match(booking, /public_navigation:[\s\S]*?kiosk_url: null/);
+    assert.match(booking, /const publicKioskHref = computed\(\(\) => String\(props\.public_navigation\?\.kiosk_url \|\| ''\)\.trim\(\)\);/);
+    assert.match(booking, /<template #brand-actions>[\s\S]*?<nav[\s\S]*?v-if="publicKioskHref \|\| showClientReservationsLink"/);
+    assert.match(booking, /<a[\s\S]*?v-if="publicKioskHref"[\s\S]*?:href="publicKioskHref"[\s\S]*?data-testid="public-booking-kiosk-link"/);
+    assert.match(booking, /<Link[\s\S]*?v-if="showClientReservationsLink"[\s\S]*?:href="clientReservationsHref"/);
+    assert.match(booking, /reservations\.client\.book\.my_reservations/);
+});
+
 test('the sidebar switches to tenant branding without replacing the platform fallback', () => {
     const sidebar = source('resources/js/Layouts/UI/Sidebar.vue');
     const authenticatedLayout = source('resources/js/Layouts/AuthenticatedLayout.vue');
@@ -164,7 +210,6 @@ test('historical tenant surfaces use the shared logo component instead of direct
     const tenantSurfaces = [
         'resources/js/Pages/Public/Store.vue',
         'resources/js/Pages/Public/Showcase.vue',
-        'resources/js/Pages/Public/ReservationKiosk.vue',
         'resources/js/Pages/Portal/InvoiceShow.vue',
         'resources/js/Pages/Portal/Products/Shop.vue',
         'resources/js/Pages/Portal/Products/OrderShow.vue',
@@ -211,6 +256,7 @@ test('public store, showcase and kiosk expose one tenant brand and one platform 
     const showcase = source('resources/js/Pages/Public/Showcase.vue');
     const kiosk = source('resources/js/Pages/Public/ReservationKiosk.vue');
     const kioskLayout = source('resources/js/Layouts/PublicKioskLayout.vue');
+    const publicBrandBar = source('resources/js/Components/Public/PublicBrandBar.vue');
 
     assert.equal(occurrences(store, '<CompanyBrandLogo'), 1);
     assert.match(store, /route\('public\.store\.show', \{ slug: company\.slug \}, false\)/);
@@ -228,8 +274,10 @@ test('public store, showcase and kiosk expose one tenant brand and one platform 
         assert.equal(occurrences(pageSource, 'account.branding.powered_by'), 1, path);
     }
 
-    assert.equal(occurrences(kiosk, '<CompanyBrandLogo'), 1);
-    assert.match(kiosk, /<PublicKioskLayout>/);
+    assert.equal(occurrences(kiosk, '<CompanyBrandLogo'), 0);
+    assert.match(kiosk, /<PublicKioskLayout\b[^>]*:company="company"[^>]*logo-href=""/);
+    assert.equal(occurrences(kioskLayout, '<PublicBrandBar'), 1);
+    assert.equal(occurrences(publicBrandBar, '<CompanyBrandLogo'), 1);
     assert.doesNotMatch(kiosk, /account\.branding\.powered_by/);
     assert.equal(occurrences(kioskLayout, '<AppFooter'), 1);
     assert.match(kioskLayout, /variant="powered-by"/);

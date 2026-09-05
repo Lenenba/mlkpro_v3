@@ -76,6 +76,64 @@ test('ai assistant service answers reservation flow in detected english', functi
         ->and($response->message)->toContain('Which service would you like to book?');
 });
 
+test('ai intent detector preserves the conversation language for neutral answers', function (string $message, string $language) {
+    $detected = app(AiIntentDetector::class)->detect($message, $language);
+
+    expect($detected->language)->toBe($language);
+})->with([
+    'french service containing hi' => ['Brushing cheveux longs', 'fr'],
+    'shared word service in french' => ['service', 'fr'],
+    'name containing hi' => ['Philippe', 'fr'],
+    'french numbered choice' => ['5', 'fr'],
+    'french phone number' => ['514 555 0199', 'fr'],
+    'english shared word reservation' => ['reservation', 'en'],
+    'english numbered choice' => ['2', 'en'],
+    'english brief acknowledgement' => ['ok', 'en'],
+]);
+
+test('ai intent detector recognizes explicit language cues across punctuation', function (string $message, string $fallbackLanguage, string $expectedLanguage) {
+    $detected = app(AiIntentDetector::class)->detect($message, $fallbackLanguage);
+
+    expect($detected->language)->toBe($expectedLanguage);
+})->with([
+    'english greeting' => ['Hi!', 'fr', 'en'],
+    'french greeting' => ['Bonjour !', 'en', 'fr'],
+    'french service question' => ['Je voudrais un service.', 'en', 'fr'],
+    'english reservation request' => ['I would like a reservation.', 'fr', 'en'],
+]);
+
+test('ai assistant keeps french while selecting brushing and answering with a short name', function () {
+    $tenant = User::factory()->create();
+    $service = createAiIntentService($tenant, 'Brushing cheveux longs');
+    AiAssistantSetting::factory()->create([
+        'tenant_id' => $tenant->id,
+        'default_language' => AiAssistantSetting::LANGUAGE_FR,
+        'supported_languages' => [AiAssistantSetting::LANGUAGE_FR, AiAssistantSetting::LANGUAGE_EN],
+    ]);
+    $conversation = AiConversation::factory()->create([
+        'tenant_id' => $tenant->id,
+        'detected_language' => AiAssistantSetting::LANGUAGE_FR,
+        'intent' => AiConversation::INTENT_RESERVATION,
+        'metadata' => [],
+    ]);
+    $assistant = app(AiAssistantService::class);
+
+    $serviceResponse = $assistant->handleUserMessage($conversation, 'Brushing cheveux longs');
+    $conversation->refresh();
+
+    expect($conversation->detected_language)->toBe(AiAssistantSetting::LANGUAGE_FR)
+        ->and(data_get($conversation->metadata, 'reservation_draft.service_id'))->toBe($service->id)
+        ->and($serviceResponse->message)->toContain('Pour préparer la demande, quel est votre nom complet?');
+
+    $nameResponse = $assistant->handleUserMessage($conversation, 'Philippe');
+    $conversation->refresh();
+
+    expect($conversation->detected_language)->toBe(AiAssistantSetting::LANGUAGE_FR)
+        ->and(data_get($conversation->metadata, 'reservation_draft.contact_name'))->toBe('Philippe')
+        ->and($nameResponse->message)->toContain('nom de famille')
+        ->and(AiAction::query()->where('conversation_id', $conversation->id)->count())->toBe(0);
+});
+
 test('ai assistant service requests human review when confidence is low', function () {
     $tenant = User::factory()->create();
     AiAssistantSetting::factory()->create([
@@ -128,7 +186,7 @@ test('ai assistant keeps an active reservation flow when the next answer is a pl
     $firstResponse = $assistant->handleUserMessage($conversation, 'je veux une reservation Reservation QA');
     $conversation->refresh();
 
-    expect($firstResponse->message)->toContain('Pour préparer la demande, j’ai besoin de votre nom complet et d’un numéro de téléphone.')
+    expect($firstResponse->message)->toContain('Pour préparer la demande, quel est votre nom complet?')
         ->and($conversation->intent)->toBe(AiConversation::INTENT_RESERVATION);
 
     $conversation->update(['status' => AiConversation::STATUS_WAITING_HUMAN]);

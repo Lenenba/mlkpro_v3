@@ -192,7 +192,7 @@ const submit = () => {
                 </div>
                 <div class="flex flex-wrap gap-2">
                     <Link
-                        :href="route('admin.ai-assistant.conversations.index', { queue: 'review' })"
+                        :href="route('admin.ai-assistant.conversations.index')"
                         class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
                     >
                         Inbox IA

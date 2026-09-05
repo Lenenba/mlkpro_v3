@@ -450,6 +450,7 @@ class BuildStaffReservationIndexData
             Reservation::STATUS_PENDING => [Reservation::STATUS_CONFIRMED],
             Reservation::STATUS_CONFIRMED => [Reservation::STATUS_PENDING],
             Reservation::STATUS_RESCHEDULED => [Reservation::STATUS_CONFIRMED, Reservation::STATUS_PENDING],
+            Reservation::STATUS_CANCELLED => [Reservation::STATUS_CONFIRMED],
             default => [],
         };
 
@@ -518,7 +519,16 @@ class BuildStaffReservationIndexData
         }
 
         $quick = (string) $request->input('quick', '');
-        if (! in_array($quick, ['', 'pending', 'today', 'upcoming', 'past'], true)) {
+        if (! in_array($quick, [
+            '',
+            'pending',
+            'today',
+            'upcoming',
+            'past',
+            'completed',
+            'no_show',
+            'cancelled',
+        ], true)) {
             $quick = '';
         }
 
@@ -717,6 +727,12 @@ class BuildStaffReservationIndexData
                     ->whereIn('reservations.status', Reservation::ACTIVE_STATUSES);
             } elseif ($quick === 'past') {
                 $query->where('reservations.ends_at', '<', now());
+            } elseif ($quick === 'completed') {
+                $query->where('reservations.status', Reservation::STATUS_COMPLETED);
+            } elseif ($quick === 'no_show') {
+                $query->where('reservations.status', Reservation::STATUS_NO_SHOW);
+            } elseif ($quick === 'cancelled') {
+                $query->where('reservations.status', Reservation::STATUS_CANCELLED);
             }
         }
     }
@@ -839,6 +855,9 @@ class BuildStaffReservationIndexData
                 ->whereIn('status', Reservation::ACTIVE_STATUSES)
                 ->count(),
             'past' => (clone $summaryQuery)->where('ends_at', '<', now())->count(),
+            'completed' => (clone $summaryQuery)->where('status', Reservation::STATUS_COMPLETED)->count(),
+            'no_show' => (clone $summaryQuery)->where('status', Reservation::STATUS_NO_SHOW)->count(),
+            'cancelled' => (clone $summaryQuery)->where('status', Reservation::STATUS_CANCELLED)->count(),
         ];
     }
 

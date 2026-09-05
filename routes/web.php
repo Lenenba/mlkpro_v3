@@ -256,6 +256,7 @@ Route::prefix('/public/ai-assistant')
     ->middleware('throttle:public-ai-assistant')
     ->group(function () {
         Route::post('/conversations', [AiPublicChatController::class, 'store'])->name('conversations.store');
+        Route::get('/conversations/{conversation}', [AiPublicChatController::class, 'show'])->name('conversations.show');
         Route::post('/conversations/{conversation}/messages', [AiPublicChatController::class, 'message'])->name('conversations.messages.store');
     });
 

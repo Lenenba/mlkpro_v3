@@ -728,6 +728,175 @@ it('prevents marking future reservations as completed', function () {
         ->assertJsonValidationErrors('status');
 });
 
+it('reactivates a cancelled reservation as confirmed from the staff editor', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $teamMember = createTeamMemberForAccount($owner);
+    $startsAt = Carbon::now('UTC')->addDays(3)->setTime(13, 0, 0);
+    $endsAt = $startsAt->copy()->addHour();
+
+    addWeeklyAvailability($owner, $teamMember, $startsAt);
+
+    $reservation = Reservation::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $teamMember->id,
+        'status' => Reservation::STATUS_CANCELLED,
+        'source' => Reservation::SOURCE_STAFF,
+        'timezone' => 'UTC',
+        'starts_at' => $startsAt,
+        'ends_at' => $endsAt,
+        'duration_minutes' => 60,
+        'buffer_minutes' => 0,
+        'cancelled_at' => now('UTC')->subHour(),
+        'cancelled_by_user_id' => $owner->id,
+        'cancel_reason' => 'Client unavailable',
+    ]);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->putJson(route('reservation.update', $reservation), [
+            'team_member_id' => $teamMember->id,
+            'client_id' => null,
+            'service_id' => null,
+            'status' => Reservation::STATUS_CONFIRMED,
+            'starts_at' => $startsAt->toIso8601String(),
+            'ends_at' => $endsAt->toIso8601String(),
+            'duration_minutes' => 60,
+            'timezone' => 'UTC',
+            'internal_notes' => null,
+            'client_notes' => null,
+        ])
+        ->assertOk()
+        ->assertJsonPath('reservation.status', Reservation::STATUS_CONFIRMED);
+
+    $this->assertDatabaseHas('reservations', [
+        'id' => $reservation->id,
+        'status' => Reservation::STATUS_CONFIRMED,
+        'cancelled_at' => null,
+        'cancelled_by_user_id' => null,
+        'cancel_reason' => null,
+    ]);
+    $this->assertDatabaseHas('reservation_status_transitions', [
+        'reservation_id' => $reservation->id,
+        'from_status' => Reservation::STATUS_CANCELLED,
+        'to_status' => Reservation::STATUS_CONFIRMED,
+    ]);
+});
+
+it('publishes and applies the cancelled-to-confirmed staff quick action', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $teamMember = createTeamMemberForAccount($owner);
+    $startsAt = Carbon::now('UTC')->addDays(4)->setTime(14, 0, 0);
+
+    addWeeklyAvailability($owner, $teamMember, $startsAt);
+
+    $reservation = Reservation::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $teamMember->id,
+        'status' => Reservation::STATUS_CANCELLED,
+        'source' => Reservation::SOURCE_STAFF,
+        'timezone' => 'UTC',
+        'starts_at' => $startsAt,
+        'ends_at' => $startsAt->copy()->addHour(),
+        'duration_minutes' => 60,
+        'buffer_minutes' => 0,
+        'cancelled_at' => now('UTC')->subHour(),
+        'cancelled_by_user_id' => $owner->id,
+        'cancel_reason' => 'Client unavailable',
+    ]);
+
+    $indexResponse = $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.index', ['scope' => 'all', 'quick' => 'cancelled']))
+        ->assertOk();
+    $indexReservation = collect($indexResponse->json('reservations.data'))
+        ->firstWhere('id', $reservation->id);
+    $detailResponse = $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.show', $reservation))
+        ->assertOk();
+
+    expect(data_get($indexReservation, 'permissions.allowed_status_transitions'))
+        ->toBe([Reservation::STATUS_CONFIRMED]);
+    expect($detailResponse->json('reservation.permissions.allowed_status_transitions'))
+        ->toBe([Reservation::STATUS_CONFIRMED]);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->patchJson(route('reservation.status', $reservation), [
+            'status' => Reservation::STATUS_CONFIRMED,
+        ])
+        ->assertOk()
+        ->assertJsonPath('reservation.status', Reservation::STATUS_CONFIRMED);
+
+    $this->assertDatabaseHas('reservations', [
+        'id' => $reservation->id,
+        'status' => Reservation::STATUS_CONFIRMED,
+        'cancelled_at' => null,
+        'cancelled_by_user_id' => null,
+        'cancel_reason' => null,
+    ]);
+    $this->assertDatabaseHas('reservation_status_transitions', [
+        'reservation_id' => $reservation->id,
+        'from_status' => Reservation::STATUS_CANCELLED,
+        'to_status' => Reservation::STATUS_CONFIRMED,
+    ]);
+});
+
+it('rejects the cancelled-to-confirmed staff quick action when the slot has been taken', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $teamMember = createTeamMemberForAccount($owner);
+    $startsAt = Carbon::now('UTC')->addDays(4)->setTime(15, 0, 0);
+    $cancelledAt = now('UTC')->subHour()->startOfSecond();
+
+    addWeeklyAvailability($owner, $teamMember, $startsAt);
+
+    $reservation = Reservation::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $teamMember->id,
+        'status' => Reservation::STATUS_CANCELLED,
+        'source' => Reservation::SOURCE_STAFF,
+        'timezone' => 'UTC',
+        'starts_at' => $startsAt,
+        'ends_at' => $startsAt->copy()->addHour(),
+        'duration_minutes' => 60,
+        'buffer_minutes' => 0,
+        'cancelled_at' => $cancelledAt,
+        'cancelled_by_user_id' => $owner->id,
+        'cancel_reason' => 'Client unavailable',
+    ]);
+    Reservation::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $teamMember->id,
+        'status' => Reservation::STATUS_CONFIRMED,
+        'source' => Reservation::SOURCE_STAFF,
+        'timezone' => 'UTC',
+        'starts_at' => $startsAt,
+        'ends_at' => $startsAt->copy()->addHour(),
+        'duration_minutes' => 60,
+        'buffer_minutes' => 0,
+    ]);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->patchJson(route('reservation.status', $reservation), [
+            'status' => Reservation::STATUS_CONFIRMED,
+        ])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('starts_at');
+
+    $reservation->refresh();
+
+    expect($reservation->status)->toBe(Reservation::STATUS_CANCELLED);
+    expect($reservation->cancelled_at?->toIso8601String())->toBe($cancelledAt->toIso8601String());
+    expect($reservation->cancelled_by_user_id)->toBe($owner->id);
+    expect($reservation->cancel_reason)->toBe('Client unavailable');
+    $this->assertDatabaseMissing('reservation_status_transitions', [
+        'reservation_id' => $reservation->id,
+        'from_status' => Reservation::STATUS_CANCELLED,
+        'to_status' => Reservation::STATUS_CONFIRMED,
+    ]);
+});
+
 it('allows a client to submit a review after reservation completion', function () {
     Notification::fake();
 
@@ -1520,6 +1689,88 @@ it('applies reservation list date and today filters in the account timezone acro
             $expectedTodayIds,
             collect($quickResponse->json('reservations.data'))->pluck('id')->all()
         );
+    } finally {
+        Carbon::setTestNow();
+    }
+});
+
+it('filters completed no-show and cancelled reservation views with tenant-scoped counts', function () {
+    Carbon::setTestNow(Carbon::parse('2026-04-15 16:00:00', 'UTC'));
+
+    try {
+        $owner = createOwnerWithReservationsEnabled();
+        $member = createTeamMemberForAccount($owner);
+        $foreignOwner = createOwnerWithReservationsEnabled([
+            'name' => 'Foreign Quick Filter Owner',
+            'email' => 'foreign.quick-filter.owner@example.com',
+        ]);
+        $foreignMember = createTeamMemberForAccount($foreignOwner);
+        $statuses = [
+            'completed' => Reservation::STATUS_COMPLETED,
+            'no_show' => Reservation::STATUS_NO_SHOW,
+            'cancelled' => Reservation::STATUS_CANCELLED,
+        ];
+        $expectedReservationIds = [];
+
+        foreach ($statuses as $quick => $status) {
+            $startsAt = now('UTC')->subDays(count($expectedReservationIds) + 1);
+            $reservation = Reservation::query()->create([
+                'account_id' => $owner->id,
+                'team_member_id' => $member->id,
+                'status' => $status,
+                'source' => Reservation::SOURCE_STAFF,
+                'timezone' => 'UTC',
+                'starts_at' => $startsAt,
+                'ends_at' => $startsAt->copy()->addHour(),
+                'duration_minutes' => 60,
+                'buffer_minutes' => 0,
+            ]);
+            $expectedReservationIds[$quick] = $reservation->id;
+
+            Reservation::query()->create([
+                'account_id' => $foreignOwner->id,
+                'team_member_id' => $foreignMember->id,
+                'status' => $status,
+                'source' => Reservation::SOURCE_STAFF,
+                'timezone' => 'UTC',
+                'starts_at' => $startsAt,
+                'ends_at' => $startsAt->copy()->addHour(),
+                'duration_minutes' => 60,
+                'buffer_minutes' => 0,
+            ]);
+        }
+
+        foreach (array_keys($statuses) as $quick) {
+            $response = $this->actingAs($owner)
+                ->withSession(['two_factor_passed' => true])
+                ->getJson(route('reservation.index', [
+                    'scope' => 'all',
+                    'quick' => $quick,
+                    'sort' => 'date_asc',
+                ]))
+                ->assertOk()
+                ->assertJsonPath('filters.quick', $quick)
+                ->assertJsonPath('reservations.total', 1)
+                ->assertJsonPath('quickCounts.completed', 1)
+                ->assertJsonPath('quickCounts.no_show', 1)
+                ->assertJsonPath('quickCounts.cancelled', 1);
+
+            expect(collect($response->json('reservations.data'))->pluck('id')->all())
+                ->toBe([$expectedReservationIds[$quick]]);
+
+            $eventResponse = $this->actingAs($owner)
+                ->withSession(['two_factor_passed' => true])
+                ->getJson(route('reservation.events', [
+                    'start' => now('UTC')->subDays(5)->toIso8601String(),
+                    'end' => now('UTC')->addDay()->toIso8601String(),
+                    'scope' => 'all',
+                    'quick' => $quick,
+                ]))
+                ->assertOk();
+
+            expect(collect($eventResponse->json('events'))->pluck('id')->all())
+                ->toBe([$expectedReservationIds[$quick]]);
+        }
     } finally {
         Carbon::setTestNow();
     }
@@ -3045,6 +3296,178 @@ it('allows reservation creation for non-salon presets even with legacy active qu
         'client_id' => $customer->id,
         'client_user_id' => $clientUser->id,
         'source' => Reservation::SOURCE_CLIENT,
+    ]);
+});
+
+it('returns authoritative queue actions and exclusive staff board stats', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $callableMember = createTeamMemberForAccount($owner, [
+        'user_name' => 'Callable Queue Member',
+        'user_email' => 'callable.queue.member@example.com',
+    ]);
+    $unavailableMember = createTeamMemberForAccount($owner, [
+        'user_name' => 'Unavailable Queue Member',
+        'user_email' => 'unavailable.queue.member@example.com',
+    ]);
+
+    ReservationSetting::query()->updateOrCreate(
+        [
+            'account_id' => $owner->id,
+            'team_member_id' => null,
+        ],
+        [
+            'business_preset' => 'salon',
+            'queue_mode_enabled' => true,
+            'queue_assignment_mode' => 'per_staff',
+            'queue_dispatch_mode' => 'fifo_with_appointment_priority',
+            'queue_grace_minutes' => 5,
+            'queue_no_show_on_grace_expiry' => false,
+        ]
+    );
+
+    createActiveChairForMember($owner, $callableMember);
+    checkInTeamMember($owner, $callableMember);
+
+    $createQueueItem = function (string $queueNumber, string $status, array $overrides = []) use ($owner): ReservationQueueItem {
+        return ReservationQueueItem::query()->create(array_merge([
+            'account_id' => $owner->id,
+            'item_type' => ReservationQueueItem::TYPE_TICKET,
+            'source' => Reservation::SOURCE_STAFF,
+            'queue_number' => $queueNumber,
+            'status' => $status,
+            'estimated_duration_minutes' => 30,
+        ], $overrides));
+    };
+
+    $createQueueItem('ACTIONS-NOT-ARRIVED', ReservationQueueItem::STATUS_NOT_ARRIVED);
+    $createQueueItem('ACTIONS-CHECKED-IN', ReservationQueueItem::STATUS_CHECKED_IN, [
+        'team_member_id' => $callableMember->id,
+        'checked_in_at' => now('UTC')->subMinutes(10),
+    ]);
+    $createQueueItem('ACTIONS-PRE-CALLED', ReservationQueueItem::STATUS_PRE_CALLED, [
+        'checked_in_at' => now('UTC')->subMinutes(15),
+        'pre_called_at' => now('UTC')->subMinutes(5),
+    ]);
+    $createQueueItem('ACTIONS-CALLED', ReservationQueueItem::STATUS_CALLED, [
+        'checked_in_at' => now('UTC')->subMinutes(20),
+        'called_at' => now('UTC')->subMinutes(2),
+        'call_expires_at' => now('UTC')->addMinutes(3),
+    ]);
+    $createQueueItem('ACTIONS-SKIPPED', ReservationQueueItem::STATUS_SKIPPED, [
+        'team_member_id' => $unavailableMember->id,
+        'checked_in_at' => now('UTC')->subMinutes(25),
+        'skipped_at' => now('UTC')->subMinutes(2),
+    ]);
+    $createQueueItem('ACTIONS-IN-SERVICE', ReservationQueueItem::STATUS_IN_SERVICE, [
+        'started_at' => now('UTC')->subMinutes(5),
+    ]);
+    $createQueueItem('ACTIONS-AWAITING-PAYMENT', ReservationQueueItem::STATUS_AWAITING_PAYMENT, [
+        'finished_at' => now('UTC')->subMinute(),
+    ]);
+    $createQueueItem('ACTIONS-DONE', ReservationQueueItem::STATUS_DONE, [
+        'finished_at' => now('UTC')->subMinute(),
+    ]);
+
+    $response = $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.index'))
+        ->assertOk();
+    $rows = collect($response->json('queueItems'))->keyBy('queue_number');
+
+    expect($response->json('queueStats'))->toBe([
+        'total' => 8,
+        'not_arrived' => 1,
+        'waiting' => 3,
+        'called' => 1,
+        'in_service' => 1,
+        'awaiting_payment' => 1,
+        'done' => 1,
+    ]);
+    expect($rows->get('ACTIONS-NOT-ARRIVED'))->toMatchArray([
+        'allowed_actions' => ['check-in'],
+        'primary_action' => 'check-in',
+    ]);
+    expect($rows->get('ACTIONS-CHECKED-IN'))->toMatchArray([
+        'callable' => true,
+        'allowed_actions' => ['pre-call', 'call', 'start', 'skip'],
+        'primary_action' => 'call',
+    ]);
+    expect($rows->get('ACTIONS-PRE-CALLED'))->toMatchArray([
+        'allowed_actions' => ['call', 'start', 'skip'],
+        'primary_action' => 'call',
+    ]);
+    expect($rows->get('ACTIONS-CALLED'))->toMatchArray([
+        'allowed_actions' => ['start', 'finish', 'skip'],
+        'primary_action' => 'start',
+    ]);
+    expect($rows->get('ACTIONS-SKIPPED'))->toMatchArray([
+        'callable' => false,
+        'allowed_actions' => ['pre-call', 'call', 'done'],
+        'primary_action' => 'pre-call',
+    ]);
+    expect($rows->get('ACTIONS-IN-SERVICE'))->toMatchArray([
+        'allowed_actions' => ['finish'],
+        'primary_action' => 'finish',
+    ]);
+    expect($rows->get('ACTIONS-AWAITING-PAYMENT'))->toMatchArray([
+        'allowed_actions' => ['checkout'],
+        'primary_action' => 'checkout',
+    ]);
+    expect($rows->get('ACTIONS-DONE'))->toMatchArray([
+        'allowed_actions' => [],
+        'primary_action' => null,
+    ]);
+});
+
+it('hides queue actions from staff board viewers without update access', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $assignedMember = createTeamMemberForAccount($owner, [
+        'user_name' => 'Assigned Queue Member',
+        'user_email' => 'assigned.queue.member@example.com',
+    ]);
+    $viewerMember = createTeamMemberForAccount($owner, [
+        'user_name' => 'Read-only Queue Viewer',
+        'user_email' => 'read-only.queue.viewer@example.com',
+        'role' => 'member',
+        'permissions' => ['view_all_reservations'],
+    ]);
+
+    ReservationSetting::query()->updateOrCreate(
+        [
+            'account_id' => $owner->id,
+            'team_member_id' => null,
+        ],
+        [
+            'business_preset' => 'salon',
+            'queue_mode_enabled' => true,
+            'queue_assignment_mode' => 'per_staff',
+            'queue_dispatch_mode' => 'fifo_with_appointment_priority',
+            'queue_grace_minutes' => 5,
+            'queue_no_show_on_grace_expiry' => false,
+        ]
+    );
+
+    $queueItem = ReservationQueueItem::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $assignedMember->id,
+        'item_type' => ReservationQueueItem::TYPE_TICKET,
+        'source' => Reservation::SOURCE_STAFF,
+        'queue_number' => 'READ-ONLY-ACTIONS',
+        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+        'estimated_duration_minutes' => 30,
+        'checked_in_at' => now('UTC')->subMinutes(10),
+    ]);
+
+    $response = $this->actingAs($viewerMember->user()->firstOrFail())
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.index'))
+        ->assertOk();
+    $row = collect($response->json('queueItems'))->firstWhere('id', $queueItem->id);
+
+    expect($row)->toMatchArray([
+        'can_update_status' => false,
+        'allowed_actions' => [],
+        'primary_action' => null,
     ]);
 });
 
@@ -4691,6 +5114,26 @@ it('hides salon queue operations for non-salon presets', function () {
         ->postJson(route('client.reservations.tickets.store'), [])
         ->assertStatus(422)
         ->assertJsonValidationErrors('queue');
+
+    $settings = app(ReservationAvailabilityService::class)->resolveSettings($owner->id, null);
+    $board = app(ReservationQueueService::class)->boardForStaff($owner->id, [
+        'can_view_all' => true,
+        'can_manage' => true,
+        'own_team_member_id' => null,
+    ], $settings);
+
+    expect($board)->toBe([
+        'items' => [],
+        'stats' => [
+            'total' => 0,
+            'not_arrived' => 0,
+            'waiting' => 0,
+            'called' => 0,
+            'in_service' => 0,
+            'awaiting_payment' => 0,
+            'done' => 0,
+        ],
+    ]);
 });
 
 it('returns three recent visits and three frequent services for fast rebooking', function () {

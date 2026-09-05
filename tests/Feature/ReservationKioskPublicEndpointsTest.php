@@ -3,6 +3,7 @@
 use App\Models\Customer;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\PublicBookingLink;
 use App\Models\Reservation;
 use App\Models\ReservationQueueItem;
 use App\Models\ReservationResource;
@@ -186,6 +187,41 @@ it('renders kiosk with active services and company branding', function () {
             ->where('company.logo_url', Storage::disk('public')->url('company/logos/studio-lumiere.png'))
             ->where('company.custom_logo_url', Storage::disk('public')->url('company/logos/studio-lumiere.png'))
             ->where('company.has_custom_logo', true));
+});
+
+it('exposes an active public booking link from the kiosk', function () {
+    $owner = createKioskOwner();
+    enableKioskQueue($owner);
+    $link = PublicBookingLink::query()->create([
+        'account_id' => $owner->id,
+        'name' => 'Kiosk bookings',
+        'slug' => 'kiosk-bookings',
+        'is_active' => true,
+    ]);
+    $bookingUrl = $link->publicUrl($owner);
+
+    $this->get(kioskSignedRoute('public.kiosk.reservations.show', $owner))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Public/ReservationKiosk')
+            ->where('public_navigation.booking_url', $bookingUrl));
+});
+
+it('hides inactive public booking links from the kiosk', function () {
+    $owner = createKioskOwner();
+    enableKioskQueue($owner);
+    PublicBookingLink::query()->create([
+        'account_id' => $owner->id,
+        'name' => 'Disabled kiosk bookings',
+        'slug' => 'disabled-kiosk-bookings',
+        'is_active' => false,
+    ]);
+
+    $this->get(kioskSignedRoute('public.kiosk.reservations.show', $owner))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Public/ReservationKiosk')
+            ->where('public_navigation.booking_url', null));
 });
 
 it('allows creating a public kiosk walk-in guest ticket', function () {

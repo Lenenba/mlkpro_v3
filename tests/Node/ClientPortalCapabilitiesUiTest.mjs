@@ -5,6 +5,7 @@ import test from 'node:test';
 import {
     buildClientPortalNavigation,
     resolveClientPortalMode,
+    shouldShowPublicBookingReservationsLink,
 } from '../../resources/js/utils/clientPortalNavigation.js';
 
 const read = (path) => readFileSync(resolve(path), 'utf8');
@@ -57,6 +58,29 @@ test('portal navigation exposes one reservation entry with a safe book fallback'
         bookOnlyNavigation.find((item) => item.key === 'reservations').routeName,
         'client.reservations.book',
     );
+});
+
+test('public booking exposes client reservations only for the matching enabled portal', () => {
+    const matchingClientAccount = {
+        is_client: true,
+        owner_id: 76,
+        portal_capabilities: {
+            reservations: { view: true },
+        },
+    };
+
+    assert.equal(shouldShowPublicBookingReservationsLink(matchingClientAccount, 76), true);
+    assert.equal(shouldShowPublicBookingReservationsLink(matchingClientAccount, '76'), true);
+    assert.equal(shouldShowPublicBookingReservationsLink(matchingClientAccount, 77), false);
+    assert.equal(shouldShowPublicBookingReservationsLink({
+        ...matchingClientAccount,
+        is_client: false,
+    }, 76), false);
+    assert.equal(shouldShowPublicBookingReservationsLink({
+        ...matchingClientAccount,
+        portal_capabilities: { reservations: { view: false } },
+    }, 76), false);
+    assert.equal(shouldShowPublicBookingReservationsLink(null, 76), false);
 });
 
 test('hybrid navigation keeps both client domains and ignores unrelated capability data', () => {

@@ -74,10 +74,15 @@
       "all": "All reservations"
     },
     "quick": {
+      "label": "Reservation quick views",
+      "all": "All",
       "pending": "Pending",
       "today": "Today",
       "upcoming": "Upcoming",
-      "past": "Past"
+      "past": "Past",
+      "completed": "Completed",
+      "no_show": "No-shows",
+      "cancelled": "Cancelled"
     },
     "sort": {
       "date_asc": "Date (oldest first)",
@@ -101,7 +106,8 @@
       "reschedule": "Reschedule",
       "filters": "Filters",
       "clear_filters": "Clear filters",
-      "delete_confirm": "Delete this reservation?"
+      "delete_confirm": "Delete this reservation?",
+      "cancel_confirm": "Cancel reservation {reference}?"
     },
     "form": {
       "create_title": "Create reservation",
@@ -204,6 +210,18 @@
         "label": "Queue display mode",
         "table": "Table",
         "cards": "Cards"
+      },
+      "filters": {
+        "label": "Filter the queue by stage",
+        "all": "All",
+        "not_arrived": "Upcoming",
+        "waiting": "Waiting",
+        "called": "Called",
+        "in_service": "In service",
+        "awaiting_payment": "Awaiting payment",
+        "done": "Completed",
+        "empty": "No queue item matches this filter.",
+        "clear": "Show the full queue"
       },
       "details": {
         "schedule": "Schedule",
@@ -383,6 +401,11 @@
         "disabled": "Hybrid queue mode is disabled. Enable it in reservation settings."
       }
     },
+    "public_navigation": {
+      "aria_label": "Public reservation navigation",
+      "book": "Book online",
+      "kiosk": "Open the kiosk"
+    },
     "kiosk": {
       "title": "Salon kiosk",
       "subtitle": "Take a walk-in ticket, check in as an existing client, or track your ticket.",
@@ -405,6 +428,28 @@
         "searching": "Searching...",
         "creating": "Creating...",
         "clear": "Clear"
+      },
+      "guided": {
+        "progress": "Journey progress",
+        "continue": "Continue",
+        "back": "Back",
+        "restart": "Start over",
+        "finish": "Finish",
+        "confirmation": "Confirmation",
+        "waiting": "Waiting",
+        "in_service": "In service",
+        "position": "Position",
+        "eta": "Estimated wait",
+        "ticket_title": "Your ticket is ready",
+        "arrival_title": "Your arrival",
+        "tracking_title": "Your live ticket",
+        "result_help": "Keep this number handy. We will let you know what to do as your turn approaches.",
+        "next_action_help": "Review the information below to complete your arrival.",
+        "client_not_found_title": "We could not find your profile yet",
+        "client_not_found_help": "You can continue as a walk-in with the same phone number.",
+        "take_ticket": "Take a ticket",
+        "identified_client": "Identified client",
+        "auto_reset": "For your privacy, this screen resets automatically after 60 seconds."
       },
       "preview": {
         "label": "PREVIEW",

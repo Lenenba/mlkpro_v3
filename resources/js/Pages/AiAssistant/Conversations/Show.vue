@@ -141,7 +141,7 @@ const rejectAction = async (action) => {
                 <header class="flex flex-wrap items-start justify-between gap-3">
                     <div>
                         <Link
-                            :href="route('admin.ai-assistant.conversations.index', { queue: 'review' })"
+                            :href="route('admin.ai-assistant.conversations.index')"
                             class="text-sm font-semibold text-emerald-700 hover:text-emerald-800 dark:text-emerald-300"
                         >
                             Retour inbox

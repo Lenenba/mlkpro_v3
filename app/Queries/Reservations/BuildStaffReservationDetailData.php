@@ -329,6 +329,7 @@ class BuildStaffReservationDetailData
             Reservation::STATUS_PENDING => [Reservation::STATUS_CONFIRMED],
             Reservation::STATUS_CONFIRMED => [Reservation::STATUS_PENDING],
             Reservation::STATUS_RESCHEDULED => [Reservation::STATUS_CONFIRMED, Reservation::STATUS_PENDING],
+            Reservation::STATUS_CANCELLED => [Reservation::STATUS_CONFIRMED],
             default => [],
         };
 

@@ -1,5 +1,22 @@
 const allows = (capabilities, domain, action) => Boolean(capabilities?.[domain]?.[action]);
 
+export const shouldShowPublicBookingReservationsLink = (account = null, companyId = null) => {
+    const ownerId = account?.owner_id;
+
+    if (
+        !account?.is_client
+        || ownerId === null
+        || ownerId === undefined
+        || companyId === null
+        || companyId === undefined
+    ) {
+        return false;
+    }
+
+    return String(ownerId) === String(companyId)
+        && allows(account.portal_capabilities, 'reservations', 'view');
+};
+
 export const resolveClientPortalMode = (capabilities = {}) => {
     const hasService = [
         ['reservations', 'view'],

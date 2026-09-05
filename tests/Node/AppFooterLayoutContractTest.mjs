@@ -77,6 +77,26 @@ test('application shells own one footer while nested and global shells avoid dup
     assert.deepEqual(directPageConsumers, []);
 });
 
+test('public brand bars, page content and footers share the max-w-7xl responsive gutters', () => {
+    const guest = read('resources/js/Layouts/GuestLayout.vue');
+    const publicKiosk = read('resources/js/Layouts/PublicKioskLayout.vue');
+    const booking = read('resources/js/Pages/Public/PublicBooking.vue');
+    const kiosk = read('resources/js/Pages/Public/ReservationKiosk.vue');
+
+    assert.match(guest, /<header v-if="props\.brandBar"[\s\S]*?<div class="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">[\s\S]*?<PublicBrandBar/);
+    assert.match(guest, /\? 'mx-auto w-full max-w-7xl px-4 pb-3 pt-5 sm:px-6 sm:pb-5 lg:px-8'/);
+    assert.equal(occurrences(guest, 'max-w-7xl'), 2);
+
+    assert.match(publicKiosk, /<header[\s\S]*?<div class="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">[\s\S]*?<PublicBrandBar/);
+    assert.match(publicKiosk, /<div class="mx-auto w-full min-w-0 max-w-7xl px-4 pb-3 pt-4 sm:px-6 sm:pb-5 sm:pt-5 lg:px-8">[\s\S]*?<AppFooter/);
+    assert.equal(occurrences(publicKiosk, 'max-w-7xl'), 2);
+
+    assert.match(booking, /class="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8"/);
+    assert.match(kiosk, /class="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-5 lg:px-8"/);
+    assert.doesNotMatch(guest, /max-w-\[1280px\]/);
+    assert.doesNotMatch(publicKiosk, /max-w-\[1280px\]/);
+});
+
 test('large guest experiences let GuestLayout own viewport height', () => {
     for (const path of [
         'resources/js/Pages/Public/PublicBooking.vue',

@@ -148,6 +148,11 @@ class AiReservationOrchestrator
             if ($slots === []) {
                 $alternativeSlots = $this->proposeAlternativeSlots($tenant, $draft);
                 if ($alternativeSlots !== []) {
+                    $draft['proposed_slots'] = $alternativeSlots;
+                    $this->updateConversationMetadata($conversation, [
+                        'reservation_draft' => $draft,
+                    ]);
+
                     return $warmOpening.$this->summaryLine($draft, $language).$this->formatAlternativeSlotProposal($alternativeSlots, $language);
                 }
 
@@ -324,13 +329,14 @@ class AiReservationOrchestrator
             (int) $draft['service_id'],
             null
         );
+        $preferredTeamMemberId = (int) ($draft['preferred_team_member_id'] ?? 0);
 
         $result = $this->availabilityService->generateSlots(
             (int) $tenant->id,
             $startsAt->copy()->utc(),
             $endsAt->copy()->utc(),
             $durationMinutes,
-            null,
+            $preferredTeamMemberId > 0 ? $preferredTeamMemberId : null,
             null,
             null
         );
@@ -577,9 +583,27 @@ class AiReservationOrchestrator
 
     private function isPositiveConfirmation(string $message): bool
     {
-        $text = $this->normalizedText($message);
+        $text = $this->normalizedDecisionText($message);
 
-        return preg_match('/^(oui|yes|ok|okay|parfait|confirme|je confirme|c est bon|cest bon|go)$/u', $text) === 1;
+        return in_array($text, [
+            'oui',
+            'oui merci',
+            'oui je confirme',
+            'yes',
+            'ok',
+            'okay',
+            'parfait',
+            'confirme',
+            'comfirme',
+            'je confirme',
+            'c est bon',
+            'cest bon',
+            'ca marche',
+            'd accord',
+            'vas y',
+            'allez y',
+            'go',
+        ], true);
     }
 
     private function isNegativeConfirmation(string $message): bool
@@ -588,6 +612,13 @@ class AiReservationOrchestrator
 
         return preg_match('/^(non|no|pas encore|attendez|annule|annuler)$/u', $text) === 1
             || Str::contains($text, ['modifier', 'changer', 'pas bon']);
+    }
+
+    private function normalizedDecisionText(string $message): string
+    {
+        $text = preg_replace('/[^\pL\pN]+/u', ' ', $this->normalizedText($message)) ?? '';
+
+        return Str::squish($text);
     }
 
     private function willAutoConfirmReservation(AiAssistantSetting $settings): bool
