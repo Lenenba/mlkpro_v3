@@ -83,6 +83,7 @@ function pulsePhaseThreeConnection(User $owner, string $platform = SocialAccount
 }
 
 beforeEach(function () {
+    config()->set('services.buffer.delivery.enabled', false);
     $this->withoutMiddleware(ValidateCsrfToken::class);
     $this->withoutMiddleware(EnsureTwoFactorVerified::class);
 });
