@@ -176,7 +176,7 @@ class BuildStaffReservationIndexData
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        $clients = fn (): Collection => $canManageReservations
+        $clients = fn (): Collection => ! $ownerOnlyMode && $canManageReservations
             ? Customer::query()
                 ->byUser($account->id)
                 ->orderBy('company_name')

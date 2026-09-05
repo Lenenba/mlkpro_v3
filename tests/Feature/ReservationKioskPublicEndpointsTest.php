@@ -262,6 +262,7 @@ it('sends an sms confirmation when a kiosk walk-in ticket is created', function 
     $owner = createKioskOwner();
     enableKioskQueue($owner);
     $owner->update([
+        'locale' => 'en',
         'company_notification_settings' => [
             'reservations' => [
                 'enabled' => true,
@@ -284,7 +285,9 @@ it('sends an sms confirmation when a kiosk walk-in ticket is created', function 
         ->once()
         ->with(
             '+15145429698',
-            \Mockery::on(fn (string $message) => str_contains(strtolower($message), 'ticket confirmed'))
+            \Mockery::on(fn (string $message) => str_contains($message, 'Your place in the queue is confirmed.')
+                && str_contains($message, 'Client: Sms Guest')
+                && str_contains($message, 'Position: 1'))
         )
         ->andReturn(true);
     $this->app->instance(SmsNotificationService::class, $smsMock);

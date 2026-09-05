@@ -900,6 +900,7 @@ test('owner-only solo plans deny residual members access to reservation PII', fu
         ->assertOk()
         ->assertJsonPath('reservations.total', 1)
         ->assertJsonPath('reservations.data.0.client.display_name', 'Private Customer')
+        ->assertJsonPath('clients', [])
         ->json();
 
     expect(json_encode($ownerPayload))

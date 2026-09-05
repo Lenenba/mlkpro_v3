@@ -4912,7 +4912,7 @@ it('returns queue screen payload and supports anonymize toggle', function () {
         ->withSession(['two_factor_passed' => true])
         ->withHeaders([
             'X-Inertia' => 'true',
-            'X-Inertia-Version' => $inertiaVersion,
+            'X-Inertia-Version' => (string) $inertiaVersion,
         ])
         ->get(route('reservation.screen'))
         ->assertOk()
