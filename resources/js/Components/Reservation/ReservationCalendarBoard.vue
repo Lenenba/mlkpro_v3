@@ -144,6 +144,10 @@ const props = defineProps({
         type: String,
         default: 'month',
     },
+    fitWeekToContainer: {
+        type: Boolean,
+        default: false,
+    },
     view: {
         type: String,
         default: null,
@@ -961,7 +965,12 @@ const eventClasses = (event) => {
                 </div>
 
                 <div v-else-if="viewMode === 'week'" class="bg-stone-50/70 p-3 dark:bg-neutral-950 sm:p-5">
-                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+                    <div
+                        class="grid gap-3"
+                        :class="fitWeekToContainer
+                            ? 'grid-cols-[repeat(auto-fit,minmax(min(100%,13rem),1fr))]'
+                            : 'sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7'"
+                    >
                         <article
                             v-for="day in weekDays"
                             :key="`week-${day.key}`"

@@ -8,6 +8,7 @@ use App\Models\SocialPostTarget;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Services\Social\SocialBrandVoiceService;
+use App\Services\Social\SocialPostQualityService;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -239,3 +240,29 @@ it('blocks phase three pulse routes when the social module is unavailable', func
         ])
         ->assertForbidden();
 });
+
+it('recognizes video media in the Instagram quality review', function (array $media, array $expectedIssues) {
+    $owner = pulsePhaseThreeOwner();
+    $connection = pulsePhaseThreeConnection($owner, SocialAccountConnection::PLATFORM_INSTAGRAM);
+    $post = SocialPost::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'content_payload' => ['text' => ''],
+        'media_payload' => $media,
+        'status' => SocialPost::STATUS_DRAFT,
+    ]);
+    SocialPostTarget::query()->create([
+        'social_post_id' => $post->id,
+        'social_account_connection_id' => $connection->id,
+        'status' => 'pending',
+    ]);
+
+    $quality = app(SocialPostQualityService::class)->review($owner, $post);
+
+    expect(array_column($quality['issues'], 'key'))->toBe($expectedIssues);
+})->with([
+    'video' => [[['type' => 'video', 'url' => 'https://cdn.example.test/clip.mp4']], []],
+    'document' => [[['type' => 'document', 'url' => 'https://cdn.example.test/guide.pdf']], ['empty_content', 'missing_image']],
+    'missing video URL' => [[['type' => 'video', 'url' => '']], ['empty_content', 'missing_image']],
+]);

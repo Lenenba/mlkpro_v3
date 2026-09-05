@@ -34,6 +34,7 @@ class SocialPostQualityService
         return $this->score($owner, [
             'text' => $text,
             'image_url' => $imageUrl,
+            'media_assets' => (array) ($post->media_payload ?? []),
             'link_url' => $linkUrl,
             'link_label' => $linkLabel,
             'targets' => $targets,
@@ -49,6 +50,9 @@ class SocialPostQualityService
     {
         $text = trim((string) ($payload['text'] ?? ''));
         $imageUrl = trim((string) ($payload['image_url'] ?? ''));
+        $hasVideo = collect((array) ($payload['media_assets'] ?? []))
+            ->contains(fn (mixed $asset): bool => data_get($asset, 'type') === 'video' && filled(data_get($asset, 'url')));
+        $hasVisualMedia = $imageUrl !== '' || $hasVideo;
         $linkUrl = trim((string) ($payload['link_url'] ?? ''));
         $linkLabel = trim((string) ($payload['link_label'] ?? ''));
         $targets = collect((array) ($payload['targets'] ?? []))
@@ -75,7 +79,7 @@ class SocialPostQualityService
             $deduct('no_targets', 'attention', 25);
         }
 
-        if ($text === '' && $imageUrl === '' && $linkUrl === '') {
+        if ($text === '' && ! $hasVisualMedia && $linkUrl === '') {
             $deduct('empty_content', 'attention', 30);
         }
 
@@ -84,7 +88,7 @@ class SocialPostQualityService
             $deduct('text_too_long', 'warning', 18);
         }
 
-        if ($targets->contains('instagram') && $imageUrl === '') {
+        if ($targets->contains('instagram') && ! $hasVisualMedia) {
             $deduct('missing_image', 'notice', 8);
         }
 

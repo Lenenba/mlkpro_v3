@@ -494,6 +494,7 @@ const isStale = (post) => {
                         <SocialPostQualityPanel
                             :text="post.text"
                             :image-url="post.image_url"
+                            :media-assets="post.media_assets"
                             :link-url="post.link_url"
                             :link-label="post.link_cta_label"
                             :targets="post.targets"
@@ -502,6 +503,7 @@ const isStale = (post) => {
                         <SocialVisualPostPreview
                             :text="post.text"
                             :image-url="post.image_url"
+                            :media-assets="post.media_assets"
                             :link-url="post.link_url"
                             :link-label="post.link_cta_label || t('social.approval_inbox.preview_cta_fallback')"
                             :targets="post.targets"

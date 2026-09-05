@@ -11,6 +11,10 @@ const props = defineProps({
         type: String,
         default: '',
     },
+    mediaAssets: {
+        type: Array,
+        default: () => ([]),
+    },
     linkUrl: {
         type: String,
         default: '',
@@ -41,6 +45,9 @@ const { t } = useI18n();
 
 const normalizedText = computed(() => String(props.text || '').trim());
 const hasImage = computed(() => String(props.imageUrl || '').trim() !== '');
+const hasVideo = computed(() => (Array.isArray(props.mediaAssets) ? props.mediaAssets : [])
+    .some((asset) => asset?.type === 'video' && String(asset.url || '').trim()));
+const hasVisualMedia = computed(() => hasImage.value || hasVideo.value);
 const hasLink = computed(() => String(props.linkUrl || '').trim() !== '');
 const hasLinkLabel = computed(() => String(props.linkLabel || '').trim() !== '');
 const targetCount = computed(() => (Array.isArray(props.targets) ? props.targets.length : 0));
@@ -57,7 +64,7 @@ const textLimit = computed(() => {
 
     return limits.length > 0 ? Math.min(...limits) : 900;
 });
-const requiresImage = computed(() => targetPlatforms.value.includes('instagram'));
+const requiresVisualMedia = computed(() => targetPlatforms.value.includes('instagram'));
 const configuredBrandVoice = computed(() => (
     props.brandVoice && typeof props.brandVoice === 'object'
         ? props.brandVoice
@@ -118,7 +125,7 @@ const quality = computed(() => {
         score -= 25;
     }
 
-    if (normalizedText.value === '' && !hasImage.value && !hasLink.value) {
+    if (normalizedText.value === '' && !hasVisualMedia.value && !hasLink.value) {
         issues.push({ key: 'empty_content', level: 'attention', points: 30 });
         score -= 30;
     }
@@ -128,7 +135,7 @@ const quality = computed(() => {
         score -= 18;
     }
 
-    if (requiresImage.value && !hasImage.value) {
+    if (requiresVisualMedia.value && !hasVisualMedia.value) {
         issues.push({ key: 'missing_image', level: 'notice', points: 8 });
         score -= 8;
     }

@@ -11,6 +11,8 @@ final class SocialDeliveryAggregateService
 {
     private const TARGET_DELIVERY_SENDING = 'sending';
 
+    public function __construct(private readonly SocialPublicationNotificationService $notifications) {}
+
     public function refreshForTenant(int $tenantId, int $postId): bool
     {
         if ($tenantId <= 0 || $postId <= 0) {
@@ -72,6 +74,8 @@ final class SocialDeliveryAggregateService
                     'sync_status_summary' => $syncCounts,
                 ]),
             ])->save();
+
+            $this->notifications->notifyForTenant($tenantId, $postId);
 
             return true;
         }, 3);

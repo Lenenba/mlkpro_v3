@@ -7,6 +7,7 @@ import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
+import SocialVisualPostPreview from '@/Pages/Social/Components/SocialVisualPostPreview.vue';
 import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import {
     needsSocialDeliveryVerification,
@@ -756,16 +757,18 @@ const resolveApproval = async (post, decision) => {
                     </div>
                 </div>
 
-                <div class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[1fr,auto]">
-                    <div class="space-y-3">
-                        <p class="text-sm whitespace-pre-line text-stone-700 dark:text-neutral-200">
-                            {{ post.text || t('social.history_manager.empty_text') }}
-                        </p>
-
-                        <div v-if="post.image_url" class="overflow-hidden rounded-3xl border border-stone-200 dark:border-neutral-700">
-                            <img :src="post.image_url" :alt="t('social.history_manager.preview_image_alt')" class="h-48 w-full object-cover md:h-56">
-                        </div>
-                    </div>
+                <div class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr),320px]">
+                    <SocialVisualPostPreview
+                        class="min-w-0"
+                        :text="post.text"
+                        :image-url="post.image_url"
+                        :media-assets="post.media_assets"
+                        :link-url="post.link_url"
+                        :link-label="post.link_cta_label"
+                        :targets="post.targets"
+                        :empty-text="t('social.history_manager.empty_text')"
+                        compact
+                    />
 
                     <div class="rounded-3xl border border-stone-200 bg-stone-50 p-4 text-sm dark:border-neutral-700 dark:bg-neutral-800/60">
                         <div class="text-xs uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">

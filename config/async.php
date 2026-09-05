@@ -56,6 +56,11 @@ return [
             'backoff' => [30, 120, 300],
             'timeout' => 60,
         ],
+        'social_video' => [
+            'queue' => env('ASYNC_QUEUE_SOCIAL_VIDEO', 'social-video'),
+            'timeout' => 900,
+            'backoff' => [60],
+        ],
         'reservation_reconciliation' => [
             'queue' => env('ASYNC_QUEUE_RESERVATION_RECONCILIATION', 'reservation-reconciliation'),
             'backoff' => [60, 300, 900],
@@ -80,6 +85,7 @@ return [
                 'social_publish',
                 'social_automation',
                 'reservation_reconciliation',
+                'social_video',
             ],
         ],
         'operations' => [
@@ -105,6 +111,10 @@ return [
                 'campaigns_dispatch',
                 'campaigns_maintenance',
             ],
+        ],
+        'social-video' => [
+            'environment' => 'production',
+            'workloads' => ['social_video'],
         ],
         'social' => [
             'environment' => 'production',

@@ -983,17 +983,39 @@ onBeforeUnmount(() => {
             </div>
         </Modal>
 
-        <Modal :show="showReschedule" maxWidth="3xl" @close="showReschedule = false">
-            <div class="p-5" :aria-busy="rescheduleSubmitting">
-                <h2 class="text-sm font-semibold">{{ $t('reservations.client.index.reschedule_title') }}</h2>
+        <Modal
+            :show="showReschedule"
+            maxWidth="5xl"
+            full-screen-mobile
+            :closeable="!rescheduleSubmitting"
+            aria-labelledby="client-reschedule-title"
+            @close="showReschedule = false"
+        >
+            <div class="flex h-dvh min-h-0 flex-col sm:h-auto sm:max-h-[calc(100dvh-3rem)]" :aria-busy="rescheduleSubmitting">
+                <header class="flex shrink-0 items-center justify-between gap-4 border-b border-stone-200 px-4 py-4 dark:border-neutral-700 sm:px-6">
+                    <h2 id="client-reschedule-title" class="text-base font-semibold sm:text-lg">{{ $t('reservations.client.index.reschedule_title') }}</h2>
+                    <button
+                        type="button"
+                        class="inline-flex size-10 shrink-0 items-center justify-center rounded-sm border border-stone-200 text-stone-600 hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                        :aria-label="$t('quotes.form.cancel')"
+                        :disabled="rescheduleSubmitting"
+                        @click="showReschedule = false"
+                    >
+                        <svg aria-hidden="true" class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 6 6 18M6 6l12 12" />
+                        </svg>
+                    </button>
+                </header>
 
-                <div class="mt-3 grid gap-3 md:grid-cols-2">
-                    <FloatingSelect v-model="rescheduleTeamMemberId" :options="rescheduleTeamOptions" :label="$t('reservations.client.index.reschedule_member')" />
-                    <FloatingTextarea v-model="rescheduleForm.client_notes" :label="$t('reservations.client.index.reschedule_notes')" />
-                </div>
-                <InputError class="mt-1" :message="rescheduleForm.errors.client_notes" />
+                <div class="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5" scroll-region>
+                    <div class="grid items-start gap-4 sm:grid-cols-2">
+                        <FloatingSelect v-model="rescheduleTeamMemberId" :options="rescheduleTeamOptions" :label="$t('reservations.client.index.reschedule_member')" />
+                        <div>
+                            <FloatingTextarea v-model="rescheduleForm.client_notes" rows="2" :label="$t('reservations.client.index.reschedule_notes')" />
+                            <InputError class="mt-1" :message="rescheduleForm.errors.client_notes" />
+                        </div>
+                    </div>
 
-                <div class="mt-3">
                     <ReservationCalendarBoard
                         class="!rounded-sm [&_.rounded-md]:!rounded-sm [&_.rounded-lg]:!rounded-sm [&_.rounded-xl]:!rounded-sm [&_.rounded-2xl]:!rounded-sm"
                         :events="rescheduleCalendarEvents"
@@ -1002,6 +1024,7 @@ onBeforeUnmount(() => {
                         :empty-label="$t('reservations.client.book.no_availability')"
                         :selected-event-id="selectedRescheduleEventId"
                         initial-view="week"
+                        fit-week-to-container
                         :loading-label="$t('reservations.client.book.loading_slots')"
                         :timezone="timezone"
                         @range-change="onRescheduleRangeChange"
@@ -1009,32 +1032,34 @@ onBeforeUnmount(() => {
                     />
                 </div>
 
-                <div class="mt-3 rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                    {{ $t('reservations.client.book.selected_slot') }}:
-                    <strong>
-                        {{ rescheduleSelectedSlot
-                            ? `${dayjs(rescheduleSelectedSlot.starts_at).format('ddd, MMM D HH:mm')} - ${dayjs(rescheduleSelectedSlot.ends_at).format('HH:mm')} (${rescheduleSelectedSlot.team_member_name})`
-                            : '-' }}
-                    </strong>
-                </div>
-
-                <div class="mt-4 flex justify-end gap-2">
-                    <button
-                        type="button"
-                        class="rounded-sm border border-stone-200 px-3 py-2 text-xs dark:border-neutral-700"
-                        @click="showReschedule = false"
-                    >
-                        {{ $t('quotes.form.cancel') }}
-                    </button>
-                    <button
-                        type="button"
-                        class="rounded-sm bg-emerald-600 px-3 py-2 text-xs text-white disabled:opacity-50"
-                        :disabled="rescheduleSubmitting || !rescheduleSelectedSlot"
-                        @click="submitReschedule"
-                    >
-                        {{ rescheduleSubmitting ? $t('reservations.client.book.actions.submitting') : $t('reservations.actions.update') }}
-                    </button>
-                </div>
+                <footer class="flex shrink-0 flex-col gap-3 border-t border-stone-200 bg-stone-50 px-4 py-4 dark:border-neutral-700 dark:bg-neutral-900 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                    <p class="min-w-0 break-words text-sm text-stone-700 dark:text-neutral-200" role="status" aria-live="polite">
+                        {{ $t('reservations.client.book.selected_slot') }}:
+                        <strong>
+                            {{ rescheduleSelectedSlot
+                                ? `${dayjs(rescheduleSelectedSlot.starts_at).format('ddd, MMM D HH:mm')} - ${dayjs(rescheduleSelectedSlot.ends_at).format('HH:mm')} (${rescheduleSelectedSlot.team_member_name})`
+                                : '-' }}
+                        </strong>
+                    </p>
+                    <div class="grid shrink-0 grid-cols-2 gap-2 sm:flex">
+                        <button
+                            type="button"
+                            class="min-h-11 rounded-sm border border-stone-200 px-4 py-2 text-sm disabled:opacity-50 dark:border-neutral-700"
+                            :disabled="rescheduleSubmitting"
+                            @click="showReschedule = false"
+                        >
+                            {{ $t('quotes.form.cancel') }}
+                        </button>
+                        <button
+                            type="button"
+                            class="min-h-11 rounded-sm bg-emerald-600 px-4 py-2 text-sm text-white disabled:opacity-50"
+                            :disabled="rescheduleSubmitting || !rescheduleSelectedSlot"
+                            @click="submitReschedule"
+                        >
+                            {{ rescheduleSubmitting ? $t('reservations.client.book.actions.submitting') : $t('reservations.actions.update') }}
+                        </button>
+                    </div>
+                </footer>
             </div>
         </Modal>
 

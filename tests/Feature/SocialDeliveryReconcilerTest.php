@@ -8,6 +8,7 @@ use App\Models\SocialPost;
 use App\Models\SocialPostRevision;
 use App\Models\SocialPostTarget;
 use App\Models\User;
+use App\Notifications\SocialPublicationCompletedNotification;
 use App\Services\Social\Contracts\SocialDeliveryStatusGatewayInterface;
 use App\Services\Social\SocialConnectionDeliveryMutex;
 use App\Services\Social\SocialDeliveryAggregateService;
@@ -22,6 +23,7 @@ use App\Services\Social\SocialReconciliationCadence;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Validation\ValidationException;
 use Tests\Support\FakeSocialDeliveryStatusGateway;
@@ -136,6 +138,7 @@ function pulseReconciliationOutbox(
 }
 
 it('claims and reads a target only inside its tenant boundary', function () {
+    Notification::fake();
     $this->travelTo(Carbon::parse('2026-08-28 12:00:00', 'UTC'));
     $fixture = pulseReconciliationFixture();
     $otherOwner = User::factory()->create();
@@ -170,6 +173,11 @@ it('claims and reads a target only inside its tenant boundary', function () {
         ->and($fake->reads)->toHaveCount(1)
         ->and($fake->reads[0]->tenantId)->toBe($fixture['owner']->id)
         ->and($fake->reads[0]->targetId)->toBe($fixture['target']->id);
+
+    Notification::assertSentToTimes($fixture['owner'], SocialPublicationCompletedNotification::class, 1);
+    Notification::assertSentTo($fixture['owner'], SocialPublicationCompletedNotification::class,
+        fn ($notification): bool => $notification->snapshot['outcome'] === 'success');
+    Notification::assertNotSentTo($otherOwner, SocialPublicationCompletedNotification::class);
 });
 
 it('fails before reading when a connection or target snapshot crosses tenants', function () {

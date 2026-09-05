@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
@@ -17,7 +17,7 @@ import {
     socialStatusAxes,
     socialStatusToneClass,
 } from '@/utils/socialStatusAxes';
-import { resolveMediaType } from '@/utils/media';
+import { useSocialMediaPreview } from '@/Composables/useSocialMediaPreview';
 import {
     normalizeSocialMediaState,
     serializeSocialMediaAssets,
@@ -264,7 +264,6 @@ const hashtagDraft = ref('');
 const suggestions = ref(normalizeSuggestions(null));
 const sourceReference = ref(normalizeSourceReference(props.initialPrefill));
 const mediaFiles = ref([]);
-const localImagePreviewUrl = ref('');
 const form = ref({
     text: '',
     image_url: String(props.initialMediaUrl || '').trim(),
@@ -413,13 +412,9 @@ const imageInputModel = computed({
         form.value.image_url = '';
     },
 });
-const previewImageFile = computed(() => mediaFiles.value.find((file) => (
-    resolveMediaType(file) === 'image'
-)) || null);
+const previewMediaAssets = useSocialMediaPreview(() => existingMediaItems.value, () => mediaFiles.value);
 const previewImageSrc = computed(() => (
-    localImagePreviewUrl.value
-    || String(form.value.image_url || '').trim()
-    || String(form.value.media_assets.find((asset) => asset?.type === 'image')?.url || '').trim()
+    previewMediaAssets.value.find((asset) => asset.type === 'image')?.url || ''
 ));
 const normalizeLinkCandidate = (value) => {
     const candidate = String(value || '').trim();
@@ -539,14 +534,6 @@ const availableTargetConnectionIds = (targetIds) => {
 const resetSuggestions = () => {
     suggestions.value = normalizeSuggestions(null);
     hashtagDraft.value = '';
-};
-
-const revokeLocalImagePreview = () => {
-    if (localImagePreviewUrl.value.startsWith('blob:')) {
-        URL.revokeObjectURL(localImagePreviewUrl.value);
-    }
-
-    localImagePreviewUrl.value = '';
 };
 
 const clearMediaFiles = () => {
@@ -681,14 +668,6 @@ watch(() => props.selectedTemplateId, (value) => {
     requestedTemplateId.value = value;
 }, { immediate: true });
 
-watch(previewImageFile, (value) => {
-    revokeLocalImagePreview();
-
-    if (value instanceof File) {
-        localImagePreviewUrl.value = URL.createObjectURL(value);
-    }
-});
-
 watch([sortedDrafts, activeDraftId], () => {
     if (activeDraft.value) {
         syncFormFromDraft(activeDraft.value);
@@ -711,10 +690,6 @@ watch([sortedDrafts, activeDraftId], () => {
         return;
     }
 }, { immediate: true });
-
-onBeforeUnmount(() => {
-    revokeLocalImagePreview();
-});
 
 const applyTemplate = (template, { announce = true } = {}) => {
     const mediaState = normalizeMediaState(template?.media_assets, template?.image_url);
@@ -1991,6 +1966,7 @@ const resolveApproval = async (decision) => {
                 <SocialPostQualityPanel
                     :text="form.text"
                     :image-url="previewImageSrc"
+                    :media-assets="previewMediaAssets"
                     :link-url="form.link_url"
                     :link-label="form.link_cta_label"
                     :targets="selectedAccounts"
@@ -2001,6 +1977,7 @@ const resolveApproval = async (decision) => {
                 <SocialVisualPostPreview
                     :text="form.text"
                     :image-url="previewImageSrc"
+                    :media-assets="previewMediaAssets"
                     :link-url="form.link_url"
                     :link-label="previewLinkLabel"
                     :targets="selectedAccounts"

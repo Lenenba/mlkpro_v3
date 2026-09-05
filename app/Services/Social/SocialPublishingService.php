@@ -45,6 +45,7 @@ class SocialPublishingService
         private readonly SocialDistributionGatewayInterface $distributionGateway,
         private readonly SocialPostRetryPolicy $retryPolicy,
         private readonly SocialMediaAssetService $mediaAssetService,
+        private readonly SocialPublicationNotificationService $notifications,
     ) {}
 
     public function publishNow(User $owner, User $actor, SocialPost $post): SocialPost
@@ -1826,6 +1827,7 @@ class SocialPublishingService
 
                         try {
                             $post->forceFill($attributes)->save();
+                            $this->notifications->notifyForTenant((int) $post->user_id, (int) $post->id);
                         } catch (LogicException $exception) {
                             if (! Str::startsWith($exception->getMessage(), [
                                 'A Pulse post approved revision',
@@ -1875,6 +1877,7 @@ class SocialPublishingService
                 : $this->legacyPostStatusAttributes($lockedPost, $targets);
 
             $lockedPost->forceFill($attributes)->save();
+            $this->notifications->notifyForTenant((int) $lockedPost->user_id, (int) $lockedPost->id);
 
             return $lockedPost->fresh(['targets.socialAccountConnection']);
         });

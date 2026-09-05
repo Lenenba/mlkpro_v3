@@ -1,6 +1,7 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { socialPreviewAssets } from '@/utils/socialMediaAssets';
 import SocialPlatformLogo from '@/Pages/Social/Components/SocialPlatformLogo.vue';
 
 const props = defineProps({
@@ -11,6 +12,10 @@ const props = defineProps({
     imageUrl: {
         type: String,
         default: '',
+    },
+    mediaAssets: {
+        type: Array,
+        default: () => ([]),
     },
     linkUrl: {
         type: String,
@@ -36,12 +41,20 @@ const props = defineProps({
 
 const { t } = useI18n();
 const activeTargetKey = ref('');
+const activeMediaIndex = ref(0);
+const mediaErrors = ref({});
+const videoPlayer = ref(null);
 
 const platformLabel = (platform) => ({
     facebook: 'Facebook',
     instagram: 'Instagram',
     linkedin: 'LinkedIn',
     x: 'X',
+    twitter: 'X',
+    tiktok: 'TikTok',
+    youtube: 'YouTube',
+    threads: 'Threads',
+    pinterest: 'Pinterest',
 }[String(platform || '').trim().toLowerCase()] || t('social.visual_preview.generic_platform'));
 
 const normalizeLinkCandidate = (value) => {
@@ -152,7 +165,11 @@ const activeTarget = computed(() => (
     || previewTargets.value[0]
     || null
 ));
-const linkHref = computed(() => normalizeLinkCandidate(props.linkUrl));
+const linkHref = computed(() => {
+    const url = normalizeLinkCandidate(props.linkUrl);
+
+    return /^https?:\/\//iu.test(url) ? url : '';
+});
 const linkHost = computed(() => linkHostFor(props.linkUrl));
 const resolvedLinkLabel = computed(() => (
     String(props.linkLabel || '').trim() || t('social.visual_preview.link_fallback')
@@ -160,16 +177,31 @@ const resolvedLinkLabel = computed(() => (
 const resolvedText = computed(() => (
     String(props.text || '').trim() || props.emptyText || t('social.visual_preview.empty_text')
 ));
-const imageClass = computed(() => (
-    props.compact
-        ? 'h-44 md:h-52'
-        : 'h-56 md:h-64'
-));
+const media = computed(() => socialPreviewAssets(props.mediaAssets, props.imageUrl));
+const activeMedia = computed(() => media.value[activeMediaIndex.value] || null);
+const mediaFirst = computed(() => ['instagram', 'tiktok', 'youtube', 'pinterest'].includes(activeTarget.value?.platform));
+const mediaClass = computed(() => props.compact ? 'max-h-96' : 'max-h-[520px]');
+const mediaLabel = computed(() => t(`social.visual_preview.media_types.${activeMedia.value?.type || 'image'}`));
+const pauseVideo = () => videoPlayer.value?.pause();
+
+watch([activeTargetKey, activeMediaIndex, () => activeMedia.value?.url], pauseVideo);
+onBeforeUnmount(pauseVideo);
+
+watch(() => media.value.map((asset) => asset.url).join('|'), () => {
+    activeMediaIndex.value = 0;
+    mediaErrors.value = {};
+});
+const markMediaError = (event) => {
+    const url = event.currentTarget?.getAttribute('src');
+    if (url) {
+        mediaErrors.value[url] = true;
+    }
+};
 </script>
 
 <template>
-    <div class="space-y-3">
-        <div v-if="previewTargets.length > 1" class="flex gap-2 overflow-x-auto pb-1">
+    <div class="min-w-0 space-y-3">
+        <div v-if="previewTargets.length > 1" class="flex gap-2 overflow-x-auto pb-1" role="group" :aria-label="t('social.visual_preview.platform_selector')">
             <button
                 v-for="target in previewTargets"
                 :key="`preview-toggle-${target.key}`"
@@ -179,19 +211,24 @@ const imageClass = computed(() => (
                     ? 'border-sky-500 bg-sky-50 text-sky-700 dark:border-sky-500/60 dark:bg-sky-500/10 dark:text-sky-200'
                     : 'border-stone-200 bg-white text-stone-600 hover:border-sky-300 hover:text-sky-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:border-sky-500/40 dark:hover:text-sky-300'"
                 :aria-pressed="activeTarget?.key === target.key"
+                :aria-label="`${target.platformLabel} · ${target.accountName}`"
+                :title="target.accountName"
                 @click="activeTargetKey = target.key"
             >
                 <span class="size-4">
                     <SocialPlatformLogo :platform="target.platform" />
                 </span>
                 <span>{{ target.platformLabel }}</span>
+                <span v-if="previewTargets.filter((item) => item.platform === target.platform).length > 1" class="max-w-32 truncate">{{ target.accountName }}</span>
             </button>
         </div>
 
         <article
             v-if="activeTarget"
             :key="activeTarget.id"
-            class="overflow-hidden rounded-md border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+            class="mx-auto w-full overflow-hidden rounded-md border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+            :class="mediaFirst ? 'max-w-sm' : 'max-w-xl'"
+            :aria-label="t('social.visual_preview.preview_for', { platform: activeTarget.platformLabel })"
         >
             <div class="flex items-center gap-3 border-b border-stone-100 px-4 py-3 dark:border-neutral-800">
                 <div class="flex size-9 items-center justify-center rounded-full bg-stone-100 text-sm font-semibold text-stone-700 dark:bg-neutral-800 dark:text-neutral-200">
@@ -213,23 +250,61 @@ const imageClass = computed(() => (
                 </div>
             </div>
 
-            <div class="px-4 py-4">
-                <p class="whitespace-pre-line text-sm leading-6 text-stone-800 dark:text-neutral-100">
-                    {{ resolvedText }}
-                </p>
-            </div>
+            <div class="flex flex-col">
+                <div class="px-4 py-4" :class="mediaFirst ? 'order-2' : 'order-1'">
+                    <p class="whitespace-pre-line break-words text-sm leading-6 text-stone-800 dark:text-neutral-100">
+                        {{ resolvedText }}
+                    </p>
+                </div>
 
-            <div v-if="imageUrl" class="border-y border-stone-100 dark:border-neutral-800">
-                <img
-                    :src="imageUrl"
-                    :alt="t('social.visual_preview.image_alt')"
-                    class="w-full object-cover"
-                    :class="imageClass"
-                >
+                <div v-if="activeMedia" class="min-w-0 border-y border-stone-100 dark:border-neutral-800" :class="mediaFirst ? 'order-1' : 'order-2'">
+                    <div v-if="!mediaErrors[activeMedia.url]" class="flex min-h-40 items-center justify-center bg-black">
+                        <video
+                            v-if="activeMedia.type === 'video'"
+                            ref="videoPlayer"
+                            :key="activeMedia.url"
+                            :src="activeMedia.url"
+                            :poster="activeMedia.thumbnail_url || undefined"
+                            :aria-label="t('social.visual_preview.video_label')"
+                            controls
+                            playsinline
+                            preload="metadata"
+                            class="block h-auto w-full object-contain"
+                            :class="mediaClass"
+                            @error="markMediaError"
+                        />
+                        <img
+                            v-else-if="activeMedia.type === 'image'"
+                            :key="activeMedia.url"
+                            :src="activeMedia.url"
+                            :alt="activeMedia.alt_text || t('social.visual_preview.image_alt')"
+                            loading="lazy"
+                            class="block h-auto w-full object-contain"
+                            :class="mediaClass"
+                            @error="markMediaError"
+                        >
+                        <a v-else :href="activeMedia.url" target="_blank" rel="noopener noreferrer" class="flex flex-col gap-2 p-6 text-center text-sm text-white underline">
+                            <span>{{ activeMedia.title || activeMedia.name || t('social.visual_preview.media_types.document') }}</span>
+                            <span>{{ t('social.visual_preview.open_media') }}</span>
+                        </a>
+                    </div>
+                    <div v-else role="status" class="space-y-2 bg-stone-50 p-4 text-sm text-stone-600 dark:bg-neutral-800 dark:text-neutral-300">
+                        <p>{{ t('social.visual_preview.media_error') }}</p>
+                        <a :href="activeMedia.url" target="_blank" rel="noopener noreferrer" class="font-medium text-sky-700 underline dark:text-sky-300">{{ t('social.visual_preview.open_media') }}</a>
+                    </div>
+                    <div class="flex items-center justify-between gap-3 px-4 py-2 text-xs text-stone-500 dark:text-neutral-400">
+                        <span>{{ mediaLabel }}</span>
+                        <div v-if="media.length > 1" class="flex items-center gap-3">
+                            <button type="button" :disabled="activeMediaIndex === 0" :aria-label="t('social.visual_preview.previous_media')" class="rounded border border-stone-200 px-3 py-2 disabled:opacity-40 dark:border-neutral-700" @click="activeMediaIndex--">‹</button>
+                            <span aria-live="polite">{{ activeMediaIndex + 1 }} / {{ media.length }}</span>
+                            <button type="button" :disabled="activeMediaIndex === media.length - 1" :aria-label="t('social.visual_preview.next_media')" class="rounded border border-stone-200 px-3 py-2 disabled:opacity-40 dark:border-neutral-700" @click="activeMediaIndex++">›</button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <a
-                v-if="linkHref"
+                v-if="linkHref && activeTarget.platform !== 'instagram'"
                 :href="linkHref"
                 target="_blank"
                 rel="noreferrer"
@@ -242,6 +317,10 @@ const imageClass = computed(() => (
                     {{ t('social.visual_preview.link_destination') }}: {{ linkHost }}
                 </span>
             </a>
+            <p v-if="linkHref && activeTarget.platform === 'instagram'" class="break-words border-t border-stone-100 px-4 py-3 text-xs text-stone-500 dark:border-neutral-800 dark:text-neutral-400">
+                {{ t('social.visual_preview.instagram_link') }} {{ linkHref }}
+            </p>
         </article>
+        <p class="text-xs leading-5 text-stone-500 dark:text-neutral-400">{{ t('social.visual_preview.disclaimer') }}</p>
     </div>
 </template>

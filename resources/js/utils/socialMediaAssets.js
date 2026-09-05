@@ -131,3 +131,26 @@ export const normalizeSocialMediaState = (payload, primaryImageUrl = '') => {
         media_assets: assets,
     };
 };
+
+export const socialPreviewUrl = (value) => {
+    const url = normalizedString(value);
+    if (url.startsWith('//')) {
+        return `https:${url}`;
+    }
+
+    return /^(https?:\/\/|blob:|\/(?!\/))/iu.test(url) && !url.includes('\\') ? url : '';
+};
+
+export const socialPreviewAssets = (payload, imageUrl = '') => {
+    const assets = normalizeSocialMediaAssets(payload);
+    const primaryUrl = normalizedString(imageUrl);
+    if (primaryUrl && !assets.some((asset) => asset.url === primaryUrl)) {
+        assets.unshift({ type: 'image', url: primaryUrl });
+    }
+
+    return assets.map((asset) => ({
+        ...asset,
+        url: socialPreviewUrl(asset.url),
+        thumbnail_url: socialPreviewUrl(asset.thumbnail_url),
+    })).filter((asset) => asset.url);
+};

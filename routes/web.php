@@ -108,6 +108,7 @@ use App\Http\Controllers\SocialBufferController;
 use App\Http\Controllers\SocialCampaignController;
 use App\Http\Controllers\SocialMediaLibraryController;
 use App\Http\Controllers\SocialPostController;
+use App\Http\Controllers\SocialVideoController;
 use App\Http\Controllers\SuperAdmin\AdminController as SuperAdminAdminController;
 use App\Http\Controllers\SuperAdmin\AiImageController as SuperAdminAiImageController;
 use App\Http\Controllers\SuperAdmin\AnnouncementController as SuperAdminAnnouncementController;
@@ -778,6 +779,19 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('social.brand-voice');
         Route::get('/social/media', [SocialMediaLibraryController::class, 'index'])
             ->name('social.media.index');
+        Route::get('/social/videos', [SocialVideoController::class, 'index'])->name('social.videos.index');
+        Route::post('/social/videos', [SocialVideoController::class, 'store'])->middleware('throttle:10,1')->name('social.videos.store');
+        Route::post('/social/videos/uploads', [SocialVideoController::class, 'beginUpload'])->middleware('throttle:10,1')->name('social.videos.uploads.store');
+        Route::post('/social/videos/{project}/chunks', [SocialVideoController::class, 'appendUpload'])->middleware('throttle:300,1')->name('social.videos.uploads.append');
+        Route::get('/social/videos/{project}', [SocialVideoController::class, 'show'])->name('social.videos.show');
+        Route::post('/social/videos/{project}/intelligence', [SocialVideoController::class, 'intelligence'])->middleware('throttle:6,1')->name('social.videos.intelligence');
+        Route::post('/social/videos/{project}/publication-preview', [SocialVideoController::class, 'publicationPreview'])->middleware('throttle:30,1')->name('social.videos.publications.preview');
+        Route::post('/social/videos/{project}/publications', [SocialVideoController::class, 'publications'])->middleware('throttle:6,1')->name('social.videos.publications.store');
+        Route::post('/social/videos/{project}/clips', [SocialVideoController::class, 'render'])->middleware('throttle:10,1')->name('social.videos.render');
+        Route::post('/social/videos/{project}/retry', [SocialVideoController::class, 'retry'])->middleware('throttle:10,1')->name('social.videos.retry');
+        Route::get('/social/videos/{project}/preview', [SocialVideoController::class, 'preview'])->name('social.videos.preview');
+        Route::get('/social/videos/{project}/clips/{clip}/preview', [SocialVideoController::class, 'clipPreview'])->name('social.videos.clips.preview');
+        Route::delete('/social/videos/{project}', [SocialVideoController::class, 'destroy'])->name('social.videos.destroy');
         Route::get('/social/campaigns', [SocialCampaignController::class, 'index'])
             ->name('social.campaigns.index');
         Route::get('/social/templates', [SocialPostController::class, 'templates'])
