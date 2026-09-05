@@ -209,7 +209,7 @@ class CustomerIndexExperienceTest extends TestCase
         $owner = $this->owner('salon', $this->features());
         $customer = $this->customer($owner, 'private-finance@example.com');
         $this->invoice($owner, $customer, 100, 'sent');
-        $employee = $this->employee($owner, []);
+        $employee = $this->employee($owner, ['customers.view']);
 
         $response = $this->index($employee, [
             'quick_filters' => ['outstanding_balance'],
@@ -225,32 +225,32 @@ class CustomerIndexExperienceTest extends TestCase
         $this->assertSame([$customer->id], $this->ids($response));
     }
 
-    public function test_member_kpis_and_filter_options_follow_the_effective_customer_directory_scope(): void
+    public function test_member_kpis_and_filter_options_follow_the_account_owner_customer_directory_scope(): void
     {
         $owner = $this->owner('service_general', $this->features([
             'reservations' => false,
             'sales' => false,
             'invoices' => false,
         ]));
-        $employee = $this->employee($owner, []);
-        $ownerCustomer = $this->customer($owner, 'owner-private@example.com', [
-            'refer_by' => 'Owner only',
-            'tags' => ['owner-private'],
+        $employee = $this->employee($owner, ['customers.view']);
+        $ownerCustomer = $this->customer($owner, 'account-visible@example.com', [
+            'refer_by' => 'Account source',
+            'tags' => ['account-visible'],
         ]);
-        $memberCustomer = $this->customer($employee, 'member-visible@example.com', [
-            'refer_by' => 'Member source',
-            'tags' => ['member-visible'],
+        $memberCustomer = $this->customer($employee, 'member-private@example.com', [
+            'refer_by' => 'Member only',
+            'tags' => ['member-private'],
         ]);
 
         $response = $this->index($employee, ['per_page' => 100]);
 
-        $this->assertSame([$memberCustomer->id], $this->ids($response));
-        $this->assertNotContains($ownerCustomer->id, $this->ids($response));
+        $this->assertSame([$ownerCustomer->id], $this->ids($response));
+        $this->assertNotContains($memberCustomer->id, $this->ids($response));
         $response
             ->assertJsonPath('kpis.total', 1)
-            ->assertJsonPath('filterOptions.acquisition_sources', ['Member source'])
-            ->assertJsonPath('filterOptions.tags', ['member-visible'])
-            ->assertJsonPath('filterMeta.options.acquisition_sources', ['Member source']);
+            ->assertJsonPath('filterOptions.acquisition_sources', ['Account source'])
+            ->assertJsonPath('filterOptions.tags', ['account-visible'])
+            ->assertJsonPath('filterMeta.options.acquisition_sources', ['Account source']);
     }
 
     public function test_partial_filter_visits_keep_expensive_global_props_lazy(): void

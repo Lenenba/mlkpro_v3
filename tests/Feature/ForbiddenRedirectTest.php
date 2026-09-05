@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Customer;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -15,9 +16,16 @@ class ForbiddenRedirectTest extends TestCase
     {
         $role = Role::factory()->withName('client')->create();
 
-        return User::factory()->withRole($role->id)->create([
+        $user = User::factory()->withRole($role->id)->create([
             'email' => 'client@example.com',
         ]);
+
+        Customer::factory()->create([
+            'portal_user_id' => $user->id,
+            'portal_access' => true,
+        ]);
+
+        return $user;
     }
 
     public function test_forbidden_routes_redirect_back_with_flash_message()
