@@ -28,10 +28,14 @@ test('reset password link screen inherits the selected public locale', function 
 });
 
 test('reset password link can be requested', function () {
+    Notification::fake();
+
     $user = User::factory()->create();
 
     $this->post('/forgot-password', ['email' => $user->email])
         ->assertSessionHas('status');
+
+    Notification::assertSentTo($user, ResetPasswordLinkNotification::class);
 });
 
 test('reset password link request keeps the selected public locale for the notification', function () {
