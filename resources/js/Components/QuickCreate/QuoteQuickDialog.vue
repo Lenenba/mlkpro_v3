@@ -58,7 +58,7 @@ watch([() => customers.value.length, () => props.loading], ([length, loading]) =
     if (!loading && !length) {
         mode.value = 'new';
     }
-});
+}, { immediate: true });
 
 watch(mode, () => {
     searchQuery.value = '';

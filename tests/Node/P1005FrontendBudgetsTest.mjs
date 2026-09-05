@@ -74,7 +74,7 @@ test('clears compiled Blade views before the budgeted frontend build', () => {
     assert.ok(buildPosition > clearViewsPosition);
 });
 
-test('keeps the image dropzone outside the initial quick-create bundle', () => {
+test('keeps quick-create forms and image dropzones outside the initial page bundle', () => {
     [productQuickForm, serviceQuickForm, customerMediaFields].forEach((source) => {
         assert.match(source, /loader: \(\) => import\('@\/Components\/DropzoneInput\.vue'\)/u);
         assert.match(source, /loadingComponent: AsyncDropzonePlaceholder/u);
@@ -86,7 +86,14 @@ test('keeps the image dropzone outside the initial quick-create bundle', () => {
         ['customerModalOpened', 'handleCustomerModalOpen', 'CustomerQuickForm'],
         ['productModalOpened', 'handleProductModalOpen', 'ProductQuickForm'],
         ['serviceModalOpened', 'handleServiceModalOpen', 'ServiceQuickForm'],
+        ['quoteModalOpened', 'handleQuoteModalOpen', 'QuoteQuickDialog'],
+        ['requestModalOpened', 'handleRequestModalOpen', 'RequestQuickForm'],
     ].forEach(([openedState, openHandler, formComponent]) => {
+        assert.match(
+            quickCreateModals,
+            new RegExp(`const ${formComponent} = asyncForm\\('${formComponent}', \\(\\) => import\\('.*?/${formComponent}\\.vue'\\)\\);`, 'u'),
+        );
+        assert.doesNotMatch(quickCreateModals, new RegExp(`import ${formComponent} from`, 'u'));
         assert.match(quickCreateModals, new RegExp(`const ${openedState} = ref\\(false\\);`, 'u'));
         assert.match(
             quickCreateModals,

@@ -24,6 +24,8 @@ import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vu
 import { DATA_TABLE_PER_PAGE_OPTIONS, normalizeDataTablePerPage } from '@/Components/DataTable/pagination';
 import ReservationStatusBadge from '@/Components/Reservation/ReservationStatusBadge.vue';
 import EntityAvatar from '@/Components/UI/EntityAvatar.vue';
+import { crmButtonClass } from '@/utils/crmButtonStyles';
+import { reservationReloadProps } from '@/utils/reservationNavigation';
 import {
     reservationListCanDelete,
     reservationListCanEdit,
@@ -112,6 +114,8 @@ const props = defineProps({
         default: 'date_asc',
     },
 });
+
+const paginationOnly = reservationReloadProps({ tab: 'reservations', view: 'list', reason: 'ordering' });
 
 const emit = defineEmits([
     'open',
@@ -421,25 +425,21 @@ const setMobilePerPage = (event) => {
         </div>
 
         <div v-else-if="!normalizedRows.length" class="p-4 sm:p-5">
-            <div class="flex flex-col items-center rounded-xl border border-dashed border-stone-300 bg-stone-50 px-5 py-10 text-center dark:border-neutral-700 dark:bg-neutral-950">
+            <div v-if="hasActiveFilters" class="space-y-2 rounded-sm border border-dashed border-stone-200 px-5 py-10 text-center dark:border-neutral-700">
+                <h3 class="text-sm font-semibold text-stone-700 dark:text-neutral-200">{{ $t('reservations.list.empty_filtered_title') }}</h3>
+                <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('reservations.list.empty_filtered') }}</p>
+                <div class="flex justify-center pt-2">
+                    <button type="button" :class="crmButtonClass('secondary', 'compact')" @click="emit('clear-filters')">
+                        {{ $t('reservations.actions.clear_filters') }}
+                    </button>
+                </div>
+            </div>
+            <div v-else class="flex flex-col items-center rounded-xl border border-dashed border-stone-300 bg-stone-50 px-5 py-10 text-center dark:border-neutral-700 dark:bg-neutral-950">
                 <span class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white text-stone-500 shadow-sm ring-1 ring-stone-200 dark:bg-neutral-900 dark:text-neutral-300 dark:ring-neutral-700" aria-hidden="true">
                     <CalendarX2 class="h-6 w-6" />
                 </span>
-                <h3 class="mt-4 text-sm font-semibold text-stone-900 dark:text-white">
-                    {{ $t('reservations.list.empty_title') }}
-                </h3>
-                <p class="mt-1 max-w-md text-sm text-stone-500 dark:text-neutral-400">
-                    {{ hasActiveFilters ? $t('reservations.list.empty_filtered') : $t('reservations.list.empty_description') }}
-                </p>
-                <button
-                    v-if="hasActiveFilters"
-                    type="button"
-                    class="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-500 dark:text-neutral-950 dark:hover:bg-emerald-400"
-                    @click="emit('clear-filters')"
-                >
-                    <RefreshCw class="h-4 w-4" aria-hidden="true" />
-                    {{ $t('reservations.actions.clear_filters') }}
-                </button>
+                <h3 class="mt-4 text-sm font-semibold text-stone-900 dark:text-white">{{ $t('reservations.list.empty_title') }}</h3>
+                <p class="mt-1 max-w-md text-sm text-stone-500 dark:text-neutral-400">{{ $t('reservations.list.empty_description') }}</p>
             </div>
         </div>
 
@@ -531,6 +531,7 @@ const setMobilePerPage = (event) => {
                     embedded
                     :rows="normalizedRows"
                     :links="normalizedLinks"
+                    :pagination-only="paginationOnly"
                     :show-pagination="normalizedRows.length > 0"
                     show-per-page
                     :per-page="perPage"
@@ -1019,7 +1020,7 @@ const setMobilePerPage = (event) => {
                     <p v-if="paginationLabel" class="text-xs text-stone-500 dark:text-neutral-400">
                         {{ paginationLabel }}
                     </p>
-                    <AdminPaginationLinks v-if="hasMobilePagination" :links="normalizedLinks" />
+                    <AdminPaginationLinks v-if="hasMobilePagination" :links="normalizedLinks" :only="paginationOnly" />
                 </div>
             </div>
         </template>

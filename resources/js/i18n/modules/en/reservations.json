@@ -33,7 +33,8 @@
       "rows_per_page": "Per page",
       "empty_title": "No reservations to display",
       "empty_description": "Upcoming reservations will appear here with their service, client, and status.",
-      "empty_filtered": "No reservation matches the current filters. Clear them to return to the complete list."
+      "empty_filtered": "No reservation matches the active criteria.",
+      "empty_filtered_title": "No results"
     },
     "owner_only": {
       "staff_notice": "Solo growth keeps reservations in limited mode: view existing reservations, manage the waitlist, and configure global settings, but staff-based booking stays disabled.",
@@ -67,7 +68,10 @@
       "sort": "Sort",
       "all_statuses": "All statuses",
       "date_from": "From",
-      "date_to": "To"
+      "date_to": "To",
+      "active": "Active filters",
+      "active_hint": "These filters limit the reservations shown in the list and calendar.",
+      "remove": "Remove filter {filter}"
     },
     "scope": {
       "mine": "My reservations",
@@ -107,7 +111,8 @@
       "filters": "Filters",
       "clear_filters": "Clear filters",
       "delete_confirm": "Delete this reservation?",
-      "cancel_confirm": "Cancel reservation {reference}?"
+      "cancel_confirm": "Cancel reservation {reference}?",
+      "clear": "Clear"
     },
     "form": {
       "create_title": "Create reservation",
@@ -870,6 +875,33 @@
           }
         }
       }
+    },
+    "filter_summary": {
+      "title": "Filter summary",
+      "results": "{count} reservation(s)",
+      "updating": "Updating…",
+      "active_count": "{count} active criterion/criteria",
+      "mode_label": "Quick-filter combination mode",
+      "modes": {
+        "all": "All criteria",
+        "any": "At least one criterion"
+      },
+      "quick_filters_label": "Reservation quick filters",
+      "search_badge": "Search: {value}",
+      "filter_badge": "{label}: {value}",
+      "remove": "Remove {label}",
+      "clear_all": "Clear filters"
+    },
+    "advanced_filters": {
+      "title": "Advanced filters",
+      "close": "Close advanced filters",
+      "reset": "Reset",
+      "apply": "Apply filters",
+      "trigger_active": "Filters ({count})",
+      "draft_count": "{count} draft criterion/criteria",
+      "current_results": "{count} current result(s)",
+      "description": "Refine reservations by status, service, team member, or period.",
+      "period": "Period"
     }
   }
 }

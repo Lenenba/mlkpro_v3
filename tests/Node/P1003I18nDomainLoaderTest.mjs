@@ -10,6 +10,11 @@ import {
 } from '../../resources/js/i18n/domain-loader.js';
 import { getDomainsForPage, translationModules } from '../../resources/js/i18n/domains.js';
 
+const readDomain = (locale, domain) => JSON.parse(
+    readFileSync(resolve(`resources/js/i18n/modules/${locale}/${domain}.json`), 'utf8'),
+);
+const messageAt = (messages, key) => key.split('.').reduce((value, segment) => value?.[segment], messages);
+
 test('keeps the domain manifest aligned with every locale module set', () => {
     ['fr', 'en', 'es'].forEach((locale) => {
         const sourceDomains = readdirSync(resolve(`resources/js/i18n/modules/${locale}`))
@@ -52,6 +57,93 @@ test('maps known page components to their shell and business domains', () => {
     assert.equal(onboardingDomains.includes('onboarding'), true);
     assert.equal(onboardingDomains.includes('terms'), true);
     assert.deepEqual(getDomainsForPage('Future/Unknown'), [...translationModules]);
+});
+
+test('fresh auth and public pages load their footer, SEO and currency copy in every locale', async () => {
+    const shellKeys = [
+        'welcome.hero.subtitle',
+        'welcome.footer.copy',
+        'pricing.currency.label',
+        'account.branding.footer.aria_label',
+        'account.branding.footer.copyright',
+        'account.branding.footer.terms',
+        'account.branding.footer.privacy',
+        'account.branding.footer.support',
+        'account.branding.footer.cookie_preferences',
+        'cookies.actions.customize',
+        'alerts.validation_toast.generic',
+    ];
+    const pageKeys = {
+        'Auth/Login': ['auth_pages.login.title', 'auth_pages.social.confirm_create.title'],
+        Welcome: ['welcome.meta.title', 'welcome.hero.title', 'public_footer.support.title', 'legal.actions.sign_in'],
+        'Public/Store': ['public_store.title', 'public_store.subtitle', 'public_store.cart.checkout'],
+        'Public/Showcase': ['public_showcase.title', 'public_showcase.subheadline'],
+        Pricing: ['pricing.meta.title', 'pricing.hero.solo.subtitle', 'pricing.hero.team.subtitle'],
+        Terms: ['terms.meta.title', 'terms.sections.scope.body'],
+        Privacy: ['privacy.meta.title', 'privacy.intro.summary'],
+        Refund: ['refund.meta.title', 'refund.intro.summary'],
+    };
+
+    for (const locale of ['fr', 'en', 'es']) {
+        for (const [page, keys] of Object.entries(pageKeys)) {
+            const loader = createDomainMessageLoader({ domains: translationModules, loadModule: readDomain });
+            const messages = await loader.loadLocaleDomains(locale, getDomainsForPage(page));
+
+            for (const key of [...shellKeys, ...keys]) {
+                const value = messageAt(messages, key);
+                assert.equal(typeof value, 'string', `${locale}:${page}:${key}`);
+                assert.notEqual(value.trim(), '', `${locale}:${page}:${key}`);
+            }
+        }
+    }
+});
+
+test('login and public routes fetch page-specific catalogues only when that page needs them', async () => {
+    const pageDomains = {
+        'Auth/Login': ['auth_pages'],
+        Welcome: ['welcome'],
+        'Public/Store': ['public_store'],
+        'Public/Showcase': ['public_showcase'],
+        Pricing: ['pricing'],
+        Terms: ['terms'],
+        Privacy: ['privacy'],
+        Refund: ['refund'],
+    };
+    const specificDomains = Object.values(pageDomains).flat();
+
+    for (const [page, expected] of Object.entries(pageDomains)) {
+        const requested = [];
+        const loader = createDomainMessageLoader({
+            domains: translationModules,
+            loadModule: (locale, domain) => {
+                requested.push(domain);
+                return readDomain(locale, domain);
+            },
+        });
+
+        await loader.loadLocaleDomains('fr', getDomainsForPage(page));
+
+        assert.deepEqual(requested.filter((domain) => specificDomains.includes(domain)).sort(), expected, page);
+    }
+});
+
+test('navigation and locale changes preserve shared nested copy when welcome and pricing arrive later', async () => {
+    const loader = createDomainMessageLoader({ domains: translationModules, loadModule: readDomain });
+
+    for (const locale of ['fr', 'es', 'en']) {
+        await loader.loadLocaleDomains(locale, getDomainsForPage('Auth/Login'));
+        const subtitle = loader.messages[locale].welcome.hero.subtitle;
+        const currencyLabel = loader.messages[locale].pricing.currency.label;
+
+        await loader.loadLocaleDomains(locale, getDomainsForPage('Welcome'));
+        assert.equal(loader.messages[locale].welcome.hero.subtitle, subtitle);
+        assert.equal(loader.messages[locale].welcome.hero.title, readDomain(locale, 'welcome').welcome.hero.title);
+
+        await loader.loadLocaleDomains(locale, getDomainsForPage('Pricing'));
+        assert.equal(loader.messages[locale].pricing.currency.label, currencyLabel);
+        assert.equal(loader.messages[locale].pricing.meta.title, readDomain(locale, 'pricing').pricing.meta.title);
+        assert.equal(loader.messages[locale].welcome.hero.subtitle, subtitle);
+    }
 });
 
 test('keeps every terms key used by the onboarding modal available in FR, EN, and ES', () => {

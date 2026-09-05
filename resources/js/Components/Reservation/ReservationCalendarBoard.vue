@@ -108,11 +108,13 @@ import {
 } from '@/Components/Reservation/status';
 import {
     addReservationCalendarTime,
+    createReservationCalendarRangeNotifier,
     currentReservationDay,
+    parseReservationCalendarAnchor,
+    RESERVATION_CALENDAR_VIEWS,
     reservationCalendarDay,
-    reservationCalendarEndOf,
+    reservationCalendarRange,
     reservationMonthGridDates,
-    reservationMonthGridStart,
     reservationCalendarStartOf,
     reservationWeekStart,
     resolveReservationViewAnchor,
@@ -142,6 +144,14 @@ const props = defineProps({
         type: String,
         default: 'month',
     },
+    view: {
+        type: String,
+        default: null,
+    },
+    anchorDate: {
+        type: String,
+        default: null,
+    },
     selectedEventId: {
         type: [String, Number],
         default: null,
@@ -160,7 +170,7 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(['range-change', 'event-click', 'view-change']);
+const emit = defineEmits(['range-change', 'event-click', 'view-change', 'update:view', 'update:anchorDate']);
 const { t, locale } = useI18n();
 const dayjsLocale = computed(() => {
     const value = String(locale.value || '').toLowerCase();
@@ -230,19 +240,44 @@ const calendarStartOf = (value, unit) => reservationCalendarStartOf(
     unit,
     calendarTimezone.value
 );
-const calendarEndOf = (value, unit) => reservationCalendarEndOf(
-    value,
-    unit,
-    calendarTimezone.value
-);
 const todayDate = computed(() => {
     void todayClock.value;
 
     return currentReservationDay(zonedNow(), calendarTimezone.value);
 });
-const availableViews = ['day', 'week', 'month', 'year'];
-const viewMode = ref(availableViews.includes(props.initialView) ? props.initialView : 'month');
-const anchorDate = ref(todayDate.value);
+const availableViews = RESERVATION_CALENDAR_VIEWS;
+const localViewMode = ref(availableViews.includes(props.initialView) ? props.initialView : 'month');
+const localAnchorDate = ref(todayDate.value);
+const controlledView = computed(() => availableViews.includes(props.view));
+const controlledAnchorDate = computed(() => parseReservationCalendarAnchor(props.anchorDate, calendarTimezone.value));
+const viewMode = computed({
+    get: () => controlledView.value ? props.view : localViewMode.value,
+    set: (value) => {
+        if (!availableViews.includes(value) || value === viewMode.value) {
+            return;
+        }
+
+        if (!controlledView.value) {
+            localViewMode.value = value;
+        }
+        emit('update:view', value);
+    },
+});
+const anchorDate = computed({
+    get: () => controlledAnchorDate.value || localAnchorDate.value,
+    set: (value) => {
+        const next = reservationCalendarDay(value, calendarTimezone.value);
+        const nextDate = next.format('YYYY-MM-DD');
+        const previousDate = anchorDate.value.format('YYYY-MM-DD');
+
+        if (!controlledAnchorDate.value) {
+            localAnchorDate.value = next;
+        }
+        if (nextDate !== previousDate) {
+            emit('update:anchorDate', nextDate);
+        }
+    },
+});
 const viewLabels = computed(() => ({
     day: t('planning.calendar.day'),
     week: t('planning.calendar.week'),
@@ -289,59 +324,17 @@ const personInitials = (value) => {
         .slice(0, 2);
 };
 
-const rangeForView = (mode = viewMode.value) => {
-    if (mode === 'day') {
-        return {
-            start: calendarStartOf(anchorDate.value, 'day'),
-            end: calendarEndOf(anchorDate.value, 'day'),
-        };
-    }
-
-    if (mode === 'week') {
-        const start = reservationWeekStart(
-            anchorDate.value,
-            undefined,
-            calendarTimezone.value
-        );
-        return {
-            start,
-            end: calendarEndOf(addCalendarTime(start, 6, 'day'), 'day'),
-        };
-    }
-
-    if (mode === 'month') {
-        const start = reservationMonthGridStart(
-            anchorDate.value,
-            undefined,
-            calendarTimezone.value
-        );
-        return {
-            start,
-            end: calendarEndOf(addCalendarTime(start, 41, 'day'), 'day'),
-        };
-    }
-
-    const start = calendarStartOf(anchorDate.value, 'year');
-    return {
-        start,
-        end: calendarEndOf(start, 'year'),
-    };
-};
-
-const emitRangeChange = () => {
-    const range = rangeForView(viewMode.value);
-
-    emit('range-change', {
-        start: range.start.toISOString(),
-        end: range.end.toISOString(),
-        view: viewMode.value,
-    });
-};
+const rangeForView = (view = viewMode.value) => reservationCalendarRange({
+    view,
+    anchor: anchorDate.value,
+    timezone: calendarTimezone.value,
+});
+const notifyRangeChange = createReservationCalendarRangeNotifier((payload) => emit('range-change', payload));
 
 watch(
     () => props.initialView,
     (value) => {
-        if (availableViews.includes(value)) {
+        if (!controlledView.value && availableViews.includes(value)) {
             viewMode.value = value;
         }
     }
@@ -349,7 +342,7 @@ watch(
 
 watch([viewMode, anchorDate], () => {
     emit('view-change', viewMode.value);
-    emitRangeChange();
+    notifyRangeChange({ view: viewMode.value, anchor: anchorDate.value, timezone: calendarTimezone.value });
 }, { immediate: true });
 
 const visibleRange = computed(() => rangeForView(viewMode.value));
@@ -583,6 +576,7 @@ const setViewMode = (mode) => {
         anchor: anchorDate.value,
         now: zonedNow(),
         timezone: calendarTimezone.value,
+        preserveAnchor: Boolean(controlledAnchorDate.value),
     });
 
     if (!nextAnchor.isSame(anchorDate.value)) {
@@ -744,6 +738,7 @@ const eventClasses = (event) => {
                     </p>
                     <h2
                         id="reservation-calendar-title"
+                        data-testid="calendar-period"
                         class="mt-1 break-words text-xl font-semibold capitalize text-stone-950 dark:text-white sm:text-2xl"
                     >
                         {{ mainTitle }}
@@ -778,6 +773,7 @@ const eventClasses = (event) => {
                     <button
                         v-for="mode in availableViews"
                         :key="mode"
+                        :data-testid="`calendar-view-${mode}`"
                         type="button"
                         class="min-h-10 min-w-[5rem] flex-1 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1 motion-reduce:transition-none dark:focus-visible:ring-offset-neutral-950 xl:flex-none"
                         :class="
@@ -798,6 +794,7 @@ const eventClasses = (event) => {
                     type="button"
                     class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-600 shadow-sm transition hover:border-stone-300 hover:bg-stone-100 hover:text-stone-950 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 motion-reduce:transition-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-white dark:focus-visible:ring-offset-neutral-900"
                     :aria-label="t('planning.calendar.previous')"
+                    data-testid="calendar-previous"
                     @click="goPrev"
                 >
                     <ChevronLeft aria-hidden="true" class="h-5 w-5" />
@@ -806,6 +803,7 @@ const eventClasses = (event) => {
                     type="button"
                     class="min-h-11 rounded-xl border border-emerald-200 bg-white px-4 py-2 text-xs font-bold text-emerald-800 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 motion-reduce:transition-none dark:border-emerald-500/30 dark:bg-neutral-950 dark:text-emerald-200 dark:hover:bg-emerald-500/10 dark:focus-visible:ring-offset-neutral-900"
                     @click="goToday"
+                    data-testid="calendar-today"
                 >
                     {{ t('planning.calendar.today') }}
                 </button>
@@ -813,6 +811,7 @@ const eventClasses = (event) => {
                     type="button"
                     class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-600 shadow-sm transition hover:border-stone-300 hover:bg-stone-100 hover:text-stone-950 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 motion-reduce:transition-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-white dark:focus-visible:ring-offset-neutral-900"
                     :aria-label="t('planning.calendar.next')"
+                    data-testid="calendar-next"
                     @click="goNext"
                 >
                     <ChevronRight aria-hidden="true" class="h-5 w-5" />

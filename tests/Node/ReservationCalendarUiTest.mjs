@@ -1,13 +1,22 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import test from 'node:test';
+import { pathToFileURL } from 'node:url';
+import { compileScript, parse } from '@vue/compiler-sfc';
+import { createRenderer, h, nextTick, reactive } from 'vue';
+import { createI18n } from 'vue-i18n';
 import dayjs from 'dayjs';
 import {
     addReservationCalendarTime,
+    createReservationCalendarRangeNotifier,
     currentReservationDay,
+    parseReservationCalendarAnchor,
+    RESERVATION_CALENDAR_VIEWS,
     reservationCalendarDay,
     reservationCalendarEndOf,
+    reservationCalendarRange,
     reservationMonthGridDates,
     reservationCalendarStartOf,
     reservationWeekStart,
@@ -16,6 +25,7 @@ import {
 
 const source = (path) => fs.readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const json = (path) => JSON.parse(source(path));
+const require = createRequire(import.meta.url);
 let calendarComponentModulePromise = null;
 
 const calendarComponentModule = () => {
@@ -41,6 +51,49 @@ const calendarComponentModule = () => {
     return calendarComponentModulePromise;
 };
 
+const mountCalendarControls = async (initialProps) => {
+    const filename = 'resources/js/Components/Reservation/ReservationCalendarBoard.vue';
+    const { descriptor } = parse(source(filename), { filename });
+    const compiled = compileScript(descriptor, { id: 'reservation-calendar-test' }).content;
+    const executable = compiled.replace(/(from\s+|import\s+)['"]([^'"]+)['"]/gu, (_, prefix, specifier) => {
+        const url = specifier.startsWith('@/')
+            ? new URL(`../../resources/js/${specifier.slice(2)}.js`, import.meta.url).href
+            : pathToFileURL(require.resolve(specifier)).href;
+
+        return `${prefix}${JSON.stringify(url)}`;
+    });
+    const { default: component } = await import(`data:text/javascript;base64,${Buffer.from(executable).toString('base64')}`);
+    const props = reactive(initialProps);
+    const ranges = [];
+    let controls;
+    const renderlessCalendar = {
+        ...component,
+        setup: (componentProps, context) => {
+            controls = component.setup(componentProps, context);
+            return () => null;
+        },
+    };
+    const renderer = createRenderer({
+        insert: () => {},
+        remove: () => {},
+        createComment: () => ({}),
+        parentNode: () => null,
+        nextSibling: () => null,
+    });
+    const app = renderer.createApp({
+        render: () => h(renderlessCalendar, {
+            ...props,
+            'onUpdate:view': (view) => { props.view = view; },
+            'onUpdate:anchorDate': (date) => { props.anchorDate = date; },
+            onRangeChange: (range) => ranges.push(range),
+        }),
+    });
+    app.use(createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false }));
+    app.mount({});
+
+    return { controls, props, ranges, unmount: () => app.unmount() };
+};
+
 test('month to week resets a past anchor to the current day', () => {
     const anchor = dayjs('2026-06-12T10:30:00');
     const now = dayjs('2026-08-20T16:45:00');
@@ -54,10 +107,113 @@ test('month to week resets a past anchor to the current day', () => {
     assert.equal(resolved.format('YYYY-MM-DD HH:mm:ss'), '2026-08-20 00:00:00');
 });
 
+test('a controlled future anchor survives calendar granularity changes', async () => {
+    const originalWindow = globalThis.window;
+    globalThis.window = { setInterval, clearInterval };
+    let calendar;
+
+    try {
+        calendar = await mountCalendarControls({ view: 'month', anchorDate: '2031-11-15', timezone: 'America/Toronto' });
+        calendar.controls.setViewMode('week');
+        await nextTick();
+
+        assert.equal(calendar.props.view, 'week');
+        assert.equal(calendar.props.anchorDate, '2031-11-15');
+        assert.equal(calendar.ranges.length, 2);
+        assert.deepEqual(calendar.ranges.at(-1), {
+            view: 'week', anchorDate: '2031-11-15', start: '2031-11-10T05:00:00.000Z', end: '2031-11-17T04:59:59.999Z',
+        });
+
+        calendar.controls.goNext();
+        await nextTick();
+        assert.equal(calendar.props.anchorDate, '2031-11-22');
+        assert.equal(calendar.ranges.length, 3);
+        calendar.controls.setViewMode('day');
+        await nextTick();
+        assert.equal(calendar.props.view, 'day');
+        assert.equal(calendar.ranges.at(-1).anchorDate, '2031-11-22');
+        assert.equal(calendar.ranges.length, 4);
+    } finally {
+        calendar?.unmount();
+        if (originalWindow === undefined) {
+            delete globalThis.window;
+        } else {
+            globalThis.window = originalWindow;
+        }
+    }
+});
+
 test('reservation weeks begin on Monday at midnight', () => {
     const start = reservationWeekStart('2026-08-20T16:45:00');
 
     assert.equal(start.format('YYYY-MM-DD HH:mm:ss'), '2026-08-17 00:00:00');
+});
+
+test('controlled calendar dates keep the requested civil day and reject impossible dates', () => {
+    const timezone = 'America/Toronto';
+
+    assert.equal(parseReservationCalendarAnchor('2026-09-08', timezone).format('YYYY-MM-DD HH:mm Z'), '2026-09-08 00:00 -04:00');
+    assert.equal(parseReservationCalendarAnchor('2026-11-02', timezone).toISOString(), '2026-11-02T05:00:00.000Z');
+    assert.equal(parseReservationCalendarAnchor('2028-02-29', timezone).format('YYYY-MM-DD'), '2028-02-29');
+
+    for (const invalid of [null, '', '2026-02-29', '2026-02-31', '2026-13-01', '2026-9-8', '2026-09-08T00:00:00Z']) {
+        assert.equal(parseReservationCalendarAnchor(invalid, timezone), null, String(invalid));
+    }
+});
+
+test('calendar range notifications ignore model echoes and movement inside the same week', () => {
+    const emitted = [];
+    const notify = createReservationCalendarRangeNotifier((payload) => emitted.push(payload));
+    const timezone = 'America/Toronto';
+    const week = (date) => ({ view: 'week', anchor: parseReservationCalendarAnchor(date, timezone), timezone });
+
+    notify(week('2026-09-08'));
+    notify(week('2026-09-08'));
+    notify(week('2026-09-09'));
+    notify(week('2026-09-15'));
+
+    assert.deepEqual(emitted, [
+        { view: 'week', anchorDate: '2026-09-08', start: '2026-09-07T04:00:00.000Z', end: '2026-09-14T03:59:59.999Z' },
+        { view: 'week', anchorDate: '2026-09-15', start: '2026-09-14T04:00:00.000Z', end: '2026-09-21T03:59:59.999Z' },
+    ]);
+});
+
+test('calendar remount emits the restored range once and timezone changes emit new bounds', () => {
+    const emitted = [];
+    const notify = createReservationCalendarRangeNotifier((payload) => emitted.push(payload));
+    const anchor = parseReservationCalendarAnchor('2026-11-02', 'America/Toronto');
+
+    notify({ view: 'week', anchor, timezone: 'America/Toronto' });
+    const restoredNotify = createReservationCalendarRangeNotifier((payload) => emitted.push(payload));
+    restoredNotify({ view: 'week', anchor, timezone: 'America/Toronto' });
+    restoredNotify({ view: 'week', anchor, timezone: 'America/Toronto' });
+    restoredNotify({ view: 'week', anchor: parseReservationCalendarAnchor('2026-11-02', 'UTC'), timezone: 'UTC' });
+
+    assert.equal(emitted.length, 3);
+    assert.deepEqual(emitted[1], emitted[0]);
+    assert.equal(emitted[0].start, '2026-11-02T05:00:00.000Z');
+    assert.equal(emitted[2].start, '2026-11-02T00:00:00.000Z');
+});
+
+test('controlled calendar ranges retain day DST lengths, six-week months and year bounds', () => {
+    const timezone = 'America/Toronto';
+    const range = (view, date) => reservationCalendarRange({ view, anchor: parseReservationCalendarAnchor(date, timezone), timezone });
+    const springDay = range('day', '2026-03-08');
+    const fallDay = range('day', '2026-11-01');
+    const springWeek = range('week', '2026-03-08');
+    const month = range('month', '2026-09-08');
+    const year = range('year', '2026-09-08');
+
+    assert.equal(springDay.start.toISOString(), '2026-03-08T05:00:00.000Z');
+    assert.equal(springDay.end.toISOString(), '2026-03-09T03:59:59.999Z');
+    assert.equal(fallDay.start.toISOString(), '2026-11-01T04:00:00.000Z');
+    assert.equal(fallDay.end.toISOString(), '2026-11-02T04:59:59.999Z');
+    assert.equal(springWeek.start.toISOString(), '2026-03-02T05:00:00.000Z');
+    assert.equal(springWeek.end.toISOString(), '2026-03-09T03:59:59.999Z');
+    assert.equal(month.start.format('YYYY-MM-DD'), '2026-08-31');
+    assert.equal(month.end.format('YYYY-MM-DD'), '2026-10-11');
+    assert.equal(year.start.toISOString(), '2026-01-01T05:00:00.000Z');
+    assert.equal(year.end.toISOString(), '2027-01-01T04:59:59.999Z');
 });
 
 test('today is evaluated for each action instead of being captured once', () => {
@@ -268,7 +424,9 @@ test('the staff reservation calendar opens in a single-row week view with a neut
     const header = calendar.match(/<header[\s\S]*?<\/header>/u)?.[0] || '';
 
     assert.ok(staffCalendar, 'the staff page must render the reservation calendar');
-    assert.match(staffCalendar, /\binitial-view="week"/u);
+    assert.match(staffCalendar, /\bv-model:view="calendarView"/u);
+    assert.match(staffCalendar, /\bv-model:anchor-date="calendarDate"/u);
+    assert.match(staffPage, /const calendarView = ref\(props\.filters\?\.calendar_view \|\| 'week'\)/u);
     assert.match(weekView, /sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7/u);
     assert.doesNotMatch(weekView, /xl:grid-cols-4|2xl:grid-cols-7/u);
     assert.match(header, /border-stone-200 bg-stone-50\/80/u);
@@ -379,5 +537,5 @@ test('the reservation calendar remains responsive, accessible and visually infor
     );
 
     assert.match(calendar, /emit\('event-click', event\.original \|\| event\)/);
-    assert.match(calendar, /availableViews\s*=\s*\['day', 'week', 'month', 'year'\]/);
+    assert.deepEqual(RESERVATION_CALENDAR_VIEWS, ['day', 'week', 'month', 'year']);
 });

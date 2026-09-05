@@ -1,16 +1,40 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, defineAsyncComponent, defineComponent, h, onBeforeUnmount, onMounted, ref } from 'vue';
 import axios from 'axios';
 import { usePage } from '@inertiajs/vue3';
 import Modal from '@/Components/UI/Modal.vue';
-import ProductQuickForm from '@/Components/QuickCreate/ProductQuickForm.vue';
-import ServiceQuickForm from '@/Components/QuickCreate/ServiceQuickForm.vue';
-import CustomerQuickForm from '@/Components/QuickCreate/CustomerQuickForm.vue';
-import QuoteQuickDialog from '@/Components/QuickCreate/QuoteQuickDialog.vue';
-import RequestQuickForm from '@/Components/QuickCreate/RequestQuickForm.vue';
+import AsyncQuickFormPlaceholder from '@/Components/QuickCreate/AsyncQuickFormPlaceholder.vue';
 import { useI18n } from 'vue-i18n';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 import { usePermissions } from '@/Composables/usePermissions';
+import { createQuickFormLoader } from '@/utils/quickFormLoader';
+
+const asyncForm = (formName, loader) => {
+    const retryLoad = ref(null);
+
+    return defineAsyncComponent({
+        loader: createQuickFormLoader(formName, loader),
+        loadingComponent: defineComponent({
+            setup: () => () => h(AsyncQuickFormPlaceholder, {
+                failed: Boolean(retryLoad.value),
+                onRetry: () => {
+                    const retry = retryLoad.value;
+                    retryLoad.value = null;
+                    retry?.();
+                },
+            }),
+        }),
+        delay: 0,
+        onError: (_error, retry) => {
+            retryLoad.value = retry;
+        },
+    });
+};
+const ProductQuickForm = asyncForm('ProductQuickForm', () => import('@/Components/QuickCreate/ProductQuickForm.vue'));
+const ServiceQuickForm = asyncForm('ServiceQuickForm', () => import('@/Components/QuickCreate/ServiceQuickForm.vue'));
+const CustomerQuickForm = asyncForm('CustomerQuickForm', () => import('@/Components/QuickCreate/CustomerQuickForm.vue'));
+const QuoteQuickDialog = asyncForm('QuoteQuickDialog', () => import('@/Components/QuickCreate/QuoteQuickDialog.vue'));
+const RequestQuickForm = asyncForm('RequestQuickForm', () => import('@/Components/QuickCreate/RequestQuickForm.vue'));
 
 const { hasFeature } = useAccountFeatures();
 const { hasModuleAccess, hasPermission } = usePermissions();
@@ -62,6 +86,27 @@ const serviceOptionsLoaded = ref(false);
 const customerModalOpened = ref(false);
 const productModalOpened = ref(false);
 const serviceModalOpened = ref(false);
+const quoteModalOpened = ref(false);
+const requestModalOpened = ref(false);
+const requestPrefill = ref(null);
+
+const handleRequestPrefill = (event) => {
+    if (canRequests.value) {
+        requestPrefill.value = { customerId: event?.detail?.customerId };
+    }
+};
+
+onMounted(() => {
+    if (typeof window !== 'undefined') {
+        window.addEventListener('quick-create-request', handleRequestPrefill);
+    }
+});
+
+onBeforeUnmount(() => {
+    if (typeof window !== 'undefined') {
+        window.removeEventListener('quick-create-request', handleRequestPrefill);
+    }
+});
 
 const { t } = useI18n();
 
@@ -362,6 +407,16 @@ const handleServiceModalOpen = () => {
     serviceModalOpened.value = true;
     ensureServiceOptionsLoaded();
 };
+
+const handleQuoteModalOpen = () => {
+    quoteModalOpened.value = true;
+    ensureQuoteCustomersLoaded();
+};
+
+const handleRequestModalOpen = () => {
+    requestModalOpened.value = true;
+    ensureRequestRelationsLoaded();
+};
 </script>
 
 <template>
@@ -410,11 +465,12 @@ const handleServiceModalOpen = () => {
         </div>
     </Modal>
 
-    <Modal v-if="canQuotes" :title="$t('quick_create.new_quote')" :id="'hs-quick-create-quote'" @open="ensureQuoteCustomersLoaded">
+    <Modal v-if="canQuotes" :title="$t('quick_create.new_quote')" :id="'hs-quick-create-quote'" @open="handleQuoteModalOpen">
         <div v-if="quoteCustomerError" class="mb-3 text-sm text-red-600">
             {{ quoteCustomerError }}
         </div>
         <QuoteQuickDialog
+            v-if="quoteModalOpened"
             :customers="quoteCustomers"
             :loading="loadingQuoteCustomers"
             :overlay-id="'#hs-quick-create-quote'"
@@ -422,7 +478,7 @@ const handleServiceModalOpen = () => {
         />
     </Modal>
 
-    <Modal v-if="canRequests" :title="$t('quick_create.new_request')" :id="'hs-quick-create-request'" @open="ensureRequestRelationsLoaded">
+    <Modal v-if="canRequests" :title="$t('quick_create.new_request')" :id="'hs-quick-create-request'" @open="handleRequestModalOpen">
         <div v-if="requestCustomerError" class="mb-3 text-sm text-red-600">
             {{ requestCustomerError }}
         </div>
@@ -430,6 +486,8 @@ const handleServiceModalOpen = () => {
             {{ requestProspectError }}
         </div>
         <RequestQuickForm
+            v-if="requestModalOpened"
+            :prefill="requestPrefill"
             :customers="requestCustomers"
             :prospects="requestProspects"
             :loading-customers="loadingRequestCustomers"

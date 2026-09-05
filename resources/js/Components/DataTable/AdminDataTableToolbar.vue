@@ -33,6 +33,10 @@ defineProps({
         type: String,
         default: 'Clear',
     },
+    clearTestId: {
+        type: String,
+        default: undefined,
+    },
     applyLabel: {
         type: String,
         default: 'Apply',
@@ -73,6 +77,7 @@ const slots = useSlots();
                 <button
                     v-if="showClear"
                     type="button"
+                    :data-testid="clearTestId"
                     :class="crmButtonClass('secondary', 'toolbar')"
                     :disabled="busy"
                     @click="$emit('clear')"

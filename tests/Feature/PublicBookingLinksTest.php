@@ -379,11 +379,13 @@ it('creates a prospect and reservation from a public booking link without creati
         ->and($prospect->public_booking_link_id)->toBe($link->id)
         ->and($prospect->customer_id)->toBeNull()
         ->and(data_get($prospect->meta, 'public_booking.status'))->toBe(LeadRequest::PUBLIC_STATUS_BOOKING_REQUESTED)
+        ->and(data_get($prospect->meta, 'public_booking.team_member_name'))->toBe('Public Booking Staff')
         ->and($reservation)->not->toBeNull()
         ->and($reservation->prospect_id)->toBe($prospect->id)
         ->and($reservation->public_booking_link_id)->toBe($link->id)
         ->and($reservation->client_id)->toBeNull()
-        ->and($reservation->source)->toBe(Reservation::SOURCE_PUBLIC_BOOKING);
+        ->and($reservation->source)->toBe(Reservation::SOURCE_PUBLIC_BOOKING)
+        ->and(data_get($reservation->metadata, 'public_booking.team_member_name'))->toBe('Public Booking Staff');
 
     $this->assertDatabaseHas('notifications', [
         'notifiable_type' => User::class,
@@ -569,7 +571,9 @@ it('auto assigns an available team member when the public guest has no preferenc
     $reservation = Reservation::query()->firstOrFail();
 
     expect($reservation->team_member_id)->toBe($member->id)
-        ->and(data_get($reservation->metadata, 'public_booking.assignment_mode'))->toBe('auto');
+        ->and(data_get($reservation->metadata, 'public_booking.assignment_mode'))->toBe('auto')
+        ->and(data_get($reservation->metadata, 'public_booking.team_member_name'))->toBe('Public Booking Staff')
+        ->and(data_get($reservation->prospect->meta, 'public_booking.team_member_name'))->toBe('Public Booking Staff');
 });
 
 it('rejects a public booking when the selected slot has just been taken', function () {

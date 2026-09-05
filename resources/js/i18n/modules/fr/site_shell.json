@@ -1,0 +1,16 @@
+{
+  "welcome": {
+    "hero": {
+      "subtitle": "Malikia Pro aide les entreprises de services à piloter tout le flux, de la première demande au paiement final, avec plus de visibilité, moins de friction et un meilleur suivi."
+    },
+    "footer": {
+      "terms": "Conditions d’utilisation",
+      "copy": "Malikia Pro. Tous droits réservés."
+    }
+  },
+  "pricing": {
+    "currency": {
+      "label": "Devise"
+    }
+  }
+}

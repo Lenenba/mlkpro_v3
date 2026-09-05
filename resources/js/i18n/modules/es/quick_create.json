@@ -12,7 +12,9 @@
     "new_quote": "Nueva cotizacion",
     "new_request": "Nueva solicitud",
     "loading_categories": "Cargando categorias...",
+    "retry": "Reintentar",
     "errors": {
+      "load_form": "No se puede cargar el formulario. Vuelve a intentarlo.",
       "load_customers": "No se pueden cargar los clientes.",
       "load_categories": "No se pueden cargar las categorias."
     }

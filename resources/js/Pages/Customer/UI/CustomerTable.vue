@@ -13,6 +13,7 @@ import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vu
 import AdminDataTableBulkBar from '@/Components/DataTable/AdminDataTableBulkBar.vue';
 import AdminDataTableBulkActionMenu from '@/Components/DataTable/AdminDataTableBulkActionMenu.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
+import AdminQuickFilters from '@/Components/DataTable/AdminQuickFilters.vue';
 import SavedSegmentBar from '@/Components/CRM/SavedSegmentBar.vue';
 import CustomerActionsMenu from '@/Pages/Customer/UI/CustomerActionsMenu.vue';
 import CustomerBulkContactModal from '@/Pages/Customer/UI/CustomerBulkContactModal.vue';
@@ -425,12 +426,6 @@ const ariaSort = (column) => (
     filterForm.sort === column
         ? (filterForm.direction === 'asc' ? 'ascending' : 'descending')
         : 'none'
-);
-
-const operationalQuickFilterClass = (value) => (
-    filterForm.quick_filters.includes(value)
-        ? 'border-transparent bg-green-600 text-white dark:bg-green-500 dark:text-white'
-        : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800'
 );
 
 const setOperationalQuickFilter = (value) => {
@@ -970,38 +965,17 @@ const customerResultsLabel = computed(() => t('customers.filter_summary.results'
                 </template>
             </AdminDataTableToolbar>
 
-            <div
+            <AdminQuickFilters
                 v-if="operationalQuickFilters.length"
-                class="flex flex-wrap gap-2"
-                data-testid="customer-operational-filters"
-                role="group"
+                :options="operationalQuickFilters"
+                :selected-values="filterForm.quick_filters"
+                :busy="isBusy"
+                :all-label="$t('customers.appointment.quick_filters.all')"
                 :aria-label="$t('customers.filter_summary.quick_filters_label')"
-            >
-                <button
-                    type="button"
-                    class="inline-flex min-h-11 items-center rounded-full border px-3 py-2 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600"
-                    :class="!filterForm.quick_filters.length
-                        ? 'border-transparent bg-green-600 text-white dark:bg-green-500'
-                        : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800'"
-                    :aria-pressed="String(!filterForm.quick_filters.length)"
-                    :disabled="isBusy"
-                    @click="clearQuickFilters"
-                >
-                    {{ $t('customers.appointment.quick_filters.all') }}
-                </button>
-                <button
-                    v-for="filter in operationalQuickFilters"
-                    :key="filter.value"
-                    type="button"
-                    class="inline-flex min-h-11 items-center rounded-full border px-3 py-2 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600"
-                    :class="operationalQuickFilterClass(filter.value)"
-                    :aria-pressed="String(filterForm.quick_filters.includes(filter.value))"
-                    :disabled="isBusy"
-                    @click="setOperationalQuickFilter(filter.value)"
-                >
-                    {{ filter.label }}
-                </button>
-            </div>
+                data-testid="customer-operational-filters"
+                @toggle="setOperationalQuickFilter"
+                @clear="clearQuickFilters"
+            />
 
             <CustomerFilterSummary
                 :matching-count="matchingCount"

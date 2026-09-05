@@ -12,7 +12,9 @@
     "new_quote": "Nouveau devis",
     "new_request": "Nouvelle demande",
     "loading_categories": "Chargement des categories...",
+    "retry": "Réessayer",
     "errors": {
+      "load_form": "Impossible de charger le formulaire. Réessayez.",
       "load_customers": "Impossible de charger les clients.",
       "load_categories": "Impossible de charger les categories."
     }

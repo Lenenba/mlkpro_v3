@@ -1,0 +1,16 @@
+{
+  "welcome": {
+    "hero": {
+      "subtitle": "Malikia Pro ayuda a los negocios de servicios a gestionar todo el flujo de trabajo desde la primera solicitud hasta el pago final, con mas visibilidad, menos friccion y mejor seguimiento."
+    },
+    "footer": {
+      "terms": "Terminos y condiciones",
+      "copy": "Malikia Pro. Todos los derechos reservados."
+    }
+  },
+  "pricing": {
+    "currency": {
+      "label": "Moneda"
+    }
+  }
+}

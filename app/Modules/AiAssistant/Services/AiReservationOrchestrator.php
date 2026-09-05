@@ -715,22 +715,6 @@ class AiReservationOrchestrator
         return false;
     }
 
-    private function questionFor(string $field, string $language, Collection $services): string
-    {
-        $isFr = $language === 'fr';
-
-        return match ($field) {
-            'service_id' => $isFr
-                ? 'Quel service souhaitez-vous réserver? '.$this->availableServicesLine($services, 'fr')
-                : 'Which service are you interested in booking? '.$this->availableServicesLine($services, 'en'),
-            'contact_name' => $isFr ? 'Quel est votre nom complet?' : 'What is your full name?',
-            'contact_phone' => $isFr ? 'Quel numéro de téléphone pouvons-nous utiliser?' : 'What phone number can we use?',
-            'contact_email' => $isFr ? 'Quelle est votre adresse email?' : 'What email address should we use?',
-            'preferred_date' => $isFr ? 'Pour quelle date souhaitez-vous reserver?' : 'What date would you prefer?',
-            default => $isFr ? 'Pouvez-vous me donner un peu plus de details?' : 'Could you share a little more detail?',
-        };
-    }
-
     private function warmOpeningFor(
         AiConversation $conversation,
         array $previousDraft,
@@ -780,54 +764,9 @@ class AiReservationOrchestrator
         return preg_match('/^(bonjour|bonsoir|salut|allo|hello|hi|hey)\b/u', $normalized) === 1;
     }
 
-    private function availableServicesLine(Collection $services, string $language): string
-    {
-        if ($services->isEmpty()) {
-            return '';
-        }
-
-        $servicesText = $services
-            ->values()
-            ->map(fn (Product $service, int $index): string => ($index + 1).'. '.(string) $service->name)
-            ->implode('; ');
-
-        return ($language === 'fr' ? 'Services disponibles: ' : 'Available services: ').$servicesText.'.';
-    }
-
-    private function withoutDuplicateOpening(string $message, string $warmOpening): string
-    {
-        if (trim($warmOpening) === '') {
-            return $message;
-        }
-
-        return trim(preg_replace('/^(Parfait|Perfect)\s+[A-Za-zÀ-ÿ\'’-]+\.\s*/u', '', $message) ?? $message);
-    }
-
     private function summaryLine(array $draft, string $language): string
     {
         return $this->missingInformationMessageBuilder->naturalUnderstanding($draft, $language);
-    }
-
-    private function dateLabel(string $label, string $language): string
-    {
-        return match ($label) {
-            'next_week' => $language === 'fr' ? 'la semaine prochaine' : 'next week',
-            'end_of_month' => $language === 'fr' ? 'la fin du mois' : 'the end of the month',
-            'next_month' => $language === 'fr' ? 'le mois prochain' : 'next month',
-            'weekend' => $language === 'fr' ? 'la fin de semaine' : 'the weekend',
-            default => $label,
-        };
-    }
-
-    private function timeLabel(string $label, string $language): string
-    {
-        return match ($label) {
-            'after_work' => $language === 'fr' ? 'apres le travail' : 'after work',
-            'evening' => $language === 'fr' ? 'le soir' : 'in the evening',
-            'morning' => $language === 'fr' ? 'le matin' : 'in the morning',
-            'afternoon' => $language === 'fr' ? 'l apres-midi' : 'in the afternoon',
-            default => $label,
-        };
     }
 
     private function looksLikeShortPhoneAttempt(string $message): bool

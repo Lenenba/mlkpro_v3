@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import test from 'node:test';
+import { normalizeDataTablePerPage } from '../../resources/js/Components/DataTable/pagination.js';
+import { reservationReloadProps } from '../../resources/js/utils/reservationNavigation.js';
 import {
     nextReservationListSort,
     reservationListAllowedStatusTransitions,
@@ -24,6 +26,54 @@ import {
 
 const source = (path) => readFileSync(resolve(path), 'utf8');
 const messages = (locale) => JSON.parse(source(`resources/js/i18n/modules/${locale}/reservations.json`));
+
+test('reservation pagination uses the same partial reload scope on desktop and mobile', () => {
+    const component = source('resources/js/Components/Reservation/ReservationListTable.vue');
+    const table = source('resources/js/Components/DataTable/AdminDataTable.vue');
+    const pagination = source('resources/js/Components/DataTable/AdminPaginationLinks.vue');
+
+    assert.match(component, /const paginationOnly = reservationReloadProps\(\{ tab: 'reservations', view: 'list', reason: 'ordering' \}\)/u);
+    assert.match(component, /<AdminDataTable\b[^>]*:pagination-only="paginationOnly"/u);
+    assert.match(component, /<AdminPaginationLinks\b[^>]*:only="paginationOnly"/u);
+    assert.match(table, /<AdminPaginationLinks\b[^>]*:only="paginationOnly"/u);
+    assert.match(table, /paginationOnly:\s*\{\s*type: Array,\s*default: \(\) => \[\]/u);
+    assert.match(pagination, /only:\s*\{\s*type: Array,\s*default: \(\) => \[\]/u);
+    assert.match(pagination, /<Link\b[^>]*:only="only"/u);
+});
+
+test('desktop page size retains calendar and search state while limiting requested reservation props', () => {
+    const table = source('resources/js/Components/DataTable/AdminDataTable.vue');
+    const action = table.match(/const updatePerPage = \(event\) => \{[\s\S]*?\n\};/u)?.[0];
+    assert.ok(action, 'the table must expose its page size action');
+    const makeAction = new Function('props', 'router', 'emit', 'normalizeDataTablePerPage', 'normalizedPerPage', 'window', `${action}\nreturn updatePerPage;`);
+
+    for (const paginationOnly of [[], reservationReloadProps({ tab: 'reservations', view: 'list', reason: 'ordering' })]) {
+        const visits = [];
+        const emitted = [];
+        const updatePerPage = makeAction(
+            { paginationOnly },
+            { get: (...args) => visits.push(args) },
+            (...args) => emitted.push(args),
+            normalizeDataTablePerPage,
+            { value: 10 },
+            { location: { href: 'https://malikia.test/app/reservations?search=Jules&view_mode=list&calendar_view=week&calendar_date=2031-11-15&page=3' } },
+        );
+
+        updatePerPage({ target: { value: '25' } });
+
+        assert.deepEqual(emitted, [['update:perPage', 25]]);
+        assert.equal(visits.length, 1);
+        const [href, data, options] = visits[0];
+        const url = new URL(href, 'https://malikia.test');
+        assert.equal(url.searchParams.get('search'), 'Jules');
+        assert.equal(url.searchParams.get('calendar_view'), 'week');
+        assert.equal(url.searchParams.get('calendar_date'), '2031-11-15');
+        assert.equal(url.searchParams.get('per_page'), '25');
+        assert.equal(url.searchParams.has('page'), false);
+        assert.deepEqual(data, {});
+        assert.deepEqual(options, { preserveState: true, preserveScroll: true, replace: true, only: paginationOnly });
+    }
+});
 
 test('reservation list normalizers support enriched and legacy DTOs safely', () => {
     const enriched = {
@@ -267,9 +317,9 @@ test('reservation list is flat, responsive, accessible, and resilient', () => {
     assert.match(index, /:error="listError"/u);
     assert.match(index, /@clear-filters="clearFilters"/u);
     assert.match(index, /data-testid="reservation-quick-filters"/u);
-    assert.match(index, /:aria-pressed="filterForm\.quick === quickFilter\.value"/u);
-    assert.match(index, /quick:\s*filterForm\.quick \|\| undefined/u);
-    assert.match(index, /only:\s*\[[^\]]*'quickCounts'/u);
+    assert.match(index, /<AdminQuickFilters[\s\S]*?:selected-values="filterForm\.quick_filters"/u);
+    assert.match(index, /reservationFilterPayload\(filterForm\)/u);
+    assert.match(index, /only:\s*reservationReloadProps\(/u);
     assert.match(index, /@transition-status="updateReservationStatusFromList"/u);
     assert.match(index, /listError\.value = t\('reservations\.errors\.load_list'\)/u);
     assert.match(index, /let listRequestSequence = 0/u);
@@ -281,7 +331,7 @@ test('reservation list is flat, responsive, accessible, and resilient', () => {
     assert.match(index, /const setReservationSortValue = \(sort\) =>/u);
     assert.match(index, /@set-sort="setReservationSortValue"/u);
     assert.match(index, /const setReservationPerPage = \(perPage\) =>/u);
-    assert.match(index, /refreshList\(\{ per_page: normalizedPerPage \}\)/u);
+    assert.match(index, /refreshList\(\{ per_page: normalizedPerPage, reason: 'ordering' \}\)/u);
     assert.match(index, /@per-page="setReservationPerPage"/u);
     assert.match(index, /if \(!id \|\| !reservationListCanView\(reservation\)\)/u);
 });

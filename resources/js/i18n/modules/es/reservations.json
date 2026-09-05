@@ -33,7 +33,8 @@
       "rows_per_page": "Por página",
       "empty_title": "No hay reservas para mostrar",
       "empty_description": "Las próximas reservas aparecerán aquí con su servicio, cliente y estado.",
-      "empty_filtered": "Ninguna reserva coincide con los filtros actuales. Bórrelos para volver a la lista completa."
+      "empty_filtered": "Ninguna reserva coincide con los criterios activos.",
+      "empty_filtered_title": "Sin resultados"
     },
     "owner_only": {
       "staff_notice": "El crecimiento individual mantiene las reservas en modo limitado: vea las reservas existentes, administre la lista de espera y configure ajustes globales, pero las reservas basadas en el personal permanecen deshabilitadas.",
@@ -67,7 +68,10 @@
       "sort": "ordenar",
       "all_statuses": "Todos los estados",
       "date_from": "De",
-      "date_to": "a"
+      "date_to": "a",
+      "active": "Filtros activos",
+      "active_hint": "Estos filtros limitan las reservas que se muestran en la lista y el calendario.",
+      "remove": "Quitar el filtro {filter}"
     },
     "scope": {
       "mine": "Mis reservas",
@@ -105,9 +109,10 @@
       "view": "Ver",
       "reschedule": "Reprogramar",
       "filters": "Filtros",
-      "clear_filters": "Limpiar filtros",
+      "clear_filters": "Borrar filtros",
       "delete_confirm": "¿Eliminar esta reserva?",
-      "cancel_confirm": "¿Cancelar la reserva {reference}?"
+      "cancel_confirm": "¿Cancelar la reserva {reference}?",
+      "clear": "Borrar"
     },
     "form": {
       "create_title": "Crear reserva",
@@ -870,6 +875,33 @@
           }
         }
       }
+    },
+    "filter_summary": {
+      "title": "Resumen de filtros",
+      "results": "{count} reserva(s)",
+      "updating": "Actualizando…",
+      "active_count": "{count} criterio(s) activo(s)",
+      "mode_label": "Modo de combinación de filtros rápidos",
+      "modes": {
+        "all": "Todos los criterios",
+        "any": "Al menos un criterio"
+      },
+      "quick_filters_label": "Filtros rápidos de reservas",
+      "search_badge": "Búsqueda: {value}",
+      "filter_badge": "{label}: {value}",
+      "remove": "Quitar {label}",
+      "clear_all": "Borrar filtros"
+    },
+    "advanced_filters": {
+      "title": "Filtros avanzados",
+      "close": "Cerrar filtros avanzados",
+      "reset": "Restablecer",
+      "apply": "Aplicar filtros",
+      "trigger_active": "Filtros ({count})",
+      "draft_count": "{count} criterio(s) en borrador",
+      "current_results": "{count} resultado(s) actual(es)",
+      "description": "Filtra las reservas por estado, servicio, miembro del equipo o periodo.",
+      "period": "Periodo"
     }
   }
 }

@@ -1,6 +1,6 @@
 <script setup>
 import axios from 'axios';
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
@@ -12,6 +12,10 @@ import { assignGeoapifyAddress, useGeoapifyAddressAutocomplete } from '@/Composa
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
+    prefill: {
+        type: Object,
+        default: null,
+    },
     customers: {
         type: Array,
         default: () => [],
@@ -345,24 +349,23 @@ const clearSelectedProspect = () => {
     form.prospect_id = '';
 };
 
-watch(
-    () => selectedCustomer.value,
-    (customer) => {
-        if (!customer) {
-            return;
-        }
-
-        if (!form.contact_name) {
-            form.contact_name = displayCustomer(customer);
-        }
-        if (!form.contact_email) {
-            form.contact_email = customer.email || '';
-        }
-        if (!form.contact_phone) {
-            form.contact_phone = customer.phone || '';
-        }
+const fillCustomerContact = (customer) => {
+    if (!customer) {
+        return;
     }
-);
+
+    if (!form.contact_name) {
+        form.contact_name = displayCustomer(customer);
+    }
+    if (!form.contact_email) {
+        form.contact_email = customer.email || '';
+    }
+    if (!form.contact_phone) {
+        form.contact_phone = customer.phone || '';
+    }
+};
+
+watch(() => selectedCustomer.value, fillCustomerContact);
 
 watch(
     () => selectedProspect.value,
@@ -422,24 +425,9 @@ const applyPrefill = (customerId) => {
     if (customerId) {
         relationMode.value = RELATION_MODE_EXISTING_CUSTOMER;
         form.customer_id = String(customerId);
+        fillCustomerContact(selectedCustomer.value);
     }
 };
-
-const handlePrefillEvent = (event) => {
-    applyPrefill(event?.detail?.customerId);
-};
-
-onMounted(() => {
-    if (typeof window !== 'undefined') {
-        window.addEventListener('quick-create-request', handlePrefillEvent);
-    }
-});
-
-onBeforeUnmount(() => {
-    if (typeof window !== 'undefined') {
-        window.removeEventListener('quick-create-request', handlePrefillEvent);
-    }
-});
 
 const handleCustomerCreated = (payload) => {
     emit('customer-created', payload);
@@ -479,6 +467,12 @@ const resetForm = () => {
     form.country = '';
     resetAddressSearch();
 };
+
+watch(() => props.prefill, (prefill) => {
+    if (prefill) {
+        applyPrefill(prefill.customerId);
+    }
+}, { immediate: true });
 
 const shouldIgnoreDuplicates = (value) => value === true;
 

@@ -118,7 +118,7 @@ class PublicBookingService
             : LeadRequest::PUBLIC_STATUS_BOOKING_REQUESTED;
         $contactName = $this->contactName($validated);
 
-        $result = DB::transaction(function () use ($account, $contactName, $link, $publicStatus, $service, $status, $startsAt, $validated) {
+        $result = DB::transaction(function () use ($account, $contactName, $link, $publicStatus, $service, $slot, $status, $startsAt, $validated) {
             $prospect = LeadRequest::query()->create([
                 'user_id' => (int) $account->id,
                 'public_booking_link_id' => (int) $link->id,

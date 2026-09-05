@@ -10,7 +10,6 @@
     "hero": {
       "eyebrow": "Conçu pour les entreprises de services qui veulent plus de contrôle",
       "title": "Gérez devis, planning, jobs et facturation dans une plateforme connectée.",
-      "subtitle": "Malikia Pro aide les entreprises de services à piloter tout le flux, de la première demande au paiement final, avec plus de visibilité, moins de friction et un meilleur suivi.",
       "primary_cta": "Demarrer l'essai",
       "secondary_cta": "Voir les tarifs",
       "note": "Une seule plateforme pour gérer clients, devis, interventions, réservations, facturation et coordination quotidienne.",
@@ -141,10 +140,6 @@
       "hero_alt": "Équipe de chantier en coordination sur site",
       "workflow_alt": "Professionnels qui relisent des plans sur un chantier",
       "mobile_alt": "Technicien terrain avec checklist sur place"
-    },
-    "footer": {
-      "terms": "Conditions d’utilisation",
-      "copy": "Malikia Pro. Tous droits réservés."
     }
   }
 }

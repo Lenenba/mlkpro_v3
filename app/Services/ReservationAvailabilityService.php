@@ -747,37 +747,6 @@ class ReservationAvailabilityService
             : Reservation::STATUS_CHANGE_SOURCE_STAFF_UI;
     }
 
-    private function normalizeMoney(mixed $value): float
-    {
-        return max(0, round((float) $value, 2));
-    }
-
-    private function normalizePaymentPolicy(mixed $value): array
-    {
-        $policy = is_array($value) ? $value : [];
-        $depositAmount = $this->normalizeMoney($policy['deposit_amount'] ?? 0);
-        $noShowFeeAmount = $this->normalizeMoney($policy['no_show_fee_amount'] ?? 0);
-
-        return [
-            'deposit_required' => (bool) ($policy['deposit_required'] ?? false) && $depositAmount > 0,
-            'deposit_amount' => $depositAmount,
-            'no_show_fee_enabled' => (bool) ($policy['no_show_fee_enabled'] ?? false) && $noShowFeeAmount > 0,
-            'no_show_fee_amount' => $noShowFeeAmount,
-            'captured_at' => $policy['captured_at'] ?? now('UTC')->toIso8601String(),
-        ];
-    }
-
-    private function paymentPolicyFromSettings(array $settings): array
-    {
-        return $this->normalizePaymentPolicy([
-            'deposit_required' => (bool) ($settings['deposit_required'] ?? false),
-            'deposit_amount' => $settings['deposit_amount'] ?? 0,
-            'no_show_fee_enabled' => (bool) ($settings['no_show_fee_enabled'] ?? false),
-            'no_show_fee_amount' => $settings['no_show_fee_amount'] ?? 0,
-            'captured_at' => now('UTC')->toIso8601String(),
-        ]);
-    }
-
     private function mergePaymentPolicyMetadata(array $metadata, array $settings): array
     {
         return $this->paymentPolicyService->mergePolicyMetadata($metadata, $settings);
@@ -803,44 +772,6 @@ class ReservationAvailabilityService
         return $this->resourceService->hasResourceConstraint($partySize, $resourceFilters);
     }
 
-    private function availableResourcesForMember(
-        int $teamMemberId,
-        Collection $resourcesByMember,
-        array $resourceFilters,
-        ?int $partySize
-    ): Collection {
-        $globalResources = $resourcesByMember->get('global', collect());
-        $memberResources = $resourcesByMember->get((string) $teamMemberId, collect());
-        $resources = $globalResources
-            ->concat($memberResources)
-            ->unique('id')
-            ->values();
-
-        $resourceIds = $resourceFilters['resource_ids'] ?? [];
-        if (! empty($resourceIds)) {
-            $allowed = array_flip($resourceIds);
-            $resources = $resources
-                ->filter(fn (ReservationResource $resource) => isset($allowed[(int) $resource->id]))
-                ->values();
-        }
-
-        $types = $resourceFilters['types'] ?? [];
-        if (! empty($types)) {
-            $allowedTypes = array_flip($types);
-            $resources = $resources
-                ->filter(fn (ReservationResource $resource) => isset($allowedTypes[strtolower((string) $resource->type)]))
-                ->values();
-        }
-
-        if ($partySize && $partySize > 0) {
-            $resources = $resources
-                ->filter(fn (ReservationResource $resource) => (int) $resource->capacity >= $partySize)
-                ->values();
-        }
-
-        return $resources;
-    }
-
     private function loadResourceAllocations(
         int $accountId,
         Carbon $startUtc,
@@ -855,34 +786,6 @@ class ReservationAvailabilityService
             $ignoreReservationId,
             $lockForUpdate
         );
-    }
-
-    private function calculateUsedCapacityForSlot(
-        ReservationResource $resource,
-        Carbon $slotStartUtc,
-        Carbon $slotEndUtc,
-        Collection $resourceAllocations
-    ): int {
-        $allocations = $resourceAllocations->get($resource->id, collect());
-        $usedCapacity = 0;
-
-        foreach ($allocations as $allocation) {
-            $reservation = $allocation->reservation;
-            if (! $reservation) {
-                continue;
-            }
-
-            if (
-                $reservation->starts_at
-                && $reservation->ends_at
-                && $reservation->starts_at->lt($slotEndUtc)
-                && $reservation->ends_at->gt($slotStartUtc)
-            ) {
-                $usedCapacity += max(1, (int) ($allocation->quantity ?? 1));
-            }
-        }
-
-        return $usedCapacity;
     }
 
     private function pickAvailableResourceForWindow(
@@ -1047,72 +950,6 @@ class ReservationAvailabilityService
             $exceptions,
             $timezone
         );
-    }
-
-    private function normalizeIntervals(array $intervals): array
-    {
-        if (! $intervals) {
-            return [];
-        }
-
-        usort($intervals, function (array $left, array $right) {
-            if ($left['start']->eq($right['start'])) {
-                return $left['end']->lt($right['end']) ? -1 : 1;
-            }
-
-            return $left['start']->lt($right['start']) ? -1 : 1;
-        });
-
-        $normalized = [];
-        foreach ($intervals as $interval) {
-            if (empty($normalized)) {
-                $normalized[] = $interval;
-
-                continue;
-            }
-
-            $lastIndex = count($normalized) - 1;
-            $last = $normalized[$lastIndex];
-            if ($interval['start']->lte($last['end'])) {
-                if ($interval['end']->gt($last['end'])) {
-                    $normalized[$lastIndex]['end'] = $interval['end'];
-                }
-
-                continue;
-            }
-
-            $normalized[] = $interval;
-        }
-
-        return $normalized;
-    }
-
-    private function subtractIntervals(array $intervals, array $closed): array
-    {
-        $results = [];
-        foreach ($intervals as $interval) {
-            if ($closed['end']->lte($interval['start']) || $closed['start']->gte($interval['end'])) {
-                $results[] = $interval;
-
-                continue;
-            }
-
-            if ($closed['start']->gt($interval['start'])) {
-                $results[] = [
-                    'start' => $interval['start'],
-                    'end' => $closed['start']->copy(),
-                ];
-            }
-
-            if ($closed['end']->lt($interval['end'])) {
-                $results[] = [
-                    'start' => $closed['end']->copy(),
-                    'end' => $interval['end'],
-                ];
-            }
-        }
-
-        return $results;
     }
 
     private function alignToInterval(Carbon $dateTime, int $intervalMinutes): Carbon

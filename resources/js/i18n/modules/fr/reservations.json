@@ -33,7 +33,8 @@
       "rows_per_page": "Par page",
       "empty_title": "Aucune réservation à afficher",
       "empty_description": "Les prochaines réservations apparaîtront ici avec leur service, leur client et leur statut.",
-      "empty_filtered": "Aucune réservation ne correspond aux filtres actuels. Réinitialisez-les pour retrouver la liste complète."
+      "empty_filtered": "Aucune réservation ne correspond aux critères actifs.",
+      "empty_filtered_title": "Aucun résultat"
     },
     "owner_only": {
       "staff_notice": "Solo growth garde les réservations en mode limité : consultation de l'historique, gestion de la liste d'attente et réglages globaux, mais la réservation par membre reste désactivée.",
@@ -67,7 +68,10 @@
       "sort": "Tri",
       "all_statuses": "Tous les statuts",
       "date_from": "Du",
-      "date_to": "Au"
+      "date_to": "Au",
+      "active": "Filtres actifs",
+      "active_hint": "Ces filtres limitent les réservations affichées dans la liste et le calendrier.",
+      "remove": "Retirer le filtre {filter}"
     },
     "scope": {
       "mine": "Mes réservations",
@@ -105,9 +109,10 @@
       "view": "Voir",
       "reschedule": "Replanifier",
       "filters": "Filtres",
-      "clear_filters": "Réinitialiser",
+      "clear_filters": "Effacer les filtres",
       "delete_confirm": "Supprimer cette réservation ?",
-      "cancel_confirm": "Annuler la réservation {reference} ?"
+      "cancel_confirm": "Annuler la réservation {reference} ?",
+      "clear": "Effacer"
     },
     "form": {
       "create_title": "Créer une réservation",
@@ -870,6 +875,34 @@
           }
         }
       }
+    },
+    "filter_summary": {
+      "title": "Résumé des filtres",
+      "results": "{count} réservation(s)",
+      "updating": "Mise à jour…",
+      "active_count": "{count} critère(s) actif(s)",
+      "mode_label": "Mode de combinaison des filtres rapides",
+      "modes": {
+        "all": "Tous les critères",
+        "any": "Au moins un critère"
+      },
+      "quick_filters_label": "Filtres rapides des réservations",
+      "quick_filters_label_short": "Filtres rapides",
+      "search_badge": "Recherche : {value}",
+      "filter_badge": "{label} : {value}",
+      "remove": "Retirer {label}",
+      "clear_all": "Effacer les filtres"
+    },
+    "advanced_filters": {
+      "title": "Filtres avancés",
+      "close": "Fermer les filtres avancés",
+      "reset": "Réinitialiser",
+      "apply": "Appliquer les filtres",
+      "trigger_active": "Filtres ({count})",
+      "draft_count": "{count} critère(s) dans le brouillon",
+      "current_results": "{count} résultat(s) actuel(s)",
+      "description": "Affinez les réservations par statut, service, membre de l’équipe ou période.",
+      "period": "Période"
     }
   }
 }

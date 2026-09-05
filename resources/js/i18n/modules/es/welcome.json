@@ -10,7 +10,6 @@
     "hero": {
       "eyebrow": "Creado para negocios de servicios que necesitan mas control",
       "title": "Gestiona cotizaciones, agenda, trabajos y facturacion desde una sola plataforma conectada.",
-      "subtitle": "Malikia Pro ayuda a los negocios de servicios a gestionar todo el flujo de trabajo desde la primera solicitud hasta el pago final, con mas visibilidad, menos friccion y mejor seguimiento.",
       "primary_cta": "Empezar prueba",
       "secondary_cta": "Ver precios",
       "note": "Una sola plataforma para gestionar clientes, cotizaciones, trabajos, reservas, facturacion y la coordinacion del dia a dia.",
@@ -141,10 +140,6 @@
       "hero_alt": "Equipo de campo coordinandose en el sitio",
       "workflow_alt": "Profesionales revisando planos en una obra",
       "mobile_alt": "Tecnico de campo sosteniendo una lista de control en el sitio"
-    },
-    "footer": {
-      "terms": "Terminos y condiciones",
-      "copy": "Malikia Pro. Todos los derechos reservados."
     }
   }
 }

@@ -8,18 +8,15 @@ use App\Http\Requests\Reservation\SlotRequest;
 use App\Http\Requests\Reservation\StoreReservationRequest;
 use App\Http\Requests\Reservation\UpdateReservationRequest;
 use App\Models\Customer;
-use App\Models\Payment;
 use App\Models\Request as LeadRequest;
 use App\Models\Reservation;
 use App\Models\ReservationQueueItem;
 use App\Models\ReservationResource;
-use App\Models\ReservationResourceAllocation;
 use App\Models\ReservationStatusTransition;
 use App\Models\ReservationWaitlist;
 use App\Models\TeamMember;
 use App\Models\TeamMemberAttendance;
 use App\Models\User;
-use App\Models\WeeklyAvailability;
 use App\Queries\Reservations\BuildCustomerRebookingData;
 use App\Queries\Reservations\BuildStaffReservationDetailData;
 use App\Queries\Reservations\BuildStaffReservationIndexData;
@@ -35,7 +32,6 @@ use App\Services\ReservationQueueService;
 use App\Support\ReservationPresetResolver;
 use App\Support\TenantPaymentMethodsResolver;
 use App\Support\TipSettingsResolver;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -70,10 +66,15 @@ class StaffReservationController extends Controller
         $this->ensureOwnerOnlyReservationReadAccess($user, $account);
         $access = $this->resolveTeamAccess($user, $account->id);
         $props = app(BuildStaffReservationIndexData::class)->index($account, $access, $request);
-        $props['settings'] = $this->effectiveSettings($account, $props['settings'] ?? []);
+        $settings = $props['settings'];
+        $props['settings'] = fn (): array => $this->effectiveSettings($account, $settings());
         $props['focus_reservation_id'] = (int) $request->query('reservation_id', 0);
-        $props['paymentMethodSettings'] = TenantPaymentMethodsResolver::forAccountId($account->id);
-        $props['tips'] = TipSettingsResolver::forAccountId($account->id);
+        $props['paymentMethodSettings'] = fn (): array => TenantPaymentMethodsResolver::forAccountId($account->id);
+        $props['tips'] = fn (): array => TipSettingsResolver::forAccountId($account->id);
+
+        if ($this->shouldReturnJson($request)) {
+            $props = array_map(fn (mixed $prop): mixed => $prop instanceof \Closure ? $prop() : $prop, $props);
+        }
 
         return $this->inertiaOrJson('Reservation/Index', $props);
     }
@@ -191,15 +192,6 @@ class StaffReservationController extends Controller
             'status' => ['nullable', Rule::in(Reservation::STATUSES)],
             'service_id' => ['nullable', 'integer'],
             'scope' => ['nullable', Rule::in(['mine', 'all'])],
-            'quick' => ['nullable', Rule::in([
-                'pending',
-                'today',
-                'upcoming',
-                'past',
-                'completed',
-                'no_show',
-                'cancelled',
-            ])],
             'search' => ['nullable', 'string', 'max:255'],
             'date_from' => ['nullable', 'date_format:Y-m-d'],
             'date_to' => ['nullable', 'date_format:Y-m-d'],
@@ -971,22 +963,6 @@ class StaffReservationController extends Controller
         return $account;
     }
 
-    private function reservationQuery(int $accountId, bool $withRelations = true): Builder
-    {
-        $query = Reservation::query()->forAccount($accountId);
-        if (! $withRelations) {
-            return $query;
-        }
-
-        return $query->with([
-            'teamMember.user:id,name',
-            'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
-            'service:id,name,price,item_type',
-            'creator:id,name',
-            'canceller:id,name',
-        ]);
-    }
-
     private function resolveTeamAccess(User $user, int $accountId): array
     {
         $ownTeamMember = TeamMember::query()
@@ -1061,398 +1037,6 @@ class StaffReservationController extends Controller
         }
 
         return (bool) User::query()->find($accountId)?->hasCompanyFeature('sales');
-    }
-
-    private function normalizeFilters(Request $request, array $access): array
-    {
-        $ownTeamMemberId = $access['own_team_member_id'] ?: null;
-        $canViewAll = (bool) ($access['can_view_all'] ?? false);
-
-        $scope = (string) $request->input('scope', '');
-        if (! in_array($scope, ['mine', 'all'], true)) {
-            $scope = $ownTeamMemberId ? 'mine' : 'all';
-        }
-        if (! $canViewAll || ! $ownTeamMemberId) {
-            $scope = $ownTeamMemberId ? 'mine' : 'all';
-        }
-
-        $quick = (string) $request->input('quick', '');
-        if (! in_array($quick, ['', 'pending', 'today', 'upcoming', 'past'], true)) {
-            $quick = '';
-        }
-
-        $sort = (string) $request->input('sort', 'date_asc');
-        if (! in_array($sort, ['date_asc', 'date_desc', 'status'], true)) {
-            $sort = 'date_asc';
-        }
-
-        $teamMemberId = $request->input('team_member_id');
-        if ($scope === 'mine' && $ownTeamMemberId) {
-            $teamMemberId = (string) $ownTeamMemberId;
-        } elseif (! $canViewAll) {
-            $teamMemberId = $ownTeamMemberId ? (string) $ownTeamMemberId : '';
-        }
-
-        $status = (string) $request->input('status', '');
-        if ($status !== '' && ! in_array($status, Reservation::STATUSES, true)) {
-            $status = '';
-        }
-
-        return [
-            'status' => $status,
-            'team_member_id' => (string) ($teamMemberId ?? ''),
-            'service_id' => (string) ($request->input('service_id', '') ?? ''),
-            'date_from' => (string) ($request->input('date_from', '') ?? ''),
-            'date_to' => (string) ($request->input('date_to', '') ?? ''),
-            'search' => (string) ($request->input('search', '') ?? ''),
-            'view_mode' => (string) ($request->input('view_mode', 'calendar') ?: 'calendar'),
-            'scope' => $scope,
-            'quick' => $quick,
-            'sort' => $sort,
-        ];
-    }
-
-    private function applyReservationFilters(Builder $query, array $filters, array $access, array $options = []): void
-    {
-        $options = array_merge([
-            'search' => true,
-            'status' => true,
-            'team' => true,
-            'service' => true,
-            'date' => true,
-            'quick' => true,
-        ], $options);
-
-        $ownTeamMemberId = $access['own_team_member_id'] ?: null;
-        $canViewAll = (bool) ($access['can_view_all'] ?? false);
-
-        if (($filters['scope'] ?? 'all') === 'mine' && $ownTeamMemberId) {
-            $query->where('team_member_id', (int) $ownTeamMemberId);
-        }
-
-        if ($options['team'] && ! empty($filters['team_member_id'])) {
-            $teamMemberId = (int) $filters['team_member_id'];
-            if ($teamMemberId > 0) {
-                if ($canViewAll) {
-                    $query->where('team_member_id', $teamMemberId);
-                } elseif ($ownTeamMemberId && $teamMemberId === (int) $ownTeamMemberId) {
-                    $query->where('team_member_id', $teamMemberId);
-                }
-            }
-        }
-
-        if ($options['service'] && ! empty($filters['service_id'])) {
-            $query->where('service_id', (int) $filters['service_id']);
-        }
-
-        if ($options['status'] && ! empty($filters['status'])) {
-            $query->where('status', (string) $filters['status']);
-        }
-
-        if ($options['date']) {
-            if (! empty($filters['date_from'])) {
-                $query->whereDate('starts_at', '>=', (string) $filters['date_from']);
-            }
-            if (! empty($filters['date_to'])) {
-                $query->whereDate('starts_at', '<=', (string) $filters['date_to']);
-            }
-        }
-
-        if ($options['search'] && ! empty($filters['search'])) {
-            $search = (string) $filters['search'];
-            $query->where(function (Builder $subQuery) use ($search) {
-                $subQuery->whereHas('client', function (Builder $clientQuery) use ($search) {
-                    $clientQuery->where('company_name', 'like', '%'.$search.'%')
-                        ->orWhere('first_name', 'like', '%'.$search.'%')
-                        ->orWhere('last_name', 'like', '%'.$search.'%')
-                        ->orWhere('email', 'like', '%'.$search.'%');
-                })->orWhereHas('service', function (Builder $serviceQuery) use ($search) {
-                    $serviceQuery->where('name', 'like', '%'.$search.'%');
-                });
-            });
-        }
-
-        if ($options['quick']) {
-            $quick = (string) ($filters['quick'] ?? '');
-            if ($quick === 'pending') {
-                $query->where('status', Reservation::STATUS_PENDING);
-            } elseif ($quick === 'today') {
-                $query->whereDate('starts_at', now()->toDateString());
-            } elseif ($quick === 'upcoming') {
-                $query->where('starts_at', '>', now())
-                    ->whereIn('status', Reservation::ACTIVE_STATUSES);
-            } elseif ($quick === 'past') {
-                $query->where('ends_at', '<', now());
-            }
-        }
-    }
-
-    private function applyReservationSort(Builder $query, string $sort): void
-    {
-        if ($sort === 'date_desc') {
-            $query->orderByDesc('starts_at');
-
-            return;
-        }
-
-        if ($sort === 'status') {
-            $query->orderByRaw("CASE status
-                WHEN 'pending' THEN 1
-                WHEN 'confirmed' THEN 2
-                WHEN 'rescheduled' THEN 3
-                WHEN 'completed' THEN 4
-                WHEN 'no_show' THEN 5
-                WHEN 'cancelled' THEN 6
-                ELSE 99
-            END ASC");
-            $query->orderBy('starts_at');
-
-            return;
-        }
-
-        $query->orderBy('starts_at');
-    }
-
-    private function quickCounts(int $accountId, array $filters, array $access): array
-    {
-        $summaryQuery = $this->reservationQuery($accountId, false)
-            ->tap(fn (Builder $builder) => $this->applyReservationFilters($builder, $filters, $access, [
-                'status' => false,
-                'date' => false,
-                'quick' => false,
-            ]));
-
-        return [
-            'pending' => (clone $summaryQuery)->where('status', Reservation::STATUS_PENDING)->count(),
-            'today' => (clone $summaryQuery)->whereDate('starts_at', now()->toDateString())->count(),
-            'upcoming' => (clone $summaryQuery)
-                ->where('starts_at', '>', now())
-                ->whereIn('status', Reservation::ACTIVE_STATUSES)
-                ->count(),
-            'past' => (clone $summaryQuery)->where('ends_at', '<', now())->count(),
-        ];
-    }
-
-    private function buildPerformanceMetrics(User $account, array $filters, array $access, array $settings): array
-    {
-        $windowDays = 30;
-        $windowStart = now('UTC')->subDays($windowDays)->startOfDay();
-        $windowEnd = now('UTC')->endOfDay();
-        $bookedStatuses = [
-            Reservation::STATUS_CONFIRMED,
-            Reservation::STATUS_RESCHEDULED,
-            Reservation::STATUS_COMPLETED,
-            Reservation::STATUS_NO_SHOW,
-        ];
-
-        $reservationWindowQuery = $this->reservationQuery($account->id, false)
-            ->tap(fn (Builder $builder) => $this->applyReservationFilters($builder, $filters, $access, [
-                'search' => false,
-                'status' => false,
-                'date' => false,
-                'quick' => false,
-            ]))
-            ->where('starts_at', '>=', $windowStart)
-            ->where('starts_at', '<=', $windowEnd);
-
-        $total = (clone $reservationWindowQuery)->count();
-        $completed = (clone $reservationWindowQuery)->where('status', Reservation::STATUS_COMPLETED)->count();
-        $noShow = (clone $reservationWindowQuery)->where('status', Reservation::STATUS_NO_SHOW)->count();
-        $rescheduled = (clone $reservationWindowQuery)->where('status', Reservation::STATUS_RESCHEDULED)->count();
-        $bookedTotal = (clone $reservationWindowQuery)->whereIn('status', $bookedStatuses)->count();
-        $bookedMinutes = (int) ((clone $reservationWindowQuery)->whereIn('status', $bookedStatuses)->sum('duration_minutes') ?? 0);
-
-        $avgServiceValue = round((float) ((clone $reservationWindowQuery)
-            ->where('status', Reservation::STATUS_COMPLETED)
-            ->leftJoin('products', 'reservations.service_id', '=', 'products.id')
-            ->avg('products.price')), 2);
-
-        $teamMemberIds = $this->resolvePerformanceTeamMemberIds($account->id, $filters, $access);
-        $teamUserIds = TeamMember::query()
-            ->whereIn('id', $teamMemberIds)
-            ->pluck('user_id')
-            ->map(fn ($id) => (int) $id)
-            ->filter(fn (int $id) => $id > 0)
-            ->unique()
-            ->values()
-            ->all();
-
-        $paymentWindowQuery = Payment::query()
-            ->where('user_id', $account->id)
-            ->whereIn('status', Payment::settledStatuses())
-            ->where(function ($query) use ($windowStart) {
-                $query->where('paid_at', '>=', $windowStart)
-                    ->orWhere(function ($nested) use ($windowStart) {
-                        $nested->whereNull('paid_at')
-                            ->where('created_at', '>=', $windowStart);
-                    });
-            });
-
-        if (! empty($teamUserIds)) {
-            $paymentWindowQuery->whereIn('tip_assignee_user_id', $teamUserIds);
-        }
-
-        $paidPayments = (clone $paymentWindowQuery)->count();
-        $tipRate = $paidPayments > 0
-            ? round(((clone $paymentWindowQuery)->where('tip_amount', '>', 0)->count() / $paidPayments) * 100, 1)
-            : 0.0;
-
-        $availableMinutes = $this->availableMinutesInWindow($account->id, $teamMemberIds, $windowStart, $windowEnd);
-        $occupancyRate = $availableMinutes > 0
-            ? round(min(100, ($bookedMinutes / $availableMinutes) * 100), 1)
-            : 0.0;
-
-        $metrics = [
-            'window_days' => $windowDays,
-            'audience' => (bool) ($access['can_view_all'] ?? false) ? 'owner' : 'member',
-            'preset' => (string) ($settings['business_preset'] ?? 'service_general'),
-            'occupancy_rate' => $occupancyRate,
-            'no_show_rate' => $bookedTotal > 0 ? round(($noShow / $bookedTotal) * 100, 1) : 0.0,
-            'reschedule_rate' => $total > 0 ? round(($rescheduled / $total) * 100, 1) : 0.0,
-            'completion_rate' => $bookedTotal > 0 ? round(($completed / $bookedTotal) * 100, 1) : 0.0,
-            'avg_service_value' => $avgServiceValue,
-            'tip_rate' => $tipRate,
-        ];
-
-        if ($metrics['preset'] === 'salon') {
-            $bookedReservationIds = (clone $reservationWindowQuery)
-                ->whereIn('status', $bookedStatuses)
-                ->pluck('id')
-                ->map(fn ($id) => (int) $id)
-                ->all();
-
-            $withResource = empty($bookedReservationIds)
-                ? 0
-                : ReservationResourceAllocation::query()
-                    ->forAccount($account->id)
-                    ->whereIn('reservation_id', $bookedReservationIds)
-                    ->distinct('reservation_id')
-                    ->count('reservation_id');
-
-            $metrics['resource_reservation_rate'] = $bookedTotal > 0
-                ? round(($withResource / $bookedTotal) * 100, 1)
-                : 0.0;
-        } elseif ($metrics['preset'] === 'restaurant') {
-            $tableResourceCount = ReservationResource::query()
-                ->forAccount($account->id)
-                ->active()
-                ->where('type', 'table')
-                ->when(! empty($teamMemberIds), function ($query) use ($teamMemberIds) {
-                    $query->where(function ($nested) use ($teamMemberIds) {
-                        $nested->whereNull('team_member_id')
-                            ->orWhereIn('team_member_id', $teamMemberIds);
-                    });
-                })
-                ->count();
-
-            $metrics['table_turnover'] = $tableResourceCount > 0
-                ? round($completed / $tableResourceCount, 1)
-                : 0.0;
-
-            $partySizeValues = (clone $reservationWindowQuery)
-                ->whereIn('status', $bookedStatuses)
-                ->get(['metadata'])
-                ->map(function (Reservation $reservation) {
-                    $size = (int) data_get($reservation->metadata, 'party_size', 0);
-
-                    return $size > 0 ? $size : null;
-                })
-                ->filter()
-                ->values();
-
-            $metrics['party_size_avg'] = $partySizeValues->isNotEmpty()
-                ? round((float) $partySizeValues->avg(), 1)
-                : 0.0;
-        }
-
-        return $metrics;
-    }
-
-    private function resolvePerformanceTeamMemberIds(int $accountId, array $filters, array $access): array
-    {
-        $memberQuery = TeamMember::query()
-            ->forAccount($accountId)
-            ->active();
-
-        $ownTeamMemberId = (int) ($access['own_team_member_id'] ?? 0);
-        $canViewAll = (bool) ($access['can_view_all'] ?? false);
-        $scope = (string) ($filters['scope'] ?? 'all');
-        $requestedTeamMemberId = (int) ($filters['team_member_id'] ?? 0);
-
-        if ($scope === 'mine' && $ownTeamMemberId > 0) {
-            $memberQuery->whereKey($ownTeamMemberId);
-        } elseif ($requestedTeamMemberId > 0) {
-            if ($canViewAll || ($ownTeamMemberId > 0 && $requestedTeamMemberId === $ownTeamMemberId)) {
-                $memberQuery->whereKey($requestedTeamMemberId);
-            } elseif ($ownTeamMemberId > 0) {
-                $memberQuery->whereKey($ownTeamMemberId);
-            }
-        } elseif (! $canViewAll && $ownTeamMemberId > 0) {
-            $memberQuery->whereKey($ownTeamMemberId);
-        }
-
-        return $memberQuery
-            ->pluck('id')
-            ->map(fn ($id) => (int) $id)
-            ->values()
-            ->all();
-    }
-
-    private function availableMinutesInWindow(
-        int $accountId,
-        array $teamMemberIds,
-        Carbon $windowStart,
-        Carbon $windowEnd
-    ): int {
-        if (empty($teamMemberIds)) {
-            return 0;
-        }
-
-        $minutesByDay = array_fill(0, 7, 0);
-        $weeklyAvailabilities = WeeklyAvailability::query()
-            ->forAccount($accountId)
-            ->whereIn('team_member_id', $teamMemberIds)
-            ->active()
-            ->get(['day_of_week', 'start_time', 'end_time']);
-
-        foreach ($weeklyAvailabilities as $availability) {
-            $dayIndex = (int) $availability->day_of_week;
-            if ($dayIndex < 0 || $dayIndex > 6) {
-                continue;
-            }
-
-            $startMinutes = $this->parseTimeToMinutes((string) $availability->start_time);
-            $endMinutes = $this->parseTimeToMinutes((string) $availability->end_time);
-            if ($endMinutes <= $startMinutes) {
-                continue;
-            }
-
-            $minutesByDay[$dayIndex] += ($endMinutes - $startMinutes);
-        }
-
-        $cursor = $windowStart->copy()->startOfDay();
-        $endDate = $windowEnd->copy()->startOfDay();
-        $availableMinutes = 0;
-
-        while ($cursor->lte($endDate)) {
-            $availableMinutes += (int) ($minutesByDay[$cursor->dayOfWeek] ?? 0);
-            $cursor->addDay();
-        }
-
-        return $availableMinutes;
-    }
-
-    private function parseTimeToMinutes(string $time): int
-    {
-        $normalized = trim($time);
-        if ($normalized === '') {
-            return 0;
-        }
-
-        $hours = (int) substr($normalized, 0, 2);
-        $minutes = (int) substr($normalized, 3, 2);
-
-        return max(0, ($hours * 60) + $minutes);
     }
 
     private function canManageWaitlistStatus(array $access, ReservationWaitlist $waitlist): bool
@@ -1954,32 +1538,5 @@ class StaffReservationController extends Controller
         }
 
         return URL::signedRoute('public.kiosk.reservations.show', ['account' => $accountId]);
-    }
-
-    private function mapEvent(Reservation $reservation): array
-    {
-        $clientLabel = $reservation->client?->company_name
-            ?: trim(($reservation->client?->first_name ?? '').' '.($reservation->client?->last_name ?? ''));
-        $serviceLabel = $reservation->service?->name ?: 'Reservation';
-        $memberLabel = $reservation->teamMember?->user?->name ?: 'Team';
-        $title = trim($serviceLabel.' · '.($clientLabel ?: 'Client'));
-
-        return [
-            'id' => $reservation->id,
-            'title' => $title,
-            'start' => $reservation->starts_at?->toIso8601String(),
-            'end' => $reservation->ends_at?->toIso8601String(),
-            'classNames' => ['reservation-event', 'status-'.$reservation->status],
-            'extendedProps' => [
-                'status' => $reservation->status,
-                'team_member_id' => $reservation->team_member_id,
-                'team_member_name' => $memberLabel,
-                'client_name' => $clientLabel ?: null,
-                'service_name' => $serviceLabel,
-                'internal_notes' => $reservation->internal_notes,
-                'client_notes' => $reservation->client_notes,
-                'source' => $reservation->source,
-            ],
-        ];
     }
 }

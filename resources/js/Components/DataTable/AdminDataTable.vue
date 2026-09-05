@@ -16,6 +16,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    paginationOnly: {
+        type: Array,
+        default: () => [],
+    },
     total: {
         type: Number,
         default: null,
@@ -148,6 +152,7 @@ const updatePerPage = (event) => {
         preserveState: true,
         preserveScroll: true,
         replace: true,
+        only: props.paginationOnly,
     });
 };
 </script>
@@ -202,7 +207,7 @@ const updatePerPage = (event) => {
                 </div>
 
                 <div v-if="showPagination && hasMultiplePaginationPages" class="flex justify-start md:col-start-2 md:justify-center">
-                    <AdminPaginationLinks :links="normalizedLinks" />
+                    <AdminPaginationLinks :links="normalizedLinks" :only="paginationOnly" />
                 </div>
 
                 <div v-if="showPerPage" class="flex justify-start md:col-start-3 md:justify-end">

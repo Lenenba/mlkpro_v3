@@ -9,6 +9,9 @@ import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
+import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
+import AdminFilterSummary from '@/Components/DataTable/AdminFilterSummary.vue';
+import AdminQuickFilters from '@/Components/DataTable/AdminQuickFilters.vue';
 import Modal from '@/Components/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
@@ -19,11 +22,23 @@ import ReservationDetailsPanel from '@/Components/Reservation/ReservationDetails
 import ReservationCustomerChooser from '@/Components/Reservation/ReservationCustomerChooser.vue';
 import ReservationListTable from '@/Components/Reservation/ReservationListTable.vue';
 import ReservationStats from '@/Components/Reservation/ReservationStats.vue';
+import ReservationAdvancedFiltersDialog from '@/Components/Reservation/ReservationAdvancedFiltersDialog.vue';
 import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { reservationStatusBadgeClass } from '@/Components/Reservation/status';
 import { paymentMethodLabel as resolvePaymentMethodLabel, useTenantPaymentMethods } from '@/Composables/useTenantPaymentMethods';
 import { crmSegmentedControlButtonClass, crmSegmentedControlClass } from '@/utils/crmButtonStyles';
+import { currentReservationDay } from '@/utils/reservationCalendar';
+import { reservationCalendarUrl, reservationFilterFields, reservationReloadProps } from '@/utils/reservationNavigation';
+import {
+    RESERVATION_QUICK_FILTERS,
+    countReservationAdvancedFilters,
+    createReservationAdvancedFilters,
+    initialReservationQuickFilters,
+    normalizeReservationQuickFilterMode,
+    reservationFilterPayload,
+    toggleReservationQuickFilter,
+} from '@/utils/reservationFilters';
 import {
     nextReservationListSort,
     reservationListAllowedStatusTransitions,
@@ -90,6 +105,10 @@ const props = defineProps({
     reservations: {
         type: Object,
         default: () => ({ data: [] }),
+    },
+    reservationCount: {
+        type: Number,
+        default: null,
     },
     events: {
         type: Array,
@@ -170,10 +189,15 @@ const props = defineProps({
 });
 
 const viewMode = ref(props.filters?.view_mode || 'calendar');
+const calendarView = ref(props.filters?.calendar_view || 'week');
+const calendarDate = ref(props.filters?.calendar_date || currentReservationDay(dayjs(), props.timezone).format('YYYY-MM-DD'));
 const calendarEvents = ref([...(props.events || [])]);
 const calendarLoading = ref(false);
 const calendarError = ref('');
 const listLoading = ref(false);
+const filtersLoading = ref(false);
+const filtersBusy = computed(() => filtersLoading.value || calendarLoading.value);
+let synchronizingFilters = false;
 const listError = ref('');
 const listStatusActionError = ref('');
 const listStatusUpdatingId = ref(null);
@@ -267,15 +291,16 @@ const {
     defaultPaymentMethod,
     hasMultiplePaymentMethods,
 } = useTenantPaymentMethods(computed(() => props.paymentMethodSettings));
-const reservationTabCount = computed(() => Number(props.reservations?.total ?? props.reservations?.data?.length ?? 0));
-const activeDataTab = ref(queueStripeReturn.queueItemId > 0 ? 'queue' : 'reservations');
+const reservationTabCount = computed(() => Number(props.reservationCount ?? props.reservations?.total ?? props.reservations?.data?.length ?? 0));
+const activeDataTab = ref(queueStripeReturn.queueItemId > 0 ? 'queue' : (props.filters?.data_tab || 'reservations'));
+const calendarVisible = computed(() => activeDataTab.value === 'reservations' && viewMode.value === 'calendar');
 const ownTeamMemberId = computed(() => {
     const raw = props.access?.own_team_member_id;
     return raw ? String(raw) : '';
 });
 const calendarRange = ref({
-    start: dayjs().startOf('month').toISOString(),
-    end: dayjs().endOf('month').toISOString(),
+    start: '',
+    end: '',
 });
 
 const showEditor = ref(false);
@@ -296,7 +321,9 @@ const conversionError = ref('');
 const conversionSuccess = ref('');
 let calendarAbortController = null;
 let calendarRequestSequence = 0;
+let calendarRequestKey = '';
 let listRequestSequence = 0;
+let listCancelToken = null;
 let detailsAbortController = null;
 let detailsRequestSequence = 0;
 let conversionAbortController = null;
@@ -324,7 +351,8 @@ const filterForm = useForm({
     date_from: props.filters?.date_from ?? '',
     date_to: props.filters?.date_to ?? '',
     scope: props.filters?.scope ?? (ownTeamMemberId.value ? 'mine' : 'all'),
-    quick: props.filters?.quick ?? '',
+    quick_filters: initialReservationQuickFilters(props.filters),
+    quick_filter_mode: normalizeReservationQuickFilterMode(props.filters?.quick_filter_mode),
     sort: props.filters?.sort ?? 'date_asc',
     view_mode: props.filters?.view_mode ?? viewMode.value,
 });
@@ -365,21 +393,52 @@ const statusOptions = computed(() => [
     })),
 ]);
 
-const reservationQuickFilters = computed(() => [
-    {
-        value: '',
-        label: t('reservations.quick.all'),
-        count: Number(props.quickCounts?.all ?? props.stats?.total ?? 0),
-    },
-    ...['pending', 'today', 'upcoming', 'past', 'completed', 'no_show', 'cancelled'].map((value) => ({
-        value,
-        label: t(`reservations.quick.${value}`),
-        count: Number(props.quickCounts?.[value] || 0),
-    })),
-]);
+const reservationQuickFilters = computed(() => RESERVATION_QUICK_FILTERS.map((value) => ({
+    value,
+    label: t(`reservations.quick.${value}`),
+})));
+
+const updateReservationFilters = (update) => {
+    synchronizingFilters = true;
+    update();
+    refreshList({ reason: 'filters', replace: false });
+    nextTick(() => { synchronizingFilters = false; });
+};
 
 const setReservationQuickFilter = (value) => {
-    filterForm.quick = filterForm.quick === value ? '' : value;
+    updateReservationFilters(() => {
+        filterForm.quick_filters = toggleReservationQuickFilter(filterForm.quick_filters, value);
+    });
+};
+
+const clearReservationQuickFilters = () => {
+    if (filterForm.quick_filters.length) {
+        updateReservationFilters(() => { filterForm.quick_filters = []; });
+    }
+};
+
+const setReservationQuickFilterMode = (mode) => {
+    const normalized = normalizeReservationQuickFilterMode(mode);
+    if (normalized !== filterForm.quick_filter_mode) {
+        updateReservationFilters(() => { filterForm.quick_filter_mode = normalized; });
+    }
+};
+
+const applyReservationAdvancedFilters = (filters) => {
+    updateReservationFilters(() => {
+        Object.assign(filterForm, createReservationAdvancedFilters({ ...filters, scope: filterForm.scope }, ownTeamMemberId.value));
+    });
+    showAdvanced.value = false;
+};
+
+const setReservationScope = (scope) => {
+    if (scope === filterForm.scope) {
+        return;
+    }
+    updateReservationFilters(() => {
+        filterForm.team_member_id = scope === 'mine' ? ownTeamMemberId.value : '';
+        filterForm.scope = scope;
+    });
 };
 
 const scopeOptions = computed(() => {
@@ -403,7 +462,6 @@ const teamOptions = computed(() => [
         label: member.title ? `${member.name} - ${member.title}` : member.name,
     })),
 ]);
-const showTeamFilters = computed(() => teamOptions.value.length > 1);
 
 const serviceOptions = computed(() => [
     { value: '', label: t('reservations.form.none') },
@@ -434,15 +492,37 @@ const reservationPaginationLabel = computed(() => t('reservations.pagination.sho
     from: props.reservations?.from || 0,
     to: props.reservations?.to || 0,
 }));
-const hasActiveReservationFilters = computed(() => Boolean(
-    filterForm.search
-    || filterForm.status
-    || filterForm.quick
-    || filterForm.service_id
-    || filterForm.date_from
-    || filterForm.date_to
-    || (filterForm.scope !== 'mine' && filterForm.team_member_id)
-));
+const hasActiveReservationFilters = computed(() => activeReservationFilters.value.length > 0);
+const advancedFilterCount = computed(() => countReservationAdvancedFilters(filterForm));
+const activeReservationFilters = computed(() => {
+    const optionLabel = (options, value) => options.find((option) => String(option.value) === String(value))?.label || value;
+    const fields = [
+        { field: 'search', label: t('reservations.filters.search'), value: filterForm.search },
+        { field: 'status', label: t('reservations.filters.status'), value: filterForm.status && optionLabel(statusOptions.value, filterForm.status) },
+        { field: 'service_id', label: t('reservations.form.item'), value: filterForm.service_id && optionLabel(serviceOptions.value, filterForm.service_id) },
+        { field: 'team_member_id', label: t('reservations.details.team_member'), value: filterForm.scope !== 'mine' && filterForm.team_member_id && optionLabel(teamOptions.value, filterForm.team_member_id) },
+        { field: 'date_from', label: t('reservations.filters.date_from'), value: filterForm.date_from },
+        { field: 'date_to', label: t('reservations.filters.date_to'), value: filterForm.date_to },
+    ].filter((filter) => filter.value).map((filter) => ({
+        id: filter.field,
+        field: filter.field,
+        label: t('reservations.filter_summary.filter_badge', { label: filter.label, value: filter.value }),
+    }));
+    const quickFilters = filterForm.quick_filters.map((value) => ({
+        id: `quick:${value}`, field: 'quick_filters', value, label: t(`reservations.quick.${value}`),
+    }));
+    return [...fields.filter((filter) => filter.field === 'search'), ...quickFilters, ...fields.filter((filter) => filter.field !== 'search')];
+});
+
+const removeReservationFilter = (filter) => {
+    updateReservationFilters(() => {
+        if (filter.field === 'quick_filters') {
+            filterForm.quick_filters = filterForm.quick_filters.filter((value) => value !== filter.value);
+        } else {
+            filterForm[filter.field] = '';
+        }
+    });
+};
 
 const statusBadgeClass = (status) => reservationStatusBadgeClass(status);
 const waitlistBadgeStatus = (status) => {
@@ -731,8 +811,40 @@ const cancelActionLabel = computed(() =>
         : t('reservations.actions.cancel')
 );
 
-const loadEvents = async () => {
-    if (!calendarRange.value.start || !calendarRange.value.end) {
+const persistCalendarNavigation = () => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    const url = reservationCalendarUrl(window.location.href, { view: calendarView.value, date: calendarDate.value });
+    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (url === currentUrl) {
+        return;
+    }
+
+    router.replace({
+        url,
+        props: (current) => ({
+            ...current,
+            filters: { ...current.filters, calendar_view: calendarView.value, calendar_date: calendarDate.value },
+        }),
+        preserveState: true,
+        preserveScroll: true,
+    });
+};
+
+const loadEvents = async ({ force = false } = {}) => {
+    if (!calendarVisible.value || !calendarRange.value.start || !calendarRange.value.end) {
+        return;
+    }
+
+    const params = {
+        start: calendarRange.value.start,
+        end: calendarRange.value.end,
+        ...reservationFilterPayload(filterForm),
+    };
+    const requestKey = JSON.stringify(params);
+    if (!force && calendarRequestKey === requestKey) {
         return;
     }
 
@@ -740,24 +852,14 @@ const loadEvents = async () => {
     const controller = new AbortController();
     const requestSequence = ++calendarRequestSequence;
     calendarAbortController = controller;
+    calendarRequestKey = requestKey;
     calendarLoading.value = true;
     calendarError.value = '';
 
     try {
         const response = await axios.get(route('reservation.events'), {
             signal: controller.signal,
-            params: {
-                start: calendarRange.value.start,
-                end: calendarRange.value.end,
-                status: filterForm.status || undefined,
-                team_member_id: filterForm.team_member_id || undefined,
-                service_id: filterForm.service_id || undefined,
-                search: filterForm.search || undefined,
-                date_from: filterForm.date_from || undefined,
-                date_to: filterForm.date_to || undefined,
-                scope: filterForm.scope || undefined,
-                quick: filterForm.quick || undefined,
-            },
+            params,
         });
 
         if (requestSequence !== calendarRequestSequence) {
@@ -770,6 +872,7 @@ const loadEvents = async () => {
             return;
         }
 
+        calendarRequestKey = '';
         calendarError.value = error?.response?.data?.message || t('reservations.errors.load_events');
     } finally {
         if (requestSequence === calendarRequestSequence) {
@@ -780,52 +883,64 @@ const loadEvents = async () => {
 };
 
 const refreshList = (overrides = {}) => {
+    if (filterTimer) {
+        clearTimeout(filterTimer);
+        filterTimer = null;
+    }
     filterForm.view_mode = viewMode.value;
+    const reason = overrides.reason || 'mutation';
+    const payload = reservationFilterPayload(filterForm);
+    const previousPayload = reservationFilterPayload(props.filters);
+    const changedFilters = reservationFilterFields.filter(
+        (field) => JSON.stringify(payload[field]) !== JSON.stringify(previousPayload[field])
+    );
     const tracksReservationList = activeDataTab.value === 'reservations' && viewMode.value === 'list';
     const requestSequence = ++listRequestSequence;
     const requestedPerPage = resolveDataTablePerPage(overrides?.per_page, currentPerPage.value);
 
+    listCancelToken?.cancel();
+    listLoading.value = tracksReservationList;
+    filtersLoading.value = true;
     if (tracksReservationList) {
-        listLoading.value = true;
         listError.value = '';
-    } else {
-        listLoading.value = false;
     }
 
     router.get(
         route('reservation.index'),
         {
-            search: filterForm.search || undefined,
-            status: filterForm.status || undefined,
-            team_member_id: filterForm.team_member_id || undefined,
-            service_id: filterForm.service_id || undefined,
-            date_from: filterForm.date_from || undefined,
-            date_to: filterForm.date_to || undefined,
-            scope: filterForm.scope || undefined,
-            quick: filterForm.quick || undefined,
+            ...payload,
             sort: filterForm.sort || undefined,
             view_mode: viewMode.value,
+            calendar_view: calendarView.value,
+            calendar_date: calendarDate.value,
+            data_tab: activeDataTab.value,
             per_page: requestedPerPage,
         },
         {
             preserveState: true,
             preserveScroll: true,
-            replace: true,
-            only: ['filters', 'reservations', 'stats', 'quickCounts', 'performance', 'waitlists', 'waitlistStats', 'queueItems', 'queueStats'],
+            replace: overrides.replace ?? true,
+            only: reservationReloadProps({ tab: activeDataTab.value, view: viewMode.value, reason, changedFilters }),
+            onCancelToken: (token) => { listCancelToken = token; },
             onError: () => {
                 if (tracksReservationList && requestSequence === listRequestSequence) {
                     listError.value = t('reservations.errors.load_list');
                 }
             },
             onFinish: () => {
-                if (tracksReservationList && requestSequence === listRequestSequence) {
+                if (requestSequence === listRequestSequence) {
                     listLoading.value = false;
+                    filtersLoading.value = false;
+                    listCancelToken = null;
+                    persistCalendarNavigation();
                 }
             },
         }
     );
 
-    loadEvents();
+    if (reason === 'mutation' || changedFilters.length > 0) {
+        loadEvents({ force: reason === 'mutation' });
+    }
 };
 
 const stopQueueStripeStatusPolling = () => {
@@ -900,6 +1015,7 @@ const pollQueueStripeStatus = async () => {
 };
 
 onMounted(() => {
+    window.addEventListener('popstate', cancelPendingFilterRequests);
     if (queueStripeReturn.status === 'pending' && queueStripeReturn.attemptId) {
         scheduleQueueStripeStatusPoll(500);
     }
@@ -930,32 +1046,84 @@ onMounted(() => {
 });
 
 let filterTimer = null;
+const cancelPendingFilterRequests = () => {
+    clearTimeout(filterTimer);
+    filterTimer = null;
+    listRequestSequence += 1;
+    listCancelToken?.cancel();
+    listCancelToken = null;
+    listLoading.value = false;
+    filtersLoading.value = false;
+    calendarRequestSequence += 1;
+    calendarAbortController?.abort();
+    calendarAbortController = null;
+    calendarRequestKey = '';
+    calendarLoading.value = false;
+};
+
+watch(() => props.filters, async (filters) => {
+    if (filtersLoading.value || filterTimer) {
+        return;
+    }
+    synchronizingFilters = true;
+    viewMode.value = filters?.view_mode || 'calendar';
+    activeDataTab.value = filters?.data_tab || 'reservations';
+    calendarView.value = filters?.calendar_view || 'week';
+    calendarDate.value = filters?.calendar_date || currentReservationDay(dayjs(), props.timezone).format('YYYY-MM-DD');
+    Object.assign(filterForm, createReservationAdvancedFilters(filters, ownTeamMemberId.value), {
+        search: filters?.search ?? '',
+        scope: filters?.scope ?? (ownTeamMemberId.value ? 'mine' : 'all'),
+        quick_filters: initialReservationQuickFilters(filters),
+        quick_filter_mode: normalizeReservationQuickFilterMode(filters?.quick_filter_mode),
+        sort: filters?.sort ?? 'date_asc',
+    });
+    await nextTick();
+    synchronizingFilters = false;
+    loadEvents();
+});
+
 watch(
-    () => [
-        filterForm.search,
-        filterForm.status,
-        filterForm.team_member_id,
-        filterForm.service_id,
-        filterForm.date_from,
-        filterForm.date_to,
-        filterForm.scope,
-        filterForm.quick,
-        filterForm.sort,
-        viewMode.value,
-    ],
-    () => {
+    () => [...reservationFilterFields.map((field) => filterForm[field]), filterForm.sort],
+    (next, previous) => {
+        if (synchronizingFilters) {
+            return;
+        }
         if (filterTimer) {
             clearTimeout(filterTimer);
         }
-        filterTimer = setTimeout(refreshList, 300);
+        const onlySortChanged = next.slice(0, -1).every((value, index) => value === previous[index]);
+        filterTimer = setTimeout(() => refreshList({ reason: onlySortChanged ? 'ordering' : 'filters' }), 300);
     }
 );
 
+watch([viewMode, activeDataTab], () => {
+    if (synchronizingFilters) {
+        return;
+    }
+    if (!calendarVisible.value) {
+        calendarRequestSequence += 1;
+        calendarAbortController?.abort();
+        calendarAbortController = null;
+        calendarRequestKey = '';
+        calendarLoading.value = false;
+    }
+    refreshList({ reason: 'navigation' });
+});
+
+watch([calendarView, calendarDate], () => {
+    if (!synchronizingFilters) {
+        persistCalendarNavigation();
+    }
+});
+
 onBeforeUnmount(() => {
+    window.removeEventListener('popstate', cancelPendingFilterRequests);
     if (filterTimer) {
         clearTimeout(filterTimer);
     }
 
+    listRequestSequence += 1;
+    listCancelToken?.cancel();
     calendarRequestSequence += 1;
     calendarAbortController?.abort();
     detailsAbortController?.abort();
@@ -963,18 +1131,6 @@ onBeforeUnmount(() => {
     stopQueueStripeStatusPolling();
     teardownQueueActionListeners();
 });
-
-watch(
-    () => filterForm.scope,
-    (next, previous) => {
-        if (next === 'mine' && ownTeamMemberId.value) {
-            filterForm.team_member_id = ownTeamMemberId.value;
-        }
-        if (next === 'all' && previous === 'mine' && canViewAll.value) {
-            filterForm.team_member_id = '';
-        }
-    }
-);
 
 watch(
     () => props.waitlists,
@@ -991,14 +1147,11 @@ watch(
 );
 
 const clearFilters = () => {
-    filterForm.search = '';
-    filterForm.status = '';
-    filterForm.team_member_id = filterForm.scope === 'mine' ? ownTeamMemberId.value : '';
-    filterForm.service_id = '';
-    filterForm.date_from = '';
-    filterForm.date_to = '';
-    filterForm.quick = '';
-    filterForm.sort = 'date_asc';
+    updateReservationFilters(() => {
+        Object.assign(filterForm, createReservationAdvancedFilters({ scope: filterForm.scope }, ownTeamMemberId.value), {
+            search: '', quick_filters: [], quick_filter_mode: 'all', sort: 'date_asc',
+        });
+    });
 };
 
 const setReservationSort = (column) => {
@@ -1016,7 +1169,7 @@ const setReservationPerPage = (perPage) => {
     const normalizedPerPage = resolveDataTablePerPage(perPage, currentPerPage.value);
 
     if (normalizedPerPage !== currentPerPage.value) {
-        refreshList({ per_page: normalizedPerPage });
+        refreshList({ per_page: normalizedPerPage, reason: 'ordering' });
     }
 };
 
@@ -1030,6 +1183,7 @@ const onCalendarRangeChange = (payload) => {
         start: payload.start,
         end: payload.end,
     };
+    persistCalendarNavigation();
     loadEvents();
 };
 
@@ -2048,6 +2202,7 @@ const removeReservation = (reservation) => {
                             :class="activeDataTab === 'reservations'
                                 ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
                                 : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                            data-testid="reservation-tab-reservations"
                             @click="activeDataTab = 'reservations'"
                         >
                             {{ $t('reservations.title') }}
@@ -2062,6 +2217,7 @@ const removeReservation = (reservation) => {
                             :class="activeDataTab === 'queue'
                                 ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
                                 : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                            data-testid="reservation-tab-queue"
                             @click="activeDataTab = 'queue'"
                         >
                             {{ $t('reservations.queue.title') }}
@@ -2076,6 +2232,7 @@ const removeReservation = (reservation) => {
                             :class="activeDataTab === 'waitlist'
                                 ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
                                 : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                            data-testid="reservation-tab-waitlist"
                             @click="activeDataTab = 'waitlist'"
                         >
                             {{ $t('reservations.waitlist.title') }}
@@ -2697,166 +2854,105 @@ const removeReservation = (reservation) => {
 
             <section v-if="activeDataTab === 'reservations'" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="space-y-3">
-                    <div class="flex flex-col lg:flex-row lg:items-center gap-2">
-                        <div class="flex-1">
+                    <AdminDataTableToolbar
+                        :show-filters="showAdvanced"
+                        :show-apply="false"
+                        :busy="filtersBusy"
+                        filters-available
+                        filters-controls="reservation-advanced-filters"
+                        clear-test-id="reservation-clear-filters"
+                        :filters-label="advancedFilterCount ? $t('reservations.advanced_filters.trigger_active', { count: advancedFilterCount }) : $t('reservations.actions.filters')"
+                        :clear-label="$t('reservations.actions.clear')"
+                        @toggle-filters="showAdvanced = !showAdvanced"
+                        @apply="refreshList({ reason: 'filters' })"
+                        @clear="clearFilters"
+                    >
+                        <template #search>
                             <div class="relative">
                                 <div class="absolute inset-y-0 start-0 flex items-center pointer-events-none z-20 ps-3.5">
-                                    <svg
-                                        class="shrink-0 size-4 text-stone-500 dark:text-neutral-400"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        width="24"
-                                        height="24"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="2"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    >
+                                    <svg class="shrink-0 size-4 text-stone-500 dark:text-neutral-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                         <circle cx="11" cy="11" r="8" />
                                         <path d="m21 21-4.3-4.3" />
                                     </svg>
                                 </div>
                                 <input
                                     v-model="filterForm.search"
-                                    type="text"
+                                    data-testid="reservation-search"
+                                    :aria-label="$t('reservations.filters.search')"
+                                    type="search"
                                     class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400 dark:focus:ring-neutral-600"
                                     :placeholder="$t('reservations.filters.search_placeholder')"
+                                    :disabled="filtersBusy"
                                 >
                             </div>
-                        </div>
-
-                        <div class="flex flex-wrap items-center gap-2 justify-end">
-                            <div
-                                v-if="scopeOptions.length > 1"
-                                class="inline-flex items-center rounded-sm border border-stone-200 bg-white p-0.5 text-xs font-semibold text-stone-600 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
-                            >
+                        </template>
+                        <template #actions>
+                            <div v-if="scopeOptions.length > 1" :class="crmSegmentedControlClass()">
                                 <button
                                     v-for="option in scopeOptions"
-                                    :key="`reservation-scope-${option.value}`"
+                                    :key="option.value"
                                     type="button"
-                                    class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
-                                    :class="filterForm.scope === option.value
-                                        ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
-                                        : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
-                                    @click="filterForm.scope = option.value"
+                                    :class="crmSegmentedControlButtonClass(filterForm.scope === option.value)"
+                                    :aria-pressed="String(filterForm.scope === option.value)"
+                                    :disabled="filtersBusy"
+                                    @click="setReservationScope(option.value)"
                                 >
                                     {{ option.label }}
                                 </button>
                             </div>
-
-                            <div class="inline-flex items-center rounded-sm border border-stone-200 bg-white p-0.5 text-xs font-semibold text-stone-600 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
-                                <button
-                                    type="button"
-                                    data-testid="reservation-view-calendar"
-                                    class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
-                                    :class="viewMode === 'calendar'
-                                        ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
-                                        : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
-                                    @click="viewMode = 'calendar'"
-                                >
-                                    <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <div :class="crmSegmentedControlClass()">
+                                <button type="button" data-testid="reservation-view-calendar" :class="crmSegmentedControlButtonClass(viewMode === 'calendar')" @click="viewMode = 'calendar'">
+                                    <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                         <rect x="3" y="4" width="18" height="18" rx="2" />
-                                        <line x1="16" y1="2" x2="16" y2="6" />
-                                        <line x1="8" y1="2" x2="8" y2="6" />
-                                        <line x1="3" y1="10" x2="21" y2="10" />
+                                        <path d="M16 2v4M8 2v4M3 10h18" />
                                     </svg>
                                     {{ $t('reservations.view.calendar') }}
                                 </button>
-                                <button
-                                    type="button"
-                                    data-testid="reservation-view-list"
-                                    class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
-                                    :class="viewMode === 'list'
-                                        ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
-                                        : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
-                                    @click="viewMode = 'list'"
-                                >
-                                    <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M8 6h13" />
-                                        <path d="M8 12h13" />
-                                        <path d="M8 18h13" />
-                                        <path d="M3 6h.01" />
-                                        <path d="M3 12h.01" />
-                                        <path d="M3 18h.01" />
+                                <button type="button" data-testid="reservation-view-list" :class="crmSegmentedControlButtonClass(viewMode === 'list')" @click="viewMode = 'list'">
+                                    <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
                                     </svg>
                                     {{ $t('reservations.view.list') }}
                                 </button>
                             </div>
+                        </template>
+                    </AdminDataTableToolbar>
 
-                            <button
-                                type="button"
-                                class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-100 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700"
-                                @click="showAdvanced = !showAdvanced"
-                            >
-                                <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-                                </svg>
-                                {{ $t('reservations.actions.filters') }}
-                            </button>
-
-                            <button
-                                type="button"
-                                class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-100 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700"
-                                @click="clearFilters"
-                            >
-                                <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M3 6h18" />
-                                    <path d="M8 6V4h8v2" />
-                                    <path d="M19 6l-1 14H6L5 6" />
-                                    <path d="M10 11v6" />
-                                    <path d="M14 11v6" />
-                                </svg>
-                                {{ $t('reservations.actions.clear_filters') }}
-                            </button>
-                        </div>
-                    </div>
-
-                    <div
-                        class="flex max-w-full gap-2 overflow-x-auto pb-1"
-                        role="group"
-                        :aria-label="$t('reservations.quick.label')"
+                    <AdminQuickFilters
+                        :options="reservationQuickFilters"
+                        :selected-values="filterForm.quick_filters"
+                        :busy="filtersBusy"
+                        :all-label="$t('reservations.quick.all')"
+                        :aria-label="$t('reservations.filter_summary.quick_filters_label')"
+                        test-id-prefix="reservation-quick-filter"
                         data-testid="reservation-quick-filters"
-                    >
-                        <button
-                            v-for="quickFilter in reservationQuickFilters"
-                            :key="`reservation-quick-${quickFilter.value || 'all'}`"
-                            type="button"
-                            class="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-sm border px-3 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-60 dark:focus-visible:ring-offset-neutral-900"
-                            :class="filterForm.quick === quickFilter.value
-                                ? 'border-green-600 bg-green-600 text-white dark:border-green-500 dark:bg-green-500 dark:text-neutral-950'
-                                : 'border-stone-200 bg-white text-stone-700 hover:border-green-300 hover:bg-green-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:border-green-700 dark:hover:bg-green-500/10'"
-                            :aria-pressed="filterForm.quick === quickFilter.value"
-                            :disabled="listLoading || calendarLoading"
-                            :data-testid="`reservation-quick-filter-${quickFilter.value || 'all'}`"
-                            @click="setReservationQuickFilter(quickFilter.value)"
-                        >
-                            <span>{{ quickFilter.label }}</span>
-                            <span
-                                class="min-w-5 rounded-sm px-1.5 py-0.5 text-center text-[10px] leading-none"
-                                :class="filterForm.quick === quickFilter.value
-                                    ? 'bg-black/15 text-current dark:bg-white/20'
-                                    : 'bg-stone-100 text-stone-600 dark:bg-neutral-800 dark:text-neutral-300'"
-                            >
-                                {{ quickFilter.count }}
-                            </span>
-                        </button>
-                    </div>
-
-                    <div v-if="showAdvanced" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
-                        <FloatingSelect v-model="filterForm.status" :options="statusOptions" :label="$t('reservations.filters.status')" dense />
-                        <FloatingSelect v-model="filterForm.service_id" :options="serviceOptions" :label="$t('reservations.form.item')" dense />
-                        <FloatingSelect
-                            v-if="showTeamFilters"
-                            v-model="filterForm.team_member_id"
-                            :options="teamOptions"
-                            :label="$t('planning.form.member')"
-                            :disabled="filterForm.scope === 'mine'"
-                            dense
-                        />
-                        <FloatingInput v-model="filterForm.date_from" type="date" :label="$t('reservations.filters.date_from')" />
-                        <FloatingInput v-model="filterForm.date_to" type="date" :label="$t('reservations.filters.date_to')" />
-                    </div>
+                        @toggle="setReservationQuickFilter"
+                        @clear="clearReservationQuickFilters"
+                    />
+                    <AdminFilterSummary
+                        summary-id="reservation-filter-summary-title"
+                        i18n-prefix="reservations"
+                        data-testid="reservation-active-filters"
+                        :matching-count="reservationTabCount"
+                        :active-filters="activeReservationFilters"
+                        :quick-filter-mode="filterForm.quick_filter_mode"
+                        :quick-filter-count="filterForm.quick_filters.length"
+                        :busy="filtersBusy"
+                        @update:quick-filter-mode="setReservationQuickFilterMode"
+                        @remove="removeReservationFilter"
+                        @clear="clearFilters"
+                    />
+                    <ReservationAdvancedFiltersDialog
+                        :show="showAdvanced"
+                        :filters="filterForm"
+                        :matching-count="reservationTabCount"
+                        :status-options="statusOptions"
+                        :service-options="serviceOptions"
+                        :team-options="teamOptions"
+                        :own-team-member-id="ownTeamMemberId"
+                        @close="showAdvanced = false"
+                        @apply="applyReservationAdvancedFilters"
+                    />
                 </div>
             </section>
 
@@ -2867,7 +2963,8 @@ const removeReservation = (reservation) => {
                 :error="calendarError"
                 :empty-label="$t('reservations.empty')"
                 :selected-event-id="activeReservation?.id || null"
-                initial-view="week"
+                v-model:view="calendarView"
+                v-model:anchor-date="calendarDate"
                 :loading-label="$t('reservations.calendar.loading')"
                 :timezone="timezone"
                 @range-change="onCalendarRangeChange"

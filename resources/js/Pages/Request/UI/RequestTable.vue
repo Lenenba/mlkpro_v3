@@ -460,6 +460,8 @@ const exportPayload = computed(() => compactObject({
 
 const exportHref = computed(() => route('prospects.export', exportPayload.value));
 
+const tableReloadProps = ['requests', 'filters', 'stats'];
+
 let filterTimeout;
 const autoFilter = () => {
     if (filterTimeout) {
@@ -468,7 +470,7 @@ const autoFilter = () => {
     filterTimeout = setTimeout(() => {
         isLoading.value = true;
         router.get(route('prospects.index'), filterPayload(), {
-            only: ['requests', 'filters', 'stats', 'analytics'],
+            only: tableReloadProps,
             preserveState: true,
             preserveScroll: true,
             replace: true,
@@ -1025,7 +1027,7 @@ const runQuickLeadUpdate = (lead, payload, options = {}) => {
 
     router.put(route('prospects.update', lead.id), payload, {
         preserveScroll: true,
-        only: ['requests', 'stats', 'flash'],
+        only: ['requests', 'stats', 'analytics', 'flash'],
         ...options,
         onFinish: (...args) => {
             processingId.value = null;
@@ -1829,6 +1831,7 @@ const submitImport = async (ignoreDuplicates = false) => {
             embedded
             :rows="requestTableRows"
             :links="requestLinks"
+            :pagination-only="tableReloadProps"
             :show-pagination="tableRows.length > 0"
             show-per-page
             :per-page="currentPerPage"

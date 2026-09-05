@@ -1,0 +1,16 @@
+{
+  "welcome": {
+    "hero": {
+      "subtitle": "Malikia Pro helps service businesses manage the full workflow from first request to final payment with more visibility, less friction, and better follow-through."
+    },
+    "footer": {
+      "terms": "Terms and conditions",
+      "copy": "Malikia Pro. All rights reserved."
+    }
+  },
+  "pricing": {
+    "currency": {
+      "label": "Currency"
+    }
+  }
+}

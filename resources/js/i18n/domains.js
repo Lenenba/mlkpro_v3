@@ -59,6 +59,7 @@ export const translationModules = Object.freeze([
     'services',
     'session',
     'shared_ui',
+    'site_shell',
     'settings',
     'sidebar',
     'social',
@@ -93,8 +94,8 @@ const authenticatedShellDomains = [
     'session',
     'shared_ui',
     'sidebar',
+    'site_shell',
     'settings',
-    'welcome',
     'workspace_hub',
 ];
 
@@ -105,7 +106,7 @@ const authShellDomains = [
     'cookies',
     'language',
     'session',
-    'welcome',
+    'site_shell',
 ];
 
 const publicShellDomains = [
@@ -115,16 +116,10 @@ const publicShellDomains = [
     'language',
     'legal',
     'mega_menu',
-    'pricing',
-    'privacy',
     'public_footer',
     'public_pages',
-    'public_showcase',
-    'public_store',
-    'refund',
     'session',
-    'terms',
-    'welcome',
+    'site_shell',
 ];
 
 const publicRootPages = new Set([
