@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 import { installLocalAppUi } from './helpers/local-app-ui.mjs';
 
 const origin = 'http://reservation-ui.test';
+test.use({ baseURL: origin, serviceWorkers: 'block' });
 const manifest = JSON.parse(fs.readFileSync('public/build/manifest.json', 'utf8'));
 const asset = (source) => `/build/${manifest[source].file}`;
 const translationAsset = (domain, locale = 'fr') => asset(`resources/js/i18n/modules/${locale}/${domain}.json`);
