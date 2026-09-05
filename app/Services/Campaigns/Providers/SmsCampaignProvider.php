@@ -11,8 +11,7 @@ class SmsCampaignProvider implements CampaignChannelProvider
 {
     public function __construct(
         private readonly SmsNotificationService $smsService,
-    ) {
-    }
+    ) {}
 
     public function channel(): string
     {
@@ -32,11 +31,14 @@ class SmsCampaignProvider implements CampaignChannelProvider
         }
 
         $result = $this->smsService->sendWithResult($destination, $body);
-        if (!($result['ok'] ?? false)) {
+        if (! ($result['ok'] ?? false)) {
             return [
                 'ok' => false,
                 'provider' => 'twilio',
                 'reason' => (string) ($result['reason'] ?? 'sms_error'),
+                'delivery_outcome' => ($result['reason'] ?? null) === 'http_exception' || (int) ($result['status'] ?? 0) >= 500
+                    ? 'unknown'
+                    : 'rejected',
                 'status' => $result['status'] ?? null,
                 'error' => (string) ($result['message'] ?? $result['error'] ?? ''),
             ];

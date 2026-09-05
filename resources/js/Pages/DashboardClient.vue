@@ -1,4 +1,5 @@
 <script setup>
+import { createPaymentIdempotencyKey } from '@/utils/paymentIdempotency';
 import { computed, reactive, ref, watchEffect, nextTick } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Modal from '@/Components/Modal.vue';
@@ -451,6 +452,9 @@ const proofTypeOptions = computed(() => ([
 
 const paymentAmounts = reactive({});
 const paymentMethods = reactive({});
+const paymentRequestKeys = reactive({});
+const paymentProcessing = reactive({});
+const paymentErrors = reactive({});
 const paymentTipEnabled = reactive({});
 const paymentTipModes = reactive({});
 const paymentTipPercents = reactive({});
@@ -801,19 +805,34 @@ const tipPayload = (invoiceId) => {
 };
 
 const submitPayment = (invoice) => {
-    if (!invoice || !canSubmitInvoicePayment(invoice)) {
+    if (!invoice || !canSubmitInvoicePayment(invoice) || paymentProcessing[invoice.id]) {
         return;
     }
+
+    if ((paymentMethods[invoice.id] || defaultPaymentMethod.value) === 'card') {
+        startStripePayment(invoice);
+        return;
+    }
+
+    paymentRequestKeys[invoice.id] ||= createPaymentIdempotencyKey();
+    paymentProcessing[invoice.id] = true;
+    paymentErrors[invoice.id] = '';
 
     const amount = invoiceAmountValue(invoice.id);
     router.post(
         route('portal.invoices.payments.store', invoice.id),
         {
+            idempotency_key: paymentRequestKeys[invoice.id],
             amount,
             method: paymentMethods[invoice.id] || defaultPaymentMethod.value,
             ...tipPayload(invoice.id),
         },
-        { preserveScroll: true }
+        {
+            preserveScroll: true,
+            onSuccess: () => { delete paymentRequestKeys[invoice.id]; },
+            onError: (errors) => { paymentErrors[invoice.id] = Object.values(errors).join(' '); },
+            onFinish: () => { paymentProcessing[invoice.id] = false; },
+        }
     );
 };
 
@@ -1420,13 +1439,16 @@ const submitWorkRating = (workId) => {
                                     </template>
                                 </p>
 
+                                <p v-if="paymentMethods[invoice.id] !== 'card'" class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('public_invoice.confirmation_required') }}</p>
+                                <p v-else-if="!canUseStripeMethod" class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('public_invoice.secure_checkout_unavailable') }}</p>
+                                <div v-if="paymentErrors[invoice.id]" class="text-xs text-red-600">{{ paymentErrors[invoice.id] }}</div>
                                 <div class="space-y-2 pt-1">
                                     <button
                                         type="submit"
-                                        :disabled="!canSubmitInvoicePayment(invoice)"
+                                        :disabled="!canSubmitInvoicePayment(invoice) || paymentProcessing[invoice.id] || (paymentMethods[invoice.id] === 'card' && !canUseStripeMethod)"
                                         class="w-full py-2 px-3 inline-flex items-center justify-center gap-x-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
                                     >
-                                        {{ $t('client_dashboard.actions.pay_now') }}
+                                        {{ $t(paymentMethods[invoice.id] === 'card' ? 'client_dashboard.actions.pay_now' : 'public_invoice.actions.declare_payment') }}
                                     </button>
                                     <button
                                         v-if="canUseStripeMethod"

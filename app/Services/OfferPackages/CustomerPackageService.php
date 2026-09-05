@@ -798,13 +798,15 @@ class CustomerPackageService
             'currency_code' => $invoice->currency_code,
         ], 'Recurring forfait renewal payment received');
 
-        if ($this->clientNotifications->notifyResumed($sourcePackage, $renewed, $invoice)) {
-            ActivityLog::record($owner, $sourcePackage->customer, 'customer_package_client_resume_notice_sent', [
-                'customer_package_id' => $sourcePackage->id,
-                'renewed_to_customer_package_id' => $renewed->id,
-                'invoice_id' => $invoice->id,
-            ], 'Recurring forfait resume notice sent to client');
-        }
+        DB::afterCommit(function () use ($sourcePackage, $renewed, $invoice, $owner): void {
+            if ($this->clientNotifications->notifyResumed($sourcePackage, $renewed, $invoice)) {
+                ActivityLog::record($owner, $sourcePackage->customer, 'customer_package_client_resume_notice_sent', [
+                    'customer_package_id' => $sourcePackage->id,
+                    'renewed_to_customer_package_id' => $renewed->id,
+                    'invoice_id' => $invoice->id,
+                ], 'Recurring forfait resume notice sent to client');
+            }
+        });
 
         return $renewed;
     }

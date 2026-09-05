@@ -13,6 +13,7 @@ import { useI18n } from 'vue-i18n';
 import { useCurrencyFormatter } from '@/utils/currency';
 import { usePermissions } from '@/Composables/usePermissions';
 import CompanyBrandLogo from '@/Components/CompanyBrandLogo.vue';
+import { createPaymentIdempotencyKey } from '@/utils/paymentIdempotency';
 
 const props = defineProps({
     invoice: Object,
@@ -50,6 +51,7 @@ const canOpenFinanceApprovals = computed(() => {
 });
 
 const form = useForm({
+    idempotency_key: createPaymentIdempotencyKey(),
     amount: '',
     method: '',
     reference: '',
@@ -85,6 +87,9 @@ const dispatchDemoEvent = (eventName) => {
 };
 
 const submitPayment = () => {
+    if (form.processing) {
+        return;
+    }
     if (paymentAmount.value < 0.01) {
         form.setError('amount', 'Enter a valid amount.');
         return;
@@ -98,6 +103,7 @@ const submitPayment = () => {
     form.post(route('payment.store', props.invoice.id), {
         preserveScroll: true,
         onSuccess: () => {
+            form.idempotency_key = createPaymentIdempotencyKey();
             form.reset('amount', 'method', 'reference', 'paid_at', 'notes');
             dispatchDemoEvent('demo:invoice_paid');
         },
@@ -398,6 +404,10 @@ const paymentMethodOptions = computed(() => allowedPaymentMethods.value.map((met
 
 const isPendingCashPayment = (payment) =>
     String(payment?.method || '').toLowerCase() === 'cash'
+    && String(payment?.status || '').toLowerCase() === 'pending';
+
+const isPendingManualPayment = (payment) =>
+    ['cash', 'bank_transfer', 'check'].includes(String(payment?.method || '').toLowerCase())
     && String(payment?.status || '').toLowerCase() === 'pending';
 
 const paymentStatusLabel = (payment) => {
@@ -888,7 +898,7 @@ watch(
                                     {{ paymentStatusLabel(payment) }}
                                 </span>
                                 <button
-                                    v-if="isPendingCashPayment(payment)"
+                                    v-if="isPendingManualPayment(payment)"
                                     type="button"
                                     class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-[11px] font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
                                     :disabled="markPaidForm.processing"
@@ -913,6 +923,7 @@ watch(
                             :label="$t('invoices.show.add_payment.amount')"
                         />
                         <div v-if="form.errors.amount" class="text-xs text-red-600">{{ form.errors.amount }}</div>
+                        <div v-if="form.errors.idempotency_key" class="text-xs text-red-600">{{ form.errors.idempotency_key }}</div>
                         <p class="text-[11px] text-stone-500 dark:text-neutral-400">
                             For partial payments, enter an amount lower than the current balance.
                         </p>

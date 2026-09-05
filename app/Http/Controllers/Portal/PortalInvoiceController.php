@@ -154,7 +154,7 @@ class PortalInvoiceController extends Controller
     public function storePayment(Request $request, Invoice $invoice)
     {
         $customer = $this->portalAccess->customer($request);
-        [$canPay, $message] = $this->resolvePaymentAvailability($invoice, $customer);
+        [$canPay, $message] = $this->resolvePaymentAvailability($invoice, $customer, allowPaid: true);
         if (! $canPay) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
@@ -167,7 +167,11 @@ class PortalInvoiceController extends Controller
             ]);
         }
 
+        $request->merge([
+            'idempotency_key' => $request->input('idempotency_key', $request->header('Idempotency-Key')),
+        ]);
         $validated = $request->validate([
+            'idempotency_key' => 'nullable|string|max:128',
             'amount' => 'required|numeric|min:0.01',
             'tip_enabled' => 'nullable|boolean',
             'tip_mode' => ['nullable', Rule::in(['none', 'percent', 'fixed'])],
@@ -197,44 +201,32 @@ class PortalInvoiceController extends Controller
             ]);
         }
 
-        $amount = (float) $validated['amount'];
-        if ($amount > (float) $invoice->balance_due) {
-            if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'Amount exceeds the balance due.',
-                ], 422);
-            }
-
-            return redirect()->back()->withErrors([
-                'amount' => 'Amount exceeds the balance due.',
-            ]);
-        }
-
         $result = app(CreateInvoicePaymentAction::class)->execute(
             $invoice,
             $validated,
             (string) ($methodDecision['canonical_method'] ?? 'cash'),
             $request->user(),
             (int) $invoice->user_id,
-            'Payment recorded by client'
+            'Payment recorded by client',
+            clientInitiated: true,
         );
 
         $payment = $result['payment'];
         $invoice = $result['invoice'];
-        $isCashPayment = $result['is_cash_payment'];
+        $isPending = $result['pending_confirmation'];
 
         $owner = User::find($invoice->user_id);
-        if ($owner && $owner->email) {
+        if ($owner && $owner->email && ! $result['replayed']) {
             $customerLabel = $customer->company_name
                 ?: trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
             $tipAmount = (float) ($payment->tip_amount ?? 0);
-            $notificationTitle = $isCashPayment
-                ? 'Cash payment pending collection'
+            $notificationTitle = $isPending
+                ? 'Payment pending confirmation'
                 : 'Payment received from client';
-            $notificationMessage = $isCashPayment
+            $notificationMessage = $isPending
                 ? ($customerLabel
-                    ? $customerLabel.' recorded a cash payment pending collection.'
-                    : 'A client recorded a cash payment pending collection.')
+                    ? $customerLabel.' declared a payment pending confirmation by the company.'
+                    : 'A client declared a payment pending confirmation by the company.')
                 : ($customerLabel
                     ? $customerLabel.' recorded a payment.'
                     : 'A client recorded a payment.');
@@ -276,6 +268,7 @@ class PortalInvoiceController extends Controller
                     'amount' => $payment->amount,
                     'tip_amount' => $payment->tip_amount,
                     'method' => $payment->method,
+                    'status' => $payment->status,
                     'paid_at' => $payment->paid_at,
                 ],
             ]);
@@ -384,7 +377,7 @@ class PortalInvoiceController extends Controller
         return redirect()->away($session['url']);
     }
 
-    private function resolvePaymentAvailability(Invoice $invoice, Customer $customer): array
+    private function resolvePaymentAvailability(Invoice $invoice, Customer $customer, bool $allowPaid = false): array
     {
         $this->portalAccess->assertInvoice($customer, $invoice);
 
@@ -396,7 +389,7 @@ class PortalInvoiceController extends Controller
             return [false, 'This invoice cannot be paid.'];
         }
 
-        if ($invoice->balance_due <= 0) {
+        if (! $allowPaid && $invoice->balance_due <= 0) {
             return [false, 'This invoice is already paid.'];
         }
 

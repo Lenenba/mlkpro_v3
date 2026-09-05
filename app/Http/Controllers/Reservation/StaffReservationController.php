@@ -26,6 +26,7 @@ use App\Queries\Reservations\BuildStaffReservationIndexData;
 use App\Services\BillingPlanService;
 use App\Services\BillingSubscriptionService;
 use App\Services\OfferPackages\CustomerPackageService;
+use App\Services\Reservation\ReservationStatusTransitionResult;
 use App\Services\Reservation\ReservationStatusTransitionService;
 use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationNotificationService;
@@ -38,6 +39,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
@@ -418,77 +420,84 @@ class StaffReservationController extends Controller
         }
 
         $nextStatus = (string) $validated['status'];
-        if (
-            $reservation->status === Reservation::STATUS_CANCELLED
-            && $nextStatus === Reservation::STATUS_CONFIRMED
-        ) {
-            $transition = $this->availabilityService->reschedule(
-                $reservation,
-                [
-                    'team_member_id' => (int) $reservation->team_member_id,
-                    'service_id' => $reservation->service_id,
-                    'status' => $nextStatus,
-                    'starts_at' => $reservation->starts_at->toIso8601String(),
-                    'ends_at' => $reservation->ends_at->toIso8601String(),
-                    'duration_minutes' => (int) $reservation->duration_minutes,
-                    'buffer_minutes' => (int) $reservation->buffer_minutes,
-                    'timezone' => (string) $reservation->timezone,
-                    'metadata' => $this->availabilityService->metadataForStatusTransition($reservation, $nextStatus),
-                ],
-                $user,
-                allowedFromStatuses: [Reservation::STATUS_CANCELLED]
-            );
-        } else {
-            $expectedStatusVersion = (int) $reservation->status_version;
-            $expectedScheduleVersion = (int) $reservation->schedule_version;
-            $expectedMutationVersion = (int) $reservation->mutation_version;
-            $payload = [
-                'metadata' => $this->availabilityService->metadataForStatusTransition($reservation, $nextStatus),
-                'auto_closed_at' => null,
-                'auto_closed_reason' => null,
-            ];
-
-            if ($nextStatus === Reservation::STATUS_CANCELLED) {
-                $payload['cancelled_at'] = now();
-                $payload['cancelled_by_user_id'] = $user->id;
-                $payload['cancel_reason'] = $validated['reason'] ?? null;
+        $transition = DB::transaction(function () use ($reservation, $user, $nextStatus, $validated): ReservationStatusTransitionResult {
+            if (
+                $reservation->status === Reservation::STATUS_CANCELLED
+                && $nextStatus === Reservation::STATUS_CONFIRMED
+            ) {
+                $transition = $this->availabilityService->reschedule(
+                    $reservation,
+                    [
+                        'team_member_id' => (int) $reservation->team_member_id,
+                        'service_id' => $reservation->service_id,
+                        'status' => $nextStatus,
+                        'starts_at' => $reservation->starts_at->toIso8601String(),
+                        'ends_at' => $reservation->ends_at->toIso8601String(),
+                        'duration_minutes' => (int) $reservation->duration_minutes,
+                        'buffer_minutes' => (int) $reservation->buffer_minutes,
+                        'timezone' => (string) $reservation->timezone,
+                        'metadata' => $this->availabilityService->metadataForStatusTransition($reservation, $nextStatus),
+                    ],
+                    $user,
+                    allowedFromStatuses: [Reservation::STATUS_CANCELLED]
+                );
             } else {
-                $payload['cancelled_at'] = null;
-                $payload['cancelled_by_user_id'] = null;
-                $payload['cancel_reason'] = null;
+                $expectedStatusVersion = (int) $reservation->status_version;
+                $expectedScheduleVersion = (int) $reservation->schedule_version;
+                $expectedMutationVersion = (int) $reservation->mutation_version;
+                $payload = [
+                    'metadata' => $this->availabilityService->metadataForStatusTransition($reservation, $nextStatus),
+                    'auto_closed_at' => null,
+                    'auto_closed_reason' => null,
+                ];
+
+                if ($nextStatus === Reservation::STATUS_CANCELLED) {
+                    $payload['cancelled_at'] = now();
+                    $payload['cancelled_by_user_id'] = $user->id;
+                    $payload['cancel_reason'] = $validated['reason'] ?? null;
+                } else {
+                    $payload['cancelled_at'] = null;
+                    $payload['cancelled_by_user_id'] = null;
+                    $payload['cancel_reason'] = null;
+                }
+
+                $transition = $this->statusTransitions->transition(
+                    $reservation,
+                    $nextStatus,
+                    ReservationStatusTransition::ACTOR_USER,
+                    $user,
+                    Reservation::STATUS_CHANGE_SOURCE_STAFF_UI,
+                    'manual_status_update',
+                    $validated['reason'] ?? null,
+                    $payload,
+                    recordSameStatus: true,
+                    expectedStatusVersion: $expectedStatusVersion,
+                    expectedScheduleVersion: $expectedScheduleVersion,
+                    expectedMutationVersion: $expectedMutationVersion
+                );
+            }
+            if (! $transition->performed) {
+                throw ValidationException::withMessages([
+                    'status' => ['This reservation changed while you were updating it. Refresh and try again.'],
+                ]);
             }
 
-            $transition = $this->statusTransitions->transition(
-                $reservation,
-                $nextStatus,
-                ReservationStatusTransition::ACTOR_USER,
-                $user,
-                Reservation::STATUS_CHANGE_SOURCE_STAFF_UI,
-                'manual_status_update',
-                $validated['reason'] ?? null,
-                $payload,
-                recordSameStatus: true,
-                expectedStatusVersion: $expectedStatusVersion,
-                expectedScheduleVersion: $expectedScheduleVersion,
-                expectedMutationVersion: $expectedMutationVersion
-            );
-        }
-        if (! $transition->performed) {
-            throw ValidationException::withMessages([
-                'status' => ['This reservation changed while you were updating it. Refresh and try again.'],
-            ]);
-        }
+            $reservation = $transition->reservation;
+            $previousStatus = $transition->previousStatus;
+            if ($previousStatus !== $nextStatus) {
+                if ($nextStatus === Reservation::STATUS_COMPLETED) {
+                    $this->customerPackageService->consumeForReservation($user, $reservation);
+                } elseif ($previousStatus === Reservation::STATUS_COMPLETED) {
+                    $this->customerPackageService->restoreReservationUsage($user, $reservation);
+                }
+            }
+            $this->syncPublicBookingProspectStatus($reservation, $nextStatus);
+
+            return $transition;
+        }, 3);
 
         $reservation = $transition->reservation;
         $previousStatus = $transition->previousStatus;
-        if ($previousStatus !== $nextStatus) {
-            if ($nextStatus === Reservation::STATUS_COMPLETED) {
-                $this->customerPackageService->consumeForReservation($user, $reservation);
-            } elseif ($previousStatus === Reservation::STATUS_COMPLETED) {
-                $this->customerPackageService->restoreReservationUsage($user, $reservation);
-            }
-        }
-        $this->syncPublicBookingProspectStatus($reservation, $nextStatus);
         $reservation->load(['teamMember.user:id,name', 'client:id,first_name,last_name,company_name', 'service:id,name,price']);
         $this->notificationService->handleStatusChanged($reservation, $user, $previousStatus);
 

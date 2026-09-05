@@ -91,7 +91,7 @@ test('ai reservation orchestrator explains selected service naturally and asks c
     $reply = app(AiReservationOrchestrator::class)->handle($conversation, $settings, '2', 'fr');
 
     expect($reply)->toContain('Parfait, vous souhaitez réserver le service Pressure wash.')
-        ->and($reply)->toContain('Pour préparer la demande, j’ai besoin de votre nom complet et d’un numéro de téléphone.')
+        ->and($reply)->toContain('Pour préparer la demande, quel est votre nom complet?')
         ->and($reply)->not->toContain('Je comprends:')
         ->and($reply)->not->toContain('seulement le nom')
         ->and(AiAction::query()->count())->toBe(0)
@@ -120,7 +120,7 @@ test('ai reservation orchestrator uses first name context without pretending onl
     $reply = app(AiReservationOrchestrator::class)->handle($conversation, $settings, '2', 'fr');
 
     expect($reply)->toContain('Parfait, vous souhaitez réserver le service Pressure wash.')
-        ->and($reply)->toContain('J’ai déjà votre prénom, Jules. Pouvez-vous me donner votre nom complet et un numéro de téléphone?')
+        ->and($reply)->toContain('Merci Jules. Quel est votre nom de famille?')
         ->and($reply)->not->toContain('Il me manque seulement le nom');
 });
 

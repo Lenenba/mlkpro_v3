@@ -4,8 +4,11 @@ namespace App\Jobs;
 
 use App\Models\Campaign;
 use App\Models\CampaignChannel;
+use App\Models\CampaignEvent;
 use App\Models\CampaignMessage;
+use App\Models\CampaignProspect;
 use App\Models\CampaignRecipient;
+use App\Models\CampaignRun;
 use App\Services\Campaigns\CampaignProspectingOutreachService;
 use App\Services\Campaigns\CampaignRunProgressService;
 use App\Services\Campaigns\CampaignTrackingService;
@@ -19,12 +22,18 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Throwable;
 
 class SendCampaignRecipientJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 4;
+
+    public int $timeout = 90;
 
     public function __construct(
         public int $campaignRecipientId
@@ -37,6 +46,38 @@ class SendCampaignRecipientJob implements ShouldQueue
         return QueueWorkload::backoff('campaigns_send', [30, 120, 300, 600]);
     }
 
+    public function failed(?Throwable $exception): void
+    {
+        $runId = (int) CampaignRecipient::query()->whereKey($this->campaignRecipientId)->value('campaign_run_id');
+        if ($runId <= 0) {
+            return;
+        }
+
+        DB::transaction(function () use ($runId): void {
+            $recipient = $this->lockedRecipient($runId);
+            if (! $recipient || ! $recipient->run || $recipient->status !== CampaignRecipient::STATUS_QUEUED) {
+                return;
+            }
+
+            $state = data_get($recipient->metadata, 'delivery_attempt.state');
+            if (in_array($state, ['accepted', 'rejected', 'unknown'], true)) {
+                if (in_array($recipient->run->status, [CampaignRun::STATUS_PENDING, CampaignRun::STATUS_RUNNING], true)) {
+                    $recipient->run->forceFill(['status' => CampaignRun::STATUS_FAILED, 'error_message' => 'delivery_tracking_failed'])->save();
+                    $recipient->campaign()->where('status', Campaign::STATUS_RUNNING)->update(['status' => Campaign::STATUS_FAILED]);
+                }
+
+                return;
+            }
+
+            $reason = $state === 'submitting' ? 'provider_result_unknown' : 'delivery_preparation_failed';
+            if ($state === 'submitting') {
+                $this->storeResult($recipient, ['ok' => false, 'delivery_outcome' => 'unknown', 'reason' => $reason]);
+            }
+            app(CampaignTrackingService::class)->markFailed($recipient, $reason);
+            app(CampaignRunProgressService::class)->refresh($recipient->run);
+        }, 3);
+    }
+
     public function handle(
         TemplateRenderer $renderer,
         CampaignTrackingService $trackingService,
@@ -46,30 +87,209 @@ class SendCampaignRecipientJob implements ShouldQueue
         FatigueLimiter $fatigueLimiter,
         CampaignProspectingOutreachService $prospectingOutreachService,
     ): void {
-        $recipient = CampaignRecipient::query()
-            ->with([
-                'run',
-                'campaign' => fn ($query) => $query->with(['channels', 'offers.offer', 'products', 'user']),
-                'customer' => fn ($query) => $query->with(['defaultProperty', 'portalUser']),
-                'message',
-            ])
-            ->find($this->campaignRecipientId);
-
-        if (! $recipient || ! $recipient->campaign || ! $recipient->run) {
+        $runId = (int) CampaignRecipient::query()->whereKey($this->campaignRecipientId)->value('campaign_run_id');
+        if ($runId <= 0) {
             return;
         }
 
-        if ($recipient->status !== CampaignRecipient::STATUS_QUEUED) {
+        $prepared = DB::transaction(function () use ($runId, $renderer, $trackingService, $progressService, $consentService, $prospectingOutreachService): ?array {
+            $recipient = $this->lockedRecipient($runId);
+            if (! $recipient || ! $recipient->campaign || ! $recipient->run) {
+                return null;
+            }
+
+            $attempt = data_get($recipient->metadata, 'delivery_attempt', []);
+            if ($recipient->status !== CampaignRecipient::STATUS_QUEUED) {
+                return $recipient->status === CampaignRecipient::STATUS_FAILED
+                    && ($attempt['state'] ?? null) === 'rejected'
+                    && in_array($recipient->run->status, [CampaignRun::STATUS_PENDING, CampaignRun::STATUS_RUNNING], true)
+                    ? ['dispatch_fallbacks' => true]
+                    : null;
+            }
+
+            if (in_array($attempt['state'] ?? null, ['accepted', 'rejected', 'unknown'], true)) {
+                return ['recipient' => $recipient, 'result' => $attempt['result']];
+            }
+
+            if (($attempt['state'] ?? null) === 'submitting') {
+                $retryAt = Carbon::parse($attempt['started_at'])->addSeconds($this->timeout + 30);
+                if ($retryAt->lessThanOrEqualTo(now())) {
+                    $result = ['ok' => false, 'delivery_outcome' => 'unknown', 'reason' => 'provider_result_unknown'];
+                    $this->storeResult($recipient, $result);
+
+                    return ['recipient' => $recipient, 'result' => $result];
+                }
+
+                return ['retry_after' => max(1, (int) ceil(now()->diffInSeconds($retryAt)))];
+            }
+
+            $message = $this->prepareMessage($recipient, $renderer, $trackingService, $progressService, $prospectingOutreachService);
+            if (! $message) {
+                return null;
+            }
+
+            $reason = $this->deliveryBlockedReason($recipient, $consentService);
+            if ($reason !== null) {
+                $recipient->forceFill([
+                    'status' => CampaignRecipient::STATUS_SKIPPED,
+                    'failure_reason' => $reason,
+                ])->save();
+                $trackingService->recordEvent($recipient, CampaignEvent::EVENT_SKIPPED, ['reason' => $reason]);
+                $progressService->refresh($recipient->run);
+
+                return null;
+            }
+
+            $recipient->forceFill(['metadata' => array_merge($recipient->metadata ?? [], [
+                'delivery_attempt' => [
+                    'id' => (string) Str::uuid(),
+                    'state' => 'submitting',
+                    'started_at' => now()->toIso8601String(),
+                ],
+            ])])->save();
+
+            return ['recipient' => $recipient, 'message' => $message];
+        }, 3);
+
+        if (! $prepared) {
             return;
         }
 
+        if (isset($prepared['retry_after'])) {
+            $this->release($prepared['retry_after']);
+
+            return;
+        }
+
+        if (isset($prepared['dispatch_fallbacks'])) {
+            CampaignRecipient::query()->where('campaign_run_id', $runId)
+                ->where('status', CampaignRecipient::STATUS_QUEUED)
+                ->where('metadata->fallback->parent_recipient_id', $this->campaignRecipientId)
+                ->each(fn (CampaignRecipient $recipient) => self::dispatch($recipient->id)->afterCommit());
+
+            return;
+        }
+
+        if (! isset($prepared['result'])) {
+            try {
+                $result = $providerManager->send($prepared['recipient'], $prepared['message']);
+            } catch (Throwable $exception) {
+                report($exception);
+                $result = ['ok' => false, 'delivery_outcome' => 'unknown', 'reason' => 'provider_result_unknown'];
+            }
+
+            DB::transaction(function () use ($runId, $result): void {
+                $recipient = $this->lockedRecipient($runId);
+                if ($recipient) {
+                    $this->storeResult($recipient, $result);
+                }
+            }, 3);
+        }
+
+        DB::transaction(function () use ($runId, $trackingService, $progressService, $consentService, $fatigueLimiter, $prospectingOutreachService): void {
+            $recipient = $this->lockedRecipient($runId);
+            if (! $recipient || ! $recipient->run || $recipient->status !== CampaignRecipient::STATUS_QUEUED) {
+                return;
+            }
+
+            $result = data_get($recipient->metadata, 'delivery_attempt.result', []);
+            if (! ($result['ok'] ?? false)) {
+                $unknown = ($result['delivery_outcome'] ?? null) === 'unknown';
+                $reason = $unknown ? 'provider_result_unknown' : (string) ($result['reason'] ?? 'provider_error');
+                $fallback = $unknown
+                    ? ['queued' => false, 'reason' => 'provider_result_unknown']
+                    : $this->queueFallbackForFailure($recipient, $reason, $trackingService, $consentService, $fatigueLimiter, $prospectingOutreachService);
+                $trackingService->markFailed($recipient, $reason, [
+                    'provider' => $result['provider'] ?? null,
+                    'delivery_outcome' => $unknown ? 'unknown' : 'rejected',
+                    'fallback' => $fallback,
+                ]);
+            } else {
+                $trackingService->markSent($recipient, $result['provider'] ?? null, $result['provider_message_id'] ?? null);
+                if (strtoupper((string) $recipient->channel) === Campaign::CHANNEL_IN_APP) {
+                    $trackingService->markDelivered($recipient);
+                }
+            }
+
+            $progressService->refresh($recipient->run);
+        }, 3);
+    }
+
+    private function lockedRecipient(int $runId): ?CampaignRecipient
+    {
+        $run = CampaignRun::query()->lockForUpdate()->find($runId);
+        if (! $run) {
+            return null;
+        }
+
+        $recipient = CampaignRecipient::query()->with([
+            'campaign' => fn ($query) => $query->with(['channels', 'offers.offer', 'products', 'user']),
+            'customer' => fn ($query) => $query->with(['defaultProperty', 'portalUser']),
+            'message',
+        ])->lockForUpdate()->find($this->campaignRecipientId);
+
+        return $recipient?->setRelation('run', $run);
+    }
+
+    /**
+     * @param  array<string, mixed>  $result
+     */
+    private function storeResult(CampaignRecipient $recipient, array $result): void
+    {
+        $state = ($result['ok'] ?? false) ? 'accepted' : (($result['delivery_outcome'] ?? null) === 'unknown' ? 'unknown' : 'rejected');
+        $attempt = data_get($recipient->metadata, 'delivery_attempt', []);
+        $attempt['state'] = $state;
+        $attempt['resolved_at'] = now()->toIso8601String();
+        $attempt['result'] = array_intersect_key($result, array_flip(['ok', 'provider', 'provider_message_id', 'reason', 'delivery_outcome', 'status']));
+        $updates = ['metadata' => array_merge($recipient->metadata ?? [], ['delivery_attempt' => $attempt])];
+        if ($state === 'accepted') {
+            $updates['provider'] = $result['provider'] ?? null;
+            $updates['provider_message_id'] = $result['provider_message_id'] ?? null;
+        }
+        $recipient->forceFill($updates)->save();
+    }
+
+    private function deliveryBlockedReason(CampaignRecipient $recipient, ConsentService $consentService): ?string
+    {
+        if (! $recipient->campaign?->user || ! $recipient->run
+            || ! in_array($recipient->run->status, [CampaignRun::STATUS_PENDING, CampaignRun::STATUS_RUNNING], true)
+            || $recipient->campaign->status === Campaign::STATUS_CANCELED) {
+            return 'campaign_not_running';
+        }
+
+        $channel = $recipient->campaign->channels->firstWhere('channel', $recipient->channel);
+        if (! $channel?->is_enabled) {
+            return 'channel_disabled';
+        }
+
+        $prospectId = (int) data_get($recipient->metadata, 'prospect_id', 0);
+        if ($prospectId > 0) {
+            $prospect = CampaignProspect::query()->where('campaign_id', $recipient->campaign_id)
+                ->where('user_id', $recipient->user_id)->find($prospectId);
+            if (! $prospect || $prospect->do_not_contact || $prospect->status === CampaignProspect::STATUS_DO_NOT_CONTACT) {
+                return 'do_not_contact';
+            }
+        }
+
+        $decision = $consentService->canReceive($recipient->campaign->user, $recipient->customer, $recipient->channel, $recipient->destination);
+
+        return ($decision['allowed'] ?? false) ? null : (string) ($decision['reason'] ?? 'consent_denied');
+    }
+
+    private function prepareMessage(
+        CampaignRecipient $recipient,
+        TemplateRenderer $renderer,
+        CampaignTrackingService $trackingService,
+        CampaignRunProgressService $progressService,
+        CampaignProspectingOutreachService $prospectingOutreachService,
+    ): ?CampaignMessage {
         $channelModel = $recipient->campaign->channels
             ->first(fn ($channel) => strtoupper((string) $channel->channel) === strtoupper((string) $recipient->channel));
         if (! $channelModel) {
             $trackingService->markFailed($recipient, 'missing_channel_template');
             $progressService->refresh($recipient->run);
 
-            return;
+            return null;
         }
 
         $resolvedChannel = $this->resolveChannelForRecipient($channelModel, $recipient);
@@ -106,7 +326,7 @@ class SendCampaignRecipientJob implements ShouldQueue
             );
             $progressService->refresh($recipient->run);
 
-            return;
+            return null;
         }
 
         if (strtoupper((string) $recipient->channel) === Campaign::CHANNEL_SMS && ($rendered['sms_too_long'] ?? false)) {
@@ -115,10 +335,10 @@ class SendCampaignRecipientJob implements ShouldQueue
             ]);
             $progressService->refresh($recipient->run);
 
-            return;
+            return null;
         }
 
-        $message = CampaignMessage::query()->updateOrCreate(
+        return CampaignMessage::query()->updateOrCreate(
             ['campaign_recipient_id' => $recipient->id],
             [
                 'campaign_run_id' => $recipient->campaign_run_id,
@@ -154,42 +374,6 @@ class SendCampaignRecipientJob implements ShouldQueue
             ]
         );
 
-        $result = $providerManager->send($recipient, $message);
-        if (! ($result['ok'] ?? false)) {
-            $reason = (string) ($result['reason'] ?? 'provider_error');
-            $fallback = $this->queueFallbackForFailure(
-                $recipient,
-                $reason,
-                $trackingService,
-                $consentService,
-                $fatigueLimiter,
-                $prospectingOutreachService
-            );
-
-            $trackingService->markFailed(
-                $recipient,
-                $reason,
-                [
-                    'provider' => $result['provider'] ?? null,
-                    'fallback' => $fallback,
-                ]
-            );
-            $progressService->refresh($recipient->run);
-
-            return;
-        }
-
-        $trackingService->markSent(
-            $recipient,
-            $result['provider'] ?? null,
-            $result['provider_message_id'] ?? null
-        );
-
-        if (strtoupper((string) $recipient->channel) === Campaign::CHANNEL_IN_APP) {
-            $trackingService->markDelivered($recipient);
-        }
-
-        $progressService->refresh($recipient->run);
     }
 
     /**
@@ -352,6 +536,7 @@ class SendCampaignRecipientJob implements ShouldQueue
                 ->all();
 
             $nextMetadata = $recipientMetadata;
+            unset($nextMetadata['delivery_attempt']);
             $nextMetadata['fallback'] = [
                 'root_recipient_id' => (int) ($fallbackMetadata['root_recipient_id'] ?? $recipient->id),
                 'parent_recipient_id' => $recipient->id,
@@ -388,7 +573,7 @@ class SendCampaignRecipientJob implements ShouldQueue
 
             $trackingService->ensureTokens($fallbackRecipient);
 
-            SendCampaignRecipientJob::dispatch((int) $fallbackRecipient->id);
+            SendCampaignRecipientJob::dispatch((int) $fallbackRecipient->id)->afterCommit();
 
             return [
                 'queued' => true,

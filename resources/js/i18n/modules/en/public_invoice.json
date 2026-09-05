@@ -12,12 +12,15 @@
     "paid": "Paid",
     "balance_due": "Balance due",
     "pay_title": "Pay this invoice",
+    "confirmation_required": "Your declaration remains pending until the company confirms receipt of payment.",
+    "secure_checkout_unavailable": "Secure card checkout is currently unavailable. Please contact the company.",
     "amount_placeholder": "Amount",
     "amount_cannot_exceed": "Amount cannot exceed {amount}.",
     "payment_hint": "You can pay the full balance or choose a partial amount.",
     "reference_placeholder": "Reference",
     "notes_placeholder": "Notes",
     "actions": {
+      "declare_payment": "Declare payment",
       "pay_full_balance": "Pay full balance",
       "pay_invoice": "Pay invoice",
       "pay_with_stripe": "Pay with Stripe"

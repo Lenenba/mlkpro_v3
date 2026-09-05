@@ -18,6 +18,7 @@ use App\Services\TipAllocationService;
 use App\Support\TipSettingsResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class PaymentController extends Controller
 {
@@ -94,40 +95,59 @@ class PaymentController extends Controller
 
         $this->ensureCashSettlementAccess($actor, $payment, $accountId);
 
-        if (strtolower((string) ($payment->method ?? '')) !== 'cash') {
-            return $this->rejectMarkPaid($request, 'Only cash payments can be marked as paid.');
-        }
+        return DB::transaction(function () use ($request, $payment, $actor) {
+            $invoice = $payment->invoice_id
+                ? Invoice::query()->whereKey($payment->invoice_id)->lockForUpdate()->firstOrFail()
+                : null;
+            $payment = Payment::query()->whereKey($payment->id)->lockForUpdate()->firstOrFail();
+            if ($invoice) {
+                $payment->setRelation('invoice', $invoice);
+            }
 
-        if ($payment->status !== Payment::STATUS_PENDING) {
-            return $this->rejectMarkPaid($request, 'This payment is not pending.');
-        }
+            $method = strtolower((string) ($payment->method ?? ''));
+            if ($method !== 'cash' && (! $invoice || ! in_array($method, ['bank_transfer', 'check'], true))) {
+                return $this->rejectMarkPaid($request, 'Only manual payments can be marked as paid.');
+            }
 
-        $payment->forceFill([
-            'status' => Payment::STATUS_PAID,
-            'paid_at' => now(),
-        ])->save();
+            if ($payment->status !== Payment::STATUS_PENDING) {
+                return $this->rejectMarkPaid($request, 'This payment is not pending.');
+            }
 
-        $this->refreshPaymentContextAfterSettlement($payment, $actor);
+            if ($invoice && in_array($invoice->status, ['draft', 'void'], true)) {
+                return $this->rejectMarkPaid($request, __('public.invoice.messages.cannot_pay'));
+            }
 
-        ActivityLog::record($actor, $payment, 'cash_marked_paid', [
-            'payment_id' => $payment->id,
-            'invoice_id' => $payment->invoice_id,
-            'sale_id' => $payment->sale_id,
-            'amount' => (float) $payment->amount,
-            'method' => $payment->method,
-            'status' => $payment->status,
-            'marked_paid_at' => $payment->paid_at?->toIso8601String(),
-            'actor_id' => $actor->id,
-        ], 'Cash payment marked as paid');
+            if ($invoice && (float) $payment->amount > (float) $invoice->balance_due) {
+                return $this->rejectMarkPaid($request, __('public.invoice.messages.amount_exceeds_balance_due'));
+            }
 
-        if ($this->shouldReturnJson($request)) {
-            return response()->json([
-                'message' => 'Cash payment marked as paid.',
-                'payment' => $payment->fresh(),
-            ]);
-        }
+            $payment->forceFill([
+                'status' => Payment::STATUS_PAID,
+                'paid_at' => now(),
+            ])->save();
 
-        return redirect()->back()->with('success', 'Cash payment marked as paid.');
+            $this->refreshPaymentContextAfterSettlement($payment, $actor);
+
+            ActivityLog::record($actor, $payment, $method === 'cash' ? 'cash_marked_paid' : 'payment_marked_paid', [
+                'payment_id' => $payment->id,
+                'invoice_id' => $payment->invoice_id,
+                'sale_id' => $payment->sale_id,
+                'amount' => (float) $payment->amount,
+                'method' => $payment->method,
+                'status' => $payment->status,
+                'marked_paid_at' => $payment->paid_at?->toIso8601String(),
+                'actor_id' => $actor->id,
+            ], 'Manual payment marked as paid');
+
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Payment marked as paid.',
+                    'payment' => $payment->fresh(),
+                ]);
+            }
+
+            return redirect()->back()->with('success', 'Payment marked as paid.');
+        });
     }
 
     public function reverseTip(ReverseTipRequest $request, Payment $payment)

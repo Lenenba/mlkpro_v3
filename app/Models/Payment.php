@@ -50,7 +50,11 @@ class Payment extends Model
         'provider_reference',
         'notes',
         'paid_at',
+        'idempotency_key',
+        'request_fingerprint',
     ];
+
+    protected $hidden = ['idempotency_key', 'request_fingerprint'];
 
     protected $casts = [
         'amount' => 'decimal:2',

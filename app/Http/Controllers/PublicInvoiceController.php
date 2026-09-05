@@ -144,14 +144,18 @@ class PublicInvoiceController extends Controller
         $invoice->load('customer');
         $customer = $invoice->customer;
 
-        [$canPay, $message] = $this->resolvePaymentAvailability($invoice, $customer, $capabilities);
+        [$canPay, $message] = $this->resolvePaymentAvailability($invoice, $customer, $capabilities, allowPaid: true);
         if (! $canPay) {
             return redirect()->back()->withErrors([
                 'status' => $message,
             ]);
         }
 
+        $request->merge([
+            'idempotency_key' => $request->input('idempotency_key', $request->header('Idempotency-Key')),
+        ]);
         $validated = $request->validate([
+            'idempotency_key' => 'nullable|string|max:128',
             'amount' => 'required|numeric|min:0.01',
             'tip_enabled' => 'nullable|boolean',
             'tip_mode' => ['nullable', Rule::in(['none', 'percent', 'fixed'])],
@@ -181,37 +185,32 @@ class PublicInvoiceController extends Controller
             ]);
         }
 
-        $amount = (float) $validated['amount'];
-        if ($amount > (float) $invoice->balance_due) {
-            return redirect()->back()->withErrors([
-                'amount' => __('public.invoice.messages.amount_exceeds_balance_due'),
-            ]);
-        }
         $result = app(CreateInvoicePaymentAction::class)->execute(
             $invoice,
             $validated,
             (string) ($methodDecision['canonical_method'] ?? 'cash'),
             null,
             (int) $invoice->user_id,
-            'Payment recorded by client (public link)'
+            'Payment recorded by client (public link)',
+            clientInitiated: true,
         );
 
         $payment = $result['payment'];
         $invoice = $result['invoice'];
-        $isCashPayment = $result['is_cash_payment'];
+        $isPending = $result['pending_confirmation'];
 
         $owner = User::find($invoice->user_id);
-        if ($owner && $owner->email) {
+        if ($owner && $owner->email && ! $result['replayed']) {
             $customerLabel = $customer?->company_name
                 ?: trim(($customer?->first_name ?? '').' '.($customer?->last_name ?? ''));
             $tipAmount = (float) ($payment->tip_amount ?? 0);
-            $notificationTitle = $isCashPayment
-                ? 'Cash payment pending collection'
+            $notificationTitle = $isPending
+                ? 'Payment pending confirmation'
                 : 'Payment received from client';
-            $notificationMessage = $isCashPayment
+            $notificationMessage = $isPending
                 ? ($customerLabel
-                    ? $customerLabel.' recorded a cash payment pending collection.'
-                    : 'A client recorded a cash payment pending collection.')
+                    ? $customerLabel.' declared a payment pending confirmation by the company.'
+                    : 'A client declared a payment pending confirmation by the company.')
                 : ($customerLabel
                     ? $customerLabel.' recorded a payment.'
                     : 'A client recorded a payment.');
@@ -355,7 +354,7 @@ class PublicInvoiceController extends Controller
         return $capabilities;
     }
 
-    private function resolvePaymentAvailability(Invoice $invoice, $customer = null, array $capabilities = []): array
+    private function resolvePaymentAvailability(Invoice $invoice, $customer = null, array $capabilities = [], bool $allowPaid = false): array
     {
         if (data_get($capabilities, 'invoices.pay') !== true) {
             return [false, __('ui.portal.capability_unavailable')];
@@ -365,7 +364,7 @@ class PublicInvoiceController extends Controller
             return [false, __('public.invoice.messages.cannot_pay')];
         }
 
-        if ($invoice->balance_due <= 0) {
+        if (! $allowPaid && $invoice->balance_due <= 0) {
             return [false, __('public.invoice.messages.already_paid')];
         }
 

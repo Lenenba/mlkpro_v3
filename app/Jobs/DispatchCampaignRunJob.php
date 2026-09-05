@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\Campaign;
 use App\Models\CampaignChannel;
 use App\Models\CampaignRecipient;
 use App\Models\CampaignRun;
@@ -14,6 +15,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 
 class DispatchCampaignRunJob implements ShouldQueue
 {
@@ -37,18 +39,39 @@ class DispatchCampaignRunJob implements ShouldQueue
         CampaignTrackingService $trackingService,
         CampaignRunProgressService $progressService,
     ): void {
+        $run = DB::transaction(fn (): ?CampaignRun => $this->prepareRun($audienceResolver, $trackingService), 3);
+        if (! $run) {
+            return;
+        }
+
+        $run->recipients()
+            ->where('status', CampaignRecipient::STATUS_QUEUED)
+            ->select('id')
+            ->chunkById(200, function ($recipients): void {
+                foreach ($recipients as $recipient) {
+                    SendCampaignRecipientJob::dispatch((int) $recipient->id)->afterCommit();
+                }
+            });
+
+        $progressService->refresh($run);
+    }
+
+    private function prepareRun(AudienceResolver $audienceResolver, CampaignTrackingService $trackingService): ?CampaignRun
+    {
         $run = CampaignRun::query()
             ->with([
                 'campaign' => fn ($query) => $query->with(['channels', 'audience', 'offers.offer', 'products', 'user']),
             ])
+            ->lockForUpdate()
             ->find($this->campaignRunId);
 
         if (! $run || ! $run->campaign) {
-            return;
+            return null;
         }
 
-        if (in_array($run->status, [CampaignRun::STATUS_COMPLETED, CampaignRun::STATUS_CANCELED], true)) {
-            return;
+        if (! in_array($run->status, [CampaignRun::STATUS_PENDING, CampaignRun::STATUS_RUNNING], true)
+            || $run->campaign->status === Campaign::STATUS_CANCELED) {
+            return null;
         }
 
         if ($run->status === CampaignRun::STATUS_PENDING) {
@@ -58,7 +81,7 @@ class DispatchCampaignRunJob implements ShouldQueue
             ])->save();
         }
 
-        if ($run->recipients()->doesntExist()) {
+        if (! data_get($run->audience_snapshot, 'prepared_at')) {
             $resolved = $audienceResolver->resolveForCampaign($run->campaign);
             $holdoutConfig = $this->holdoutConfig($run);
             $channels = $run->campaign->channels
@@ -183,7 +206,7 @@ class DispatchCampaignRunJob implements ShouldQueue
             $run->forceFill([
                 'audience_snapshot' => array_merge(
                     is_array($run->audience_snapshot) ? $run->audience_snapshot : [],
-                    ['holdout_count' => $holdoutCount]
+                    ['holdout_count' => $holdoutCount, 'prepared_at' => now()->toIso8601String()]
                 ),
                 'summary' => array_merge(
                     is_array($run->summary) ? $run->summary : [],
@@ -195,15 +218,7 @@ class DispatchCampaignRunJob implements ShouldQueue
             ])->save();
         }
 
-        $recipientIds = $run->recipients()
-            ->where('status', CampaignRecipient::STATUS_QUEUED)
-            ->pluck('id');
-
-        foreach ($recipientIds as $recipientId) {
-            SendCampaignRecipientJob::dispatch((int) $recipientId);
-        }
-
-        $progressService->refresh($run);
+        return $run;
     }
 
     /**

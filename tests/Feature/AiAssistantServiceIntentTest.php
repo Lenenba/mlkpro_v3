@@ -197,7 +197,7 @@ test('ai assistant keeps an active reservation flow when the next answer is a pl
     expect($conversation->intent)->toBe(AiConversation::INTENT_RESERVATION)
         ->and($conversation->status)->toBe(AiConversation::STATUS_OPEN)
         ->and(data_get($conversation->metadata, 'reservation_draft.contact_name'))->toBe('jules roger')
-        ->and($secondResponse->message)->toContain('Il me manque seulement un numéro de téléphone')
+        ->and($secondResponse->message)->toContain('Il me manque un numéro de téléphone')
         ->and(AiAction::query()->where('conversation_id', $conversation->id)->count())->toBe(0);
 });
 

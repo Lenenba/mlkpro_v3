@@ -23,11 +23,11 @@ class InAppCampaignProvider implements CampaignChannelProvider
             : $recipient->customer()->first();
 
         $notifiable = $customer?->portalUser;
-        if (!$notifiable && !empty($recipient->destination) && is_numeric($recipient->destination)) {
+        if (! $notifiable && ! empty($recipient->destination) && is_numeric($recipient->destination)) {
             $notifiable = User::query()->find((int) $recipient->destination);
         }
 
-        if (!$notifiable) {
+        if (! $notifiable) {
             return [
                 'ok' => false,
                 'provider' => 'in_app',
@@ -50,11 +50,12 @@ class InAppCampaignProvider implements CampaignChannelProvider
             ]
         );
 
-        if (!$queued) {
+        if (! $queued) {
             return [
                 'ok' => false,
                 'provider' => 'in_app',
                 'reason' => 'notification_dispatch_failed',
+                'delivery_outcome' => 'unknown',
             ];
         }
 

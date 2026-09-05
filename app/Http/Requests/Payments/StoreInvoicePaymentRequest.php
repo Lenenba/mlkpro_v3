@@ -8,6 +8,13 @@ use Illuminate\Validation\Rule;
 
 class StoreInvoicePaymentRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'idempotency_key' => $this->input('idempotency_key', $this->header('Idempotency-Key')),
+        ]);
+    }
+
     public function authorize(): bool
     {
         return true;
@@ -16,6 +23,7 @@ class StoreInvoicePaymentRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'idempotency_key' => ['nullable', 'string', 'max:128'],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'tip_enabled' => ['nullable', 'boolean'],
             'tip_mode' => ['nullable', Rule::in(['none', 'percent', 'fixed'])],

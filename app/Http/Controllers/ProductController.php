@@ -395,6 +395,8 @@ class ProductController extends Controller
         $extraImages = FileHandler::handleMultipleImageUpload('products', $request, 'images');
 
         $validated['user_id'] = $accountId;
+        $initialStock = (int) $validated['stock'];
+        $validated['stock'] = 0;
         $product = Product::query()->create($validated);
 
         try {
@@ -419,8 +421,8 @@ class ProductController extends Controller
         $inventoryService = app(InventoryService::class);
         $warehouse = $inventoryService->resolveDefaultWarehouse($accountId);
         $inventoryService->ensureInventory($product, $warehouse);
-        if ($product->stock > 0) {
-            $inventoryService->adjust($product, (int) $product->stock, 'in', [
+        if ($initialStock > 0) {
+            $inventoryService->adjust($product, $initialStock, 'in', [
                 'actor_id' => $request->user()?->id,
                 'warehouse' => $warehouse,
                 'reason' => 'initial',
@@ -462,6 +464,8 @@ class ProductController extends Controller
         $extraImages = FileHandler::handleMultipleImageUpload('products', $request, 'images');
 
         $validated['user_id'] = $accountId;
+        $initialStock = (int) $validated['stock'];
+        $validated['stock'] = 0;
         $product = Product::query()->create($validated);
 
         try {
@@ -486,8 +490,8 @@ class ProductController extends Controller
         $inventoryService = app(InventoryService::class);
         $warehouse = $inventoryService->resolveDefaultWarehouse($accountId);
         $inventoryService->ensureInventory($product, $warehouse);
-        if ($product->stock > 0) {
-            $inventoryService->adjust($product, (int) $product->stock, 'in', [
+        if ($initialStock > 0) {
+            $inventoryService->adjust($product, $initialStock, 'in', [
                 'actor_id' => $request->user()?->id,
                 'warehouse' => $warehouse,
                 'reason' => 'initial',
@@ -1395,10 +1399,12 @@ class ProductController extends Controller
                     $payload['category_id'] = $fallback?->id;
                 }
                 if ($payload['category_id']) {
+                    $initialStock = (int) $payload['stock'];
+                    $payload['stock'] = 0;
                     $product = Product::create($payload);
                     $inventoryService->ensureInventory($product, $warehouse);
-                    if ((int) $payload['stock'] > 0) {
-                        $inventoryService->adjust($product, (int) $payload['stock'], 'in', [
+                    if ($initialStock > 0) {
+                        $inventoryService->adjust($product, $initialStock, 'in', [
                             'actor_id' => $creatorId,
                             'warehouse' => $warehouse,
                             'reason' => 'import',

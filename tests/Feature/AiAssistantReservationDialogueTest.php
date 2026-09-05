@@ -96,6 +96,8 @@ test('reservation dialogue combines a surname without replacing or repeating the
     'explicit correction' => ['mon nom complet est Pierre Martin', 'Pierre Martin'],
     'surname and phone' => ['Roger, 5145550123', 'Jules Roger'],
     'unicode surname' => ['D’Arcy', 'Jules D’Arcy'],
+    'surname with article' => ['Le Roux', 'Jules Le Roux'],
+    'name resembling a confirmation' => ['mon nom complet est Parfait Martin', 'Parfait Martin'],
 ]);
 
 test('reservation dialogue does not use conversational replies as a name', function (string $message) {
@@ -137,7 +139,47 @@ test('reservation dialogue understands hour without minutes while waiting for a 
     expect($reply)->toContain('numéro de téléphone')->not->toContain('trop court');
 });
 
-test('reservation dialogue redisplays the summary after a contact correction before accepting confirmation', function () {
+test('reservation dialogue does not interpret a formatted phone as a different date', function () {
+    $this->travelTo(Carbon::parse('2026-09-04 08:00:00', 'UTC'));
+    [$conversation, $settings] = reservationDialogueContext(['contact_name' => 'Jules Roger', 'preferred_date' => '2026-09-08']);
+
+    app(AiReservationOrchestrator::class)->handle($conversation, $settings, '06-12-34-56-78', 'fr');
+
+    expect(data_get($conversation->fresh()->metadata, 'reservation_draft.preferred_date'))->toBe('2026-09-08');
+    expect($conversation->visitor_phone)->toBe('06-12-34-56-78');
+});
+
+test('reservation dialogue narrows an ambiguous service and maps the displayed choice', function () {
+    [$conversation, $settings, $tenant, $longHair] = reservationDialogueContext();
+    foreach (['Balayage', 'Brushing cheveux courts'] as $name) {
+        $option = $longHair->replicate();
+        $option->name = $name;
+        $option->save();
+    }
+    $conversation->update(['metadata' => ['reservation_draft' => ['preferred_date' => '2026-09-08']]]);
+    $orchestrator = app(AiReservationOrchestrator::class);
+
+    $reply = $orchestrator->handle($conversation, $settings, 'je voudrais un brushing', 'fr');
+
+    expect($reply)->toContain("1. Brushing cheveux courts\n2. Brushing cheveux longs")->not->toContain('Balayage');
+    expect(data_get($conversation->fresh()->metadata, 'reservation_draft.service_id'))->toBeNull();
+
+    $reply = $orchestrator->handle($conversation->fresh(), $settings, '2', 'fr');
+
+    expect($reply)->toContain('Brushing cheveux longs')->toContain('2026-09-08');
+    expect(data_get($conversation->fresh()->metadata, 'reservation_draft.service_id'))->toBe($longHair->id);
+});
+
+test('reservation dialogue understands a unique service fragment', function () {
+    [$conversation, $settings, $tenant, $service] = reservationDialogueContext();
+    $conversation->update(['metadata' => []]);
+
+    app(AiReservationOrchestrator::class)->handle($conversation, $settings, 'cheveux longs', 'fr');
+
+    expect(data_get($conversation->fresh()->metadata, 'reservation_draft.service_id'))->toBe($service->id);
+});
+
+test('reservation dialogue redisplays corrected contact details and releases an obsolete slot', function (string $correction, string $expectedDate) {
     $this->travelTo(Carbon::parse('2026-09-04 08:00:00', 'UTC'));
     $slot = [
         'index' => 1, 'starts_at' => '2026-09-08T09:00:00+00:00', 'ends_at' => '2026-09-08T10:00:00+00:00',
@@ -152,14 +194,18 @@ test('reservation dialogue redisplays the summary after a contact correction bef
 
     $reply = app(AiReservationOrchestrator::class)->handle($conversation, $settings, 'oui, mon nom complet est Pierre Martin', 'fr');
 
-    expect($reply)->toContain('Pierre Martin')->toContain('confirme');
+    expect($reply)->toContain('Pierre Martin')->toContain('Voulez-vous que j’envoie cette demande à l’équipe?');
     expect(data_get($conversation->fresh()->metadata, 'booking_confirmation.awaiting_user_confirmation'))->toBeTrue();
     $this->assertDatabaseCount('ai_actions', 0);
 
-    $reply = app(AiReservationOrchestrator::class)->handle($conversation->fresh(), $settings, 'plutôt mercredi', 'fr');
+    $reply = app(AiReservationOrchestrator::class)->handle($conversation->fresh(), $settings, $correction, 'fr');
 
-    expect($reply)->toContain('2026-09-09')->not->toContain('dès que vous me confirmez');
+    expect($reply)->toContain($expectedDate)->not->toContain('dès que vous me confirmez');
     expect(data_get($conversation->fresh()->metadata, 'booking_confirmation.awaiting_user_confirmation'))->toBeFalse();
     expect(data_get($conversation->fresh()->metadata, 'reservation_draft.selected_slot'))->toBeNull();
     $this->assertDatabaseCount('ai_actions', 0);
-});
+})->with([
+    'different day' => ['plutôt mercredi', '2026-09-09'],
+    'different part of day' => ['plutôt le soir', '2026-09-08'],
+    'different hour' => ['plutôt à 15h', '2026-09-08'],
+]);

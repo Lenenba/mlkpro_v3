@@ -3152,6 +3152,7 @@ test('send job queues fallback recipient when primary provider fails', function 
         'phone' => '+1514555'.random_int(1000, 9999),
     ]);
     $offer = marketingProduct($owner);
+    app(ConsentService::class)->grant($owner, $customer, Campaign::CHANNEL_SMS);
 
     CustomerConsent::query()->create([
         'user_id' => $owner->id,

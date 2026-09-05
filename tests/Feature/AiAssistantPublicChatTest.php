@@ -139,8 +139,8 @@ test('public reservation chat uses booking context instead of falling back to hu
     $assistantReply = (string) $messageResponse->json('messages.1.content');
 
     expect($assistantReply)->toContain('Bonjour Jules, ravi de vous aider.')
-        ->and($assistantReply)->toContain('nom complet')
-        ->and($assistantReply)->toContain('numéro de téléphone')
+        ->and($assistantReply)->toContain('nom de famille')
+        ->and($assistantReply)->not->toContain('numéro de téléphone')
         ->and($assistantReply)->not->toContain('transmettre');
 
     $shortPhoneResponse = $this->postJson(route('public.ai-assistant.conversations.messages.store', [
