@@ -12,6 +12,7 @@ use App\Models\SocialPost;
 use App\Models\SocialPostTarget;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Notifications\SocialPublicationCompletedNotification;
 use App\Services\Social\Contracts\PlatformPublisherInterface;
 use App\Services\Social\Providers\LinkedInPagePlatformPublisher;
 use App\Services\Social\SocialDeliveryOutboxService;
@@ -30,6 +31,7 @@ use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -339,6 +341,7 @@ beforeEach(function () {
 });
 
 it('queues immediate pulse publication and marks all targets as published after workers run', function () {
+    Notification::fake();
     Queue::fake();
     pulsePublishingBindRegistry();
 
@@ -392,6 +395,11 @@ it('queues immediate pulse publication and marks all targets as published after 
     foreach ($targets as $target) {
         pulsePublishingProcessTargetOutbox($target);
     }
+
+    Notification::assertSentToTimes($owner, SocialPublicationCompletedNotification::class, 1);
+    Notification::assertSentTo($owner, SocialPublicationCompletedNotification::class,
+        fn ($notification): bool => $notification->snapshot['outcome'] === 'success'
+            && $notification->snapshot['counts']['published'] === 2);
 
     $freshPost = SocialPost::query()->with('targets.socialAccountConnection')->findOrFail($draft->id);
 
@@ -1550,6 +1558,7 @@ it('refuses to publish a target through a connection owned by another pulse tena
 });
 
 it('rejects a cross-tenant target before dispatch and leaves the foreign connection untouched', function () {
+    Notification::fake();
     $owner = pulsePublishingOwner();
     $foreignOwner = pulsePublishingOwner();
     $foreignConnection = pulsePublishingConnection(
@@ -1564,6 +1573,7 @@ it('rejects a cross-tenant target before dispatch and leaves the foreign connect
             'social_account_connection_id' => $foreignConnection->id,
         ])->save();
     });
+    $foreignConnection->update(['label' => 'Private foreign account']);
     $foreignConnectionBeforeQueue = $foreignConnection->fresh()->getAttributes();
     Queue::fake();
 
@@ -1574,6 +1584,14 @@ it('rejects a cross-tenant target before dispatch and leaves the foreign connect
         ->assertJsonPath('draft.targets.0.status', SocialPostTarget::STATUS_FAILED);
 
     Queue::assertNothingPushed();
+
+    Notification::assertSentTo($owner, SocialPublicationCompletedNotification::class, function ($notification) use ($owner) {
+        expect($notification->snapshot['outcome'])->toBe('failed');
+        expect($notification->toArray($owner)['message'])->not->toContain('Private foreign account');
+
+        return true;
+    });
+    Notification::assertNotSentTo($foreignOwner, SocialPublicationCompletedNotification::class);
 
     $failedTarget = $target->fresh();
     $failedPost = $draft->fresh();

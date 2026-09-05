@@ -659,7 +659,7 @@ class ClientReservationController extends Controller
             abort(404);
         }
 
-        if ($reservation->status !== Reservation::STATUS_COMPLETED || ! $reservation->ends_at || $reservation->ends_at->isFuture()) {
+        if ($reservation->status !== Reservation::STATUS_COMPLETED) {
             throw ValidationException::withMessages([
                 'reservation' => ['A review can only be submitted after the reservation is completed.'],
             ]);

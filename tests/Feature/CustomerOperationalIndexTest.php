@@ -186,7 +186,7 @@ class CustomerOperationalIndexTest extends TestCase
         $wellnessWithoutReservations = $this->owner('wellness', ['reservations' => false]);
         $restaurant = $this->owner('restaurant', ['reservations' => true]);
         $genericService = $this->owner('service_general', ['reservations' => true]);
-        $productSalon = $this->owner('salon', ['reservations' => true]);
+        $productSalon = $this->owner('salon', ['reservations' => true, 'sales' => true]);
         $productSalon->forceFill(['company_type' => 'products'])->saveQuietly();
 
         $this->index($salon)->assertJsonPath('customerIndexContext.profile', 'appointment');

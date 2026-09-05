@@ -224,6 +224,7 @@ test('studio naya commerce posts approved documents and a coherent net refund to
         ->and(round((float) $invoice->items->sum('total'), 2))->toBe(round((float) $invoice->subtotal, 2))
         ->and($settledInvoiceAmount)->toBe(round((float) $invoice->total, 2))
         ->and($invoice->status)->toBe('paid')
+        ->and($invoice->balance_due)->toBe(0.0)
         ->and(round($tenantGrossBeforeRefund - $tenantNetRevenue, 2))->toBe(round((float) $refund->amount, 2));
 
     expect(AccountingEntryBatch::query()

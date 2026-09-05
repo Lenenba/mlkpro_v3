@@ -2,12 +2,14 @@
 
 use App\Data\Social\ReadSocialDeliveryStatusData;
 use App\Data\Social\SocialDeliveryStatusResultData;
+use App\Jobs\ProcessSocialDeliveryOutboxJob;
 use App\Models\SocialAccountConnection;
 use App\Models\SocialDeliveryOutbox;
 use App\Models\SocialPost;
 use App\Models\SocialPostRevision;
 use App\Models\SocialPostTarget;
 use App\Models\User;
+use App\Notifications\SocialPublicationCompletedNotification;
 use App\Services\Social\Contracts\SocialDeliveryStatusGatewayInterface;
 use App\Services\Social\SocialConnectionDeliveryMutex;
 use App\Services\Social\SocialDeliveryAggregateService;
@@ -22,6 +24,7 @@ use App\Services\Social\SocialReconciliationCadence;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Validation\ValidationException;
 use Tests\Support\FakeSocialDeliveryStatusGateway;
@@ -136,6 +139,7 @@ function pulseReconciliationOutbox(
 }
 
 it('claims and reads a target only inside its tenant boundary', function () {
+    Notification::fake();
     $this->travelTo(Carbon::parse('2026-08-28 12:00:00', 'UTC'));
     $fixture = pulseReconciliationFixture();
     $otherOwner = User::factory()->create();
@@ -170,6 +174,11 @@ it('claims and reads a target only inside its tenant boundary', function () {
         ->and($fake->reads)->toHaveCount(1)
         ->and($fake->reads[0]->tenantId)->toBe($fixture['owner']->id)
         ->and($fake->reads[0]->targetId)->toBe($fixture['target']->id);
+
+    Notification::assertSentToTimes($fixture['owner'], SocialPublicationCompletedNotification::class, 1);
+    Notification::assertSentTo($fixture['owner'], SocialPublicationCompletedNotification::class,
+        fn ($notification): bool => $notification->snapshot['outcome'] === 'success');
+    Notification::assertNotSentTo($otherOwner, SocialPublicationCompletedNotification::class);
 });
 
 it('fails before reading when a connection or target snapshot crosses tenants', function () {
@@ -1157,7 +1166,7 @@ it('keeps a certain remote error active and forbids remapping the same target', 
             $fixture['post']->fresh(),
         ))->toThrow(
             ValidationException::class,
-            'Duplicate the post or create a new delivery instead of remapping this target',
+            'This Pulse publication has no failed target that can be retried safely.',
         )
         ->and(SocialDeliveryOutbox::query()
             ->where('supersedes_outbox_id', $outbox->id)
@@ -1165,6 +1174,8 @@ it('keeps a certain remote error active and forbids remapping the same target', 
         ->and($health->summaryForTenant(
             $fixture['owner']->id,
         )['active_status_counts'][SocialDeliveryOutbox::STATUS_DEAD])->toBe(1);
+
+    Queue::assertNotPushed(ProcessSocialDeliveryOutboxJob::class);
 });
 
 it('never retries a resolved dead outbox', function (string $resolution, int $activeDead) {
@@ -1202,7 +1213,7 @@ it('never retries a resolved dead outbox', function (string $resolution, int $ac
             $fixture['post']->fresh(),
         ))->toThrow(
             ValidationException::class,
-            'active, completed, or ambiguous outbox operation',
+            'This Pulse publication has no failed target that can be retried safely.',
         )
         ->and(SocialDeliveryOutbox::query()
             ->where('supersedes_outbox_id', $outbox->id)
@@ -1210,12 +1221,15 @@ it('never retries a resolved dead outbox', function (string $resolution, int $ac
         ->and(app(SocialDeliveryHealthService::class)
             ->summaryForTenant($fixture['owner']->id)['active_status_counts'][SocialDeliveryOutbox::STATUS_DEAD])
         ->toBe($activeDead);
+
+    Queue::assertNotPushed(ProcessSocialDeliveryOutboxJob::class);
 })->with([
     'remote sent' => [SocialDeliveryOutbox::RECONCILIATION_RESOLUTION_SENT, 0],
     'remote error on historical dead' => [SocialDeliveryOutbox::RECONCILIATION_RESOLUTION_ERROR, 1],
 ]);
 
 it('fails closed when a dead outbox has a corrupted source-only resolution', function () {
+    Queue::fake();
     $fixture = pulseReconciliationFixture();
     $outbox = pulseReconciliationOutbox($fixture);
     $outbox->forceFill([
@@ -1247,11 +1261,13 @@ it('fails closed when a dead outbox has a corrupted source-only resolution', fun
             $fixture['post']->fresh(),
         ))->toThrow(
             ValidationException::class,
-            'active, completed, or ambiguous outbox operation',
+            'This Pulse publication has no failed target that can be retried safely.',
         )
         ->and(SocialDeliveryOutbox::query()
             ->where('supersedes_outbox_id', $outbox->id)
             ->count())->toBe(0);
+
+    Queue::assertNotPushed(ProcessSocialDeliveryOutboxJob::class);
 });
 
 it('rearms an exact preflight outbox before a failed aggregate refresh can lose repair', function () {

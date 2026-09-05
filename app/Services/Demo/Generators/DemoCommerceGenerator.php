@@ -477,6 +477,8 @@ final class DemoCommerceGenerator
             );
             /** @var Payment $netPayment */
             $netPayment = $netPaymentResult['payment'];
+            /** @var Invoice $invoice */
+            $invoice = $netPaymentResult['invoice'];
             if ($netPayment->status === Payment::STATUS_PENDING) {
                 $netPayment->forceFill([
                     'status' => Payment::STATUS_COMPLETED,

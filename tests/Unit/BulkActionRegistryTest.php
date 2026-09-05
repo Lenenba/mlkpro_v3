@@ -8,6 +8,7 @@ uses(TestCase::class);
 test('customer bulk action registry exposes menu actions and metadata', function () {
     $definition = app(BulkActionRegistry::class)->definitionFor('customer', [
         'can_edit' => true,
+        'can_delete' => true,
         'contact_enabled' => true,
         'campaign_bridge_enabled' => true,
     ]);
@@ -43,6 +44,7 @@ test('customer bulk action registry exposes menu actions and metadata', function
 test('customer bulk action registry hides contact action when campaigns feature is unavailable', function () {
     $definition = app(BulkActionRegistry::class)->definitionFor('customer', [
         'can_edit' => true,
+        'can_delete' => true,
         'contact_enabled' => false,
         'campaign_bridge_enabled' => false,
     ]);
@@ -59,6 +61,8 @@ test('customer bulk action registry hides contact action when campaigns feature 
 test('product bulk action registry exposes submit actions and delete confirmation', function () {
     $definition = app(BulkActionRegistry::class)->definitionFor('product', [
         'can_edit' => true,
+        'can_delete' => true,
+        'can_request_supplier' => true,
     ]);
 
     expect($definition)
@@ -85,11 +89,13 @@ test('product bulk action registry exposes submit actions and delete confirmatio
 test('product bulk action registry only exposes create order shortcut for product companies', function () {
     $servicesDefinition = app(BulkActionRegistry::class)->definitionFor('product', [
         'can_edit' => true,
+        'can_create_order' => true,
         'company_type' => 'services',
     ]);
 
     $productsDefinition = app(BulkActionRegistry::class)->definitionFor('product', [
         'can_edit' => true,
+        'can_create_order' => true,
         'company_type' => 'products',
     ]);
 
@@ -102,6 +108,18 @@ test('product bulk action registry only exposes create order shortcut for produc
             'label_key' => 'products.bulk.create_order',
         ]);
 });
+
+test('editing alone does not grant destructive or purchasing bulk actions', function (string $module, array $expectedActions) {
+    $definition = app(BulkActionRegistry::class)->definitionFor($module, [
+        'can_edit' => true,
+        'company_type' => 'products',
+    ]);
+
+    expect(array_column($definition['actions'], 'key'))->toBe($expectedActions);
+})->with([
+    'customer' => ['customer', ['portal_enable', 'portal_disable', 'archive', 'restore']],
+    'product' => ['product', ['archive', 'restore']],
+]);
 
 test('request bulk action registry exposes status and assignee controls', function () {
     $definition = app(BulkActionRegistry::class)->definitionFor('request', [

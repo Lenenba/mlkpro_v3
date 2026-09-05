@@ -256,7 +256,7 @@ const typeBadgeClass = (type) => {
                                 <h2 class="text-base font-semibold text-stone-900 dark:text-neutral-100">
                                     {{ notification.title }}
                                 </h2>
-                                <p class="text-sm text-stone-600 dark:text-neutral-300">
+                                <p class="whitespace-pre-line break-words text-sm text-stone-600 dark:text-neutral-300">
                                     {{ notification.message || $t('notifications_center.meta.no_destination') }}
                                 </p>
                             </div>

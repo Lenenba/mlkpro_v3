@@ -162,11 +162,11 @@ onMounted(() => {
                                 class="mt-1 h-2 w-2 rounded-full"
                                 :class="notification.read_at ? 'bg-stone-300 dark:bg-neutral-600' : 'bg-green-500'"
                             ></span>
-                            <div class="flex-1">
+                            <div class="min-w-0 flex-1">
                                 <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                                     {{ notification.title }}
                                 </div>
-                                <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                <div class="whitespace-pre-line break-words text-xs text-stone-500 dark:text-neutral-400">
                                     {{ notification.message }}
                                 </div>
                                 <div class="mt-1 text-[10px] text-stone-400 dark:text-neutral-500">

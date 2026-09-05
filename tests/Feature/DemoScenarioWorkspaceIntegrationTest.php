@@ -391,6 +391,7 @@ it('keeps the live tenant intact when a queued shadow reset fails', function () 
 });
 
 it('lets Alicia open Presence after Studio Naya provisioning', function () {
+    $this->travelTo(CarbonImmutable::parse('2026-08-20 10:00:00', 'America/Toronto'));
     $admin = demoScenarioIntegrationAdmin();
     $workspace = app(DemoWorkspaceProvisioner::class)->create(
         demoScenarioIntegrationPayload(),
@@ -423,6 +424,7 @@ it('lets Alicia open Presence after Studio Naya provisioning', function () {
 });
 
 it('provisions and reproducibly resets the real small Studio Naya scenario', function () {
+    $this->travelTo(CarbonImmutable::parse('2026-08-20 10:00:00', 'America/Toronto'));
     $admin = demoScenarioIntegrationAdmin();
     $unrelatedTenant = User::query()->create([
         'name' => 'Unrelated Real Tenant',
